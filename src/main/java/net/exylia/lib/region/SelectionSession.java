@@ -2,6 +2,7 @@ package net.exylia.lib.region;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletionStage;
@@ -38,18 +39,43 @@ public interface SelectionSession extends AutoCloseable {
     @NotNull SelectionState state();
 
     /**
-     * Returns the exact left-clicked corner when selected.
+     * Returns the exact left-clicked corner when selected: a box's first corner, or the centre
+     * of a circle or a sphere.
      *
      * @return first corner
      */
     @NotNull Optional<BlockPosition> first();
 
     /**
-     * Returns the exact right-clicked corner when selected.
+     * Returns the exact right-clicked corner when selected: a box's second corner, or the block
+     * on the edge of a circle or a sphere.
      *
      * @return second corner
      */
     @NotNull Optional<BlockPosition> second();
+
+    /**
+     * What the player is picking right now.
+     *
+     * @return the mode, one of the options' {@link SelectionOptions#modes()}
+     * @since 1.312.0
+     */
+    default @NotNull SelectionMode mode() {
+        return SelectionMode.CUBOID;
+    }
+
+    /**
+     * The points of an outline being picked, in order.
+     *
+     * <p>Empty unless the mode {@link SelectionMode#isOutline() is an outline}; a box, a circle
+     * and a sphere keep theirs in {@link #first()} and {@link #second()}.
+     *
+     * @return the points so far
+     * @since 1.312.0
+     */
+    default @NotNull List<BlockPosition> points() {
+        return List.of();
+    }
 
     /**
      * Returns a read-only asynchronous view of the eventual result.
@@ -59,7 +85,7 @@ public interface SelectionSession extends AutoCloseable {
     @NotNull CompletionStage<SelectionResult> result();
 
     /**
-     * Accepts the two corners this session is holding.
+     * Accepts the shape this session is holding.
      *
      * <p>What a shift + left-click does, exposed so a plugin driving its own
      * screen can accept a selection from a button. Does nothing unless the

@@ -13,14 +13,26 @@ import java.util.Objects;
  * <pre>{@code
  * SelectionOptions arena = SelectionOptions.builder()
  *         .selectorName("{primary}&lARENA SELECTOR")
- *         .previewParticle("FLAME")
  *         .build();
  *
  * // a claim: two columns, a hoe, and an item that only exists on the client
  * SelectionOptions claim = SelectionOptions.builder(SelectionHeight.FULL)
  *         .virtualSelector(true)
  *         .build();
+ *
+ * // a mine that may be a box, a round pit or a ball
+ * SelectionOptions mine = SelectionOptions.builder()
+ *         .modes(SelectionMode.CUBOID, SelectionMode.CIRCLE, SelectionMode.SPHERE)
+ *         .build();
  * }</pre>
+ *
+ * <h2>What is drawn while the player picks</h2>
+ * The outline is made of {@link OutlineStyle#LINES real lines} by default: thin glowing bars
+ * that show the shape as it stands, a fainter one from the last click to the block the player
+ * is looking at, and a marker on every clicked point. At {@link SelectionHeight#FULL full
+ * height} the outline follows the player's own height, with a short post at each corner, since
+ * the column has no top or bottom worth drawing. {@link Builder#previewParticle(String)} draws
+ * particles instead, and is what a server without PacketEvents falls back to.
  *
  * <h2>The defaults are the ExyliaCommons selector, not WorldEdit's</h2>
  * A golden axe, handed to the player, drawing the box it is about to accept,
@@ -49,13 +61,21 @@ public final class SelectionOptions {
      */
     public static final Material FULL_HEIGHT_SELECTOR = Material.GOLDEN_HOE;
 
-    /** The particle an outline is drawn with while a selection is open. */
+    /**
+     * The particle an outline is drawn with while a selection is open, when it is drawn with
+     * particles: chosen, or because the server cannot send lines.
+     */
     public static final String DEFAULT_PREVIEW_PARTICLE = "END_ROD";
 
     /** How far apart the outline's points are, in blocks. */
     public static final double DEFAULT_PREVIEW_SPACING = 1.0;
 
-    /** Ticks between outline frames: four a second, cheap and not strobing. */
+    /**
+     * Ticks between particle frames: four a second, cheap and not strobing.
+     *
+     * <p>Lines are not redrawn on a period: they stay on screen and move only when the shape
+     * does.
+     */
     public static final long DEFAULT_PREVIEW_PERIOD_TICKS = 5L;
 
     /** What the handed-out selector is called. */
@@ -98,6 +118,8 @@ public final class SelectionOptions {
     private final boolean giveSelector;
     private final boolean requireConfirmation;
     private final boolean feedback;
+    private final boolean preview;
+    private final OutlineStyle previewStyle;
     private final String previewParticle;
     private final double previewSpacing;
     private final long previewPeriodTicks;
@@ -105,6 +127,7 @@ public final class SelectionOptions {
     private final List<String> selectorLore;
     private final SelectionHeight height;
     private final boolean virtualSelector;
+    private final List<SelectionMode> modes;
 
     private SelectionOptions(Builder builder) {
         this.selectorMaterial = builder.selectorMaterial;
@@ -113,6 +136,8 @@ public final class SelectionOptions {
         this.giveSelector = builder.giveSelector;
         this.requireConfirmation = builder.requireConfirmation;
         this.feedback = builder.feedback;
+        this.preview = builder.preview;
+        this.previewStyle = builder.previewStyle;
         this.previewParticle = builder.previewParticle;
         this.previewSpacing = builder.previewSpacing;
         this.previewPeriodTicks = builder.previewPeriodTicks;
@@ -120,6 +145,7 @@ public final class SelectionOptions {
         this.selectorLore = builder.selectorLore;
         this.height = builder.height;
         this.virtualSelector = builder.virtualSelector;
+        this.modes = builder.modes;
     }
 
     /** The default options: a golden axe, given, previewed and confirmed. */
@@ -187,6 +213,8 @@ public final class SelectionOptions {
         builder.giveSelector = giveSelector;
         builder.requireConfirmation = requireConfirmation;
         builder.feedback = feedback;
+        builder.preview = preview;
+        builder.previewStyle = previewStyle;
         builder.previewParticle = previewParticle;
         builder.previewSpacing = previewSpacing;
         builder.previewPeriodTicks = previewPeriodTicks;
@@ -194,6 +222,7 @@ public final class SelectionOptions {
         builder.selectorLore = selectorLore;
         builder.height = height;
         builder.virtualSelector = virtualSelector;
+        builder.modes = modes;
         return builder;
     }
 
@@ -252,17 +281,39 @@ public final class SelectionOptions {
     }
 
     /**
-     * The particle the live outline is drawn with, or {@code null} for none.
+     * The particle the live outline is drawn with, or {@code null} when nothing is drawn.
+     *
+     * <p>With {@link OutlineStyle#LINES lines} this is only the fallback for a server that cannot
+     * send them.
      *
      * @since 1.56.0
      */
     public @Nullable String previewParticle() {
-        return previewParticle;
+        return preview ? previewParticle : null;
     }
 
     /** Whether an outline is drawn at all. */
     public boolean hasPreview() {
-        return previewParticle != null;
+        return preview;
+    }
+
+    /**
+     * What the live outline is drawn with.
+     *
+     * @since 1.312.0
+     */
+    public @NotNull OutlineStyle previewStyle() {
+        return previewStyle;
+    }
+
+    /**
+     * What the player may pick, in the order shift + right-click goes through them; the first is
+     * where every selection starts.
+     *
+     * @since 1.312.0
+     */
+    public @NotNull List<SelectionMode> modes() {
+        return modes;
     }
 
     /**
@@ -343,29 +394,33 @@ public final class SelectionOptions {
                 && giveSelector == options.giveSelector
                 && requireConfirmation == options.requireConfirmation
                 && feedback == options.feedback
+                && preview == options.preview
+                && previewStyle == options.previewStyle
                 && Objects.equals(previewParticle, options.previewParticle)
                 && Double.compare(previewSpacing, options.previewSpacing) == 0
                 && previewPeriodTicks == options.previewPeriodTicks
                 && selectorName.equals(options.selectorName)
                 && selectorLore.equals(options.selectorLore)
                 && height == options.height
-                && virtualSelector == options.virtualSelector;
+                && virtualSelector == options.virtualSelector
+                && modes.equals(options.modes);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(selectorMaterial, cancelInteractions, requireSameWorld, giveSelector,
-                requireConfirmation, feedback, previewParticle, previewSpacing, previewPeriodTicks,
-                selectorName, selectorLore, height, virtualSelector);
+                requireConfirmation, feedback, preview, previewStyle, previewParticle, previewSpacing,
+                previewPeriodTicks, selectorName, selectorLore, height, virtualSelector, modes);
     }
 
     @Override
     public String toString() {
         return "SelectionOptions[" + selectorMaterial
                 + ", " + height
+                + ", " + modes
                 + (giveSelector ? (virtualSelector ? ", virtual" : ", given") : "")
                 + (requireConfirmation ? ", confirmed" : "")
-                + (hasPreview() ? ", " + previewParticle : "")
+                + (preview ? ", " + (previewStyle == OutlineStyle.LINES ? "lines" : previewParticle) : "")
                 + ']';
     }
 
@@ -378,6 +433,8 @@ public final class SelectionOptions {
         private boolean giveSelector = true;
         private boolean requireConfirmation = true;
         private boolean feedback = true;
+        private boolean preview = true;
+        private OutlineStyle previewStyle = OutlineStyle.LINES;
         private String previewParticle = DEFAULT_PREVIEW_PARTICLE;
         private double previewSpacing = DEFAULT_PREVIEW_SPACING;
         private long previewPeriodTicks = DEFAULT_PREVIEW_PERIOD_TICKS;
@@ -385,6 +442,7 @@ public final class SelectionOptions {
         private List<String> selectorLore = DEFAULT_SELECTOR_LORE;
         private SelectionHeight height = SelectionHeight.NORMAL;
         private boolean virtualSelector;
+        private List<SelectionMode> modes = List.of(SelectionMode.CUBOID);
 
         private Builder() {
         }
@@ -461,16 +519,72 @@ public final class SelectionOptions {
         }
 
         /**
-         * The particle the live outline is drawn with.
+         * Draws the live outline with a particle instead of lines, or draws nothing.
          *
          * @param previewParticle a particle name, or {@code null} to draw nothing
          * @return this builder
          */
         public @NotNull Builder previewParticle(@Nullable String previewParticle) {
-            if (previewParticle != null && previewParticle.isBlank()) {
+            if (previewParticle == null) {
+                this.preview = false;
+                return this;
+            }
+            if (previewParticle.isBlank()) {
                 throw new IllegalArgumentException("previewParticle must not be blank");
             }
+            this.preview = true;
+            this.previewStyle = OutlineStyle.PARTICLES;
             this.previewParticle = previewParticle;
+            return this;
+        }
+
+        /**
+         * Draws the live outline with lines, the default.
+         *
+         * <p>Turns a preview switched off with {@code previewParticle(null)} back on. A particle
+         * chosen before stays as the fallback for a server that cannot send lines.
+         *
+         * @return this builder
+         * @since 1.312.0
+         */
+        public @NotNull Builder previewLines() {
+            this.preview = true;
+            this.previewStyle = OutlineStyle.LINES;
+            return this;
+        }
+
+        /**
+         * What the player may pick.
+         *
+         * <p>The first is where every selection starts; with more than one, shift + right-click
+         * moves to the next. A {@link SelectionMode#SPHERE sphere} cannot be offered at
+         * {@link SelectionHeight#FULL full height}, which {@link #build()} refuses.
+         *
+         * @param modes one or more modes, without repeats
+         * @return this builder
+         * @since 1.312.0
+         */
+        public @NotNull Builder modes(@NotNull SelectionMode @NotNull ... modes) {
+            return modes(List.of(modes));
+        }
+
+        /**
+         * What the player may pick, as a list.
+         *
+         * @param modes one or more modes, without repeats
+         * @return this builder
+         * @see #modes(SelectionMode...)
+         * @since 1.312.0
+         */
+        public @NotNull Builder modes(@NotNull List<SelectionMode> modes) {
+            List<SelectionMode> copy = List.copyOf(Objects.requireNonNull(modes, "modes"));
+            if (copy.isEmpty()) {
+                throw new IllegalArgumentException("A selection needs at least one mode");
+            }
+            if (copy.stream().distinct().count() != copy.size()) {
+                throw new IllegalArgumentException("Selection modes must not repeat");
+            }
+            this.modes = copy;
             return this;
         }
 
@@ -553,8 +667,15 @@ public final class SelectionOptions {
             return this;
         }
 
-        /** The finished options. */
+        /**
+         * The finished options.
+         *
+         * @throws IllegalArgumentException when a sphere is offered at full height
+         */
         public @NotNull SelectionOptions build() {
+            if (height == SelectionHeight.FULL && modes.contains(SelectionMode.SPHERE)) {
+                throw new IllegalArgumentException("A sphere has its own height and cannot be selected at full height");
+            }
             return new SelectionOptions(this);
         }
 

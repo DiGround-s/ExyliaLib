@@ -120,4 +120,30 @@ class SelectionModelTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new SelectionResult(secondWorld, first, second));
     }
+
+    @Test
+    @DisplayName("Selections draw lines, offer a box, and refuse a sphere at full height")
+    void modesAndPreviewStyle() {
+        SelectionOptions defaults = SelectionOptions.defaults();
+        assertEquals(java.util.List.of(SelectionMode.CUBOID), defaults.modes());
+        assertEquals(OutlineStyle.LINES, defaults.previewStyle());
+        assertTrue(defaults.hasPreview());
+
+        SelectionOptions particles = SelectionOptions.builder().previewParticle("FLAME").build();
+        assertEquals(OutlineStyle.PARTICLES, particles.previewStyle());
+        SelectionOptions none = SelectionOptions.builder().previewParticle(null).build();
+        assertFalse(none.hasPreview());
+        assertEquals(null, none.previewParticle());
+        assertTrue(none.toBuilder().previewLines().build().hasPreview());
+
+        assertThrows(IllegalArgumentException.class, () -> SelectionOptions.builder().modes());
+        assertThrows(IllegalArgumentException.class,
+                () -> SelectionOptions.builder().modes(SelectionMode.CUBOID, SelectionMode.CUBOID));
+        assertThrows(IllegalArgumentException.class, () -> SelectionOptions.builder(SelectionHeight.FULL)
+                .modes(SelectionMode.CUBOID, SelectionMode.SPHERE).build());
+
+        SelectionOptions offered = SelectionOptions.builder()
+                .modes(SelectionMode.CIRCLE, SelectionMode.POLYGON).build();
+        assertEquals(offered, offered.toBuilder().build());
+    }
 }

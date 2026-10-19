@@ -235,7 +235,35 @@ public final class RegionCodec {
             case Cylinder cylinder -> new ShapeEncoding(RegionData.ShapeType.CYLINDER,
                     new double[] {cylinder.centerX(), cylinder.centerZ(), cylinder.radius(),
                             cylinder.minY(), cylinder.maxY()});
+            case Polygon polygon -> new ShapeEncoding(RegionData.ShapeType.POLYGON, encodePolygon(polygon));
         };
+    }
+
+    /** {@code [bounded, minY, maxY, x0, z0, x1, z1, ...]}, as {@link RegionData} documents it. */
+    private static double[] encodePolygon(Polygon polygon) {
+        List<Polygon.Vertex> vertices = polygon.vertices();
+        double[] coordinates = new double[3 + vertices.size() * 2];
+        VerticalBounds vertical = polygon.vertical();
+        if (vertical != null) {
+            coordinates[0] = 1.0;
+            coordinates[1] = vertical.minY();
+            coordinates[2] = vertical.maxY();
+        }
+        for (int index = 0; index < vertices.size(); index++) {
+            coordinates[3 + index * 2] = vertices.get(index).x();
+            coordinates[4 + index * 2] = vertices.get(index).z();
+        }
+        return coordinates;
+    }
+
+    private static Polygon decodePolygon(double[] coordinates) {
+        List<Polygon.Vertex> vertices = new ArrayList<>((coordinates.length - 3) / 2);
+        for (int offset = 3; offset < coordinates.length; offset += 2) {
+            vertices.add(new Polygon.Vertex(coordinates[offset], coordinates[offset + 1]));
+        }
+        return coordinates[0] != 0.0
+                ? Polygon.prism(vertices, coordinates[1], coordinates[2])
+                : Polygon.columns(vertices);
     }
 
     private static RegionShape decodeShape(RegionData data) {
@@ -250,6 +278,7 @@ public final class RegionCodec {
                     coordinates[2]);
             case CYLINDER -> new Cylinder(coordinates[0], coordinates[1], coordinates[2],
                     coordinates[3], coordinates[4]);
+            case POLYGON -> decodePolygon(coordinates);
         };
     }
 

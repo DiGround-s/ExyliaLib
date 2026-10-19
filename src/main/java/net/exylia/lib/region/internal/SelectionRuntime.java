@@ -3,26 +3,26 @@ package net.exylia.lib.region.internal;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Display;
 import net.exylia.lib.effect.Effects;
-import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.region.BlockPosition;
-import net.exylia.lib.region.Cuboid;
+import net.exylia.lib.region.Cylinder;
+import net.exylia.lib.region.HorizontalBounds;
+import net.exylia.lib.region.HorizontalCylinder;
 import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.SelectionHeight;
+import net.exylia.lib.region.SelectionMode;
 import net.exylia.lib.region.SelectionOptions;
 import net.exylia.lib.region.SelectionResult;
 import net.exylia.lib.region.SelectionSession;
 import net.exylia.lib.region.SelectionState;
-import net.exylia.lib.region.UnboundedYRectangle;
+import net.exylia.lib.region.Sphere;
+import net.exylia.lib.region.VerticalBounds;
+import net.exylia.lib.region.WorldIdentity;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.text.Text;
 import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -30,6 +30,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -44,11 +45,18 @@ import java.util.concurrent.CompletionStage;
 /**
  * Shared owner-scoped selection registry and state machine.
  *
- * <h2>What a selection is, beyond two coordinates</h2>
- * A selector the player is actually handed, the box drawn while they pick it,
+ * <h2>What a selection is, beyond a few coordinates</h2>
+ * A selector the player is actually handed, the shape drawn while they pick it,
  * and a confirmation before it answers. All three were in ExyliaCommons and all
  * three are here; what is not here is commons' habit of overwriting the item in
  * the player's hand to deliver the first one.
+ *
+ * <h2>Two clicks, or an outline</h2>
+ * A box, a circle and a sphere are two clicks, held as {@code first} and
+ * {@code second} whatever they mean: the corners, or the centre and a block on
+ * the edge. A polygon and a freehand outline are a list of points instead. The
+ * listener only ever says "left", "right", "shift + left" or "shift + right";
+ * what those mean is decided here, by the mode the session is in.
  *
  * <h2>Whose scheduler runs it</h2>
  * The preview and the two inventory writes run on <em>ExyliaLib's</em>
@@ -60,6 +68,18 @@ import java.util.concurrent.CompletionStage;
 @ApiStatus.Internal
 public final class SelectionRuntime {
 
+    /**
+     * The most points an outline may have.
+     *
+     * <p>Well under what a {@link net.exylia.lib.region.Polygon} accepts, and
+     * past anything a hand clicks; a freehand pen lifts itself when it gets
+     * there.
+     */
+    static final int MAX_OUTLINE_POINTS = 256;
+
+    /** How far the cursor has to move, in blocks, before a freehand pen puts down another point. */
+    static final int FREEHAND_STEP = 2;
+
     private static final Object LOCK = new Object();
     private static final Map<Key, Session> BY_OWNER_PLAYER = new HashMap<>();
     private static final Map<UUID, Session> BY_PLAYER = new HashMap<>();
@@ -69,7 +89,6 @@ public final class SelectionRuntime {
 
     private SelectionRuntime() {
     }
-
 
     /** Test seam: how the selector reaches a player. */
     static void installWand(@NotNull SelectorWand replacement) {
@@ -118,6 +137,7 @@ public final class SelectionRuntime {
         }
         session.equip(player);
         session.guide();
+        session.startPreview(player);
         return session;
     }
 
@@ -148,15 +168,58 @@ public final class SelectionRuntime {
         }
     }
 
-    /** Applies an exact block corner to the globally routed session. */
+    /**
+     * Applies a click on a block to the globally routed session: a left click
+     * when {@code first}, a right click otherwise.
+     */
     public static boolean select(@NotNull UUID playerId, boolean first,
                                  @NotNull BlockPosition position) {
-        Session session = routed(playerId);
-        return session != null && session.select(first, position);
+        Objects.requireNonNull(position, "position");
+        return first ? primary(playerId, position) : secondary(playerId, position);
     }
 
     /**
-     * Accepts the corners the routed session is holding.
+     * A left click: a box's first corner, a circle's centre, a polygon's next
+     * point, or a freehand pen put down or lifted.
+     *
+     * @param playerId who clicked
+     * @param position the block clicked, or {@code null} for a click in the air
+     * @return whether the session did something with it
+     * @since 1.312.0
+     */
+    public static boolean primary(@NotNull UUID playerId, @Nullable BlockPosition position) {
+        Session session = routed(playerId);
+        return session != null && session.primary(position);
+    }
+
+    /**
+     * A right click: a box's second corner, a circle's edge, or an outline's
+     * last point taken back.
+     *
+     * @param playerId who clicked
+     * @param position the block clicked, or {@code null} for a click in the air
+     * @return whether the session did something with it
+     * @since 1.312.0
+     */
+    public static boolean secondary(@NotNull UUID playerId, @Nullable BlockPosition position) {
+        Session session = routed(playerId);
+        return session != null && session.secondary(position);
+    }
+
+    /**
+     * A shift + right-click: the next shape the options offer, starting over.
+     *
+     * @param playerId who clicked
+     * @return whether the shape changed
+     * @since 1.312.0
+     */
+    public static boolean nextMode(@NotNull UUID playerId) {
+        Session session = routed(playerId);
+        return session != null && session.nextMode();
+    }
+
+    /**
+     * Accepts the shape the routed session is holding.
      *
      * @param playerId who confirmed
      * @return whether a session was waiting for exactly this
@@ -199,60 +262,6 @@ public final class SelectionRuntime {
         }
     }
 
-    // ------------------------------------------------------------- geometry
-
-    /**
-     * What a selection covers while it is being picked.
-     *
-     * <p>One corner is the block it is — or the column, at full height — so a
-     * player who clicked the wrong block sees that before walking to the far
-     * end. Two corners only make a shape when they share a world.
-     *
-     * @param height what the corners mean vertically
-     * @param first  the first corner, if set
-     * @param second the second corner, if set
-     * @return the shape, or {@code null} with no corner set
-     */
-    static @Nullable RegionShape shapeOf(@NotNull SelectionHeight height,
-                                         @Nullable BlockPosition first,
-                                         @Nullable BlockPosition second) {
-        BlockPosition other;
-        BlockPosition anchor;
-        if (first != null && second != null && first.world().equals(second.world())) {
-            anchor = first;
-            other = second;
-        } else {
-            anchor = first != null ? first : second;
-            other = anchor;
-        }
-        if (anchor == null) {
-            return null;
-        }
-        if (height == SelectionHeight.FULL) {
-            return new UnboundedYRectangle(
-                    Math.min(anchor.x(), other.x()), Math.min(anchor.z(), other.z()),
-                    Math.max(anchor.x(), other.x()) + 1, Math.max(anchor.z(), other.z()) + 1);
-        }
-        return Cuboid.blocks(anchor, other);
-    }
-
-    /**
-     * How many blocks a box holds, or how many columns a full-height rectangle
-     * spans.
-     *
-     * @param shape what {@link #shapeOf} answered
-     * @return the count, {@code 0} for nothing
-     */
-    static long sizeOf(@Nullable RegionShape shape) {
-        if (shape instanceof Cuboid box) {
-            return Math.round((box.maxX() - box.minX()) * (box.maxY() - box.minY()) * (box.maxZ() - box.minZ()));
-        }
-        if (shape instanceof UnboundedYRectangle columns) {
-            return Math.round((columns.maxX() - columns.minX()) * (columns.maxZ() - columns.minZ()));
-        }
-        return 0L;
-    }
-
     private record Key(String owner, UUID playerId) {
         private Key {
             Objects.requireNonNull(owner, "owner");
@@ -261,10 +270,7 @@ public final class SelectionRuntime {
     }
 
     /** Internal mutable state behind the immutable public session view. */
-    static final class Session implements SelectionSession {
-
-        /** A tower up a full-height corner: glass, with the corner's colour every fourth block. */
-        private static final int TOWER_STRIPE = 4;
+    static final class Session implements SelectionSession, SelectionPreview.Canvas {
 
         private final Key key;
         private final Plugin plugin;
@@ -273,19 +279,22 @@ public final class SelectionRuntime {
         private final CompletionStage<SelectionResult> exposed = completion.minimalCompletionStage();
 
         private SelectionState state = SelectionState.ACTIVE;
+        private SelectionMode mode;
         private BlockPosition first;
         private BlockPosition second;
+        /** An outline's points, in order. Guarded by this. */
+        private final List<BlockPosition> outline = new ArrayList<>();
+        /** Whether a freehand pen is down. Guarded by this. */
+        private boolean drawing;
         private volatile SelectionPreview preview;
         private volatile Display guidance;
         private volatile boolean equipped;
-        /** The fake blocks drawn up each full-height corner. Guarded by this. */
-        private List<Location> firstTower = List.of();
-        private List<Location> secondTower = List.of();
 
         private Session(Key key, Plugin plugin, SelectionOptions options) {
             this.key = key;
             this.plugin = plugin;
             this.options = options;
+            this.mode = options.modes().get(0);
         }
 
         @Override
@@ -304,6 +313,11 @@ public final class SelectionRuntime {
         }
 
         @Override
+        public synchronized @NotNull SelectionMode mode() {
+            return mode;
+        }
+
+        @Override
         public synchronized @NotNull Optional<BlockPosition> first() {
             return Optional.ofNullable(first);
         }
@@ -311,6 +325,11 @@ public final class SelectionRuntime {
         @Override
         public synchronized @NotNull Optional<BlockPosition> second() {
             return Optional.ofNullable(second);
+        }
+
+        @Override
+        public synchronized @NotNull List<BlockPosition> points() {
+            return List.copyOf(outline);
         }
 
         @Override
@@ -336,10 +355,11 @@ public final class SelectionRuntime {
             if (!options.giveSelector()) {
                 return;
             }
+            SelectionMode starting = mode();
             onPlayerThread(player, () -> {
                 ItemStack item;
                 try {
-                    item = wand.build(plugin, options);
+                    item = wand.build(plugin, options, starting);
                 } catch (RuntimeException | LinkageError unbuildable) {
                     // A selection nobody could be handed a tool for is still a
                     // selection: the material check is what selects, and losing
@@ -371,6 +391,22 @@ public final class SelectionRuntime {
             });
         }
 
+        /** Redraws the selector for the shape now being picked, so its lore describes the right clicks. */
+        private void reequip(Player player, SelectionMode now) {
+            if (!equipped) {
+                return;
+            }
+            onPlayerThread(player, () -> {
+                try {
+                    wand.refresh(player, wand.build(plugin, options, now), this::cancel);
+                } catch (RuntimeException | LinkageError unwritable) {
+                    // The old lore is wrong, not dangerous: the clicks still work.
+                    Debug.of(plugin).error("Could not redraw the region selector of "
+                            + player.getName() + '.', unwritable);
+                }
+            });
+        }
+
         /**
          * Sweeps the player's selection axes, however this session ended.
          *
@@ -399,13 +435,32 @@ public final class SelectionRuntime {
             });
         }
 
-        // ------------------------------------------------------------- corners
+        // -------------------------------------------------------------- clicks
 
-        private boolean select(boolean selectingFirst, BlockPosition position) {
+        private boolean primary(@Nullable BlockPosition position) {
+            SelectionMode now = mode();
+            if (now == SelectionMode.FREEHAND) {
+                return togglePen(position);
+            }
+            if (position == null) {
+                return false;
+            }
+            return now == SelectionMode.POLYGON ? addPoint(position) : corner(true, position);
+        }
+
+        private boolean secondary(@Nullable BlockPosition position) {
+            if (mode().isOutline()) {
+                return undoPoint();
+            }
+            return position != null && corner(false, position);
+        }
+
+        /** A box's corner, or a circle's or sphere's centre or edge. */
+        private boolean corner(boolean selectingFirst, BlockPosition position) {
             SelectionResult completed = null;
             boolean bothSet;
             synchronized (this) {
-                if (state != SelectionState.ACTIVE && state != SelectionState.AWAITING_CONFIRMATION) {
+                if (!open()) {
                     return false;
                 }
                 if (selectingFirst) {
@@ -413,17 +468,20 @@ public final class SelectionRuntime {
                 } else {
                     second = position;
                 }
+                // A circle or a ball across two worlds is nothing at all, so for
+                // them the same world is a rule rather than an option.
+                boolean sameWorldRequired = options.requireSameWorld() || mode != SelectionMode.CUBOID;
                 bothSet = first != null && second != null
-                        && (!options.requireSameWorld() || first.world().equals(second.world()));
+                        && (!sameWorldRequired || first.world().equals(second.world()));
                 if (bothSet && options.requireConfirmation()) {
-                    // Whichever corner was just moved, the box is now complete
+                    // Whichever click was just moved, the shape is now complete
                     // and the player should see it and be asked about it.
                     state = SelectionState.AWAITING_CONFIRMATION;
                 } else if (bothSet && !selectingFirst) {
                     state = SelectionState.COMPLETED;
-                    completed = new SelectionResult(first.world(), first, second);
+                    completed = resultOf();
                 } else {
-                    // Without a confirmation only the second corner can end it:
+                    // Without a confirmation only the second click can end it:
                     // a left click means "start here", and answering on one
                     // would end the selection the moment somebody corrected the
                     // corner they had already placed.
@@ -431,17 +489,15 @@ public final class SelectionRuntime {
                 }
             }
 
-            // Asked for only when there is something to say or draw: a
-            // selection a plugin drives silently must not need a live server at
-            // all, which is what lets the whole state machine be tested.
+            // Asked for only when there is something to say: a selection a
+            // plugin drives silently must not need a live server at all, which
+            // is what lets the whole state machine be tested.
             Player player = watching();
             if (player != null) {
-                announce(player, selectingFirst, position, bothSet);
+                announceCorner(player, selectingFirst, position, bothSet);
                 guide();
-                redraw(player);
-                tower(player, selectingFirst, position);
             }
-            if (!bothSet && first != null && second != null && options.requireSameWorld()) {
+            if (!bothSet && first != null && second != null) {
                 Debug.of(plugin).debug("Region selection corners for " + playerId()
                         + " are in different worlds; selection remains active.");
             }
@@ -451,16 +507,191 @@ public final class SelectionRuntime {
             return true;
         }
 
+        /** A polygon's next point. */
+        private boolean addPoint(BlockPosition position) {
+            int count;
+            synchronized (this) {
+                if (!open()) {
+                    return false;
+                }
+                restartOutlineIn(position.world());
+                if (outline.size() >= MAX_OUTLINE_POINTS) {
+                    return false;
+                }
+                outline.add(position);
+                count = outline.size();
+                settleOutline();
+            }
+            Player player = watching();
+            if (player != null) {
+                say(player, at(LibraryMessages.get().selection().point(), position)
+                        .replace("%points%", String.valueOf(count)));
+                guide();
+            }
+            return true;
+        }
+
+        /** An outline's last point, taken back; also lifts a freehand pen. */
+        private boolean undoPoint() {
+            int count;
+            synchronized (this) {
+                if (!open() || outline.isEmpty()) {
+                    return false;
+                }
+                count = outline.size();
+                outline.remove(count - 1);
+                drawing = false;
+                settleOutline();
+            }
+            Player player = watching();
+            if (player != null) {
+                say(player, LibraryMessages.get().selection().pointRemoved()
+                        .replace("%points%", String.valueOf(count)));
+                guide();
+            }
+            return true;
+        }
+
+        /**
+         * Puts a freehand pen down, or lifts it.
+         *
+         * <p>A pen put down on a block starts there; one put down in the air
+         * starts at the first block the player looks at.
+         */
+        private boolean togglePen(@Nullable BlockPosition position) {
+            synchronized (this) {
+                if (!open()) {
+                    return false;
+                }
+                if (drawing) {
+                    drawing = false;
+                } else {
+                    drawing = true;
+                    if (position != null) {
+                        restartOutlineIn(position.world());
+                        follow(position);
+                    }
+                }
+                settleOutline();
+            }
+            guide();
+            return true;
+        }
+
+        /**
+         * The block a freehand pen is over, from the preview's frame.
+         *
+         * <p>Becomes a point once it is {@link #FREEHAND_STEP} blocks from the
+         * last one, and a run of points in a straight line keeps only its ends.
+         */
+        @Override
+        public void look(@NotNull BlockPosition cursor) {
+            boolean lifted;
+            synchronized (this) {
+                if (!drawing || !open()) {
+                    return;
+                }
+                restartOutlineIn(cursor.world());
+                follow(cursor);
+                lifted = !drawing;
+            }
+            if (lifted) {
+                guide();
+            }
+        }
+
+        /** Adds a freehand point when the pen has moved far enough. Under the lock. */
+        private void follow(BlockPosition cursor) {
+            int size = outline.size();
+            if (size > 0) {
+                BlockPosition last = outline.get(size - 1);
+                long dx = cursor.x() - last.x();
+                long dz = cursor.z() - last.z();
+                if (dx * dx + dz * dz < (long) FREEHAND_STEP * FREEHAND_STEP) {
+                    return;
+                }
+                if (size > 1 && straightOn(outline.get(size - 2), last, cursor)) {
+                    // Still going the same way: the middle point says nothing.
+                    outline.set(size - 1, cursor);
+                    return;
+                }
+            }
+            outline.add(cursor);
+            if (outline.size() >= MAX_OUTLINE_POINTS) {
+                drawing = false;
+                settleOutline();
+            }
+        }
+
+        /** Whether {@code next} carries on from {@code before} through {@code last} in a straight line. */
+        private static boolean straightOn(BlockPosition before, BlockPosition last, BlockPosition next) {
+            long ax = last.x() - before.x();
+            long az = last.z() - before.z();
+            long bx = next.x() - last.x();
+            long bz = next.z() - last.z();
+            return ax * bz - az * bx == 0L && ax * bx + az * bz > 0L;
+        }
+
+        /** Starts the outline over when a point lands in another world. Under the lock. */
+        private void restartOutlineIn(WorldIdentity world) {
+            if (!outline.isEmpty() && !outline.get(0).world().equals(world)) {
+                outline.clear();
+            }
+        }
+
+        /**
+         * An outline waits to be confirmed from its third point while the pen
+         * is up, and is still being picked otherwise. Under the lock.
+         */
+        private void settleOutline() {
+            state = !drawing && outline.size() >= 3
+                    ? SelectionState.AWAITING_CONFIRMATION
+                    : SelectionState.ACTIVE;
+        }
+
+        /** The next shape the options offer, from scratch. */
+        private boolean nextMode() {
+            SelectionMode now;
+            synchronized (this) {
+                List<SelectionMode> modes = options.modes();
+                if (!open() || modes.size() < 2) {
+                    return false;
+                }
+                now = modes.get((modes.indexOf(mode) + 1) % modes.size());
+                mode = now;
+                first = null;
+                second = null;
+                outline.clear();
+                drawing = false;
+                state = SelectionState.ACTIVE;
+            }
+            // Only asked for when there is something to say or redraw, like
+            // every other click: a silent selection needs no server.
+            Player player = options.feedback() || equipped ? Bukkit.getPlayer(playerId()) : null;
+            if (player != null) {
+                if (options.feedback()) {
+                    LibraryMessages.Selection lines = LibraryMessages.get().selection();
+                    say(player, lines.mode().replace("%mode%", lines.modeName(now)));
+                }
+                guide();
+                reequip(player, now);
+            }
+            return true;
+        }
+
         /** Accepts what is on screen. */
         @Override
         public boolean confirm() {
             SelectionResult completed;
             synchronized (this) {
-                if (state != SelectionState.AWAITING_CONFIRMATION || first == null || second == null) {
+                if (state != SelectionState.AWAITING_CONFIRMATION) {
+                    return false;
+                }
+                completed = resultOf();
+                if (completed == null) {
                     return false;
                 }
                 state = SelectionState.COMPLETED;
-                completed = new SelectionResult(first.world(), first, second);
             }
             if (options.feedback()) {
                 Player player = Bukkit.getPlayer(playerId());
@@ -478,24 +709,98 @@ public final class SelectionRuntime {
             completion.complete(completed);
         }
 
+        private boolean open() {
+            return state == SelectionState.ACTIVE || state == SelectionState.AWAITING_CONFIRMATION;
+        }
+
+        // ------------------------------------------------------------- result
+
+        /**
+         * What the player picked, as the result the caller is given. Under the
+         * lock.
+         *
+         * <p>A box keeps the clicked corners, exactly as before shapes existed —
+         * across two worlds too, when the options allow it. Every other shape
+         * reports the corners of the box around it, so a caller that only reads
+         * {@link SelectionResult#cuboid()} still gets every block it holds.
+         */
+        private @Nullable SelectionResult resultOf() {
+            if (mode == SelectionMode.CUBOID) {
+                if (first == null || second == null) {
+                    return null;
+                }
+                return new SelectionResult(first.world(), first, second,
+                        SelectionSketch.twoPointShape(mode, options.height(), first, second));
+            }
+            RegionShape shape = SelectionSketch.shapeOf(sketch());
+            if (shape == null || (!mode.isOutline() && (first == null || second == null))) {
+                return null;
+            }
+            List<BlockPosition> clicked = mode.isOutline() ? outline : List.of(first, second);
+            WorldIdentity world = clicked.get(0).world();
+            int lowest = Integer.MAX_VALUE;
+            int highest = Integer.MIN_VALUE;
+            for (BlockPosition point : clicked) {
+                lowest = Math.min(lowest, point.y());
+                highest = Math.max(highest, point.y());
+            }
+            HorizontalBounds horizontal = shape.horizontalBounds();
+            Optional<VerticalBounds> vertical = shape.verticalBounds();
+            if (vertical.isPresent()) {
+                lowest = (int) Math.floor(vertical.get().minY());
+                highest = (int) Math.ceil(vertical.get().maxY()) - 1;
+            }
+            return new SelectionResult(world,
+                    new BlockPosition(world, (int) Math.floor(horizontal.minX()), lowest,
+                            (int) Math.floor(horizontal.minZ())),
+                    new BlockPosition(world, (int) Math.ceil(horizontal.maxX()) - 1, highest,
+                            (int) Math.ceil(horizontal.maxZ()) - 1),
+                    shape);
+        }
+
+        /** The selection as the geometry sees it. Under the lock. */
+        private SelectionSketch.State sketch() {
+            return new SelectionSketch.State(mode, options.height(), first, second, List.copyOf(outline), drawing);
+        }
+
         // -------------------------------------------------------- what is seen
 
         private boolean fullHeight() {
             return options.height() == SelectionHeight.FULL;
         }
 
-        private void announce(Player player, boolean selectingFirst, BlockPosition position,
-                              boolean bothSet) {
+        private void announceCorner(Player player, boolean selectingFirst, BlockPosition position,
+                                    boolean bothSet) {
             if (!options.feedback()) {
                 return;
             }
             LibraryMessages.Selection lines = LibraryMessages.get().selection();
-            say(player, at(selectingFirst ? lines.firstCorner() : lines.secondCorner(), position));
+            SelectionMode now = mode();
+            if (now == SelectionMode.CUBOID) {
+                say(player, at(selectingFirst ? lines.firstCorner() : lines.secondCorner(), position));
+            } else if (selectingFirst) {
+                say(player, at(lines.center(), position));
+            }
             if (!bothSet) {
                 return;
             }
+            RegionShape shape = shape();
+            if (now != SelectionMode.CUBOID) {
+                say(player, lines.radius().replace("%radius%", radiusOf(shape)));
+            }
             say(player, (fullHeight() ? lines.area() : lines.volume())
-                    .replace("%blocks%", String.valueOf(size())));
+                    .replace("%blocks%", String.valueOf(SelectionSketch.sizeOf(shape))));
+        }
+
+        /** A circle's or sphere's radius, as a player reads it. */
+        private static String radiusOf(@Nullable RegionShape shape) {
+            double radius = switch (shape) {
+                case Cylinder cylinder -> cylinder.radius();
+                case HorizontalCylinder cylinder -> cylinder.radius();
+                case Sphere sphere -> sphere.radius();
+                case null, default -> 0.0;
+            };
+            return String.format(Locale.ROOT, "%.1f", radius);
         }
 
         private static String at(String line, BlockPosition position) {
@@ -510,12 +815,12 @@ public final class SelectionRuntime {
          * <p>An action bar rather than a chat line, and a standing one rather
          * than a two-second one: the instruction is only useful while the
          * player is still clicking, and a message that scrolls away leaves an
-         * admin mid-selection with nothing on screen telling them the box they
-         * are looking at still has to be confirmed. That standing prompt is
-         * what ExyliaCommons had and what the first port dropped.
+         * admin mid-selection with nothing on screen telling them the shape
+         * they are looking at still has to be confirmed. That standing prompt
+         * is what ExyliaCommons had and what the first port dropped.
          *
-         * <p>The text is fixed once a bar is showing, so a state change stops
-         * the old one and shows the new: three of those in a whole selection.
+         * <p>The text is fixed once a bar is showing, so a change stops the old
+         * one and shows the new.
          */
         private void guide() {
             if (!options.feedback()) {
@@ -537,25 +842,38 @@ public final class SelectionRuntime {
 
         private String guidanceText() {
             SelectionState now;
+            SelectionMode picking;
             boolean hasFirst;
             boolean hasSecond;
+            int points;
+            boolean penDown;
             synchronized (this) {
                 now = state;
+                picking = mode;
                 hasFirst = first != null;
                 hasSecond = second != null;
+                points = outline.size();
+                penDown = drawing;
             }
             LibraryMessages.Selection lines = LibraryMessages.get().selection();
+            String line;
             if (now == SelectionState.AWAITING_CONFIRMATION) {
-                return (fullHeight() ? lines.guideConfirmArea() : lines.guideConfirm())
+                line = (fullHeight() ? lines.guideConfirmArea() : lines.guideConfirm())
                         .replace("%blocks%", String.valueOf(size()));
+            } else {
+                line = switch (picking) {
+                    case CUBOID -> hasFirst && !hasSecond ? lines.guideFirst()
+                            : hasSecond && !hasFirst ? lines.guideSecond()
+                            : lines.guideCorners();
+                    case POLYGON -> lines.guidePoints().replace("%points%", String.valueOf(points));
+                    case FREEHAND -> penDown ? lines.guideDrawing() : lines.guideFreehand();
+                    case CIRCLE, SPHERE -> hasFirst && !hasSecond ? lines.guideRadius() : lines.guideCenter();
+                };
             }
-            if (hasFirst && !hasSecond) {
-                return lines.guideFirst();
+            if (options.modes().size() > 1) {
+                line = lines.guideMode().replace("%mode%", lines.modeName(picking)).replace("%guide%", line);
             }
-            if (hasSecond && !hasFirst) {
-                return lines.guideSecond();
-            }
-            return lines.guideCorners().replace("%selector%", selectorLabel());
+            return line.replace("%selector%", selectorLabel());
         }
 
         private void stopGuidance() {
@@ -571,117 +889,57 @@ public final class SelectionRuntime {
             return options.selectorMaterial().name().toLowerCase(Locale.ROOT).replace('_', ' ');
         }
 
-        /** Blocks in the box, or columns at full height, once both corners share a world. */
+        /** Blocks in the shape, or columns at full height, once it is complete. */
         private long size() {
             synchronized (this) {
-                if (first == null || second == null || !first.world().equals(second.world())) {
+                boolean complete = mode.isOutline()
+                        ? outline.size() >= 3
+                        : first != null && second != null && first.world().equals(second.world());
+                if (!complete) {
                     return 0L;
                 }
             }
-            return sizeOf(shape());
+            return SelectionSketch.sizeOf(shape());
         }
 
-        /** What the preview draws right now. */
-        private synchronized @Nullable RegionShape shape() {
-            return shapeOf(options.height(), first, second);
+        // ---------------------------------------------------- the preview's view
+
+        private void startPreview(Player player) {
+            Plugin library = RegionRuntime.library();
+            if (library == null) {
+                return;
+            }
+            preview = SelectionPreview.start(library, player, this, options,
+                    options.modes().contains(SelectionMode.FREEHAND));
         }
 
-        private synchronized @Nullable UUID shapeWorld() {
+        @Override
+        public synchronized @Nullable UUID world() {
+            if (mode.isOutline()) {
+                return outline.isEmpty() ? null : outline.get(0).world().id();
+            }
             BlockPosition anchor = first != null ? first : second;
             return anchor == null ? null : anchor.world().id();
         }
 
-        private void redraw(Player player) {
-            if (!options.hasPreview() || preview != null) {
-                return;
-            }
-            UUID worldId = shapeWorld();
-            if (worldId == null) {
-                return;
-            }
-            Plugin scheduler = RegionRuntime.library();
-            if (scheduler == null) {
-                return;
-            }
-            preview = SelectionPreview.start(scheduler, player, worldId, this::shape, options);
+        @Override
+        public synchronized boolean wantsCursor() {
+            return open() && sketch().wantsCursor();
         }
 
-        /**
-         * Draws a tower of fake blocks up a full-height corner.
-         *
-         * <p>The rectangle's outline is drawn at the player's height, which
-         * says nothing about the column above and below it; a tower up each
-         * corner does, the way claim tools draw it. Only in air, so it never
-         * hides a real block, and never placed: the server does not have it.
-         * Without PacketEvents the outline alone is drawn.
-         */
-        private void tower(Player player, boolean selectingFirst, BlockPosition corner) {
-            if (!fullHeight() || !options.hasPreview() || !Packets.isAvailable()) {
-                return;
-            }
-            Plugin library = RegionRuntime.library();
-            World world = Bukkit.getWorld(corner.world().id());
-            if (library == null || world == null) {
-                return;
-            }
-            FakeBlocks fake = Packets.of(library).fakeBlocks();
-            clearTower(player, fake, selectingFirst);
-            BlockData glass = Material.GLASS.createBlockData();
-            BlockData accent = (selectingFirst ? Material.EMERALD_BLOCK : Material.REDSTONE_BLOCK).createBlockData();
-            Tasks.of(library).runAtLocation(new Location(world, corner.x(), 0, corner.z()), () -> {
-                int minY = world.getMinHeight();
-                Map<Location, BlockData> blocks = new HashMap<>();
-                for (int y = minY; y < world.getMaxHeight(); y++) {
-                    if (world.getBlockAt(corner.x(), y, corner.z()).isEmpty()) {
-                        blocks.put(new Location(world, corner.x(), y, corner.z()),
-                                (y - minY) % TOWER_STRIPE == TOWER_STRIPE - 1 ? accent : glass);
-                    }
-                }
-                synchronized (this) {
-                    // Moved again, or over, while the column was being read.
-                    boolean open = state == SelectionState.ACTIVE || state == SelectionState.AWAITING_CONFIRMATION;
-                    if (!open || !corner.equals(selectingFirst ? first : second)) {
-                        return;
-                    }
-                    fake.show(player, blocks);
-                    List<Location> drawn = List.copyOf(blocks.keySet());
-                    if (selectingFirst) {
-                        firstTower = drawn;
-                    } else {
-                        secondTower = drawn;
-                    }
-                }
-            });
+        @Override
+        public synchronized @Nullable RegionShape shape() {
+            return SelectionSketch.shapeOf(sketch());
         }
 
-        private void clearTower(Player player, FakeBlocks fake, boolean ofFirst) {
-            List<Location> drawn;
+        @Override
+        public @NotNull List<Line> lines(@Nullable BlockPosition cursor, double level) {
+            SelectionSketch.State now;
             synchronized (this) {
-                drawn = ofFirst ? firstTower : secondTower;
-                if (ofFirst) {
-                    firstTower = List.of();
-                } else {
-                    secondTower = List.of();
-                }
+                now = sketch();
             }
-            if (!drawn.isEmpty()) {
-                fake.clear(player, drawn);
-            }
-        }
-
-        private void clearTowers() {
-            if (!fullHeight() || !options.hasPreview()) {
-                return;
-            }
-            Player player = Bukkit.getPlayer(playerId());
-            Plugin library = RegionRuntime.library();
-            if (player == null || library == null || !Packets.isAvailable()) {
-                // Gone: the packet module forgets what a player who left was shown.
-                return;
-            }
-            FakeBlocks fake = Packets.of(library).fakeBlocks();
-            clearTower(player, fake, true);
-            clearTower(player, fake, false);
+            BlockPosition aimed = cursor != null && now.wantsCursor() ? cursor : null;
+            return SelectionSketch.lines(now, aimed, level);
         }
 
         /**
@@ -699,7 +957,6 @@ public final class SelectionRuntime {
             try {
                 stopGuidance();
                 stopPreview();
-                clearTowers();
                 unequip();
             } catch (RuntimeException | LinkageError broken) {
                 Debug.of(plugin).error("Could not give back the region selector of "
@@ -720,7 +977,7 @@ public final class SelectionRuntime {
         @Override
         public boolean cancel() {
             synchronized (this) {
-                if (state != SelectionState.ACTIVE && state != SelectionState.AWAITING_CONFIRMATION) {
+                if (!open()) {
                     return false;
                 }
                 state = SelectionState.CANCELLED;
@@ -736,11 +993,9 @@ public final class SelectionRuntime {
             cancel();
         }
 
-        /** Whoever is being told or shown something, or {@code null} for neither. */
+        /** Whoever is being told something, or {@code null} when nothing is said. */
         private @Nullable Player watching() {
-            return options.feedback() || options.hasPreview()
-                    ? Bukkit.getPlayer(playerId())
-                    : null;
+            return options.feedback() ? Bukkit.getPlayer(playerId()) : null;
         }
 
         private void say(Player player, String message) {

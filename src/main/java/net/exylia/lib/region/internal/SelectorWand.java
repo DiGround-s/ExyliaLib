@@ -1,7 +1,9 @@
 package net.exylia.lib.region.internal;
 
 import net.exylia.lib.packet.internal.PacketRuntime;
+import net.exylia.lib.region.SelectionMode;
 import net.exylia.lib.region.SelectionOptions;
+import net.exylia.lib.text.LibraryMessages;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
@@ -45,6 +47,12 @@ import java.util.Objects;
  * puts it down: the drop ends the selection, and the slot goes back to holding
  * what it always held.
  *
+ * <h2>It says what the clicks do</h2>
+ * The library's own lore lists the gestures of the shape being picked, and
+ * when the player can change shape, which one is current and how to change
+ * it. Changing shape {@link #refresh redraws} the selector so the item in the
+ * hand never describes clicks that no longer apply.
+ *
  * <h2>Which item is ours is written on it</h2>
  * The wand carries the owning plugin's name in its persistent data, so taking it
  * back removes the one we handed over and never the golden axe the player
@@ -60,6 +68,32 @@ public interface SelectorWand {
      * @return the item
      */
     @NotNull ItemStack build(@NotNull Plugin owner, @NotNull SelectionOptions options);
+
+    /**
+     * Builds the selector for a session picking one shape.
+     *
+     * @param owner   the plugin the selection belongs to
+     * @param options what it should look like
+     * @param mode    the shape being picked, which the library's lore describes
+     * @return the item
+     */
+    default @NotNull ItemStack build(@NotNull Plugin owner, @NotNull SelectionOptions options,
+                                     @NotNull SelectionMode mode) {
+        return build(owner, options);
+    }
+
+    /**
+     * Swaps the selector the player was given for another, where it is.
+     *
+     * <p>A real one is replaced in whichever slot holds it; a drawn one is
+     * drawn again in its slot. Nothing else in the inventory moves.
+     *
+     * @param player who has it
+     * @param wand   the new item
+     * @param onDrop what throwing a drawn selector away means
+     */
+    default void refresh(@NotNull Player player, @NotNull ItemStack wand, @NotNull Runnable onDrop) {
+    }
 
     /**
      * Puts the selector in the player's main hand.
@@ -107,13 +141,19 @@ public interface SelectorWand {
 
         @Override
         public @NotNull ItemStack build(@NotNull Plugin owner, @NotNull SelectionOptions options) {
+            return build(owner, options, options.modes().get(0));
+        }
+
+        @Override
+        public @NotNull ItemStack build(@NotNull Plugin owner, @NotNull SelectionOptions options,
+                                        @NotNull SelectionMode mode) {
             ItemStack wand = new ItemStack(options.selectorMaterial());
             ItemMeta meta = wand.getItemMeta();
             if (meta == null) {
                 return wand;
             }
             meta.displayName(line(owner, name(options.selectorName())));
-            List<String> lines = lore(options.selectorLore());
+            List<String> lines = lore(options, mode);
             List<Component> lore = new ArrayList<>(lines.size());
             for (String text : lines) {
                 lore.add(line(owner, text));
@@ -139,24 +179,48 @@ public interface SelectorWand {
                     ? Phrases.tr("{primary}&lREGION SELECTOR") : name;
         }
 
-        /** The library's own default lore, in the library's language; a plugin's own lore as it is. */
-        private List<String> lore(List<String> lore) {
-            if (lore.equals(SelectionOptions.DEFAULT_SELECTOR_LORE)) {
-                return List.of(Phrases.tr("{secondary}Selection:"),
-                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner"),
-                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner"),
-                        "",
-                        Phrases.tr("{warning}➥ Shift + left-click to confirm"));
+        /**
+         * The library's own default lore, in the library's language and for
+         * the shape being picked; a plugin's own lore as it is.
+         */
+        private List<String> lore(SelectionOptions options, SelectionMode mode) {
+            List<String> lore = options.selectorLore();
+            boolean fullHeight = lore.equals(SelectionOptions.DEFAULT_FULL_HEIGHT_SELECTOR_LORE);
+            if (!fullHeight && !lore.equals(SelectionOptions.DEFAULT_SELECTOR_LORE)) {
+                return lore;
             }
-            if (lore.equals(SelectionOptions.DEFAULT_FULL_HEIGHT_SELECTOR_LORE)) {
-                return List.of(Phrases.tr("{secondary}Selection:"),
-                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner"),
-                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner"),
-                        Phrases.tr(" {letters_black}▎ {letters}Height {letters_black}» {info}Full"),
-                        "",
-                        Phrases.tr("{warning}➥ Shift + left-click to confirm"));
+            List<String> lines = new ArrayList<>();
+            lines.add(Phrases.tr("{secondary}Selection:"));
+            lines.addAll(gestures(mode));
+            if (fullHeight) {
+                lines.add(Phrases.tr(" {letters_black}▎ {letters}Height {letters_black}» {info}Full"));
             }
-            return lore;
+            if (options.modes().size() > 1) {
+                lines.add(Phrases.tr(" {letters_black}▎ {letters}Shape {letters_black}» {info}{0}",
+                        LibraryMessages.get().selection().modeName(mode)));
+                lines.add(Phrases.tr(" {letters_black}▎ {letters}Shift + right-click {letters_black}» {highlight}change shape"));
+            }
+            lines.add("");
+            lines.add(Phrases.tr("{warning}➥ Shift + left-click to confirm"));
+            return lines;
+        }
+
+        /** What the two clicks do in one shape. */
+        private List<String> gestures(SelectionMode mode) {
+            return switch (mode) {
+                case CUBOID -> List.of(
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}first corner"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}second corner"));
+                case POLYGON -> List.of(
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}add a point"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}undo the last point"));
+                case FREEHAND -> List.of(
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}pen down or up"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {error}undo the last point"));
+                case CIRCLE, SPHERE -> List.of(
+                        Phrases.tr(" {letters_black}▎ {letters}Left-click {letters_black}» {success}centre"),
+                        Phrases.tr(" {letters_black}▎ {letters}Right-click {letters_black}» {info}edge"));
+            };
         }
 
         @Override
@@ -186,6 +250,22 @@ public interface SelectorWand {
             // the selector over that one slot on its way out.
             player.updateInventory();
             return held;
+        }
+
+        @Override
+        public void refresh(@NotNull Player player, @NotNull ItemStack wand, @NotNull Runnable onDrop) {
+            int drawn = PacketRuntime.overlaySlot(player.getUniqueId());
+            if (drawn >= 0) {
+                PacketRuntime.overlay(player.getUniqueId(), drawn, wand, onDrop);
+                player.updateInventory();
+                return;
+            }
+            Inventory inventory = player.getInventory();
+            for (int slot = 0; slot < inventory.getSize(); slot++) {
+                if (isWand(inventory.getItem(slot))) {
+                    inventory.setItem(slot, wand.clone());
+                }
+            }
         }
 
         @Override

@@ -39,6 +39,9 @@ Cuboid.block(100, 70, 100);                    // a single block
 new UnboundedYRectangle(0, 0, 64, 64);         // a claim: bedrock to sky
 new Sphere(0, 64, 0, 16);                      // spawn protection, a payload
 new HorizontalCylinder(0, 0, 100);             // a safe zone with no ceiling
+new Cylinder(0, 0, 12, 40, 80);                // a round mine between two heights
+Polygon.prism(vertices, 60, 90);               // a plaza of any outline (since 1.312.0)
+Polygon.columns(vertices);                     // a claim of any outline, bedrock to sky
 ```
 
 `Cuboid.blocks` takes the **inclusive** block corners an admin selects and the
@@ -48,10 +51,18 @@ half-open, which is what makes a block's own volume come out right.
 Containment is arithmetic on three doubles. No `Location` is created, which
 matters because this runs on every step of every player.
 
-There is no polygon and no rotated box: nothing in the ecosystem has ever used
-one. A shape that moves or shrinks is not mutated — a new snapshot replaces it,
-and the index follows. Mutating a shape in place is what left the old system
-pointing at bounds a region no longer had.
+A `Polygon` is a polygon **of blocks**: a column belongs to it when the centre of
+that column is inside the outline or on it, which is why `Polygon.Vertex.block(x, z)`
+puts a vertex in the middle of a block. The clicked corners and every block the
+outline runs through are part of it, and two points in the same column always
+get the same answer. The outline may cross itself — the even-odd rule decides —
+so a freehand selection is stored exactly as it was drawn. `columnCount()` counts
+the columns a row at a time, exactly as `contains` answers.
+
+There is no rotated box: nothing in the ecosystem has ever used one. A shape that
+moves or shrinks is not mutated — a new snapshot replaces it, and the index
+follows. Mutating a shape in place is what left the old system pointing at
+bounds a region no longer had.
 
 ## Priority and policies
 
@@ -448,21 +459,72 @@ regions.beginSelection(player).result()
 ```
 
 That one line hands the player a golden axe, draws the box as they pick it, and
-answers only once they confirm. The result is coordinates; what to do with them
-is the plugin's business. One selection per player across the whole server, and
+answers only once they confirm. The result is coordinates and the shape they
+make; what to do with them is the plugin's business. One selection per player across the whole server, and
 it ends when they leave, when the plugin is disabled, or when they walk away.
 
 ### What the player actually does
 
-| Gesture | What happens |
-| --- | --- |
-| Left-click a block | first corner |
-| Right-click a block | second corner |
-| **Shift + left-click** | accepts the box; a block under the cursor is not needed |
+| Gesture | Box | Polygon | Freehand | Circle / sphere |
+| --- | --- | --- | --- | --- |
+| Left-click | first corner | adds a point | pen down / up (air too) | centre |
+| Right-click | second corner | takes the last point back (air too) | takes the last point back (air too) | a block on the edge |
 
-Either corner can be moved for as long as the box is unconfirmed, and the
+- **Shift + left-click** accepts the shape, in every mode; a block under the
+  cursor is not needed.
+- **Shift + right-click** goes to the next shape on offer and starts over. Only
+  with more than one; the selector's lore and the action bar follow it.
+
+Every click can be redone for as long as the shape is unconfirmed, and the
 outline follows it. Nothing is answered until the confirmation, so a misclick
-costs a click rather than an arena.
+costs a click rather than an arena. An outline is always confirmed, even with
+`requireConfirmation(false)`: there is no last click that could mean "done".
+
+With the freehand pen down, the block the player is looking at becomes a point
+every two blocks, and a straight run keeps only its two ends. The pen lifts on a
+left click, on a right click, or by itself at 256 points.
+
+### Shapes on offer
+
+```java
+SelectionOptions mine = SelectionOptions.builder()
+        .modes(SelectionMode.CUBOID, SelectionMode.CIRCLE, SelectionMode.SPHERE)
+        .build();
+```
+
+The first mode is where every selection starts. What the result holds:
+
+| Mode | `result.shape()` | `first()` / `second()` |
+| --- | --- | --- |
+| `CUBOID` | `Cuboid`, or `UnboundedYRectangle` at full height | the clicked corners, exactly as before |
+| `POLYGON`, `FREEHAND` | `Polygon` — between the clicked heights, or through every y at full height | the corners of the box around it |
+| `CIRCLE` | `Cylinder` between the clicked heights, or `HorizontalCylinder` at full height | the corners of the box around it |
+| `SPHERE` | `Sphere` (not offered at full height) | the corners of the box around it |
+
+A plugin that stores boxes keeps reading `result.cuboid()` and keeps working
+whatever was picked: it gets the box around the shape. Offering a shape is the
+moment a plugin decides it can store it.
+
+### What is drawn
+
+The outline is made of **real lines**: thin block displays sent only to the
+player, lit at full brightness and glowing through walls, in palette colours —
+`primary` for the shape as it stands, `info` for a ghost towards the block the
+player is looking at (the box the next click would make, the next edge of a
+polygon, the radius of a circle), `secondary_light` for the edge that closes an
+outline, `highlight` for a marker on every clicked point.
+
+| Height | How it is drawn |
+| --- | --- |
+| `NORMAL` | every face where it is: a box's twelve edges, a polygon's top and bottom with an edge up each corner, a cylinder's two rims |
+| `FULL` | the outline at the player's own height with a short post at each corner; the column has no top or bottom worth drawing, and the outline only follows the player once they have moved two blocks up or down, so jumping does not make it bob |
+
+Lines are sent once and moved only when the shape or the cursor moves — gliding
+there on the client — so a still outline costs nothing per frame. They are
+clipped to a box around the player, which keeps every bar where the client can
+draw it and makes a huge shape cost what its near part costs.
+`previewParticle("FLAME")` draws particles instead, and a server without
+PacketEvents falls back to that particle on its own.
 
 The selector goes into the **main hand**, always, and is taken back however the
 selection ends. Whatever was in that hand moves to the first free slot; an
@@ -480,9 +542,10 @@ SelectionOptions quiet = SelectionOptions.builder()
         .selectorMaterial(Material.GOLDEN_AXE)   // default
         .giveSelector(true)                      // default — hand it over
         .requireConfirmation(true)               // default — shift + left-click
-        .previewParticle("END_ROD")              // default; null draws nothing
-        .previewSpacing(1.0)
-        .previewPeriodTicks(5L)
+        .previewLines()                          // default; previewParticle("FLAME") for particles, null for nothing
+        .modes(SelectionMode.CUBOID)             // default
+        .previewSpacing(1.0)                     // particles only
+        .previewPeriodTicks(5L)                  // particles only
         .feedback(true)                          // default — coordinates, volume, standing prompt
         .selectorName("{primary}&lARENA SELECTOR")
         .selectorLore(List.of("{letters}Pick two corners"))
@@ -502,16 +565,18 @@ rather than after a couple of seconds.
 Every one of those lines — the corners, the volume, the confirmation and the
 standing prompt — is the **library's** text, in `plugins/ExyliaLib/messages.yml`
 under `selection`, reloaded by `/exylialib reload`. `%x%`, `%y%` and `%z%` are
-the block just clicked, `%blocks%` the volume, and `%selector%` the tool being
-handed out, named the way a player would name it — so changing
-`selectorMaterial` can never leave a prompt naming the old one.
+the block just clicked, `%blocks%` the volume, `%points%` how many points an
+outline has, `%radius%` a circle's radius, `%mode%` the shape being picked, and
+`%selector%` the tool being handed out, named the way a player would name it —
+so changing `selectorMaterial` can never leave a prompt naming the old one. The
+names of the shapes are there too (`mode-cuboid`, `mode-polygon`, ...).
 
 ### The states
 
 | State | Means |
 | --- | --- |
-| `ACTIVE` | fewer than two corners are set |
-| `AWAITING_CONFIRMATION` | both corners are set and the box is a proposal |
+| `ACTIVE` | the shape is not complete yet, or a freehand pen is down |
+| `AWAITING_CONFIRMATION` | the shape is complete and is a proposal |
 | `COMPLETED` | confirmed, and the stage has the result |
 | `CANCELLED` | ended without one |
 
@@ -539,17 +604,26 @@ select again with any plugin.
 regions.visualize(player, "arena");
 ```
 
-Particles along the outline, on the player's own scheduler, for as long as the
+Lines along the outline — the same glowing bars a selection is drawn with, in
+the palette's `primary` — on the player's own scheduler, for as long as the
 options say. The region is looked up again on **every frame**, so replacing a
-shrinking zone updates what the viewer sees without touching the handle.
+shrinking zone updates what the viewer sees without touching the handle; a frame
+where nothing changed sends nothing.
 
-A frame draws at most 512 points, and the budget is spent *before* the points
-are worked out. Generating a whole outline and thinning it afterwards is the
-same picture and a very different cost: a claim a hundred thousand blocks wide
-would produce eight hundred thousand points to keep five hundred.
+```java
+VisualizationOptions.builder().lineColor(0xA33B53).build();   // a zone that hurts, in red
+VisualizationOptions.builder().particleName("WAX_ON").build(); // particles instead of lines
+```
+
+With particles — named, or because the server has no PacketEvents — a frame
+draws at most 512 points, and the budget is spent *before* the points are worked
+out. Generating a whole outline and thinning it afterwards is the same picture
+and a very different cost: a claim a hundred thousand blocks wide would produce
+eight hundred thousand points to keep five hundred.
 
 Shapes with no ceiling — a claim, a safe zone — are drawn at the viewer's own
-height, because a rectangle drawn at y=0 is underground.
+height with a short post at each corner, because a rectangle drawn at y=0 is
+underground.
 
 ### An outline that belongs to a match
 
@@ -559,7 +633,7 @@ the game lasts, to everybody online, and paid for every frame by every viewer.
 
 ```java
 VisualizationOptions zone = VisualizationOptions.builder()
-        .particleName("WAX_ON")
+        .lineColor(0x59A4FF)
         .periodTicks(40L)
         .untilClosed()          // the event decides when, not a tick count
         .viewDistance(48.0)     // the default; the far side of the map is skipped
@@ -571,7 +645,7 @@ handles.add(regions.visualize(player, zoneId, zone));
 `untilClosed()` is what makes that possible without naming a duration nobody can
 know in advance. It is not "forever": the visualization still stops on its own
 when the viewer leaves, when the region is unregistered and when the owning
-plugin is disabled, so an event that ends badly cannot leave particles running.
+plugin is disabled, so an event that ends badly cannot leave an outline behind.
 Closing the handle is the fourth way, and the one the event itself uses.
 
 `viewDistance` is what keeps it affordable. A viewer farther than that from the
@@ -630,6 +704,6 @@ ExyliaLib registers one listener for the whole server.
 
 | | |
 | --- | --- |
-| Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `MaterialSet`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionSession`, `SelectionResult`, `SelectionState`, `VisualizationOptions`, `RegionVisualization` |
-| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `RegionEnforcement`, `EnforcementListener`, `Culprits`, `PolicyDraft`, `PolicyLooks`, `PolicyEditorHolder`, `PolicyEditorListener`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler` |
+| Public API | `region/Regions`, `PluginRegions`, `RegionSnapshot`, `RegionId`, `WorldIdentity`, `BlockPosition`, `RegionShape` (`Cuboid`, `UnboundedYRectangle`, `Sphere`, `HorizontalCylinder`, `Cylinder`, `Polygon`), `HorizontalBounds`, `VerticalBounds`, `PolicyKey`, `PolicySet`, `PolicyResolution`, `CommonRegionPolicies`, `MaterialSet`, `RegionData`, `RegionCodec`, `PlayerRegionChangeEvent`, `RegionChangeCause`, `SelectionOptions`, `SelectionMode`, `SelectionSession`, `SelectionResult`, `SelectionState`, `OutlineStyle`, `VisualizationOptions`, `RegionVisualization` |
+| Internal | `region/internal/RegionIndex`, `RegionRuntime`, `RegionListener`, `PlacedBlockRuntime`, `PlacedBlockListener`, `RegionEnforcement`, `EnforcementListener`, `Culprits`, `PolicyDraft`, `PolicyLooks`, `PolicyEditorHolder`, `PolicyEditorListener`, `PositionSet`, `RegionEntities`, `SelectionRuntime`, `SelectionListener`, `SelectorWand`, `SelectionSketch`, `SelectionPreview`, `VisualizationRuntime`, `OutlineSampler`, `OutlineLines`, `LineRenderer`, `Line` |
 | Lifecycle | `ExyliaLib` — listener registration, release before `Tasks.release` |

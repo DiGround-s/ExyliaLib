@@ -25,11 +25,17 @@ import org.bukkit.plugin.Plugin;
 /**
  * Single deterministic event router for all plugins' region selection sessions.
  *
- * <p>Three gestures, and the order they are checked in is the whole listener:
- * a sneaking left-click confirms, a left-click sets the first corner, a
- * right-click sets the second. Confirmation is tested first because a sneaking
- * left-click on a block is also a left-click on a block, and reading it as a
- * corner would make the gesture that accepts the box also move it.
+ * <p>Four gestures, and the order they are checked in is the whole listener:
+ * a sneaking left-click confirms, a sneaking right-click changes shape when
+ * there is more than one, a left-click and a right-click do whatever the shape
+ * being picked says. The sneaking ones are tested first because a sneaking
+ * click on a block is also a click on a block, and reading it as a point would
+ * make the gesture that accepts the shape also move it.
+ *
+ * <p>What a plain click means — a corner, a centre, a point, the pen — is the
+ * session's business, not this listener's: it only says which button, and
+ * which block when there was one. A click in the air still counts for the
+ * shapes that use it: lifting a freehand pen, taking a point back.
  *
  * <h2>A selector the server does not have</h2>
  * A virtual selector is recognised by the slot it is drawn in rather than by a
@@ -41,7 +47,7 @@ import org.bukkit.plugin.Plugin;
  */
 public final class SelectionListener implements Listener {
 
-    /** Routes selector clicks: confirm, first corner, second corner. */
+    /** Routes selector clicks: confirm, change shape, left click, right click. */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEvent event) {
         Action action = event.getAction();
@@ -54,32 +60,42 @@ public final class SelectionListener implements Listener {
         if (virtual) {
             event.setCancelled(true);
             if (event.getHand() == EquipmentSlot.OFF_HAND) return;
-        } else if (event.getMaterial() != session.options().selectorMaterial()) {
+        } else if (event.getHand() == EquipmentSlot.OFF_HAND
+                || event.getMaterial() != session.options().selectorMaterial()) {
+            // The selector is handed over in the main hand. A click in the air
+            // reaches here once per hand, and one click must be one gesture.
             return;
         }
 
         boolean leftClick = action == Action.LEFT_CLICK_BLOCK || action == Action.LEFT_CLICK_AIR;
-        if (!leftClick && action != Action.RIGHT_CLICK_BLOCK) return;
 
-        // Accepting the box does not need a block under the cursor: an admin
+        // Accepting the shape does not need a block under the cursor: an admin
         // standing in the middle of what they just outlined has nothing in
         // reach, and asking them to walk to a wall to say yes is the kind of
-        // friction that makes people stop using the tool.
-        if (leftClick && player.isSneaking()
-                && session.state() == SelectionState.AWAITING_CONFIRMATION) {
-            if (session.options().cancelInteractions()) event.setCancelled(true);
-            SelectionRuntime.confirm(player.getUniqueId());
-            return;
+        // friction that makes people stop using the tool. Changing shape
+        // neither.
+        if (player.isSneaking()) {
+            if (leftClick && session.state() == SelectionState.AWAITING_CONFIRMATION) {
+                if (session.options().cancelInteractions()) event.setCancelled(true);
+                SelectionRuntime.confirm(player.getUniqueId());
+                return;
+            }
+            if (!leftClick && session.options().modes().size() > 1) {
+                if (session.options().cancelInteractions()) event.setCancelled(true);
+                SelectionRuntime.nextMode(player.getUniqueId());
+                return;
+            }
         }
 
-        if (action == Action.LEFT_CLICK_AIR) return;
-
         Block block = event.getClickedBlock();
-        if (block == null) return;
-        if (session.options().cancelInteractions()) event.setCancelled(true);
-        SelectionRuntime.select(player.getUniqueId(), action == Action.LEFT_CLICK_BLOCK,
-                new BlockPosition(WorldIdentity.from(block.getWorld()),
-                        block.getX(), block.getY(), block.getZ()));
+        BlockPosition position = block == null ? null
+                : new BlockPosition(WorldIdentity.from(block.getWorld()), block.getX(), block.getY(), block.getZ());
+        if (block != null && session.options().cancelInteractions()) event.setCancelled(true);
+        if (leftClick) {
+            SelectionRuntime.primary(player.getUniqueId(), position);
+        } else {
+            SelectionRuntime.secondary(player.getUniqueId(), position);
+        }
     }
 
     /**

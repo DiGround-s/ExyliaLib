@@ -1080,9 +1080,20 @@ what they saw in ExyliaCommons, without its bugs.
   whatever was there — that isn't reproduced.
 - **It is given back no matter what.** Confirming, cancelling, leaving the server
   and disabling the plugin all go through the same release path.
-- **You see it while you choose.** One corner is drawn as the block it is; two,
-  as the box they form. The outline sampler is the same one `visualize` uses, so
-  the cost was already measured and bounded.
+- **You see it while you choose, in real lines.** Block displays only the
+  player has, glowing through walls: the shape as it stands, a ghost towards the
+  block being looked at, a marker per click. One corner is drawn as the block it
+  is. At full height the outline sits at the player's height with posts at the
+  corners. Lines are sent once and moved only when something changes, and are
+  clipped to a box around the player, so a huge shape costs what its near part
+  costs. Without PacketEvents it falls back to particles from the same sampler
+  `visualize` uses.
+- **A box, a polygon, a freehand outline, a circle or a sphere.** `modes(...)`
+  offers them; shift + right-click goes to the next. The listener only reports
+  which button; what it means is the session's, by mode. `result.shape()` is what
+  was picked, and `first()`/`second()` stay the clicked corners for a box and
+  become the box around any other shape, so a plugin reading `cuboid()` never
+  breaks. An outline always waits for shift + left-click: no click means "done".
 - **Two corners are a proposal, not an answer.** Shift + left click confirms. The
   first version of this module answered on the second click, so an admin who
   missed the block had already created the arena.

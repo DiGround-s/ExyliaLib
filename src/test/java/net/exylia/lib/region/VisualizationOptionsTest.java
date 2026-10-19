@@ -83,4 +83,19 @@ class VisualizationOptionsTest {
         assertEquals(original, original.toBuilder().build());
         assertEquals(original.hashCode(), original.toBuilder().build().hashCode());
     }
+
+    @Test
+    @DisplayName("an outline is lines unless a particle is named, and a line colour is lines")
+    void style() {
+        assertEquals(OutlineStyle.LINES, VisualizationOptions.defaults().style());
+        assertEquals(VisualizationOptions.PALETTE_COLOR, VisualizationOptions.defaults().lineColor());
+        assertEquals(OutlineStyle.PARTICLES, VisualizationOptions.builder().particleName("FLAME").build().style());
+        assertEquals(OutlineStyle.PARTICLES,
+                new VisualizationOptions("FLAME", 1.0, 10L, 100L).style(), "the old constructor named a particle");
+
+        VisualizationOptions red = VisualizationOptions.builder().particleName("FLAME").lineColor(0xA33B53).build();
+        assertEquals(OutlineStyle.LINES, red.style());
+        assertEquals(0xA33B53, red.lineColor());
+        assertThrows(IllegalArgumentException.class, () -> VisualizationOptions.builder().lineColor(0x1000000));
+    }
 }

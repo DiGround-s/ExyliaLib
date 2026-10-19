@@ -2,12 +2,15 @@ package net.exylia.lib.region.internal;
 
 import net.exylia.lib.region.BlockPosition;
 import net.exylia.lib.region.Cuboid;
+import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.SelectionHeight;
+import net.exylia.lib.region.SelectionMode;
 import net.exylia.lib.region.UnboundedYRectangle;
 import net.exylia.lib.region.WorldIdentity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,29 +30,35 @@ class SelectionHeightTest {
     @Test
     @DisplayName("a full-height selection is the rectangle of columns, both corners included")
     void fullIsColumns() {
-        var shape = SelectionRuntime.shapeOf(SelectionHeight.FULL, at(5, 70, -3), at(1, -40, 2));
+        var shape = shapeOf(SelectionHeight.FULL, at(5, 70, -3), at(1, -40, 2));
 
         assertEquals(new UnboundedYRectangle(1, -3, 6, 3), shape);
-        assertEquals(30L, SelectionRuntime.sizeOf(shape), "5 by 6 columns, whatever heights were clicked");
+        assertEquals(30L, SelectionSketch.sizeOf(shape), "5 by 6 columns, whatever heights were clicked");
     }
 
     @Test
     @DisplayName("a normal selection is still the box, and still counts blocks")
     void normalIsTheBox() {
-        var shape = SelectionRuntime.shapeOf(SelectionHeight.NORMAL, at(5, 70, -3), at(1, 68, 2));
+        var shape = shapeOf(SelectionHeight.NORMAL, at(5, 70, -3), at(1, 68, 2));
 
         assertEquals(Cuboid.blocks(1, 68, -3, 5, 70, 2), shape);
-        assertEquals(90L, SelectionRuntime.sizeOf(shape));
+        assertEquals(90L, SelectionSketch.sizeOf(shape));
     }
 
     @Test
     @DisplayName("one corner is the one block, or the one column, it is")
     void oneCorner() {
         assertEquals(new UnboundedYRectangle(4, 9, 5, 10),
-                SelectionRuntime.shapeOf(SelectionHeight.FULL, null, at(4, 0, 9)));
-        assertEquals(Cuboid.block(4, 0, 9), SelectionRuntime.shapeOf(SelectionHeight.NORMAL, at(4, 0, 9), null));
-        assertNull(SelectionRuntime.shapeOf(SelectionHeight.FULL, null, null));
-        assertEquals(0L, SelectionRuntime.sizeOf(null));
+                shapeOf(SelectionHeight.FULL, null, at(4, 0, 9)));
+        assertEquals(Cuboid.block(4, 0, 9), shapeOf(SelectionHeight.NORMAL, at(4, 0, 9), null));
+        assertNull(shapeOf(SelectionHeight.FULL, null, null));
+        assertEquals(0L, SelectionSketch.sizeOf(null));
+    }
+
+    private static RegionShape shapeOf(SelectionHeight height, BlockPosition first,
+                                       BlockPosition second) {
+        return SelectionSketch.shapeOf(new SelectionSketch.State(SelectionMode.CUBOID, height, first, second,
+                List.of(), false));
     }
 
     private static BlockPosition at(int x, int y, int z) {

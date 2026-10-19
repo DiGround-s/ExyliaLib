@@ -4,6 +4,7 @@ import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.config.Key;
+import net.exylia.lib.region.SelectionMode;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -159,8 +160,10 @@ public record LibraryMessages(
      * What the block selector tells a player while they pick.
      *
      * <p>{@code %x%}, {@code %y%} and {@code %z%} are the block just clicked,
-     * {@code %blocks%} how many the two corners enclose, and {@code %selector%}
-     * the tool they are selecting with, named as a player would name it.
+     * {@code %blocks%} how many the selection encloses, {@code %selector%}
+     * the tool they are selecting with, named as a player would name it,
+     * {@code %points%} how many points an outline has, {@code %radius%} a
+     * circle's radius in blocks and {@code %mode%} the shape being picked.
      *
      * @param firstCorner  chat line for the first corner
      * @param secondCorner chat line for the second corner
@@ -172,6 +175,22 @@ public record LibraryMessages(
      * @param guideConfirm the standing prompt once the box is complete
      * @param area         chat line naming how big a full-height selection is
      * @param guideConfirmArea the standing prompt once a full-height selection is complete
+     * @param point        chat line for a point added to an outline
+     * @param pointRemoved chat line for an outline's last point taken back
+     * @param center       chat line for a circle's or sphere's centre
+     * @param radius       chat line for a circle's or sphere's radius
+     * @param mode         chat line for a change of shape
+     * @param guidePoints  the standing prompt while an outline has under three points
+     * @param guideFreehand the standing prompt while a freehand pen is up
+     * @param guideDrawing the standing prompt while a freehand pen is down
+     * @param guideCenter  the standing prompt while a circle has no centre
+     * @param guideRadius  the standing prompt while a circle has a centre and no edge
+     * @param guideMode    how the standing prompt names the shape, when there is a choice
+     * @param modeCuboid   what a box is called
+     * @param modePolygon  what a polygon is called
+     * @param modeFreehand what a freehand outline is called
+     * @param modeCircle   what a circle is called
+     * @param modeSphere   what a sphere is called
      */
     public record Selection(
 
@@ -215,7 +234,73 @@ public record LibraryMessages(
             @Key("guide-confirm-area")
             @Comment("The action bar shown once a full-height selection is complete")
             @Comment("and waiting to be confirmed. %blocks% is the number of columns.")
-            @NotNull String guideConfirmArea
+            @NotNull String guideConfirmArea,
+
+            @Comment("Sent when a point is added to a polygon. %points% is its number,")
+            @Comment("%x% %y% %z% the block.")
+            @NotNull String point,
+
+            @Key("point-removed")
+            @Comment("Sent when the last point of an outline is taken back.")
+            @Comment("%points% is the number it had.")
+            @NotNull String pointRemoved,
+
+            @Comment("Sent when the centre of a circle or sphere is set. %x% %y% %z%.")
+            @NotNull String center,
+
+            @Comment("Sent when the edge of a circle or sphere is set. %radius% is")
+            @Comment("the radius in blocks.")
+            @NotNull String radius,
+
+            @Comment("Sent when the player changes shape. %mode% is the new one.")
+            @NotNull String mode,
+
+            @Key("guide-points")
+            @Comment("The action bar shown while a polygon has fewer than three")
+            @Comment("points. %points% is how many it has.")
+            @NotNull String guidePoints,
+
+            @Key("guide-freehand")
+            @Comment("The action bar shown while a freehand outline's pen is up.")
+            @NotNull String guideFreehand,
+
+            @Key("guide-drawing")
+            @Comment("The action bar shown while a freehand outline is being drawn.")
+            @NotNull String guideDrawing,
+
+            @Key("guide-center")
+            @Comment("The action bar shown while a circle or sphere has no centre.")
+            @NotNull String guideCenter,
+
+            @Key("guide-radius")
+            @Comment("The action bar shown while a circle or sphere has a centre")
+            @Comment("but no edge.")
+            @NotNull String guideRadius,
+
+            @Key("guide-mode")
+            @Comment("How the action bar names the shape when the player can")
+            @Comment("change it. %mode% is the shape, %guide% the line it wraps.")
+            @NotNull String guideMode,
+
+            @Key("mode-cuboid")
+            @Comment("What a box selection is called.")
+            @NotNull String modeCuboid,
+
+            @Key("mode-polygon")
+            @Comment("What a polygon selection is called.")
+            @NotNull String modePolygon,
+
+            @Key("mode-freehand")
+            @Comment("What a freehand selection is called.")
+            @NotNull String modeFreehand,
+
+            @Key("mode-circle")
+            @Comment("What a circle selection is called.")
+            @NotNull String modeCircle,
+
+            @Key("mode-sphere")
+            @Comment("What a sphere selection is called.")
+            @NotNull String modeSphere
     ) {
 
         /** The first corner, as a chat line. */
@@ -257,11 +342,89 @@ public record LibraryMessages(
                 "{warning}➥ {letters}Shift + left-click to confirm {letters_black}» "
                         + "{info}%blocks% {letters}columns";
 
+        /** A point added to a polygon. */
+        public static final String DEFAULT_POINT =
+                "{primary}● {letters}Point {info}#%points% {letters_black}» {info}%x%, %y%, %z%";
+
+        /** An outline's last point taken back. */
+        public static final String DEFAULT_POINT_REMOVED = "{error}● {letters}Point {info}#%points% {letters}removed";
+
+        /** A circle's or sphere's centre. */
+        public static final String DEFAULT_CENTER = "{success}● {letters}Centre {letters_black}» {info}%x%, %y%, %z%";
+
+        /** A circle's or sphere's radius. */
+        public static final String DEFAULT_RADIUS = "{info}● {letters}Radius {letters_black}» {info}%radius% {letters}blocks";
+
+        /** A change of shape. */
+        public static final String DEFAULT_MODE =
+                "{secondary}Shape {letters_black}» {highlight}%mode% {letters_black}(shift + right-click to change)";
+
+        /** The standing prompt while a polygon has under three points. */
+        public static final String DEFAULT_GUIDE_POINTS =
+                "{letters}Left-click to add points {letters_black}» {info}%points% {letters}placed";
+
+        /** The standing prompt while a freehand pen is up. */
+        public static final String DEFAULT_GUIDE_FREEHAND =
+                "{letters}Left-click to put the pen down, then look along the edge";
+
+        /** The standing prompt while a freehand pen is down. */
+        public static final String DEFAULT_GUIDE_DRAWING =
+                "{info}● {letters}Drawing {letters_black}» {letters}left-click to lift the pen";
+
+        /** The standing prompt while a circle has no centre. */
+        public static final String DEFAULT_GUIDE_CENTER = "{letters}Left-click the {success}centre";
+
+        /** The standing prompt while a circle has a centre and no edge. */
+        public static final String DEFAULT_GUIDE_RADIUS = "{letters}Right-click a block on the {info}edge";
+
+        /** The shape in front of the standing prompt. */
+        public static final String DEFAULT_GUIDE_MODE = "{highlight}%mode% {letters_black}» %guide%";
+
+        /** What a box is called. */
+        public static final String DEFAULT_MODE_CUBOID = "Box";
+
+        /** What a polygon is called. */
+        public static final String DEFAULT_MODE_POLYGON = "Polygon";
+
+        /** What a freehand outline is called. */
+        public static final String DEFAULT_MODE_FREEHAND = "Freehand";
+
+        /** What a circle is called. */
+        public static final String DEFAULT_MODE_CIRCLE = "Circle";
+
+        /** What a sphere is called. */
+        public static final String DEFAULT_MODE_SPHERE = "Sphere";
+
         /** The Exylia defaults. */
         public Selection() {
             this(DEFAULT_FIRST_CORNER, DEFAULT_SECOND_CORNER, DEFAULT_VOLUME, DEFAULT_CONFIRMED,
                     DEFAULT_GUIDE_CORNERS, DEFAULT_GUIDE_FIRST, DEFAULT_GUIDE_SECOND,
                     DEFAULT_GUIDE_CONFIRM, DEFAULT_AREA, DEFAULT_GUIDE_CONFIRM_AREA);
+        }
+
+        /** The lines before selections had shapes, with the defaults for the rest. */
+        public Selection(String firstCorner, String secondCorner, String volume, String confirmed,
+                         String guideCorners, String guideFirst, String guideSecond, String guideConfirm,
+                         String area, String guideConfirmArea) {
+            this(firstCorner, secondCorner, volume, confirmed, guideCorners, guideFirst, guideSecond,
+                    guideConfirm, area, guideConfirmArea, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null);
+        }
+
+        /**
+         * What a mode is called, in the server's words.
+         *
+         * @param mode the mode
+         * @return its name
+         */
+        public @NotNull String modeName(@NotNull SelectionMode mode) {
+            return switch (mode) {
+                case CUBOID -> modeCuboid;
+                case POLYGON -> modePolygon;
+                case FREEHAND -> modeFreehand;
+                case CIRCLE -> modeCircle;
+                case SPHERE -> modeSphere;
+            };
         }
 
         public Selection {
@@ -275,6 +438,22 @@ public record LibraryMessages(
             guideConfirm = orDefault(guideConfirm, DEFAULT_GUIDE_CONFIRM);
             area = orDefault(area, DEFAULT_AREA);
             guideConfirmArea = orDefault(guideConfirmArea, DEFAULT_GUIDE_CONFIRM_AREA);
+            point = orDefault(point, DEFAULT_POINT);
+            pointRemoved = orDefault(pointRemoved, DEFAULT_POINT_REMOVED);
+            center = orDefault(center, DEFAULT_CENTER);
+            radius = orDefault(radius, DEFAULT_RADIUS);
+            mode = orDefault(mode, DEFAULT_MODE);
+            guidePoints = orDefault(guidePoints, DEFAULT_GUIDE_POINTS);
+            guideFreehand = orDefault(guideFreehand, DEFAULT_GUIDE_FREEHAND);
+            guideDrawing = orDefault(guideDrawing, DEFAULT_GUIDE_DRAWING);
+            guideCenter = orDefault(guideCenter, DEFAULT_GUIDE_CENTER);
+            guideRadius = orDefault(guideRadius, DEFAULT_GUIDE_RADIUS);
+            guideMode = orDefault(guideMode, DEFAULT_GUIDE_MODE);
+            modeCuboid = orDefault(modeCuboid, DEFAULT_MODE_CUBOID);
+            modePolygon = orDefault(modePolygon, DEFAULT_MODE_POLYGON);
+            modeFreehand = orDefault(modeFreehand, DEFAULT_MODE_FREEHAND);
+            modeCircle = orDefault(modeCircle, DEFAULT_MODE_CIRCLE);
+            modeSphere = orDefault(modeSphere, DEFAULT_MODE_SPHERE);
         }
     }
 

@@ -11,8 +11,11 @@ import java.util.UUID;
  * Concrete portable persistence value for a region.
  *
  * <p>Shape coordinates are positional and interpreted by {@link ShapeType}: cuboid stores six
- * bounds, unbounded rectangle four bounds, sphere four center/radius values, and horizontal
- * cylinder three center/radius values. Policy values are limited to booleans, strings, finite
+ * bounds, unbounded rectangle four bounds, sphere four center/radius values, horizontal
+ * cylinder three center/radius values, and cylinder those three plus its two heights. A polygon
+ * (since 1.312.0) stores {@code [bounded, minY, maxY, x0, z0, x1, z1, ...]}: {@code bounded} is
+ * {@code 1} when the heights apply and {@code 0} when it covers every y, in which case the two
+ * heights are {@code 0} and mean nothing. Policy values are limited to booleans, strings, finite
  * numbers, and lists of strings (a block list, since 1.201.0) so a future database adapter can
  * store this value in one encoded column or split it into columns. This class performs no JSON or
  * database work.
@@ -57,9 +60,9 @@ public record RegionData(int formatVersion, @NotNull String id, @NotNull String 
                 throw new IllegalArgumentException("Shape coordinates must be finite");
             }
         }
-        if (coordinates.length != shapeType.coordinateCount) {
-            throw new IllegalArgumentException(shapeType + " requires "
-                    + shapeType.coordinateCount + " coordinates");
+        if (!shapeType.accepts(coordinates.length)) {
+            throw new IllegalArgumentException(shapeType + " cannot be stored in "
+                    + coordinates.length + " coordinates");
         }
         Map<String, Object> checkedPolicies = new LinkedHashMap<>();
         for (Map.Entry<String, Object> entry : policies.entrySet()) {
@@ -85,12 +88,32 @@ public record RegionData(int formatVersion, @NotNull String id, @NotNull String 
         UNBOUNDED_Y_RECTANGLE(4),
         SPHERE(4),
         HORIZONTAL_CYLINDER(3),
-        CYLINDER(5);
+        CYLINDER(5),
+
+        /**
+         * A {@link Polygon}: three header values and two per vertex.
+         *
+         * @since 1.312.0
+         */
+        POLYGON(-1);
+
+        /** The polygon header: whether it is bounded, then its two heights. */
+        private static final int POLYGON_HEADER = 3;
 
         private final int coordinateCount;
 
         ShapeType(int coordinateCount) {
             this.coordinateCount = coordinateCount;
+        }
+
+        /** Whether a stored shape of this type can have that many coordinates. */
+        private boolean accepts(int count) {
+            if (this != POLYGON) {
+                return count == coordinateCount;
+            }
+            int vertices = (count - POLYGON_HEADER) / 2;
+            return count >= POLYGON_HEADER && (count - POLYGON_HEADER) % 2 == 0
+                    && vertices >= 3 && vertices <= Polygon.MAX_VERTICES;
         }
     }
 

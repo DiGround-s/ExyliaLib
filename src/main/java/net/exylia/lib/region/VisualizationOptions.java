@@ -9,11 +9,22 @@ import java.util.Objects;
  *
  * <pre>{@code
  * VisualizationOptions zone = VisualizationOptions.builder()
- *         .particleName("WAX_ON")
- *         .periodTicks(40L)
+ *         .lineColor(0xA33B53)          // the arena's danger zone, in red
  *         .untilClosed()
  *         .build();
+ *
+ * VisualizationOptions sparkles = VisualizationOptions.builder()
+ *         .particleName("WAX_ON")       // particles instead of lines
+ *         .periodTicks(40L)
+ *         .build();
  * }</pre>
+ *
+ * <h2>Lines or particles</h2>
+ * An outline is made of {@link OutlineStyle#LINES lines} by default since 1.312.0: thin glowing
+ * bars in the palette's {@code primary} colour, sent once and moved only when the region or the
+ * viewer's height changes. Naming a particle draws particles instead, which is also what happens
+ * on a server without PacketEvents. A shape with no ceiling is drawn at the viewer's own height,
+ * with a short post at each corner.
  *
  * <h2>Two of these decide whether it can run for a whole match</h2>
  * The defaults describe an admin being shown where a region is: two hundred
@@ -30,13 +41,18 @@ import java.util.Objects;
  */
 public final class VisualizationOptions {
 
-    /** Default visible particle used by region outlines. */
+    /** Default particle, for an outline drawn with particles or a server that cannot send lines. */
     public static final String DEFAULT_PARTICLE = "END_ROD";
 
     /** Default distance between neighboring outline points. */
     public static final double DEFAULT_SPACING = 1.0;
 
-    /** Default interval between frames. */
+    /**
+     * Default interval between frames.
+     *
+     * <p>Particles are redrawn every frame; lines are only checked, and moved when the region
+     * or the viewer's height changed.
+     */
     public static final long DEFAULT_PERIOD_TICKS = 10L;
 
     /** Default visualization lifetime. */
@@ -60,9 +76,18 @@ public final class VisualizationOptions {
      */
     public static final long UNTIL_CLOSED = 0L;
 
+    /**
+     * The line colour that means "the palette's {@code primary}".
+     *
+     * @since 1.312.0
+     */
+    public static final int PALETTE_COLOR = -1;
+
     /** Shared default options. */
     public static final VisualizationOptions DEFAULT = builder().build();
 
+    private final OutlineStyle style;
+    private final int lineColor;
     private final String particleName;
     private final double spacing;
     private final long periodTicks;
@@ -70,6 +95,8 @@ public final class VisualizationOptions {
     private final double viewDistance;
 
     private VisualizationOptions(Builder builder) {
+        this.style = builder.style;
+        this.lineColor = builder.lineColor;
         this.particleName = builder.particleName;
         this.spacing = builder.spacing;
         this.periodTicks = builder.periodTicks;
@@ -98,7 +125,8 @@ public final class VisualizationOptions {
     }
 
     /**
-     * Returns the standard settings: {@code END_ROD}, one-block spacing, a
+     * Returns the standard settings: lines in the palette's {@code primary}
+     * ({@code END_ROD} particles without PacketEvents), one-block spacing, a
      * ten-tick period, a two-hundred-tick lifetime and a 48-block view
      * distance.
      *
@@ -124,6 +152,8 @@ public final class VisualizationOptions {
      */
     public @NotNull Builder toBuilder() {
         Builder builder = new Builder();
+        builder.style = style;
+        builder.lineColor = lineColor;
         builder.particleName = particleName;
         builder.spacing = spacing;
         builder.periodTicks = periodTicks;
@@ -133,7 +163,28 @@ public final class VisualizationOptions {
     }
 
     /**
-     * The particle each outline point is drawn with.
+     * What the outline is drawn with.
+     *
+     * @return lines, unless a particle was named
+     * @since 1.312.0
+     */
+    public @NotNull OutlineStyle style() {
+        return style;
+    }
+
+    /**
+     * The colour of the lines, as {@code 0xRRGGBB}.
+     *
+     * @return the colour, or {@link #PALETTE_COLOR} for the palette's {@code primary}
+     * @since 1.312.0
+     */
+    public int lineColor() {
+        return lineColor;
+    }
+
+    /**
+     * The particle each outline point is drawn with: the chosen style, or the fallback for lines
+     * on a server that cannot send them.
      *
      * @return a Bukkit particle name or a namespaced key
      */
@@ -197,7 +248,9 @@ public final class VisualizationOptions {
         if (!(other instanceof VisualizationOptions options)) {
             return false;
         }
-        return Double.compare(spacing, options.spacing) == 0
+        return style == options.style
+                && lineColor == options.lineColor
+                && Double.compare(spacing, options.spacing) == 0
                 && periodTicks == options.periodTicks
                 && durationTicks == options.durationTicks
                 && Double.compare(viewDistance, options.viewDistance) == 0
@@ -206,12 +259,14 @@ public final class VisualizationOptions {
 
     @Override
     public int hashCode() {
-        return Objects.hash(particleName, spacing, periodTicks, durationTicks, viewDistance);
+        return Objects.hash(style, lineColor, particleName, spacing, periodTicks, durationTicks, viewDistance);
     }
 
     @Override
     public String toString() {
-        return "VisualizationOptions[particle=" + particleName
+        return "VisualizationOptions[" + (style == OutlineStyle.LINES
+                ? "lines=" + (lineColor == PALETTE_COLOR ? "primary" : String.format("#%06x", lineColor))
+                : "particle=" + particleName)
                 + ", spacing=" + spacing
                 + ", period=" + periodTicks
                 + ", duration=" + (isUntilClosed() ? "until closed" : durationTicks)
@@ -221,6 +276,8 @@ public final class VisualizationOptions {
     /** Builds {@link VisualizationOptions}. */
     public static final class Builder {
 
+        private OutlineStyle style = OutlineStyle.LINES;
+        private int lineColor = PALETTE_COLOR;
         private String particleName = DEFAULT_PARTICLE;
         private double spacing = DEFAULT_SPACING;
         private long periodTicks = DEFAULT_PERIOD_TICKS;
@@ -231,7 +288,7 @@ public final class VisualizationOptions {
         }
 
         /**
-         * The particle each outline point is drawn with.
+         * Draws the outline with a particle instead of lines.
          *
          * @param particleName a Bukkit particle name or a namespaced key
          * @return this builder
@@ -243,6 +300,39 @@ public final class VisualizationOptions {
                 throw new IllegalArgumentException("particleName must not be blank");
             }
             this.particleName = trimmed;
+            this.style = OutlineStyle.PARTICLES;
+            return this;
+        }
+
+        /**
+         * Draws the outline with lines, the default.
+         *
+         * <p>A particle named before stays as the fallback for a server that cannot send lines.
+         *
+         * @return this builder
+         * @since 1.312.0
+         */
+        public @NotNull Builder lines() {
+            this.style = OutlineStyle.LINES;
+            return this;
+        }
+
+        /**
+         * Draws the outline with lines in one colour.
+         *
+         * <p>For an outline whose colour means something: a zone that hurts, a team's base. An
+         * outline that only shows where a region is keeps the palette's {@code primary}.
+         *
+         * @param rgb the colour as {@code 0xRRGGBB}, or {@link #PALETTE_COLOR}
+         * @return this builder
+         * @since 1.312.0
+         */
+        public @NotNull Builder lineColor(int rgb) {
+            if (rgb != PALETTE_COLOR && (rgb < 0 || rgb > 0xFFFFFF)) {
+                throw new IllegalArgumentException("lineColor must be 0xRRGGBB");
+            }
+            this.lineColor = rgb;
+            this.style = OutlineStyle.LINES;
             return this;
         }
 

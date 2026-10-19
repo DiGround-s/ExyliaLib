@@ -5,11 +5,14 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.region.Cuboid;
 import net.exylia.lib.region.Cylinder;
 import net.exylia.lib.region.HorizontalCylinder;
+import net.exylia.lib.region.Polygon;
 import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.Sphere;
 import net.exylia.lib.region.UnboundedYRectangle;
+import net.exylia.lib.region.VerticalBounds;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Turns a region's geometry into the points that draw its outline.
@@ -107,7 +110,46 @@ final class OutlineSampler {
                                 Plane.HORIZONTAL, perRim)
                         .outline(false);
             }
+            case Polygon polygon -> polygon(polygon, key.spacing());
         };
+    }
+
+    /**
+     * A polygon's outline: once at the viewer's height when it has no top or
+     * bottom, on both faces with an edge up every corner when it has.
+     *
+     * <p>Corners first, then the edges between them without their ends, the
+     * same way a cuboid avoids drawing a corner twice.
+     */
+    private static Outline polygon(Polygon polygon, double spacing) {
+        List<Polygon.Vertex> vertices = polygon.vertices();
+        int count = vertices.size();
+        VerticalBounds vertical = polygon.vertical();
+        double[] heights = vertical == null
+                ? new double[] {0.0}
+                : new double[] {vertical.minY(), vertical.maxY()};
+        int corners = count * heights.length;
+        int edges = count * heights.length + (vertical == null ? 0 : count);
+        int perEdge = shareOf(Math.max(edges, MAX_POINTS_PER_FRAME - corners), edges);
+        Points points = new Points(MAX_POINTS_PER_FRAME);
+        for (double y : heights) {
+            for (Polygon.Vertex vertex : vertices) {
+                points.add(vertex.x(), y, vertex.z());
+            }
+        }
+        for (double y : heights) {
+            for (int index = 0, previous = count - 1; index < count; previous = index++) {
+                points.between(vertices.get(previous).x(), y, vertices.get(previous).z(),
+                        vertices.get(index).x(), y, vertices.get(index).z(), spacing, perEdge);
+            }
+        }
+        if (vertical != null) {
+            for (Polygon.Vertex vertex : vertices) {
+                points.between(vertex.x(), vertical.minY(), vertex.z(),
+                        vertex.x(), vertical.maxY(), vertex.z(), spacing, perEdge);
+            }
+        }
+        return points.outline(vertical == null);
     }
 
     /**

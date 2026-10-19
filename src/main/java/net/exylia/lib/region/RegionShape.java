@@ -14,7 +14,7 @@ import java.util.Optional;
  * @since 1.23.0
  */
 public sealed interface RegionShape
-        permits Cuboid, UnboundedYRectangle, Sphere, HorizontalCylinder, Cylinder {
+        permits Cuboid, UnboundedYRectangle, Sphere, HorizontalCylinder, Cylinder, Polygon {
 
     /**
      * Tests whether a point is inside this shape.

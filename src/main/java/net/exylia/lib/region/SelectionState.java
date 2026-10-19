@@ -9,17 +9,18 @@ public enum SelectionState {
     /** The session is accepting selector interactions. */
     ACTIVE,
     /**
-     * Both corners are set and the session is waiting to be told they are the
-     * right ones.
+     * The shape is complete and the session is waiting to be told it is the
+     * right one.
      *
-     * <p>Only reached when {@link SelectionOptions#requireConfirmation()} is on.
-     * Either corner can still be re-clicked; the session leaves this state by
-     * being confirmed or cancelled, never on its own.
+     * <p>Reached when {@link SelectionOptions#requireConfirmation()} is on, and
+     * always for an outline, which has no last click. Every point can still be
+     * re-clicked; the session leaves this state by being confirmed or
+     * cancelled, never on its own.
      *
      * @since 1.56.0
      */
     AWAITING_CONFIRMATION,
-    /** Both valid corners were selected and the result completed successfully. */
+    /** The shape was picked and the result completed successfully. */
     COMPLETED,
     /** The session ended without a result. */
     CANCELLED

@@ -2,6 +2,7 @@ package net.exylia.lib.region.internal;
 
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.region.HorizontalBounds;
+import net.exylia.lib.region.OutlineStyle;
 import net.exylia.lib.region.RegionId;
 import net.exylia.lib.region.RegionShape;
 import net.exylia.lib.region.RegionSnapshot;
@@ -24,7 +25,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Shared lifecycle and render runtime for region visualizations. */
+/**
+ * Shared lifecycle and render runtime for region visualizations.
+ *
+ * <p>Every frame looks the region up again, so a zone that shrinks is drawn
+ * shrinking. With {@link OutlineStyle#LINES lines} a frame only compares: the
+ * bars stay on the viewer's screen and are moved when the region or the
+ * viewer's height changes, and taken off when the viewer walks out of range.
+ * With particles — chosen, or because the server cannot send lines — every
+ * frame draws the whole outline again.
+ */
 public final class VisualizationRuntime {
 
     private static final ConcurrentMap<UUID, Visualization> ACTIVE = new ConcurrentHashMap<>();
@@ -42,7 +52,7 @@ public final class VisualizationRuntime {
         Objects.requireNonNull(regionId, "regionId");
         Objects.requireNonNull(options, "options");
 
-        Visualization visualization = new Visualization(UUID.randomUUID(), ownerPlugin.getName(),
+        Visualization visualization = new Visualization(UUID.randomUUID(), ownerPlugin,
                 player.getUniqueId(), regionId, options);
         ACTIVE.put(visualization.handleId, visualization);
         TaskHandle task = Tasks.of(ownerPlugin).runAtEntityTimer(player, 1L, options.periodTicks(),
@@ -116,6 +126,12 @@ public final class VisualizationRuntime {
         return value > max ? value - max : 0.0;
     }
 
+    /**
+     * How far the player's height must change before an outline drawn at it
+     * follows: a jump should not make a claim's border bob.
+     */
+    private static final int LEVEL_HYSTERESIS = 2;
+
     private static final class Visualization implements RegionVisualization {
 
         private final UUID handleId;
@@ -123,17 +139,20 @@ public final class VisualizationRuntime {
         private final UUID playerId;
         private final RegionId regionId;
         private final VisualizationOptions options;
+        private final LineRenderer lines;
         private final AtomicBoolean active = new AtomicBoolean(true);
         private volatile TaskHandle task;
         private long elapsedTicks;
+        private double level = Double.NaN;
 
-        private Visualization(UUID handleId, String owner, UUID playerId, RegionId regionId,
+        private Visualization(UUID handleId, Plugin owner, UUID playerId, RegionId regionId,
                               VisualizationOptions options) {
             this.handleId = handleId;
-            this.owner = owner;
+            this.owner = owner.getName();
             this.playerId = playerId;
             this.regionId = regionId;
             this.options = options;
+            this.lines = new LineRenderer(owner, options.lineColor());
         }
 
         private void attach(TaskHandle task) {
@@ -164,6 +183,7 @@ public final class VisualizationRuntime {
             World playerWorld = player.getWorld();
             UUID worldId = region.worldId();
             if (!playerWorld.getUID().equals(worldId)) {
+                lines.clear();
                 elapsedTicks += options.periodTicks();
                 return;
             }
@@ -178,12 +198,18 @@ public final class VisualizationRuntime {
             // Before the outline is worked out, not after: a viewer who cannot
             // see it should not pay for the points either.
             if (squaredGap(region.shape(), viewer) > reach * reach) {
+                lines.clear();
                 elapsedTicks += options.periodTicks();
                 return;
             }
 
+            double dynamicY = level(viewer);
+            if (options.style() == OutlineStyle.LINES && LineRenderer.available()) {
+                lines.draw(player, OutlineLines.of(region.shape(), dynamicY, Line.Tone.EDGE), reach);
+                elapsedTicks += options.periodTicks();
+                return;
+            }
             OutlineSampler.Outline outline = OutlineSampler.sample(region.shape(), options.spacing());
-            double dynamicY = viewer.getBlockY() + 1.0;
             double[] coordinates = outline.coordinates();
             for (int offset = 0; offset < coordinates.length; offset += 3) {
                 double y = outline.dynamicY() ? dynamicY : coordinates[offset + 1];
@@ -191,6 +217,15 @@ public final class VisualizationRuntime {
                 Effects.particle(options.particleName()).at(location).show(player);
             }
             elapsedTicks += options.periodTicks();
+        }
+
+        /** The height an outline with no ceiling is drawn at, which ignores jumps. */
+        private double level(Location viewer) {
+            double standing = viewer.getBlockY() + 1.0;
+            if (Double.isNaN(level) || Math.abs(standing - level) >= LEVEL_HYSTERESIS) {
+                level = standing;
+            }
+            return level;
         }
 
         @Override
@@ -222,6 +257,7 @@ public final class VisualizationRuntime {
             if (current != null) {
                 current.cancel();
             }
+            lines.close();
             return true;
         }
     }
