@@ -150,7 +150,7 @@ final class ReplayCapture extends PacketListenerAbstract {
      */
     private static @Nullable World worldOf(Player player, int dedup, int claimed) {
         World world = player.getWorld();
-        if (!TemporaryWorld.NAME.equals(world.getName())) return world;
+        if (!TemporaryWorld.is(world)) return world;
         // Only our own claim, by the tick it was stamped with: reading the clock
         // again could see the next tick and leave the key held.
         SEEN.remove(dedup, claimed);

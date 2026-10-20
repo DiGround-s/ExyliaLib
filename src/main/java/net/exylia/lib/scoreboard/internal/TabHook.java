@@ -2,6 +2,8 @@ package net.exylia.lib.scoreboard.internal;
 
 import me.neznamy.tab.api.TabAPI;
 import me.neznamy.tab.api.TabPlayer;
+import me.neznamy.tab.api.event.EventBus;
+import me.neznamy.tab.api.event.player.PlayerLoadEvent;
 import me.neznamy.tab.api.scoreboard.ScoreboardManager;
 import org.bukkit.entity.Player;
 
@@ -27,6 +29,7 @@ final class TabHook {
 
     /** Players whose TAB sidebar we turned off, so only those get it back. */
     private static final Set<UUID> STOOD_DOWN = ConcurrentHashMap.newKeySet();
+    private static volatile boolean listening;
 
     private TabHook() {
     }
@@ -38,6 +41,7 @@ final class TabHook {
         if (manager == null || tabPlayer == null || !manager.hasScoreboardVisible(tabPlayer)) {
             return;
         }
+        listen();
         STOOD_DOWN.add(player.getUniqueId());
         manager.setScoreboardVisible(tabPlayer, false, false);
     }
@@ -54,9 +58,54 @@ final class TabHook {
         }
     }
 
-    /** Drops what is remembered about a player who left. */
-    static void forget(Player player) {
-        STOOD_DOWN.remove(player.getUniqueId());
+    /**
+     * Gives TAB's sidebar back to a player who is leaving.
+     *
+     * <p>TAB remembers a hidden sidebar across sessions when the server runs
+     * {@code remember-toggle-choice}, so a player who quits while it is down
+     * would never see it again. When TAB has already dropped the player, the
+     * mark is kept and the sidebar comes back the next time TAB loads them.
+     */
+    static void left(Player player) {
+        if (!STOOD_DOWN.contains(player.getUniqueId())) {
+            return;
+        }
+        ScoreboardManager manager = manager();
+        TabPlayer tabPlayer = tabPlayer(player);
+        if (manager != null && tabPlayer != null) {
+            STOOD_DOWN.remove(player.getUniqueId());
+            manager.setScoreboardVisible(tabPlayer, true, false);
+        }
+    }
+
+    /**
+     * Gives the sidebar back to a player TAB loads again after leaving while it
+     * was down, unless a board of ours is up again by then.
+     *
+     * <p>ponytail: the marks live in memory, so a server that stops mid-event
+     * still leaves those players' sidebars off; persist them if that shows up.
+     */
+    private static void listen() {
+        if (listening) {
+            return;
+        }
+        TabAPI api = TabAPI.getInstance();
+        EventBus bus = api == null ? null : api.getEventBus();
+        if (bus == null) {
+            return;
+        }
+        listening = true;
+        bus.register(PlayerLoadEvent.class, event -> {
+            TabPlayer tabPlayer = event.getPlayer();
+            UUID id = tabPlayer.getUniqueId();
+            if (BoardManager.hasBoard(id) || !STOOD_DOWN.remove(id)) {
+                return;
+            }
+            ScoreboardManager manager = manager();
+            if (manager != null) {
+                manager.setScoreboardVisible(tabPlayer, true, false);
+            }
+        });
     }
 
     private static ScoreboardManager manager() {

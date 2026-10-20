@@ -269,12 +269,21 @@ public final class BoardManager {
                 board.stopInternal();
                 stopped++;
             }
-            // The player is leaving: nothing to give back, only to forget.
+            // On the quit thread, which owns the player: TAB may persist the
+            // hidden sidebar, so it is given back now rather than never.
             if (tabInstalled()) {
-                TabHook.forget(player);
+                TabHook.left(player);
             }
             stopDriverIfIdle();
             return stopped;
+        }
+    }
+
+    /** Whether a player has a board of ours, shown or paused. */
+    static boolean hasBoard(UUID player) {
+        synchronized (LOCK) {
+            Deque<BoardImpl> stack = STACKS.get(player);
+            return stack != null && !stack.isEmpty();
         }
     }
 
@@ -421,7 +430,7 @@ public final class BoardManager {
             return;
         }
         if (!player.isOnline()) {
-            TabHook.forget(player);
+            TabHook.left(player);
             return;
         }
         scheduler.runAtEntity(player, () -> TabHook.restore(player));

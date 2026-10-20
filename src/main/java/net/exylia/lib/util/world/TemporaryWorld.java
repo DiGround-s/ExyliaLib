@@ -76,6 +76,7 @@ public final class TemporaryWorld {
     private static volatile Plugin library;
     private static volatile CompletableFuture<Void> wiped = CompletableFuture.completedFuture(null);
     private static CompletableFuture<World> creation;
+    private static volatile World current;
 
     private TemporaryWorld() {
         throw new AssertionError("No instances.");
@@ -100,7 +101,40 @@ public final class TemporaryWorld {
      * @return the world, or {@code null} while it has not been created yet
      */
     public static @Nullable World loaded() {
-        return Bukkit.getWorld(NAME);
+        World world = current;
+        if (world != null && Bukkit.getWorld(world.getUID()) != null) {
+            return world;
+        }
+        return find();
+    }
+
+    /**
+     * Returns whether a world is the temporary world.
+     *
+     * <p>Safe from any thread, Netty included: it only compares identifiers.
+     *
+     * @param world the world to test
+     * @return {@code true} when it is the temporary world
+     * @since 1.315.0
+     */
+    public static boolean is(@Nullable World world) {
+        if (world == null) {
+            return false;
+        }
+        World known = current;
+        return (known != null && known.getUID().equals(world.getUID()))
+                || NAME.equals(world.getName())
+                || KEY.equals(world.key());
+    }
+
+    /**
+     * Looks the world up by key first: on 26.x a world made through Worlds is
+     * registered under its key and stored under {@code dimensions/}, so its
+     * Bukkit name is not {@link #NAME}.
+     */
+    private static @Nullable World find() {
+        World world = Bukkit.getWorld(KEY);
+        return world != null ? world : Bukkit.getWorld(NAME);
     }
 
     /**
@@ -155,7 +189,7 @@ public final class TemporaryWorld {
     public static void start(@NotNull Plugin plugin) {
         library = plugin;
         Path folder = folder();
-        if (Bukkit.getWorld(NAME) == null && Files.exists(folder)) {
+        if (find() == null && Files.exists(folder)) {
             wiped = CompletableFuture.runAsync(() -> deleteFolder(folder));
         }
     }
@@ -167,7 +201,8 @@ public final class TemporaryWorld {
     public static synchronized void shutdown() {
         creation = null;
         grid = null;
-        World world = Bukkit.getWorld(NAME);
+        World world = loaded();
+        current = null;
         if (world == null) {
             deleteFolder(folder());
             return;
@@ -189,7 +224,7 @@ public final class TemporaryWorld {
     }
 
     private static CompletableFuture<World> create() {
-        World leftover = Bukkit.getWorld(NAME);
+        World leftover = find();
         if (leftover != null) {
             // Loaded by someone else before we asked: never reuse what it holds.
             CompletableFuture<Boolean> unloaded = Platform.isFolia()
@@ -243,7 +278,8 @@ public final class TemporaryWorld {
         world.setGameRule(GameRule.DO_INSOMNIA, false);
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
         world.setGameRule(GameRule.SHOW_DEATH_MESSAGES, false);
-        LOGGER.info("[TemporaryWorld] '" + NAME + "' ready");
+        current = world;
+        LOGGER.info("[TemporaryWorld] '" + NAME + "' ready as " + world.getName());
         return world;
     }
 
