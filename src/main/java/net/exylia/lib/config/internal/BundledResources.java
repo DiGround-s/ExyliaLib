@@ -5,7 +5,9 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URI;
@@ -425,7 +427,7 @@ public final class BundledResources {
         ClassLoader loader = anchor.getClassLoader();
         Collection<String> names = bundledResourceNames(loader, prefix);
         if (names.isEmpty()) {
-            try (var input = loader == null ? null : loader.getResourceAsStream(nameOf(resource))) {
+            try (var input = open(loader, nameOf(resource))) {
                 if (input == null) {
                     throw new IOException("Packaged directory does not exist.");
                 }
@@ -438,9 +440,11 @@ public final class BundledResources {
             if (!destination.startsWith(staging)) {
                 throw new IOException("Packaged entry escapes the requested directory.");
             }
-            try (var input = loader.getResourceAsStream(name)) {
+            try (var input = open(loader, name)) {
                 if (input == null) {
-                    continue;
+                    // Skipping it would stage an empty directory, and replacing
+                    // the owner's folder with that leaves every menu blank.
+                    throw new IOException("Packaged entry \"" + name + "\" could not be read.");
                 }
                 Files.createDirectories(destination.getParent());
                 Files.copy(input, destination, StandardCopyOption.REPLACE_EXISTING);
@@ -450,20 +454,63 @@ public final class BundledResources {
     }
 
     /**
+     * Opens a packaged resource, reading the loader's own table when asking it fails.
+     *
+     * <p>Youer rewrites every {@code getResourceAsStream} call in a plugin into
+     * {@code getResource(name).openStream()}. A loader that keeps its payload in
+     * memory and only overrides {@code getResourceAsStream} then answers
+     * {@code null} for every file it holds, so the bytes come from its table.
+     *
+     * @param loader the loader the resource is packaged in
+     * @param name   the resource name, such as {@code lang/en/config.yml}
+     * @return the resource, or {@code null} when it is not packaged
+     */
+    public static @Nullable InputStream open(@Nullable ClassLoader loader, @NotNull String name) {
+        if (loader == null) {
+            return null;
+        }
+        InputStream input = loader.getResourceAsStream(name);
+        if (input != null) {
+            return input;
+        }
+        for (Map<?, ?> table : tables(loader)) {
+            if (table.get(name) instanceof byte[] bytes) {
+                return new ByteArrayInputStream(bytes);
+            }
+        }
+        return null;
+    }
+
+    /**
      * The resources a classloader holds under a directory.
      *
      * <p>{@code ClassLoader} can hand back a resource by name but cannot list
      * one, so a loader that keeps its payload in memory is asked for its table
-     * directly: every map it declares is read, and the keys that sit under the
-     * directory are the entries. Reflection is the only door there is, and a
-     * loader that does not open it simply reports nothing, which the caller
-     * reads as "no packaged directory".
+     * directly, and the keys that sit under the directory are the entries.
      */
     private static Collection<String> bundledResourceNames(ClassLoader loader, String prefix) {
         if (loader == null) {
             return List.of();
         }
         List<String> names = new ArrayList<>();
+        for (Map<?, ?> table : tables(loader)) {
+            for (Object key : table.keySet()) {
+                if (key instanceof String name && name.startsWith(prefix) && !name.endsWith("/")) {
+                    names.add(name);
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Every map a classloader declares, read by reflection.
+     *
+     * <p>Reflection is the only door there is, and a loader that does not open
+     * it simply reports nothing, which callers read as "not packaged".
+     */
+    private static List<Map<?, ?>> tables(ClassLoader loader) {
+        List<Map<?, ?>> tables = new ArrayList<>();
         for (Class<?> type = loader.getClass(); type != null && type != ClassLoader.class; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
                 if (!Map.class.isAssignableFrom(field.getType())) {
@@ -471,14 +518,8 @@ public final class BundledResources {
                 }
                 try {
                     field.setAccessible(true);
-                    Object value = field.get(Modifier.isStatic(field.getModifiers()) ? null : loader);
-                    if (!(value instanceof Map<?, ?> table)) {
-                        continue;
-                    }
-                    for (Object key : table.keySet()) {
-                        if (key instanceof String name && name.startsWith(prefix) && !name.endsWith("/")) {
-                            names.add(name);
-                        }
+                    if (field.get(Modifier.isStatic(field.getModifiers()) ? null : loader) instanceof Map<?, ?> table) {
+                        tables.add(table);
                     }
                 } catch (RuntimeException | ReflectiveOperationException ignored) {
                     // A table this loader will not open is a table with nothing
@@ -486,6 +527,6 @@ public final class BundledResources {
                 }
             }
         }
-        return names;
+        return tables;
     }
 }

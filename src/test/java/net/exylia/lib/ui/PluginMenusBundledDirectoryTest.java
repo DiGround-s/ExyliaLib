@@ -101,6 +101,20 @@ class PluginMenusBundledDirectoryTest {
     }
 
     @Test
+    void readsTheTableWhenTheServerRedirectsGetResourceAsStream() throws Exception {
+        // Youer turns getResourceAsStream into getResource(name).openStream(),
+        // which a loader that only overrides getResourceAsStream answers with null.
+        List<String> messages = DebugCapture.start();
+        InMemoryClassLoader loader = new InMemoryClassLoader(Map.of(
+                "menus/admin/main.yml", "memory main".getBytes(StandardCharsets.UTF_8)), true);
+        Class<?> anchor = loader.define(JarAnchor.class.getName());
+
+        assertTrue(menus.refreshBundledDirectory(anchor, "menus/admin"), messages::toString);
+
+        assertEquals("memory main", Files.readString(folder.resolve("menus/admin/main.yml")));
+    }
+
+    @Test
     void rejectsBlankAbsoluteAndTraversalPaths() {
         for (String path : List.of("", " ", ".", "menus/..", "/menus/admin", "../menus/admin", "menus/../../outside")) {
             assertThrows(IllegalArgumentException.class,
@@ -155,10 +169,16 @@ class PluginMenusBundledDirectoryTest {
     private static final class InMemoryClassLoader extends java.security.SecureClassLoader {
 
         private final Map<String, byte[]> resources;
+        private final boolean redirected;
 
         private InMemoryClassLoader(Map<String, byte[]> resources) {
+            this(resources, false);
+        }
+
+        private InMemoryClassLoader(Map<String, byte[]> resources, boolean redirected) {
             super(PluginMenusBundledDirectoryTest.class.getClassLoader());
             this.resources = resources;
+            this.redirected = redirected;
         }
 
         private Class<?> define(String name) throws IOException {
@@ -171,7 +191,7 @@ class PluginMenusBundledDirectoryTest {
 
         @Override
         public InputStream getResourceAsStream(String name) {
-            byte[] bytes = resources.get(name);
+            byte[] bytes = redirected ? null : resources.get(name);
             return bytes != null ? new java.io.ByteArrayInputStream(bytes) : super.getResourceAsStream(name);
         }
     }

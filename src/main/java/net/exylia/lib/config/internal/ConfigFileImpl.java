@@ -547,7 +547,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         T built = base;
         ClassLoader loader = schemaType.getClassLoader();
         String resource = "lang/" + language + "/" + name + ".yml";
-        try (var input = loader == null ? null : loader.getResourceAsStream(resource)) {
+        try (var input = BundledResources.open(loader, resource)) {
             if (input != null) {
                 YamlConfiguration packaged = new YamlConfiguration();
                 packaged.loadFromString(new String(input.readAllBytes(), StandardCharsets.UTF_8));
