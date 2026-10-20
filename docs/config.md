@@ -333,8 +333,11 @@ as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
 
 - A file on disk that does not parse is left untouched and reported.
 - A packaged `menu-version` (or `defaults-version`) higher than the file's
-  replaces it outright, keeping the old one as `<name>.v<old version>`: for a
-  change the old layout cannot survive.
+  marks a change the old layout cannot survive. An untouched file is replaced
+  at once; an edited one is left alone and waits in `/exylialib updates` as one
+  change. Applying it replaces the file and keeps the old one as
+  `<name>.v<old version>`; keeping it only raises the file's version, and the
+  owner's layout stays as it is.
 - Adding a key rewrites the file through YAML, which keeps comments but may
   re-quote strings. A file with nothing new is never rewritten.
 - A file that is not YAML is only written when missing.

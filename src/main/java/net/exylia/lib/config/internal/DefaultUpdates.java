@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -199,6 +200,11 @@ public final class DefaultUpdates {
     private static int decideIn(Tracked tracked, List<Pending> chosen, boolean apply) {
         Debug debug = Debug.of(tracked.plugin());
         try {
+            for (Pending pending : chosen) {
+                if (DefaultsMerge.isLayout(pending.change())) {
+                    return decideLayout(tracked, pending.change(), apply);
+                }
+            }
             YamlConfiguration disk = DefaultsMerge.yaml();
             disk.load(tracked.disk().toFile());
             YamlConfiguration shipped = DefaultsMerge.yaml();
@@ -242,6 +248,34 @@ public final class DefaultUpdates {
             debug.warn("Could not read " + tracked.file() + " to decide on its defaults: " + failure.getMessage());
             return 0;
         }
+    }
+
+    /**
+     * Applies a new layout by replacing the file, keeping the old one as
+     * {@code <name>.v<old version>}; keeping it takes the new version number
+     * and the shipped file as reviewed, so the owner's layout is left alone.
+     */
+    private static int decideLayout(Tracked tracked, Change change, boolean apply)
+            throws IOException, InvalidConfigurationException {
+        YamlConfiguration disk = DefaultsMerge.yaml();
+        disk.load(tracked.disk().toFile());
+        String key = change.dotted();
+        int now = disk.isInt(key) ? disk.getInt(key) : 0;
+        int shipped = ((Number) change.shipped()).intValue();
+        forget(tracked.plugin(), tracked.file());
+        if (now >= shipped) {
+            return 0;
+        }
+        if (apply) {
+            Path previous = tracked.disk().resolveSibling(tracked.disk().getFileName() + ".v" + now);
+            Files.copy(tracked.disk(), previous, StandardCopyOption.REPLACE_EXISTING);
+            BundledResources.write(tracked.disk(), tracked.shipped());
+        } else {
+            disk.set(key, shipped);
+            BundledResources.write(tracked.disk(), disk.saveToString());
+        }
+        BundledResources.write(tracked.reviewed(), tracked.shipped());
+        return 1;
     }
 
     private static int idFor(@Nullable Tracked previous, Change change) {

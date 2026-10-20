@@ -175,14 +175,52 @@ class BundledFilesTest {
     }
 
     @Test
-    void aHigherMenuVersionReplacesTheFileAndKeepsTheOldOne() throws Exception {
-        pack("bundled-forced/main.yml", "menu-version: 2\ntitle: new\n");
-        onDisk("bundled-forced/main.yml", "menu-version: 1\ntitle: edited\n");
+    void aHigherMenuVersionReplacesAnUntouchedFileAndKeepsTheOldOne() throws Exception {
+        pack("bundled-forced/main.yml", "menu-version: 1\ntitle: old\n");
+        assertTrue(refresh("bundled-forced"));
 
+        pack("bundled-forced/main.yml", "menu-version: 2\ntitle: new\n");
         assertTrue(refresh("bundled-forced"));
 
         assertEquals("new", value("bundled-forced/main.yml", "title"));
-        assertEquals("menu-version: 1\ntitle: edited\n", read("bundled-forced/main.yml.v1"));
+        assertEquals("menu-version: 1\ntitle: old\n", read("bundled-forced/main.yml.v1"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
+    }
+
+    @Test
+    void aHigherMenuVersionWaitsForAnEditedFileUntilItIsApplied() throws Exception {
+        pack("bundled-layout/main.yml", "menu-version: 2\ntitle: new\n");
+        onDisk("bundled-layout/main.yml", "title: edited\n");
+
+        assertTrue(refresh("bundled-layout"));
+
+        assertEquals("title: edited\n", read("bundled-layout/main.yml"));
+        assertEquals(List.of("menu-version"), pendingKeys());
+
+        assertEquals(1, DefaultUpdates.decide(pending -> true, true).applied());
+
+        assertEquals("new", value("bundled-layout/main.yml", "title"));
+        assertEquals("title: edited\n", read("bundled-layout/main.yml.v0"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
+        assertTrue(refresh("bundled-layout"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
+    }
+
+    @Test
+    void anEditedFileThatKeepsItsLayoutIsNotAskedAgain() throws Exception {
+        pack("bundled-kept/main.yml", "menu-version: 1\ntitle: old\n");
+        assertTrue(refresh("bundled-kept"));
+        onDisk("bundled-kept/main.yml", "menu-version: 1\ntitle: edited\n");
+
+        pack("bundled-kept/main.yml", "menu-version: 2\ntitle: new\nextra: 1\n");
+        assertTrue(refresh("bundled-kept"));
+        assertEquals(1, DefaultUpdates.decide(pending -> true, false).kept());
+
+        assertEquals("edited", value("bundled-kept/main.yml", "title"));
+        assertEquals(2, value("bundled-kept/main.yml", "menu-version"));
+        assertTrue(refresh("bundled-kept"));
+        assertEquals("edited", value("bundled-kept/main.yml", "title"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
     }
 
     @Test

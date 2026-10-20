@@ -48,6 +48,9 @@ public final class DefaultsMerge {
     private static final Set<String> BOOKKEEPING =
             Set.of("config-version", "menu-version", "defaults-version", OFFERED);
 
+    /** Top-level keys whose rise means the file's layout changed. */
+    private static final Set<String> LAYOUT_KEYS = Set.of("menu-version", "defaults-version");
+
     /** What kind of change a shipped default is. */
     public enum Kind {
         ADDED, CHANGED, REMOVED
@@ -117,6 +120,19 @@ public final class DefaultsMerge {
             next.set(OFFERED, stillOffered);
         }
         return new Result(List.copyOf(added), List.copyOf(pending), next);
+    }
+
+    /**
+     * A new layout for a whole file: the change a raised {@code menu-version}
+     * (or {@code defaults-version}) holds for an owner who edited the file.
+     */
+    public static @NotNull Change layout(@NotNull String versionKey, int current, int shipped) {
+        return new Change(List.of(versionKey), Kind.CHANGED, current, shipped);
+    }
+
+    /** Whether a change is a {@link #layout}, which replaces the file rather than one key. */
+    public static boolean isLayout(@NotNull Change change) {
+        return change.path().size() == 1 && LAYOUT_KEYS.contains(change.path().get(0));
     }
 
     /** Writes a pending change to disk and records it as reviewed. */

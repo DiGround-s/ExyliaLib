@@ -51,11 +51,12 @@ import java.util.stream.Collectors;
  * <p>On a server with nothing reviewed yet every value already there counts as
  * the owner's, and a key missing from a file is listed as new rather than added,
  * since it may be one the owner deleted. A change the old file cannot survive
- * still forces itself over edits when the packaged file declares a
- * {@code menu-version} (or {@code defaults-version}) higher than the one on
- * disk; the replaced file is kept as {@code <name>.v<old version>}. A file on
- * disk that does not parse is left untouched and reported, and a file that is
- * not YAML is only ever written when missing.
+ * is declared by a packaged {@code menu-version} (or {@code defaults-version})
+ * higher than the one on disk: an untouched file is replaced at once, an edited
+ * one waits in {@code /exylialib updates} as a single change, and applying it
+ * replaces the file and keeps the old one as {@code <name>.v<old version>}.
+ * A file on disk that does not parse is left untouched and reported, and a file
+ * that is not YAML is only ever written when missing.
  *
  * @since 1.158.0
  */
@@ -152,19 +153,6 @@ public final class BundledFiles {
                 return false;
             }
 
-            Integer shippedVersion = version(shipped);
-            Integer declared = version(disk);
-            int diskVersion = declared == null ? 0 : declared;
-            if (shippedVersion != null && diskVersion < shippedVersion) {
-                Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + diskVersion);
-                Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
-                install(packaged, onDisk, reviewedPath);
-                DefaultUpdates.forget(plugin, name);
-                debug.log("Updated " + name + " from version " + diskVersion + " to " + shippedVersion
-                        + "; the previous file was kept as " + previous.getFileName() + ".");
-                return true;
-            }
-
             YamlConfiguration reviewed = null;
             if (Files.exists(reviewedPath)) {
                 reviewed = DefaultsMerge.yaml();
@@ -174,6 +162,26 @@ public final class BundledFiles {
                 // the defaults this server last had.
                 reviewed = DefaultsMerge.yaml();
                 reviewed.load(onDisk.toFile());
+            }
+
+            String versionKey = versionKey(shipped);
+            int shippedVersion = versionKey == null ? 0 : shipped.getInt(versionKey);
+            int diskVersion = versionKey != null && disk.isInt(versionKey) ? disk.getInt(versionKey) : 0;
+            if (diskVersion < shippedVersion) {
+                if (reviewed == null || !DefaultsMerge.same(disk, reviewed)) {
+                    // The owner's edits are theirs to give up: the new layout
+                    // waits in /exylialib updates and the file stays as it is.
+                    DefaultUpdates.track(plugin, name, onDisk, reviewedPath, shippedText, null,
+                            List.of(DefaultsMerge.layout(versionKey, diskVersion, shippedVersion)));
+                    return true;
+                }
+                Path previous = onDisk.resolveSibling(onDisk.getFileName() + ".v" + diskVersion);
+                Files.copy(onDisk, previous, StandardCopyOption.REPLACE_EXISTING);
+                install(packaged, onDisk, reviewedPath);
+                DefaultUpdates.forget(plugin, name);
+                debug.log("Updated " + name + " from version " + diskVersion + " to " + shippedVersion
+                        + "; the previous file was kept as " + previous.getFileName() + ".");
+                return true;
             }
 
             DefaultsMerge.Result result = DefaultsMerge.merge(disk, reviewed, shipped);
@@ -198,10 +206,10 @@ public final class BundledFiles {
         BundledResources.move(packaged, onDisk);
     }
 
-    private static @Nullable Integer version(YamlConfiguration yaml) {
+    private static @Nullable String versionKey(YamlConfiguration yaml) {
         for (String key : VERSION_KEYS) {
             if (yaml.isInt(key)) {
-                return yaml.getInt(key);
+                return key;
             }
         }
         return null;
