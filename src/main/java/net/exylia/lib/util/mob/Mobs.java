@@ -42,6 +42,8 @@ public final class Mobs {
 
     private static final Map<String, PluginMobs> BY_PLUGIN = new ConcurrentHashMap<>();
 
+    private static volatile MobStore store;
+
     private Mobs() {
         throw new AssertionError("No instances.");
     }
@@ -57,6 +59,27 @@ public final class Mobs {
     }
 
     /**
+     * The plugin keeping the server's mob templates, when one is installed.
+     *
+     * @return the store, or empty
+     * @since 1.316.0
+     */
+    public static @NotNull java.util.Optional<MobStore> store() {
+        return java.util.Optional.ofNullable(store);
+    }
+
+    /**
+     * Answers {@link #store()}, replacing any earlier store; forgotten when the
+     * store's plugin disables.
+     *
+     * @param store the store
+     * @since 1.316.0
+     */
+    public static void provide(@NotNull MobStore store) {
+        Mobs.store = java.util.Objects.requireNonNull(store, "store");
+    }
+
+    /**
      * Takes one plugin's mobs out of the world and forgets its templates.
      *
      * <p>Called by the library when the plugin is disabled.
@@ -64,6 +87,7 @@ public final class Mobs {
      * @param pluginName the plugin's name
      */
     public static void release(@NotNull String pluginName) {
+        if (store != null && store.mobs().plugin().getName().equals(pluginName)) store = null;
         PluginMobs mobs = BY_PLUGIN.remove(pluginName);
         if (mobs != null) mobs.stop();
     }

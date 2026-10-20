@@ -611,6 +611,19 @@ shield at most 5 s). Nothing lands: no damage, no mob, no minion. Returns how
 long it plays in milliseconds, `0` for a skill with no style. On the player's
 thread.
 
+## A shared store (since 1.316.0)
+
+A plugin that keeps the server's templates (ExyliaMobs) answers
+`Mobs.provide(store)`; any other plugin reaches them with `Mobs.store()`,
+empty when none is installed. `MobStore.mobs()` is the store's own
+`PluginMobs`: a mob spawned there pays out through the store, and a caller
+listening on it filters by its own entities and removes its handlers on
+disable. `stored()` reads every row from the database, `save(template,
+payouts)` writes one (`Payouts` carries the store's extra reward lists, booster
+source and delivery mode; `null` keeps the stored ones) and `edit(player, id,
+back)` opens the store's editor. The store is forgotten when its plugin
+disables.
+
 ## Death
 
 `MobDeath(template, entity, location, killer, damage, topDamager, playerShare, cause)`:
