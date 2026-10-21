@@ -472,7 +472,9 @@ Two static helpers that read only the item, so both are safe on any thread:
   empty slot), `isFilled`, `count`, path navigation (`resolve(items, "6.13")`,
   `parentOf`, `child`, `depth`), `nameOf`, and `isBlocked(stack, names)`: whether a
   stack or anything it carries, at any depth, is on a list of material names
-  (a shulker box or bundle is no way around a block list).
+  (a shulker box or bundle is no way around a block list). `withContents(item,
+  contents)` returns a copy holding other contents (since 1.320.0), for code that
+  takes things out of a box and puts the rest back.
 - `item/ItemTexts` — `describe` (display name as plain text, or `Diamond sword`),
   `nameOf`, `enchantments` (a book's stored ones included), `enchantmentName`, and
   `summary` for an audit line: `1x "Loot" Shulker Box{3x Diamond}`.

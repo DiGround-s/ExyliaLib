@@ -80,6 +80,36 @@ public final class Containers {
         return List.of();
     }
 
+    /**
+     * A copy of an item holding other contents, the item itself left alone.
+     *
+     * <p>A shulker box takes its first 27 entries slot by slot, {@code null} for
+     * an empty one; a bundle takes the non-empty ones in order. Anything that is
+     * not a container comes back as an unchanged copy.
+     *
+     * @param item     the container
+     * @param contents what it should hold now
+     * @return the copy, or {@code null} for a {@code null} item
+     * @since 1.320.0
+     */
+    public static ItemStack withContents(ItemStack item, List<ItemStack> contents) {
+        if (item == null) return null;
+        ItemStack copy = item.clone();
+        ItemMeta meta = copy.getItemMeta();
+        if (meta instanceof BundleMeta bundle) {
+            bundle.setItems(contents.stream().filter(stored -> stored != null && !stored.getType().isAir()).toList());
+        } else if (meta instanceof BlockStateMeta state && state.getBlockState() instanceof ShulkerBox box) {
+            ItemStack[] slots = new ItemStack[box.getInventory().getSize()];
+            for (int slot = 0; slot < slots.length && slot < contents.size(); slot++) slots[slot] = contents.get(slot);
+            box.getInventory().setContents(slots);
+            state.setBlockState(box);
+        } else {
+            return copy;
+        }
+        copy.setItemMeta(meta);
+        return copy;
+    }
+
     /** Whether anything is inside, so a preview knows there is something to open. */
     public static boolean isFilled(ItemStack item) {
         return contentsOf(item).stream().anyMatch(stored -> stored != null && !stored.getType().isAir());
