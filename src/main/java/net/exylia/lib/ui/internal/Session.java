@@ -2,6 +2,8 @@ package net.exylia.lib.ui.internal;
 
 import net.exylia.lib.action.ActionExecution;
 import net.exylia.lib.item.PluginItems;
+import net.exylia.lib.skull.SkullHandle;
+import net.exylia.lib.skull.internal.PendingHeads;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiEntry;
@@ -92,6 +94,9 @@ final class Session implements UiSession {
 
     /** What each slot was last drawn from, so a redraw that changes nothing draws nothing. */
     private final DrawnSlots drawn = new DrawnSlots();
+
+    /** Slots showing a head still being fetched, to the draw that showed it. */
+    private final Map<Integer, Object> headWaits = new HashMap<>();
 
     /** A timed redraw that runs every second, for a menu whose file asked for none. */
     private static final UiRefresh LIVE = new UiRefresh(UiRefresh.Mode.SMART, 20, 0);
@@ -855,6 +860,7 @@ final class Session implements UiSession {
     private void put(int slot, ItemStack item) {
         inventory.setItem(slot, item);
         drawn.forget(slot);
+        headWaits.remove(slot);
     }
 
     /** Draws a definition into a slot with nothing but the menu's context. */
@@ -899,10 +905,36 @@ final class Session implements UiSession {
         if (drawn.unchanged(slot, item.item(), all, parsed, kept)) {
             return shared;
         }
-        ItemStack rendered = shared != null ? shared : items.renderIcon(item.item(), viewer, all, parsed, kept);
+        List<SkullHandle> fetching = new ArrayList<>(0);
+        ItemStack rendered = shared != null ? shared : PendingHeads.collect(
+                () -> items.renderIcon(item.item(), viewer, all, parsed, kept), fetching);
         inventory.setItem(slot, rendered);
         drawn.record(slot, item.item(), all, parsed, kept);
+        awaitHeads(slot, fetching);
         return rendered;
+    }
+
+    /**
+     * Draws a slot again when a head it showed unfinished lands.
+     *
+     * <p>Only while the slot still shows what it was drawn with: a page turn,
+     * a redraw or another menu in its place takes the token away, and a head
+     * that lands after that changes nothing.
+     */
+    private void awaitHeads(int slot, List<SkullHandle> fetching) {
+        if (fetching.isEmpty()) {
+            headWaits.remove(slot);
+            return;
+        }
+        Object token = new Object();
+        headWaits.put(slot, token);
+        for (SkullHandle head : fetching) {
+            head.onReady(ignored -> {
+                if (isOpen() && headWaits.get(slot) == token) {
+                    invalidateSlot(slot);
+                }
+            });
+        }
     }
 
     /**

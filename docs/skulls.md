@@ -63,6 +63,14 @@ handle.onReady(head -> menu.setItem(slot, head));   // swapped in place
 `build(Consumer)` is the short form: the action is called once now and again
 when the head arrives.
 
+## Heads in YAML menus
+
+A menu slot whose item is a player head (`material: playerhead-%player_name%`
+and the like) needs none of this. A head that has not been fetched is drawn
+with the fallback and the slot is drawn again, in place, when its texture lands
+— as long as the slot still shows the same thing (same page, same row). Nothing
+to write in the plugin or the file.
+
 ## Warming a menu before it opens
 ```java
 Skulls.warm(topPlayers.stream().map(SkullSource::player).toList());

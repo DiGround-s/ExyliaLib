@@ -4,8 +4,10 @@ import net.exylia.lib.item.Appearance;
 import net.exylia.lib.item.Item;
 import net.exylia.lib.item.Source;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.skull.SkullHandle;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
+import net.exylia.lib.skull.internal.PendingHeads;
 import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
@@ -180,8 +182,12 @@ public final class ItemRenderer {
                 return held;
             }
         }
-        ItemStack item = build(definition, viewer, owner, values, formatted, verbatim, icon, problems);
-        if (cacheable) {
+        List<SkullHandle> fetching = new ArrayList<>(0);
+        ItemStack item = PendingHeads.collect(
+                () -> build(definition, viewer, owner, values, formatted, verbatim, icon, problems),
+                fetching);
+        // A head still on its way would be remembered as the fallback head.
+        if (cacheable && fetching.isEmpty()) {
             ItemCache.put(definition, item);
         }
         return item;
@@ -191,7 +197,7 @@ public final class ItemRenderer {
                                    Map<String, String> values, Set<String> formatted,
                                    Set<String> verbatim, boolean icon, TraitApplier.Reporter problems) {
         UnaryOperator<String> resolve = resolver(viewer, values);
-        ItemStack item = base(definition.source(), resolve, problems);
+        ItemStack item = base(definition.source(), viewer, resolve, problems);
         // Before anything is written, so the writing lands on the item that
         // ends up on the screen rather than on the one it stood in for.
         if (icon) {
@@ -297,16 +303,16 @@ public final class ItemRenderer {
     }
 
     /** Builds the object the item starts as. */
-    private static ItemStack base(Source declared, UnaryOperator<String> resolve,
+    private static ItemStack base(Source declared, Player viewer, UnaryOperator<String> resolve,
                                   TraitApplier.Reporter problems) {
         return switch (effective(declared, resolve)) {
             // Already resolved by effective(), so the text is final here.
             case Source.OfMaterial material -> material(material.raw(), problems);
             // Whatever Skulls has now. A head it has not fetched comes back
             // plain rather than blocking; the caller that wants the finished
-            // one asks for a handle instead.
-            case Source.OfHead head -> Skulls.of(head.head()).item();
-            case Source.OfHeadTemplate template -> head(template, resolve, problems);
+            // one wraps the render in PendingHeads.collect.
+            case Source.OfHead head -> PendingHeads.item(head.head(), viewer);
+            case Source.OfHeadTemplate template -> head(template, viewer, resolve, problems);
             case Source.OfSnapshot snapshot -> snapshot(snapshot, problems);
         };
     }
@@ -353,7 +359,7 @@ public final class ItemRenderer {
     }
 
     /** Resolves a head whose owner was written as a placeholder. */
-    private static ItemStack head(Source.OfHeadTemplate template, UnaryOperator<String> resolve,
+    private static ItemStack head(Source.OfHeadTemplate template, Player viewer, UnaryOperator<String> resolve,
                                   TraitApplier.Reporter problems) {
         String raw = template.raw();
         int separator = Math.max(raw.indexOf('-'), 0);
@@ -370,7 +376,7 @@ public final class ItemRenderer {
             return new ItemStack(Material.PLAYER_HEAD);
         }
         SkullSource source = template.kind().sourceOf(payload);
-        return Skulls.of(source).item();
+        return PendingHeads.item(source, viewer);
     }
 
     private static ItemStack snapshot(Source.OfSnapshot snapshot, TraitApplier.Reporter problems) {
