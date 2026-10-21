@@ -89,7 +89,7 @@ public final class PluginDatabase {
      * has a fixed, small number of them. A bounded cache here would mean
      * preparing a table again because a different record was used more recently.
      */
-    private final Map<Class<?>, Repository<?>> repositories = new ConcurrentHashMap<>();
+    private final Map<Object, Repository<?>> repositories = new ConcurrentHashMap<>();
     private volatile DatabaseRuntime.Lease lease;
     private boolean released;
 
@@ -156,7 +156,59 @@ public final class PluginDatabase {
             throw new IllegalStateException("The database view for " + plugin.getName()
                     + " was released because the plugin is disabled.");
         }
-        return (Repository<T>) repositories.computeIfAbsent(recordType, this::build);
+        return (Repository<T>) repositories.computeIfAbsent(recordType, ignored -> build(EntityModel.of(recordType)));
+    }
+
+    /**
+     * A repository for the same record in a table of its own: {@code scope_table}.
+     *
+     * <p>For a plugin part that several servers share with some and not with
+     * others: an auction house two survivals share and a third server keeps to
+     * itself. Each group names a scope, and its rows live in that scope's
+     * table, on the same database and the same cache, so servers in one group
+     * see each other's rows and nobody else's. A blank scope is the plain
+     * table, exactly {@link #repository(Class)}.
+     *
+     * <p>A scope is lower-cased, a hyphen becomes an underscore, and it keeps
+     * letters, digits and underscores, at most 24 of them; anything else is an
+     * {@link IllegalArgumentException}.
+     *
+     * @param recordType the record class
+     * @param scope      the scope, or blank for the plain table
+     * @param <T>        the record type
+     * @return the repository, the same instance for the same scope
+     * @since 1.336.0
+     */
+    @SuppressWarnings("unchecked")
+    public <T> @NotNull Repository<T> repository(@NotNull Class<T> recordType, @Nullable String scope) {
+        String clean = scope(scope);
+        if (clean.isEmpty()) return repository(recordType);
+        if (released) {
+            throw new IllegalStateException("The database view for " + plugin.getName()
+                    + " was released because the plugin is disabled.");
+        }
+        return (Repository<T>) repositories.computeIfAbsent(new Scoped(recordType, clean),
+                ignored -> build(EntityModel.of(recordType).scoped(clean)));
+    }
+
+    /**
+     * A scope as tables are named with it: lower case, blank for none.
+     *
+     * @throws IllegalArgumentException if it holds anything but letters, digits and underscores, or is too long
+     * @since 1.336.0
+     */
+    public static @NotNull String scope(@Nullable String scope) {
+        if (scope == null || scope.isBlank()) return "";
+        String clean = scope.trim().toLowerCase(java.util.Locale.ROOT).replace('-', '_');
+        if (!clean.matches("[a-z0-9_]{1,24}")) {
+            throw new IllegalArgumentException("A database scope is letters, digits and underscores, at most 24: '"
+                    + scope + "'");
+        }
+        return clean;
+    }
+
+    /** The key of a scoped repository. */
+    private record Scoped(Class<?> type, String scope) {
     }
 
     /**
@@ -266,7 +318,19 @@ public final class PluginDatabase {
      */
     public @NotNull Channel.Subscription onRemoteChange(@NotNull Class<?> recordType,
                                                         @NotNull Consumer<RowChange> listener) {
-        Repository<?> repository = repository(recordType);
+        return onRemoteChange(recordType, "", listener);
+    }
+
+    /**
+     * Hears every row of one scope's table that another server writes or
+     * deletes; see {@link #onRemoteChange(Class, Consumer)} and
+     * {@link #repository(Class, String)}.
+     *
+     * @since 1.336.0
+     */
+    public @NotNull Channel.Subscription onRemoteChange(@NotNull Class<?> recordType, @Nullable String scope,
+                                                        @NotNull Consumer<RowChange> listener) {
+        Repository<?> repository = repository(recordType, scope);
         RowCache shared = cache();
         if (shared != null) {
             return attach(shared, repository.model(), listener);
@@ -336,11 +400,10 @@ public final class PluginDatabase {
         }
     }
 
-    private <T> Repository<T> build(Class<T> recordType) {
-        // Compiled first, and outside the background work: a record that cannot
-        // be stored must fail on the thread that asked, where the stack trace
-        // points at the plugin's own onEnable.
-        EntityModel<T> model = EntityModel.of(recordType);
+    private <T> Repository<T> build(EntityModel<T> model) {
+        // Compiled first, by the caller, and outside the background work: a
+        // record that cannot be stored must fail on the thread that asked,
+        // where the stack trace points at the plugin's own onEnable.
         DatabaseRuntime.Lease target = lease();
         Debug debug = Debug.of(plugin);
         return new Repository<>(new GatedStorage(retrying(() -> prepare(target, model)),

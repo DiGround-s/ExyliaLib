@@ -313,7 +313,7 @@ public final class SqlBackend implements AutoCloseable {
      * @throws SQLException if the write failed
      */
     public <T> void save(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
-        String sql = statements.computeIfAbsent("save:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("save:" + model.key(),
                 key -> dialect.upsert(model, List.of(model.id().name())));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -335,7 +335,7 @@ public final class SqlBackend implements AutoCloseable {
      * @since 1.43.0
      */
     public <T> void update(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
-        String sql = statements.computeIfAbsent("update:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("update:" + model.key(),
                 key -> dialect.update(model));
         Object[] values = model.values(instance);
         try (Connection connection = pool.getConnection();
@@ -372,7 +372,7 @@ public final class SqlBackend implements AutoCloseable {
      */
     public <T> void increment(@NotNull EntityModel<T> model, @NotNull T instance,
                               @NotNull ColumnModel column) throws SQLException {
-        String add = statements.computeIfAbsent("increment:" + model.type().getName() + ':' + column.name(),
+        String add = statements.computeIfAbsent("increment:" + model.key() + ':' + column.name(),
                 key -> {
                     String name = dialect.quote(dialect.identifier(column.name()));
                     return "UPDATE " + dialect.quote(dialect.identifier(model.table())) + " SET " + name
@@ -385,7 +385,7 @@ public final class SqlBackend implements AutoCloseable {
         if (add(add, model, column, amount, id) > 0) {
             return;
         }
-        String insert = statements.computeIfAbsent("insertRow:" + model.type().getName(),
+        String insert = statements.computeIfAbsent("insertRow:" + model.key(),
                 key -> dialect.insert(model));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(insert)) {
@@ -440,7 +440,7 @@ public final class SqlBackend implements AutoCloseable {
     public <T> boolean updateIf(@NotNull EntityModel<T> model, @NotNull T instance,
                                 @NotNull ColumnModel column, @Nullable Object expected) throws SQLException {
         Object encoded = column.encode(expected);
-        String sql = statements.computeIfAbsent("updateIf:" + model.type().getName() + ':' + column.name()
+        String sql = statements.computeIfAbsent("updateIf:" + model.key() + ':' + column.name()
                         + (encoded == null ? ":null" : ""),
                 key -> dialect.update(model) + " AND " + dialect.quote(dialect.identifier(column.name()))
                         + (encoded == null ? " IS NULL" : " = ?"));
@@ -522,7 +522,7 @@ public final class SqlBackend implements AutoCloseable {
         if (rows.isEmpty()) {
             return 0;
         }
-        String sql = statements.computeIfAbsent("save:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("save:" + model.key(),
                 key -> dialect.upsert(model, List.of(model.id().name())));
         try (Connection connection = pool.getConnection()) {
             boolean autoCommit = connection.getAutoCommit();
@@ -570,7 +570,7 @@ public final class SqlBackend implements AutoCloseable {
             return 0L;
         }
         long max;
-        String maxSql = statements.computeIfAbsent("maxKey:" + model.type().getName(),
+        String maxSql = statements.computeIfAbsent("maxKey:" + model.key(),
                 key -> dialect.maxKey(model));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(maxSql);
@@ -615,7 +615,7 @@ public final class SqlBackend implements AutoCloseable {
      * @since 1.32.0
      */
     public <T> long insert(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
-        String sql = statements.computeIfAbsent("insert:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("insert:" + model.key(),
                 key -> dialect.insertGenerated(model));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement =
@@ -648,7 +648,7 @@ public final class SqlBackend implements AutoCloseable {
      * @throws SQLException if the delete failed
      */
     public boolean delete(@NotNull EntityModel<?> model, @NotNull Object id) throws SQLException {
-        String sql = statements.computeIfAbsent("delete:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("delete:" + model.key(),
                 key -> dialect.delete(model, List.of(model.id().name())));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -672,7 +672,7 @@ public final class SqlBackend implements AutoCloseable {
      * @since 1.76.0
      */
     public long deleteAll(@NotNull EntityModel<?> model) throws SQLException {
-        String sql = statements.computeIfAbsent("deleteAll:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("deleteAll:" + model.key(),
                 key -> dialect.deleteAll(model));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -692,7 +692,7 @@ public final class SqlBackend implements AutoCloseable {
      * @throws SQLException if the read failed
      */
     public <T> @Nullable T find(@NotNull EntityModel<T> model, @NotNull Object id) throws SQLException {
-        String sql = statements.computeIfAbsent("find:" + model.type().getName(),
+        String sql = statements.computeIfAbsent("find:" + model.key(),
                 key -> dialect.select(model, List.of(model.id().name()), List.of(), 1, 0));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -739,7 +739,7 @@ public final class SqlBackend implements AutoCloseable {
         List<ColumnModel> filter = resolve(model, whereColumns);
         List<Dialect.Sort> sorts = resolveSorts(model, order);
         String sql = statements.computeIfAbsent(
-                "select:" + model.type().getName() + ":" + names(filter) + ":" + sorts + ":" + (limit > 0),
+                "select:" + model.key() + ":" + names(filter) + ":" + sorts + ":" + (limit > 0),
                 key -> dialect.select(model, names(filter), sorts, limit, offset));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -808,9 +808,9 @@ public final class SqlBackend implements AutoCloseable {
                     + " needs a batch size of at least one row, not " + batchSize
                     + ". The batch is what bounds the memory the walk uses.");
         }
-        String first = statements.computeIfAbsent("scan:" + model.type().getName(),
+        String first = statements.computeIfAbsent("scan:" + model.key(),
                 key -> dialect.scan(model, false));
-        String next = statements.computeIfAbsent("scanAfter:" + model.type().getName(),
+        String next = statements.computeIfAbsent("scanAfter:" + model.key(),
                 key -> dialect.scan(model, true));
         int keyIndex = model.idIndex();
         long total = 0L;
@@ -869,7 +869,7 @@ public final class SqlBackend implements AutoCloseable {
         }
         List<ColumnModel> filter = resolve(model, whereColumns);
         String sql = statements.computeIfAbsent(
-                "count:" + model.type().getName() + ":" + names(filter),
+                "count:" + model.key() + ":" + names(filter),
                 key -> dialect.count(model, names(filter)));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -902,7 +902,7 @@ public final class SqlBackend implements AutoCloseable {
         ColumnModel target = numericColumn(model, column);
         List<ColumnModel> filter = resolve(model, whereColumns);
         String sql = statements.computeIfAbsent(
-                "sum:" + model.type().getName() + ":" + target.name() + ":" + names(filter),
+                "sum:" + model.key() + ":" + target.name() + ":" + names(filter),
                 key -> dialect.sum(model, target.name(), names(filter)));
         try (Connection connection = pool.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

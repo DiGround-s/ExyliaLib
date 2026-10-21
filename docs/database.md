@@ -591,6 +591,30 @@ refusing to start would take a whole server down over a typo. It is an **error**
 rather than a warning, and says what actually happens: the plugin is writing to
 a local file and nothing it stores reaches a database server.
 
+## One record, several groups of servers (since 1.336.0)
+
+Some parts of a plugin are shared by some servers of a network and not by
+others: two survivals trade on one auction house, a full-PvP server keeps its
+own. `repository(type, scope)` stores the same record in a table of its own per
+scope, `scope_table`, on the same database and the same Redis cache:
+
+```java
+String group = settings.networkGroup();          // "survival", or blank
+Repository<Listing> listings = database.repository(Listing.class, group);
+database.onRemoteChange(Listing.class, group, change -> reload(change));
+```
+
+- A blank scope is the plain table, exactly `repository(type)`, so a plugin can
+  offer the setting with blank as its default and change nothing for servers
+  that never set it.
+- `PluginDatabase.scope(text)` normalises a scope: lower case, a hyphen becomes
+  an underscore, letters, digits and underscores only, at most 24. Anything else
+  throws, so read it at enable.
+- Index names are scoped too: an explicit `@Index(name = ...)` becomes
+  `scope_name`, because some engines name indexes per schema.
+- Rows written before a scope was set stay in the plain table. Moving them is
+  the plugin's job (or an export and import).
+
 ## Hearing another server's writes (since 1.155.0)
 
 The [cache module](redis.md) keeps a `find` honest across the network. It

@@ -688,6 +688,37 @@ public final class EntityModel<T> {
         return owner.getName() + "." + component.getName();
     }
 
+    /**
+     * The same record stored in another table: {@code scope_table}.
+     *
+     * <p>Every column, key and handle is shared; only the table and the index
+     * names change, so two scopes of one record never collide in a database
+     * whose index names are global to the schema.
+     *
+     * @param scope the scope, already a safe identifier
+     * @return the model for that table
+     */
+    public @NotNull EntityModel<T> scoped(@NotNull String scope) {
+        String scopedTable = scope + "_" + table;
+        Set<String> explicit = new java.util.HashSet<>();
+        for (IndexModel index : indexes) explicit.add(index.name());
+        List<IndexModel> renamed = new ArrayList<>();
+        for (IndexModel index : indexes(type, scopedTable, columns)) {
+            renamed.add(explicit.contains(index.name())
+                    ? new IndexModel(scope + "_" + index.name(), index.parts(), index.unique())
+                    : index);
+        }
+        return new EntityModel<>(type, scopedTable, columns, id, renamed, constructor, slots, blank);
+    }
+
+    /**
+     * What tells this model's statements apart from every other model's: the
+     * record and its table, since a scoped copy shares the record.
+     */
+    public @NotNull String key() {
+        return type.getName() + '@' + table;
+    }
+
     // -------------------------------------------------------------- structure
 
     /** The record class this model was compiled from. */
