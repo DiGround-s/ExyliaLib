@@ -114,6 +114,18 @@ class SourceTest {
     }
 
     @Test
+    @DisplayName("a resource-pack plugin's item is a material named by its id")
+    void customItem() {
+        Source source = Source.of("nexo:ruby_sword");
+        Source.OfMaterial material = assertInstanceOf(Source.OfMaterial.class, source);
+        assertTrue(material.isCustom());
+        assertFalse(material.isDynamic());
+        assertEquals("Ruby Sword", source.label());
+        assertEquals("Ruby", Source.of("itemsadder:iasurvival:ruby").label());
+        assertFalse(((Source.OfMaterial) Source.of("DIAMOND_SWORD")).isCustom());
+    }
+
+    @Test
     @DisplayName("surrounding whitespace does not change what a value means")
     void trimmed() {
         assertInstanceOf(Source.OfHead.class, Source.of("  playerhead-Notch  "));

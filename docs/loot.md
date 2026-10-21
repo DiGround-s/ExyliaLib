@@ -185,7 +185,11 @@ MATERIAL MIN MAX WEIGHT [TIER]
 DIAMOND_SWORD 1 1 5 RARE
 SPLASH:HEALING 1 2 20
 GOLDEN_APPLE 1 2 15
+nexo:ruby_sword 1 1 2 EPIC
 ```
+
+- A resource-pack plugin's item (`nexo:`, `oraxen:`, `itemsadder:`/`ia:`,
+  `craftengine:`/`ce:`) is kept by id and built when it is rolled (1.328.0).
 
 - The material token also takes a potion: `POTION:`, `SPLASH:`, `LINGERING:`
   and `TIPPED:`, followed by a potion type. Both spellings of every renamed

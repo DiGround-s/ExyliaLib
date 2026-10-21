@@ -91,11 +91,49 @@ exist, either works.
 | `playerhead-Notch` | a head, by player name |
 | `playerhead-%player_name%` | a head, whose owner depends on the row |
 | `bytes:<base64>` | a serialised item |
+| `nexo:<id>`, `oraxen:<id>`, `itemsadder:<ns>:<id>` / `ia:`, `craftengine:<ns>:<id>` / `ce:` | a resource-pack plugin's item (1.328.0) |
 
 Both `-` and `:` separate a prefix from its payload, and the prefix is matched
 case-insensitively. Heads go through [`Skulls`](skulls.md): a texture or a URL
 never touches the network, and a player head that has not been fetched comes
 back plain rather than blocking.
+
+### Resource-pack plugins
+
+Since 1.328.0. A server running Nexo, Oraxen, ItemsAdder or CraftEngine writes
+its items by id wherever a `material` goes — menus, kits, icons, rewards, loot
+lines, hologram `<item:…>` lines — and gets that plugin's own item: model,
+components, its name and lore. Whatever the file writes (`name`, `lore`,
+`glow`…) lands on top, exactly as on a diamond sword.
+
+```yaml
+icon:
+  material: "nexo:ruby_sword"
+  name: '{primary}&lRUBY SWORD'
+```
+
+- **None of them is a dependency.** Each is reached by reflection over two or
+  three static calls of its public API (`item/internal/CustomItems`), only once
+  the plugin is enabled. An API that changes shape is reported once and treated
+  as absent.
+- **Late loaders are handled.** ItemsAdder and Oraxen load after the server
+  starts, so an item drawn earlier is paper. When a provider fires its load or
+  reload event, the item cache and every hologram are dropped and the library
+  reload is announced, so menus rebuild with the real item.
+- **Not found is paper**, reported as `Nexo has no item "ruby", or it is not
+  running`, never stone.
+- **Icon pickers store the id.** `Source.of(ItemStack)` on a held Nexo item
+  answers `nexo:ruby_sword` rather than `bytes:`, so the icon follows the pack.
+  `Source.whole` still stores bytes: a reward hands over that exact item.
+- **Loot lines keep the id** and build the item when it is rolled, so a table
+  read before ItemsAdder finished loading still works.
+- Ids are tried as written, then lower case, since loot and rewards upper-case
+  what they store. `Source.OfMaterial.isCustom()` tells one apart.
+
+Glyphs and emojis need nothing from here: their PlaceholderAPI placeholders
+(`%img_…%`, `%nexo_…%`, `%oraxen_…%`) resolve in every `Text` render, async
+boards included, and small capitals leave `:shortcode:` alone so the plugin's
+own packet replacement still finds it.
 
 **A placeholder is read again once it resolves.** `material: "%arena_icon%"` is
 a material when the file is read, because that is all it can be before anybody

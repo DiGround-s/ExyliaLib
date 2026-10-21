@@ -1,5 +1,6 @@
 package net.exylia.lib.util.loot.internal;
 
+import net.exylia.lib.item.internal.CustomItems;
 import net.exylia.lib.util.loot.LootEntry;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +16,7 @@ import java.util.function.BiConsumer;
  * MATERIAL MIN MAX WEIGHT [TIER]
  * DIAMOND_SWORD 1 1 5 RARE
  * SPLASH:HEALING 1 2 20
+ * nexo:ruby_sword 1 1 2 EPIC
  * }</pre>
  *
  * <p>Everything here is decided before an item is built, so the whole grammar —
@@ -73,14 +75,23 @@ public final class LootLines {
             return null;
         }
 
-        String token = parts[0].toUpperCase(Locale.ROOT);
-        ItemStack item = items.of(token);
-        if (item == null) {
-            problems.accept(written, "nothing named \"" + token + "\"");
-            return null;
+        String snapshot;
+        if (CustomItems.isCustom(parts[0])) {
+            // Kept by id and built when it is rolled: ItemsAdder and Oraxen
+            // load after the tables are read, and a stored copy would miss
+            // every later change to the pack.
+            snapshot = parts[0].trim();
+        } else {
+            String token = parts[0].toUpperCase(Locale.ROOT);
+            ItemStack item = items.of(token);
+            if (item == null) {
+                problems.accept(written, "nothing named \"" + token + "\"");
+                return null;
+            }
+            snapshot = items.snapshot(item);
         }
 
-        return LootEntry.item(items.snapshot(item))
+        return LootEntry.item(snapshot)
                 .minAmount(min)
                 .maxAmount(max)
                 .weight(weight)

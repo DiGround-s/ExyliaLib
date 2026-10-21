@@ -184,6 +184,7 @@ it to `true`, or delete the line, to pick up the new look.
 | `s` and `x` | unchanged; Unicode has no small capital for them |
 | digits, punctuation, symbols | unchanged |
 | tags, tokens, legacy codes | unchanged, and still work |
+| emoji shortcodes, `:smile:` | unchanged, so ItemsAdder, Nexo and Oraxen still swap them for their glyph (1.328.0) |
 | substituted values | unchanged |
 
 **Values are never transformed.** A player named `Steve` stays `Steve` and a

@@ -236,6 +236,13 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.util.internal.TotemEffectsListener(), this);
         loadPalette();
+        // ItemsAdder and Oraxen load their items after the server starts, so a
+        // static item drawn before that holds the fallback until told.
+        net.exylia.lib.item.internal.CustomItems.listen(this, () -> {
+            ItemCache.invalidateAll();
+            HologramRuntime.invalidateAll();
+            Reloads.fireLibraryReload();
+        });
         loadFormats();
         loadEconomy();
         loadInput();

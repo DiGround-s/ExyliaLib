@@ -289,6 +289,10 @@ public final class ItemRenderer {
                 case Source.OfSnapshot snapshot -> ItemStack.deserializeBytes(
                         Base64.getDecoder().decode(snapshot.base64()));
                 case Source.OfMaterial material -> {
+                    if (CustomItems.isCustom(material.raw())) {
+                        ItemStack custom = CustomItems.item(material.raw());
+                        yield custom == null ? new ItemStack(Material.PAPER) : custom;
+                    }
                     Material type = Registries.material(material.raw());
                     yield new ItemStack(type == null ? Material.PAPER : type);
                 }
@@ -350,12 +354,32 @@ public final class ItemRenderer {
     }
 
     private static ItemStack material(String name, TraitApplier.Reporter problems) {
+        if (CustomItems.isCustom(name)) {
+            return custom(name, problems);
+        }
         Material material = Registries.material(name);
         if (material == null) {
             problems.found("material", "there is no material called \"" + name + "\"");
             return new ItemStack(Material.STONE);
         }
         return new ItemStack(material);
+    }
+
+    /**
+     * The item a resource-pack plugin names, such as {@code nexo:ruby_sword}.
+     *
+     * <p>Paper when it cannot be had, like an unreadable stored icon: stone
+     * would read as somebody's configuration. A provider that has not finished
+     * loading lands here too, and the cache is dropped when it does.
+     */
+    private static ItemStack custom(String name, TraitApplier.Reporter problems) {
+        ItemStack item = CustomItems.item(name);
+        if (item == null) {
+            problems.found("material", CustomItems.plugin(name) + " has no item \""
+                    + CustomItems.id(name) + "\", or it is not running");
+            return new ItemStack(Material.PAPER);
+        }
+        return item;
     }
 
     /** Resolves a head whose owner was written as a placeholder. */

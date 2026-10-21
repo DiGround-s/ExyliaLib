@@ -449,6 +449,14 @@ parser inside a plugin.
   Hiding those is still something the file asks for, via `flags`.
 - **The consumable's sound is asked of `Effects`.** The rule isn't mechanical
   (`BLOCK_NOTE_BLOCK_PLING` keeps its underscore) and it is already written once.
+- **Second declared exception to "zero reflection": `CustomItems`.** Nexo,
+  Oraxen, ItemsAdder and CraftEngine publish their APIs from four repositories,
+  one of them unreachable from a build, and we call two or three static methods
+  of each. Reflection through the provider's own class loader, confined to
+  `item/internal/CustomItems`, methods looked up on the declared return type,
+  a changed API reported once and treated as absent. Ids go through the
+  existing `material` grammar as `OfMaterial`: a new `Source` case would break
+  every consumer's exhaustive switch.
 - **Registries go through `Registry`, never `valueOf`.** Several of those types
   stopped being enums in 1.21: `values()` compiles and blows up at runtime with
   `IncompatibleClassChangeError`.

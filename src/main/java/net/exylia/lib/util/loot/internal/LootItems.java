@@ -1,6 +1,7 @@
 package net.exylia.lib.util.loot.internal;
 
 import net.exylia.lib.item.Source;
+import net.exylia.lib.item.internal.CustomItems;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -96,6 +97,9 @@ public interface LootItems {
                 } catch (RuntimeException unreadable) {
                     return null;
                 }
+            }
+            if (source instanceof Source.OfMaterial material && material.isCustom()) {
+                return CustomItems.item(material.raw());
             }
             if (source instanceof Source.OfMaterial material) {
                 Material type = Material.matchMaterial(material.raw());

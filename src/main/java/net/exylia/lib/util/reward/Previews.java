@@ -68,7 +68,8 @@ final class Previews {
     private static String material(String snapshot) {
         Source source = Source.of(snapshot);
         return switch (source) {
-            case Source.OfMaterial material -> material.raw().toUpperCase(Locale.ROOT);
+            case Source.OfMaterial material -> material.isCustom()
+                    ? material.raw() : material.raw().toUpperCase(Locale.ROOT);
             case Source.OfHead head -> head.raw();
             case Source.OfHeadTemplate template -> template.raw();
             case Source.OfSnapshot stored -> stored.raw();
@@ -79,8 +80,9 @@ final class Previews {
     private static String readable(String snapshot) {
         Source source = Source.of(snapshot);
         return switch (source) {
-            case Source.OfMaterial material ->
-                    material.raw().toLowerCase(Locale.ROOT).replace('_', ' ');
+            case Source.OfMaterial material -> material.isCustom()
+                    ? material.label().toLowerCase(Locale.ROOT)
+                    : material.raw().toLowerCase(Locale.ROOT).replace('_', ' ');
             case Source.OfHead ignored -> Phrases.tr("custom skull");
             case Source.OfHeadTemplate ignored -> Phrases.tr("custom skull");
             case Source.OfSnapshot ignored -> Phrases.tr("item");

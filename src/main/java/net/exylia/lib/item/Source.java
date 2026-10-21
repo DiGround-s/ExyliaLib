@@ -1,5 +1,6 @@
 package net.exylia.lib.item;
 
+import net.exylia.lib.item.internal.CustomItems;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
@@ -21,6 +22,7 @@ import java.util.Locale;
  * material: "basehead-eyJ0ZXh0dXJlcyI6..."   # a head, by texture
  * material: "playerhead-%player_name%"       # a head, whose owner depends on the row
  * material: "bytes:rO0ABXNy..."              # a serialised item
+ * material: "nexo:ruby_sword"                # a resource-pack plugin's item
  * }</pre>
  *
  * <p>A source is what that string means, worked out once when the file is read
@@ -85,6 +87,9 @@ public sealed interface Source {
      *   <tr><td>{@code urlhead-}, {@code headurl-}</td><td>a skin URL</td></tr>
      *   <tr><td>{@code playerhead-}</td><td>a player name</td></tr>
      *   <tr><td>{@code bytes:}</td><td>a serialised item</td></tr>
+     *   <tr><td>{@code nexo:}, {@code oraxen:}, {@code itemsadder:}/{@code ia:},
+     *       {@code craftengine:}/{@code ce:}</td><td>that plugin's item, as an
+     *       {@link OfMaterial} (since 1.328.0)</td></tr>
      *   <tr><td>anything else</td><td>a material name</td></tr>
      * </table>
      *
@@ -130,6 +135,10 @@ public sealed interface Source {
      * which is to say a textured head or a custom model, is stored whole as a
      * {@code bytes:} snapshot, because that is the only spelling that keeps it.
      *
+     * <p>An item made by Nexo, Oraxen, ItemsAdder or CraftEngine is stored by
+     * its id instead — {@code nexo:ruby_sword} — so the icon follows the pack
+     * when the pack changes (since 1.328.0).
+     *
      * @param item the item, which may be nothing at all
      * @return what to store; never a value {@link #of(String)} cannot read
      */
@@ -146,6 +155,10 @@ public sealed interface Source {
         }
         if (!item.hasItemMeta()) {
             return new OfMaterial(type.name());
+        }
+        String custom = CustomItems.written(item);
+        if (custom != null) {
+            return new OfMaterial(custom);
         }
         try {
             String base64 = Base64.getEncoder().encodeToString(icon(item).serializeAsBytes());
@@ -224,18 +237,39 @@ public sealed interface Source {
         return copy;
     }
 
-    /** A plain material, possibly named by a placeholder. */
+    /**
+     * A plain material, possibly named by a placeholder, or an item of a
+     * resource-pack plugin named by its id.
+     */
     record OfMaterial(@NotNull String raw) implements Source {
         @Override
         public boolean isDynamic() {
             return raw.indexOf('%') >= 0;
         }
 
+        /**
+         * Whether this names a Nexo, Oraxen, ItemsAdder or CraftEngine item
+         * rather than a vanilla material.
+         *
+         * @return {@code true} for {@code nexo:ruby_sword} and the like
+         * @since 1.328.0
+         */
+        public boolean isCustom() {
+            return CustomItems.isCustom(raw);
+        }
+
         @Override
         public @NotNull String label() {
             // A placeholder is shown as written: prettifying %icon_material%
             // would name a material nobody chose.
-            return isDynamic() ? raw : words(raw);
+            if (isDynamic()) {
+                return raw;
+            }
+            if (isCustom()) {
+                String id = CustomItems.id(raw);
+                return words(id.substring(id.lastIndexOf(':') + 1));
+            }
+            return words(raw);
         }
     }
 

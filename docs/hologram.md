@@ -53,7 +53,7 @@ since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 | `<opacity:160>` | the line's text opacity, 0 to 255 |
 | `<background:#66000000>` | the line's own background (`#AARRGGBB`), e.g. a pill behind a call to action |
 | `<shadow:false>` | turns the shadow off (or `<shadow>` on) for this line |
-| `<item:DIAMOND>` | the line is a floating item, centred in the stack and facing the player |
+| `<item:DIAMOND>` | the line is a floating item, centred in the stack and facing the player; `<item:nexo:ruby>` and the other resource-pack ids work too (1.328.0) |
 | `<block:BEACON>` | the line is a floating block, turning around its own centre when it spins |
 | `<head:Notch>` | the line is a player head, drawn like an item line: a player name, a UUID, a base64 texture, a `textures.minecraft.net` URL or a bare texture hash (`urlhead-`/`basehead-`/`playerhead-` values read too). `<size:0.5>` makes it small, `<size:2>` large (since 1.297.0) |
 | `<glow>` / `<glow:#8a51c4>` | glow outline on an item or block line, in the team colour or the one given |

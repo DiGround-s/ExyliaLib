@@ -6,6 +6,7 @@ import net.exylia.lib.interaction.Click;
 import net.exylia.lib.interaction.Interaction;
 import net.exylia.lib.interaction.InteractionToken;
 import net.exylia.lib.interaction.Interactions;
+import net.exylia.lib.item.internal.CustomItems;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
@@ -20,6 +21,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -536,9 +538,12 @@ final class HologramImpl implements Hologram {
     private DisplayState[] build(LineStyle[] styles) {
         if (config.type() != HologramConfig.Kind.TEXT) {
             Material material = material(config);
-            return new DisplayState[]{
-                    new DisplayState(HologramRuntime.newEntityId(), config.type(),
-                            config.properties(), material)};
+            DisplayState only = new DisplayState(HologramRuntime.newEntityId(), config.type(),
+                    config.properties(), material);
+            if (config.type() == HologramConfig.Kind.ITEM) {
+                custom(only, config.item());
+            }
+            return new DisplayState[]{only};
         }
         DisplayState[] displays = new DisplayState[styles.length];
         for (int i = 0; i < styles.length; i++) {
@@ -551,8 +556,25 @@ final class HologramImpl implements Hologram {
             }
             displays[i] = new DisplayState(HologramRuntime.newEntityId(), kind, properties,
                     style.isModel() ? material(style.model()) : Material.STONE, style);
+            if (kind == HologramConfig.Kind.ITEM) {
+                custom(displays[i], style.model());
+            }
         }
         return displays;
+    }
+
+    /**
+     * Shows a resource-pack plugin's item, such as {@code nexo:ruby_sword}, on
+     * an item display. Built again whenever the hologram is: a provider that
+     * loads late invalidates every hologram when it does.
+     */
+    private static void custom(DisplayState display, String name) {
+        if (CustomItems.isCustom(name)) {
+            ItemStack item = CustomItems.item(name);
+            if (item != null) {
+                display.item(item);
+            }
+        }
     }
 
     /**
@@ -566,6 +588,11 @@ final class HologramImpl implements Hologram {
     }
 
     private static Material material(String name) {
+        if (CustomItems.isCustom(name)) {
+            // Drawn from the provider's item instead; this is only what shows
+            // while it cannot be had.
+            return Material.PAPER;
+        }
         Material material = Material.matchMaterial(name);
         if (material == null) {
             HologramRuntime.logger().warning("Unknown material '" + name

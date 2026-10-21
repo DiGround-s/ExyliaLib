@@ -25,7 +25,10 @@ import java.util.function.IntUnaryOperator;
  *       matched literally when its value is substituted, so a rewritten name
  *       silently stops matching and reaches chat as written;</li>
  *   <li>a legacy code, {@code &l} or {@code &#8a51c4} — {@code l} is a letter
- *       and would otherwise become {@code &ʟ}, which is no longer bold.</li>
+ *       and would otherwise become {@code &ʟ}, which is no longer bold;</li>
+ *   <li>an emoji shortcode, {@code :smile:} — ItemsAdder, Nexo and Oraxen swap
+ *       these for their glyphs on the way to the client, matching the name
+ *       literally, exactly like a placeholder (since 1.328.0).</li>
  * </ul>
  * An unclosed {@code <}, an unclosed brace or a lone {@code %} is text, which
  * is also how MiniMessage reads it.
@@ -113,6 +116,13 @@ public final class CharMaps {
                 int close = text.indexOf('%', index + 1);
                 return close == -1 || close == index + 1 ? index : close;
             }
+            case ':' -> {
+                int close = index + 1;
+                while (close < text.length() && isShortcode(text.charAt(close))) {
+                    close++;
+                }
+                return close > index + 1 && close < text.length() && text.charAt(close) == ':' ? close : index;
+            }
             case '&', '§' -> {
                 if (index + 1 >= text.length()) {
                     return index;
@@ -127,6 +137,11 @@ public final class CharMaps {
                 return index;
             }
         }
+    }
+
+    private static boolean isShortcode(char character) {
+        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z')
+                || (character >= '0' && character <= '9') || character == '_' || character == '-';
     }
 
     private static boolean isLegacyCode(char code) {

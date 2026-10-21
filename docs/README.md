@@ -24,7 +24,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
 | [Interactions](interactions.md) | What clicking something in the world does: lines with click filters, commands, effect tokens, `[SERVER]`, `[TELEPORT]`, `[ACTION]`, `[DELAY]` and tokens a plugin registers | 1.291.0 |
 | [Actions](actions.md) | Compiled, namespaced actions shared by menus, items and other event boundaries | 1.20.0 |
-| [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player; values stored on live items since 1.63.0 | 1.22.0 |
+| [Items](items.md) | Items described in configuration — menu icons, special items, kits, shields — read once and drawn per player; values stored on live items since 1.63.0; Nexo, Oraxen, ItemsAdder and CraftEngine items by id since 1.328.0 | 1.22.0 |
 | [Menus](menus.md) | Menus written in configuration: paginated lists, reactive redrawing, clicks bound to actions | 1.22.0 |
 | [Regions](regions.md) | Areas of the world: shapes, an immutable spatial index, overlapping policies, enter/exit events, selection and outlines | 1.23.0 |
 | [Database](database.md) | Records stored in H2, MySQL, MariaDB, PostgreSQL or MongoDB — one pool for the server, no reflection per row, no blocking calls; atomic counters, compare-and-set and cross-server `RowLocks` since 1.163.0 (renewed leases since 1.167.0, `findFresh` for reads inside a hold since 1.319.0) | 1.24.0 |

@@ -40,6 +40,13 @@ class CharMapsTest {
     }
 
     @Test
+    @DisplayName("an emoji shortcode is copied through, a lone colon is text")
+    void keepsShortcodes() {
+        assertEquals("XX :smile: XXXX: X :XX XX", CharMaps.transform("hi :smile: time: a :bc de", LETTERS_TO_X));
+        assertEquals("X:X X :: X", CharMaps.transform("a:b c :: d", LETTERS_TO_X));
+    }
+
+    @Test
     @DisplayName("an unclosed tag or brace is text")
     void unclosedIsText() {
         assertEquals("X < X {X", CharMaps.transform("a < b {c", LETTERS_TO_X));

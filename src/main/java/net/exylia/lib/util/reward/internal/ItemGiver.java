@@ -1,6 +1,7 @@
 package net.exylia.lib.util.reward.internal;
 
 import net.exylia.lib.item.Source;
+import net.exylia.lib.item.internal.CustomItems;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -144,6 +145,9 @@ public interface ItemGiver {
                     return null;
                 }
             });
+        }
+        if (source instanceof Source.OfMaterial material && material.isCustom()) {
+            return CustomItems.item(material.raw());
         }
         if (source instanceof Source.OfMaterial material) {
             Material type = Material.matchMaterial(material.raw());

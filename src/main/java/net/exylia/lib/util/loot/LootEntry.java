@@ -240,7 +240,8 @@ public final class LootEntry {
 
     private static String material(String snapshot) {
         return switch (Source.of(snapshot)) {
-            case Source.OfMaterial value -> value.raw().toUpperCase(Locale.ROOT);
+            case Source.OfMaterial value -> value.isCustom()
+                    ? value.raw() : value.raw().toUpperCase(Locale.ROOT);
             case Source.OfHead head -> head.raw();
             case Source.OfHeadTemplate template -> template.raw();
             // Handed over whole: decoding it is the item module's job, and a
@@ -251,7 +252,8 @@ public final class LootEntry {
 
     private static String readable(String snapshot) {
         return switch (Source.of(snapshot)) {
-            case Source.OfMaterial value -> value.raw().toUpperCase(Locale.ROOT);
+            case Source.OfMaterial value -> value.isCustom()
+                    ? value.raw() : value.raw().toUpperCase(Locale.ROOT);
             case Source.OfHead ignored -> "CUSTOM_HEAD";
             case Source.OfHeadTemplate ignored -> "CUSTOM_HEAD";
             case Source.OfSnapshot ignored -> "ITEM";
