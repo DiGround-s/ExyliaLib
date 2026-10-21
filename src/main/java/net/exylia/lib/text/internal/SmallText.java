@@ -1,5 +1,7 @@
 package net.exylia.lib.text.internal;
 
+import java.text.Normalizer;
+
 import net.exylia.lib.text.CharMaps;
 
 /**
@@ -17,8 +19,13 @@ import net.exylia.lib.text.CharMaps;
  * placeholder or a legacy code that must be copied through — is
  * {@link CharMaps}; this class is only the table.
  *
- * <p>Anything with no small capital — digits, punctuation, accented letters,
- * the arrows and bars Exylia lore is built from — is copied through. Two
+ * <p>Accented Latin letters drop their accent and take the small capital of
+ * their base letter ({@code Á} is drawn {@code ᴀ}): Unicode has no accented
+ * small capitals, and a full-size {@code Á} in the middle of a small line
+ * reads as a typo.
+ *
+ * <p>Anything else with no small capital — digits, punctuation, the arrows
+ * and bars Exylia lore is built from — is copied through. Two
  * letters have no small capital at all in Unicode, {@code s} and {@code x};
  * lowercase is what commons drew for them and what this draws too.
  *
@@ -35,9 +42,10 @@ public final class SmallText {
      *
      * <p>A zero means "no replacement, copy the character": that covers
      * everything that is not a letter, and the two letters Unicode has no
-     * small capital for.
+     * small capital for. The table runs past ASCII to cover the accented
+     * letters of Latin-1 and Latin Extended-A/B.
      */
-    private static final char[] SMALL = new char[128];
+    private static final char[] SMALL = new char[0x250];
 
     static {
         map('a', 'ᴀ');
@@ -69,6 +77,15 @@ public final class SmallText {
         map('x', 'x');
         map('y', 'ʏ');
         map('z', 'ᴢ');
+
+        // Accented letters borrow their base letter's glyph: NFD splits Á into
+        // A plus a combining accent, and the A is what gets drawn.
+        for (char c = 0x80; c < SMALL.length; c++) {
+            char base = Normalizer.normalize(String.valueOf(c), Normalizer.Form.NFD).charAt(0);
+            if (base < 0x80 && Character.isLetter(c)) {
+                SMALL[c] = SMALL[base];
+            }
+        }
     }
 
     /** Registers a glyph for both cases of a letter, since they share one. */

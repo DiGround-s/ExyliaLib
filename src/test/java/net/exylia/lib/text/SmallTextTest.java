@@ -59,6 +59,12 @@ class SmallTextTest {
     }
 
     @Test
+    @DisplayName("accented letters drop the accent instead of staying full size")
+    void accentedLettersBecomeSmallCapitals() {
+        assertEquals("ᴇsᴛᴀs ʙᴀɴᴇᴀᴅᴏ ɴᴏ ᴀᴇɪᴏᴜ", plain("ESTÁS BANEADO ÑO áéíóú"));
+    }
+
+    @Test
     @DisplayName("verbatim text keeps its own letters, and its colours")
     void verbatimIsLeftAlone() {
         assertEquals("WELCOME", PLAIN.serialize(Text.verbatim("WELCOME")));
