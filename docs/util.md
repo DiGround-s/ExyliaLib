@@ -282,10 +282,31 @@ permissions, or the fallback when none carries one. A node set to `false`
 grants nothing and a tail that is not a number is skipped. Read it on the thread
 that owns the player.
 
+## PlayerStates — god mode and vanish kept by other plugins
+
+*Since 1.332.0.*
+
+```java
+if (PlayerStates.disableGod(player)) { ... }
+PlayerStates.disableVanish(player);
+boolean hidden = PlayerStates.isVanished(player);
+```
+
+| Method | Contract |
+| --- | --- |
+| `isGod(player)` | god mode in EssentialsX or CMI, or Bukkit `isInvulnerable()` |
+| `disableGod(player)` | turns it off in each of them; `true` when it was on anywhere |
+| `isVanished(player)` | the `vanished` metadata (SuperVanish, PremiumVanish, EssentialsX, CMI), or EssentialsX/CMI's own flag |
+| `disableVanish(player)` | turns vanish off in EssentialsX and CMI; other vanish plugins have no public switch and are left alone |
+
+EssentialsX and CMI are reached by reflection through their plugin instance, so
+neither is a dependency; a server without them pays a lookup, and a call that
+cannot be made answers `false`. Call it on the thread that owns the player.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`.
