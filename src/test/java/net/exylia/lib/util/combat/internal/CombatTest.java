@@ -194,6 +194,33 @@ class CombatTest {
     }
 
     @Test
+    @DisplayName("forgetting flight reaches the bridge for that player")
+    void forgetFlightReachesTheBridge() {
+        java.util.List<Player> forgotten = new java.util.ArrayList<>();
+        Combat.registerBridge(new CombatBridge() {
+            @Override
+            public @NotNull String name() {
+                return "Flight";
+            }
+
+            @Override
+            public boolean isTagged(@NotNull Player player) {
+                return true;
+            }
+
+            @Override
+            public void forgetFlight(@NotNull Player player) {
+                forgotten.add(player);
+            }
+        }, 1);
+
+        Combat.forgetFlight(defender.player());
+
+        assertEquals(java.util.List.of(defender.player()), forgotten,
+                "a plugin that took back the flight it granted must be able to stop the fight from returning it");
+    }
+
+    @Test
     @DisplayName("a disabled plugin's bridge is dropped, and another plugin's stays")
     void releaseDropsOnlyThatPluginsBridge() throws Exception {
         Combat.registerBridge(new CombatBridge() {

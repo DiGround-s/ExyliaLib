@@ -1637,6 +1637,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0); `Map<String, V>` sections (1.63.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
 | text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0), `LibraryMessages` (1.67.0), `PluginMessages`/`Values` (1.266.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
 | gradients over Components and character maps | `text/Gradients` (`blend`, `at`, `wrap`, `paint`, `apply`, `length`), `text/CharMaps.transform` | `SmallText` is only the table and delegates to `CharMaps`; `Debug.gradientName` uses `Gradients.blend` | [docs/text.md](docs/text.md) | 1.102.0 |
+| actionbar | `actionbar/ActionBars` | `actionbar/internal/` (`ActionBarRuntime`, `ActionBarLine`) | [docs/actionbars.md](docs/actionbars.md) | 1.323.0 |
 | placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |

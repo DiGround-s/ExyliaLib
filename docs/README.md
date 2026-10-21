@@ -12,6 +12,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Text](text.md) | Every player-facing string, into Adventure components — plus inline effect tags and centring | 1.2.0 |
 | [Placeholders](placeholders.md) | One registry for `%placeholders%`, with or without PlaceholderAPI | 1.3.0 |
 | [Effects](effects.md) | Titles, action bars, boss bars, sounds, particles, fireworks — from config | 1.4.0 |
+| [Action bars](actionbars.md) | One action bar line per player shared by every plugin: segments in order, sent only when they change | 1.323.0 |
 | [Scoreboard](scoreboard.md) | Packet sidebars declared in config | 1.5.0 |
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |

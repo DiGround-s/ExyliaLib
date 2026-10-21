@@ -29,6 +29,7 @@ returned `true` from `canAttack` unconditionally, with a `TODO` above it.
 | `tag(target, attacker)` | puts them in combat for the plugin's own time |
 | `tag(target, attacker, duration)` | for a set time |
 | `untag(player)` | takes them out |
+| `forgetFlight(player)` | the flight they had when tagged is not given back when the fight ends (since 1.323.0) |
 | `isProtected(player)` | new-player or respawn protection |
 | `isPvpEnabled(player)` / `setPvpEnabled(...)` | their PvP switch |
 | `canAttack(attacker, defender)` | whether the hit is allowed |

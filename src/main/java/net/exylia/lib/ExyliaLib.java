@@ -281,6 +281,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new net.exylia.lib.tuner.internal.TunerListener(), this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
+        net.exylia.lib.actionbar.internal.ActionBarRuntime.init(this);
         SkullRuntime.init(this);
         net.exylia.lib.discord.internal.WebhookRuntime.init(this);
         // Binds FastAsyncWorldEdit if the server has it, and says so once here
@@ -662,6 +663,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Overlays.releaseAll();
         ClanRuntime.shutdown();
         CombatRuntime.shutdown();
+        net.exylia.lib.actionbar.internal.ActionBarRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
         SkullRuntime.shutdown();
         // A short inline flush of the webhook messages still queued: the async
@@ -766,6 +768,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         NametagRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
+        net.exylia.lib.actionbar.internal.ActionBarRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
         net.exylia.lib.settings.internal.SettingsRuntime.left(event.getPlayer().getUniqueId());
@@ -849,6 +852,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // read before (an offline payout) knew none of them.
         net.exylia.lib.modifier.internal.ModifierRuntime.forget(id);
         net.exylia.lib.player.Accounts.joined(player);
+        net.exylia.lib.actionbar.internal.ActionBarRuntime.joined(player);
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
         Tasks.of(this).runAtEntityLater(player, CLIENT_HANDSHAKE_TICKS, () -> {
@@ -991,6 +995,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason: a combat bridge is asked on every damage event, and one
         // from a dying classloader would keep answering for a plugin that is gone.
         net.exylia.lib.util.combat.internal.CombatRuntime.release(event.getPlugin());
+        // An action bar segment is asked every two ticks for every player.
+        net.exylia.lib.actionbar.internal.ActionBarRuntime.release(pluginName);
         Cosmetics.release(pluginName);
         Watchers.release(pluginName);
         net.exylia.lib.util.Effects.release(pluginName);

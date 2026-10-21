@@ -96,6 +96,11 @@ gave `SurvivalService.crateKeys` and `giveCrateKeys`, deprecated since 1.10.0,
 default bodies answering `0` and `false`, so an implementation no longer
 carries stubs for them.
 
+`exylia-api` 2.2.0 added `SpecialsService.isSpecialProjectile`, so a plugin
+applying vanilla rules to thrown items (ExyliaCombat's pearl cooldown) can tell
+a projectile a special item launched from a player's own throw. It defaults to
+`false`.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before

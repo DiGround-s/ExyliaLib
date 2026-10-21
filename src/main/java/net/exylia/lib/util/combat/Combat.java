@@ -111,6 +111,22 @@ public final class Combat {
     }
 
     /**
+     * Tells the combat plugin that the flight a player had when they were
+     * tagged is no longer theirs.
+     *
+     * <p>A combat plugin that takes flight away during a fight gives it back
+     * when the fight ends. A plugin that granted that flight for a while (a fly
+     * voucher, a timed ability) and took it back in the meantime calls this, so
+     * the end of the fight does not hand out flight nobody owns any more.
+     *
+     * @param player the player
+     * @since 1.323.0
+     */
+    public static void forgetFlight(@NotNull Player player) {
+        CombatRuntime.forgetFlight(player);
+    }
+
+    /**
      * Returns whether a player is under new-player or respawn protection.
      *
      * @param player the player

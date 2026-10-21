@@ -213,6 +213,17 @@ public final class CombatRuntime {
         TAGGED.invalidate(player.getUniqueId());
     }
 
+    public static void forgetFlight(Player player) {
+        CombatProvider provider = active;
+        if (provider == null) {
+            return;
+        }
+        ask(() -> {
+            provider.forgetFlight(player);
+            return null;
+        }, null);
+    }
+
     public static boolean isProtected(Player player) {
         CombatProvider provider = active;
         return provider != null && ask(() -> provider.isProtected(player), false);
@@ -310,6 +321,11 @@ public final class CombatRuntime {
         @Override
         public void untag(Player player) {
             bridge.untag(player);
+        }
+
+        @Override
+        public void forgetFlight(Player player) {
+            bridge.forgetFlight(player);
         }
 
         @Override

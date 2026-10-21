@@ -1,6 +1,7 @@
 package net.exylia.lib.api.specials;
 
 import net.exylia.lib.api.ExyliaAPI;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -90,6 +91,23 @@ public interface SpecialsService {
      * @return {@code true} when the plugin recognises it
      */
     boolean isSpecial(@NotNull ItemStack item);
+
+    /**
+     * Whether an entity was launched by a special item rather than thrown by a
+     * player.
+     *
+     * <p>A special item that fires an ender pearl or a snowball as its effect
+     * launches a real projectile. A plugin applying vanilla rules to thrown
+     * items (a pearl cooldown, a throw limit) asks this so the special's own
+     * projectile is not counted as the player's throw.
+     *
+     * @param entity the projectile
+     * @return {@code true} when a special item launched it
+     * @since 2.2.0
+     */
+    default boolean isSpecialProjectile(@NotNull Entity entity) {
+        return false;
+    }
 
     /**
      * Which special item a stack is.

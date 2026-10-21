@@ -40,6 +40,10 @@ public interface CombatProvider {
     default void untag(Player player) {
     }
 
+    /** Forgets the flight a tagged player had, so it is not given back. */
+    default void forgetFlight(Player player) {
+    }
+
     default boolean isProtected(Player player) {
         return false;
     }

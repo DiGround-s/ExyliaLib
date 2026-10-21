@@ -85,6 +85,16 @@ public interface CombatBridge {
     }
 
     /**
+     * Forgets the flight a tagged player had: it is not given back when the
+     * fight ends. See {@link Combat#forgetFlight(Player)}.
+     *
+     * @param player the player
+     * @since 1.323.0
+     */
+    default void forgetFlight(@NotNull Player player) {
+    }
+
+    /**
      * Returns whether a player is under new-player or respawn protection.
      *
      * @param player the player
