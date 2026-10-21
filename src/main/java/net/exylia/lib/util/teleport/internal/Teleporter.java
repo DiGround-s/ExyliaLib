@@ -14,7 +14,11 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The one place a player is actually moved.
@@ -35,6 +39,23 @@ import java.util.concurrent.CompletableFuture;
  */
 @ApiStatus.Internal
 public final class Teleporter {
+
+    /**
+     * The move each player is in, so the next one waits for it.
+     *
+     * <p>Folia refuses a teleport while another is still handing the player
+     * between regions, and it refuses it inside its own task, where nothing can
+     * catch it: the whole region dies. Two plugins moving the same player at
+     * once (a join that sends somebody out of a deleted world, and an event
+     * restoring them) is exactly that.
+     */
+    private static final Map<UUID, CompletableFuture<TeleportResult>> MOVING = new ConcurrentHashMap<>();
+
+    /**
+     * Players whose join has not finished. Folia refuses to teleport them
+     * ("Cannot teleport async during login"), so their moves wait a tick.
+     */
+    private static final Set<UUID> JOINING = ConcurrentHashMap.newKeySet();
 
     private Teleporter() {
         throw new AssertionError("No instances.");
@@ -79,10 +100,41 @@ public final class Teleporter {
             return result;
         }
 
-        tasks.runAtEntity(player,
-                () -> move(plugin, player, destination, cause, debug, historySize, result),
-                () -> result.complete(TeleportResult.PLAYER_LEFT));
+        UUID id = player.getUniqueId();
+        CompletableFuture<TeleportResult> before = MOVING.put(id, result);
+        result.whenComplete((ended, failure) -> MOVING.remove(id, result));
+        Runnable go = () -> {
+            if (!player.isOnline()) {
+                result.complete(TeleportResult.PLAYER_LEFT);
+                return;
+            }
+            tasks.runAtEntity(player,
+                    () -> move(plugin, player, destination, cause, tasks, debug, historySize, result),
+                    () -> result.complete(TeleportResult.PLAYER_LEFT));
+        };
+        if (before == null) {
+            go.run();
+        } else {
+            before.whenComplete((ended, failure) -> go.run());
+        }
         return result;
+    }
+
+    /** Called by the library at the start of every join. */
+    static void joining(@NotNull Plugin library, @NotNull Player player) {
+        UUID id = player.getUniqueId();
+        JOINING.add(id);
+        // A quit before this runs is cleared by left().
+        net.exylia.lib.task.Tasks.of(library).runAtEntityLater(player, 1L, () -> JOINING.remove(id));
+    }
+
+    /** Called by the library when a player leaves: whatever they waited on is over. */
+    static void left(@NotNull UUID id) {
+        JOINING.remove(id);
+        CompletableFuture<TeleportResult> moving = MOVING.remove(id);
+        if (moving != null) {
+            moving.complete(TeleportResult.PLAYER_LEFT);
+        }
     }
 
     /**
@@ -93,10 +145,16 @@ public final class Teleporter {
      * was when somebody queued one.
      */
     private static void move(Plugin plugin, Player player, Location destination,
-                             TeleportCause cause, Debug debug, int historySize,
+                             TeleportCause cause, TaskScheduler tasks, Debug debug, int historySize,
                              CompletableFuture<TeleportResult> result) {
         if (!player.isOnline()) {
             result.complete(TeleportResult.PLAYER_LEFT);
+            return;
+        }
+        if (JOINING.contains(player.getUniqueId())) {
+            // A quit inside this tick is answered by left(), so nothing hangs.
+            tasks.runAtEntityLater(player, 1L,
+                    () -> move(plugin, player, destination, cause, tasks, debug, historySize, result));
             return;
         }
         Location from = player.getLocation();

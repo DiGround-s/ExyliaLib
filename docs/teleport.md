@@ -73,6 +73,14 @@ plugin, the server gets one of each.
   the thread owning the player.
 - **One countdown per player.** A second teleport cancels the first rather than
   dragging them through both.
+- **One move at a time per player** *(since 1.334.0)*. Two plugins moving the
+  same player at once are run one after the other, never on top of each other:
+  Folia refuses a teleport while another is still handing the player between
+  regions, and refuses it where nothing can catch it, which kills the region.
+- **Safe to ask during a join** *(since 1.334.0)*. A move asked inside
+  `PlayerJoinEvent` waits one tick, because Folia refuses to teleport a player
+  who is still logging in. Never call `teleportAsync` from a join listener
+  yourself; ask here.
 
 ## Describing a teleport
 

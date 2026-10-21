@@ -58,14 +58,21 @@ public final class ReplayRuntime {
     private static FakeBlocks fakeBlocks;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static TaskHandle driver;
+    private static volatile Plugin plugin;
     private static volatile BlackBox box;
     private static boolean warned;
 
     private ReplayRuntime() {
     }
 
+    /** The library, which every replay teleport is asked through. */
+    public static Plugin plugin() {
+        return plugin;
+    }
+
     public static void init(Plugin plugin) {
         synchronized (LOCK) {
+            ReplayRuntime.plugin = plugin;
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
             if (driver != null) driver.cancel();

@@ -436,7 +436,7 @@ public final class Playback implements ReplayPlayback {
                     Location to = near.clone();
                     to.setYaw(here.getYaw());
                     to.setPitch(here.getPitch());
-                    viewer.teleportAsync(to);
+                    net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin()).to(viewer, to).warmup(0).start();
                 }
             });
         }
@@ -800,7 +800,7 @@ public final class Playback implements ReplayPlayback {
                         here.getY() - before.getY(), here.getZ() - before.getZ());
                 there.setYaw(here.getYaw());
                 there.setPitch(here.getPitch());
-                viewer.teleportAsync(there);
+                net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin()).to(viewer, there).warmup(0).start();
             });
         }
         // The client forgets nothing on a teleport inside one world, but it does

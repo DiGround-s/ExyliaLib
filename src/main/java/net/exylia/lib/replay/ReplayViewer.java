@@ -108,8 +108,9 @@ public final class ReplayViewer {
         Saved saved = before != null ? before : Saved.of(viewer);
         TaskScheduler scheduler = Tasks.of(plugin);
         CompletableFuture<ReplayViewer> opened = new CompletableFuture<>();
-        viewer.teleportAsync(seat).whenComplete((arrived, failure) -> scheduler.runAtEntity(viewer, () -> {
-            if (failure != null || !Boolean.TRUE.equals(arrived) || !viewer.isOnline()) {
+        net.exylia.lib.util.teleport.Teleports.of(plugin).to(viewer, seat).warmup(0).start().future()
+                .thenAccept(arrived -> scheduler.runAtEntity(viewer, () -> {
+            if (!arrived.isSuccess() || !viewer.isOnline()) {
                 stage.close();
                 opened.completeExceptionally(new IllegalStateException("The viewer could not be moved to the stage"));
                 return;
@@ -295,7 +296,8 @@ public final class ReplayViewer {
     /** Flies over to where somebody is right now. */
     public void goTo(@NotNull UUID actor) {
         Location there = playback.locationOf(actor);
-        if (there != null) viewer.teleportAsync(behind(there));
+        if (there != null) net.exylia.lib.util.teleport.Teleports.of(net.exylia.lib.replay.internal.ReplayRuntime.plugin())
+                .to(viewer, behind(there)).warmup(0).start();
     }
 
     /** Turns the noise on or off. */

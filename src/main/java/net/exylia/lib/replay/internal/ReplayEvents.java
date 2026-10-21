@@ -185,7 +185,8 @@ final class ReplayEvents implements Listener {
         // Somebody who was watching a replay when the server went down comes
         // back on a stage nothing will ever play on again.
         if (net.exylia.lib.util.world.TemporaryWorld.is(player.getWorld())) {
-            player.teleportAsync(Bukkit.getWorlds().getFirst().getSpawnLocation());
+            net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin())
+                    .to(player, Bukkit.getWorlds().getFirst().getSpawnLocation()).warmup(0).start();
         }
     }
 

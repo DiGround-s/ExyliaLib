@@ -517,6 +517,51 @@ class TeleportTest {
         assertEquals(1, someoneElse.teleports().size());
     }
 
+    // ------------------------------------------------------------ join, Folia
+
+    @Test
+    @DisplayName("a teleport asked during the join waits for it and still arrives")
+    void aTeleportDuringTheJoinArrives() {
+        FakeServer.dispatch(new org.bukkit.event.player.PlayerJoinEvent(
+                player.player(), net.kyori.adventure.text.Component.empty()));
+        TeleportHandle handle = teleports.to(player.player(), destination).start();
+        settle();
+
+        assertEquals(1, player.teleports().size());
+        assertEquals(TeleportResult.SUCCESS, resultOf(handle));
+    }
+
+    @Test
+    @DisplayName("two teleports at once run one after the other, the last one winning")
+    void twoTeleportsAtOnceAreSerialised() {
+        Location second = new Location(world, 50, 70, 50);
+        TeleportHandle first = teleports.to(player.player(), destination).start();
+        TeleportHandle then = Teleports.of(FakeServer.newPlugin("Other"))
+                .to(player.player(), second).start();
+        settle();
+
+        assertEquals(TeleportResult.SUCCESS, resultOf(first));
+        assertEquals(TeleportResult.SUCCESS, resultOf(then));
+        assertEquals(2, player.teleports().size());
+        assertEquals(50.0, player.teleports().get(1).getX(), 0.001);
+    }
+
+    @Test
+    @DisplayName("quitting while a join teleport waits answers it")
+    void quittingWhileJoiningAnswersIt() {
+        FakeServer.dispatch(new org.bukkit.event.player.PlayerJoinEvent(
+                player.player(), net.kyori.adventure.text.Component.empty()));
+        TeleportHandle handle = teleports.to(player.player(), destination).start();
+        player.disconnect();
+        FakeServer.dispatch(new org.bukkit.event.player.PlayerQuitEvent(
+                player.player(), net.kyori.adventure.text.Component.empty(),
+                org.bukkit.event.player.PlayerQuitEvent.QuitReason.DISCONNECTED));
+        settle();
+
+        assertEquals(TeleportResult.PLAYER_LEFT, resultOf(handle));
+        assertTrue(player.teleports().isEmpty());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     /**

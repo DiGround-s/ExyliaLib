@@ -420,14 +420,7 @@ public final class SchematicRuntime {
             if (safe == null) {
                 continue;
             }
-            // teleportAsync: Folia refuses the synchronous teleport on every thread.
-            owner.scheduler().runAtEntity(player, () -> player.teleportAsync(safe)
-                    .whenComplete((moved, failure) -> {
-                        if (failure != null) {
-                            owner.debug.error("Could not move " + player.getName()
-                                    + " out of a regenerated area", failure);
-                        }
-                    }));
+            net.exylia.lib.util.teleport.Teleports.of(owner.plugin).to(player, safe).warmup(0).start();
         }
     }
 

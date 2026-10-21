@@ -257,6 +257,7 @@ public final class TeleportRuntime implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
+        Teleporter.left(id);
         RunningTeleport teleport = ACTIVE.get(id);
         if (teleport != null) {
             // Ends the timer as well as the countdown. An entity timer stops
@@ -282,6 +283,14 @@ public final class TeleportRuntime implements Listener {
      * <p>Does nothing at all for every ordinary join, which is almost all of
      * them: the check is one asynchronous read of one key that is absent.
      */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onJoining(PlayerJoinEvent event) {
+        Plugin owner = library;
+        if (owner != null) {
+            Teleporter.joining(owner, event.getPlayer());
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Plugin owner = library;
