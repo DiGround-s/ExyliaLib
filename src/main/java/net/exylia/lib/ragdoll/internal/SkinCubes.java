@@ -152,7 +152,7 @@ public final class SkinCubes {
      * @param image    the 64&times;64 skin whose head is this piece
      * @param hash     a fingerprint of the picture, so an identical piece of
      *                 another skin is never uploaded twice
-     * @param plain    the one block every texel of the piece matches, or
+     * @param plain    the one block every texel of the piece looks like, or
      *                 {@code null} when it has a design; a plain piece is drawn
      *                 as that block and never uploaded
      * @param dominant the block most of its front and back are, for drawing it
@@ -217,7 +217,7 @@ public final class SkinCubes {
                     if (!mixed) {
                         Material block = BlockPalette.material(painted);
                         plain = plain == null ? block : plain;
-                        mixed = block != plain;
+                        mixed = block != plain || !BlockPalette.passesFor(painted, plain);
                     }
                     all[seen++] = painted;
                 }
@@ -320,8 +320,10 @@ public final class SkinCubes {
                     if (!mixed) {
                         Material block = BlockPalette.material(painted);
                         plain = plain == null ? block : plain;
-                        mixed = block != plain
-                                || wornSolid && BlockPalette.material(worn) != plain;
+                        // A block only for what looks like it: a region whose pixels
+                        // merely share their nearest block may be far from it.
+                        mixed = block != plain || !BlockPalette.passesFor(painted, plain)
+                                || wornSolid && !BlockPalette.passesFor(worn, plain);
                     }
                     if (face == Face.FRONT || face == Face.BACK) {
                         frontAndBack[seen++] = wornSolid ? worn : painted;

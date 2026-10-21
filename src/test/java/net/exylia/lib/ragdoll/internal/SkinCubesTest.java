@@ -172,6 +172,25 @@ class SkinCubesTest {
             assertNull(cube.plain(), cube.part() + " has a design");
             assertNotNull(cube.dominant());
         }
+        // A flat colour still far from the block nearest it stays a design:
+        // drawn as that block, a dark red would come out another colour.
+        int far = 0;
+        for (int level = 0; level < 256 && far == 0; level++) {
+            int red = level << 16 | (level / 4) << 8 | level / 4;
+            if (!BlockPalette.passesFor(red, BlockPalette.material(red))) {
+                far = red;
+            }
+        }
+        assertNotEquals(0, far, "some colour has no block close to it");
+        BufferedImage off = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < 64; y++) {
+            for (int x = 0; x < 64; x++) {
+                off.setRGB(x, y, 0xFF000000 | far);
+            }
+        }
+        for (SkinCubes.Cube cube : SkinCubes.cut(off, false, SkinCubes.Quality.NORMAL)) {
+            assertNull(cube.plain(), cube.part() + " is not the colour of any block");
+        }
     }
 
     @Test

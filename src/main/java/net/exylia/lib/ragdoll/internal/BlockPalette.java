@@ -251,6 +251,20 @@ public final class BlockPalette {
         return best;
     }
 
+    /** The most a colour may differ from a block for that block to stand in for it unnoticed. */
+    private static final double UNNOTICED = 4.0;
+
+    /**
+     * Whether a block can stand in for a colour without anyone telling: the
+     * nearest block is often still far, a dark red drawn as orange terracotta.
+     *
+     * @param rgb      the colour, as {@code 0xRRGGBB}
+     * @param material a palette material
+     */
+    static boolean passesFor(int rgb, Material material) {
+        return difference(LABS.get(material), lab(rgb & 0xFFFFFF)) <= UNNOTICED;
+    }
+
     /** The palette material a colour is drawn in, remembered. */
     static Material material(int rgb) {
         return MATCHED.get(rgb & 0xFFFFFF, BlockPalette::match);
