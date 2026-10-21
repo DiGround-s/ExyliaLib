@@ -132,7 +132,7 @@ public final class RagdollSkin {
      *
      * @param quality how finely
      * @return the pieces, torso first; {@code null} for a skin with no picture
-     * @since 1.340.0
+     * @since 1.343.0
      */
     @ApiStatus.Internal
     public @Nullable List<SkinCubes.Cube> paintedCubes(@NotNull SkinCubes.Quality quality) {

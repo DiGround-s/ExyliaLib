@@ -125,7 +125,7 @@ public interface PendingRewards {
      * @param player  who is owed them
      * @param owed    what they are owed, never empty
      * @param refused what to do with them if they are not kept
-     * @since 1.340.0
+     * @since 1.343.0
      */
     default void keep(@NotNull UUID player, @NotNull List<RewardEntry> owed,
                       @NotNull java.util.function.Consumer<List<RewardEntry>> refused) {
