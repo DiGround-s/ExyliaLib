@@ -1058,6 +1058,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // activity by a plugin that is going away is free again, which is the
         // one state the rest of the server can still act on.
         Sessions.forgetPlugin(pluginName);
+        net.exylia.lib.session.DeathDrops.forgetPlugin(pluginName);
 
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:

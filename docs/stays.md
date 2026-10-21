@@ -62,7 +62,24 @@ works, which every arena plugin used to learn on its own:
 - Nothing to close: claims go with the plugin, snapshots survive for `recover`.
 - Reload: not applicable, nothing here comes from the palette.
 
+## Whose death drops are (since 1.322.0)
+
+`DeathDrops` says which deaths' drops a plugin owns, for a fight that never takes
+the player anywhere — a duel in a region of the open world, where what the loser
+drops is the winner's loot. Graves and death chests ask it, as well as
+`Sessions.holder`, and leave a claimed death alone.
+
+```java
+DeathDrops.claim(this, player -> duels.isFighting(player.getUniqueId()));
+
+if (DeathDrops.claimedBy(player).isPresent()) return;   // in a graves plugin
+```
+
+- One rule per plugin; a second `claim` replaces it. Released with the plugin.
+- Asked during the death event, on the player's thread: answer from memory.
+- A rule that throws claims nothing.
+
 ## Source and tests
 
-- Public: `session/Stays.java`, `session/PluginStays.java`.
+- Public: `session/Stays.java`, `session/PluginStays.java`, `session/DeathDrops.java`.
 - Tests: `src/test/java/net/exylia/lib/session/PluginStaysTest.java`.
