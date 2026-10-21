@@ -57,6 +57,8 @@ public final class LiveMob {
     private int seconds;
     private @Nullable String[] aura;
     private volatile @Nullable String glowShown;
+    /** The 3D model it wears, or {@code null} for its vanilla body. */
+    private volatile net.exylia.lib.model.@Nullable ModelInstance model;
     private @NotNull String variant = "";
     private @NotNull String body = "";
 
@@ -255,6 +257,14 @@ public final class LiveMob {
 
     public void glowShown(@Nullable String glowShown) {
         this.glowShown = glowShown;
+    }
+
+    public net.exylia.lib.model.@Nullable ModelInstance model() {
+        return model;
+    }
+
+    public void model(net.exylia.lib.model.@Nullable ModelInstance model) {
+        this.model = model;
     }
 
     public @NotNull String variantShown() {

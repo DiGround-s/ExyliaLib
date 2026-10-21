@@ -297,4 +297,25 @@ class MobCodecTest {
         assertEquals(1, tolerant.phases().size());
         assertEquals(2, problems.size(), problems.toString());
     }
+
+    @Test
+    @DisplayName("a model round-trips, leaves its defaults out and reads an unknown death as AUTO")
+    void modelRoundTrip() {
+        MobModel model = MobModel.of("Stone_Golem").withScale(1.5)
+                .withState("cast:slam", "animation.golem.slam").withDeath(MobModel.Death.APART).withLookAt(false);
+
+        String stored = MobCodec.encodeModel(model);
+
+        assertEquals("{\"model\":\"stone_golem\",\"scale\":1.5,\"states\":{\"cast:slam\":\"animation.golem.slam\"},"
+                + "\"death\":\"APART\",\"lookAt\":false}", stored);
+        assertEquals(model, MobCodec.decodeModel(stored, this::problem));
+        assertNull(MobCodec.encodeModel(MobModel.NONE));
+        assertEquals(MobModel.NONE, MobCodec.decodeModel(null));
+        assertEquals("{\"model\":\"wisp\"}", MobCodec.encodeModel(MobModel.of("wisp")));
+
+        MobModel odd = MobCodec.decodeModel("{\"model\":\"wisp\",\"death\":\"EXPLODE\"}", this::problem);
+        assertEquals(MobModel.Death.AUTO, odd.death());
+        assertFalse(problems.isEmpty());
+        assertTrue(MobTemplate.of("w", org.bukkit.entity.EntityType.ZOMBIE).withModel(odd).model().has());
+    }
 }

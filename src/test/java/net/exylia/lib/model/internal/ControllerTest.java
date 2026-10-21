@@ -1,0 +1,140 @@
+package net.exylia.lib.model.internal;
+
+import net.exylia.lib.util.internal.Ease;
+import net.exylia.lib.util.internal.KeyTrack;
+import org.junit.jupiter.api.Test;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/** What a model plays and how the layers blend, with a clock in hand. */
+class ControllerTest {
+
+    private static final double EPSILON = 1e-6;
+
+    /** Two bones: legs (0) and arms (1). */
+    private static Clip holding(String name, int bone, int channel, double value, Clip.Loop loop, long length,
+                                List<Clip.Event> events) {
+        KeyTrack[][] bones = new KeyTrack[2][];
+        bones[bone] = new KeyTrack[Clip.CHANNELS];
+        bones[bone][channel] = new KeyTrack(new long[]{0}, new double[]{value}, new Ease[]{Ease.LINEAR},
+                new double[]{Double.NaN});
+        return new Clip(name, length, loop, bones, events);
+    }
+
+    private static Controller controller(Map<String, Clip> clips) {
+        return new Controller(2, clips::get);
+    }
+
+    private static double[][] sample(Controller controller, long now) {
+        double[][] out = new double[2][Clip.CHANNELS];
+        controller.sample(now, out);
+        return out;
+    }
+
+    @Test
+    void itWalksWhenItMovesAndRunsWhenItHurries() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("idle", holding("idle", 0, Clip.ROT_X, 0, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("walk", holding("walk", 0, Clip.ROT_X, 30, Clip.Loop.LOOP, 1000, List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        assertEquals("idle", controller.baseState());
+        controller.advance(50, 2);
+        assertEquals("walk", controller.baseState());
+        // Fading in: a quarter of a second to hand over.
+        assertEquals(0, sample(controller, 50)[0][Clip.ROT_X], EPSILON);
+        assertEquals(30 * 0.5, sample(controller, 50 + Controller.BASE_FADE_MS / 2)[0][Clip.ROT_X], EPSILON);
+        assertEquals(30, sample(controller, 50 + Controller.BASE_FADE_MS)[0][Clip.ROT_X], EPSILON);
+        // No run of its own: running is walking.
+        controller.advance(400, 6);
+        assertEquals("run", controller.baseState());
+        assertEquals(30, sample(controller, 2000)[0][Clip.ROT_X], EPSILON);
+        // Hysteresis: a walk does not stop the moment it slows below the start speed.
+        controller.advance(450, 0.5);
+        assertEquals("walk", controller.baseState());
+        controller.advance(500, 0.1);
+        assertEquals("idle", controller.baseState());
+    }
+
+    @Test
+    void anActionTakesOnlyTheBonesItMoves() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("walk", holding("walk", 0, Clip.ROT_X, 30, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("attack", holding("attack", 1, Clip.ROT_X, -90, Clip.Loop.ONCE, 1000, List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 2);
+        assertTrue(controller.play("attack", 0));
+        controller.advance(500, 2);
+        double[][] out = sample(controller, 500);
+        assertEquals(30, out[0][Clip.ROT_X], EPSILON, "the legs keep walking");
+        assertEquals(-90, out[1][Clip.ROT_X], EPSILON, "the arms swing");
+        // A one-shot hands the arms back as it ends.
+        controller.advance(1000 - Controller.ACTION_OUT_MS / 2, 2);
+        assertEquals(-45, sample(controller, 1000 - Controller.ACTION_OUT_MS / 2)[1][Clip.ROT_X], 1);
+        controller.advance(1100, 2);
+        assertNull(controller.action());
+        assertEquals(0, sample(controller, 1100)[1][Clip.ROT_X], EPSILON);
+    }
+
+    @Test
+    void eventsFireOnceAsTheyArePassed() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("attack", holding("attack", 1, Clip.ROT_X, 10, Clip.Loop.ONCE, 1000,
+                List.of(new Clip.Event(300, "impact"))));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        controller.play("attack", 0);
+        controller.advance(200, 0);
+        assertEquals(List.of(), controller.drainEvents());
+        controller.advance(400, 0);
+        assertEquals(List.of("impact"), controller.drainEvents());
+        controller.advance(600, 0);
+        assertEquals(List.of(), controller.drainEvents());
+    }
+
+    @Test
+    void aLoopFiresItsEventEveryPass() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("idle", holding("idle", 0, Clip.ROT_X, 0, Clip.Loop.LOOP, 1000, List.of(new Clip.Event(900, "step"))));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        controller.advance(950, 0);
+        assertEquals(List.of("step"), controller.drainEvents());
+        controller.advance(1500, 0);
+        assertEquals(List.of(), controller.drainEvents());
+        controller.advance(1950, 0);
+        assertEquals(List.of("step"), controller.drainEvents());
+    }
+
+    @Test
+    void deathHoldsItsLastFrameAndNothingReplacesIt() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("death", holding("death", 0, Clip.ROT_Z, 90, Clip.Loop.ONCE, 800, List.of()));
+        clips.put("hurt", holding("hurt", 0, Clip.ROT_Z, -10, Clip.Loop.ONCE, 300, List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        assertEquals(800, controller.die(0));
+        assertTrue(controller.dying());
+        assertFalse(controller.play("hurt", 100));
+        controller.advance(5000, 3);
+        assertEquals("death", controller.action());
+        assertEquals(90, sample(controller, 5000)[0][Clip.ROT_Z], EPSILON);
+    }
+
+    @Test
+    void nothingToPlayIsSaid() {
+        Controller controller = controller(new HashMap<>());
+        assertFalse(controller.play("attack", 0));
+        assertEquals(0, controller.die(0));
+        double[][] out = sample(controller, 0);
+        assertEquals(1, out[0][Clip.SCALE_X], EPSILON);
+        assertEquals(0, out[1][Clip.ROT_Y], EPSILON);
+    }
+}

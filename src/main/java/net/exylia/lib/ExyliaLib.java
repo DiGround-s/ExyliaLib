@@ -254,6 +254,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // packets, and their driver is one timer for every display on the
         // server rather than one per effect.
         DisplayRuntime.init(this);
+        net.exylia.lib.model.internal.ModelRuntime.init(this);
         // Ragdolls are displays, so they need nothing of their own but the
         // background reader that turns a skin into the colours a body is drawn
         // in before anybody dies in it.
@@ -516,7 +517,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private void loadDisplays() {
         displays = Configs.define(this, "displays", DisplaySettings.class).load();
         DisplayRuntime.apply(displays.get());
-        displays.onReload(DisplayRuntime::apply);
+        net.exylia.lib.model.internal.ModelRuntime.ceiling(displays.get().maxModelParts());
+        displays.onReload(settings -> {
+            DisplayRuntime.apply(settings);
+            net.exylia.lib.model.internal.ModelRuntime.ceiling(settings.maxModelParts());
+        });
     }
 
     private void loadInput() {
@@ -635,6 +640,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // before the databases: reels in the air are paid out onto rows.
         Crates.releaseAll();
         net.exylia.lib.util.mob.Mobs.releaseAll();
+        net.exylia.lib.model.Models.releaseAll();
         Teleports.releaseAll();
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
@@ -941,6 +947,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // mobs are taken out of the world, which a plugin that is going away
         // can no longer run.
         net.exylia.lib.util.mob.Mobs.release(pluginName);
+        net.exylia.lib.model.Models.release(pluginName);
         // Before the task module, for the same reason: a sequence schedules the
         // frames of its own animation, and a frame belonging to a classloader
         // that is going away must not fire.

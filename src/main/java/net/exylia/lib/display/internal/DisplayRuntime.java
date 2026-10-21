@@ -214,6 +214,29 @@ public final class DisplayRuntime {
     }
 
     /**
+     * What reaches clients, for a module that keeps displays of its own: the
+     * model module, whose parts live as long as their carrier rather than as
+     * long as a motion.
+     *
+     * @return the sink, or {@code null} when displays cannot be shown
+     * @since 1.317.0
+     */
+    public static DisplaySink sink() {
+        return available ? sink : null;
+    }
+
+    /**
+     * An entity id that cannot collide with a real entity.
+     *
+     * @return the id, or {@code 0} before the module is wired
+     * @since 1.317.0
+     */
+    public static int nextEntityId() {
+        EntityIds source = ids;
+        return source == null ? 0 : source.next();
+    }
+
+    /**
      * Shows one display.
      *
      * @param owner   the name of the plugin it belongs to

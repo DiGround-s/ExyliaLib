@@ -392,6 +392,9 @@ except the panel: none since 1.311.0, where the client's grey one was drawn befo
   instead of its tick rate, and the console says so at most once a minute.
   `max-per-effect` caps how many points one shape may draw, which catches a
   `points:900` written by hand at load rather than on the wire.
+  `max-model-parts` (since 1.317.0) is the same idea for [models](models.md):
+  cubes multiplied by the players drawing them, past which viewers are drawn
+  as if from further away rather than refused.
 
 ## Source and tests
 

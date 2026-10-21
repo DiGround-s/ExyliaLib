@@ -2,6 +2,7 @@ package net.exylia.lib.ragdoll;
 
 import net.exylia.lib.ragdoll.internal.RagdollRig;
 import net.exylia.lib.util.internal.Ease;
+import net.exylia.lib.util.internal.KeyTrack;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -107,27 +108,14 @@ public final class RagdollAnimation {
      * kept that way: the elbow that lands after the shoulder is the whole
      * point of drawing it in a tool that lets you.
      */
-    private final Track[] tracks;
+    private final KeyTrack[] tracks;
     private final long duration;
     private final int frames;
     private final boolean vanilla;
     private final boolean bends;
     private final long loopFrom;
 
-    /**
-     * One channel's keys.
-     *
-     * @param times  when each key is reached, ascending; two keys may share a
-     *               moment, which is a jump: the first is arrived at and the
-     *               second left from
-     * @param values the value at each key
-     * @param eases  how each key is arrived at
-     * @param args   each curve's argument, {@code NaN} for the usual
-     */
-    private record Track(long[] times, double[] values, Ease[] eases, double[] args) {
-    }
-
-    private RagdollAnimation(Track[] tracks, long duration, int frames, boolean vanilla, long loopFrom) {
+    private RagdollAnimation(KeyTrack[] tracks, long duration, int frames, boolean vanilla, long loopFrom) {
         this.tracks = tracks;
         this.duration = duration;
         this.frames = frames;
@@ -147,7 +135,7 @@ public final class RagdollAnimation {
 
     /** Whole poses, each one keying every channel. */
     private static RagdollAnimation dense(long[] times, double[][] keys, Ease[] eases, int frames) {
-        Track[] tracks = new Track[RagdollRig.COUNT];
+        KeyTrack[] tracks = new KeyTrack[RagdollRig.COUNT];
         double[] usual = new double[times.length];
         java.util.Arrays.fill(usual, Double.NaN);
         for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
@@ -155,7 +143,7 @@ public final class RagdollAnimation {
             for (int key = 0; key < times.length; key++) {
                 values[key] = keys[key][channel];
             }
-            tracks[channel] = new Track(times, values, eases, usual);
+            tracks[channel] = new KeyTrack(times, values, eases, usual);
         }
         return new RagdollAnimation(tracks, times[times.length - 1], frames, false, -1);
     }
@@ -180,16 +168,16 @@ public final class RagdollAnimation {
     public static @NotNull RagdollAnimation keyed(long[][] times, double[][] values, Ease[][] eases,
                                                   double[][] args, long duration, boolean vanilla,
                                                   long loopFrom) {
-        Track[] tracks = new Track[RagdollRig.COUNT];
+        KeyTrack[] tracks = new KeyTrack[RagdollRig.COUNT];
         int most = 0;
         double[] standing = RagdollRig.standing();
         for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
             if (times[channel] == null || times[channel].length == 0) {
-                tracks[channel] = new Track(new long[]{0L}, new double[]{standing[channel]},
+                tracks[channel] = new KeyTrack(new long[]{0L}, new double[]{standing[channel]},
                         new Ease[]{Ease.LINEAR}, new double[]{Double.NaN});
                 continue;
             }
-            tracks[channel] = new Track(times[channel], values[channel], eases[channel], args[channel]);
+            tracks[channel] = new KeyTrack(times[channel], values[channel], eases[channel], args[channel]);
             most = Math.max(most, times[channel].length);
         }
         return new RagdollAnimation(tracks, duration, most, vanilla, loopFrom);
@@ -362,7 +350,7 @@ public final class RagdollAnimation {
         // across the room is there from the first tick.
         long at = Math.max(0L, millis);
         for (int channel = 0; channel < RagdollRig.COUNT; channel++) {
-            pose[channel] = value(tracks[channel], at);
+            pose[channel] = tracks[channel].value(at);
         }
         feet(pose, at);
         return pose;
@@ -374,7 +362,7 @@ public final class RagdollAnimation {
      * its feet keeps them where it arrived rather than where the effect began.
      */
     private void feet(double[] pose, long millis) {
-        Track plant = tracks[RagdollRig.PLANT];
+        KeyTrack plant = tracks[RagdollRig.PLANT];
         long[] times = plant.times();
         double[] values = plant.values();
         // The key being moved towards: past every key already reached,
@@ -385,81 +373,11 @@ public final class RagdollAnimation {
         }
         for (; key >= 0; key--) {
             if (values[key] > 0 && (key == 0 || values[key - 1] <= 0)) {
-                pose[RagdollRig.FEET_RIGHT] = value(tracks[RagdollRig.RIGHT], times[key]);
-                pose[RagdollRig.FEET_FORWARD] = value(tracks[RagdollRig.FORWARD], times[key]);
+                pose[RagdollRig.FEET_RIGHT] = tracks[RagdollRig.RIGHT].value(times[key]);
+                pose[RagdollRig.FEET_FORWARD] = tracks[RagdollRig.FORWARD].value(times[key]);
                 return;
             }
         }
-    }
-
-    /** One channel at one moment. */
-    private static double value(Track track, long millis) {
-        long[] times = track.times();
-        double[] values = track.values();
-        int last = times.length - 1;
-        if (millis >= times[last]) {
-            return values[last];
-        }
-        if (millis < times[0]) {
-            return values[0];
-        }
-        // The first key after now, so that of several keys sharing a moment the
-        // one left from is the last of them.
-        int to = 1;
-        while (times[to] <= millis) {
-            to++;
-        }
-        int from = to - 1;
-        double span = times[to] - times[from];
-        double progress = (millis - times[from]) / span;
-        Ease ease = track.eases()[to];
-        if (ease == Ease.SMOOTH) {
-            double squared = progress * progress;
-            double cubed = squared * progress;
-            double h00 = 2 * cubed - 3 * squared + 1;
-            double h10 = cubed - 2 * squared + progress;
-            double h01 = -2 * cubed + 3 * squared;
-            double h11 = cubed - squared;
-            return h00 * values[from]
-                    + h10 * span * slope(track, from)
-                    + h01 * values[to]
-                    + h11 * span * slope(track, to);
-        }
-        return values[from] + (values[to] - values[from]) * ease.at(progress, track.args()[to]);
-    }
-
-    /**
-     * How fast a channel is moving through a key, per millisecond.
-     *
-     * <p>Only a key that is flowed through has a speed. One reached with any
-     * other ease is arrived at, which is a stop, and a curve that sails past it
-     * would be a body that never reaches the pose the file wrote. A linear
-     * neighbour lends its own speed, so a spin that eases into a sway does not
-     * hitch where the two meet.
-     */
-    private static double slope(Track track, int key) {
-        long[] times = track.times();
-        double[] values = track.values();
-        if (key <= 0 || key >= times.length - 1) {
-            return 0;
-        }
-        Ease into = track.eases()[key];
-        Ease out = track.eases()[key + 1];
-        boolean flowsIn = into == Ease.SMOOTH || into == Ease.LINEAR;
-        boolean flowsOut = out == Ease.SMOOTH || out == Ease.LINEAR;
-        if (!flowsIn || !flowsOut) {
-            return 0;
-        }
-        long before = times[key] - times[key - 1];
-        long after = times[key + 1] - times[key];
-        if (into == Ease.LINEAR) {
-            return before <= 0 ? 0 : (values[key] - values[key - 1]) / before;
-        }
-        if (out == Ease.LINEAR) {
-            return after <= 0 ? 0 : (values[key + 1] - values[key]) / after;
-        }
-        long across = times[key + 1] - times[key - 1];
-        return across <= 0 ? 0 : (values[key + 1] - values[key - 1]) / across;
     }
 
     // ---------------------------------------------------------------- reading

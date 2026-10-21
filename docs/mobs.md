@@ -624,6 +624,49 @@ source and delivery mode; `null` keeps the stored ones) and `edit(player, id,
 back)` opens the store's editor. The store is forgotten when its plugin
 disables.
 
+## Models (since 1.317.0)
+
+A template can wear a 3D model instead of its vanilla body: `MobTemplate.model`,
+a `MobModel`, read from a `.bbmodel` in the plugin's own `models` folder (see
+[models.md](models.md)).
+
+```java
+MobTemplate golem = MobTemplate.of("golem", EntityType.IRON_GOLEM)
+        .withModel(MobModel.of("stone_golem").withScale(1.3)
+                .withState(ModelState.cast("slam"), "animation.golem.slam")
+                .withDeath(MobModel.Death.ANIMATION_APART));
+```
+
+The engine plays it with no code in the plugin:
+
+| When | State |
+| --- | --- |
+| It spawns | `spawn`, and its entrance reaction still plays around it |
+| It moves | `idle`, `walk`, `run`, from its speed |
+| It lands a blow | `attack` |
+| It takes a hit (health or hits mode) | `hurt`, and a short red outline: the client never tints a display red |
+| A skill starts its cast | `cast:<the cast's name>`, or `cast:<the skill's type>` when the cast has none |
+| It dies or breaks | as `death` says, below |
+| It expires | it is taken off |
+
+| `death` | What happens |
+| --- | --- |
+| `AUTO` | Its `death` animation, then it shrinks away; with none, it comes apart |
+| `ANIMATION` | Its death animation, then it shrinks away |
+| `APART` | It comes apart at once |
+| `ANIMATION_APART` | Its death animation, then it comes apart |
+| `VANILLA` | The model goes and the look's own death reaction plays on the vanilla body |
+
+A state with no animation in the model is matched by name, as
+`Model.animationFor` describes. `states` can name the animation exactly,
+casts included: `cast:slam`. A model that is missing from the folder is
+reported once. The mob then wears its vanilla body, so a typo costs looks, not
+the mob.
+
+`MobCodec.encodeModel`/`decodeModel` store it as one column:
+`{"model":"stone_golem","scale":1.3,"states":{"cast:slam":"animation.golem.slam"},"death":"APART","lookAt":false}`,
+with defaults left out and `null` for none.
+
 ## Death
 
 `MobDeath(template, entity, location, killer, damage, topDamager, playerShare, cause)`:

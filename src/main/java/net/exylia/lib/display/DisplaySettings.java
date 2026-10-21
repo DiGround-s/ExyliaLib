@@ -21,6 +21,9 @@ import net.exylia.lib.config.Key;
  *
  * @param maxViewerDisplays how many display-viewer pairs may exist at once
  * @param maxPerEffect      how many displays one shape may put on screen
+ * @param maxModelParts     how many model cubes multiplied by their viewers may
+ *                          be drawn before viewers are drawn as if from further
+ *                          away (since 1.317.0)
  * @since 1.90.0
  */
 @Comment("What display effects are allowed to cost.")
@@ -46,7 +49,14 @@ public record DisplaySettings(
         @Comment("The ceiling on how many displays a single shape may draw.")
         @Comment("A ring written with points:500 is a mistake in a file, not")
         @Comment("a design; this catches it before it reaches a client.")
-        int maxPerEffect
+        int maxPerEffect,
+
+        @Key("max-model-parts")
+        @Comment("The ceiling on model cubes multiplied by the players drawing")
+        @Comment("them. Past three quarters of it every viewer is drawn as if")
+        @Comment("further away: fewer cubes, fewer poses. Nothing is refused.")
+        @Comment("Set it to 0 to remove the ceiling entirely.")
+        int maxModelParts
 ) {
 
     /**
@@ -58,6 +68,16 @@ public record DisplaySettings(
      * ships and below anything that could be meant seriously.
      */
     public DisplaySettings() {
-        this(20_000, 128);
+        this(20_000, 128, 30_000);
+    }
+
+    /**
+     * The two limits before models had one of their own.
+     *
+     * @param maxViewerDisplays how many display-viewer pairs may exist at once
+     * @param maxPerEffect      how many displays one shape may put on screen
+     */
+    public DisplaySettings(int maxViewerDisplays, int maxPerEffect) {
+        this(maxViewerDisplays, maxPerEffect, 30_000);
     }
 }

@@ -167,6 +167,65 @@ public final class SkinCubes {
         }
     }
 
+    /**
+     * What colour one texel of a head is, face by face.
+     *
+     * @since 1.317.0
+     */
+    @FunctionalInterface
+    public interface Painter {
+
+        /**
+         * One texel.
+         *
+         * @param face   0 top, 1 bottom, 2 right, 3 front, 4 left, 5 back: the head's own sides,
+         *               the right being the wearer's
+         * @param column 0 to 7, left to right as the face is seen from outside
+         * @param row    0 to 7, top to bottom; on the top and bottom, row 7 meets the front
+         * @return {@code 0xAARRGGBB}; anything under half opaque is drawn grey
+         */
+        int argb(int face, int column, int row);
+    }
+
+    /**
+     * A head painted texel by texel, for whatever is not a skin: a model's
+     * cube wears its own texture this way.
+     *
+     * <p>Fingerprinted, matched to one block when every texel is the same and
+     * given its dominant block exactly as a skin's piece is, so it goes
+     * through Exylia Skins and the stores the same way. It has no region.
+     *
+     * @param painter the texels
+     * @return the piece
+     * @since 1.317.0
+     */
+    public static Cube painted(Painter painter) {
+        BufferedImage head = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        int[] all = new int[6 * HEAD * HEAD];
+        int seen = 0;
+        Material plain = null;
+        boolean mixed = false;
+        for (Face face : Face.values()) {
+            for (int row = 0; row < HEAD; row++) {
+                for (int column = 0; column < HEAD; column++) {
+                    int painted = painter.argb(face.ordinal(), column, row);
+                    if ((painted >>> 24) < 128) {
+                        painted = FILL;
+                    }
+                    painted |= 0xFF000000;
+                    head.setRGB(HEAD_BASE.x(face) + column, HEAD_BASE.y(face) + row, painted);
+                    if (!mixed) {
+                        Material block = BlockPalette.material(painted);
+                        plain = plain == null ? block : plain;
+                        mixed = block != plain;
+                    }
+                    all[seen++] = painted;
+                }
+            }
+        }
+        return new Cube(null, head, hash(head), mixed ? null : plain, BlockPalette.dominant(all));
+    }
+
     /** The six faces of a box, as the skin lays them out. */
     enum Face {
         TOP, BOTTOM, RIGHT, FRONT, LEFT, BACK

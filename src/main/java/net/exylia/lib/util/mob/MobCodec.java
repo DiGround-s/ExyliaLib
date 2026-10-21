@@ -40,6 +40,7 @@ import java.util.function.BiConsumer;
  * behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
  * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti","death":"none","numbers":false}
  * fight       {"gcd":1.5,"groups":{"melee":6.0},"phases":[{"below":0.5,"suffix":" &c⚡","speed":1.3}]}
+ * model       {"model":"stone_golem","scale":1.3,"states":{"attack":"smash"},"death":"APART","lookAt":false}
  * }</pre>
  *
  * <p>A skill cast some way other than at once carries a {@code "cast"} object
@@ -108,6 +109,11 @@ public final class MobCodec {
     private static final String SPEED = "speed";
     private static final String DAMAGE = "damage";
     private static final String RESIST = "resist";
+
+    private static final String MODEL = "model";
+    private static final String SCALE = "scale";
+    private static final String STATES = "states";
+    private static final String LOOK_AT = "lookAt";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -422,6 +428,63 @@ public final class MobCodec {
                 || numbers.getAsBoolean();
         return new MobLook(string(json, VARIANT), string(json, BODY), string(json, GLOW), string(json, AURA),
                 string(json, SPAWN), string(json, HURT), string(json, DEATH), string(json, LOW), shown);
+    }
+
+    // ------------------------------------------------------------------- model
+
+    /**
+     * Writes a model.
+     *
+     * @param model the model
+     * @return the JSON object, or {@code null} for {@link MobModel#NONE}
+     * @since 1.317.0
+     */
+    public static @Nullable String encodeModel(@NotNull MobModel model) {
+        if (!model.has()) return null;
+        JsonObject json = new JsonObject();
+        json.addProperty(MODEL, model.model());
+        if (model.scale() != 1) json.addProperty(SCALE, model.scale());
+        if (!model.states().isEmpty()) {
+            JsonObject states = new JsonObject();
+            model.states().forEach(states::addProperty);
+            json.add(STATES, states);
+        }
+        if (model.death() != MobModel.Death.AUTO) json.addProperty(DEATH, model.death().name());
+        if (!model.lookAt()) json.addProperty(LOOK_AT, false);
+        return json.toString();
+    }
+
+    /** Reads a stored model, ignoring what it cannot understand. @since 1.317.0 */
+    public static @NotNull MobModel decodeModel(@Nullable String stored) {
+        return decodeModel(stored, SILENT);
+    }
+
+    /**
+     * Reads a stored model, reporting what it had to skip. Whether the model
+     * exists is not checked here: one missing from the folder is the engine's
+     * to report as the mob spawns, and the mob then wears its vanilla body.
+     *
+     * @param stored   the column value, possibly {@code null}
+     * @param problems told where the trouble was and what it was
+     * @return the model, {@link MobModel#NONE} for nothing readable
+     * @since 1.317.0
+     */
+    public static @NotNull MobModel decodeModel(@Nullable String stored, @NotNull BiConsumer<String, String> problems) {
+        JsonObject json = object(stored, "model", problems);
+        if (json == null) return MobModel.NONE;
+        Map<String, String> states = new LinkedHashMap<>();
+        if (json.has(STATES) && json.get(STATES).isJsonObject()) {
+            for (Map.Entry<String, JsonElement> entry : json.getAsJsonObject(STATES).entrySet()) {
+                if (entry.getValue().isJsonPrimitive()) states.put(entry.getKey(), entry.getValue().getAsString());
+            }
+        }
+        MobModel.Death death = constant(MobModel.Death.class, string(json, DEATH));
+        if (death == null && json.has(DEATH)) problems.accept("model", "no death " + string(json, DEATH) + "; AUTO");
+        JsonElement lookAt = json.get(LOOK_AT);
+        boolean looks = lookAt == null || !lookAt.isJsonPrimitive() || !lookAt.getAsJsonPrimitive().isBoolean()
+                || lookAt.getAsBoolean();
+        double scale = json.has(SCALE) && json.get(SCALE).isJsonPrimitive() ? json.get(SCALE).getAsDouble() : 1;
+        return new MobModel(string(json, MODEL), scale, states, death == null ? MobModel.Death.AUTO : death, looks);
     }
 
     // -------------------------------------------------------------- attributes

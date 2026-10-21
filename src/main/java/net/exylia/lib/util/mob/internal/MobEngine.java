@@ -10,7 +10,11 @@ import net.exylia.lib.text.Text;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.Loadout;
+import net.exylia.lib.model.ModelInstance;
+import net.exylia.lib.model.ModelState;
+import net.exylia.lib.model.Models;
 import net.exylia.lib.util.mob.MobDeath;
+import net.exylia.lib.util.mob.MobModel;
 import net.exylia.lib.util.mob.MobFlag;
 import net.exylia.lib.util.mob.MobSkill;
 import net.exylia.lib.util.mob.MobTemplate;
@@ -123,6 +127,9 @@ public final class MobEngine implements Listener {
 
     /** The key every custom mob carries: {@code <plugin>:<template id>}. */
     public static final NamespacedKey TAG = new NamespacedKey("exylialib", "mob");
+
+    /** The red a model mob flashes when hit. */
+    private static final int HURT_FLASH = 0xFF4A4A;
 
     /** How often each mob's timer runs: lifetime, leash, look cycles, hunting and interval skills, in ticks. */
     private static final long PERIOD = 20L;
@@ -403,6 +410,7 @@ public final class MobEngine implements Listener {
         // The base, not the value: a potion's modifier would otherwise be baked in by a SPEED skill.
         mob.baseSpeed(movement == null ? Double.NaN : movement.getBaseValue());
         look(entity, mob, true);
+        wear(entity, mob);
         // Only a mob that draws something every other tick pays for the fast
         // timer; the rest keep the one-second one they always had.
         boolean fast = fast(template);
@@ -553,7 +561,10 @@ public final class MobEngine implements Listener {
 
         if (attacker != null && event.getEntity() instanceof LivingEntity hurt) {
             LiveMob hitter = live.get(attacker.getUniqueId());
-            if (hitter != null) fire(MobSkill.Trigger.ATTACK, attacker, hitter, hurt);
+            if (hitter != null) {
+                fire(MobSkill.Trigger.ATTACK, attacker, hitter, hurt);
+                act(hitter, ModelState.ATTACK);
+            }
         }
 
         LiveMob mob = live.get(event.getEntity().getUniqueId());
@@ -565,6 +576,7 @@ public final class MobEngine implements Listener {
         mob.hurt(damager == null ? null : playerOf(damager), Math.min(dealt, health));
         double after = health - dealt;
         reactions.hurt(entity, mob, Math.min(dealt, health), critical(event), damager, after <= 0);
+        if (after > 0) flinch(mob);
         Player player = damager instanceof Player direct ? direct
                 : damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter
                 ? shooter : null;
@@ -638,7 +650,10 @@ public final class MobEngine implements Listener {
     private void hit(LivingEntity entity, LiveMob mob, Player player, int left) {
         entity.playHurtAnimation(player.getLocation().getYaw());
         boolean broken = left == 0;
-        if (!broken) reactions.hit(entity, mob, player, left);
+        if (!broken) {
+            reactions.hit(entity, mob, player, left);
+            flinch(mob);
+        }
         // The breaking hit still looks and sounds like a hit; nothing else is
         // cast on a mob that is about to go.
         fire(MobSkill.Trigger.DAMAGED, entity, mob, player, broken);
@@ -684,7 +699,11 @@ public final class MobEngine implements Listener {
         }
         tell(new MobDeath(template, entity, at, killer, mob.damage(), mob.topDamager(), mob.playerShare(), cause));
         // Drawn while it still stands; removed straight after, so there is no body to hide.
-        if (cause == MobDeath.Cause.BROKEN) reactions.death(entity, mob, killer);
+        if (cause == MobDeath.Cause.BROKEN) {
+            if (!modelDies(mob)) reactions.death(entity, mob, killer);
+        } else if (mob.model() != null) {
+            mob.model().remove();
+        }
         unglow(entity.getUniqueId(), mob.glowShown());
         entity.remove();
     }
@@ -727,7 +746,7 @@ public final class MobEngine implements Listener {
         fire(MobSkill.Trigger.DEATH, entity, mob, killer, false);
         tell(new MobDeath(template, entity, entity.getLocation(), killer,
                 mob.damage(), mob.topDamager(), mob.playerShare(), MobDeath.Cause.KILLED));
-        if (reactions.death(entity, mob, killer)) reactions.hideBody(entity);
+        if (!modelDies(mob) && reactions.death(entity, mob, killer)) reactions.hideBody(entity);
     }
 
     /** A slime splitting or a zombie drowning would be a vanilla mob wearing our tag. */
@@ -1255,6 +1274,62 @@ public final class MobEngine implements Listener {
             }
         }
         return effects;
+    }
+
+    // ------------------------------------------------------------------ model
+
+    /** Puts on the template's model, as it spawns; one that is missing is reported once and the body stays. */
+    private void wear(LivingEntity entity, LiveMob mob) {
+        MobModel worn = mob.template().model();
+        if (!worn.has()) return;
+        ModelInstance model = Models.of(plugin).attach(entity, worn.model(), worn.options());
+        if (model == null) {
+            report("model:" + mob.template().id() + ":" + worn.model(), "Mob " + mob.template().id()
+                    + ": there is no model " + worn.model() + " in plugins/" + plugin.getName()
+                    + "/models, or the server has no PacketEvents; it wears its vanilla body.");
+        }
+        mob.model(model);
+    }
+
+    /** Plays a state on the mob's model, when it wears one. */
+    void act(LiveMob mob, String state) {
+        ModelInstance model = mob.model();
+        if (model != null) model.play(state);
+    }
+
+    /** A hit taken: the model flinches and flashes red, since a display is never tinted by the client. */
+    private void flinch(LiveMob mob) {
+        ModelInstance model = mob.model();
+        if (model == null) return;
+        model.play(ModelState.HURT);
+        model.flash(HURT_FLASH, 160);
+    }
+
+    /**
+     * Ends the model the way the template says; {@code false} when the vanilla
+     * reaction is to play instead, on a body that is visible again.
+     */
+    private boolean modelDies(LiveMob mob) {
+        ModelInstance model = mob.model();
+        if (model == null || !model.isActive()) return false;
+        MobModel worn = mob.template().model();
+        switch (worn.death()) {
+            case VANILLA -> {
+                model.remove();
+                return false;
+            }
+            case APART -> model.comeApart();
+            case ANIMATION -> model.die(false);
+            case ANIMATION_APART -> model.die(true);
+            case AUTO -> {
+                if (model.model().animationFor(ModelState.DEATH, worn.options()) != null) {
+                    model.die(false);
+                } else {
+                    model.comeApart();
+                }
+            }
+        }
+        return true;
     }
 
     // ---------------------------------------------------------------- helpers

@@ -162,6 +162,8 @@ final class MobCaster {
                       int depth) {
         MobSkill.Cast cast = skill.cast();
         long now = System.currentTimeMillis();
+        engine.act(mob, net.exylia.lib.model.ModelState.cast(cast.name().isBlank()
+                ? skill.type().name() : cast.name()));
         if (skill.major()) {
             long gcd = mob.template().fight().globalCooldown().toMillis();
             if (gcd > 0) mob.globalCooldown(now + cast.windup().toMillis() + gcd);
