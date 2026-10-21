@@ -303,10 +303,46 @@ EssentialsX and CMI are reached by reflection through their plugin instance, so
 neither is a dependency; a server without them pays a lookup, and a call that
 cannot be made answers `false`. Call it on the thread that owns the player.
 
+CMI keeps god mode in two places, both checked against the CMI API jar
+(9.8.6.4): `/god` lives on its NMS layer (`getNMS().getGodMode(player)` /
+`changeGodMode(player, false)`) and timed god on the user (`isTgod()` /
+`setTgod(0)`). `CMIUser` has `isGod()` but no `setGod`, which is why
+1.332.0's CMI branch never turned god mode off (fixed in 1.335.0).
+
+## PvpZones — is PvP refused here
+
+*Since 1.335.0.*
+
+```java
+Set<PvpZones.Source> sources = EnumSet.allOf(PvpZones.Source.class);
+if (PvpZones.isDenied(to, player, sources)) {
+    event.setTo(event.getFrom());       // a tagged player walking into a safe zone
+}
+
+// a scan: no Location per block
+boolean wall = PvpZones.denies(PvpZones.Source.TOWNY, world, x, y, z, player);
+```
+
+| Source | Refuses where |
+| --- | --- |
+| `WORLDGUARD` | a region (or `__global__`) sets `pvp deny` |
+| `EXYLIA_REGIONS` | an ExyliaLib region resolves `pvp` to `false` |
+| `LANDS` | an area where the player's role lacks `ATTACK_PLAYER` (needs the player; `null` skips it) |
+| `GRIEF_PREVENTION` | a claim `claimIsPvPSafeZone` says yes to, in a world where GP's PvP rules apply |
+| `TOWNY` | `TownyAPI.isPVP(location)` is `false` (town blocks and wilderness) |
+| `SUPERIOR_SKYBLOCK` | an island without the `PVP` island flag |
+
+The caller names the sources, so a plugin exposes each as a switch in its own
+config. `Source.available()` says whether the plugin behind one is enabled (for `EXYLIA_REGIONS`, whether any region is registered).
+Every claim plugin is reached by reflection through its own class loader and
+resolved once per plugin instance; one that is missing, cannot be resolved or
+throws answers "allowed" and is logged once. Ask on the thread that owns the
+location.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java` (plus the cooldown classes on their own page).
-- Internal: `util/internal/CooldownStore.java`.
+  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java`, `util/PvpZones.java` (plus the cooldown classes on their own page).
+- Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`.

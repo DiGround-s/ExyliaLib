@@ -3,9 +3,12 @@ package net.exylia.lib.util.worldguard.internal;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.protection.flags.Flags;
+import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import net.exylia.lib.util.worldguard.WorldGuardRegion;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.jetbrains.annotations.NotNull;
 
@@ -42,6 +45,16 @@ public final class WorldGuardAccess {
         }
         out.sort(HIGHEST_FIRST);
         return List.copyOf(out);
+    }
+
+    public static boolean pvpDenied(@NotNull World world, double x, double y, double z) {
+        try {
+            return WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
+                    .getApplicableRegions(BukkitAdapter.adapt(new Location(world, x, y, z)))
+                    .queryState(null, Flags.PVP) == StateFlag.State.DENY;
+        } catch (RuntimeException unavailable) {
+            return false;
+        }
     }
 
     public static @NotNull Set<String> ids(@NotNull World world) {

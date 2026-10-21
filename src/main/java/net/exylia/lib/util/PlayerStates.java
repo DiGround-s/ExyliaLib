@@ -44,8 +44,7 @@ public final class PlayerStates {
      * @return whether nothing can hurt them
      */
     public static boolean isGod(@NotNull Player player) {
-        return player.isInvulnerable() || flag(essentialsUser(player), "isGodModeEnabled")
-                || flag(cmiUser(player), "isGod");
+        return player.isInvulnerable() || flag(essentialsUser(player), "isGodModeEnabled") || cmiGod(player);
     }
 
     /**
@@ -60,9 +59,8 @@ public final class PlayerStates {
         if (flag(essentials, "isGodModeEnabled")) {
             changed = set(essentials, "setGodModeEnabled");
         }
-        Object cmi = cmiUser(player);
-        if (flag(cmi, "isGod")) {
-            changed |= set(cmi, "setGod");
+        if (cmiGod(player)) {
+            changed |= disableCmiGod(player);
         }
         if (player.isInvulnerable()) {
             player.setInvulnerable(false);
@@ -116,13 +114,50 @@ public final class PlayerStates {
         return cmi == null ? null : call(call(cmi, "getPlayerManager"), "getUser", player);
     }
 
+    private static boolean cmiGod(Player player) {
+        Plugin cmi = enabled(CMI);
+        if (cmi == null) {
+            return false;
+        }
+        Object user = cmiUser(player);
+        return flag(user, "isGod") || flag(user, "isTgod") || flag(call(cmi, "getNMS"), "getGodMode", player);
+    }
+
+    private static boolean disableCmiGod(Player player) {
+        Plugin cmi = enabled(CMI);
+        if (cmi == null) {
+            return false;
+        }
+        boolean changed = false;
+        Object user = cmiUser(player);
+        if (flag(user, "isTgod")) {
+            changed = invoke(user, "setTgod", new Class<?>[]{long.class}, 0L);
+        }
+        Object nms = call(cmi, "getNMS");
+        if (nms != null) {
+            changed |= invoke(nms, "changeGodMode", new Class<?>[]{Player.class, boolean.class}, player, false);
+        }
+        return changed;
+    }
+
+    private static boolean invoke(Object target, String name, Class<?>[] types, Object... args) {
+        try {
+            Method method = target.getClass().getMethod(name, types);
+            method.setAccessible(true);
+            method.invoke(target, args);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            return false;
+        }
+    }
+
     private static Plugin enabled(String name) {
         Plugin plugin = Bukkit.getPluginManager().getPlugin(name);
         return plugin != null && plugin.isEnabled() ? plugin : null;
     }
 
-    private static boolean flag(Object target, String name) {
-        return Boolean.TRUE.equals(call(target, name));
+    private static boolean flag(Object target, String name, Object... args) {
+        return Boolean.TRUE.equals(call(target, name, args));
     }
 
     private static boolean set(Object target, String name) {
