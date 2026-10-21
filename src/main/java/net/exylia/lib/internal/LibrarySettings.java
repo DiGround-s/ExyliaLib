@@ -77,9 +77,10 @@ import net.exylia.lib.config.Time;
 @Comment("apply <code>, typed in game, brings the changes down. Set enabled to false and")
 @Comment("the command refuses.")
 @Comment("")
-@Comment("plugin-updates: keeps the other Exylia plugins up to date the same way,")
-@Comment("from the GitHub releases of the repository each one names. Checked with")
-@Comment("the library's own updates, applied on the next restart.")
+@Comment("plugin-updates: looks for newer releases of the other Exylia plugins, in")
+@Comment("the GitHub repository each one names, and announces them in the console")
+@Comment("and to admins. Nothing is downloaded on its own: /exylialib plugins")
+@Comment("downloads them, and they are applied on the next restart.")
 @Comment("")
 @Comment("settings: the /settings screen every Exylia plugin registers its player")
 @Comment("preferences and announcement channels into. The library adds no player")
@@ -242,15 +243,15 @@ public record LibrarySettings(
      * The {@code plugin-updates:} block: other Exylia plugins kept up to date from their
      * GitHub releases, staged for the next restart like the library itself.
      *
-     * @param enabled whether they are checked at all
+     * @param enabled whether they are looked up and announced at all
      * @param majors  whether a new major version is installed too, rather than only announced
      * @param owners  the GitHub accounts whose releases may be installed
      * @param skip    plugins never updated, by name
      * @since 1.233.0
      */
     public record PluginUpdates(
-            @Comment("Whether Exylia plugins that name their GitHub repository are kept up to date.")
-            @Comment("Updates are downloaded, checked and applied on the next restart.")
+            @Comment("Whether newer releases of Exylia plugins that name their GitHub repository are announced.")
+            @Comment("Only /exylialib plugins downloads them; they are applied on the next restart.")
             boolean enabled,
 
             @Comment("Whether a new major version (2.0.0 after 1.x) is installed too. Majors may change")

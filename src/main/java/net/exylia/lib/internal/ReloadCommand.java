@@ -423,6 +423,8 @@ public final class ReloadCommand {
             text.append("\n").append(switch (outcome.status()) {
                 case UP_TO_DATE -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {success}up to date {muted}({1})",
                         outcome.plugin(), outcome.current());
+                case AVAILABLE -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {info}{1} {letters}→ {success}{2} {muted}(available)",
+                        outcome.plugin(), outcome.current(), latest);
                 case STAGED, ALREADY_STAGED -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {info}{1} {letters}→ {success}{2} {muted}(ready)",
                         outcome.plugin(), outcome.current(), latest);
                 case MAJOR_HELD -> Phrases.tr("{letters_black}▎ {letters}{0} {letters_black}» {warning}{1} {letters}is a new major version; install it by hand",

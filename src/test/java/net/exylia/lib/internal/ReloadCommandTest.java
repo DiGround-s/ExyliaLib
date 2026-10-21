@@ -598,4 +598,14 @@ class ReloadCommandTest {
         assertNull(ReloadCommand.typedPlugin(null));
     }
 
+    @Test
+    @DisplayName("an available plugin update is shown, without the restart hint")
+    void pluginsPanelShowsAvailable() {
+        String panel = ReloadCommand.pluginsPanel(List.of(new PluginUpdater.Outcome(
+                "ExyliaGraves", "1.0.0", "1.1.0", PluginUpdater.Status.AVAILABLE, null)));
+
+        assertTrue(panel.contains("ExyliaGraves") && panel.contains("1.1.0") && panel.contains("(available)"), panel);
+        assertFalse(panel.contains("Restart"), "nothing was staged, so nothing waits for a restart");
+    }
+
 }

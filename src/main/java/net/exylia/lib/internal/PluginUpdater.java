@@ -57,8 +57,9 @@ import java.util.zip.ZipEntry;
  * A staged jar takes the file name of the jar the server loaded, which is how the server's update
  * folder matches it, and replaces it on the next start.
  *
- * <p>Runs off the main thread at startup and on a timer, and inline while the server stops, the
- * same passes as the library's own update, so updating everything takes a single restart.
+ * <p>Nothing is downloaded on its own: the passes at startup, on a timer and while the server
+ * stops only look up the newest release and announce it. An admin running
+ * {@code /exylialib plugins} is the consent that downloads and stages it.
  *
  * @since 1.233.0
  */
@@ -80,6 +81,8 @@ public final class PluginUpdater {
     /** What a check of one plugin found. */
     public enum Status {
         UP_TO_DATE,
+        /** A newer release, announced and left for {@code /exylialib plugins} to install. */
+        AVAILABLE,
         STAGED,
         ALREADY_STAGED,
         /** A newer major release, left for the owner to install by hand. */
@@ -106,21 +109,25 @@ public final class PluginUpdater {
         throw new AssertionError("No instances.");
     }
 
-    /** Checks every plugin that declares a repository, if the settings allow it. */
+    /** Looks up every plugin that declares a repository, if the settings allow it, and only announces what is newer. */
     public static @NotNull List<Outcome> checkAll(@NotNull Plugin library) {
         LibrarySettings settings = LibrarySettings.get();
         LibrarySettings.PluginUpdates updates = settings == null ? new LibrarySettings.PluginUpdates() : settings.pluginUpdates();
         if (!updates.enabled()) return List.of();
-        return stageAll(library, updates);
+        return checkEach(library, updates, false);
     }
 
-    /** Checks every plugin that declares a repository, whatever the settings say about running on their own. */
+    /** Checks every plugin that declares a repository and stages what is newer: an admin asked for it. */
     public static @NotNull List<Outcome> stageAll(@NotNull Plugin library, @NotNull LibrarySettings.PluginUpdates updates) {
+        return checkEach(library, updates, true);
+    }
+
+    private static List<Outcome> checkEach(Plugin library, LibrarySettings.PluginUpdates updates, boolean stage) {
         List<Outcome> outcomes = new ArrayList<>();
         for (Plugin plugin : Bukkit.getPluginManager().getPlugins()) {
             String repository = repository(plugin);
             if (repository == null) continue;
-            Outcome outcome = check(library, plugin, repository, updates);
+            Outcome outcome = check(library, plugin, repository, updates, stage);
             LAST.put(plugin.getName(), outcome);
             outcomes.add(outcome);
         }
@@ -139,8 +146,13 @@ public final class PluginUpdater {
                 .count();
     }
 
+    /** How many plugins have a newer release waiting for {@code /exylialib plugins}. */
+    public static int available() {
+        return (int) LAST.values().stream().filter(outcome -> outcome.status() == Status.AVAILABLE).count();
+    }
+
     private static Outcome check(Plugin library, Plugin plugin, String repository,
-                                 LibrarySettings.PluginUpdates updates) {
+                                 LibrarySettings.PluginUpdates updates, boolean stage) {
         String name = plugin.getName();
         @SuppressWarnings("deprecation")
         String current = plugin.getDescription().getVersion();
@@ -171,6 +183,11 @@ public final class PluginUpdater {
             library.getLogger().info(name + " " + latest + " is a new major version; install it by hand when ready"
                     + " (plugin-updates.majors in plugins/ExyliaLib/config.yml installs majors too).");
             return new Outcome(name, current, latest, Status.MAJOR_HELD, null);
+        }
+        if (!stage) {
+            library.getLogger().info(name + " " + latest + " is available (current: " + current
+                    + ") — run /exylialib plugins to install it.");
+            return new Outcome(name, current, latest, Status.AVAILABLE, null);
         }
 
         try {

@@ -409,6 +409,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
 
     /** How many plugin updates each admin was last told about, so a join repeats nothing. */
     private final java.util.Map<java.util.UUID, Integer> pluginUpdatesTold = new java.util.concurrent.ConcurrentHashMap<>();
+    /** How many available plugin updates each admin was last told about. */
+    private final java.util.Map<java.util.UUID, Integer> pluginUpdatesAnnounced = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The library's own update, then every Exylia plugin that names its repository. */
     private void checkForUpdates() {
@@ -882,6 +884,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
             Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> net.exylia.lib.text.Text.of(
                     net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) ready. {warning}Restart to apply them {muted}(/exylialib plugins)",
                             readyPlugins)).send(player));
+        }
+        // Newer releases nobody installed yet: only an admin's command downloads them.
+        int availablePlugins = net.exylia.lib.internal.PluginUpdater.available();
+        if (availablePlugins > 0 && player.hasPermission("exylialib.admin")
+                && !Integer.valueOf(availablePlugins).equals(pluginUpdatesAnnounced.put(id, availablePlugins))) {
+            Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> net.exylia.lib.text.Text.of(
+                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) available. {warning}Run /exylialib plugins to install them",
+                            availablePlugins)).send(player));
         }
         if (player.hasPermission(net.exylia.lib.config.internal.DefaultUpdates.PERMISSION)
                 && net.exylia.lib.config.internal.DefaultUpdates.shouldNotify(id)) {
