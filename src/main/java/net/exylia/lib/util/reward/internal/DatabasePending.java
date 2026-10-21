@@ -49,8 +49,13 @@ public final class DatabasePending implements PendingRewards {
     private final Debug debug;
 
     public DatabasePending(@NotNull Plugin plugin) {
+        this(plugin, "");
+    }
+
+    /** A store in one scope's table: see {@code PluginDatabase#repository(Class, String)}. */
+    public DatabasePending(@NotNull Plugin plugin, @NotNull String scope) {
         this.name = plugin.getName();
-        this.rows = Databases.of(plugin).repository(PendingRewardRow.class);
+        this.rows = Databases.of(plugin).repository(PendingRewardRow.class, scope);
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
     }

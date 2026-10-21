@@ -77,6 +77,20 @@ public interface PendingRewards {
     }
 
     /**
+     * The library's store, in one scope's table of the plugin's database: what
+     * a group of servers owes its players, kept apart from another group's.
+     * A blank scope is {@link #database(Plugin)}.
+     *
+     * @param plugin whose database, and whose rewards
+     * @param scope  the group; see {@code PluginDatabase#repository(Class, String)}
+     * @return a store backed by that scope's table
+     * @since 1.337.0
+     */
+    static @NotNull PendingRewards database(@NotNull Plugin plugin, @NotNull String scope) {
+        return new DatabasePending(plugin, scope);
+    }
+
+    /**
      * Keeps rewards for a player who could not receive them.
      *
      * <p>Called with everything that was left over at once, so a store can write
