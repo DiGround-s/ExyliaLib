@@ -682,11 +682,15 @@ public final class ItemRenderer {
      * How many lines this template line turns into.
      *
      * <p>Only values the line actually mentions count: a multi-line value that
-     * belongs to some other line must not stretch this one.
+     * belongs to some other line must not stretch this one. A mentioned
+     * {@link Lines#OMIT} turns it into no line at all.
      */
     private static int spans(String line, Map<String, String> values) {
         int spans = 1;
         for (Map.Entry<String, String> entry : values.entrySet()) {
+            if (entry.getValue().equals(Lines.OMIT) && line.contains('%' + entry.getKey() + '%')) {
+                return 0;
+            }
             if (!entry.getValue().contains(NEWLINE)) {
                 continue;
             }

@@ -46,6 +46,16 @@ public final class Lines {
      */
     public static final String NEWLINE = "<nl>";
 
+    /**
+     * A row value that hides every lore line mentioning it.
+     *
+     * <p>For lines that only matter sometimes: a discount when there is one, a
+     * stock when it is limited. Pass it as the value and the line is not drawn,
+     * instead of drawing a label beside "none". A blank line can carry a value
+     * on its own ({@code "%has_stats%"}) to vanish with the section it separates.
+     */
+    public static final String OMIT = "<omit>";
+
     private static final String CARRIAGE_RETURN = "\r";
     private static final String WINDOWS_NEWLINE = "\r\n";
     private static final String LINE_FEED = "\n";

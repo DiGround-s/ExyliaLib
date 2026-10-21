@@ -286,6 +286,23 @@ to the screen, or a player called `<rainbow>` recolouring a menu.
 The question to ask is **whose value it is**, not what type it is: the server
 owner wrote it, or a player typed it.
 
+### A line that only shows when it matters
+
+Pass `Lines.OMIT` as a row value and every lore line mentioning it is not drawn.
+Use it for lines that are noise most of the time (a discount of "none", an
+"unlimited" stock) instead of printing a label beside nothing:
+
+```java
+.withFormatted("discount", discount > 0 ? Formats.percent(discount) : Lines.OMIT)
+.with("has_status", anyStatus ? "" : Lines.OMIT)   // guards a header and its blank line
+```
+
+```yaml
+lore:
+  - " {letters_black}▎ {letters}Discount {letters_black}» {success}%discount%"
+  - "%has_status%{secondary}Status:"
+```
+
 ### A value that spans several lore lines
 
 A value containing `<nl>` becomes several lore lines. `Lines.value` normalizes

@@ -160,6 +160,17 @@ class RenderedTextTest {
     }
 
     @Test
+    @DisplayName("a line mentioning an omitted value is not drawn")
+    void omittedValuesHideTheirLine() {
+        List<String> drawn = lore(List.of("{letters}Buy: %buy%", "{letters}Discount: %discount%", "%has_stats%"),
+                Map.of("buy", "$6", "discount", net.exylia.lib.text.Lines.OMIT, "has_stats", net.exylia.lib.text.Lines.OMIT),
+                Set.of());
+
+        assertEquals(1, drawn.size(), "only the buy line is left: " + drawn);
+        assertTrue(drawn.get(0).contains("$6"), drawn.toString());
+    }
+
+    @Test
     @DisplayName("a multi-line value stretches only the lines that mention it")
     void otherLinesAreNotStretched() {
         // A description belonging to one line must not multiply an unrelated
