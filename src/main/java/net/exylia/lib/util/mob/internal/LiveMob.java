@@ -268,6 +268,23 @@ public final class LiveMob {
     }
 
     private volatile long strikingUntil;
+    /** What each projectile of its own attacks deals when it hits, by projectile; the oldest forgotten first. */
+    private final Map<UUID, Double> thrown = java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<UUID, Double> eldest) {
+            return size() > 16;
+        }
+    });
+
+    /** A projectile one of its attacks threw, and what it deals. */
+    public void thrown(UUID projectile, double damage) {
+        thrown.put(projectile, damage);
+    }
+
+    /** What a projectile it threw deals, once; {@code null} for one it did not throw. */
+    public @Nullable Double landed(UUID projectile) {
+        return thrown.remove(projectile);
+    }
 
     /** Whether one of its own attacks is swinging: the blow it lands is that swing, not a new one. */
     public boolean striking() {

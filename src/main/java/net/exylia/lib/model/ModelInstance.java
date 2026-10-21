@@ -69,6 +69,18 @@ public interface ModelInstance {
         return play(stateOrAnimation);
     }
 
+    /**
+     * When an action would strike if played now at its own pace: its
+     * {@code release} key, else its {@code impact} key, else its end.
+     *
+     * @param stateOrAnimation what would be played
+     * @return milliseconds from its start, or {@code -1} when the model has no animation for it
+     * @since 1.326.0
+     */
+    default long strikeMillis(@NotNull String stateOrAnimation) {
+        return -1;
+    }
+
     /** Lets go of the action under way. */
     void stop();
 

@@ -362,6 +362,28 @@ class MobCodecTest {
     }
 
     @Test
+    @DisplayName("a body and its attacks round-trip, and a model on the vanilla body stores as before")
+    void bodyRoundTrip() {
+        MobModel model = MobModel.of("golem")
+                .withBody(net.exylia.lib.util.mob.MobBody.of(net.exylia.lib.util.mob.MobBody.Kind.HEAVY).withSpeed(2.2))
+                .withAttacks(List.of(net.exylia.lib.util.mob.MobAttack.melee("slam").withReach(2.5).withDamage(9)
+                                .withCooldown(Duration.ofSeconds(3)),
+                        net.exylia.lib.util.mob.MobAttack.ranged("bolt", "small_fireball")));
+
+        String stored = MobCodec.encodeModel(model);
+
+        assertEquals("{\"model\":\"golem\",\"body\":{\"kind\":\"HEAVY\",\"speed\":2.2},\"attacks\":["
+                + "{\"name\":\"slam\",\"reach\":2.5,\"damage\":9.0,\"cooldown\":3.0},"
+                + "{\"name\":\"bolt\",\"reach\":12.0,\"cooldown\":2.0,\"projectile\":\"SMALL_FIREBALL\"}]}", stored);
+        assertEquals(model, MobCodec.decodeModel(stored, this::problem));
+        assertTrue(model.custom());
+        assertFalse(MobModel.of("golem").custom());
+        assertEquals(List.of(net.exylia.lib.util.mob.MobAttack.DEFAULT), MobModel.of("golem").strikes());
+        assertEquals(net.exylia.lib.util.mob.MobBody.VANILLA,
+                MobCodec.decodeModel("{\"model\":\"w\",\"body\":{\"kind\":\"DRAGON\"}}", this::problem).body());
+    }
+
+    @Test
     @DisplayName("a phase's model size and outline round-trip, and old phases keep the model as it is")
     void phaseLookRoundTrip() {
         MobFight fight = new MobFight(Duration.ZERO, Map.of(),

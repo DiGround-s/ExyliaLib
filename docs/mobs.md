@@ -713,6 +713,72 @@ the ground, a stride being about the model's width), `hurt`, `death` and
 silent. A model's own animations can also play sounds and particles: see
 [models.md](models.md#events).
 
+### A body of its own (since 1.326.0)
+
+A model on the vanilla body is still a zombie, a spider or a llama under its
+cubes: it hunts villagers, climbs walls, explodes and is the vanilla size.
+`MobModel.body` makes it a mob of its own instead:
+
+```java
+MobModel golem = MobModel.of("stone_golem").withScale(1.4)
+        .withBody(MobBody.of(MobBody.Kind.HEAVY))
+        .withAttacks(List.of(MobAttack.melee("slam").withReach(2.5).withArc(160).withDamage(9)
+                .withCooldown(Duration.ofSeconds(3)).withKnockback(1.2)))
+        .withSounds(MobSounds.NONE.withStep("minecraft:entity.iron_golem.step|1|0.7"));
+```
+
+| Kind | Moves | Carried by |
+| --- | --- | --- |
+| `VANILLA` | as the template's type does: its AI, its box (the default, as before) | the template's type |
+| `WALKER` | walks, 3 blocks a second | a wandering trader, an iron golem or a pig, whichever is shaped most like the model |
+| `HEAVY` | walks at 2, steps up whole blocks, barely knocked back, falls 8 blocks unhurt | as a walker |
+| `CLIMBER` | walks and climbs straight up walls | a spider (removed on a peaceful server, as every spider is) |
+| `FLYER` | flies, at its target's chest when hunting, 2.5 over the ground otherwise | a bee |
+| `HOVER` | floats 1.5 over the ground and drifts | a bee |
+| `SWIMMER` | swims; it never needs air, and dries out stranded on land | a dolphin |
+| `STATIC` | never moves; turns and strikes | as a walker |
+
+`MobBody` also holds `speed` (blocks a second, 0 for the kind's), `keepDistance`
+(an archer's or a caster's distance: it backs off inside it and follows past
+it), `fleeBelow` (the share of health below which it runs) and `hover`.
+
+With any kind but `VANILLA`:
+
+- **The carrier is the engine's choice** and the template's `type` is not used.
+  Its `scale` attribute is set so its box is as big as it can be without sticking
+  out of the model, so paths, walls, arrows, explosions and melee meet the model.
+  The model is drawn at `MobModel.scale` whatever the carrier was grown to; a
+  SIZE skill still grows both.
+- **Its physics are the kind's**: movement and flying speed, step height,
+  knockback resistance, safe fall distance, water movement. What the template's
+  attributes set by hand still wins, but `scale`, `attack_damage` and
+  `attack_knockback` are not applied to the carrier (the box is the model's, and
+  attacks read the damage themselves).
+- **Its vanilla AI is gone** (Paper's mob goals). Its one goal hunts players
+  only: with `AGGRESSIVE` the nearest it can see within its follow range;
+  otherwise only whoever hurts it; never with `PASSIVE`. It gives up on a
+  target 1.5 times its follow range away, roams with `WANDERS` or a roam, goes
+  home past its roam, keeps its distance and flees as its body says.
+- **It strikes with its own attacks** (`MobModel.attacks`; empty strikes with
+  `MobAttack.DEFAULT`). When a target is in reach, in front and in sight and an
+  attack is ready, the attack's animation starts (`attack_<name>`, else
+  `attack`); the blow lands on the animation's `release` key, else its
+  `impact`, else its end, or after the attack's `windup` with the animation
+  fitted to it. At that moment it lands only on a target still in reach (plus
+  0.4 blocks), in the arc and in sight. A ranged attack throws its projectile
+  instead, and the projectile deals the attack's damage. Vanilla melee is never
+  used. The `ATTACK` skill trigger fires on each blow that lands.
+- **Nobody can trade with it, saddle, leash, ride or breed it**, as if it had
+  `NO_INTERACT`.
+
+On Spigot there are no mob goals: the carrier is still chosen, sized and given
+its physics, but keeps its vanilla AI, reported once.
+
+`MobCodec` stores both in the model column:
+`"body":{"kind":"HEAVY","speed":2.2}` and
+`"attacks":[{"name":"slam","reach":2.5,"damage":9.0,"cooldown":3.0}]`, each
+attack with what differs from `MobAttack.melee(name)`.
+
 ## Death
 
 `MobDeath(template, entity, location, killer, damage, topDamager, playerShare, cause)`:

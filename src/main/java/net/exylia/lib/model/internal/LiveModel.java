@@ -220,7 +220,11 @@ final class LiveModel implements ModelInstance {
 
         int count = rig.parts().size();
         this.rootId = DisplayRuntime.nextEntityId();
-        double footprint = Math.max(rig.max()[0] - rig.min()[0], rig.max()[2] - rig.min()[2]) / 16.0 * options.scale();
+        AttributeInstance grown = scaleOf(carrier);
+        this.carrierScale = grown == null ? 1 : grown.getValue();
+        // How big it is drawn: its own size, times what the carrier was grown to.
+        double asDrawn = options.scale() * carrierScale;
+        double footprint = Math.max(rig.max()[0] - rig.min()[0], rig.max()[2] - rig.min()[2]) / 16.0 * asDrawn;
         this.root = ROOT.shadow((float) Math.clamp(footprint * 0.45, 0.3, 4), 0.8f);
         this.nametagId = options.nametag() ? DisplayRuntime.nextEntityId() : 0;
         this.ids = new int[count];
@@ -273,16 +277,16 @@ final class LiveModel implements ModelInstance {
         }
 
         // Boxes of its own when it is bigger than what carries it.
-        double width = rig.width() * options.scale();
-        double height = rig.height() * options.scale();
-        double spanX = (rig.max()[0] - rig.min()[0]) / 16.0 * options.scale();
-        double spanZ = (rig.max()[2] - rig.min()[2]) / 16.0 * options.scale();
+        double width = rig.width() * asDrawn;
+        double height = rig.height() * asDrawn;
+        double spanX = (rig.max()[0] - rig.min()[0]) / 16.0 * asDrawn;
+        double spanZ = (rig.max()[2] - rig.min()[2]) / 16.0 * asDrawn;
         boolean bigger = width > carrier.getWidth() * 1.25 || height > carrier.getHeight() * 1.25;
         if (options.hitboxes() && tweaks.hasHitbox()) {
             // Sized by hand: one box, centred on the model.
             boxesAlongForward = true;
             boxIds = new int[]{DisplayRuntime.nextEntityId()};
-            boxAlong = new double[]{(rig.max()[2] + rig.min()[2]) / 32.0 * options.scale()};
+            boxAlong = new double[]{(rig.max()[2] + rig.min()[2]) / 32.0 * asDrawn};
             ModelRuntime.box(boxIds[0], this);
             boxWidth = (float) tweaks.hitboxWidth();
             boxHeight = (float) tweaks.hitboxHeight();
@@ -293,8 +297,8 @@ final class LiveModel implements ModelInstance {
             int count2 = (int) Math.clamp(Math.ceil(longest / shortest - 0.25), 1, 4);
             boxIds = new int[count2];
             boxAlong = new double[count2];
-            double centre = boxesAlongForward ? (rig.max()[2] + rig.min()[2]) / 32.0 * options.scale()
-                    : (rig.max()[0] + rig.min()[0]) / 32.0 * options.scale();
+            double centre = boxesAlongForward ? (rig.max()[2] + rig.min()[2]) / 32.0 * asDrawn
+                    : (rig.max()[0] + rig.min()[0]) / 32.0 * asDrawn;
             for (int box = 0; box < count2; box++) {
                 boxIds[box] = DisplayRuntime.nextEntityId();
                 boxAlong[box] = centre - longest / 2 + longest * (box + 0.5) / count2;
@@ -375,6 +379,17 @@ final class LiveModel implements ModelInstance {
             controller.play(stateOrAnimation, System.currentTimeMillis(), fit);
         });
         return true;
+    }
+
+    @Override
+    public long strikeMillis(@NotNull String stateOrAnimation) {
+        Clip clip = model.clipFor(stateOrAnimation, options, phase);
+        if (clip == null) {
+            return -1;
+        }
+        double speed = options.tweaks().speed(stateOrAnimation);
+        speed = Double.isFinite(speed) && speed > 0 ? Math.clamp(speed, 0.1, 10) : 1;
+        return Math.round(Controller.strike(clip) / speed);
     }
 
     @Override

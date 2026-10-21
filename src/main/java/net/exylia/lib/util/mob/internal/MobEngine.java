@@ -131,6 +131,9 @@ public final class MobEngine implements Listener {
     /** The key every custom mob carries: {@code <plugin>:<template id>}. */
     public static final NamespacedKey TAG = new NamespacedKey("exylialib", "mob");
 
+    /** Template attributes a body of its own does not take from its carrier: its size, and its blows. */
+    private static final Set<String> BODY_ATTRIBUTES = Set.of("scale", "attack_damage", "attack_knockback");
+
     /** The red a model mob flashes when hit. */
     private static final int HURT_FLASH = 0xFF4A4A;
 
@@ -408,6 +411,12 @@ public final class MobEngine implements Listener {
         if (world == null) throw new IllegalArgumentException("the location has no world");
 
         Model worn = modelFor(template);
+        if (worn != null && template.model().custom()) {
+            // A body of its own: the engine picks what carries it, whatever the template's type says.
+            Carriers.Carrier carrier = carrierOf(template, worn);
+            Class<? extends Entity> carried = carrier.type().getEntityClass();
+            if (carried != null) type = carried;
+        }
         LivingEntity entity = spawn(world, location, type.asSubclass(LivingEntity.class), template, worn);
         if (!entity.isValid()) {
             // Another plugin cancelled the spawn event: a region that forbids
@@ -429,6 +438,7 @@ public final class MobEngine implements Listener {
         // The timer before the registry: the prune reads a mob with no timer as gone.
         mob.timer(tasks.runAtEntityTimer(entity, period, period, () -> tick(entity, mob, fast)));
         live.put(entity.getUniqueId(), mob);
+        if (mob.model() != null && template.model().custom()) think(entity, mob, worn);
         fire(MobSkill.Trigger.SPAWN, entity, mob, null);
         // A model has its own entrance: the vanilla ones hide and show the body under it.
         boolean ownEntrance = mob.model() != null && template.look().spawn().equals(MobLook.AUTO);
@@ -460,13 +470,58 @@ public final class MobEngine implements Listener {
         return model;
     }
 
+    /** What carries a model with a body of its own, and how big it is drawn. */
+    private static Carriers.Carrier carrierOf(MobTemplate template, Model model) {
+        double scale = template.model().scale();
+        return Carriers.of(template.model().body().kind(), model.width() * scale, model.height() * scale);
+    }
+
+    /** The scale a model's carrier is grown to, so its box fills the model; 1 on the vanilla body. */
+    private static double fitOf(MobTemplate template, @Nullable Model model) {
+        if (model == null || !template.model().custom()) return 1;
+        double scale = template.model().scale();
+        return carrierOf(template, model).fit(model.width() * scale, model.height() * scale);
+    }
+
+    /**
+     * Gives a model mob with a body its own mind in place of the vanilla one:
+     * Paper's goals, so on Spigot it keeps its vanilla AI.
+     */
+    private void think(LivingEntity entity, LiveMob mob, Model model) {
+        if (!(entity instanceof Mob carrier)) return;
+        if (!Platform.isPaper()) {
+            report("brain", "Model mobs with a body need Paper to replace their vanilla AI; on this server they keep it.");
+            return;
+        }
+        try {
+            MobBrain.install(this, carrier, mob, model.width() * mob.template().model().scale() / 2);
+        } catch (LinkageError older) {
+            report("brain", "This server has no mob goal API; model mobs with a body keep their vanilla AI.");
+        }
+    }
+
     /** Everything a template sets, applied before the mob is in the world. */
     private void prepare(LivingEntity entity, MobTemplate template, @Nullable Model worn) {
         entity.setPersistent(false);
         entity.setRemoveWhenFarAway(false);
         entity.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, prefix + template.id());
 
+        boolean custom = worn != null && template.model().custom();
+        if (custom) {
+            // Its own physics first: what the template writes by hand still wins.
+            double height = worn.height() * template.model().scale();
+            for (Map.Entry<String, Double> entry : Carriers.physics(template.model().body(), height).entrySet()) {
+                Attribute attribute = attribute(entry.getKey());
+                AttributeInstance instance = attribute == null ? null : entity.getAttribute(attribute);
+                if (instance != null) instance.setBaseValue(entry.getValue());
+            }
+            AttributeInstance scale = instance(entity, "scale");
+            if (scale != null) scale.setBaseValue(fitOf(template, worn));
+            if (entity instanceof org.bukkit.entity.WanderingTrader trader) trader.setDespawnDelay(0);
+        }
         for (Map.Entry<String, Double> entry : template.attributes().entrySet()) {
+            // The box of a body is the model's; what it strikes with is read from the template.
+            if (custom && BODY_ATTRIBUTES.contains(entry.getKey())) continue;
             Attribute attribute = attribute(entry.getKey());
             AttributeInstance instance = attribute == null ? null : entity.getAttribute(attribute);
             if (instance == null) {
@@ -547,7 +602,7 @@ public final class MobEngine implements Listener {
             String[] aura = mob.aura();
             if (aura != null) play(aura[phase % FRAMES], entity.getLocation(), entity);
             if (phase % 2 == 0 && mob.template().name().contains("<rainbow>")) name(entity, mob);
-            if (mob.template().has(MobFlag.WANDERS)) wander(entity, mob);
+            if (mob.template().has(MobFlag.WANDERS) && !thinks(mob)) wander(entity, mob);
             step(entity, mob);
             if (phase % PER_SECOND != 0) return;
         }
@@ -569,7 +624,7 @@ public final class MobEngine implements Listener {
         int seconds = mob.second();
         look(entity, mob, false);
         reactions.low(entity, mob, seconds);
-        if (mob.template().has(MobFlag.AGGRESSIVE) && !mob.template().has(MobFlag.PASSIVE)
+        if (mob.template().has(MobFlag.AGGRESSIVE) && !mob.template().has(MobFlag.PASSIVE) && !thinks(mob)
                 && entity instanceof Mob hunter && !usable(hunter, hunter.getTarget())) {
             double range = Math.min(HUNT_LIMIT, value(hunter, "follow_range", NEAREST));
             Player prey = nearest(hunter, range);
@@ -621,6 +676,12 @@ public final class MobEngine implements Listener {
         }
 
         LiveMob mob = live.get(event.getEntity().getUniqueId());
+        if (mob != null && thinks(mob) && !mob.template().has(MobFlag.PASSIVE)
+                && event.getEntity() instanceof Mob hurt && hurt.getTarget() == null
+                && attacker instanceof Player player && huntable(player)) {
+            // Without the vanilla hurt-by goal, it turns on whoever hurt it here.
+            hurt.setTarget(player);
+        }
         // A mob in hits mode is counted by onHitsMode; what reaches here is the void or /kill.
         if (mob == null || mob.usesHits() || !(event.getEntity() instanceof LivingEntity entity)) return;
         double health = entity.getHealth();
@@ -652,6 +713,16 @@ public final class MobEngine implements Listener {
         caster.lowHealth(entity, mob, share);
         caster.phase(entity, mob, share);
         nameLater(entity, mob);
+    }
+
+    /** A projectile of a model mob's own attack deals what the attack says, not what vanilla gives it. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onThrown(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Projectile projectile)
+                || !(projectile.getShooter() instanceof LivingEntity shooter)) return;
+        LiveMob mob = live.get(shooter.getUniqueId());
+        Double damage = mob == null ? null : mob.landed(projectile.getUniqueId());
+        if (damage != null) event.setDamage(damage);
     }
 
     /**
@@ -890,7 +961,14 @@ public final class MobEngine implements Listener {
     private boolean has(@Nullable Entity entity, MobFlag flag) {
         if (entity == null) return false;
         LiveMob mob = live.get(entity.getUniqueId());
-        return mob != null && mob.template().has(flag);
+        if (mob == null) return false;
+        // A body of its own is nobody's to trade with, saddle, leash, ride or breed.
+        return mob.template().has(flag) || flag == MobFlag.NO_INTERACT && thinks(mob);
+    }
+
+    /** Whether a mob runs on a body of its own rather than its vanilla mind. */
+    static boolean thinks(LiveMob mob) {
+        return mob.model() != null && mob.template().model().custom();
     }
 
     /** Never saved with its chunk, so one that loads is left over from a crash or a reload. */
@@ -1353,7 +1431,10 @@ public final class MobEngine implements Listener {
     /** Puts on the template's model, as it spawns; one that is missing is reported once and the body stays. */
     private void wear(LivingEntity entity, LiveMob mob, @Nullable Model model) {
         if (model == null) return;
-        ModelInstance live = Models.of(plugin).attach(entity, model, mob.template().model().options());
+        MobModel worn = mob.template().model();
+        // A carrier grown to fill the model would grow it too: drawn at its own size, over the carrier's.
+        double fit = fitOf(mob.template(), model);
+        ModelInstance live = Models.of(plugin).attach(entity, model, worn.options().withScale(worn.scale() / fit));
         if (live == null) {
             // Prepared for a model it could not put on: the body shows after all.
             entity.setInvisible(false);
@@ -1708,7 +1789,8 @@ public final class MobEngine implements Listener {
         switch (LiveMob.leash(sameWorld, sameWorld ? at.distanceSquared(home) : 0, roam)) {
             case TELEPORT_BACK -> move(entity, home);
             case WALK_BACK -> {
-                if (!(entity instanceof Mob walker)) return;
+                // A mind of its own walks home by itself.
+                if (thinks(mob) || !(entity instanceof Mob walker)) return;
                 try {
                     walker.getPathfinder().moveTo(home, mob.template().has(MobFlag.WANDERS) ? RUN : 1);
                 } catch (LinkageError spigot) {
@@ -1734,6 +1816,10 @@ public final class MobEngine implements Listener {
     }
 
     /** What a mob's own blow deals: its attack damage, 2 for a type that has none. */
+    static double followRange(LivingEntity entity) {
+        return value(entity, "follow_range", NEAREST);
+    }
+
     static double attackDamage(LivingEntity entity) {
         return value(entity, "attack_damage", 2);
     }

@@ -130,6 +130,16 @@ public final class MobCodec {
     private static final String DEATH_SOUND = "death";
     private static final String ATTACK = "attack";
     private static final String EVERY = "every";
+    private static final String KIND = "kind";
+    private static final String KEEP = "keep";
+    private static final String FLEE = "flee";
+    private static final String HOVER = "hover";
+    private static final String ATTACKS = "attacks";
+    private static final String REACH = "reach";
+    private static final String ARC = "arc";
+    private static final String KNOCKBACK = "knockback";
+    private static final String PROJECTILE = "projectile";
+    private static final String ANIMATION = "animation";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -472,7 +482,76 @@ public final class MobCodec {
         if (!model.lookAt()) json.addProperty(LOOK_AT, false);
         if (!model.tweaks().isEmpty()) json.add(TWEAKS, encodeTweaks(model.tweaks()));
         if (!model.sounds().equals(MobSounds.NONE)) json.add(SOUNDS, encodeSounds(model.sounds()));
+        if (!model.body().equals(MobBody.VANILLA)) json.add(BODY, encodeBody(model.body()));
+        if (!model.attacks().isEmpty()) {
+            JsonArray attacks = new JsonArray();
+            model.attacks().forEach(attack -> attacks.add(encodeAttack(attack)));
+            json.add(ATTACKS, attacks);
+        }
         return json.toString();
+    }
+
+    private static JsonObject encodeBody(MobBody body) {
+        JsonObject json = new JsonObject();
+        json.addProperty(KIND, body.kind().name());
+        if (body.speed() > 0) json.addProperty(SPEED, body.speed());
+        if (body.keepDistance() > 0) json.addProperty(KEEP, body.keepDistance());
+        if (body.fleeBelow() > 0) json.addProperty(FLEE, body.fleeBelow());
+        if (body.hover() > 0) json.addProperty(HOVER, body.hover());
+        return json;
+    }
+
+    private static MobBody decodeBody(@Nullable JsonElement element, BiConsumer<String, String> problems) {
+        if (element == null) return MobBody.VANILLA;
+        if (!(element instanceof JsonObject json)) {
+            problems.accept("model.body", "not an object; the vanilla body");
+            return MobBody.VANILLA;
+        }
+        MobBody.Kind kind = MobBody.Kind.of(string(json, KIND));
+        if (kind == null) {
+            problems.accept("model.body", "no kind " + string(json, KIND) + "; the vanilla body");
+            return MobBody.VANILLA;
+        }
+        return new MobBody(kind, number(json, SPEED, 0), number(json, KEEP, 0), number(json, FLEE, 0),
+                number(json, HOVER, 0));
+    }
+
+    /** One attack, with what a plain blow of its name has left out. */
+    private static JsonObject encodeAttack(MobAttack attack) {
+        MobAttack plain = MobAttack.melee(attack.name());
+        JsonObject json = new JsonObject();
+        json.addProperty(NAME, attack.name());
+        if (attack.reach() != plain.reach()) json.addProperty(REACH, attack.reach());
+        if (attack.arc() != plain.arc()) json.addProperty(ARC, attack.arc());
+        if (attack.damage() != plain.damage()) json.addProperty(DAMAGE, attack.damage());
+        if (!attack.cooldown().equals(plain.cooldown())) json.addProperty(COOLDOWN, seconds(attack.cooldown()));
+        if (attack.knockback() != plain.knockback()) json.addProperty(KNOCKBACK, attack.knockback());
+        if (attack.ranged()) json.addProperty(PROJECTILE, attack.projectile());
+        if (!attack.animation().isEmpty()) json.addProperty(ANIMATION, attack.animation());
+        if (!attack.windup().isZero()) json.addProperty(WINDUP, seconds(attack.windup()));
+        return json;
+    }
+
+    private static List<MobAttack> decodeAttacks(@Nullable JsonElement element, BiConsumer<String, String> problems) {
+        if (element == null) return List.of();
+        if (!(element instanceof JsonArray array)) {
+            problems.accept("model.attacks", "not a list; the plain blow");
+            return List.of();
+        }
+        List<MobAttack> attacks = new ArrayList<>();
+        for (JsonElement each : array) {
+            if (!(each instanceof JsonObject json)) {
+                problems.accept("model.attacks", "an attack that is not an object; left out");
+                continue;
+            }
+            MobAttack plain = MobAttack.melee(string(json, NAME));
+            attacks.add(new MobAttack(plain.name(), number(json, REACH, plain.reach()), number(json, ARC, plain.arc()),
+                    number(json, DAMAGE, plain.damage()),
+                    json.has(COOLDOWN) ? duration(number(json, COOLDOWN, 0)) : plain.cooldown(),
+                    number(json, KNOCKBACK, plain.knockback()), string(json, PROJECTILE), string(json, ANIMATION),
+                    duration(number(json, WINDUP, 0))));
+        }
+        return attacks;
     }
 
     private static JsonObject encodeSounds(MobSounds sounds) {
@@ -603,7 +682,8 @@ public final class MobCodec {
                 || lookAt.getAsBoolean();
         double scale = json.has(SCALE) && json.get(SCALE).isJsonPrimitive() ? json.get(SCALE).getAsDouble() : 1;
         return new MobModel(string(json, MODEL), scale, states, death == null ? MobModel.Death.AUTO : death, looks,
-                decodeTweaks(json.get(TWEAKS), problems), decodeSounds(json.get(SOUNDS), problems));
+                decodeTweaks(json.get(TWEAKS), problems), decodeSounds(json.get(SOUNDS), problems),
+                decodeBody(json.get(BODY), problems), decodeAttacks(json.get(ATTACKS), problems));
     }
 
     // -------------------------------------------------------------- attributes

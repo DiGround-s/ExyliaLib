@@ -5,6 +5,7 @@ import net.exylia.lib.model.ModelTweaks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -37,12 +38,15 @@ import java.util.Map;
  * @param lookAt whether its head turns towards what it is looking at
  * @param tweaks what this mob changes about the model: where it sits, bones, speeds, its box
  *               (since 1.321.0)
- * @param sounds its own voice; a mob wearing a model is otherwise silent (since 1.324.0)
+ * @param sounds  its own voice; a mob wearing a model is otherwise silent (since 1.324.0)
+ * @param body    how it moves and thinks; {@link MobBody#VANILLA} keeps the vanilla mob's own (since 1.326.0)
+ * @param attacks the blows it strikes with a body of its own; empty strikes with {@link MobAttack#DEFAULT}
+ *                (since 1.326.0)
  * @since 1.317.0
  */
 public record MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states,
                        @NotNull Death death, boolean lookAt, @NotNull ModelTweaks tweaks,
-                       @NotNull MobSounds sounds) {
+                       @NotNull MobSounds sounds, @NotNull MobBody body, @NotNull List<MobAttack> attacks) {
 
     /** How a model mob dies. */
     public enum Death {
@@ -60,7 +64,7 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
 
     /** No model: the vanilla body. */
     public static final MobModel NONE = new MobModel("", 1, Map.of(), Death.AUTO, true, ModelTweaks.NONE,
-            MobSounds.NONE);
+            MobSounds.NONE, MobBody.VANILLA, List.of());
 
     /** A model without tweaks, as 1.317.0 had it. */
     public MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states, @NotNull Death death,
@@ -74,9 +78,17 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
         this(model, scale, states, death, lookAt, tweaks, MobSounds.NONE);
     }
 
+    /** A model on the vanilla body, as 1.324.0 had it. */
+    public MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states, @NotNull Death death,
+                    boolean lookAt, @NotNull ModelTweaks tweaks, @NotNull MobSounds sounds) {
+        this(model, scale, states, death, lookAt, tweaks, sounds, MobBody.VANILLA, List.of());
+    }
+
     public MobModel {
         tweaks = tweaks == null ? ModelTweaks.NONE : tweaks;
         sounds = sounds == null ? MobSounds.NONE : sounds;
+        body = body == null ? MobBody.VANILLA : body;
+        attacks = attacks == null ? List.of() : List.copyOf(attacks);
         model = model == null ? "" : model.trim().toLowerCase(Locale.ROOT);
         scale = Double.isFinite(scale) && scale > 0 ? Math.min(scale, 16) : 1;
         Map<String, String> copy = new LinkedHashMap<>();
@@ -107,15 +119,15 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     public @NotNull MobModel withModel(@NotNull String model) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     public @NotNull MobModel withScale(double scale) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     public @NotNull MobModel withStates(@NotNull Map<String, String> states) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     /** The same, with one state playing a named animation; a blank animation goes back to matching by name. */
@@ -130,20 +142,40 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     public @NotNull MobModel withDeath(@NotNull Death death) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     public @NotNull MobModel withLookAt(boolean lookAt) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     /** @since 1.321.0 */
     public @NotNull MobModel withTweaks(@NotNull ModelTweaks tweaks) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
     }
 
     /** @since 1.324.0 */
     public @NotNull MobModel withSounds(@NotNull MobSounds sounds) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
+    }
+
+    /** @since 1.326.0 */
+    public @NotNull MobModel withBody(@NotNull MobBody body) {
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
+    }
+
+    /** @since 1.326.0 */
+    public @NotNull MobModel withAttacks(@NotNull List<MobAttack> attacks) {
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds, body, attacks);
+    }
+
+    /** What it strikes with: its own attacks, else the plain blow. @since 1.326.0 */
+    public @NotNull List<MobAttack> strikes() {
+        return attacks.isEmpty() ? List.of(MobAttack.DEFAULT) : attacks;
+    }
+
+    /** Whether the engine runs it rather than the vanilla mob it hides: a model with a body. @since 1.326.0 */
+    public boolean custom() {
+        return has() && body.custom();
     }
 }
