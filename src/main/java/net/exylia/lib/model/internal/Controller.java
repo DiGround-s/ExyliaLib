@@ -55,6 +55,30 @@ public final class Controller {
     /** How far a fitted action may be sped up or slowed down. */
     static final double FIT_MIN = 0.25;
     static final double FIT_MAX = 4;
+    /** Degrees a second a standing carrier turns at before it plays its turn. */
+    static final double TURN_FROM = 120;
+    /** How long a carrier must have been off the ground before it lands, rather than stepping down. */
+    static final long LAND_AFTER = 300;
+
+    /**
+     * How the carrier moves, beyond how fast: each picks the base of its name
+     * when the model has one, and the ground's idle, walk or run when it does not.
+     */
+    public enum Motion {
+        /** On its feet. */
+        GROUND,
+        /** Going up, off the ground: {@code jump}. */
+        JUMP,
+        /** Coming down, off the ground: {@code fall}; {@code land} plays as it touches down. */
+        FALL,
+        /** In water: {@code swim}. */
+        SWIM,
+        /** In the air with no gravity, flying or hovering: {@code fly}. */
+        FLY,
+        /** Up a wall or a ladder: {@code climb}. */
+        CLIMB
+    }
+
     /** The events a fitted action strikes on, in the order they are looked for. */
     static final List<String> STRIKES = List.of("release", "impact");
 
@@ -79,6 +103,7 @@ public final class Controller {
     private boolean dying;
 
     private long last = Long.MIN_VALUE;
+    private long airborneSince = Long.MIN_VALUE;
     private double tempo = 1;
     private final List<String> fired = new ArrayList<>();
 
@@ -154,20 +179,47 @@ public final class Controller {
      * @param speed horizontal speed, in blocks a second
      */
     public void advance(long now, double speed) {
+        advance(now, speed, Motion.GROUND, 0);
+    }
+
+    /**
+     * Moves the clock on and picks the base from how the carrier moves.
+     *
+     * @param now      the clock, in milliseconds
+     * @param speed    how fast it moves, in blocks a second
+     * @param motion   how it moves
+     * @param turnRate how fast it turns, degrees a second, either way
+     */
+    public void advance(long now, double speed, Motion motion, double turnRate) {
         if (last == Long.MIN_VALUE) {
             last = now;
         }
         long elapsed = Math.max(0, now - last);
         last = now;
         if (!dying) {
-            String next = switch (baseState) {
+            String ground = switch (baseState) {
                 case "run" -> speed < RUN_UNTIL ? (speed < WALK_UNTIL ? "idle" : "walk") : "run";
                 case "walk" -> speed >= RUN_FROM ? "run" : speed < WALK_UNTIL ? "idle" : "walk";
                 default -> speed >= RUN_FROM ? "run" : speed >= WALK_FROM ? "walk" : "idle";
             };
+            String next = base(motion, ground, turnRate);
+            boolean airborne = motion == Motion.JUMP || motion == Motion.FALL;
+            if (airborne && airborneSince == Long.MIN_VALUE) {
+                airborneSince = now;
+            } else if (!airborne && airborneSince != Long.MIN_VALUE) {
+                boolean landed = motion == Motion.GROUND && now - airborneSince >= LAND_AFTER;
+                airborneSince = Long.MIN_VALUE;
+                if (landed && action == null && clips.apply("land") != null) {
+                    play("land", now);
+                }
+            }
             switchBase(next, now);
+            boolean travels = switch (baseState) {
+                case "walk", "run", "swim", "fly", "climb" -> true;
+                default -> false;
+            };
             double pace = baseState.equals("run") ? RUN_PACE : WALK_PACE;
-            tempo = (baseState.equals("idle") ? 1 : Math.clamp(speed / pace, 0.6, 1.8)) * speed(baseState);
+            tempo = (travels ? Math.clamp(speed / pace, 0.6, 1.8) : 1) * speed(baseState);
         } else {
             tempo = 1;
         }
@@ -189,6 +241,26 @@ public final class Controller {
                 actionState = null;
             }
         }
+    }
+
+    /** The base for a way of moving: its own when the model has it, else what the ground speed gives. */
+    private String base(Motion motion, String ground, double turnRate) {
+        String own = switch (motion) {
+            case JUMP -> "jump";
+            case FALL -> "fall";
+            case SWIM -> "swim";
+            case FLY -> "fly";
+            case CLIMB -> "climb";
+            case GROUND -> ground.equals("idle") && Math.abs(turnRate) >= TURN_FROM ? "turn" : null;
+        };
+        if (own == null) {
+            return ground;
+        }
+        if (own.equals(baseState) || clips.apply(own) != null) {
+            return own;
+        }
+        // A jump with no animation of its own keeps what it was doing in the air.
+        return motion == Motion.JUMP || motion == Motion.FALL ? baseState : ground;
     }
 
     private void switchBase(String state, long now) {

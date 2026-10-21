@@ -81,6 +81,16 @@ public interface ModelInstance {
         return -1;
     }
 
+    /**
+     * Floats it up and down by this much, slowly, as a hovering spirit does:
+     * the whole model rises and sinks together, at the cost of one packet a tick.
+     *
+     * @param amplitude blocks either way, {@code 0-2}; {@code 0} stops it
+     * @since 1.329.0
+     */
+    default void hover(double amplitude) {
+    }
+
     /** Lets go of the action under way. */
     void stop();
 

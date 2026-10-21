@@ -242,6 +242,36 @@ A model with legs stands on the ground it is over: a step, a slab, a slope.
   near distance and the carrier is on the ground. It fades in and out over a few
   poses, so a jump or a fall does not snap the legs.
 
+## How it moves (since 1.329.0)
+
+The base is not only idle, walk and run. Each tick the carrier is read: on its
+feet, going up or coming down off the ground, in water, in the air with no
+gravity (a flyer), or climbing. Each way of moving plays the base of its name
+when the model has one, and the ground's idle, walk or run when it does not:
+
+| The carrier | Base | Without it |
+| --- | --- | --- |
+| going up, off the ground | `jump` | what it was doing |
+| coming down | `fall` | what it was doing |
+| touching down after a third of a second in the air | `land`, as an action | nothing |
+| in water | `swim` | idle, walk, run |
+| in the air with no gravity | `fly` | idle, walk, run |
+| up a wall or a ladder | `climb` | idle, walk, run |
+| standing and turning fast | `turn` | idle |
+
+Swimming, flying and climbing are paced by the speed it moves at along the way
+it goes, so a climb up a wall is not read as standing still.
+
+A spider-like carrier climbing a wall stands the model up the wall: it tilts
+over a few ticks until its front points up and its belly to the wall, and its
+legs stand on the wall, each reaching along the model's own up to the face in
+front of it as they reach for the floor. On a ladder a model plays `climb`
+without tilting.
+
+`ModelInstance.hover(amplitude)` floats the whole model up and down by that
+much, slowly: the root rises and sinks, every cube along with it. A mob with a
+`HOVER` body floats by 0.12 blocks.
+
 ## Coming apart (since 1.321.0)
 
 Every cube's flight is worked out once, on the server, the moment the model
@@ -336,6 +366,18 @@ to what the server holds a hit on any entity to:
   the world within `viewRange`, and somebody already watching keeps it until
   they are eight blocks further than that, so walking along the edge does not
   blink it.
+- **What a turn costs (since 1.329.0).** A display turns with its own pose, not
+  with what it rides, so every cube is sent again when the model turns. A slow
+  turn is sent three degrees at a time, the client gliding between, and the
+  exact facing once it stops; a turn as fast as the pose period still sends
+  every cube each pose.
+- **The real count**, per near viewer, for a model of `n` cubes: walking in a
+  straight line with a walk animation that moves every bone, `n` pose packets
+  every other tick plus one teleport a tick (`10n + 20` a second; 620 for 60
+  cubes). Standing and breathing, only the cubes of the bones the idle animation
+  moves. Standing still with no animation, nothing at all. A middle viewer gets a
+  quarter of that and a far viewer a sixteenth, of the larger cubes only. A
+  hovering body adds one teleport a tick for its float.
 - No benchmark is claimed. Every number here is a design figure.
 
 ## What it does not do
@@ -370,6 +412,11 @@ to what the server holds a hit on any entity to:
   it ticks on the scheduler of the place where it fell. A sweep once a second
   takes off every client any model whose ticks stopped: the carrier went away
   in a way no event reported.
+- On Folia no block is read outside the carrier's own region: the ground under
+  a foot, the wall a climber stands on, the blocks a cube bounces off when it
+  comes apart and the line of sight of a box hit are each skipped where the
+  region is not the thread's own (a foot then keeps its animation's height).
+  A mob with a body drops a target in another region.
 - `Models.release(plugin)` runs in `ExyliaLib.onPluginDisable`, and
   `Models.releaseAll()` on shutdown. Nothing outlives its plugin.
 - Reload: nothing here is derived from the palette, so there is no

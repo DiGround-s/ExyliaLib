@@ -179,13 +179,21 @@ public final class Poser {
      * @param offset where the whole model is moved, in blocks, in its own axes before it turns
      */
     public void parts(double scale, double yaw, double[] offset, double[][] out) {
-        // The model turned half round, then by the carrier's yaw: a yaw of 0 faces south.
-        double turn = Math.toRadians(-yaw) + Math.PI;
-        double half = turn / 2;
-        double ex = 0;
-        double ey = Math.sin(half);
-        double ez = 0;
-        double ew = Math.cos(half);
+        parts(scale, yaw, 0, offset, out);
+    }
+
+    /**
+     * {@link #parts(double, double, double[], double[][])}, tilted first about
+     * the model's own right axis: a climber standing up a wall.
+     *
+     * @param tilt degrees; {@code 90} turns its front straight up and its belly to what is in front of it
+     */
+    public void parts(double scale, double yaw, double tilt, double[] offset, double[][] out) {
+        double[] facing = facing(yaw, tilt);
+        double ex = facing[0];
+        double ey = facing[1];
+        double ez = facing[2];
+        double ew = facing[3];
         double toBlocks = scale / 16.0;
 
         List<Rig.Part> parts = rig.parts();
@@ -303,6 +311,20 @@ public final class Poser {
         out[SX] = sx;
         out[SY] = sy;
         out[SZ] = sz;
+    }
+
+    /**
+     * The turn the whole model is drawn with: tilted about its own right axis,
+     * then turned half round and by the carrier's yaw, so a yaw of 0 faces south.
+     *
+     * @return x, y, z, w
+     */
+    static double[] facing(double yaw, double tilt) {
+        double half = (Math.toRadians(-yaw) + Math.PI) / 2;
+        double lean = Math.toRadians(tilt) / 2;
+        double[] turned = new double[FIELDS];
+        multiply(0, Math.sin(half), 0, Math.cos(half), Math.sin(lean), 0, 0, Math.cos(lean), turned);
+        return new double[]{turned[QX], turned[QY], turned[QZ], turned[QW]};
     }
 
     /** X first, then Y, then Z, about the fixed axes: Blockbench's (three.js's {@code ZYX}) order. */

@@ -36,9 +36,24 @@ public final class ModelState {
     public static final String DEATH = "death";
     /** Appearing. */
     public static final String SPAWN = "spawn";
+    /** Going up off the ground. Chosen by itself (since 1.329.0). */
+    public static final String JUMP = "jump";
+    /** Coming down. Chosen by itself (since 1.329.0). */
+    public static final String FALL = "fall";
+    /** Touching down after a fall, as an action. Played by itself (since 1.329.0). */
+    public static final String LAND = "land";
+    /** In water. Chosen by itself (since 1.329.0). */
+    public static final String SWIM = "swim";
+    /** In the air with no gravity: flying, hovering. Chosen by itself (since 1.329.0). */
+    public static final String FLY = "fly";
+    /** Up a wall or a ladder. Chosen by itself (since 1.329.0). */
+    public static final String CLIMB = "climb";
+    /** Standing and turning fast. Chosen by itself (since 1.329.0). */
+    public static final String TURN = "turn";
 
-    /** Every state but casts, in the order an editor lists them. */
-    public static final List<String> ALL = List.of(IDLE, WALK, RUN, ATTACK, HURT, DEATH, SPAWN);
+    /** Every state but casts, in the order an editor lists them; the ways of moving since 1.329.0. */
+    public static final List<String> ALL = List.of(IDLE, WALK, RUN, ATTACK, HURT, DEATH, SPAWN, JUMP, FALL, LAND,
+            SWIM, FLY, CLIMB, TURN);
 
     /** The prefix of a cast's state. */
     public static final String CAST = "cast:";

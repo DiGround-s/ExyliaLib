@@ -225,4 +225,50 @@ class ControllerTest {
         assertEquals(10, sample(controller, 100 + Controller.BASE_FADE_MS / 2)[0][Clip.ROT_X], EPSILON);
         assertEquals(20, sample(controller, 100 + Controller.BASE_FADE_MS)[0][Clip.ROT_X], EPSILON);
     }
+
+    @Test
+    void itSwimsFliesAndClimbsWhereTheModelCanAndWalksWhereItCannot() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("idle", holding("idle", 0, Clip.ROT_X, 0, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("walk", holding("walk", 0, Clip.ROT_X, 30, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("swim", holding("swim", 0, Clip.ROT_X, 60, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("climb", holding("climb", 0, Clip.ROT_X, 90, Clip.Loop.LOOP, 1000, List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+
+        controller.advance(50, 2, Controller.Motion.SWIM, 0);
+        assertEquals("swim", controller.baseState());
+        controller.advance(100, 2, Controller.Motion.CLIMB, 0);
+        assertEquals("climb", controller.baseState());
+        controller.advance(150, 2, Controller.Motion.FLY, 0);
+        assertEquals("walk", controller.baseState(), "no fly of its own: it walks through the air");
+        controller.advance(200, 0, Controller.Motion.GROUND, 0);
+        assertEquals("idle", controller.baseState());
+        controller.advance(250, 0, Controller.Motion.GROUND, 400);
+        assertEquals("idle", controller.baseState(), "no turn of its own: it stands");
+    }
+
+    @Test
+    void aFallLongEnoughLandsAndAStepDoesNot() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("idle", holding("idle", 0, Clip.ROT_X, 0, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("fall", holding("fall", 0, Clip.ROT_X, 45, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("turn", holding("turn", 0, Clip.ROT_X, 10, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("land", holding("land", 1, Clip.ROT_X, 20, Clip.Loop.ONCE, 400, List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+
+        controller.advance(50, 0, Controller.Motion.FALL, 0);
+        assertEquals("fall", controller.baseState());
+        controller.advance(150, 0, Controller.Motion.GROUND, 0);
+        assertNull(controller.action(), "a step down is no landing");
+        controller.advance(200, 0, Controller.Motion.JUMP, 0);
+        assertEquals("idle", controller.baseState(), "no jump of its own: it keeps what it was doing");
+        controller.advance(400, 0, Controller.Motion.FALL, 0);
+        controller.advance(600, 0, Controller.Motion.GROUND, 0);
+        assertEquals("land", controller.action());
+        assertEquals("idle", controller.baseState());
+        controller.advance(700, 0, Controller.Motion.GROUND, 300);
+        assertEquals("turn", controller.baseState(), "turning on the spot");
+    }
 }

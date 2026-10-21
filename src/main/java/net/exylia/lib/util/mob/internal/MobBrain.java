@@ -196,6 +196,8 @@ final class MobBrain implements Goal<Mob> {
 
     private boolean keeps(LivingEntity target) {
         if (!MobEngine.usable(body, target) || mob.template().has(MobFlag.PASSIVE)) return false;
+        // On Folia a target in another region is out of this thread's reach, and so out of the fight.
+        if (!engine.owns(target.getLocation())) return false;
         double lose = range() * LOSE;
         return target.getLocation().distanceSquared(body.getLocation()) <= lose * lose;
     }
@@ -210,7 +212,7 @@ final class MobBrain implements Goal<Mob> {
         Location at = body.getLocation();
         for (Player player : MobEngine.playersNear(body, range)) {
             double distance = player.getLocation().distanceSquared(at);
-            if (distance < nearest && body.hasLineOfSight(player)) {
+            if (distance < nearest && engine.owns(player.getLocation()) && body.hasLineOfSight(player)) {
                 nearest = distance;
                 best = player;
             }
@@ -346,9 +348,9 @@ final class MobBrain implements Goal<Mob> {
     }
 
     /** The top of the ground under a spot, within 24 blocks down; {@code NaN} over the void. */
-    private static double groundUnder(Location spot) {
+    private double groundUnder(Location spot) {
         World world = spot.getWorld();
-        if (world == null) return Double.NaN;
+        if (world == null || !engine.owns(spot)) return Double.NaN;
         RayTraceResult hit = world.rayTraceBlocks(spot.clone().add(0, 0.5, 0), new Vector(0, -1, 0), 24,
                 FluidCollisionMode.ALWAYS, true);
         return hit == null ? Double.NaN : hit.getHitPosition().getY();

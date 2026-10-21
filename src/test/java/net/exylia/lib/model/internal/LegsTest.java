@@ -20,7 +20,7 @@ class LegsTest {
      * to the knee and a lower leg from the knee to the ground, six pixels each.
      * Facing north as Blockbench has it, the right leg is at +X and the left at -X.
      */
-    private static Rig biped() {
+    static Rig biped() {
         List<Rig.Bone> bones = List.of(
                 new Rig.Bone("body", "b", -1, new double[]{0, 12, 0}, new double[3]),
                 new Rig.Bone("leg_right", "lr", 0, new double[]{2, 12, 0}, new double[3]),
@@ -46,7 +46,7 @@ class LegsTest {
         return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2));
     }
 
-    private static double[] sole(Poser poser, Legs.Limb limb) {
+    static double[] sole(Poser poser, Legs.Limb limb) {
         return Legs.soleOf(poser.world(limb.end()), limb.sole());
     }
 

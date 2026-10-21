@@ -134,6 +134,9 @@ public final class MobEngine implements Listener {
     /** Template attributes a body of its own does not take from its carrier: its size, and its blows. */
     private static final Set<String> BODY_ATTRIBUTES = Set.of("scale", "attack_damage", "attack_knockback");
 
+    /** How far a hovering body floats up and down, blocks. */
+    private static final double HOVER_BOB = 0.12;
+
     /** The red a model mob flashes when hit. */
     private static final int HURT_FLASH = 0xFF4A4A;
 
@@ -966,6 +969,12 @@ public final class MobEngine implements Listener {
         return mob.template().has(flag) || flag == MobFlag.NO_INTERACT && thinks(mob);
     }
 
+    /** Whether this thread may read the world there: on Folia, another region's blocks are not ours. */
+    boolean owns(Location where) {
+        return where.getWorld() != null && where.getWorld().isChunkLoaded(where.getBlockX() >> 4, where.getBlockZ() >> 4)
+                && tasks.isOwnedBy(where);
+    }
+
     /** Whether a mob runs on a body of its own rather than its vanilla mind. */
     static boolean thinks(LiveMob mob) {
         return mob.model() != null && mob.template().model().custom();
@@ -1442,6 +1451,9 @@ public final class MobEngine implements Listener {
                     + ": its model " + model.name() + " could not be drawn; it wears its vanilla body.");
         }
         mob.model(live);
+        if (live != null && worn.custom() && worn.body().kind() == net.exylia.lib.util.mob.MobBody.Kind.HOVER) {
+            live.hover(HOVER_BOB);
+        }
     }
 
     /** A step sound each stride on the ground, a stride being a little longer than the model is wide. */

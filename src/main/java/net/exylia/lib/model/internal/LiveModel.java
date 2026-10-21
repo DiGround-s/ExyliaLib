@@ -392,6 +392,14 @@ final class LiveModel implements ModelInstance {
         return true;
     }
 
+    /** Ticks one rise and fall of a float takes. */
+    private static final int BOB_TICKS = 48;
+
+    @Override
+    public void hover(double amplitude) {
+        bob = Double.isFinite(amplitude) ? Math.clamp(amplitude, 0, 2) : 0;
+    }
+
     @Override
     public long strikeMillis(@NotNull String stateOrAnimation) {
         Clip clip = model.clipFor(stateOrAnimation, options, phase);
@@ -589,17 +597,30 @@ final class LiveModel implements ModelInstance {
                     return;
                 }
                 double fromX = x;
+                double fromY = y;
                 double fromZ = z;
+                float fromYaw = yaw;
                 World before = world;
                 read(body);
-                double moved = before == world ? Math.hypot(x - fromX, z - fromZ) : 0;
-                if (moved > 2 || before != world) {
+                boolean jumped = before != world;
+                double moved = jumped ? 0 : Math.hypot(x - fromX, z - fromZ);
+                double rose = jumped ? 0 : y - fromY;
+                if (moved > 2 || Math.abs(rose) > 2 || jumped) {
                     // Teleported: no foot stays where it was.
                     legs.release();
                     moved = 0;
+                    rose = 0;
                 }
-                speed = speed * 0.5 + moved * 20 * 0.5;
                 onGround = body.isOnGround();
+                motion = motionOf(body, rose);
+                // Up a wall, through water or the air, the way it goes counts, not only along the ground.
+                double travelled = motion == Controller.Motion.GROUND || motion == Controller.Motion.JUMP
+                        || motion == Controller.Motion.FALL ? moved : Math.hypot(moved, rose);
+                speed = speed * 0.5 + travelled * 20 * 0.5;
+                turnRate = turnRate * 0.5 + wrap(yaw - fromYaw) * 20 * 0.5;
+                double wanted = motion == Controller.Motion.CLIMB && body instanceof org.bukkit.entity.Spider ? 1 : 0;
+                climb += (wanted - climb) * 0.25;
+                if (Math.abs(climb - wanted) < 0.01) climb = wanted;
                 look(body);
             } else {
                 speed = 0;
@@ -612,7 +633,7 @@ final class LiveModel implements ModelInstance {
                     return;
                 }
             }
-            controller.advance(now, speed);
+            controller.advance(now, speed, detached ? Controller.Motion.GROUND : motion, detached ? 0 : turnRate);
             for (String event : controller.drainEvents()) {
                 tell(event);
             }
@@ -648,6 +669,30 @@ final class LiveModel implements ModelInstance {
                     + " was removed.", failure);
             remove();
         }
+    }
+
+    /** How the carrier is moving: on its feet, up a wall, in water, in the air. */
+    private Controller.Motion motionOf(LivingEntity body, double rose) {
+        if (body.isInWater() && !onGround) {
+            return Controller.Motion.SWIM;
+        }
+        if (body.isClimbing() && !onGround) {
+            return Controller.Motion.CLIMB;
+        }
+        if (onGround) {
+            return Controller.Motion.GROUND;
+        }
+        if (!body.hasGravity()) {
+            return Controller.Motion.FLY;
+        }
+        // A step down a slab is no fall; the controller waits a moment before it lands.
+        if (rose > 0.02) {
+            return Controller.Motion.JUMP;
+        }
+        if (rose < -0.05) {
+            return Controller.Motion.FALL;
+        }
+        return motion == Controller.Motion.JUMP || motion == Controller.Motion.FALL ? motion : Controller.Motion.GROUND;
     }
 
     private void read(LivingEntity body) {
@@ -967,16 +1012,46 @@ final class LiveModel implements ModelInstance {
     private void pose(long now) {
         controller.sample(now, offsets);
         double scale = options.scale() * carrierScale * size;
+        double tilt = climb * 90;
+        // A slow turn is sent a few degrees at a time, the client gliding between: every cube moves when it turns.
+        double drift = Math.abs(wrap(yaw - poseYaw));
+        if (drift >= YAW_STEP || Math.abs(turnRate) < 1 && drift > 0) {
+            poseYaw = yaw;
+        }
         if (legs.isEmpty()) {
             poser.bones(offsets, head, headYaw, headPitch, 0, 0, 0);
+        } else if (tilt > 4.5) {
+            // Up a wall its feet stand on the wall: ground found along its own up, in its own frame.
+            boolean stand = !detached && !tiers[NEAR].isEmpty();
+            Legs.Ground wall = Surfaces.frame(Poser.facing(poseYaw, tilt), x, y, z, this::probe);
+            legs.pose(poser, offsets, head, headYaw, headPitch, stand, speed, scale / 16.0, 0, 0, 0, 0, offset,
+                    wall);
         } else {
             // Feet on the ground only where somebody is near enough to see them.
             boolean stand = !detached && onGround && !tiers[NEAR].isEmpty();
-            legs.pose(poser, offsets, head, headYaw, headPitch, stand, speed, scale / 16.0, yaw, x, y, z, offset,
+            legs.pose(poser, offsets, head, headYaw, headPitch, stand, speed, scale / 16.0, poseYaw, x, y, z, offset,
                     this::groundTop);
         }
-        poser.parts(scale, yaw, offset, poses);
+        poser.parts(scale, poseYaw, tilt, offset, poses);
         posed = true;
+    }
+
+    /** How far a surface is along a direction, read only where this thread may read; {@code NaN} otherwise. */
+    private double probe(double sx, double sy, double sz, double dx, double dy, double dz, double max) {
+        World at = world;
+        if (at == null) {
+            return Double.NaN;
+        }
+        Location start = new Location(at, sx, sy, sz);
+        Location end = new Location(at, sx + dx * max, sy + dy * max, sz + dz * max);
+        if (!at.isChunkLoaded(start.getBlockX() >> 4, start.getBlockZ() >> 4)
+                || !at.isChunkLoaded(end.getBlockX() >> 4, end.getBlockZ() >> 4)
+                || !tasks.isOwnedBy(start) || !tasks.isOwnedBy(end)) {
+            return Double.NaN;
+        }
+        org.bukkit.util.RayTraceResult hit = at.rayTraceBlocks(start, new org.bukkit.util.Vector(dx, dy, dz), max,
+                org.bukkit.FluidCollisionMode.NEVER, true);
+        return hit == null ? Double.NaN : hit.getHitPosition().distance(start.toVector());
     }
 
     /** The top of the ground under a point, read through a short cache; {@code NaN} where it cannot be read. */
@@ -1014,6 +1089,17 @@ final class LiveModel implements ModelInstance {
         return top;
     }
 
+    /** Degrees a model turning slowly waits for before its cubes are turned again. */
+    static final double YAW_STEP = 3;
+
+    private Controller.Motion motion = Controller.Motion.GROUND;
+    private double turnRate;
+    /** How far up a wall it is stood, {@code 0-1}. */
+    private double climb;
+    private double poseYaw;
+    /** How far it bobs up and down, blocks; a hovering body's float. */
+    private volatile double bob;
+
     private double lastX = Double.NaN;
     private double lastY;
     private double lastZ;
@@ -1028,10 +1114,13 @@ final class LiveModel implements ModelInstance {
         }
         boolean moved = x != lastX || y != lastY || z != lastZ;
         boolean turned = yaw != lastYaw;
-        if (moved) {
+        double floating = bob;
+        if (moved || floating > 0) {
             List<Player> everyone = viewers();
             if (!everyone.isEmpty()) {
-                ModelPackets.teleport(everyone, rootId, x, y, z);
+                // A float is the root rising and sinking: one packet, every cube along.
+                double lift = floating > 0 ? floating * Math.sin(ticks * Math.PI * 2 / BOB_TICKS) : 0;
+                ModelPackets.teleport(everyone, rootId, x, y + lift, z);
             }
         }
         if ((moved || turned) && boxIds.length > 0 && !detached) {
@@ -1355,6 +1444,10 @@ final class LiveModel implements ModelInstance {
             }
             org.bukkit.util.BoundingBox bounds = bounds(box);
             Location eye = player.getEyeLocation();
+            if (!tasks.isOwnedBy(eye)) {
+                // Folia: a player in another region cannot be checked from here, nor reach this far.
+                return;
+            }
             AttributeInstance range = interactionRange(player);
             if (!Boxes.reaches(bounds, eye.toVector(), range == null ? 3 : range.getValue())) {
                 return;
