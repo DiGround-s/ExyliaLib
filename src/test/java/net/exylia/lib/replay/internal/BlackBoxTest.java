@@ -52,16 +52,37 @@ class BlackBoxTest {
         AtomicInteger reads = new AtomicInteger();
         Entity arrow = counting(id, reads);
 
-        assertSame(tape, box.sampleNear(arrow, null, new Location(null, 0, 64, 0), 1600, 100));
+        assertSame(tape, box.sampleNear(arrow, null, new Location(null, 0, 64, 0), 1600, 100, new Location(null, 0, 0, 0)));
         assertEquals(0, reads.get(), "seen this tick: nothing is read");
 
         box.tapes.clear();
-        assertSame(tape, box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 100),
+        assertSame(tape, box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 100, new Location(null, 0, 0, 0)),
                 "a remembered tape is used without looking it up");
         assertEquals(0, reads.get());
 
-        box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101);
+        box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101, new Location(null, 0, 0, 0));
         assertEquals(1, reads.get(), "a new tick: it is read");
+    }
+
+    @Test
+    @DisplayName("a track holds every tick its frames cover, widens the ground once, and skips a tape long gone")
+    void trackOfFollowsFrames() {
+        BlackBox.Draft scene = new BlackBox.Draft(0, WORLD, 0, 64, 0);
+        int[] band = {64, 64};
+        scene.chunks.put(BlackBox.key(0, 0), band);
+        UUID id = UUID.randomUUID();
+        Tape tape = new Tape(id, new ReplayActor(id, "Zombie", null, null, null), false, true);
+        tape.put(100, WORLD, 1, 70, 1, 0f, 0f, MotionTrack.PRESENT, 20f);
+        tape.put(105, WORLD, 2, 72, 2, 0f, 0f, MotionTrack.PRESENT, 20f);
+
+        MotionTrack track = BlackBox.trackOf(tape, List.of(scene), 100, 110);
+        assertTrue(track != null && track.present(0) && track.present(10), "held between and after its frames");
+        assertEquals(1.0, track.x(4), 1e-9);
+        assertEquals(2.0, track.x(5), 1e-9);
+        assertEquals(64, band[0]);
+        assertEquals(72, band[1], "the ground under it reaches where it climbed");
+
+        assertEquals(null, BlackBox.trackOf(tape, List.of(scene), 200, 210), "gone long before the window");
     }
 
     @Test

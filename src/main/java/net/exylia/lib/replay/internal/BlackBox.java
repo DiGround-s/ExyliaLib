@@ -257,8 +257,9 @@ public final class BlackBox {
         double reach = (radius + 8) * (radius + 8);
         List<Entity> nearby = watcher.nearby;
         Tape[] known = watcher.nearbyTapes;
+        Location scratch = watcher.scratch;
         for (int i = 0; i < nearby.size(); i++) {
-            Tape tape = sampleNear(nearby.get(i), known[i], here, reach, tick);
+            Tape tape = sampleNear(nearby.get(i), known[i], here, reach, tick, scratch);
             if (tape != null) known[i] = tape;
         }
         if (!watcher.noticed.isEmpty()) {
@@ -268,7 +269,7 @@ public final class BlackBox {
                     it.remove();
                     continue;
                 }
-                sampleNear(entity, null, here, reach, tick);
+                sampleNear(entity, null, here, reach, tick, scratch);
             }
         }
     }
@@ -276,12 +277,15 @@ public final class BlackBox {
     /**
      * Samples one entity near somebody.
      *
-     * @param known its tape when the caller remembers it from an earlier tick,
-     *              which saves looking it up; a look forgets it again, so a
-     *              tape trimmed away is never written to for long
+     * @param known   its tape when the caller remembers it from an earlier tick,
+     *                which saves looking it up; a look forgets it again, so a
+     *                tape trimmed away is never written to for long
+     * @param scratch filled with where it is: up to ninety-six entities per
+     *                player per tick, each a new {@code Location} otherwise
      * @return its tape, when it has one
      */
-    @Nullable Tape sampleNear(Entity entity, @Nullable Tape known, Location here, double reach, int tick) {
+    @Nullable Tape sampleNear(Entity entity, @Nullable Tape known, Location here, double reach, int tick,
+                              Location scratch) {
         // Already written by somebody else's timer this tick: everything below
         // would be read only for write() to throw it away. The id is final, so
         // asking for it is safe whichever region the entity is in now. Players
@@ -293,7 +297,7 @@ public final class BlackBox {
             // Folia: something that has crossed into another region is that
             // region's to read now, and its getters do not say so by throwing.
             if (!Bukkit.isOwnedByCurrentRegion(entity)) return tape;
-            Location at = entity.getLocation();
+            Location at = entity.getLocation(scratch);
             if (at.distanceSquared(here) > reach) return tape;
             return write(entity, tape, at, tick);
         } catch (IllegalStateException elsewhere) {
@@ -779,13 +783,22 @@ public final class BlackBox {
      * One entity's track over the window, present only on the ticks it was
      * inside the corridor of the scene those ticks belong to.
      */
-    private static @Nullable MotionTrack trackOf(Tape tape, List<Draft> scenes, int start, int end) {
+    static @Nullable MotionTrack trackOf(Tape tape, List<Draft> scenes, int start, int end) {
+        // Every tape in the box is asked, and most are not in this window at
+        // all: a mob that despawned twenty seconds ago would be copied whole
+        // and walked tick by tick to find that out.
+        if (tape.lastTick() < start - Tape.HEARTBEAT - 2) return null;
         List<Tape.Frame> frames = tape.from(start);
         if (frames.isEmpty()) return null;
         MotionTrack.Builder builder = new MotionTrack.Builder();
         boolean any = false;
         int cursor = -1;
         int lastPut = Integer.MIN_VALUE;
+        // A frame holds for every tick until the next one, so where it stands
+        // is looked up once per frame and scene, not once per tick.
+        int bandCursor = -1;
+        Draft bandScene = null;
+        int[] band = null;
         for (int tick = start; tick <= end; tick++) {
             while (cursor + 1 < frames.size() && frames.get(cursor + 1).tick() <= tick) cursor++;
             if (cursor < 0) continue;
@@ -795,11 +808,16 @@ public final class BlackBox {
             if (tick - frame.tick() > Tape.HEARTBEAT + 2) continue;
             if ((frame.flags() & MotionTrack.PRESENT) == 0) continue;
             Draft scene = scenes.get(sceneOf(scenes, tick));
-            if (!scene.world.equals(frame.world())) continue;
-            int[] band = scene.chunks.get(key((int) Math.floor(frame.x()) >> 4, (int) Math.floor(frame.z()) >> 4));
+            if (cursor != bandCursor || scene != bandScene) {
+                bandCursor = cursor;
+                bandScene = scene;
+                band = scene.world.equals(frame.world())
+                        ? scene.chunks.get(key((int) Math.floor(frame.x()) >> 4, (int) Math.floor(frame.z()) >> 4))
+                        : null;
+                // The ground under everybody in it, not only under the focus.
+                if (band != null) widen(band, (int) Math.floor(frame.y()));
+            }
             if (band == null) continue;
-            // The ground under everybody in it, not only under the focus.
-            widen(band, (int) Math.floor(frame.y()));
             int relative = tick - start;
             if (any && lastPut != tick - 1) builder.absentUntil(relative);
             builder.put(relative, frame.x() - scene.x, frame.y() - scene.y, frame.z() - scene.z,
@@ -955,6 +973,8 @@ public final class BlackBox {
         /** The tapes of {@link #nearby}, by index, filled as they are found; forgotten on every look. */
         Tape[] nearbyTapes = new Tape[0];
         Location lookedAt;
+        /** Where the entity being sampled is; only this watcher's timer touches it. */
+        final Location scratch = new Location(null, 0, 0, 0);
         volatile Location last;
         volatile int sampledAt;
         volatile TaskHandle task;
