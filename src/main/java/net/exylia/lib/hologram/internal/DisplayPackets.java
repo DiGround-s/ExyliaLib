@@ -1,6 +1,7 @@
 package net.exylia.lib.hologram.internal;
 
 import net.exylia.lib.packet.internal.EntityClicks;
+import net.exylia.lib.packet.internal.PacketPeek;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
@@ -166,7 +167,7 @@ final class DisplayPackets implements DisplaySink {
                 }
                 int entityId;
                 if (type == PacketType.Play.Server.SPAWN_ENTITY) {
-                    entityId = new WrapperPlayServerSpawnEntity(event).getEntityId();
+                    entityId = PacketPeek.entityId(event, e -> new WrapperPlayServerSpawnEntity(e).getEntityId());
                 } else if (type == PacketType.Play.Server.SPAWN_PLAYER) {
                     entityId = new WrapperPlayServerSpawnPlayer(event).getEntityId();
                 } else if (type == PacketType.Play.Server.SPAWN_LIVING_ENTITY) {

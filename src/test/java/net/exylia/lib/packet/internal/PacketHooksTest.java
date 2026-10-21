@@ -75,14 +75,18 @@ class PacketHooksTest {
                 new WrapperPlayServerEntityVelocity(id, new Vector3d(0.1, 0.2, 0.3)),
                 new WrapperPlayServerEntityAnimation(id, WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_MAIN_ARM),
                 new WrapperPlayServerEntityEquipment(id, List.of()),
-                new WrapperPlayServerHurtAnimation(id, 12f));
+                new WrapperPlayServerHurtAnimation(id, 12f),
+                new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity(id,
+                        java.util.Optional.of(java.util.UUID.randomUUID()),
+                        com.github.retrooper.packetevents.protocol.entity.type.EntityTypes.ZOMBIE,
+                        new Vector3d(1, 2, 3), 0f, 0f, 0f, 0, java.util.Optional.empty()));
         for (PacketWrapper<?> packet : packets) {
-            assertTrue(PacketHooks.leadsWithEntityId(packet.getPacketTypeData().getPacketType()),
+            assertTrue(PacketPeek.leadsWithEntityId(packet.getPacketTypeData().getPacketType()),
                     packet.getClass().getSimpleName());
             Buf buf = written(packet);
             int before = ByteBufHelper.readerIndex(buf);
 
-            assertEquals(id, PacketHooks.peekVarInt(buf), packet.getClass().getSimpleName());
+            assertEquals(id, PacketPeek.peekVarInt(buf), packet.getClass().getSimpleName());
             assertEquals(before, ByteBufHelper.readerIndex(buf), packet.getClass().getSimpleName());
         }
     }
@@ -92,9 +96,9 @@ class PacketHooksTest {
     void statusIsNotPeeked() {
         Buf buf = written(new WrapperPlayServerEntityStatus(1_234_567, 2));
 
-        assertFalse(PacketHooks.leadsWithEntityId(PacketType.Play.Server.ENTITY_STATUS));
-        assertFalse(PacketHooks.leadsWithEntityId(PacketType.Play.Server.ENTITY_SOUND_EFFECT));
-        assertNotEquals(1_234_567, PacketHooks.peekVarInt(buf));
+        assertFalse(PacketPeek.leadsWithEntityId(PacketType.Play.Server.ENTITY_STATUS));
+        assertFalse(PacketPeek.leadsWithEntityId(PacketType.Play.Server.ENTITY_SOUND_EFFECT));
+        assertNotEquals(1_234_567, PacketPeek.peekVarInt(buf));
     }
 
     @Test

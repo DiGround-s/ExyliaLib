@@ -69,8 +69,9 @@ final class TitlePackets extends PacketListenerAbstract {
         if (event.getPacketType() == PacketType.Play.Server.OPEN_WINDOW) {
             Player player = event.getPlayer();
             if (player != null) {
-                CONTAINERS.put(player.getUniqueId(),
-                        new WrapperPlayServerOpenWindow(event).getContainerId());
+                // Peeked: the wrapper would decode the window's title to hand back its id.
+                CONTAINERS.put(player.getUniqueId(), net.exylia.lib.packet.internal.PacketPeek.leadingVarInt(event,
+                        e -> new WrapperPlayServerOpenWindow(e).getContainerId()));
             }
             return;
         }

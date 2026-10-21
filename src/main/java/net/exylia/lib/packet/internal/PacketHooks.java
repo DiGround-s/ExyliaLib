@@ -6,7 +6,6 @@ import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
@@ -198,7 +197,8 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             }
         }
         if (type == PacketType.Play.Server.OPEN_WINDOW) {
-            ItemDecor.opened(viewer, new WrapperPlayServerOpenWindow(event).getContainerId());
+            ItemDecor.opened(viewer, PacketPeek.leadingVarInt(event,
+                    e -> new WrapperPlayServerOpenWindow(e).getContainerId()));
         } else if (ItemDecor.decoratesAnything() && carriesItems(type)) {
             decorate(event, type, viewer);
         }
@@ -387,10 +387,13 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * in place; what is decoded here belongs to the packet, not to us.
      */
     private static void draw(PacketSendEvent event, RevealStyle style) {
-        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
-        if (!PacketRuntime.isPlayerEntity(packet.getEntityId())) {
+        // Peeked: a staff member watching for the invisible is sent the
+        // metadata of every entity around them, and almost none is a player.
+        if (!PacketRuntime.isPlayerEntity(PacketPeek.entityId(event,
+                e -> new WrapperPlayServerEntityMetadata(e).getEntityId()))) {
             return;
         }
+        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
         List<EntityData<?>> data = packet.getEntityMetadata();
         List<EntityData<?>> redrawn = null;
         for (int i = 0; i < data.size(); i++) {
@@ -474,19 +477,24 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * The entity a packet is about, or {@code -1} when it has none.
      *
      * <p>With one player vanished this runs for every entity packet to every
-     * viewer, on the Netty threads. A wrapper decodes the whole packet — every
-     * metadata entry, every equipment item — to hand back the first field, so
-     * the packets that lead with the entity id as a VarInt have it peeked
-     * straight off the buffer instead.
+     * viewer, on the Netty threads, so the id is {@linkplain PacketPeek peeked}
+     * wherever the packet allows it.
      */
     private static int subjectOf(PacketSendEvent event, PacketTypeCommon type) {
-        // A wrapper an earlier listener decoded is what a new wrapper copies,
-        // edits included, and its edits are not in the buffer until the end:
-        // then only the wrapper gives the same answer.
-        if (leadsWithEntityId(type) && event.getLastUsedWrapper() == null
-                && event.getServerVersion().isNewerThanOrEquals(ServerVersion.V_1_8)) {
-            return peekVarInt(event.getByteBuf());
+        if (type == PacketType.Play.Server.ENTITY_STATUS) {
+            return new WrapperPlayServerEntityStatus(event).getEntityId();
         }
+        if (type == PacketType.Play.Server.ENTITY_SOUND_EFFECT) {
+            return new WrapperPlayServerEntitySoundEffect(event).getEntityId();
+        }
+        // SOUND_EFFECT and PARTICLE carry a position, not an entity: nothing
+        // to attribute them to, so they pass.
+        return PacketPeek.leadsWithEntityId(type) ? PacketPeek.entityId(event, PacketHooks::decodedSubject) : -1;
+    }
+
+    /** The id as a wrapper reads it, for a packet an earlier listener already decoded. */
+    private static int decodedSubject(PacketSendEvent event) {
+        PacketTypeCommon type = event.getPacketType();
         if (type == PacketType.Play.Server.SPAWN_ENTITY) {
             return new WrapperPlayServerSpawnEntity(event).getEntityId();
         }
@@ -520,61 +528,13 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (type == PacketType.Play.Server.ENTITY_EQUIPMENT) {
             return new WrapperPlayServerEntityEquipment(event).getEntityId();
         }
-        if (type == PacketType.Play.Server.ENTITY_STATUS) {
-            return new WrapperPlayServerEntityStatus(event).getEntityId();
-        }
         if (type == PacketType.Play.Server.ENTITY_EFFECT) {
             return new WrapperPlayServerEntityEffect(event).getEntityId();
-        }
-        if (type == PacketType.Play.Server.ENTITY_SOUND_EFFECT) {
-            return new WrapperPlayServerEntitySoundEffect(event).getEntityId();
         }
         if (type == PacketType.Play.Server.DAMAGE_EVENT) {
             return new WrapperPlayServerDamageEvent(event).getEntityId();
         }
-        if (type == PacketType.Play.Server.HURT_ANIMATION) {
-            return new WrapperPlayServerHurtAnimation(event).getEntityId();
-        }
-        // SOUND_EFFECT and PARTICLE carry a position, not an entity: nothing
-        // to attribute them to, so they pass.
-        return -1;
-    }
-
-    /**
-     * Whether a packet's first field is the entity id as a VarInt, from 1.8 on.
-     *
-     * <p>Checked against each wrapper's {@code read()} in PacketEvents 2.13.
-     * Left out on purpose: the entity status, which leads with a plain int,
-     * the entity sound, which leads with the sound, and the spawn, which is
-     * rare enough not to be worth the risk.
-     */
-    static boolean leadsWithEntityId(PacketTypeCommon type) {
-        return type == PacketType.Play.Server.ENTITY_METADATA
-                || type == PacketType.Play.Server.ENTITY_RELATIVE_MOVE
-                || type == PacketType.Play.Server.ENTITY_RELATIVE_MOVE_AND_ROTATION
-                || type == PacketType.Play.Server.ENTITY_ROTATION
-                || type == PacketType.Play.Server.ENTITY_HEAD_LOOK
-                || type == PacketType.Play.Server.ENTITY_TELEPORT
-                || type == PacketType.Play.Server.ENTITY_POSITION_SYNC
-                || type == PacketType.Play.Server.ENTITY_VELOCITY
-                || type == PacketType.Play.Server.ENTITY_ANIMATION
-                || type == PacketType.Play.Server.ENTITY_EQUIPMENT
-                || type == PacketType.Play.Server.ENTITY_EFFECT
-                || type == PacketType.Play.Server.DAMAGE_EVENT
-                || type == PacketType.Play.Server.HURT_ANIMATION;
-    }
-
-    /**
-     * Reads the VarInt at the buffer's reader index and leaves the index where
-     * it was, so every listener after this one reads the packet untouched.
-     */
-    static int peekVarInt(Object buffer) {
-        int at = ByteBufHelper.readerIndex(buffer);
-        try {
-            return ByteBufHelper.readVarInt(buffer);
-        } finally {
-            ByteBufHelper.readerIndex(buffer, at);
-        }
+        return new WrapperPlayServerHurtAnimation(event).getEntityId();
     }
 
     /** Drops the hidden players' rows from a tab-list update, keeping the rest. */

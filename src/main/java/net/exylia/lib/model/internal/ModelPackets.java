@@ -19,6 +19,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import net.exylia.lib.packet.internal.Broadcast;
 import net.exylia.lib.packet.internal.EntityClicks;
+import net.exylia.lib.packet.internal.PacketPeek;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -78,11 +79,15 @@ final class ModelPackets {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketSend(PacketSendEvent event) {
+                // The id is peeked before any wrapper is built: these go out for
+                // every entity to every player, and decoding one means decoding
+                // every item's components or every metadata entry.
                 if (event.getPacketType() == PacketType.Play.Server.ENTITY_EQUIPMENT) {
-                    WrapperPlayServerEntityEquipment packet = new WrapperPlayServerEntityEquipment(event);
-                    if (!carriers.test(packet.getEntityId())) {
+                    if (!carriers.test(PacketPeek.entityId(event,
+                            e -> new WrapperPlayServerEntityEquipment(e).getEntityId()))) {
                         return;
                     }
+                    WrapperPlayServerEntityEquipment packet = new WrapperPlayServerEntityEquipment(event);
                     List<Equipment> bare = new ArrayList<>();
                     for (Equipment worn : packet.getEquipment()) {
                         bare.add(new Equipment(worn.getSlot(), ItemStack.EMPTY));
@@ -90,10 +95,11 @@ final class ModelPackets {
                     packet.setEquipment(bare);
                     event.markForReEncode(true);
                 } else if (event.getPacketType() == PacketType.Play.Server.ENTITY_METADATA) {
-                    WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
-                    if (!carriers.test(packet.getEntityId())) {
+                    if (!carriers.test(PacketPeek.entityId(event,
+                            e -> new WrapperPlayServerEntityMetadata(e).getEntityId()))) {
                         return;
                     }
+                    WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
                     boolean changed = false;
                     List<EntityData<?>> data = new ArrayList<>(packet.getEntityMetadata());
                     for (int index = 0; index < data.size(); index++) {

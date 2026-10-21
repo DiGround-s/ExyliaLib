@@ -1,12 +1,12 @@
 package net.exylia.lib.overlay.internal;
 
 import net.exylia.lib.packet.internal.EntityClicks;
+import net.exylia.lib.packet.internal.PacketPeek;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
-import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.player.DiggingAction;
@@ -38,7 +38,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.PlayerInventory;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.function.ToIntFunction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -334,7 +333,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     private void dress(PacketSendEvent event) {
         // Every entity that comes into view passes here; almost none of them
         // wear an overlay, so the id is read without decoding the packet.
-        int entityId = leadingVarInt(event, e -> new WrapperPlayServerSpawnEntity(e).getEntityId());
+        int entityId = PacketPeek.entityId(event, e -> new WrapperPlayServerSpawnEntity(e).getEntityId());
         OverlayView view = OverlayRuntime.viewOfEntity(entityId);
         if (view == null || view.isSuspended() || view.isClosed()) {
             return;
@@ -363,31 +362,6 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
     }
 
     /**
-     * Reads the entity id a packet starts with, without decoding the rest.
-     *
-     * <p>Both packets this is used on open with the entity id as a VarInt.
-     * PacketEvents hands each listener the buffer positioned just after the
-     * packet id and puts the reader index back after every listener, so
-     * peeking and restoring leaves the packet exactly as the next reader
-     * expects it. An earlier listener's re-encoded edit is not in the buffer
-     * yet; none edits an entity id.
-     */
-    private static int leadingVarInt(PacketSendEvent event, ToIntFunction<PacketSendEvent> decoded) {
-        // A listener before us may already have decoded and edited the packet;
-        // its edits are only re-encoded later, so the buffer would be stale.
-        if (event.getLastUsedWrapper() != null) {
-            return decoded.applyAsInt(event);
-        }
-        Object buffer = event.getByteBuf();
-        int start = ByteBufHelper.readerIndex(buffer);
-        try {
-            return ByteBufHelper.readVarInt(buffer);
-        } finally {
-            ByteBufHelper.readerIndex(buffer, start);
-        }
-    }
-
-    /**
      * Substitutes the overlay's items into what the server tells everyone this
      * player is holding and wearing.
      *
@@ -401,7 +375,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         // item's components, for packets that are nearly all about somebody
         // wearing no overlay at all.
         OverlayView view = OverlayRuntime.viewOfEntity(
-                leadingVarInt(event, e -> new WrapperPlayServerEntityEquipment(e).getEntityId()));
+                PacketPeek.entityId(event, e -> new WrapperPlayServerEntityEquipment(e).getEntityId()));
         if (view == null || view.isSuspended()) {
             return;
         }

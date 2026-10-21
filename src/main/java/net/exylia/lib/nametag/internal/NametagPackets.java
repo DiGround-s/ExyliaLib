@@ -11,6 +11,7 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import net.exylia.lib.nametag.NametagStyle;
+import net.exylia.lib.packet.internal.PacketPeek;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
@@ -94,11 +95,14 @@ final class NametagPackets extends PacketListenerAbstract implements NametagSink
             return;
         }
 
-        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
-        UUID targetId = state.playerOf(packet.getEntityId());
+        // Peeked: a viewer with one glowing teammate is sent every entity's
+        // metadata, and only that teammate's is worth decoding.
+        UUID targetId = state.playerOf(PacketPeek.entityId(event,
+                e -> new WrapperPlayServerEntityMetadata(e).getEntityId()));
         if (targetId == null || !state.isGlowing(viewer.getUniqueId(), targetId)) {
             return;
         }
+        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
 
         List<EntityData<?>> metadata = packet.getEntityMetadata();
         for (int i = 0; i < metadata.size(); i++) {
