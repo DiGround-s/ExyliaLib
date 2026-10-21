@@ -897,6 +897,12 @@ Everything that asks whether someone is in combat goes through
   servers that have neither of them.
 - **A `CombatBridge` only writes what its plugin can answer**; the rest are
   defaults, and every default is what a server with nothing installed does.
+- **Combat events live here, not in the combat plugin** (`CombatTagEvent`,
+  `CombatUntagEvent`, `CombatLogEvent`): the combat plugin fires them, any
+  plugin listens without depending on it.
+- **`Culprits` remembers who armed crystals, anchors and beds** through
+  `CulpritTracker`, which the lib registers itself; entries live five seconds
+  and are not dropped on entity removal (a crystal is removed before its blast).
 
 ### Clans — one active provider, per-player cache, no branching
 
@@ -1707,7 +1713,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | packet | `packet/Packets`, `PluginPackets`, `Visibility`, `VisibilityRule`, `Reveal` + `RevealStyle` (1.116.0), `FakeBlocks`, `Movement`, `FakeGameMode`, `SilentContainer`, `WorldBorders` + `VirtualBorder` (1.162.0) | `packet/internal/` (`PacketRuntime`, `PacketSink`, `SectionGroups`, `Mirrors`, `Borders` — one border per viewer in `SEEN`, resize kept as a clock, damage on an entity timer; PacketEvents confined to `PacketHooks`) | [docs/packets.md](docs/packets.md) | 1.75.0 |
 | overlay | `overlay/Overlays`, `PluginOverlays`, `OverlayDefinition`, `OverlayLock`, `OverlaySlots`, `OverlayKeys` | `overlay/internal/` (`OverlayRuntime`, `OverlayView`, `OverlayClicks`, `OverlayLoader`, `OverlayListener`, `OverlaySink`; PacketEvents confined to `OverlayPackets`) | [docs/overlays.md](docs/overlays.md) | 1.79.0 |
 | tuner | `tuner/Tuner`, `TunerAxis`, `TunerSession`, `TunerEnd` | `tuner/internal/TunerListener`; `init`/`release` in `ExyliaLib` | [docs/tuner.md](docs/tuner.md) | 1.298.0 |
-| util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats`, `Culprits` (1.266.0) | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
+| util (combat) | `util/combat/Combat`, `CombatBridge`, `CombatStats`, `Culprits` (1.266.0), `CombatTagEvent`, `CombatUntagEvent`, `CombatLogEvent` (1.325.0) | `util/combat/internal/` (`CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`, `CulpritTracker`) | [docs/combat.md](docs/combat.md) | 1.36.0 |
 | transfer | `database/transfer/Transfers`, `PluginTransfers`, `TransferReport`, `TableTransfer`, `TransferOutcome` | `database/transfer/internal/` (`DumpFormat`, `DumpWriter`, `DumpReader`, `DumpException`, `TransferRuntime`, `DumpFormatAccess`); command in `internal/ReloadCommand` on top of `internal/TransferAccess` | [docs/transfer.md](docs/transfer.md) | 1.36.0 |
 | wipe | `database/transfer/PluginTransfers.wipeAll`, `wipe(String, String...)` | `TransferRuntime.wipe`; `Storage.deleteAll` (+ `SqlBackend.deleteAll`, `Dialect.deleteAll`, `MongoStorage`, `CachedStorage`, `GatedStorage`); `wipe` command in `internal/ReloadCommand` | [docs/transfer.md](docs/transfer.md) | 1.76.0 |
 | `/exylialib` (the status panel; no aliases since 1.318.0) | — | `internal/ReloadCommand` (`dependentsOf`, `hologramsLine`, `networkSection`) | [docs/reload.md](docs/reload.md) | 1.252.0 |

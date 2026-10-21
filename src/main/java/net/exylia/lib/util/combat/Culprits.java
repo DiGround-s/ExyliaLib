@@ -1,13 +1,20 @@
 package net.exylia.lib.util.combat;
 
+import net.exylia.lib.util.combat.internal.CulpritTracker;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.AreaEffectCloud;
+import org.bukkit.entity.EnderCrystal;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LightningStrike;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.entity.TNTPrimed;
 import org.bukkit.entity.Tameable;
+import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +25,14 @@ import org.jetbrains.annotations.Nullable;
  * <p>A hit rarely comes from the player's own hand: an arrow, TNT they lit, a
  * crystal they set off, a lingering potion they threw or the wolf they own all
  * count as them, or a no-PvP region is one anybody walks around.
+ *
+ * <p>Explosions that forget who set them off are remembered here: an end
+ * crystal counts as whoever last hit it, through any chain of crystals, arrows,
+ * TNT, anchors and beds, and a respawn anchor or bed blown up outside its
+ * dimension counts as whoever clicked it (since 1.325.0). Fishing hooks, wind
+ * charges, fireworks, tridents and wither skulls are projectiles and follow
+ * their shooter; channeling lightning follows the trident's thrower. Nothing to
+ * register: the library listens for what it has to remember.
  *
  * <p>Bukkit API only ({@code Tameable.getOwner} rather than Paper's owner UUID), so
  * it loads on plain Spigot.
@@ -45,13 +60,24 @@ public final class Culprits {
     public static @Nullable Player playerBehind(EntityDamageEvent event) {
         Player causing = playerBehind(event.getDamageSource().getCausingEntity());
         if (causing != null) return causing;
-        return event instanceof EntityDamageByEntityEvent byEntity ? playerBehind(byEntity.getDamager()) : null;
+        if (event instanceof EntityDamageByEntityEvent byEntity) return playerBehind(byEntity.getDamager());
+        if (event instanceof EntityDamageByBlockEvent byBlock) return CulpritTracker.armer(where(byBlock));
+        return null;
+    }
+
+    /** The exploded block is usually air by now, so its position is all that is left of it. */
+    private static @Nullable Location where(EntityDamageByBlockEvent event) {
+        Block block = event.getDamager();
+        if (block != null) return block.getLocation();
+        BlockState state = event.getDamagerBlockState();
+        return state != null ? state.getLocation() : event.getDamageSource().getDamageLocation();
     }
 
     /**
      * Whoever is behind this entity: itself when it is a player, a projectile's
      * shooter, whoever lit the TNT, whoever threw the potion that left the cloud,
-     * a tamed animal's owner while they are online.
+     * a tamed animal's owner while they are online, whoever last set off an end
+     * crystal, whoever threw the trident that called the lightning.
      */
     public static @Nullable Player playerBehind(@Nullable Entity entity) {
         for (int hop = 0; entity != null && hop < MAX_HOPS; hop++) {
@@ -62,6 +88,10 @@ public final class Culprits {
                 entity = tnt.getSource();
             } else if (entity instanceof AreaEffectCloud cloud) {
                 entity = cloud.getSource() instanceof Entity thrower ? thrower : null;
+            } else if (entity instanceof EnderCrystal crystal) {
+                return CulpritTracker.armer(crystal);
+            } else if (entity instanceof LightningStrike lightning) {
+                entity = lightning.getCausingEntity();
             } else if (entity instanceof Tameable pet) {
                 AnimalTamer owner = pet.getOwner();
                 return owner == null ? null : Bukkit.getPlayer(owner.getUniqueId());

@@ -42,6 +42,52 @@ projectiles to their shooter, primed TNT to whoever lit it, a lingering cloud
 to its thrower and a tamed animal to its online owner, at most four hops. The
 region module's PvP enforcement uses the same class.
 
+Since 1.325.0 it also names the player behind the explosions that forget them:
+
+| Damage | Counts as |
+| --- | --- |
+| End crystal | whoever last hit it, through chains of crystals, arrows, TNT, anchors and beds |
+| Respawn anchor outside the nether | whoever clicked it |
+| Bed outside the overworld | whoever clicked it, whichever half explodes |
+| Channeling lightning | whoever threw the trident |
+| Fishing hook, wind charge, firework, trident, wither skull | their shooter (they are projectiles) |
+
+Block explosions arrive as `EntityDamageByBlockEvent`, and
+`playerBehind(EntityDamageEvent)` reads them too. The library records who armed
+what itself (`CulpritTracker`, registered at startup): one cache write per
+crystal hit and per bed or anchor clicked where it explodes, kept for five
+seconds and never longer. Nothing to register in a plugin.
+
+## Events a combat plugin fires (since 1.325.0)
+
+So any plugin can react to combat without depending on the combat plugin. The
+combat plugin constructs and calls them; a listener only listens.
+
+| Event | When | Cancellable | Carries |
+| --- | --- | --- | --- |
+| `CombatTagEvent` | before a tag applies or renews | yes: the player stays as they were | `getPlayer()`, `getAttacker()` (nullable), `getDuration()`/`setDuration(...)`, `getCause()` (`DAMAGED`, `ATTACKED`, `MOB`, `ADMIN`, `API`, `OTHER`), `isRefresh()` |
+| `CombatUntagEvent` | after the tag is gone | no | `getPlayer()`, `getReason()` (`EXPIRED`, `KILLED`, `DIED`, `LOGOUT`, `KICKED`, `ADMIN`, `API`, `OTHER`) |
+| `CombatLogEvent` | a tagged player quits, before the punishment | yes: no punishment | `getPlayer()`, `getOpponent()` (nullable), `getRemaining()` |
+
+```java
+@EventHandler
+void onTag(CombatTagEvent event) {
+    if (inArena(event.getPlayer())) event.setCancelled(true);
+}
+
+// in a combat plugin
+CombatTagEvent event = new CombatTagEvent(target, attacker, duration, CombatTagEvent.Cause.DAMAGED, alreadyTagged);
+Bukkit.getPluginManager().callEvent(event);
+if (event.isCancelled()) return;
+tag(target, attacker, event.getDuration());
+```
+
+`KILLED` means the player killed their opponent; `DIED` means they died. A
+logout fires `CombatLogEvent` first, then `CombatUntagEvent` with `LOGOUT`.
+Each is fired on the thread that made the change and reports it through
+`isAsynchronous()`. DeluxeCombat and PvPManager have events of their own; these
+are fired by plugins that adopt them (ExyliaCombat).
+
 
 ## What is cached, and what is not
 
@@ -130,6 +176,6 @@ library stops.
 
 | | |
 | --- | --- |
-| API | `net.exylia.lib.util.combat` — `Combat`, `CombatBridge`, `CombatStats` |
-| Internal | `net.exylia.lib.util.combat.internal` — `CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider` |
-| Tests | `src/test/java/net/exylia/lib/util/combat/internal/CombatTest.java` |
+| API | `net.exylia.lib.util.combat` — `Combat`, `CombatBridge`, `CombatStats`, `Culprits`, `CombatTagEvent`, `CombatUntagEvent`, `CombatLogEvent` |
+| Internal | `net.exylia.lib.util.combat.internal` — `CombatRuntime`, `CombatProvider`, `DeluxeCombatProvider`, `PvpManagerProvider`, `CulpritTracker` |
+| Tests | `src/test/java/net/exylia/lib/util/combat/internal/CombatTest.java`, `src/test/java/net/exylia/lib/util/combat/CulpritsTest.java` |

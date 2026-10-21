@@ -281,6 +281,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new net.exylia.lib.tuner.internal.TunerListener(), this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
+        // Who set off a crystal, anchor or bed: one cache write per crystal hit
+        // and per bed or anchor clicked where it explodes.
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.util.combat.internal.CulpritTracker(), this);
         net.exylia.lib.actionbar.internal.ActionBarRuntime.init(this);
         SkullRuntime.init(this);
         net.exylia.lib.discord.internal.WebhookRuntime.init(this);
@@ -663,6 +667,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Overlays.releaseAll();
         ClanRuntime.shutdown();
         CombatRuntime.shutdown();
+        net.exylia.lib.util.combat.internal.CulpritTracker.shutdown();
         net.exylia.lib.actionbar.internal.ActionBarRuntime.shutdown();
         // Writes the texture cache before tasks go away: the save is inline.
         SkullRuntime.shutdown();
