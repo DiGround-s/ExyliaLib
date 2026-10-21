@@ -45,6 +45,22 @@ class RagdollBuilderWornTest {
     }
 
     @Test
+    @DisplayName("a cached skin keeps its pieces without pictures; only the upload gets them")
+    void picturesAreNotKept() {
+        RagdollSkin skin = skin(picture(0x33));
+        List<SkinCubes.Cube> painted = skin.paintedCubes(SkinCubes.Quality.NORMAL);
+        List<SkinCubes.Cube> kept = skin.cubes(SkinCubes.Quality.NORMAL);
+        assertNotNull(painted);
+        assertNotNull(kept);
+        assertEquals(painted.size(), kept.size());
+        for (int i = 0; i < kept.size(); i++) {
+            assertNull(kept.get(i).image(), "a drawn piece holds no picture");
+            assertNotNull(painted.get(i).image(), "an uploaded one does");
+            assertEquals(painted.get(i).hash(), kept.get(i).hash());
+        }
+    }
+
+    @Test
     @DisplayName("a body is not worn half in its skin: it waits in its detail until every region has arrived")
     void wornOnlyWhole() {
         RagdollSkin skin = skin(picture(0x22));

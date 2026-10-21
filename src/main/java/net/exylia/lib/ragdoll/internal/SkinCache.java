@@ -382,7 +382,7 @@ public final class SkinCache {
         }
         try {
             SkinCubes.Quality cut = quality;
-            List<SkinCubes.Cube> cubes = skin.cubes(cut);
+            List<SkinCubes.Cube> cubes = skin.paintedCubes(cut);
             if (cubes != null) {
                 String id = textureId(url);
                 RagdollTextures.missing(cubes).thenAccept(missing -> SkinTextureQueue.submit(missing, id, cut));

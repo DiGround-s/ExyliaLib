@@ -149,7 +149,8 @@ public final class SkinCubes {
      * One piece of a body, painted as a head.
      *
      * @param region   where on its part it was cut from
-     * @param image    the 64&times;64 skin whose head is this piece
+     * @param image    the 64&times;64 skin whose head is this piece; {@code null}
+     *                 on a piece kept only to be drawn, which never uploads it
      * @param hash     a fingerprint of the picture, so an identical piece of
      *                 another skin is never uploaded twice
      * @param plain    the one block every texel of the piece looks like, or
@@ -158,12 +159,21 @@ public final class SkinCubes {
      * @param dominant the block most of its front and back are, for drawing it
      *                 while its texture is on its way
      */
-    public record Cube(Region region, BufferedImage image, String hash, @Nullable Material plain,
+    public record Cube(Region region, @Nullable BufferedImage image, String hash, @Nullable Material plain,
                        Material dominant) {
 
         /** The part it was cut from. */
         public RagdollPart part() {
             return region.part();
+        }
+
+        /**
+         * The same piece without its picture: sixteen kilobytes a piece, ten to
+         * nineteen pieces a skin, held for as long as the skin is cached, and
+         * read only by the one upload that sends it.
+         */
+        public Cube withoutImage() {
+            return image == null ? this : new Cube(region, null, hash, plain, dominant);
         }
     }
 

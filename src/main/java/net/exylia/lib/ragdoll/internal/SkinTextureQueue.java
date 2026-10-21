@@ -204,7 +204,7 @@ public final class SkinTextureQueue {
     public static void submit(List<SkinCubes.Cube> cubes, @Nullable String skin, SkinCubes.Quality quality) {
         List<SkinCubes.Cube> wanted = new ArrayList<>();
         for (SkinCubes.Cube cube : cubes) {
-            if (cube.plain() == null && RagdollTextures.known(cube.hash()) == null
+            if (cube.plain() == null && cube.image() != null && RagdollTextures.known(cube.hash()) == null
                     && !FAILED.contains(cube.hash()) && QUEUED.add(cube.hash())) {
                 wanted.add(cube);
             }

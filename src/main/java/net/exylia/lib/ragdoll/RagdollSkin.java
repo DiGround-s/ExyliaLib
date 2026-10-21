@@ -120,7 +120,33 @@ public final class RagdollSkin {
     public @Nullable List<SkinCubes.Cube> cubes(@NotNull SkinCubes.Quality quality) {
         BufferedImage picture = image;
         return picture == null ? null
-                : cut.computeIfAbsent(quality, level -> List.copyOf(SkinCubes.cut(picture, slim, level)));
+                : cut.computeIfAbsent(quality, level -> drawable(SkinCubes.cut(picture, slim, level)));
+    }
+
+    /**
+     * The same pieces with their pictures, for the upload that sends them.
+     *
+     * <p>Cut afresh and not kept with their pictures: a skin is cached for half
+     * an hour and two thousand of them, and the pictures are read once. What is
+     * kept is the {@link #cubes} a body is drawn from.
+     *
+     * @param quality how finely
+     * @return the pieces, torso first; {@code null} for a skin with no picture
+     * @since 1.340.0
+     */
+    @ApiStatus.Internal
+    public @Nullable List<SkinCubes.Cube> paintedCubes(@NotNull SkinCubes.Quality quality) {
+        BufferedImage picture = image;
+        if (picture == null) {
+            return null;
+        }
+        List<SkinCubes.Cube> painted = SkinCubes.cut(picture, slim, quality);
+        cut.putIfAbsent(quality, drawable(painted));
+        return painted;
+    }
+
+    private static List<SkinCubes.Cube> drawable(List<SkinCubes.Cube> painted) {
+        return painted.stream().map(SkinCubes.Cube::withoutImage).toList();
     }
 
     /**
