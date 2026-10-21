@@ -290,6 +290,12 @@ Its `permission` and `condition` are kept and re-checked when it is finally
 handed over. A reward owed to somebody who has since lost the rank it required
 is not owed any more.
 
+With `claimOnJoin()` (since 1.340.0) a player who is owed something while still
+online is not left waiting for their next join: every 30 seconds the library
+checks whether they have a free slot and, if so, claims for them, and the
+`claimOnJoin` callback hears about it as it would on a join. Whatever still does
+not fit is queued again and retried on the next pass.
+
 ---
 
 ## Pending rewards

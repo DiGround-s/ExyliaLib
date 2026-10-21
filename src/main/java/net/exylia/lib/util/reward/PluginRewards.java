@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,6 +75,17 @@ public final class PluginRewards {
     private volatile OverflowPolicy overflow = OverflowPolicy.DROP;
     private volatile PendingRewards pending;
     private volatile boolean claimingOnJoin;
+
+    /**
+     * Players owed something while they were online, by when: a full inventory
+     * under {@link OverflowPolicy#QUEUE}. Their join already happened, so
+     * {@link #claimOnJoin} retries them on a timer instead of waiting for the next.
+     */
+    private final Map<UUID, Long> waiting = new ConcurrentHashMap<>();
+
+    private static final long RETRY_TICKS = 20L * 30;
+    /** Long enough for {@link PendingRewards#keep}'s scheduled write to land. */
+    private static final long SETTLE_MILLIS = 5_000L;
     private volatile Rolls.Dice dice = Rolls.RANDOM;
     private volatile ItemGiver items = ItemGiver.BUKKIT;
 
@@ -165,6 +177,10 @@ public final class PluginRewards {
      * <p>Registered once however many times this is called, so a reload that
      * rebuilds the plugin's settings does not hand a reward over twice.
      *
+     * <p>A player owed something while online, because their inventory was
+     * full, is retried every 30 seconds once they have a free slot rather than
+     * at their next join. {@code then} hears about those deliveries too.
+     *
      * @param then what to do with the delivery, on the player's thread
      * @return this
      * @since 1.128.0
@@ -179,10 +195,32 @@ public final class PluginRewards {
             @EventHandler
             public void onJoin(PlayerJoinEvent event) {
                 Player player = event.getPlayer();
+                waiting.remove(player.getUniqueId());
                 claim(player, delivery -> then.accept(player, delivery));
             }
         }, plugin);
+        tasks.runAsyncTimer(RETRY_TICKS, RETRY_TICKS, () -> retry(then));
         return this;
+    }
+
+    private void retry(java.util.function.BiConsumer<Player, RewardDelivery> then) {
+        long settled = System.currentTimeMillis() - SETTLE_MILLIS;
+        waiting.forEach((id, since) -> {
+            if (since > settled) return;
+            Player player = org.bukkit.Bukkit.getPlayer(id);
+            if (player == null) {
+                // Their next join claims it.
+                waiting.remove(id);
+                return;
+            }
+            tasks.runAtEntity(player, () -> {
+                // Claiming into a full inventory would only queue it again.
+                if (player.getInventory().firstEmpty() == -1) return;
+                if (waiting.remove(id) != null) {
+                    claim(player, delivery -> then.accept(player, delivery));
+                }
+            });
+        });
     }
 
     // ---------------------------------------------------------------- giving
@@ -480,6 +518,9 @@ public final class PluginRewards {
         }
         try {
             store.keep(player, List.copyOf(owed));
+            if (claimingOnJoin && org.bukkit.Bukkit.getPlayer(player) != null) {
+                waiting.put(player, System.currentTimeMillis());
+            }
             return true;
         } catch (RuntimeException unwritable) {
             debug.error("Could not keep " + owed.size() + " reward(s) owed to " + player + ".",
