@@ -156,7 +156,14 @@ already are the per-world inventory, and two systems doing that job disagree.
 - **One unreadable item costs that slot.** The rest of the snapshot survives, and
   the problem is reported once. ExyliaCommons caught everything and returned
   `null`, so a single item written by a version of the server that no longer
-  exists silently discarded a whole inventory.
+  exists silently discarded a whole inventory. The report says why the item
+  could not be read.
+- **An item stored by a server on a newer game is still read.** The game
+  upgrades an older item but refuses a newer one outright, so a network that
+  shares its database read every snapshot taken on a 26.x server as an empty
+  inventory on a 1.21.11 one. The item is read again as this version's; one
+  that uses something this version does not have is still refused, and
+  reported. The same holds for every item the library stores as bytes.
 - **An absent part is skipped, not defaulted.** A row written by ExyliaCommons
   has no ender chest and no physical state; restoring those parts from it leaves
   the player's own alone.

@@ -93,7 +93,7 @@ public interface LootItems {
             Source source = Source.of(snapshot);
             if (source instanceof Source.OfSnapshot bytes) {
                 try {
-                    return ItemStack.deserializeBytes(Base64.getDecoder().decode(bytes.base64()));
+                    return net.exylia.lib.item.internal.ItemBytes.read(Base64.getDecoder().decode(bytes.base64()));
                 } catch (RuntimeException unreadable) {
                     return null;
                 }

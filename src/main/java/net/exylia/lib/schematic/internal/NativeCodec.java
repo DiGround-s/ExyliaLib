@@ -211,7 +211,7 @@ final class NativeCodec {
         Map<String, Object> copy = new LinkedHashMap<>(tag);
         copy.remove("Slot");
         copy.put("DataVersion", dataVersion);
-        return ItemStack.deserializeBytes(Nbt.gzip(copy));
+        return net.exylia.lib.item.internal.ItemBytes.read(Nbt.gzip(copy));
     }
 
     private static @Nullable EntityType spawnedType(Map<String, Object> data) {

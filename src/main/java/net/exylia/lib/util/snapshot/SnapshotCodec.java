@@ -158,7 +158,9 @@ public final class SnapshotCodec {
 
         @Override
         public @Nullable ItemStack decode(@NotNull String stored) {
-            return ItemStack.deserializeBytes(Base64.getDecoder().decode(stored));
+            // Through ItemBytes: a network shares this table, and a row written
+            // by a server on a newer game must not read as an empty inventory.
+            return net.exylia.lib.item.internal.ItemBytes.read(Base64.getDecoder().decode(stored));
         }
     };
 
@@ -441,15 +443,9 @@ public final class SnapshotCodec {
             if (stored == null || stored.isJsonNull() || !stored.isJsonPrimitive()) {
                 continue;
             }
-            ItemStack read = decodeItem(stored.getAsString());
-            if (read == null) {
-                // The whole point of the rewrite: one item nobody can read costs
-                // its own slot, not the player's entire inventory.
-                problems.accept("slot " + slot + " of " + key
-                        + " could not be read and is empty; the rest is intact");
-                continue;
-            }
-            items[slot] = read;
+            // The whole point of the rewrite: one item nobody can read costs
+            // its own slot, not the player's entire inventory.
+            items[slot] = read(stored.getAsString(), "slot " + slot + " of " + key, problems);
         }
         return items;
     }
@@ -460,11 +456,26 @@ public final class SnapshotCodec {
         if (stored == null) {
             return null;
         }
-        ItemStack read = decodeItem(stored);
-        if (read == null) {
-            problems.accept(key + " could not be read and is empty; the rest is intact");
+        return read(stored, key, problems);
+    }
+
+    /**
+     * One stored item, or {@code null} with the reason said. The reason is the
+     * part an operator needs: without it every unreadable slot looks the same,
+     * whether the item came from a newer server or the column was cut short.
+     */
+    private static @Nullable ItemStack read(String stored, String where, Consumer<String> problems) {
+        try {
+            ItemStack read = items.decode(stored);
+            if (read == null) {
+                problems.accept(where + " could not be read and is empty; the rest is intact");
+            }
+            return read;
+        } catch (RuntimeException | LinkageError unreadable) {
+            problems.accept(where + " could not be read and is empty (" + unreadable.getClass().getSimpleName()
+                    + ": " + unreadable.getMessage() + "); the rest is intact");
+            return null;
         }
-        return read;
     }
 
     private static List<Snapshot.Effect> effects(JsonObject json, Consumer<String> problems) {

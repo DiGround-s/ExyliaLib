@@ -540,7 +540,7 @@ public final class Recording implements ReplayRecorder {
             byte[] stack = new byte[data.length - 1 - data[0]];
             System.arraycopy(data, 1 + data[0], stack, 0, stack.length);
             try {
-                return ItemStack.deserializeBytes(stack);
+                return net.exylia.lib.item.internal.ItemBytes.read(stack);
             } catch (RuntimeException gone) {
                 return null;
             }

@@ -102,7 +102,7 @@ public final class Appearance {
                 byte[] bytes = new byte[in.readInt()];
                 in.readFully(bytes);
                 try {
-                    item = ItemStack.deserializeBytes(bytes);
+                    item = net.exylia.lib.item.internal.ItemBytes.read(bytes);
                 } catch (RuntimeException gone) {
                     item = null;
                 }

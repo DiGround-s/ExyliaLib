@@ -333,7 +333,7 @@ public sealed interface Source {
         @Override
         public @NotNull String label() {
             try {
-                ItemStack item = ItemStack.deserializeBytes(Base64.getDecoder().decode(base64));
+                ItemStack item = net.exylia.lib.item.internal.ItemBytes.read(Base64.getDecoder().decode(base64));
                 return words(item.getType().name());
             } catch (RuntimeException unreadable) {
                 // An icon nobody can name is still an icon somebody set. Saying

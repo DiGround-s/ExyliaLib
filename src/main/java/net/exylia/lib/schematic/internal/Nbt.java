@@ -39,7 +39,8 @@ import java.util.zip.GZIPOutputStream;
  * of four billion empty compounds costs its declared size up front, not after
  * the {@code ArrayList} grew to hold them.
  */
-final class Nbt {
+@org.jetbrains.annotations.ApiStatus.Internal
+public final class Nbt {
 
     static final int END = 0;
     static final int BYTE = 1;
@@ -108,7 +109,7 @@ final class Nbt {
     }
 
     /** Reads a gzipped root compound, as Paper serialises items and entities. */
-    static @NotNull Map<String, Object> gunzip(byte[] bytes) throws IOException {
+    public static @NotNull Map<String, Object> gunzip(byte[] bytes) throws IOException {
         try (DataInputStream in = new DataInputStream(
                 new GZIPInputStream(new ByteArrayInputStream(bytes)))) {
             return read(in, SMALL_BUDGET).value();
@@ -258,7 +259,7 @@ final class Nbt {
     }
 
     /** Writes a gzipped root compound, as Paper deserialises items and entities. */
-    static byte[] gzip(@NotNull Map<String, Object> root) throws IOException {
+    public static byte[] gzip(@NotNull Map<String, Object> root) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(bytes))) {
             write(out, "", root);

@@ -286,7 +286,7 @@ public final class ItemRenderer {
     public static ItemStack icon(String source) {
         try {
             return switch (Source.of(source)) {
-                case Source.OfSnapshot snapshot -> ItemStack.deserializeBytes(
+                case Source.OfSnapshot snapshot -> ItemBytes.read(
                         Base64.getDecoder().decode(snapshot.base64()));
                 case Source.OfMaterial material -> {
                     if (CustomItems.isCustom(material.raw())) {
@@ -405,7 +405,7 @@ public final class ItemRenderer {
 
     private static ItemStack snapshot(Source.OfSnapshot snapshot, TraitApplier.Reporter problems) {
         try {
-            return ItemStack.deserializeBytes(Base64.getDecoder().decode(snapshot.base64()));
+            return ItemBytes.read(Base64.getDecoder().decode(snapshot.base64()));
         } catch (RuntimeException malformed) {
             problems.found("material", "the serialised item could not be read");
             return new ItemStack(Material.PAPER);

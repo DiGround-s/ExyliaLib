@@ -140,7 +140,7 @@ public interface ItemGiver {
         if (source instanceof Source.OfSnapshot bytes) {
             return Snapshots.read(bytes.base64(), base64 -> {
                 try {
-                    return ItemStack.deserializeBytes(Base64.getDecoder().decode(base64));
+                    return net.exylia.lib.item.internal.ItemBytes.read(Base64.getDecoder().decode(base64));
                 } catch (RuntimeException unreadable) {
                     return null;
                 }

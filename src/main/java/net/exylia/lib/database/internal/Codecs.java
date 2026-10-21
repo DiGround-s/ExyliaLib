@@ -121,7 +121,7 @@ public final class Codecs {
 
     private static ItemStack decodeItem(String stored) {
         try {
-            return ItemStack.deserializeBytes(Base64.getDecoder().decode(stored));
+            return net.exylia.lib.item.internal.ItemBytes.read(Base64.getDecoder().decode(stored));
         } catch (RuntimeException unreadable) {
             return null;
         }

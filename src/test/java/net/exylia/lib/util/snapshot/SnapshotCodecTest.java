@@ -275,6 +275,7 @@ class SnapshotCodecTest {
         assertEquals(10, read.level(), "and everything that is not an item");
         assertEquals(1, problems.size(), "reported once, not swallowed: " + problems);
         assertTrue(problems.get(0).contains("slot 1"), "and it says which slot: " + problems);
+        assertTrue(problems.get(0).contains("not a test item"), "and why: " + problems);
     }
 
     @Test
