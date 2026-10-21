@@ -135,6 +135,19 @@ final class Bars {
         }
     }
 
+    /** Changes a showing bar's colour and overlay. */
+    static void bossBarStyle(Player viewer, UUID id, String colour, String overlay) {
+        if (Packets.available()) {
+            PacketSender.bossBarStyle(viewer, id, colour, overlay);
+            return;
+        }
+        BossBar bar = FALLBACK.get(id);
+        if (bar != null) {
+            bar.color(colour(colour));
+            bar.overlay(overlay(overlay));
+        }
+    }
+
     static void bossBarRemove(Player viewer, UUID id) {
         if (Packets.available()) {
             PacketSender.bossBarRemove(viewer, id);

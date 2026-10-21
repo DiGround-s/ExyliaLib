@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.exylia.lib.model.ModelTweaks;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import org.jetbrains.annotations.NotNull;
@@ -39,8 +40,9 @@ import java.util.function.BiConsumer;
  * effects     ["SPEED|2|infinite","FIRE_RESISTANCE|1|infinite"]
  * behaviour   {"hits":40,"hitCooldown":0.5,"lifetime":300.0,"roam":12.0}
  * look        {"variant":"CREAMY","body":"CYCLE","glow":"RANDOM","aura":"confetti","death":"none","numbers":false}
- * fight       {"gcd":1.5,"groups":{"melee":6.0},"phases":[{"below":0.5,"suffix":" &c⚡","speed":1.3}]}
- * model       {"model":"stone_golem","scale":1.3,"states":{"attack":"smash"},"death":"APART","lookAt":false}
+ * fight       {"gcd":1.5,"groups":{"melee":6.0},"phases":[{"below":0.5,"suffix":" &c⚡","speed":1.3,"size":1.2,"glow":"#ff3b3b"}]}
+ * model       {"model":"stone_golem","scale":1.3,"states":{"attack":"smash"},"death":"APART","lookAt":false,
+ *              "tweaks":{"offset":[0,-0.2,0],"bones":{"cape":{"hidden":true}},"speeds":{"walk":1.3},"hitbox":[2,3]}}
  * }</pre>
  *
  * <p>A skill cast some way other than at once carries a {@code "cast"} object
@@ -114,6 +116,14 @@ public final class MobCodec {
     private static final String SCALE = "scale";
     private static final String STATES = "states";
     private static final String LOOK_AT = "lookAt";
+    private static final String TWEAKS = "tweaks";
+    private static final String OFFSET = "offset";
+    private static final String BONES = "bones";
+    private static final String HIDDEN = "hidden";
+    private static final String MATERIAL = "material";
+    private static final String SPEEDS = "speeds";
+    private static final String HITBOX = "hitbox";
+    private static final String SIZE = "size";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -281,6 +291,8 @@ public final class MobCodec {
                 if (phase.speed() != 1) each.addProperty(SPEED, phase.speed());
                 if (phase.damage() != 1) each.addProperty(DAMAGE, phase.damage());
                 if (phase.resist() != 1) each.addProperty(RESIST, phase.resist());
+                if (phase.size() != 1) each.addProperty(SIZE, phase.size());
+                if (!phase.glow().isEmpty()) each.addProperty(GLOW, phase.glow());
                 phases.add(each);
             }
             json.add(PHASES, phases);
@@ -329,7 +341,8 @@ public final class MobCodec {
                 }
                 JsonObject phase = element.getAsJsonObject();
                 phases.add(new MobPhase(number(phase, BELOW, 0), string(phase, STYLE), string(phase, SUFFIX),
-                        number(phase, SPEED, 1), number(phase, DAMAGE, 1), number(phase, RESIST, 1)));
+                        number(phase, SPEED, 1), number(phase, DAMAGE, 1), number(phase, RESIST, 1),
+                        number(phase, SIZE, 1), string(phase, GLOW)));
             }
         }
         return new MobFight(duration(number(json, GCD, 0)), groups, phases);
@@ -451,7 +464,84 @@ public final class MobCodec {
         }
         if (model.death() != MobModel.Death.AUTO) json.addProperty(DEATH, model.death().name());
         if (!model.lookAt()) json.addProperty(LOOK_AT, false);
+        if (!model.tweaks().isEmpty()) json.add(TWEAKS, encodeTweaks(model.tweaks()));
         return json.toString();
+    }
+
+    private static JsonObject encodeTweaks(ModelTweaks tweaks) {
+        JsonObject json = new JsonObject();
+        if (tweaks.offsetX() != 0 || tweaks.offsetY() != 0 || tweaks.offsetZ() != 0) {
+            JsonArray offset = new JsonArray();
+            offset.add(tweaks.offsetX());
+            offset.add(tweaks.offsetY());
+            offset.add(tweaks.offsetZ());
+            json.add(OFFSET, offset);
+        }
+        if (!tweaks.bones().isEmpty()) {
+            JsonObject bones = new JsonObject();
+            tweaks.bones().forEach((name, bone) -> {
+                JsonObject each = new JsonObject();
+                if (bone.hidden()) each.addProperty(HIDDEN, true);
+                if (!bone.material().isEmpty()) each.addProperty(MATERIAL, bone.material());
+                bones.add(name, each);
+            });
+            json.add(BONES, bones);
+        }
+        if (!tweaks.speeds().isEmpty()) {
+            JsonObject speeds = new JsonObject();
+            tweaks.speeds().forEach(speeds::addProperty);
+            json.add(SPEEDS, speeds);
+        }
+        if (tweaks.hasHitbox()) {
+            JsonArray hitbox = new JsonArray();
+            hitbox.add(tweaks.hitboxWidth());
+            hitbox.add(tweaks.hitboxHeight());
+            json.add(HITBOX, hitbox);
+        }
+        return json;
+    }
+
+    private static ModelTweaks decodeTweaks(@Nullable JsonElement element, BiConsumer<String, String> problems) {
+        if (element == null) return ModelTweaks.NONE;
+        if (!element.isJsonObject()) {
+            problems.accept("model.tweaks", "not an object; left out");
+            return ModelTweaks.NONE;
+        }
+        JsonObject json = element.getAsJsonObject();
+        double[] offset = new double[3];
+        if (json.get(OFFSET) instanceof JsonArray array) {
+            for (int axis = 0; axis < 3 && axis < array.size(); axis++) {
+                if (array.get(axis).isJsonPrimitive() && array.get(axis).getAsJsonPrimitive().isNumber()) {
+                    offset[axis] = array.get(axis).getAsDouble();
+                }
+            }
+        }
+        Map<String, ModelTweaks.Bone> bones = new LinkedHashMap<>();
+        if (json.get(BONES) instanceof JsonObject object) {
+            for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                if (!(entry.getValue() instanceof JsonObject bone)) continue;
+                JsonElement hidden = bone.get(HIDDEN);
+                boolean hides = hidden != null && hidden.isJsonPrimitive() && hidden.getAsJsonPrimitive().isBoolean()
+                        && hidden.getAsBoolean();
+                bones.put(entry.getKey(), new ModelTweaks.Bone(hides, string(bone, MATERIAL)));
+            }
+        }
+        Map<String, Double> speeds = new LinkedHashMap<>();
+        if (json.get(SPEEDS) instanceof JsonObject object) {
+            for (Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                if (entry.getValue().isJsonPrimitive() && entry.getValue().getAsJsonPrimitive().isNumber()) {
+                    speeds.put(entry.getKey(), entry.getValue().getAsDouble());
+                }
+            }
+        }
+        double width = 0;
+        double height = 0;
+        if (json.get(HITBOX) instanceof JsonArray array && array.size() >= 2
+                && array.get(0).isJsonPrimitive() && array.get(1).isJsonPrimitive()) {
+            width = array.get(0).getAsDouble();
+            height = array.get(1).getAsDouble();
+        }
+        return new ModelTweaks(offset[0], offset[1], offset[2], bones, speeds, width, height);
     }
 
     /** Reads a stored model, ignoring what it cannot understand. @since 1.317.0 */
@@ -484,7 +574,8 @@ public final class MobCodec {
         boolean looks = lookAt == null || !lookAt.isJsonPrimitive() || !lookAt.getAsJsonPrimitive().isBoolean()
                 || lookAt.getAsBoolean();
         double scale = json.has(SCALE) && json.get(SCALE).isJsonPrimitive() ? json.get(SCALE).getAsDouble() : 1;
-        return new MobModel(string(json, MODEL), scale, states, death == null ? MobModel.Death.AUTO : death, looks);
+        return new MobModel(string(json, MODEL), scale, states, death == null ? MobModel.Death.AUTO : death, looks,
+                decodeTweaks(json.get(TWEAKS), problems));
     }
 
     // -------------------------------------------------------------- attributes

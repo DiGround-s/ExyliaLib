@@ -190,9 +190,10 @@ public final class BbModelReader {
         }
         Rig rig = new Rig(List.copyOf(bones), List.copyOf(parts), min, max);
         Map<String, Clip> clips = new LinkedHashMap<>();
+        boolean unflipped = unflipped(root);
         for (JsonElement element : array(root, "animations")) {
             if (element.isJsonObject()) {
-                Clip clip = animation(element.getAsJsonObject(), rig, report);
+                Clip clip = animation(element.getAsJsonObject(), rig, unflipped, report);
                 if (clip != null) {
                     clips.put(clip.name().toLowerCase(Locale.ROOT), clip);
                 }
@@ -586,7 +587,31 @@ public final class BbModelReader {
         }
     }
 
-    private static @Nullable Clip animation(JsonObject animation, Rig rig, Reporter report) {
+    /**
+     * Whether a project keeps its keys the way Blockbench 5 draws them.
+     *
+     * <p>Up to 4.10 a project stored rotation and position keys in the Bedrock
+     * convention, X and Y of a turn and X of a move the other way round; 5.0
+     * stores them as its preview applies them and flips only on a Bedrock
+     * export (Blockbench {@code js/formats/bbmodel.js}, the {@code < 5.0}
+     * migration, and {@code Keyframe.compileBedrockKeyframe}). {@link Poser}
+     * takes the Bedrock convention, so a 5.0 project's keys are flipped as they
+     * are read.
+     */
+    static boolean unflipped(JsonObject root) {
+        if (!root.has("meta") || !root.get("meta").isJsonObject()) {
+            return false;
+        }
+        JsonObject meta = root.getAsJsonObject("meta");
+        String version = string(meta, "format_version", string(meta, "format", "0"));
+        try {
+            return Integer.parseInt(version.split("\\.")[0].trim()) >= 5;
+        } catch (NumberFormatException unreadable) {
+            return false;
+        }
+    }
+
+    private static @Nullable Clip animation(JsonObject animation, Rig rig, boolean unflipped, Reporter report) {
         String name = string(animation, "name", "animation");
         String where = "animation " + name;
         Clip.Loop loop = switch (string(animation, "loop", "once")) {
@@ -634,7 +659,7 @@ public final class BbModelReader {
             }
             for (JsonElement element : frames) {
                 if (element.isJsonObject()) {
-                    last = Math.max(last, keyframe(element.getAsJsonObject(), bone, keys, where, report));
+                    last = Math.max(last, keyframe(element.getAsJsonObject(), bone, keys, unflipped, where, report));
                 }
             }
         }
@@ -644,7 +669,8 @@ public final class BbModelReader {
         return new Clip(name, Math.max(length, 1), loop, keys.build(rig.bones().size()), List.copyOf(events));
     }
 
-    private static long keyframe(JsonObject frame, int bone, Keys keys, String where, Reporter report) {
+    private static long keyframe(JsonObject frame, int bone, Keys keys, boolean unflipped, String where,
+                                 Reporter report) {
         int base = switch (string(frame, "channel", "")) {
             case "rotation" -> Clip.ROT_X;
             case "position" -> Clip.POS_X;
@@ -694,9 +720,13 @@ public final class BbModelReader {
                 continue;
             }
             for (int axis = 0; axis < 3; axis++) {
-                keys.add(bone, base + axis, new double[]{millis, value[axis], ease.ordinal(), Double.NaN,
+                // Back to the Bedrock convention: X and Y of a turn, X of a move.
+                double sign = unflipped && (axis == 0 || axis == 1 && base == Clip.ROT_X) && base != Clip.SCALE_X
+                        ? -1 : 1;
+                keys.add(bone, base + axis, new double[]{millis, value[axis] * sign, ease.ordinal(), Double.NaN,
                         bezier ? 1 : 0,
-                        leftTime[axis] * 1000, leftValue[axis], rightTime[axis] * 1000, rightValue[axis]});
+                        leftTime[axis] * 1000, leftValue[axis] * sign, rightTime[axis] * 1000,
+                        rightValue[axis] * sign});
             }
         }
         return millis;

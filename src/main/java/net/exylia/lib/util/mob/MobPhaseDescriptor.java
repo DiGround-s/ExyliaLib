@@ -30,6 +30,8 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
     private static final FormKey<BigDecimal> SPEED = FormKey.decimal("speed");
     private static final FormKey<BigDecimal> DAMAGE = FormKey.decimal("damage");
     private static final FormKey<BigDecimal> RESIST = FormKey.decimal("resist");
+    private static final FormKey<BigDecimal> SIZE = FormKey.decimal("size");
+    private static final FormKey<String> GLOW = FormKey.text("glow");
 
     private final Plugin plugin;
 
@@ -59,6 +61,8 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
         lore.add(line(Phrases.tr("Speed"), "×" + number(phase.speed())));
         lore.add(line(Phrases.tr("Damage"), "×" + number(phase.damage())));
         lore.add(line(Phrases.tr("Resists"), "×" + number(phase.resist())));
+        if (phase.size() != 1) lore.add(line(Phrases.tr("Model size"), "×" + number(phase.size())));
+        if (!phase.glow().isEmpty()) lore.add(line(Phrases.tr("Model outline"), phase.glow()));
 
         return lore;
     }
@@ -70,7 +74,8 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
 
     @Override
     public @NotNull MobPhase copy(@NotNull MobPhase phase) {
-        return new MobPhase(phase.below(), phase.style(), phase.suffix(), phase.speed(), phase.damage(), phase.resist());
+        return new MobPhase(phase.below(), phase.style(), phase.suffix(), phase.speed(), phase.damage(), phase.resist(),
+                phase.size(), phase.glow());
     }
 
     @Override
@@ -98,17 +103,24 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
                 .decimal(DAMAGE, Phrases.tr("Damage, times its own"), MobSkillDescriptor.decimal(phase.damage()))
                 .decimal(RESIST, Phrases.tr("Resistance"), MobSkillDescriptor.decimal(phase.resist()))
                 .hint(Phrases.tr("The damage it takes is divided by this. 1 changes nothing; 0.1 to 10."))
+                .decimal(SIZE, Phrases.tr("Model size, times its own"), MobSkillDescriptor.decimal(phase.size()))
+                .hint(Phrases.tr("A mob wearing a 3D model grows or shrinks to this. 1 changes nothing; 0.1 to 4."))
+                .field(GLOW, PluginMobs.optionalText(GLOW, Phrases.tr("Model outline"), phase.glow()))
+                .hint(Phrases.tr("A colour such as #ff3b3b or red, around a mob wearing a 3D model. NONE for none."))
                 .ask(values -> rebuild(phase, values));
     }
 
     static MobPhase rebuild(MobPhase phase, FormValues values) {
         String suffix = values.getOr(SUFFIX, "");
+        String glow = values.getOr(GLOW, "").trim();
         return new MobPhase(read(values, BELOW, phase.below() * 100) / 100,
                 style(values.getOr(STYLE, "")),
                 suffix.trim().equalsIgnoreCase("NONE") ? "" : suffix,
                 read(values, SPEED, phase.speed()),
                 read(values, DAMAGE, phase.damage()),
-                read(values, RESIST, phase.resist()));
+                read(values, RESIST, phase.resist()),
+                read(values, SIZE, phase.size()),
+                glow.equalsIgnoreCase("NONE") ? "" : glow);
     }
 
     /** The phase styles offered: the default, none, then every skill style. */

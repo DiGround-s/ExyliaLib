@@ -31,15 +31,25 @@ import java.util.Map;
  *                    own that can be hit
  * @param nametag     whether the carrier's name is drawn above the model rather
  *                    than at the carrier's own height
+ * @param tweaks      what this wearer changes about the model: where it sits, bones, speeds,
+ *                    its box (since 1.321.0)
  * @since 1.317.0
  */
 public record ModelOptions(double scale, @NotNull Map<String, String> states, boolean lookAt, boolean heads,
-                           double viewRange, boolean hitboxes, boolean nametag) {
+                           double viewRange, boolean hitboxes, boolean nametag, @NotNull ModelTweaks tweaks) {
 
     /** Modelled size, matched animations, a head that looks, textured heads, 48 blocks. */
-    public static final ModelOptions DEFAULT = new ModelOptions(1, Map.of(), true, true, 48, true, true);
+    public static final ModelOptions DEFAULT = new ModelOptions(1, Map.of(), true, true, 48, true, true,
+            ModelTweaks.NONE);
+
+    /** The options without tweaks, as 1.317.0 had them. */
+    public ModelOptions(double scale, @NotNull Map<String, String> states, boolean lookAt, boolean heads,
+                        double viewRange, boolean hitboxes, boolean nametag) {
+        this(scale, states, lookAt, heads, viewRange, hitboxes, nametag, ModelTweaks.NONE);
+    }
 
     public ModelOptions {
+        tweaks = tweaks == null ? ModelTweaks.NONE : tweaks;
         scale = Double.isFinite(scale) && scale > 0 ? Math.min(scale, 16) : 1;
         Map<String, String> copy = new LinkedHashMap<>();
         if (states != null) {
@@ -54,11 +64,11 @@ public record ModelOptions(double scale, @NotNull Map<String, String> states, bo
     }
 
     public @NotNull ModelOptions withScale(double scale) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     public @NotNull ModelOptions withStates(@NotNull Map<String, String> states) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     /** The same, with one state playing a named animation. */
@@ -69,22 +79,27 @@ public record ModelOptions(double scale, @NotNull Map<String, String> states, bo
     }
 
     public @NotNull ModelOptions withLookAt(boolean lookAt) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     public @NotNull ModelOptions withHeads(boolean heads) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     public @NotNull ModelOptions withViewRange(double viewRange) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     public @NotNull ModelOptions withHitboxes(boolean hitboxes) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 
     public @NotNull ModelOptions withNametag(boolean nametag) {
-        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag);
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
+    }
+
+    /** @since 1.321.0 */
+    public @NotNull ModelOptions withTweaks(@NotNull ModelTweaks tweaks) {
+        return new ModelOptions(scale, states, lookAt, heads, viewRange, hitboxes, nametag, tweaks);
     }
 }

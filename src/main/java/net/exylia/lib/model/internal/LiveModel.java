@@ -12,6 +12,7 @@ import net.exylia.lib.model.Model;
 import net.exylia.lib.model.ModelInstance;
 import net.exylia.lib.model.ModelOptions;
 import net.exylia.lib.model.ModelState;
+import net.exylia.lib.model.ModelTweaks;
 import net.exylia.lib.ragdoll.internal.BlockPalette;
 import net.exylia.lib.ragdoll.internal.RagdollTextures;
 import net.exylia.lib.ragdoll.internal.SkinCubes;
@@ -84,10 +85,14 @@ final class LiveModel implements ModelInstance {
     static final int FAR = 2;
     /** Ticks between poses at each distance. */
     static final int[] PERIOD = {2, 4, 8};
-    static final double NEAR_RANGE = 16;
-    static final double MID_RANGE = 32;
+    static final double NEAR_RANGE = ModelRuntime.NEAR_RANGE;
+    static final double MID_RANGE = ModelRuntime.MID_RANGE;
     /** How often who is watching is read again. */
     private static final int RETRACK_TICKS = 5;
+    /** How long a block of ground read under a foot is believed, in ticks. */
+    private static final int GROUND_TICKS = 10;
+    /** How much further than its view range a viewer may walk before the model is taken off them. */
+    static final double KEEP_MARGIN = 8;
     /** How often a textured head is looked for again. */
     private static final int HEADS_TICKS = 40;
     /** A model whose ticks stopped this long ago is gone: its carrier went a way nothing told. */
@@ -136,6 +141,12 @@ final class LiveModel implements ModelInstance {
     private final double[][] poses;
     private final float[][][] sent = new float[3][][];
     private final int head;
+    /** Per cube, what a tweak draws it with instead of its own look, or {@code null}. */
+    private final DisplayModel[] tweaked;
+    private final Legs legs;
+    private final double[] offset;
+    /** Blocks of ground read this pose and the last few, by column and height. */
+    private final Map<Long, Double> grounds = new HashMap<>();
 
     /**
      * Who watches at each distance. Copy-on-write: written when somebody comes
@@ -173,6 +184,14 @@ final class LiveModel implements ModelInstance {
     private boolean flashing;
     private boolean anyWaitingHead;
     private boolean fading;
+    private boolean onGround = true;
+    /** Per viewer, the distance they were last drawn at before the ceiling pushed them out. */
+    private final Map<UUID, Integer> distanceOf = new ConcurrentHashMap<>();
+    private volatile int phase = 1;
+    private double size = 1;
+    private double sizeWanted = 1;
+    private int glow = -1;
+    private final double[] push = new double[3];
 
     private @Nullable TaskHandle timer;
     private volatile long lastTick = System.currentTimeMillis();
@@ -189,7 +208,8 @@ final class LiveModel implements ModelInstance {
         this.options = options;
         this.rig = model.rig();
         this.poser = new Poser(rig);
-        this.controller = new Controller(rig.bones().size(), state -> model.clipFor(state, options));
+        this.controller = new Controller(rig.bones().size(), state -> model.clipFor(state, options, phase),
+                state -> options.tweaks().speed(state));
         this.sink = sink;
         this.carrier = carrier;
         this.carrierId = carrier.getEntityId();
@@ -209,17 +229,32 @@ final class LiveModel implements ModelInstance {
             sent[tier] = new float[count][];
         }
         this.head = options.lookAt() ? rig.head() : -1;
+        ModelTweaks tweaks = options.tweaks();
+        this.offset = new double[]{tweaks.offsetX(), tweaks.offsetY(), tweaks.offsetZ()};
+        this.tweaked = new DisplayModel[count];
+        this.legs = Legs.of(rig, poser);
+
+        // What a tweak does to a bone it does to every bone below it that says nothing of its own.
+        List<Rig.Bone> boneList = rig.bones();
+        ModelTweaks.Bone[] byBone = new ModelTweaks.Bone[boneList.size()];
+        for (int bone = 0; bone < boneList.size(); bone++) {
+            ModelTweaks.Bone own = tweaks.bone(boneList.get(bone).name());
+            int parent = boneList.get(bone).parent();
+            byBone[bone] = own != null ? own : parent >= 0 ? byBone[parent] : null;
+        }
 
         Integer[] byVolume = new Integer[count];
         for (int index = 0; index < count; index++) {
             byVolume[index] = index;
             Look look = rig.parts().get(index).look();
-            if (look.kind() == Look.Kind.HIDDEN) {
+            ModelTweaks.Bone tweak = byBone[rig.parts().get(index).bone()];
+            if (look.kind() == Look.Kind.HIDDEN || tweak != null && tweak.hidden()) {
                 continue;
             }
             ids[index] = DisplayRuntime.nextEntityId();
-            drawn[index] = drawnFor(look, carrier);
-            waitingHead[index] = look.kind() == Look.Kind.HEAD && options.heads()
+            tweaked[index] = tweak == null ? null : material(tweak.material());
+            drawn[index] = tweaked[index] != null ? tweaked[index] : drawnFor(look, carrier);
+            waitingHead[index] = tweaked[index] == null && look.kind() == Look.Kind.HEAD && options.heads()
                     && drawn[index].kind() == DisplayModel.Kind.BLOCK;
             anyWaitingHead |= waitingHead[index];
         }
@@ -239,7 +274,15 @@ final class LiveModel implements ModelInstance {
         double spanX = (rig.max()[0] - rig.min()[0]) / 16.0 * options.scale();
         double spanZ = (rig.max()[2] - rig.min()[2]) / 16.0 * options.scale();
         boolean bigger = width > carrier.getWidth() * 1.25 || height > carrier.getHeight() * 1.25;
-        if (options.hitboxes() && bigger) {
+        if (options.hitboxes() && tweaks.hasHitbox()) {
+            // Sized by hand: one box, centred on the model.
+            boxesAlongForward = true;
+            boxIds = new int[]{DisplayRuntime.nextEntityId()};
+            boxAlong = new double[]{(rig.max()[2] + rig.min()[2]) / 32.0 * options.scale()};
+            ModelRuntime.box(boxIds[0], this);
+            boxWidth = (float) tweaks.hitboxWidth();
+            boxHeight = (float) tweaks.hitboxHeight();
+        } else if (options.hitboxes() && bigger) {
             boxesAlongForward = spanZ >= spanX;
             double longest = Math.max(spanX, spanZ);
             double shortest = Math.max(0.4, Math.min(spanX, spanZ));
@@ -312,11 +355,50 @@ final class LiveModel implements ModelInstance {
 
     @Override
     public boolean play(@NotNull String stateOrAnimation) {
-        if (removed || model.clipFor(stateOrAnimation, options) == null) {
+        return play(stateOrAnimation, 0);
+    }
+
+    @Override
+    public boolean play(@NotNull String stateOrAnimation, long strikeInMillis) {
+        if (removed || model.clipFor(stateOrAnimation, options, phase) == null) {
             return false;
         }
-        asked.add(() -> controller.play(stateOrAnimation, System.currentTimeMillis()));
+        long asked = System.currentTimeMillis();
+        this.asked.add(() -> {
+            // Queued until the next tick: the strike is still where it was asked for.
+            long late = System.currentTimeMillis() - asked;
+            long fit = strikeInMillis <= 0 ? 0 : Math.max(1, strikeInMillis - late);
+            controller.play(stateOrAnimation, System.currentTimeMillis(), fit);
+        });
         return true;
+    }
+
+    @Override
+    public void phase(int phase) {
+        int wanted = Math.max(1, phase);
+        asked.add(() -> {
+            if (this.phase == wanted) {
+                return;
+            }
+            this.phase = wanted;
+            controller.refresh(System.currentTimeMillis());
+        });
+    }
+
+    @Override
+    public void resize(double multiplier) {
+        double wanted = Double.isFinite(multiplier) && multiplier > 0 ? Math.clamp(multiplier, 0.1, 4) : 1;
+        asked.add(() -> sizeWanted = wanted);
+    }
+
+    @Override
+    public void glow(int rgb) {
+        asked.add(() -> {
+            glow = rgb;
+            if (!flashing) {
+                restyleAll(glow);
+            }
+        });
     }
 
     @Override
@@ -337,6 +419,27 @@ final class LiveModel implements ModelInstance {
             restyleAll(rgb);
             flashing = true;
         });
+    }
+
+    @Override
+    public void die(boolean apart, double pushX, double pushY, double pushZ) {
+        pushed(pushX, pushY, pushZ);
+        die(apart);
+    }
+
+    @Override
+    public void comeApart(double pushX, double pushY, double pushZ) {
+        pushed(pushX, pushY, pushZ);
+        comeApart();
+    }
+
+    private void pushed(double x, double y, double z) {
+        // A blow is a direction and a strength, never a launch.
+        double length = Math.sqrt(x * x + y * y + z * z);
+        double scale = length > 6 ? 6 / length : 1;
+        push[0] = Double.isFinite(x) ? x * scale : 0;
+        push[1] = Double.isFinite(y) ? y * scale : 0;
+        push[2] = Double.isFinite(z) ? z * scale : 0;
     }
 
     @Override
@@ -385,6 +488,7 @@ final class LiveModel implements ModelInstance {
             tier.clear();
         }
         tierOf.clear();
+        distanceOf.clear();
         LivingEntity body = carrier;
         if (body != null && !detached) {
             Runnable show = () -> {
@@ -459,7 +563,13 @@ final class LiveModel implements ModelInstance {
                 World before = world;
                 read(body);
                 double moved = before == world ? Math.hypot(x - fromX, z - fromZ) : 0;
+                if (moved > 2 || before != world) {
+                    // Teleported: no foot stays where it was.
+                    legs.release();
+                    moved = 0;
+                }
                 speed = speed * 0.5 + moved * 20 * 0.5;
+                onGround = body.isOnGround();
                 look(body);
             } else {
                 speed = 0;
@@ -482,12 +592,20 @@ final class LiveModel implements ModelInstance {
                     refreshCarrier();
                 }
             }
+            if (ticks % GROUND_TICKS == 0) {
+                grounds.clear();
+            }
             if (anyWaitingHead && ticks % HEADS_TICKS == 0) {
                 swapHeads();
             }
             if (flashing && now >= flashUntil) {
                 flashing = false;
-                restyleAll(-1);
+                restyleAll(glow);
+            }
+            if (Math.abs(size - sizeWanted) > 1e-3) {
+                size += (sizeWanted - size) * 0.2;
+                if (Math.abs(size - sizeWanted) <= 1e-3) size = sizeWanted;
+                moveNametag();
             }
             send(now);
             ticks++;
@@ -581,14 +699,14 @@ final class LiveModel implements ModelInstance {
         }
         List<Rig.Part> parts = rig.parts();
         for (int index = 0; index < parts.size(); index++) {
-            if (parts.get(index).look().kind() != Look.Kind.EQUIPMENT) {
+            if (parts.get(index).look().kind() != Look.Kind.EQUIPMENT || tweaked[index] != null || ids[index] == 0) {
                 continue;
             }
             DisplayModel now2 = drawnFor(parts.get(index).look(), body);
             ItemStack before = drawn[index].item();
             ItemStack after = now2.item();
             if (before == null || after == null || !before.equals(after)) {
-                drawn[index] = flashing ? now2.glow(0xFFFFFF) : now2;
+                drawn[index] = flashing ? now2.glow(0xFFFFFF) : glow >= 0 ? now2.glow(glow) : now2;
                 sink.restyle(viewersOf(index), ids[index], drawn[index]);
             }
         }
@@ -642,6 +760,8 @@ final class LiveModel implements ModelInstance {
         Map<UUID, Player> wanted = new HashMap<>();
         double range = options.viewRange();
         double limit = range * range;
+        // Somebody already watching keeps it a little further out, so walking along the edge does not blink it.
+        double keep = (range + KEEP_MARGIN) * (range + KEEP_MARGIN);
         LivingEntity body = detached ? null : carrier;
         Set<Player> tracked = null;
         if (body != null) {
@@ -660,7 +780,8 @@ final class LiveModel implements ModelInstance {
             double dx = at.getX() - x;
             double dy = at.getY() - y;
             double dz = at.getZ() - z;
-            if (dx * dx + dy * dy + dz * dz <= limit) {
+            double distance = dx * dx + dy * dy + dz * dz;
+            if (distance <= (tierOf.containsKey(player.getUniqueId()) ? keep : limit)) {
                 wanted.put(player.getUniqueId(), player);
             }
         }
@@ -686,7 +807,10 @@ final class LiveModel implements ModelInstance {
             Location at = viewer.getLocation();
             double distance = Math.sqrt(Math.pow(at.getX() - x, 2) + Math.pow(at.getY() - y, 2)
                     + Math.pow(at.getZ() - z, 2));
-            int tier = Math.min(FAR, (distance <= NEAR_RANGE ? NEAR : distance <= MID_RANGE ? MID : FAR) + pressure);
+            Integer was = distanceOf.get(viewer.getUniqueId());
+            int near = ModelRuntime.tier(distance, was == null ? -1 : was);
+            distanceOf.put(viewer.getUniqueId(), near);
+            int tier = Math.min(FAR, near + pressure);
             Integer now = tierOf.get(viewer.getUniqueId());
             if (now == null) {
                 show(viewer, tier);
@@ -742,6 +866,7 @@ final class LiveModel implements ModelInstance {
     private void drop(Player viewer, int tier) {
         tiers[tier].remove(viewer);
         tierOf.remove(viewer.getUniqueId());
+        distanceOf.remove(viewer.getUniqueId());
         int removedCost = costAt(tier);
         cost -= removedCost;
         ModelRuntime.load(-removedCost);
@@ -806,9 +931,52 @@ final class LiveModel implements ModelInstance {
 
     private void pose(long now) {
         controller.sample(now, offsets);
-        double scale = options.scale() * carrierScale;
-        poser.pose(offsets, head, headYaw, headPitch, scale, yaw, poses);
+        double scale = options.scale() * carrierScale * size;
+        if (legs.isEmpty()) {
+            poser.bones(offsets, head, headYaw, headPitch, 0, 0, 0);
+        } else {
+            // Feet on the ground only where somebody is near enough to see them.
+            boolean stand = !detached && onGround && !tiers[NEAR].isEmpty();
+            legs.pose(poser, offsets, head, headYaw, headPitch, stand, speed, scale / 16.0, yaw, x, y, z, offset,
+                    this::groundTop);
+        }
+        poser.parts(scale, yaw, offset, poses);
         posed = true;
+    }
+
+    /** The top of the ground under a point, read through a short cache; {@code NaN} where it cannot be read. */
+    private double groundTop(double gx, double gz, double feet, double reach) {
+        World at = world;
+        if (at == null) {
+            return Double.NaN;
+        }
+        int bx = (int) Math.floor(gx);
+        int bz = (int) Math.floor(gz);
+        int from = (int) Math.floor(feet + reach);
+        int to = (int) Math.floor(feet - reach);
+        long key = ((long) bx & 0x3FFFFFFL) << 38 | ((long) bz & 0x3FFFFFFL) << 12 | (from & 0xFFFL);
+        Double known = grounds.get(key);
+        if (known != null) {
+            return known;
+        }
+        double top = Double.NaN;
+        if (at.isChunkLoaded(bx >> 4, bz >> 4) && tasks.isOwnedBy(new Location(at, gx, feet, gz))) {
+            for (int by = from; by >= to && by >= at.getMinHeight(); by--) {
+                org.bukkit.block.Block block = at.getBlockAt(bx, by, bz);
+                if (block.isPassable()) {
+                    continue;
+                }
+                org.bukkit.util.BoundingBox box = block.getBoundingBox();
+                if (box.getVolume() <= 0) {
+                    continue;
+                }
+                // A wall taller than a foot can reach is nothing to stand on.
+                top = box.getMaxY() > feet + reach ? Double.NaN : box.getMaxY();
+                break;
+            }
+        }
+        grounds.put(key, top);
+        return top;
     }
 
     private double lastX = Double.NaN;
@@ -916,6 +1084,19 @@ final class LiveModel implements ModelInstance {
 
     // ------------------------------------------------------------------ looks
 
+    /** A block or item a tweak names, or {@code null} for a name that is neither. */
+    private static @Nullable DisplayModel material(String name) {
+        if (name.isEmpty()) {
+            return null;
+        }
+        Material material = Material.matchMaterial(name);
+        if (material == null || material.isAir()) {
+            return null;
+        }
+        return material.isBlock() ? DisplayModel.block(material.createBlockData())
+                : DisplayModel.item(new ItemStack(material));
+    }
+
     private DisplayModel drawnFor(Look look, @Nullable LivingEntity body) {
         return switch (look.kind()) {
             case BLOCK -> DisplayModel.block(BlockPalette.block(look.material()));
@@ -1014,7 +1195,7 @@ final class LiveModel implements ModelInstance {
     }
 
     private DisplayKeyframe nametagPose() {
-        float top = (float) (rig.max()[1] / 16.0 * options.scale() * carrierScale + 0.3);
+        float top = (float) (rig.max()[1] / 16.0 * options.scale() * carrierScale * size + 0.3 + offset[1]);
         return new DisplayKeyframe(0, 0f, top, 0f, Rotation.NONE, 1f, 1f, 1f);
     }
 
@@ -1033,11 +1214,11 @@ final class LiveModel implements ModelInstance {
     /** Where one box stands now: along the model's long axis, turned with the body. */
     private double[] boxAt(int box) {
         double along = boxAlong[box];
-        double lx = boxesAlongForward ? 0 : along;
-        double lz = boxesAlongForward ? along : 0;
+        double lx = (boxesAlongForward ? 0 : along) + offset[0];
+        double lz = (boxesAlongForward ? along : 0) + offset[2];
         double turn = Math.toRadians(-yaw) + Math.PI;
         double[] turned = Poser.rotate(0, Math.sin(turn / 2), 0, Math.cos(turn / 2), lx, 0, lz);
-        double bottom = Math.max(0, rig.min()[1] / 16.0 * options.scale());
+        double bottom = Math.max(0, rig.min()[1] / 16.0 * options.scale()) + offset[1];
         return new double[]{x + turned[0], y + bottom, z + turned[2]};
     }
 
@@ -1130,7 +1311,11 @@ final class LiveModel implements ModelInstance {
         tasks.runAtLocationLater(at, FADE_MS / 50 + 1, this::remove);
     }
 
-    /** Every cube thrown out from the middle, falling, landing and melting; the model itself goes at once. */
+    /**
+     * Every cube thrown out from the middle and away from the blow, bouncing off
+     * the blocks around it and coming to rest before it melts; the model itself
+     * goes at once.
+     */
     private void apart() {
         if (removed) {
             return;
@@ -1141,19 +1326,65 @@ final class LiveModel implements ModelInstance {
         Location at = world == null ? null : new Location(world, x, y, z);
         if (at != null && !viewers().isEmpty()) {
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            double middle = (rig.max()[1] + rig.min()[1]) / 32.0 * options.scale() * carrierScale;
+            java.util.Random dice = new java.util.Random(random.nextLong());
+            double scale = options.scale() * carrierScale * size;
+            double middle = (rig.max()[1] + rig.min()[1]) / 32.0 * scale + offset[1];
+            double[] centre = {0, middle, 0};
+            double[] origin = {x, y, z};
+            Debris.Solid solid = solidity(at.getWorld());
+            // The biggest cubes are the ones worth working out; past the budget the rest fly the simple way.
+            Integer[] order = new Integer[ids.length];
             for (int part = 0; part < ids.length; part++) {
+                order[part] = part;
+            }
+            Arrays.sort(order, Comparator.comparingDouble(part -> -volume(poses[part])));
+            int worked = 0;
+            for (int part : order) {
                 if (ids[part] == 0) {
                     continue;
                 }
                 List<Player> watching = viewersOf(part);
-                if (!watching.isEmpty()) {
-                    DisplayRuntime.show(owner, drawn[part].glow(-1), flight(keyframe(part), middle, random), at,
-                            watching);
+                if (watching.isEmpty()) {
+                    continue;
                 }
+                DisplayKeyframe from = keyframe(part);
+                double[] pose = poses[part];
+                double[] extent = {pose[Poser.SX], pose[Poser.SY], pose[Poser.SZ]};
+                DisplayMotion motion = worked++ < Debris.MAX_PIECES
+                        ? Debris.fly(from, extent, origin, push, centre, solid, dice)
+                        : flight(from, middle, random);
+                DisplayRuntime.show(owner, drawn[part].glow(-1), motion, at, watching);
             }
         }
         remove();
+    }
+
+    private static double volume(double[] pose) {
+        return Math.abs(pose[Poser.SX] * pose[Poser.SY] * pose[Poser.SZ]);
+    }
+
+    /** The blocks around a break, read as a cube asks for them and remembered for the rest of the break. */
+    private Debris.Solid solidity(World where) {
+        Map<Long, Double> known = new HashMap<>();
+        return (bx, by, bz) -> {
+            long key = ((long) bx & 0x3FFFFFFL) << 38 | ((long) bz & 0x3FFFFFFL) << 12 | (by & 0xFFFL);
+            Double top = known.get(key);
+            if (top == null) {
+                top = 0.0;
+                if (by >= where.getMinHeight() && by < where.getMaxHeight() && where.isChunkLoaded(bx >> 4, bz >> 4)
+                        && tasks.isOwnedBy(new Location(where, bx, by, bz))) {
+                    org.bukkit.block.Block block = where.getBlockAt(bx, by, bz);
+                    if (!block.isPassable()) {
+                        org.bukkit.util.BoundingBox box = block.getBoundingBox();
+                        if (box.getVolume() > 0) {
+                            top = Math.clamp(box.getMaxY() - by, 0.05, 1.0);
+                        }
+                    }
+                }
+                known.put(key, top);
+            }
+            return top;
+        };
     }
 
     /** Out from the model's middle, up, under gravity to the ground, then melting where it lands. */

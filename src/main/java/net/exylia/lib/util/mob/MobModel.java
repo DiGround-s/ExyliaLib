@@ -1,6 +1,7 @@
 package net.exylia.lib.util.mob;
 
 import net.exylia.lib.model.ModelOptions;
+import net.exylia.lib.model.ModelTweaks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
@@ -29,10 +30,12 @@ import java.util.Map;
  *               matched by name (see {@link net.exylia.lib.model.Model#animationFor})
  * @param death  how it dies
  * @param lookAt whether its head turns towards what it is looking at
+ * @param tweaks what this mob changes about the model: where it sits, bones, speeds, its box
+ *               (since 1.321.0)
  * @since 1.317.0
  */
 public record MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states,
-                       @NotNull Death death, boolean lookAt) {
+                       @NotNull Death death, boolean lookAt, @NotNull ModelTweaks tweaks) {
 
     /** How a model mob dies. */
     public enum Death {
@@ -49,9 +52,16 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     /** No model: the vanilla body. */
-    public static final MobModel NONE = new MobModel("", 1, Map.of(), Death.AUTO, true);
+    public static final MobModel NONE = new MobModel("", 1, Map.of(), Death.AUTO, true, ModelTweaks.NONE);
+
+    /** A model without tweaks, as 1.317.0 had it. */
+    public MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states, @NotNull Death death,
+                    boolean lookAt) {
+        this(model, scale, states, death, lookAt, ModelTweaks.NONE);
+    }
 
     public MobModel {
+        tweaks = tweaks == null ? ModelTweaks.NONE : tweaks;
         model = model == null ? "" : model.trim().toLowerCase(Locale.ROOT);
         scale = Double.isFinite(scale) && scale > 0 ? Math.min(scale, 16) : 1;
         Map<String, String> copy = new LinkedHashMap<>();
@@ -78,19 +88,19 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
 
     /** How it is worn, as the model module takes it. */
     public @NotNull ModelOptions options() {
-        return ModelOptions.DEFAULT.withScale(scale).withStates(states).withLookAt(lookAt);
+        return ModelOptions.DEFAULT.withScale(scale).withStates(states).withLookAt(lookAt).withTweaks(tweaks);
     }
 
     public @NotNull MobModel withModel(@NotNull String model) {
-        return new MobModel(model, scale, states, death, lookAt);
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
     }
 
     public @NotNull MobModel withScale(double scale) {
-        return new MobModel(model, scale, states, death, lookAt);
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
     }
 
     public @NotNull MobModel withStates(@NotNull Map<String, String> states) {
-        return new MobModel(model, scale, states, death, lookAt);
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
     }
 
     /** The same, with one state playing a named animation; a blank animation goes back to matching by name. */
@@ -105,10 +115,15 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     public @NotNull MobModel withDeath(@NotNull Death death) {
-        return new MobModel(model, scale, states, death, lookAt);
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
     }
 
     public @NotNull MobModel withLookAt(boolean lookAt) {
-        return new MobModel(model, scale, states, death, lookAt);
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
+    }
+
+    /** @since 1.321.0 */
+    public @NotNull MobModel withTweaks(@NotNull ModelTweaks tweaks) {
+        return new MobModel(model, scale, states, death, lookAt, tweaks);
     }
 }

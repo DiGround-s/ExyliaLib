@@ -51,8 +51,57 @@ public interface ModelInstance {
      */
     boolean play(@NotNull String stateOrAnimation);
 
+    /**
+     * Plays an action fitted to a length of time, so it strikes when the time is
+     * up: a skill's wind-up and its animation landing on the same frame.
+     *
+     * <p>The animation strikes on its {@code release} event, else its
+     * {@code impact} event, else at its end. Up to that moment it is sped up or
+     * slowed down to fit, between a quarter and four times its own pace; after
+     * it, it plays at its own pace. A time of zero plays it as {@link #play(String)}.
+     *
+     * @param stateOrAnimation what to play
+     * @param strikeInMillis   when it should strike, from now
+     * @return whether the model had an animation for it
+     * @since 1.321.0
+     */
+    default boolean play(@NotNull String stateOrAnimation, long strikeInMillis) {
+        return play(stateOrAnimation);
+    }
+
     /** Lets go of the action under way. */
     void stop();
+
+    /**
+     * Moves it to a fight phase: from now on every state plays its phase's own
+     * animation where the model has one ({@code walk_p2}, see
+     * {@link Model#animationFor(String, ModelOptions, int)}), and the others as before.
+     *
+     * @param phase the phase, {@code 1} at the start
+     * @since 1.321.0
+     */
+    default void phase(int phase) {
+    }
+
+    /**
+     * Draws it bigger or smaller than its options say, from now on: an enraged
+     * boss that grows. Fades over half a second.
+     *
+     * @param multiplier times the size its options give it, {@code 0.1-4}
+     * @since 1.321.0
+     */
+    default void resize(double multiplier) {
+    }
+
+    /**
+     * Outlines it in a colour until told otherwise; a {@link #flash} still shows
+     * over it and hands back to it.
+     *
+     * @param rgb {@code 0xRRGGBB}, or {@code -1} for no outline
+     * @since 1.321.0
+     */
+    default void glow(int rgb) {
+    }
 
     /**
      * Listens to what its animations say: the scripts of their timeline
@@ -88,10 +137,37 @@ public interface ModelInstance {
     void die(boolean apart);
 
     /**
+     * {@link #die(boolean)}, with the blow that killed it: when it comes apart its
+     * cubes are thrown that way.
+     *
+     * @param pushX east, blocks a second
+     * @param pushY up
+     * @param pushZ south
+     * @since 1.321.0
+     */
+    default void die(boolean apart, double pushX, double pushY, double pushZ) {
+        die(apart);
+    }
+
+    /**
      * Breaks into its own cubes, which fly out and fall: no other model is
      * involved. Removes it.
      */
     void comeApart();
+
+    /**
+     * {@link #comeApart()}, thrown away from a blow: the cubes fly that way as
+     * well as out from the middle, bounce off the blocks around them and come to
+     * rest before they melt.
+     *
+     * @param pushX east, blocks a second
+     * @param pushY up
+     * @param pushZ south
+     * @since 1.321.0
+     */
+    default void comeApart(double pushX, double pushY, double pushZ) {
+        comeApart();
+    }
 
     /**
      * Takes it off every client now. The carrier, if it is still alive, is

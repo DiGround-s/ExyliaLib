@@ -173,13 +173,90 @@ public final class Model {
 
     private @Nullable Clip byWord(String word) {
         for (Map.Entry<String, Clip> entry : clips.entrySet()) {
-            for (String token : entry.getKey().split("[._\\- ]")) {
+            String[] tokens = entry.getKey().split("[._\\- ]");
+            if (phaseOf(tokens) > 0) {
+                // A phase's own walk is not the walk.
+                continue;
+            }
+            for (String token : tokens) {
                 if (token.equals(word)) {
                     return entry.getValue();
                 }
             }
         }
         return null;
+    }
+
+    /** An animation holding both words, one of them a phase's {@code p<n>}. */
+    private @Nullable Clip byWords(String word, String tag) {
+        for (Map.Entry<String, Clip> entry : clips.entrySet()) {
+            boolean hasWord = false;
+            boolean hasTag = false;
+            for (String token : entry.getKey().split("[._\\- ]")) {
+                hasWord |= token.equals(word);
+                hasTag |= token.equals(tag);
+            }
+            if (hasWord && hasTag) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** The phase a name is for, {@code p2} and so on, or {@code 0}. */
+    private static int phaseOf(String[] tokens) {
+        for (String token : tokens) {
+            if (token.length() > 1 && token.charAt(0) == 'p' && token.substring(1).chars().allMatch(Character::isDigit)) {
+                return Integer.parseInt(token.substring(1));
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * The animation it plays for a state while a fight is in a given phase.
+     *
+     * <p>Phase {@code n} beyond the first plays, in this order: the options'
+     * choice for {@code p<n>:<state>}, an animation called {@code <state>_p<n>}
+     * (by its last part too), one whose name holds both the state and
+     * {@code p<n>} as words ({@code golem_walk_p2}). Without one it plays what the
+     * state plays in every phase. A cast's state word is the skill's name.
+     *
+     * @param state   a {@link ModelState}, or an animation's own name
+     * @param options what the wearer chose
+     * @param phase   the fight's phase, {@code 1} at the start
+     * @return the animation's name, as {@link #animations()} lists it
+     * @since 1.321.0
+     */
+    public @Nullable String animationFor(@NotNull String state, @NotNull ModelOptions options, int phase) {
+        Clip clip = clipFor(state, options, phase);
+        return clip == null ? null : clip.name();
+    }
+
+    /** The clip for a state in a phase, resolved as {@link #animationFor(String, ModelOptions, int)} describes. */
+    @ApiStatus.Internal
+    public @Nullable Clip clipFor(@NotNull String state, @NotNull ModelOptions options, int phase) {
+        if (phase > 1) {
+            String key = state.trim().toLowerCase(Locale.ROOT);
+            String tag = "p" + phase;
+            String chosen = options.states().get(tag + ":" + key);
+            if (chosen != null) {
+                Clip clip = clip(chosen);
+                if (clip != null) {
+                    return clip;
+                }
+            }
+            String word = ModelState.isCast(key) ? key.substring(ModelState.CAST.length()) : key;
+            Clip own = clip(word + "_" + tag);
+            if (own != null) {
+                return own;
+            }
+            Clip both = byWords(word, tag);
+            if (both != null) {
+                return both;
+            }
+        }
+        return clipFor(state, options);
     }
 
     /** Its bones and cubes. */

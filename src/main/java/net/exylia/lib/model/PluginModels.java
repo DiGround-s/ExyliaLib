@@ -106,6 +106,25 @@ public final class PluginModels {
         return ModelRuntime.attach(plugin, carrier, model, options);
     }
 
+    /**
+     * The editor for what a wearer changes about one of these models: bones,
+     * size and place, speeds, hitbox, with a live preview. See {@link ModelTweakEditor}.
+     *
+     * @param model   the model's name in this plugin's folder
+     * @param options how it is worn now; its scale and tweaks are what the editor opens on
+     * @return the editor, or {@code null} when there is no such model
+     * @since 1.321.0
+     */
+    public @Nullable ModelTweakEditor tweakEditor(@NotNull String model, @NotNull ModelOptions options) {
+        Model found = model(model);
+        return found == null ? null : tweakEditor(found, options);
+    }
+
+    /** {@link #tweakEditor(String, ModelOptions)} for a model already read. @since 1.321.0 */
+    public @NotNull ModelTweakEditor tweakEditor(@NotNull Model model, @NotNull ModelOptions options) {
+        return new ModelTweakEditor(plugin, this, model, options);
+    }
+
     /** The model a carrier wears, whoever put it on, or {@code null}. */
     public @Nullable ModelInstance worn(@NotNull Entity carrier) {
         return ModelRuntime.of(carrier);

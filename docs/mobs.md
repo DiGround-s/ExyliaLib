@@ -186,6 +186,16 @@ Since 1.195.0:
 - `PASSIVE` — cancels every `EntityTargetEvent` of it, so it never attacks or
   spits; wins over `AGGRESSIVE`. Its skills still aim (at the nearest player).
 
+Since 1.321.0:
+
+- `BOSS_BAR` — a boss bar with its name as drawn and what is left of it
+  (health, or hits left in hits mode), shown to every player within 40 blocks
+  and kept until they are 48 away. Purple in its first fight phase, pink in its
+  second, red from its third. Refreshed once a second and whenever it is hurt,
+  healed or renamed, and sent only when something on it changed. Packets where
+  PacketEvents is installed, the server's own bars where not; taken off
+  everybody however the mob ends.
+
 No library mob goes through a portal (since 1.195.0): the other side would be
 an entity the runtime is not tracking.
 
@@ -501,7 +511,8 @@ by `below`, highest first; a phase at 0 or 1 is dropped.
 - `globalCooldown`: after any major cast starts, the wind-up plus this long
   before another major one may start.
 - Phases: `MobPhase(double below, String style, String suffix, double speed,
-  double damage, double resist)`. The fight starts in phase 1 and is in phase
+  double damage, double resist, double size, String glow)`; the six-argument
+  constructor is kept and means a size of 1 and no outline. The fight starts in phase 1 and is in phase
   `1 + ` the number of `below` shares its health (hits left in hits mode) has
   dropped under, checked on every hit it survives. It never goes back. Entering
   a phase replaces the previous one's `movement_speed` and `attack_damage`
@@ -514,6 +525,11 @@ by `below`, highest first; a phase at 0 or 1 is dropped.
   its `PHASE` skills are cast when it ends. A mob in the middle of a cast is not
   interrupted: the change is drawn at once and its `PHASE` skills cast right
   away. `enrage` lights its outline in the theme's danger colour for good.
+  Since 1.321.0 a mob wearing a model also enters the phase on its model: each
+  state plays the phase's own animation where the model has one (`walk_p2`, see
+  [models.md](models.md#fight-phases-since-13210)), the model grows or shrinks
+  to `size` (`0.1-4`) and is outlined in `glow` (`#rrggbb` or a named colour,
+  blank for none). The phase editor asks for both.
 
 ## Styles (since 1.200.0)
 
@@ -645,7 +661,8 @@ The engine plays it with no code in the plugin:
 | It moves | `idle`, `walk`, `run`, from its speed |
 | It lands a blow | `attack` |
 | It takes a hit (health or hits mode) | `hurt`, and a short red outline: the client never tints a display red |
-| A skill starts its cast | `cast:<the cast's name>`, or `cast:<the skill's type>` when the cast has none |
+| A skill starts its cast | `cast:<the cast's name>`, or `cast:<the skill's type>` when the cast has none; since 1.321.0 fitted to the wind-up, so it strikes (its `release` key, else `impact`, else its end) as the skill lands |
+| It enters a fight phase | that phase's own animations, size and outline (since 1.321.0) |
 | It dies or breaks | as `death` says, below |
 | It expires | it is taken off |
 
@@ -653,7 +670,7 @@ The engine plays it with no code in the plugin:
 | --- | --- |
 | `AUTO` | Its `death` animation, then it shrinks away; with none, it comes apart |
 | `ANIMATION` | Its death animation, then it shrinks away |
-| `APART` | It comes apart at once |
+| `APART` | It comes apart at once, thrown away from its killer (since 1.321.0) |
 | `ANIMATION_APART` | Its death animation, then it comes apart |
 | `VANILLA` | The model goes and the look's own death reaction plays on the vanilla body |
 
@@ -665,7 +682,11 @@ the mob.
 
 `MobCodec.encodeModel`/`decodeModel` store it as one column:
 `{"model":"stone_golem","scale":1.3,"states":{"cast:slam":"animation.golem.slam"},"death":"APART","lookAt":false}`,
-with defaults left out and `null` for none.
+with defaults left out and `null` for none. Since 1.321.0 `MobModel.tweaks`
+(see [models.md](models.md#tweaks-since-13210)) goes in the same column under
+`tweaks`, `{"offset":[0,-0.2,0],"bones":{"cape":{"hidden":true}},"speeds":{"walk":1.3},"hitbox":[2,3]}`;
+the five-argument constructor is kept and means none. Edit them with
+`Models.of(plugin).tweakEditor(model.model(), model.options())`.
 
 ## Death
 

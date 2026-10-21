@@ -57,7 +57,15 @@ public enum MobFlag {
      *
      * @since 1.195.0
      */
-    PASSIVE;
+    PASSIVE,
+    /**
+     * A boss bar with its name and what is left of it, shown to every player
+     * within 40 blocks, purple, then pink in its second fight phase and red from
+     * its third.
+     *
+     * @since 1.321.0
+     */
+    BOSS_BAR;
 
     /** What the flag does, for an editor row. */
     public @NotNull String description() {
@@ -74,6 +82,7 @@ public enum MobFlag {
             case WANDERS -> Phrases.tr("Always runs around");
             case NO_INTERACT -> Phrases.tr("Cannot be ridden, leashed, fed or opened");
             case PASSIVE -> Phrases.tr("Never targets anything");
+            case BOSS_BAR -> Phrases.tr("Shows a boss bar to players nearby");
         };
     }
 

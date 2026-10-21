@@ -162,8 +162,9 @@ final class MobCaster {
                       int depth) {
         MobSkill.Cast cast = skill.cast();
         long now = System.currentTimeMillis();
+        // The cast's animation strikes when the skill lands: the wind-up, telegraph and all.
         engine.act(mob, net.exylia.lib.model.ModelState.cast(cast.name().isBlank()
-                ? skill.type().name() : cast.name()));
+                ? skill.type().name() : cast.name()), cast.windup().toMillis());
         if (skill.major()) {
             long gcd = mob.template().fight().globalCooldown().toMillis();
             if (gcd > 0) mob.globalCooldown(now + cast.windup().toMillis() + gcd);
@@ -499,6 +500,7 @@ final class MobCaster {
             multiply(entity, "movement_speed", phase.speed());
             multiply(entity, "attack_damage", phase.damage());
         }
+        engine.phaseModel(mob, mob.fightPhase(), phase);
         engine.name(entity, mob);
         // The change plays its style, the mob held still for it, and its PHASE skills come after. A cast
         // under way is not cut short: it lands, and the change is only drawn over it.

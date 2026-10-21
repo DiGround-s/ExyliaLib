@@ -199,6 +199,7 @@ public final class MobEngine implements Listener {
 
     private final MobCaster caster;
     private final MobReactions reactions;
+    private final MobBars bars = new MobBars();
     private final MobShows shows;
     private final MobMoves moves;
 
@@ -224,6 +225,7 @@ public final class MobEngine implements Listener {
             // entry would outlive it, and teams live on the main scoreboard.
             String glow = mob.glowShown();
             LivingEntity entity = mob.entity();
+            if (entity != null) bars.hide(entity.getUniqueId());
             if (glow != null && entity != null) {
                 UUID id = entity.getUniqueId();
                 tasks.run(() -> team(id, glow, false));
@@ -262,6 +264,7 @@ public final class MobEngine implements Listener {
             LivingEntity entity = mob.entity();
             if (entity != null) remove(entity, mob.glowShown());
         }
+        bars.clear();
     }
 
     // ---------------------------------------------------------------- registry
@@ -519,6 +522,7 @@ public final class MobEngine implements Listener {
             return;
         }
         leash(entity, mob);
+        bar(entity, mob);
         int seconds = mob.second();
         look(entity, mob, false);
         reactions.low(entity, mob, seconds);
@@ -700,10 +704,11 @@ public final class MobEngine implements Listener {
         tell(new MobDeath(template, entity, at, killer, mob.damage(), mob.topDamager(), mob.playerShare(), cause));
         // Drawn while it still stands; removed straight after, so there is no body to hide.
         if (cause == MobDeath.Cause.BROKEN) {
-            if (!modelDies(mob)) reactions.death(entity, mob, killer);
+            if (!modelDies(entity, mob, killer)) reactions.death(entity, mob, killer);
         } else if (mob.model() != null) {
             mob.model().remove();
         }
+        bars.hide(entity.getUniqueId());
         unglow(entity.getUniqueId(), mob.glowShown());
         entity.remove();
     }
@@ -739,6 +744,7 @@ public final class MobEngine implements Listener {
         Material worn = mob.bodyShown().isEmpty() ? null : Material.matchMaterial(mob.bodyShown());
         if (worn != null) event.getDrops().removeIf(drop -> drop != null && drop.getType() == worn);
         unglow(entity.getUniqueId(), mob.glowShown());
+        bars.hide(entity.getUniqueId());
         if (template.has(MobFlag.NO_VANILLA_EXP)) event.setDroppedExp(0);
         event.setDroppedExp(event.getDroppedExp() + template.exp());
 
@@ -746,7 +752,7 @@ public final class MobEngine implements Listener {
         fire(MobSkill.Trigger.DEATH, entity, mob, killer, false);
         tell(new MobDeath(template, entity, entity.getLocation(), killer,
                 mob.damage(), mob.topDamager(), mob.playerShare(), MobDeath.Cause.KILLED));
-        if (!modelDies(mob) && reactions.death(entity, mob, killer)) reactions.hideBody(entity);
+        if (!modelDies(entity, mob, killer) && reactions.death(entity, mob, killer)) reactions.hideBody(entity);
     }
 
     /** A slime splitting or a zombie drowning would be a vanilla mob wearing our tag. */
@@ -1293,8 +1299,37 @@ public final class MobEngine implements Listener {
 
     /** Plays a state on the mob's model, when it wears one. */
     void act(LiveMob mob, String state) {
+        act(mob, state, 0);
+    }
+
+    /**
+     * Plays a state on the mob's model fitted to a wind-up: the animation strikes
+     * when the skill lands, telegraph and all.
+     */
+    void act(LiveMob mob, String state, long strikeInMillis) {
         ModelInstance model = mob.model();
-        if (model != null) model.play(state);
+        if (model != null) model.play(state, strikeInMillis);
+    }
+
+    /** A fight phase begun: its own animations, size and outline on the model. */
+    void phaseModel(LiveMob mob, int phase, @Nullable MobPhase settings) {
+        ModelInstance model = mob.model();
+        if (model == null) return;
+        model.phase(phase);
+        model.resize(settings == null ? 1 : settings.size());
+        model.glow(settings == null ? -1 : settings.glowColour());
+    }
+
+    /** Brings a boss's bar up to date, for a mob that has one. */
+    void bar(LivingEntity entity, LiveMob mob) {
+        if (!mob.template().has(MobFlag.BOSS_BAR)) return;
+        MobBehaviour behaviour = mob.template().behaviour();
+        float left = behaviour.usesHits()
+                ? (float) Math.max(0, mob.hitsLeft()) / Math.max(1, behaviour.hits())
+                : (float) (entity.getHealth() / Math.max(1e-6, maxHealth(entity)));
+        net.kyori.adventure.text.Component title = entity.customName();
+        if (title == null) title = net.kyori.adventure.text.Component.text(mob.template().id());
+        bars.update(entity, title, left, mob.fightPhase());
     }
 
     /** A hit taken: the model flinches and flashes red, since a display is never tinted by the client. */
@@ -1309,42 +1344,60 @@ public final class MobEngine implements Listener {
      * Ends the model the way the template says; {@code false} when the vanilla
      * reaction is to play instead, on a body that is visible again.
      */
-    private boolean modelDies(LiveMob mob) {
+    private boolean modelDies(LivingEntity entity, LiveMob mob, @Nullable LivingEntity killer) {
         ModelInstance model = mob.model();
         if (model == null || !model.isActive()) return false;
         MobModel worn = mob.template().model();
+        double[] push = push(entity, killer);
         switch (worn.death()) {
             case VANILLA -> {
                 model.remove();
                 return false;
             }
-            case APART -> model.comeApart();
+            case APART -> model.comeApart(push[0], push[1], push[2]);
             case ANIMATION -> model.die(false);
-            case ANIMATION_APART -> model.die(true);
+            case ANIMATION_APART -> model.die(true, push[0], push[1], push[2]);
             case AUTO -> {
                 if (model.model().animationFor(ModelState.DEATH, worn.options()) != null) {
                     model.die(false);
                 } else {
-                    model.comeApart();
+                    model.comeApart(push[0], push[1], push[2]);
                 }
             }
         }
         return true;
     }
 
+    /** Away from whoever dealt the last blow, in blocks a second; nothing when nobody did. */
+    static double[] push(LivingEntity entity, @Nullable LivingEntity killer) {
+        if (killer == null || killer.getWorld() != entity.getWorld()) return new double[3];
+        double dx = entity.getLocation().getX() - killer.getLocation().getX();
+        double dz = entity.getLocation().getZ() - killer.getLocation().getZ();
+        double length = Math.hypot(dx, dz);
+        if (length < 1e-3) return new double[]{0, 1, 0};
+        return new double[]{dx / length * PUSH, PUSH * 0.4, dz / length * PUSH};
+    }
+
+    /** How hard the last blow throws a model's cubes. */
+    static final double PUSH = 2.5;
+
     // ---------------------------------------------------------------- helpers
 
     /** Keeps the %health% in a name current; the value is only known a tick later. */
     private void nameLater(LivingEntity entity, LiveMob mob) {
         String name = mob.template().name();
-        if (name.contains("%health%") || name.contains("%max_health%")) {
+        boolean names = name.contains("%health%") || name.contains("%max_health%");
+        if (names) {
             tasks.runAtEntity(entity, () -> name(entity, mob));
+        } else if (mob.template().has(MobFlag.BOSS_BAR)) {
+            tasks.runAtEntity(entity, () -> bar(entity, mob));
         }
     }
 
     void name(LivingEntity entity, LiveMob mob) {
         MobPhase phase = mob.template().fight().phase(mob.fightPhase());
         render(entity, mob.template(), mob.hitsLeft(), mob.phase(), phase == null ? "" : phase.suffix());
+        bar(entity, mob);
     }
 
     /**

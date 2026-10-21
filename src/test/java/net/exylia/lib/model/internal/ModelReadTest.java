@@ -304,4 +304,100 @@ class ModelReadTest {
         assertEquals(40, out[Clip.ROT_Z], EPSILON);
         assertEquals(List.of(new Clip.Event(1000, "wave_peak")), wave.events());
     }
+
+    /**
+     * Blockbench 5 keeps keys the way its preview applies them and flips X and Y
+     * of a turn, and X of a move, only on a Bedrock export (Blockbench
+     * {@code js/formats/bbmodel.js} at {@code ec0b282}, the {@code < 5.0}
+     * migration, and {@code Keyframe.compileBedrockKeyframe}). The same pose
+     * saved by 4.10 and by 5.0 must read the same.
+     */
+    @Test
+    void aBlockbenchFiveProjectReadsItsKeysAsFourWouldHaveSavedThem() throws IOException {
+        String four = arm("hand", texture(0xFFFF0000));
+        String five = four.replace("\"format_version\":\"4.10\"", "\"format_version\":\"5.0\"")
+                .replace("{\"x\":\"10\",\"y\":0,\"z\":0}", "{\"x\":\"-10\",\"y\":0,\"z\":0}");
+        assertTrue(five.contains("5.0") && five.contains("-10"));
+        Clip old = read(four, new ArrayList<>()).clips().get("animation.test.swing");
+        Clip modern = read(five, new ArrayList<>()).clips().get("animation.test.swing");
+        double[] a = new double[Clip.CHANNELS];
+        double[] b = new double[Clip.CHANNELS];
+        old.sample(0, 1000, a, new boolean[Clip.CHANNELS]);
+        modern.sample(0, 1000, b, new boolean[Clip.CHANNELS]);
+        assertEquals(10, a[Clip.ROT_X], EPSILON);
+        assertEquals(a[Clip.ROT_X], b[Clip.ROT_X], EPSILON);
+
+        assertTrue(BbModelReader.unflipped(com.google.gson.JsonParser.parseString(
+                "{\"meta\":{\"format_version\":\"5.1\"}}").getAsJsonObject()));
+        assertTrue(!BbModelReader.unflipped(com.google.gson.JsonParser.parseString(
+                "{\"meta\":{\"format_version\":\"4.10\"}}").getAsJsonObject()));
+        assertTrue(!BbModelReader.unflipped(com.google.gson.JsonParser.parseString("{}").getAsJsonObject()));
+    }
+
+    /**
+     * Blockbench turns a group by X, then Y, then Z about the fixed axes: three.js
+     * Euler order {@code ZYX}, the default of every Blockbench format
+     * ({@code js/io/format.ts}, {@code euler_order} defaults to {@code 'ZYX'}).
+     * The quaternion must turn a vector exactly as the three matrices do.
+     */
+    @Test
+    void groupsTurnInBlockbenchsOrder() {
+        double x = Math.toRadians(30);
+        double y = Math.toRadians(-50);
+        double z = Math.toRadians(70);
+        double[] q = new double[Poser.FIELDS];
+        Poser.euler(x, y, z, q);
+        double[] v = {1, 2, 3};
+        // Rx first.
+        double[] rx = {v[0], v[1] * Math.cos(x) - v[2] * Math.sin(x), v[1] * Math.sin(x) + v[2] * Math.cos(x)};
+        double[] ry = {rx[0] * Math.cos(y) + rx[2] * Math.sin(y), rx[1], -rx[0] * Math.sin(y) + rx[2] * Math.cos(y)};
+        double[] rz = {ry[0] * Math.cos(z) - ry[1] * Math.sin(z), ry[0] * Math.sin(z) + ry[1] * Math.cos(z), ry[2]};
+        double[] turned = Poser.rotate(q[Poser.QX], q[Poser.QY], q[Poser.QZ], q[Poser.QW], v[0], v[1], v[2]);
+        assertEquals(rz[0], turned[0], EPSILON);
+        assertEquals(rz[1], turned[1], EPSILON);
+        assertEquals(rz[2], turned[2], EPSILON);
+    }
+
+    /** The front is north: facing south (yaw 0) a model's front, its -Z, looks towards +Z. */
+    @Test
+    void aModelFacesTheWayItsCarrierWalks() throws IOException {
+        String json = """
+                {"meta":{"format_version":"4.10","model_format":"free"},
+                 "elements":[{"name":"nose","from":[-1,0,-8],"to":[1,2,-6],"origin":[0,0,0],"uuid":"n"}],
+                 "outliner":["n"]}
+                """;
+        Rig rig = read(json, new ArrayList<>()).rig();
+        Poser poser = new Poser(rig);
+        double[][] out = new double[1][Poser.FIELDS];
+        poser.pose(null, -1, 0, 0, 1, 0, out);
+        assertEquals(7 / 16.0, out[0][Poser.TZ], EPSILON, "facing south, the nose is to the south");
+        poser.pose(null, -1, 0, 0, 1, 90, out);
+        assertEquals(-7 / 16.0, out[0][Poser.TX], EPSILON, "facing west, the nose is to the west");
+        poser.pose(null, -1, 0, 0, 1, 180, out);
+        assertEquals(-7 / 16.0, out[0][Poser.TZ], EPSILON, "facing north, to the north");
+    }
+
+    @Test
+    void aFightPhasePlaysItsOwnAnimationsAndOnlyThose() throws IOException {
+        Rig rig = read(arm("hand", texture(0xFFFF0000)), new ArrayList<>()).rig();
+        java.util.Map<String, Clip> clips = new java.util.LinkedHashMap<>();
+        for (String name : List.of("animation.golem.walk", "walk_p2", "golem_attack_p3", "attack", "slam")) {
+            clips.put(name, new Clip(name, 1000, Clip.Loop.LOOP, new net.exylia.lib.util.internal.KeyTrack[1][],
+                    List.of()));
+        }
+        Model model = new Model("golem", rig, clips, List.of());
+        ModelOptions options = ModelOptions.DEFAULT;
+        assertEquals("animation.golem.walk", model.animationFor(ModelState.WALK, options));
+        assertEquals("animation.golem.walk", model.animationFor(ModelState.WALK, options, 1));
+        assertEquals("walk_p2", model.animationFor(ModelState.WALK, options, 2));
+        assertEquals("animation.golem.walk", model.animationFor(ModelState.WALK, options, 3),
+                "no walk of its own in phase 3: the walk");
+        assertEquals("golem_attack_p3", model.animationFor(ModelState.ATTACK, options, 3));
+        assertEquals("attack", model.animationFor(ModelState.ATTACK, options, 2));
+        assertEquals("slam", model.animationFor(ModelState.cast("slam"), options, 2));
+        assertEquals("slam", model.animationFor(ModelState.cast("slam"),
+                options.withState("p2:cast:slam", "attack").withState("p3:cast:slam", "slam"), 3));
+        assertEquals("attack", model.animationFor(ModelState.cast("slam"),
+                options.withState("p2:cast:slam", "attack"), 2));
+    }
 }

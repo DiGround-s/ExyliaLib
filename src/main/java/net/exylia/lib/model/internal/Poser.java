@@ -21,7 +21,7 @@ import java.util.List;
  * blocks, about the carrier's feet.
  *
  * <p>Pure: numbers in, numbers out. One instance per live model, reused every
- * pose, so a pose allocates nothing.
+ * pose, on one thread.
  */
 @ApiStatus.Internal
 public final class Poser {
@@ -42,10 +42,17 @@ public final class Poser {
     private final Rig rig;
     /** Per bone: world translation (3), rotation (4), scale (3), in the model's own pixels. */
     private final double[][] world;
+    /** Per bone: the same in its parent's space, as the last {@link #bones} worked it out. */
+    private final double[][] locals;
+    private final boolean[] dirty;
+    /** The whole body's lift and tilt, for one {@link #bones}. */
+    private final double[] body = new double[FIELDS];
 
     public Poser(Rig rig) {
         this.rig = rig;
         this.world = new double[rig.bones().size()][FIELDS];
+        this.locals = new double[rig.bones().size()][FIELDS];
+        this.dirty = new boolean[rig.bones().size()];
     }
 
     public Rig rig() {
@@ -68,6 +75,30 @@ public final class Poser {
      */
     public void pose(double[][] offsets, int head, double headYaw, double headPitch, double scale, double yaw,
                      double[][] out) {
+        bones(offsets, head, headYaw, headPitch, 0, 0, 0);
+        parts(scale, yaw, ZERO, out);
+    }
+
+    /**
+     * Every bone's place in the model's own space, pixels, front to the north:
+     * the first half of {@link #pose}. {@link #world} reads the result.
+     *
+     * @param lift  how far the whole body is moved up, in pixels
+     * @param pitch how far the whole body tips its front up, in degrees, about its feet
+     * @param roll  how far the whole body tips its right side (+X) up, in degrees
+     */
+    public void bones(double[][] offsets, int head, double headYaw, double headPitch, double lift, double pitch,
+                      double roll) {
+        boolean adjusted = lift != 0 || pitch != 0 || roll != 0;
+        if (adjusted) {
+            body[TX] = 0;
+            body[TY] = lift;
+            body[TZ] = 0;
+            euler(Math.toRadians(pitch), 0, Math.toRadians(roll), body);
+            body[SX] = 1;
+            body[SY] = 1;
+            body[SZ] = 1;
+        }
         List<Rig.Bone> bones = rig.bones();
         for (int index = 0; index < bones.size(); index++) {
             Rig.Bone bone = bones.get(index);
@@ -99,7 +130,7 @@ public final class Poser {
                 ry -= headYaw;
                 rx -= headPitch;
             }
-            double[] local = new double[FIELDS];
+            double[] local = locals[index];
             local[TX] = tx;
             local[TY] = ty;
             local[TZ] = tz;
@@ -107,13 +138,47 @@ public final class Poser {
             local[SX] = sx;
             local[SY] = sy;
             local[SZ] = sz;
-            if (bone.parent() < 0) {
-                System.arraycopy(local, 0, world[index], 0, FIELDS);
-            } else {
+            if (bone.parent() >= 0) {
                 compose(world[bone.parent()], local, world[index]);
+            } else if (adjusted) {
+                compose(body, local, world[index]);
+            } else {
+                System.arraycopy(local, 0, world[index], 0, FIELDS);
             }
         }
+    }
 
+    /** One bone's place after {@link #bones}: translation, rotation and scale, in pixels. Live; not a copy. */
+    public double[] world(int bone) {
+        return world[bone];
+    }
+
+    /**
+     * Places every bone below one whose world was set by hand again, from their
+     * own local transforms: what a leg's bones hang off moved, so they move too.
+     *
+     * @param fixed bones whose world is already what it should be, and that are not recomputed
+     */
+    public void reworld(boolean[] fixed) {
+        List<Rig.Bone> bones = rig.bones();
+        boolean[] moved = dirty;
+        for (int index = 0; index < bones.size(); index++) {
+            int parent = bones.get(index).parent();
+            moved[index] = fixed[index];
+            if (!fixed[index] && parent >= 0 && moved[parent]) {
+                compose(world[parent], locals[index], world[index]);
+                moved[index] = true;
+            }
+        }
+    }
+
+    /**
+     * Every cube's pose from the bones as {@link #bones} and any hand placing
+     * left them: the second half of {@link #pose}.
+     *
+     * @param offset where the whole model is moved, in blocks, in its own axes before it turns
+     */
+    public void parts(double scale, double yaw, double[] offset, double[][] out) {
         // The model turned half round, then by the carrier's yaw: a yaw of 0 faces south.
         double turn = Math.toRadians(-yaw) + Math.PI;
         double half = turn / 2;
@@ -149,7 +214,8 @@ public final class Poser {
             double wz = placed[TZ] + centre[2];
 
             double[] target = out[index];
-            double[] seen = rotate(ex, ey, ez, ew, wx * toBlocks, wy * toBlocks, wz * toBlocks);
+            double[] seen = rotate(ex, ey, ez, ew, wx * toBlocks + offset[0], wy * toBlocks + offset[1],
+                    wz * toBlocks + offset[2]);
             target[TX] = seen[0];
             target[TY] = seen[1];
             target[TZ] = seen[2];
@@ -158,6 +224,59 @@ public final class Poser {
             target[SY] = Math.abs(part.to()[1] - part.from()[1]) * placed[SY] * toBlocks;
             target[SZ] = Math.abs(part.to()[2] - part.from()[2]) * placed[SZ] * toBlocks;
         }
+    }
+
+    /**
+     * The lowest corner of a bone's own cubes in the rest pose, in the bone's own
+     * space: the point a leg stands on. Its pivot when it has no cubes.
+     *
+     * @param bone which
+     * @return x, y, z in pixels, from the bone's pivot, unturned by the bone
+     */
+    public double[] sole(int bone) {
+        bones(null, -1, 0, 0, 0, 0, 0);
+        double[] at = world[bone];
+        double bestY = Double.MAX_VALUE;
+        double[] best = {at[TX], at[TY], at[TZ]};
+        int count = 0;
+        double[] cube = new double[FIELDS];
+        double[] placed = new double[FIELDS];
+        for (Rig.Part part : rig.parts()) {
+            if (part.bone() != bone) {
+                continue;
+            }
+            double[] boneOrigin = rig.bones().get(bone).origin();
+            cube[TX] = part.origin()[0] - boneOrigin[0];
+            cube[TY] = part.origin()[1] - boneOrigin[1];
+            cube[TZ] = part.origin()[2] - boneOrigin[2];
+            euler(Math.toRadians(part.rotation()[0]), Math.toRadians(part.rotation()[1]),
+                    Math.toRadians(part.rotation()[2]), cube);
+            cube[SX] = 1;
+            cube[SY] = 1;
+            cube[SZ] = 1;
+            compose(at, cube, placed);
+            for (int corner = 0; corner < 8; corner++) {
+                double cx = ((corner & 1) == 0 ? part.from()[0] : part.to()[0]) - part.origin()[0];
+                double cy = ((corner & 2) == 0 ? part.from()[1] : part.to()[1]) - part.origin()[1];
+                double cz = ((corner & 4) == 0 ? part.from()[2] : part.to()[2]) - part.origin()[2];
+                double[] point = rotate(placed, cx, cy, cz);
+                double y = placed[TY] + point[1];
+                // The middle of the lowest face, not one of its corners: a foot stands on its sole.
+                if (y < bestY - 1e-6) {
+                    bestY = y;
+                    best = new double[]{placed[TX] + point[0], y, placed[TZ] + point[2]};
+                    count = 1;
+                } else if (Math.abs(y - bestY) <= 1e-6) {
+                    best[0] = (best[0] * count + placed[TX] + point[0]) / (count + 1);
+                    best[2] = (best[2] * count + placed[TZ] + point[2]) / (count + 1);
+                    count++;
+                }
+            }
+        }
+        // Into the bone's own space.
+        double[] inverse = {-at[QX], -at[QY], -at[QZ], at[QW]};
+        return rotate(inverse[0], inverse[1], inverse[2], inverse[3], best[0] - at[TX], best[1] - at[TY],
+                best[2] - at[TZ]);
     }
 
     private static final double[] ZERO = new double[3];

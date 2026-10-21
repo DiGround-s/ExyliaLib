@@ -137,4 +137,92 @@ class ControllerTest {
         assertEquals(1, out[0][Clip.SCALE_X], EPSILON);
         assertEquals(0, out[1][Clip.ROT_Y], EPSILON);
     }
+
+    /** An action on the arms that reaches 90 degrees at 1 s and strikes at 0.6 s. */
+    private static Clip swing(List<Clip.Event> events) {
+        KeyTrack[][] bones = new KeyTrack[2][];
+        bones[1] = new KeyTrack[Clip.CHANNELS];
+        bones[1][Clip.ROT_X] = new KeyTrack(new long[]{0, 1000}, new double[]{0, 90},
+                new Ease[]{Ease.LINEAR, Ease.LINEAR}, new double[]{Double.NaN, Double.NaN});
+        return new Clip("swing", 1000, Clip.Loop.ONCE, bones, events);
+    }
+
+    @Test
+    void aFittedActionStrikesWhenTheWindUpEnds() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("cast:slam", swing(List.of(new Clip.Event(600, "release"))));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        assertTrue(controller.play("cast:slam", 0, 1200));
+        // A wind-up twice as long as the strike: half speed until it strikes.
+        controller.advance(600, 0);
+        assertTrue(controller.drainEvents().isEmpty(), "not yet: halfway through the wind-up");
+        controller.advance(1199, 0);
+        assertTrue(controller.drainEvents().isEmpty());
+        controller.advance(1200, 0);
+        assertEquals(List.of("release"), controller.drainEvents(), "on the wind-up's last moment");
+        // After the strike it plays at its own pace: the remaining 400 ms take 400 ms.
+        controller.advance(1500, 0);
+        assertEquals("cast:slam", controller.action());
+        controller.advance(1601, 0);
+        assertNull(controller.action(), "done once its own length is played");
+    }
+
+    @Test
+    void aFittedActionWithoutAStrikeEndsWithTheWindUp() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("attack", swing(List.of()));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        controller.play("attack", 0, 500);
+        controller.advance(250, 0);
+        // Twice as fast: a quarter of a second in is half the swing.
+        assertEquals(45, sample(controller, 250 + Controller.ACTION_IN_MS)[1][Clip.ROT_X], 1.0);
+        controller.advance(501, 0);
+        assertNull(controller.action());
+    }
+
+    @Test
+    void fittingIsKeptWithinReason() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("attack", swing(List.of(new Clip.Event(1000, "impact"))));
+        assertEquals(1000, Controller.strike(clips.get("attack")));
+        Controller controller = controller(clips);
+        controller.advance(0, 0);
+        // Asked to strike in 10 ms: four times as fast is the most it goes.
+        controller.play("attack", 0, 10);
+        controller.advance(200, 0);
+        assertTrue(controller.drainEvents().isEmpty());
+        controller.advance(250, 0);
+        assertEquals(List.of("impact"), controller.drainEvents());
+    }
+
+    @Test
+    void eachStatePlaysAtItsOwnSpeed() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("attack", swing(List.of(new Clip.Event(500, "hit"))));
+        Controller controller = new Controller(2, clips::get, state -> state.equals("attack") ? 2 : 1);
+        controller.advance(0, 0);
+        controller.play("attack", 0);
+        controller.advance(249, 0);
+        assertTrue(controller.drainEvents().isEmpty());
+        controller.advance(250, 0);
+        assertEquals(List.of("hit"), controller.drainEvents(), "twice as fast");
+    }
+
+    @Test
+    void aNewPhaseFadesToItsOwnWalk() {
+        Map<String, Clip> clips = new HashMap<>();
+        clips.put("idle", holding("idle", 0, Clip.ROT_X, 0, Clip.Loop.LOOP, 1000, List.of()));
+        clips.put("idle_p2", holding("idle_p2", 0, Clip.ROT_X, 20, Clip.Loop.LOOP, 1000, List.of()));
+        int[] phase = {1};
+        Controller controller = new Controller(2, state -> phase[0] > 1 && clips.containsKey(state + "_p2")
+                ? clips.get(state + "_p2") : clips.get(state));
+        controller.advance(0, 0);
+        assertEquals(0, sample(controller, 0)[0][Clip.ROT_X], EPSILON);
+        phase[0] = 2;
+        controller.refresh(100);
+        assertEquals(10, sample(controller, 100 + Controller.BASE_FADE_MS / 2)[0][Clip.ROT_X], EPSILON);
+        assertEquals(20, sample(controller, 100 + Controller.BASE_FADE_MS)[0][Clip.ROT_X], EPSILON);
+    }
 }

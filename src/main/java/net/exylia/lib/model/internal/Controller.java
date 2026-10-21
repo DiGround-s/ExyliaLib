@@ -24,6 +24,12 @@ import java.util.function.Function;
  * snapped there. A held animation stays on its last frame until something
  * replaces it.
  *
+ * <h2>On the beat of a skill</h2>
+ * An action can be fitted to a wind-up: played faster or slower so that the
+ * moment it strikes &mdash; its {@code release} event, else its {@code impact}
+ * event, else its end &mdash; lands exactly when the skill does. What comes after
+ * that moment plays at its own pace, so the follow-through never drags.
+ *
  * <p>Pure and single-threaded: the clock is handed in, so every transition can
  * be asserted without a server. One per live model, on the carrier's thread.
  */
@@ -46,9 +52,15 @@ public final class Controller {
     /** The speeds a walk and a run were animated at: calibration knobs, the feet's. */
     static final double WALK_PACE = 2.2;
     static final double RUN_PACE = 5.6;
+    /** How far a fitted action may be sped up or slowed down. */
+    static final double FIT_MIN = 0.25;
+    static final double FIT_MAX = 4;
+    /** The events a fitted action strikes on, in the order they are looked for. */
+    static final List<String> STRIKES = List.of("release", "impact");
 
     private final int bones;
     private final Function<String, Clip> clips;
+    private final java.util.function.ToDoubleFunction<String> speeds;
 
     private String baseState = "idle";
     private @Nullable Clip base;
@@ -61,6 +73,9 @@ public final class Controller {
     private @Nullable String actionState;
     private double actionHead;
     private long actionStarted;
+    private double actionTempo = 1;
+    private double actionAfter = 1;
+    private double strikeAt = -1;
     private boolean dying;
 
     private long last = Long.MIN_VALUE;
@@ -76,9 +91,45 @@ public final class Controller {
      * @param clips the clip a state or animation name resolves to, or {@code null}
      */
     public Controller(int bones, Function<String, Clip> clips) {
+        this(bones, clips, state -> 1);
+    }
+
+    /**
+     * @param speeds how fast each state plays, as a multiple of its own pace; {@code 1} for as made
+     */
+    public Controller(int bones, Function<String, Clip> clips, java.util.function.ToDoubleFunction<String> speeds) {
         this.bones = bones;
         this.clips = clips;
+        this.speeds = speeds;
         this.base = clips.apply("idle");
+    }
+
+    private double speed(@Nullable String state) {
+        double speed = state == null ? 1 : speeds.applyAsDouble(state);
+        return Double.isFinite(speed) && speed > 0 ? Math.clamp(speed, 0.1, 10) : 1;
+    }
+
+    /**
+     * Looks the clips up again: what a state plays has changed, a fight phase
+     * having its own walk. The base fades over to its new clip; an action under
+     * way plays on.
+     */
+    public void refresh(long now) {
+        if (dying) {
+            return;
+        }
+        Clip next = clips.apply(baseState);
+        if (next == null && baseState.equals("run")) {
+            next = clips.apply("walk");
+        }
+        if (next == base) {
+            return;
+        }
+        previous = base;
+        previousHead = baseHead;
+        base = next;
+        baseHead = 0;
+        fadeStarted = now;
     }
 
     /** The base state it is in: idle, walk or run. */
@@ -116,7 +167,7 @@ public final class Controller {
             };
             switchBase(next, now);
             double pace = baseState.equals("run") ? RUN_PACE : WALK_PACE;
-            tempo = baseState.equals("idle") ? 1 : Math.clamp(speed / pace, 0.6, 1.8);
+            tempo = (baseState.equals("idle") ? 1 : Math.clamp(speed / pace, 0.6, 1.8)) * speed(baseState);
         } else {
             tempo = 1;
         }
@@ -124,7 +175,14 @@ public final class Controller {
         previousHead = step(previous, previousHead, elapsed * tempo);
         if (action != null) {
             double before = actionHead;
-            actionHead += elapsed;
+            if (strikeAt > before) {
+                // Fitted up to the strike, its own pace after it.
+                double toStrike = (strikeAt - before) / actionTempo;
+                actionHead = elapsed <= toStrike ? before + elapsed * actionTempo
+                        : strikeAt + (elapsed - toStrike) * actionAfter;
+            } else {
+                actionHead += elapsed * actionAfter;
+            }
             events(action, before, actionHead);
             if (action.loop() == Clip.Loop.ONCE && actionHead >= action.length() && !dying) {
                 action = null;
@@ -209,6 +267,18 @@ public final class Controller {
      * @return whether there was an animation to play
      */
     public boolean play(String state, long now) {
+        return play(state, now, 0);
+    }
+
+    /**
+     * Starts an action fitted to a length of time: it strikes when that time is up.
+     *
+     * @param state a state or an animation's name
+     * @param now   the clock
+     * @param fit   when it should strike, in milliseconds from now; {@code 0} or less plays it at its own pace
+     * @return whether there was an animation to play
+     */
+    public boolean play(String state, long now, long fit) {
         if (dying) {
             return false;
         }
@@ -220,8 +290,29 @@ public final class Controller {
         actionState = state;
         actionHead = 0;
         actionStarted = now;
+        actionAfter = speed(state);
+        long strike = strike(clip);
+        if (fit > 0 && strike > 0) {
+            strikeAt = strike;
+            actionTempo = Math.clamp(strike / (double) fit, FIT_MIN, FIT_MAX);
+        } else {
+            strikeAt = -1;
+            actionTempo = actionAfter;
+        }
         events(clip, -1, 0);
         return true;
+    }
+
+    /** When a clip strikes: its first {@link #STRIKES} event, else its end. */
+    static long strike(Clip clip) {
+        for (String name : STRIKES) {
+            for (Clip.Event event : clip.events()) {
+                if (event.name().equalsIgnoreCase(name)) {
+                    return event.millis();
+                }
+            }
+        }
+        return clip.length();
     }
 
     /** Lets go of whatever action is playing; the base takes the bones back. */
@@ -248,7 +339,10 @@ public final class Controller {
         actionState = "death";
         actionHead = 0;
         actionStarted = now;
-        return clip.length();
+        strikeAt = -1;
+        actionTempo = 1;
+        actionAfter = speed("death");
+        return (long) (clip.length() / actionAfter);
     }
 
     /**

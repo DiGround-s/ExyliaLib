@@ -44,7 +44,14 @@ public final class ModelRuntime {
     /** Cubes multiplied by viewers, now. */
     private static final AtomicInteger LOAD = new AtomicInteger();
 
+    /** Where the near and middle distances end, in blocks. */
+    static final double NEAR_RANGE = 16;
+    static final double MID_RANGE = 32;
+    /** How far past a distance's edge a viewer must be before they are drawn at the next. */
+    static final double TIER_MARGIN = 2;
+
     /** Above this share of the ceiling, viewers are drawn a step further away. */
+
     static final double PRESSURE_STEP = 0.75;
 
     private static final Map<Integer, LiveModel> CARRIERS = new ConcurrentHashMap<>();
@@ -69,6 +76,28 @@ public final class ModelRuntime {
             sweep.cancel();
         }
         sweep = Tasks.of(library).runAsyncTimer(20L, 20L, ModelRuntime::sweep);
+    }
+
+    /**
+     * The distance a viewer is drawn at, from how far they are and where they were
+     * drawn: past an edge by {@link #TIER_MARGIN} before they move, so a viewer
+     * standing on one does not swap the small cubes in and out.
+     *
+     * @param distance blocks away
+     * @param current  the distance they were drawn at ({@code 0} near, {@code 1}, {@code 2} far), or
+     *                 {@code -1} for somebody new
+     */
+    static int tier(double distance, int current) {
+        int tier = distance <= NEAR_RANGE ? 0 : distance <= MID_RANGE ? 1 : 2;
+        if (current < 0 || tier == current) {
+            return tier;
+        }
+        if (tier > current) {
+            double edge = current == 0 ? NEAR_RANGE : MID_RANGE;
+            return distance <= edge + TIER_MARGIN ? current : tier;
+        }
+        double edge = current == 2 ? MID_RANGE : NEAR_RANGE;
+        return distance > edge - TIER_MARGIN ? current : tier;
     }
 
     /**

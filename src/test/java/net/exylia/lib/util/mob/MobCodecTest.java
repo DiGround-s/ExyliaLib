@@ -318,4 +318,45 @@ class MobCodecTest {
         assertFalse(problems.isEmpty());
         assertTrue(MobTemplate.of("w", org.bukkit.entity.EntityType.ZOMBIE).withModel(odd).model().has());
     }
+
+    @Test
+    @DisplayName("model tweaks round-trip, and a model without them stores as before")
+    void tweaksRoundTrip() {
+        net.exylia.lib.model.ModelTweaks tweaks = net.exylia.lib.model.ModelTweaks.NONE
+                .withOffset(0, -0.25, 0.5)
+                .withBone("Cape", net.exylia.lib.model.ModelTweaks.Bone.HIDDEN)
+                .withBone("crown", new net.exylia.lib.model.ModelTweaks.Bone(false, "minecraft:GOLD_BLOCK"))
+                .withSpeed("walk", 1.25)
+                .withSpeed("idle", 1)
+                .withHitbox(2, 3.5);
+        MobModel model = MobModel.of("king").withTweaks(tweaks);
+
+        String stored = MobCodec.encodeModel(model);
+
+        assertEquals("{\"model\":\"king\",\"tweaks\":{\"offset\":[0.0,-0.25,0.5],"
+                + "\"bones\":{\"cape\":{\"hidden\":true},\"crown\":{\"material\":\"gold_block\"}},"
+                + "\"speeds\":{\"walk\":1.25},\"hitbox\":[2.0,3.5]}}", stored);
+        assertEquals(model, MobCodec.decodeModel(stored, this::problem));
+        assertEquals(1.25, model.options().tweaks().speed("WALK"));
+        assertEquals("{\"model\":\"wisp\"}", MobCodec.encodeModel(MobModel.of("wisp")
+                .withTweaks(net.exylia.lib.model.ModelTweaks.NONE.withSpeed("walk", 1))));
+        assertEquals(net.exylia.lib.model.ModelTweaks.NONE,
+                MobCodec.decodeModel("{\"model\":\"wisp\",\"tweaks\":7}", this::problem).tweaks());
+    }
+
+    @Test
+    @DisplayName("a phase's model size and outline round-trip, and old phases keep the model as it is")
+    void phaseLookRoundTrip() {
+        MobFight fight = new MobFight(Duration.ZERO, Map.of(),
+                List.of(new MobPhase(0.5, "", "", 1, 1, 1, 1.3, "#ff3b3b"), new MobPhase(0.2, "", "", 1, 1, 1)));
+
+        MobFight read = MobCodec.decodeFight(MobCodec.encodeFight(fight), this::problem);
+
+        assertEquals(fight, read);
+        assertEquals(1.3, read.phases().get(0).size());
+        assertEquals(0xFF3B3B, read.phases().get(0).glowColour());
+        assertEquals(-1, read.phases().get(1).glowColour());
+        assertEquals(0xFF5555, new MobPhase(0.5, "", "", 1, 1, 1, 1, "red").glowColour());
+        assertEquals(-1, new MobPhase(0.5, "", "", 1, 1, 1, 1, "sparkly").glowColour());
+    }
 }

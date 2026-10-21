@@ -24,18 +24,43 @@ import org.jetbrains.annotations.NotNull;
  * @param speed  its movement speed times this, {@code 0.1-10}
  * @param damage its attack damage times this, {@code 0.1-10}
  * @param resist the damage it takes is divided by this, {@code 0.1-10}; health mode only
+ * @param size   a model mob is drawn this many times its size, {@code 0.1-4} (since 1.321.0)
+ * @param glow   a model mob is outlined in this colour, {@code #rrggbb} or a named text colour;
+ *               blank for none (since 1.321.0)
  * @since 1.198.0
  */
 public record MobPhase(double below, @NotNull String style, @NotNull String suffix,
-                       double speed, double damage, double resist) {
+                       double speed, double damage, double resist, double size, @NotNull String glow) {
+
+    /** A phase that leaves the model as it is, as 1.198.0 had it. */
+    public MobPhase(double below, @NotNull String style, @NotNull String suffix, double speed, double damage,
+                    double resist) {
+        this(below, style, suffix, speed, damage, resist, 1, "");
+    }
 
     public MobPhase {
+        size = Double.isFinite(size) && size > 0 ? Math.max(0.1, Math.min(4, size)) : 1;
+        glow = glow == null ? "" : glow.trim();
         below = Double.isFinite(below) ? Math.max(0, Math.min(1, below)) : 0;
         style = style == null ? "" : style.trim();
         suffix = suffix == null ? "" : suffix.strip();
         speed = multiplier(speed);
         damage = multiplier(damage);
         resist = multiplier(resist);
+    }
+
+    /**
+     * The outline colour, as {@code 0xRRGGBB}.
+     *
+     * @return the colour, or {@code -1} for none or a name that is no colour
+     * @since 1.321.0
+     */
+    public int glowColour() {
+        if (glow.isEmpty()) return -1;
+        net.kyori.adventure.text.format.TextColor colour = glow.startsWith("#")
+                ? net.kyori.adventure.text.format.TextColor.fromHexString(glow)
+                : net.kyori.adventure.text.format.NamedTextColor.NAMES.value(glow.toLowerCase(java.util.Locale.ROOT));
+        return colour == null ? -1 : colour.value();
     }
 
     private static double multiplier(double value) {

@@ -33,7 +33,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Tuner](tuner.md) | Fine adjustment with the mouse wheel: named axes, steps, snap, a boss-bar HUD and a live preview, saved or put back at the end | 1.298.0 |
 | [NPCs](npcs.md) | Player-shaped entities that exist only on a client — a body where somebody died, a statue, a double | 1.88.2 |
 | [Ragdolls](ragdolls.md) | Bodies that come apart into their own pieces, each one solved in advance and drawn by the client | 1.120.0 |
-| [Models](models.md) | 3D models made in Blockbench worn by living entities, with no resource pack: bones, state animations with blending and events, textured heads, own hitboxes, distance tiers and a server ceiling, death animations and coming apart | 1.317.0 |
+| [Models](models.md) | 3D models made in Blockbench worn by living entities, with no resource pack: bones, state animations with blending and events, textured heads, own hitboxes, distance tiers and a server ceiling, death animations; feet on the ground, cubes that bounce apart, casts fitted to wind-ups, fight phases, tweaks and their editor (1.321.0) | 1.317.0 |
 | [Replays](replays.md) | Recording what happened and watching it again — the server's own state, sampled every tick, played back as packet bodies on the screens that asked for it, arena and debris included | 1.175.0 |
 | [Cameras](cameras.md) | Showing a player themselves from outside — a shot solved in advance, drawn by the client, and always given back | 1.172.0 |
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client; restyled, retargeted from their pose on screen and shown to a tracked audience while they play since 1.272.0 | 1.85.0 |

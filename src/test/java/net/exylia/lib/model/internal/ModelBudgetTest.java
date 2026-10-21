@@ -34,4 +34,17 @@ class ModelBudgetTest {
         ModelRuntime.load(10_000_000);
         assertEquals(0, ModelRuntime.pressure());
     }
+
+    @Test
+    void aViewerOnAnEdgeIsNotSwappedBackAndForth() {
+        assertEquals(0, ModelRuntime.tier(10, -1));
+        assertEquals(1, ModelRuntime.tier(17, -1), "somebody new is drawn where they are");
+        assertEquals(0, ModelRuntime.tier(17, 0), "a near viewer stays near just past the edge");
+        assertEquals(1, ModelRuntime.tier(18.5, 0));
+        assertEquals(1, ModelRuntime.tier(15, 1), "a middle viewer stays in the middle just inside it");
+        assertEquals(0, ModelRuntime.tier(13.5, 1));
+        assertEquals(2, ModelRuntime.tier(40, 0), "a jump past both edges lands far");
+        assertEquals(2, ModelRuntime.tier(31, 2));
+        assertEquals(0, ModelRuntime.tier(5, 2));
+    }
 }
