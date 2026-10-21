@@ -12,6 +12,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import net.exylia.lib.nametag.NametagStyle;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
@@ -198,13 +199,13 @@ final class NametagPackets extends PacketListenerAbstract implements NametagSink
         byte flags = (byte) (0x01 | (style.seeInvisible() ? 0x02 : 0x00));
         return new WrapperPlayServerTeams.ScoreBoardTeamInfo(
                 Component.empty(),
-                Component.empty(),
-                Component.empty(),
+                style.prefix() == null ? Component.empty() : style.prefix(),
+                style.suffix() == null ? Component.empty() : style.suffix(),
                 WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
                 style.collides()
                         ? WrapperPlayServerTeams.CollisionRule.ALWAYS
                         : WrapperPlayServerTeams.CollisionRule.NEVER,
-                style.colour(),
+                style.colour() == null ? NamedTextColor.WHITE : style.colour(),
                 WrapperPlayServerTeams.OptionData.fromValue(flags));
     }
 

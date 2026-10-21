@@ -54,6 +54,19 @@ than creating a second team that draws identically.
 Glow is deliberately not part of the team name. It rides on entity flags rather
 than on the team, so two styles that differ only by it still share one.
 
+## Prefix and suffix (since 1.330.0)
+
+```java
+tags.paint(viewer, tagged, NametagStyle.of(NamedTextColor.RED)
+        .withPrefix(Text.of("{error}⚔ ").build())
+        .withSuffix(Text.of(" {muted}[COMBAT]").build()));
+```
+
+Text before and after the name rides on the same team as the colour, so it is
+per viewer too and costs the same packets. A style with a prefix or suffix but
+no colour draws the name white. Team names stay within 16 characters: a style
+carrying text is named by a hash of colour, prefix and suffix.
+
 ## A glow without a team
 
 ```java

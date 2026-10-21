@@ -1,5 +1,6 @@
 package net.exylia.lib.nametag;
 
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,14 +32,30 @@ import org.jetbrains.annotations.Nullable;
  * @param seeInvisible whether an invisible player is still faintly drawn
  * @param glowing      whether the player is outlined through walls
  * @param collides     whether the player can be pushed
+ * @param prefix       text drawn before the name, or {@code null} for none (since 1.330.0)
+ * @param suffix       text drawn after the name, or {@code null} for none (since 1.330.0)
  * @since 1.36.0
  */
 public record NametagStyle(
         @Nullable NamedTextColor colour,
         boolean seeInvisible,
         boolean glowing,
-        boolean collides
+        boolean collides,
+        @Nullable Component prefix,
+        @Nullable Component suffix
 ) {
+
+    /**
+     * A style without prefix or suffix, the shape this record had before 1.330.0.
+     *
+     * @param colour       the name colour, or {@code null} to leave the name alone
+     * @param seeInvisible whether an invisible player is still faintly drawn
+     * @param glowing      whether the player is outlined through walls
+     * @param collides     whether the player can be pushed
+     */
+    public NametagStyle(@Nullable NamedTextColor colour, boolean seeInvisible, boolean glowing, boolean collides) {
+        this(colour, seeInvisible, glowing, collides, null, null);
+    }
 
     /**
      * A style with just a colour: visible when invisible is off, no glow, and
@@ -81,7 +98,7 @@ public record NametagStyle(
      * @return the new style
      */
     public @NotNull NametagStyle showingInvisible() {
-        return new NametagStyle(colour, true, glowing, collides);
+        return new NametagStyle(colour, true, glowing, collides, prefix, suffix);
     }
 
     /**
@@ -90,7 +107,7 @@ public record NametagStyle(
      * @return the new style
      */
     public @NotNull NametagStyle withCollision() {
-        return new NametagStyle(colour, seeInvisible, glowing, true);
+        return new NametagStyle(colour, seeInvisible, glowing, true, prefix, suffix);
     }
 
     /**
@@ -103,7 +120,45 @@ public record NametagStyle(
      * @return the new style
      */
     public @NotNull NametagStyle withGlow() {
-        return new NametagStyle(colour, seeInvisible, true, collides);
+        return new NametagStyle(colour, seeInvisible, true, collides, prefix, suffix);
+    }
+
+    /**
+     * Returns this style with text drawn before the name, such as a
+     * {@code [COMBAT]} tag.
+     *
+     * <p>Like the colour, a prefix is carried by a scoreboard team, so it takes
+     * the player out of whatever team a tab or nametag plugin put them in for
+     * this viewer while it is painted.
+     *
+     * @param prefix the text, or {@code null} for none
+     * @return the new style
+     * @since 1.330.0
+     */
+    public @NotNull NametagStyle withPrefix(@Nullable Component prefix) {
+        return new NametagStyle(colour, seeInvisible, glowing, collides, prefix, suffix);
+    }
+
+    /**
+     * Returns this style with text drawn after the name.
+     *
+     * @param suffix the text, or {@code null} for none
+     * @return the new style
+     * @see #withPrefix(Component)
+     * @since 1.330.0
+     */
+    public @NotNull NametagStyle withSuffix(@Nullable Component suffix) {
+        return new NametagStyle(colour, seeInvisible, glowing, collides, prefix, suffix);
+    }
+
+    /**
+     * Whether this style needs a scoreboard team: a colour, a prefix or a suffix.
+     *
+     * @return {@code true} when painting it sends a team
+     * @since 1.330.0
+     */
+    public boolean needsTeam() {
+        return colour != null || prefix != null || suffix != null;
     }
 
     /**
@@ -122,7 +177,7 @@ public record NametagStyle(
      *         style has no colour and so needs no team
      */
     public @Nullable String teamName() {
-        if (colour == null) {
+        if (!needsTeam()) {
             // Nothing a team carries — colour, invisibility, collision — was
             // asked for, so sending one would only take the player out of the
             // team somebody else put them in.
@@ -130,9 +185,13 @@ public record NametagStyle(
         }
         // Glow is deliberately absent: it rides on entity flags, not on the
         // team, so two styles that differ only by it can share one.
-        return "exy_"
-                + (seeInvisible ? 'i' : '_')
-                + (collides ? 'c' : '_')
-                + '_' + Integer.toHexString(colour.value());
+        String flags = (seeInvisible ? "i" : "_") + (collides ? "c" : "_");
+        if (prefix == null && suffix == null) {
+            return "exy_" + flags + '_' + Integer.toHexString(colour.value());
+        }
+        // Text cannot fit in a 16 character name, so a style that carries some
+        // is named by a hash of everything the team draws.
+        int hash = java.util.Objects.hash(colour, prefix, suffix);
+        return "ext" + flags + Integer.toString(hash & 0x7fffffff, 36);
     }
 }
