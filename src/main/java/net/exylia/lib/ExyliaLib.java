@@ -731,6 +731,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.log.Logs.releaseAll();
         net.exylia.lib.settings.internal.SettingsRuntime.releaseAll();
         net.exylia.lib.player.Accounts.releaseAll();
+        // Writes everybody's time while the database is still open: on a full
+        // stop the players are still online when plugins are disabled.
+        net.exylia.lib.playtime.Playtime.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
         // thread must stop before the pool that feeds it is closed.
         Channels.releaseAll();
@@ -787,6 +790,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.actionbar.internal.ActionBarRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
+        net.exylia.lib.playtime.Playtime.left(event.getPlayer());
         net.exylia.lib.settings.internal.SettingsRuntime.left(event.getPlayer().getUniqueId());
         net.exylia.lib.modifier.internal.ModifierRuntime.forget(event.getPlayer().getUniqueId());
         // Before the menu module: an editor is a window, and a player who left
@@ -869,6 +873,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // read before (an offline payout) knew none of them.
         net.exylia.lib.modifier.internal.ModifierRuntime.forget(id);
         net.exylia.lib.player.Accounts.joined(player);
+        net.exylia.lib.playtime.Playtime.joined(player);
         net.exylia.lib.actionbar.internal.ActionBarRuntime.joined(player);
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
@@ -1157,6 +1162,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.log.Logs.release(plugin);
         net.exylia.lib.settings.internal.SettingsRuntime.release(plugin);
         net.exylia.lib.player.Accounts.release(plugin);
+        // Writes the host's players' time through its database before it closes,
+        // then hands hosting to the next plugin that opened it.
+        net.exylia.lib.playtime.Playtime.release(plugin);
         // Here rather than in the event, so a plugin can still announce its
         // own shutdown from onDisable; before the datasources it shares a
         // client with.

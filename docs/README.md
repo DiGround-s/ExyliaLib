@@ -48,6 +48,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |
+| [Playtime](playtime.md) | How long a player has actually played on the whole network: one tracker per server shared by every plugin, idle time dropped, a once-a-minute hook for milestones | 1.341.0 |
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it; items thrown out at a spot with `giveDropping` since 1.191.0 | 1.34.0 |
 | [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
 | [Stays](stays.md) | A player kept in an arena or on a board and given back exactly as they came — claim, snapshot, teleport and restore in the one order that works; `DeathDrops` (whose a death's drops are) since 1.322.0 | 1.292.0 |
