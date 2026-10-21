@@ -267,6 +267,64 @@ public final class LiveMob {
         this.model = model;
     }
 
+    private volatile long strikingUntil;
+
+    /** Whether one of its own attacks is swinging: the blow it lands is that swing, not a new one. */
+    public boolean striking() {
+        return System.currentTimeMillis() < strikingUntil;
+    }
+
+    public void striking(long until) {
+        strikingUntil = until;
+    }
+
+    /** Ground walked since the last step sound, in blocks. */
+    private double strode;
+    private double lastX = Double.NaN;
+    private double lastZ;
+    private long nextAmbientAt;
+
+    /**
+     * Ground walked since the last call, added to the stride.
+     *
+     * @return whether a stride of {@code length} blocks is complete, which resets it
+     */
+    public boolean stride(double x, double z, boolean onGround, double length) {
+        double moved = Double.isNaN(lastX) ? 0 : Math.hypot(x - lastX, z - lastZ);
+        lastX = x;
+        lastZ = z;
+        // A teleport or a knock is no step.
+        if (!onGround || moved > 1.5) {
+            return false;
+        }
+        strode += moved;
+        if (strode < length) {
+            return false;
+        }
+        strode = 0;
+        return true;
+    }
+
+    /**
+     * Whether its ambient sound is due, every {@code seconds} on average; the
+     * first comes a random part of that after it spawns.
+     */
+    public boolean ambientDue(long now, double seconds, java.util.random.RandomGenerator random) {
+        if (!(seconds > 0)) {
+            return false;
+        }
+        long gap = (long) (seconds * 1000 * random.nextDouble(0.5, 1.5));
+        if (nextAmbientAt == 0) {
+            nextAmbientAt = now + gap;
+            return false;
+        }
+        if (now < nextAmbientAt) {
+            return false;
+        }
+        nextAmbientAt = now + gap;
+        return true;
+    }
+
     public @NotNull String variantShown() {
         return variant;
     }

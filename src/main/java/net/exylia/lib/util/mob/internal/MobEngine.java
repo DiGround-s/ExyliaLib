@@ -10,9 +10,12 @@ import net.exylia.lib.text.Text;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.Loadout;
+import net.exylia.lib.model.Model;
 import net.exylia.lib.model.ModelInstance;
 import net.exylia.lib.model.ModelState;
 import net.exylia.lib.model.Models;
+import net.exylia.lib.model.PluginModels;
+import net.exylia.lib.model.internal.Voices;
 import net.exylia.lib.util.mob.MobDeath;
 import net.exylia.lib.util.mob.MobModel;
 import net.exylia.lib.util.mob.MobFlag;
@@ -130,6 +133,9 @@ public final class MobEngine implements Listener {
 
     /** The red a model mob flashes when hit. */
     private static final int HURT_FLASH = 0xFF4A4A;
+
+    /** The orange it flashes when fire hurts it. */
+    private static final int BURN_FLASH = 0xFF8A00;
 
     /** How often each mob's timer runs: lifetime, leash, look cycles, hunting and interval skills, in ticks. */
     private static final long PERIOD = 20L;
@@ -401,7 +407,8 @@ public final class MobEngine implements Listener {
         World world = location.getWorld();
         if (world == null) throw new IllegalArgumentException("the location has no world");
 
-        LivingEntity entity = spawn(world, location, type.asSubclass(LivingEntity.class), template);
+        Model worn = modelFor(template);
+        LivingEntity entity = spawn(world, location, type.asSubclass(LivingEntity.class), template, worn);
         if (!entity.isValid()) {
             // Another plugin cancelled the spawn event: a region that forbids
             // mobs, a spawn limiter. Reported to the caller, who asked for a mob.
@@ -412,8 +419,9 @@ public final class MobEngine implements Listener {
         AttributeInstance movement = instance(entity, "movement_speed");
         // The base, not the value: a potion's modifier would otherwise be baked in by a SPEED skill.
         mob.baseSpeed(movement == null ? Double.NaN : movement.getBaseValue());
+        // The model before the look: an outline goes on the model, not on the hidden body.
+        wear(entity, mob, worn);
         look(entity, mob, true);
-        wear(entity, mob);
         // Only a mob that draws something every other tick pays for the fast
         // timer; the rest keep the one-second one they always had.
         boolean fast = fast(template);
@@ -422,18 +430,38 @@ public final class MobEngine implements Listener {
         mob.timer(tasks.runAtEntityTimer(entity, period, period, () -> tick(entity, mob, fast)));
         live.put(entity.getUniqueId(), mob);
         fire(MobSkill.Trigger.SPAWN, entity, mob, null);
-        if (entrance) reactions.spawn(entity, mob);
+        // A model has its own entrance: the vanilla ones hide and show the body under it.
+        boolean ownEntrance = mob.model() != null && template.look().spawn().equals(MobLook.AUTO);
+        if (entrance && !ownEntrance) reactions.spawn(entity, mob);
         return entity;
     }
 
-    private <T extends LivingEntity> T spawn(World world, Location location, Class<T> type, MobTemplate template) {
+    private <T extends LivingEntity> T spawn(World world, Location location, Class<T> type, MobTemplate template,
+                                             @Nullable Model worn) {
         // Without the vanilla randomising: no rolled armour, no baby zombie on
         // a chicken. What the template says is all the mob is.
-        return world.spawn(location, type, false, entity -> prepare(entity, template));
+        return world.spawn(location, type, false, entity -> prepare(entity, template, worn));
+    }
+
+    /**
+     * The model a template wears, read now; {@code null} for its vanilla body,
+     * when it names none or one that cannot be drawn (reported once).
+     */
+    private @Nullable Model modelFor(MobTemplate template) {
+        MobModel worn = template.model();
+        if (!worn.has()) return null;
+        PluginModels models = Models.of(plugin);
+        Model model = models.isSupported() ? models.model(worn.model()) : null;
+        if (model == null) {
+            report("model:" + template.id() + ":" + worn.model(), "Mob " + template.id()
+                    + ": there is no model " + worn.model() + " in plugins/" + plugin.getName()
+                    + "/models, or the server has no PacketEvents; it wears its vanilla body.");
+        }
+        return model;
     }
 
     /** Everything a template sets, applied before the mob is in the world. */
-    private void prepare(LivingEntity entity, MobTemplate template) {
+    private void prepare(LivingEntity entity, MobTemplate template, @Nullable Model worn) {
         entity.setPersistent(false);
         entity.setRemoveWhenFarAway(false);
         entity.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, prefix + template.id());
@@ -470,10 +498,20 @@ public final class MobEngine implements Listener {
             }
         }
 
-        entity.setGlowing(template.has(MobFlag.GLOWING) || !template.look().glow().isEmpty());
-        entity.setSilent(template.has(MobFlag.SILENT));
-        if (template.has(MobFlag.BABY) && entity instanceof Ageable ageable) ageable.setBaby();
-        if (template.has(MobFlag.NO_ITEM_PICKUP)) entity.setCanPickupItems(false);
+        if (worn != null) {
+            // Nothing of the vanilla body may show, not even for the tick before the model is on:
+            // its outline is the model's, its voice is the template's own sounds.
+            entity.setInvisible(true);
+            entity.setSilent(true);
+            entity.setGlowing(false);
+            entity.setCanPickupItems(false);
+            entity.setFireTicks(0);
+        } else {
+            entity.setGlowing(template.has(MobFlag.GLOWING) || !template.look().glow().isEmpty());
+            entity.setSilent(template.has(MobFlag.SILENT));
+            if (template.has(MobFlag.BABY) && entity instanceof Ageable ageable) ageable.setBaby();
+            if (template.has(MobFlag.NO_ITEM_PICKUP)) entity.setCanPickupItems(false);
+        }
 
         for (ParsedEffect effect : template.effects()) {
             PotionEffect potion = potion(effect);
@@ -496,7 +534,7 @@ public final class MobEngine implements Listener {
 
     static boolean fast(MobTemplate template) {
         return !template.look().aura().isEmpty() || template.name().contains("<rainbow>")
-                || template.has(MobFlag.WANDERS);
+                || template.has(MobFlag.WANDERS) || !template.model().sounds().step().isEmpty();
     }
 
     private void tick(LivingEntity entity, LiveMob mob, boolean fast) {
@@ -510,6 +548,7 @@ public final class MobEngine implements Listener {
             if (aura != null) play(aura[phase % FRAMES], entity.getLocation(), entity);
             if (phase % 2 == 0 && mob.template().name().contains("<rainbow>")) name(entity, mob);
             if (mob.template().has(MobFlag.WANDERS)) wander(entity, mob);
+            step(entity, mob);
             if (phase % PER_SECOND != 0) return;
         }
         second(entity, mob);
@@ -523,6 +562,10 @@ public final class MobEngine implements Listener {
         }
         leash(entity, mob);
         bar(entity, mob);
+        if (mob.model() != null && mob.ambientDue(System.currentTimeMillis(), mob.template().model().sounds().every(),
+                ThreadLocalRandom.current())) {
+            Voices.play(mob.template().model().sounds().ambient(), entity.getLocation());
+        }
         int seconds = mob.second();
         look(entity, mob, false);
         reactions.low(entity, mob, seconds);
@@ -553,7 +596,9 @@ public final class MobEngine implements Listener {
         if (mob == null) return;
         // The plain event, not its by-block or by-entity kinds, is daylight.
         boolean sun = event.getClass() == EntityCombustEvent.class;
-        if (mob.template().has(MobFlag.FIRE_IMMUNE) || (sun && mob.template().has(MobFlag.NO_SUN_BURN))) {
+        // A model mob never burns: the client draws the flames at the hidden body's size.
+        if (mob.model() != null || mob.template().has(MobFlag.FIRE_IMMUNE)
+                || (sun && mob.template().has(MobFlag.NO_SUN_BURN))) {
             event.setCancelled(true);
         }
     }
@@ -567,7 +612,11 @@ public final class MobEngine implements Listener {
             LiveMob hitter = live.get(attacker.getUniqueId());
             if (hitter != null) {
                 fire(MobSkill.Trigger.ATTACK, attacker, hitter, hurt);
-                act(hitter, ModelState.ATTACK);
+                // Its own blow, not its arrow landing far away; an attack of its own already swung.
+                if (damager == attacker && !hitter.striking()) {
+                    act(hitter, ModelState.ATTACK);
+                    if (hitter.model() != null) Voices.play(hitter.template().model().sounds().attack(), attacker.getLocation());
+                }
             }
         }
 
@@ -581,6 +630,14 @@ public final class MobEngine implements Listener {
         double after = health - dealt;
         reactions.hurt(entity, mob, Math.min(dealt, health), critical(event), damager, after <= 0);
         if (after > 0) flinch(mob);
+        if (mob.model() != null && after > 0 && burns(event.getCause())) {
+            // The model takes the flames the body never shows.
+            mob.model().flash(BURN_FLASH, 300);
+        }
+        if (mob.model() != null && dealt > 0) {
+            Voices.play(after > 0 ? mob.template().model().sounds().hurt() : mob.template().model().sounds().death(),
+                    entity.getLocation());
+        }
         Player player = damager instanceof Player direct ? direct
                 : damager instanceof Projectile projectile && projectile.getShooter() instanceof Player shooter
                 ? shooter : null;
@@ -657,6 +714,7 @@ public final class MobEngine implements Listener {
         if (!broken) {
             reactions.hit(entity, mob, player, left);
             flinch(mob);
+            if (mob.model() != null) Voices.play(mob.template().model().sounds().hurt(), entity.getLocation());
         }
         // The breaking hit still looks and sounds like a hit; nothing else is
         // cast on a mob that is about to go.
@@ -704,6 +762,7 @@ public final class MobEngine implements Listener {
         tell(new MobDeath(template, entity, at, killer, mob.damage(), mob.topDamager(), mob.playerShare(), cause));
         // Drawn while it still stands; removed straight after, so there is no body to hide.
         if (cause == MobDeath.Cause.BROKEN) {
+            if (mob.model() != null) Voices.play(template.model().sounds().death(), at);
             if (!modelDies(entity, mob, killer)) reactions.death(entity, mob, killer);
         } else if (mob.model() != null) {
             mob.model().remove();
@@ -739,20 +798,27 @@ public final class MobEngine implements Listener {
         mob.end();
         caster.cancel(mob);
         MobTemplate template = mob.template();
-        if (template.has(MobFlag.NO_VANILLA_DROPS)) event.getDrops().clear();
+        boolean modelled = mob.model() != null;
+        // A model mob's vanilla loot would be the hidden body's: rotten flesh off a stone golem.
+        if (modelled || template.has(MobFlag.NO_VANILLA_DROPS)) event.getDrops().clear();
         // What the look put on its back is equipment, and equipment never drops.
         Material worn = mob.bodyShown().isEmpty() ? null : Material.matchMaterial(mob.bodyShown());
         if (worn != null) event.getDrops().removeIf(drop -> drop != null && drop.getType() == worn);
         unglow(entity.getUniqueId(), mob.glowShown());
         bars.hide(entity.getUniqueId());
-        if (template.has(MobFlag.NO_VANILLA_EXP)) event.setDroppedExp(0);
+        if (modelled || template.has(MobFlag.NO_VANILLA_EXP)) event.setDroppedExp(0);
         event.setDroppedExp(event.getDroppedExp() + template.exp());
 
         Player killer = entity.getKiller();
         fire(MobSkill.Trigger.DEATH, entity, mob, killer, false);
         tell(new MobDeath(template, entity, entity.getLocation(), killer,
                 mob.damage(), mob.topDamager(), mob.playerShare(), MobDeath.Cause.KILLED));
-        if (!modelDies(entity, mob, killer) && reactions.death(entity, mob, killer)) reactions.hideBody(entity);
+        if (modelDies(entity, mob, killer)) {
+            // The model plays its death on its own; the body goes before it can fall over or puff.
+            reactions.hideBody(entity);
+        } else if (reactions.death(entity, mob, killer)) {
+            reactions.hideBody(entity);
+        }
     }
 
     /** A slime splitting or a zombie drowning would be a vanilla mob wearing our tag. */
@@ -1285,16 +1351,27 @@ public final class MobEngine implements Listener {
     // ------------------------------------------------------------------ model
 
     /** Puts on the template's model, as it spawns; one that is missing is reported once and the body stays. */
-    private void wear(LivingEntity entity, LiveMob mob) {
-        MobModel worn = mob.template().model();
-        if (!worn.has()) return;
-        ModelInstance model = Models.of(plugin).attach(entity, worn.model(), worn.options());
-        if (model == null) {
-            report("model:" + mob.template().id() + ":" + worn.model(), "Mob " + mob.template().id()
-                    + ": there is no model " + worn.model() + " in plugins/" + plugin.getName()
-                    + "/models, or the server has no PacketEvents; it wears its vanilla body.");
+    private void wear(LivingEntity entity, LiveMob mob, @Nullable Model model) {
+        if (model == null) return;
+        ModelInstance live = Models.of(plugin).attach(entity, model, mob.template().model().options());
+        if (live == null) {
+            // Prepared for a model it could not put on: the body shows after all.
+            entity.setInvisible(false);
+            report("model:" + mob.template().id() + ":" + model.name(), "Mob " + mob.template().id()
+                    + ": its model " + model.name() + " could not be drawn; it wears its vanilla body.");
         }
-        mob.model(model);
+        mob.model(live);
+    }
+
+    /** A step sound each stride on the ground, a stride being a little longer than the model is wide. */
+    private void step(LivingEntity entity, LiveMob mob) {
+        ModelInstance model = mob.model();
+        if (model == null) return;
+        String step = mob.template().model().sounds().step();
+        if (step.isEmpty()) return;
+        Location at = entity.getLocation();
+        double stride = Math.clamp(model.model().width() * mob.template().model().scale() * 0.9, 0.6, 3);
+        if (mob.stride(at.getX(), at.getZ(), entity.isOnGround(), stride)) Voices.play(step, at);
     }
 
     /** Plays a state on the mob's model, when it wears one. */
@@ -1544,9 +1621,17 @@ public final class MobEngine implements Listener {
     private void glow(LivingEntity entity, LiveMob mob, String colour) {
         String shown = mob.glowShown();
         if (colour.equalsIgnoreCase(shown)) return;
-        if (NamedTextColor.NAMES.value(colour.toLowerCase(Locale.ROOT)) == null) {
+        NamedTextColor named = NamedTextColor.NAMES.value(colour.toLowerCase(Locale.ROOT));
+        if (named == null) {
             report("glow:" + mob.template().id() + ":" + colour, "Mob " + mob.template().id()
                     + ": no colour " + colour + " for its outline; it stays white.");
+            return;
+        }
+        ModelInstance model = mob.model();
+        if (model != null) {
+            // The hidden body's outline would draw its vanilla shape inside the model.
+            model.glow(named.value());
+            mob.glowShown(colour);
             return;
         }
         UUID id = entity.getUniqueId();
@@ -1660,6 +1745,17 @@ public final class MobEngine implements Listener {
      * @param ticks  how long; {@code 0} keeps it
      */
     void flare(LivingEntity entity, LiveMob mob, String colour, long ticks) {
+        ModelInstance model = mob.model();
+        if (model != null) {
+            NamedTextColor named = NamedTextColor.NAMES.value(colour.toLowerCase(Locale.ROOT));
+            if (named == null) return;
+            if (ticks > 0) {
+                model.flash(named.value(), ticks * 50);
+            } else {
+                glow(entity, mob, colour);
+            }
+            return;
+        }
         boolean glowing = entity.isGlowing();
         String before = mob.glowShown();
         entity.setGlowing(true);
@@ -1695,6 +1791,13 @@ public final class MobEngine implements Listener {
         PotionEffectType type = PotionEffectType.getByName(effect.name());
         return type == null ? null : new PotionEffect(type, effect.duration(), effect.amplifier(),
                 effect.ambient(), effect.particles(), effect.icon());
+    }
+
+    private static boolean burns(EntityDamageEvent.DamageCause cause) {
+        return switch (cause) {
+            case FIRE, FIRE_TICK, LAVA, HOT_FLOOR, CAMPFIRE -> true;
+            default -> false;
+        };
     }
 
     /** A player's critical hit; Spigot cannot say, so there it never is one. */

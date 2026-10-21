@@ -657,9 +657,9 @@ The engine plays it with no code in the plugin:
 
 | When | State |
 | --- | --- |
-| It spawns | `spawn`, and its entrance reaction still plays around it |
+| It spawns | `spawn`; since 1.324.0 the look's entrance only plays when one is chosen (not `auto`), since the vanilla entrances hide and show the body |
 | It moves | `idle`, `walk`, `run`, from its speed |
-| It lands a blow | `attack` |
+| It lands a blow with its own body | `attack`; since 1.324.0 not when its arrow or fireball lands |
 | It takes a hit (health or hits mode) | `hurt`, and a short red outline: the client never tints a display red |
 | A skill starts its cast | `cast:<the cast's name>`, or `cast:<the skill's type>` when the cast has none; since 1.321.0 fitted to the wind-up, so it strikes (its `release` key, else `impact`, else its end) as the skill lands |
 | It enters a fight phase | that phase's own animations, size and outline (since 1.321.0) |
@@ -687,6 +687,31 @@ with defaults left out and `null` for none. Since 1.321.0 `MobModel.tweaks`
 `tweaks`, `{"offset":[0,-0.2,0],"bones":{"cape":{"hidden":true}},"speeds":{"walk":1.3},"hitbox":[2,3]}`;
 the five-argument constructor is kept and means none. Edit them with
 `Models.of(plugin).tweakEditor(model.model(), model.options())`.
+
+### Nothing of the vanilla body shows (since 1.324.0)
+
+The mob under a model is a carrier, and nothing of it reaches a player:
+
+| Leak | What the engine does |
+| --- | --- |
+| A frame of the vanilla body before the model is on | invisible in the spawn consumer, before it is in the world |
+| Its groans, steps, hurt and death sounds | silent; it speaks with `MobModel.sounds` (below) |
+| A zombie-shaped outline inside the model | the outline, the look's glow and a cast's flare go on the model |
+| A flame column at the vanilla size | it never catches fire; fire and lava still hurt it, and the model flashes orange |
+| Rotten flesh and vanilla experience | vanilla loot and experience are cleared; `exp` and the plugin's rewards stay |
+| The death tilt and the puff of smoke | the body is removed a tick after it dies, while the model plays its own death |
+| An attack animation when its arrow lands far away | `attack` plays only for a blow of its own body |
+| A floating model | the model casts a round shadow under it |
+
+A template whose model is missing keeps its vanilla body, and all of the
+above is skipped for it.
+
+`MobSounds` is the model mob's voice, stored under `sounds` in the model
+column: `ambient` (every `every` seconds on average), `step` (each stride on
+the ground, a stride being about the model's width), `hurt`, `death` and
+`attack`. Each is `sound|volume|pitch`, a Bukkit name or a key; blank is
+silent. A model's own animations can also play sounds and particles: see
+[models.md](models.md#events).
 
 ## Death
 

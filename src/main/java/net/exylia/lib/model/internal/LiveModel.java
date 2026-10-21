@@ -132,6 +132,8 @@ final class LiveModel implements ModelInstance {
     private final boolean wasInvisible;
 
     private final int rootId;
+    /** The root every cube rides, casting the model's shadow: an invisible carrier casts none. */
+    private final DisplayModel root;
     private final int nametagId;
     private final int[] ids;
     private final DisplayModel[] drawn;
@@ -218,6 +220,8 @@ final class LiveModel implements ModelInstance {
 
         int count = rig.parts().size();
         this.rootId = DisplayRuntime.nextEntityId();
+        double footprint = Math.max(rig.max()[0] - rig.min()[0], rig.max()[2] - rig.min()[2]) / 16.0 * options.scale();
+        this.root = ROOT.shadow((float) Math.clamp(footprint * 0.45, 0.3, 4), 0.8f);
         this.nametagId = options.nametag() ? DisplayRuntime.nextEntityId() : 0;
         this.ids = new int[count];
         this.drawn = new DisplayModel[count];
@@ -837,7 +841,7 @@ final class LiveModel implements ModelInstance {
         }
         List<Player> one = List.of(viewer);
         Location seat = new Location(world, x, y, z);
-        sink.spawn(one, rootId, ROOT, seat, STILL);
+        sink.spawn(one, rootId, root, seat, STILL);
         ModelPackets.glide(one, rootId, 2);
         for (int part = 0; part < ids.length; part++) {
             if (drawsAt(part, tier)) {
@@ -1243,6 +1247,7 @@ final class LiveModel implements ModelInstance {
     // ------------------------------------------------------------------ ending
 
     private void tell(String event) {
+        voice(event);
         for (Consumer<String> listener : listeners) {
             try {
                 listener.accept(event);
@@ -1251,6 +1256,36 @@ final class LiveModel implements ModelInstance {
                         failure);
             }
         }
+    }
+
+    /**
+     * Plays an event that names a sound or a particle, where it happens:
+     * {@code name@bone} at that bone, else in the model's middle.
+     */
+    private void voice(String event) {
+        World at = world;
+        if (at == null) {
+            return;
+        }
+        int split = event.lastIndexOf('@');
+        String name = split > 0 ? event.substring(0, split) : event;
+        double scale = options.scale() * carrierScale * size;
+        double ex = x;
+        double ey = y + (rig.max()[1] + rig.min()[1]) / 32.0 * scale;
+        double ez = z;
+        int bone = split > 0 ? rig.bone(event.substring(split + 1).trim()) : -1;
+        if (bone >= 0 && posed) {
+            List<Rig.Part> parts = rig.parts();
+            for (int part = 0; part < parts.size(); part++) {
+                if (parts.get(part).bone() == bone) {
+                    ex = x + poses[part][Poser.TX];
+                    ey = y + poses[part][Poser.TY];
+                    ez = z + poses[part][Poser.TZ];
+                    break;
+                }
+            }
+        }
+        Voices.event(name, new Location(at, ex, ey, ez));
     }
 
     private void dieNow(boolean apart) {

@@ -345,6 +345,23 @@ class MobCodecTest {
     }
 
     @Test
+    @DisplayName("a model's own sounds round-trip, and a silent model stores as before")
+    void soundsRoundTrip() {
+        MobModel model = MobModel.of("golem").withSounds(net.exylia.lib.util.mob.MobSounds.NONE
+                .withStep("minecraft:entity.iron_golem.step|1|0.7").withHurt(" ENTITY_IRON_GOLEM_HURT ")
+                .withEvery(12));
+
+        String stored = MobCodec.encodeModel(model);
+
+        assertEquals("{\"model\":\"golem\",\"sounds\":{\"step\":\"minecraft:entity.iron_golem.step|1|0.7\","
+                + "\"hurt\":\"ENTITY_IRON_GOLEM_HURT\",\"every\":12.0}}", stored);
+        assertEquals(model, MobCodec.decodeModel(stored, this::problem));
+        assertEquals("{\"model\":\"wisp\"}", MobCodec.encodeModel(MobModel.of("wisp")));
+        assertEquals(net.exylia.lib.util.mob.MobSounds.NONE,
+                MobCodec.decodeModel("{\"model\":\"wisp\",\"sounds\":3}", this::problem).sounds());
+    }
+
+    @Test
     @DisplayName("a phase's model size and outline round-trip, and old phases keep the model as it is")
     void phaseLookRoundTrip() {
         MobFight fight = new MobFight(Duration.ZERO, Map.of(),

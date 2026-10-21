@@ -195,4 +195,32 @@ class LiveMobTest {
         mob.active(null);
         assertNull(mob.active());
     }
+
+    @Test
+    @DisplayName("a step sounds once per stride on the ground, never for a knock or a jump")
+    void stride() {
+        LiveMob mob = mob();
+
+        assertFalse(mob.stride(0, 0, true, 1));
+        assertFalse(mob.stride(0.6, 0, true, 1));
+        assertTrue(mob.stride(1.2, 0, true, 1));
+        assertFalse(mob.stride(1.8, 0, true, 1));
+        assertFalse(mob.stride(4, 0, true, 1), "a knock of two blocks is no step");
+        assertFalse(mob.stride(4.9, 0, false, 1), "in the air");
+        assertFalse(mob.stride(5.3, 0, true, 1));
+        assertTrue(mob.stride(6.0, 0, true, 1));
+    }
+
+    @Test
+    @DisplayName("the ambient sound waits a random part of its gap, then repeats around it")
+    void ambient() {
+        LiveMob mob = mob();
+        java.util.Random fixed = new java.util.Random(4);
+
+        assertFalse(mob.ambientDue(1_000, 8, fixed), "never as it spawns");
+        assertFalse(mob.ambientDue(4_000, 8, fixed));
+        assertTrue(mob.ambientDue(14_000, 8, fixed));
+        assertFalse(mob.ambientDue(14_050, 8, fixed));
+        assertFalse(mob().ambientDue(99_000, 0, fixed), "zero is never");
+    }
 }

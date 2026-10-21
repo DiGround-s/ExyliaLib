@@ -187,6 +187,19 @@ That is how a skill's damage lands on the frame the fist hits the ground. A
 keyframe's script can hold several lines, and each is an event of its own.
 Listeners are told on the carrier's thread.
 
+Since 1.324.0 an event that names a sound or a particle the server knows is
+also played, where it happens: a sound key (`entity.iron_golem.step`) or a
+Bukkit name, or a particle that needs no data (`cloud`, `minecraft:flame`).
+Written `name@bone` it plays at that bone (`entity.iron_golem.step@foot_l`),
+otherwise in the model's middle. Words the server does not know as either
+(`release`, `impact`) are only told to listeners.
+
+### Its shadow (since 1.324.0)
+
+The carrier is invisible, and an invisible entity casts no shadow, so the root
+every cube rides casts one: round, about as wide as the model's footprint, at
+the carrier's feet.
+
 ### Ending
 
 | Call | What happens |

@@ -124,6 +124,12 @@ public final class MobCodec {
     private static final String SPEEDS = "speeds";
     private static final String HITBOX = "hitbox";
     private static final String SIZE = "size";
+    private static final String SOUNDS = "sounds";
+    private static final String AMBIENT = "ambient";
+    private static final String STEP = "step";
+    private static final String DEATH_SOUND = "death";
+    private static final String ATTACK = "attack";
+    private static final String EVERY = "every";
 
     private static final double DEFAULT_CHANCE = 1;
     private static final double DEFAULT_THRESHOLD = 0.3;
@@ -465,7 +471,29 @@ public final class MobCodec {
         if (model.death() != MobModel.Death.AUTO) json.addProperty(DEATH, model.death().name());
         if (!model.lookAt()) json.addProperty(LOOK_AT, false);
         if (!model.tweaks().isEmpty()) json.add(TWEAKS, encodeTweaks(model.tweaks()));
+        if (!model.sounds().equals(MobSounds.NONE)) json.add(SOUNDS, encodeSounds(model.sounds()));
         return json.toString();
+    }
+
+    private static JsonObject encodeSounds(MobSounds sounds) {
+        JsonObject json = new JsonObject();
+        if (!sounds.ambient().isEmpty()) json.addProperty(AMBIENT, sounds.ambient());
+        if (!sounds.step().isEmpty()) json.addProperty(STEP, sounds.step());
+        if (!sounds.hurt().isEmpty()) json.addProperty(HURT, sounds.hurt());
+        if (!sounds.death().isEmpty()) json.addProperty(DEATH_SOUND, sounds.death());
+        if (!sounds.attack().isEmpty()) json.addProperty(ATTACK, sounds.attack());
+        if (sounds.every() != MobSounds.NONE.every()) json.addProperty(EVERY, sounds.every());
+        return json;
+    }
+
+    private static MobSounds decodeSounds(@Nullable JsonElement element, BiConsumer<String, String> problems) {
+        if (element == null) return MobSounds.NONE;
+        if (!(element instanceof JsonObject json)) {
+            problems.accept("model.sounds", "not an object; silent");
+            return MobSounds.NONE;
+        }
+        return new MobSounds(string(json, AMBIENT), string(json, STEP), string(json, HURT), string(json, DEATH_SOUND),
+                string(json, ATTACK), number(json, EVERY, MobSounds.NONE.every()));
     }
 
     private static JsonObject encodeTweaks(ModelTweaks tweaks) {
@@ -575,7 +603,7 @@ public final class MobCodec {
                 || lookAt.getAsBoolean();
         double scale = json.has(SCALE) && json.get(SCALE).isJsonPrimitive() ? json.get(SCALE).getAsDouble() : 1;
         return new MobModel(string(json, MODEL), scale, states, death == null ? MobModel.Death.AUTO : death, looks,
-                decodeTweaks(json.get(TWEAKS), problems));
+                decodeTweaks(json.get(TWEAKS), problems), decodeSounds(json.get(SOUNDS), problems));
     }
 
     // -------------------------------------------------------------- attributes

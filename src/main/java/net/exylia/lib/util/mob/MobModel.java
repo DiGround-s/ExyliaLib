@@ -18,11 +18,16 @@ import java.util.Map;
  * }</pre>
  *
  * <p>The model is a {@code .bbmodel} in the plugin's own {@code models} folder
- * (see {@link net.exylia.lib.model.Models}). The mob underneath is still the
- * mob &mdash; its AI, its health, its hitbox &mdash; and the engine plays the
- * model's animations for it: idle, walk and run as it moves, {@code attack}
- * when it lands a blow, {@code hurt} when it takes one, {@code spawn} as it
- * appears, the cast's animation as a skill winds up, and {@code death}.
+ * (see {@link net.exylia.lib.model.Models}). The engine plays the model's
+ * animations for it: idle, walk and run as it moves, {@code attack} when it
+ * strikes, {@code hurt} when it takes one, {@code spawn} as it appears, the
+ * cast's animation as a skill winds up, and {@code death}.
+ *
+ * <p>The vanilla mob underneath never shows through (since 1.324.0): it is
+ * invisible from the moment it spawns, silent (the mob speaks with
+ * {@link #sounds}), never on fire, never outlined (the model is), drops none of
+ * its vanilla loot or experience, and is gone the tick it dies, with no puff of
+ * smoke.
  *
  * @param model  the model's name, blank for none
  * @param scale  how big it is drawn; 1 is modelled size
@@ -32,10 +37,12 @@ import java.util.Map;
  * @param lookAt whether its head turns towards what it is looking at
  * @param tweaks what this mob changes about the model: where it sits, bones, speeds, its box
  *               (since 1.321.0)
+ * @param sounds its own voice; a mob wearing a model is otherwise silent (since 1.324.0)
  * @since 1.317.0
  */
 public record MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states,
-                       @NotNull Death death, boolean lookAt, @NotNull ModelTweaks tweaks) {
+                       @NotNull Death death, boolean lookAt, @NotNull ModelTweaks tweaks,
+                       @NotNull MobSounds sounds) {
 
     /** How a model mob dies. */
     public enum Death {
@@ -52,7 +59,8 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     /** No model: the vanilla body. */
-    public static final MobModel NONE = new MobModel("", 1, Map.of(), Death.AUTO, true, ModelTweaks.NONE);
+    public static final MobModel NONE = new MobModel("", 1, Map.of(), Death.AUTO, true, ModelTweaks.NONE,
+            MobSounds.NONE);
 
     /** A model without tweaks, as 1.317.0 had it. */
     public MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states, @NotNull Death death,
@@ -60,8 +68,15 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
         this(model, scale, states, death, lookAt, ModelTweaks.NONE);
     }
 
+    /** A silent model, as 1.321.0 had it. */
+    public MobModel(@NotNull String model, double scale, @NotNull Map<String, String> states, @NotNull Death death,
+                    boolean lookAt, @NotNull ModelTweaks tweaks) {
+        this(model, scale, states, death, lookAt, tweaks, MobSounds.NONE);
+    }
+
     public MobModel {
         tweaks = tweaks == null ? ModelTweaks.NONE : tweaks;
+        sounds = sounds == null ? MobSounds.NONE : sounds;
         model = model == null ? "" : model.trim().toLowerCase(Locale.ROOT);
         scale = Double.isFinite(scale) && scale > 0 ? Math.min(scale, 16) : 1;
         Map<String, String> copy = new LinkedHashMap<>();
@@ -92,15 +107,15 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     public @NotNull MobModel withModel(@NotNull String model) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 
     public @NotNull MobModel withScale(double scale) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 
     public @NotNull MobModel withStates(@NotNull Map<String, String> states) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 
     /** The same, with one state playing a named animation; a blank animation goes back to matching by name. */
@@ -115,15 +130,20 @@ public record MobModel(@NotNull String model, double scale, @NotNull Map<String,
     }
 
     public @NotNull MobModel withDeath(@NotNull Death death) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 
     public @NotNull MobModel withLookAt(boolean lookAt) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 
     /** @since 1.321.0 */
     public @NotNull MobModel withTweaks(@NotNull ModelTweaks tweaks) {
-        return new MobModel(model, scale, states, death, lookAt, tweaks);
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
+    }
+
+    /** @since 1.324.0 */
+    public @NotNull MobModel withSounds(@NotNull MobSounds sounds) {
+        return new MobModel(model, scale, states, death, lookAt, tweaks, sounds);
     }
 }
