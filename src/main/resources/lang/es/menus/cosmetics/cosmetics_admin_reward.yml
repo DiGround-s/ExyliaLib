@@ -1,0 +1,90 @@
+title: '{primary}&lCOSMÉTICO {letters_black}» {highlight}%reward_id%'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  buttons:
+    slots: '10-16'
+items:
+  header:
+    slot: 4
+    material: '%reward_material%'
+    hide-attributes: true
+    name: '%reward_name%'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ %reward_description%'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}ID {letters_black}» {info}%reward_id%'
+      - ' {letters_black}▎ {letters}Rareza {letters_black}» %reward_tier%'
+      - ''
+  item:
+    group: buttons
+    condition: '%admin_has_token% == true'
+    material: CHEST
+    name: '{primary}&lDAR ÍTEM'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}El ítem que aplica este'
+      - ' {letters_black}▎ {letters}cosmético, a {highlight}tu {letters}inventario.'
+      - ''
+      - '{warning}➥ Clic para recibir uno'
+      - ''
+    actions:
+      - 'exylialib:cosmetics give_item'
+  keys:
+    group: buttons
+    material: TRIPWIRE_HOOK
+    name: '{primary}&lDAR LLAVES DE CAJA'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Llaves físicas que abren la caja,'
+      - ' {letters_black}▎ {letters}para guardar, intercambiar o tirar.'
+      - ''
+      - '{warning}➥ Clic izquierdo {letters_black}» {letters}una llave'
+      - '{warning}➥ Clic derecho {letters_black}» {letters}escribir una cantidad'
+      - ''
+    actions:
+      - 'left,shift_left: exylialib:cosmetics give_keys 1'
+      - 'right,shift_right: exylialib:cosmetics give_keys ask'
+  preview:
+    group: buttons
+    condition: '%admin_has_preview% == true'
+    material: ENDER_EYE
+    name: '{primary}&lVISTA PREVIA'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Reproduce este cosmético para {highlight}ti'
+      - ' {letters_black}▎ {letters}en el escenario de vista previa.'
+      - ''
+      - '{warning}➥ Clic para verlo'
+      - ''
+    actions:
+      - 'exylialib:cosmetics preview'
+  back:
+    slot: 22
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lVOLVER'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Vuelve al catálogo.'
+      - ''
+      - '{warning}➥ Clic para volver'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'

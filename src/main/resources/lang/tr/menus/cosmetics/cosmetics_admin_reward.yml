@@ -1,0 +1,90 @@
+title: '{primary}&lKOZMETİK {letters_black}» {highlight}%reward_id%'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  buttons:
+    slots: '10-16'
+items:
+  header:
+    slot: 4
+    material: '%reward_material%'
+    hide-attributes: true
+    name: '%reward_name%'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ %reward_description%'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}ID {letters_black}» {info}%reward_id%'
+      - ' {letters_black}▎ {letters}Nadirlik {letters_black}» %reward_tier%'
+      - ''
+  item:
+    group: buttons
+    condition: '%admin_has_token% == true'
+    material: CHEST
+    name: '{primary}&lEŞYA VER'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Bu kozmetiği uygulayan eşya,'
+      - ' {letters_black}▎ {letters}{highlight}senin {letters}envanterine.'
+      - ''
+      - '{warning}➥ Bir tane almak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics give_item'
+  keys:
+    group: buttons
+    material: TRIPWIRE_HOOK
+    name: '{primary}&lSANDIK ANAHTARI VER'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Sandığı açan anahtar eşyalar;'
+      - ' {letters_black}▎ {letters}tutulabilir, takas edilebilir.'
+      - ''
+      - '{warning}➥ Sol tık {letters_black}» {letters}bir anahtar'
+      - '{warning}➥ Sağ tık {letters_black}» {letters}miktar yaz'
+      - ''
+    actions:
+      - 'left,shift_left: exylialib:cosmetics give_keys 1'
+      - 'right,shift_right: exylialib:cosmetics give_keys ask'
+  preview:
+    group: buttons
+    condition: '%admin_has_preview% == true'
+    material: ENDER_EYE
+    name: '{primary}&lÖNİZLEME'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Bu kozmetiği {highlight}sana'
+      - ' {letters_black}▎ {letters}önizleme sahnesinde oynatır.'
+      - ''
+      - '{warning}➥ İzlemek için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics preview'
+  back:
+    slot: 22
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lGERİ'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Kataloğa döner.'
+      - ''
+      - '{warning}➥ Geri dönmek için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'

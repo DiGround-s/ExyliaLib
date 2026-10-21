@@ -12,6 +12,7 @@ import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
+import net.exylia.lib.util.crate.internal.AdminScreens;
 import net.exylia.lib.util.crate.internal.BoundBlocks;
 import net.exylia.lib.util.crate.internal.CrateRow;
 import net.exylia.lib.util.crate.internal.CrateScreens;
@@ -79,11 +80,13 @@ public final class PluginCrates {
     private volatile @Nullable Running<?> running;
     private volatile @Nullable Function<UUID, CompletableFuture<CrateImport>> importer;
     private volatile Predicate<ItemStack> legacyKey = item -> false;
+    private final CrateAdmin admin;
 
     /** Everything a started crate holds, dropped whole by {@link #stop}. */
     private record Running<T>(Supplier<CrateSettings> settings, Supplier<CrateMessages> messages,
                               CrateStore store, Prizes<T> prizes, CrateScreens<T> screens,
-                              BoundBlocks blocks, PluginActions actions, PluginRewards rewards) {
+                              BoundBlocks blocks, PluginActions actions, PluginRewards rewards,
+                              AdminScreens<T> admin) {
     }
 
     PluginCrates(@NotNull Plugin plugin) {
@@ -91,6 +94,7 @@ public final class PluginCrates {
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
         this.values = Items.of(plugin).values();
+        this.admin = new CrateAdmin(plugin, this);
     }
 
     /**
@@ -173,7 +177,9 @@ public final class PluginCrates {
             return ActionResult.success();
         });
 
-        running = new Running<>(settings, messages, store, prizes, screens, blocks, actions, rewards);
+        AdminScreens<T> adminScreens = new AdminScreens<>(plugin, this, prizes, rewards, admin::hooks);
+        adminScreens.register();
+        running = new Running<>(settings, messages, store, prizes, screens, blocks, actions, rewards, adminScreens);
         blocks.rebuild();
         for (Player online : plugin.getServer().getOnlinePlayers()) {
             store.open(online.getUniqueId());
@@ -201,6 +207,7 @@ public final class PluginCrates {
         if (current == null) return;
         // First, so nothing paid out below is told to a plugin on its way out.
         running = null;
+        current.admin().unregister();
         current.screens().settleAll();
         HandlerList.unregisterAll(current.store());
         HandlerList.unregisterAll(current.screens());
@@ -424,6 +431,20 @@ public final class PluginCrates {
     // ------------------------------------------------------------------
     // Opening
     // ------------------------------------------------------------------
+
+    /**
+     * The admin menu: its hooks, and {@link CrateAdmin#open} for the admin
+     * command. One per crate, kept across {@link #start}s.
+     *
+     * @since 1.342.0
+     */
+    public @NotNull CrateAdmin admin() {
+        return admin;
+    }
+
+    void openAdmin(@NotNull Player admin) {
+        require().admin().open(admin);
+    }
 
     /** Opens the question: how many crates to open. On the player's thread. */
     public void open(@NotNull Player player) {

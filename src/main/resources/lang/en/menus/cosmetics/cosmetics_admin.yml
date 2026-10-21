@@ -1,0 +1,106 @@
+# DO NOT EDIT — REGENERATED ON EVERY STARTUP.
+#
+# A cosmetic plugin's admin hub, opened by its admin command with no arguments.
+# Every cosmetic plugin built on the library's crate shares these screens.
+#
+# Values: %admin_title% %admin_catalogue% %admin_online% %admin_showcases% %admin_blocks%
+title: '{primary}&lADMIN {letters_black}» {highlight}%admin_title%'
+size: 45
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: '19-25'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&l%admin_title%'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}The catalogue, the players, the'
+      - ' {letters_black}▎ {letters}showcases and the crate blocks.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Cosmetics {letters_black}» {info}%admin_catalogue%'
+      - ' {letters_black}▎ {letters}Players online {letters_black}» {info}%admin_online%'
+      - ''
+  catalogue:
+    group: cards
+    material: BOOKSHELF
+    name: '{primary}&lCATALOGUE'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Every cosmetic: hand out its item,'
+      - ' {letters_black}▎ {letters}crate keys, or watch a {highlight}preview{letters}.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Cosmetics {letters_black}» {info}%admin_catalogue%'
+      - ''
+      - '{warning}➥ Click to browse'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'
+  players:
+    group: cards
+    material: PLAYER_HEAD
+    name: '{primary}&lPLAYERS'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Keys, unlocks and what each'
+      - ' {letters_black}▎ {letters}player online has {highlight}equipped{letters}.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Online {letters_black}» {info}%admin_online%'
+      - ''
+      - '{warning}➥ Click to browse'
+      - ''
+    actions:
+      - 'exylialib:cosmetics players'
+  showcases:
+    group: cards
+    condition: '%admin_has_showcases% == true'
+    material: ARMOR_STAND
+    name: '{primary}&lSHOWCASES'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Places that show the cosmetics'
+      - ' {letters_black}▎ {letters}off on a {highlight}loop {letters}to whoever is near.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Placed {letters_black}» {info}%admin_showcases%'
+      - ''
+      - '{warning}➥ Click to manage'
+      - ''
+    actions:
+      - 'exylialib:cosmetics showcases'
+  blocks:
+    group: cards
+    material: ENDER_CHEST
+    name: '{primary}&lCRATE BLOCKS'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Blocks that open the crate'
+      - ' {letters_black}▎ {letters}when a player {highlight}clicks {letters}them.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Bound {letters_black}» {info}%admin_blocks%'
+      - ''
+      - '{warning}➥ Click to manage'
+      - ''
+    actions:
+      - 'exylialib:cosmetics blocks'

@@ -470,6 +470,46 @@ items:
       - ""
 ```
 
+## The admin menu
+
+Since 1.342.0 every crate comes with an admin menu, the same in every plugin,
+so a cosmetic plugin's admin command opens it instead of printing lists:
+
+```java
+crates.admin()
+        .permission("exyliaarrows.admin")              // <plugin>.admin by default
+        .showcases(showcases)                          // a SHOWCASES card
+        .preview((viewer, id) -> preview(viewer, id))  // a PREVIEW button
+        .equipped(uuid -> players.cached(uuid).effect(), players::clearEffect)
+        .favourites(players::clearFavourites);
+
+// The admin command with no arguments, for a player; console keeps the chat output.
+crates.admin().open(player);
+```
+
+| Screen | Does |
+| --- | --- |
+| Hub (45) | Cards for the catalogue, the players, the showcases and the crate blocks |
+| Catalogue (54) → cosmetic (27) | Give yourself its token item, give crate key items (1 or a typed amount), preview it |
+| Players (54) → player (45) | Crate keys (+1, −1, typed amount), unlocks, equipped (take off), favourites and unlocks cleared after a dangerous confirm |
+| Unlocks (54) | Every cosmetic as unlocked, by permission or locked; a click grants or revokes it |
+| Showcases / crate blocks (54) | Teleport, remove (confirmed), add where you stand or bind the block you look at, remove all (confirmed) |
+
+A plugin that keeps its showcases in a class of its own passes
+`showcases(all, add, removeNear, clear)` instead of a `PluginShowcases`.
+
+Every hook is optional; a button whose hook is missing is not drawn, and the
+token button only shows when `CrateCatalogue.token` answers an item. The hooks
+are read on every opening. `equipped`'s lookup runs every second on the
+viewer's thread while a screen shows it, so it reads memory only; taking off
+and clearing favourites run on the target's own thread.
+
+The screens are the library's, under `plugins/ExyliaLib/lang/<code>/menus/cosmetics/`
+(admin screens: rewritten from the jar on every start), and their prompts are
+library phrases. Their buttons call one library action, `exylialib:cosmetics
+<verb>`, and the session names the plugin whose crate they act on. Lists that
+move while open (players, unlocks, places, the counts) are lambdas over memory.
+
 ## API
 
 | Method | Contract |
@@ -489,6 +529,7 @@ items:
 | `tierIds()`, `tierId(written)`, `tier(id)`, `count(tierId)`, `odds(tierId)` | The rarities, how many rewards each holds, and the odds an opening honours |
 | `bindBlock(block)`, `unbindBlock(block)`, `boundBlocks()`, `clearBlocks()` | The blocks that open it, saved through `saveBlocks` |
 | `importing(uuid -> future)` | Seeds a row from the plugin's own table, once, when the row is created (1.190.0) |
+| `admin()` | The admin menu's hooks and `open(player)` (1.342.0) |
 | `legacyKeys(key, value)` | Also accepts key items tagged `key=value` in the plugin's item values (1.190.0) |
 
 And on the catalogue, both optional (1.190.0):
@@ -696,6 +737,6 @@ so there is nothing to invalidate on reload.
 
 | | |
 | --- | --- |
-| Public API | `util/crate/Crates`, `PluginCrates`, `CrateCatalogue`, `CrateSettings`, `CrateMessages`, `CrateTier`, `CrateReward`, `CrateImport` |
-| Internal | `util/crate/internal/CrateStore`, `CrateRow`, `Prizes`, `TierTable`, `Reel`, `CrateScreens`, `CrateFaces`, `BoundBlocks` |
-| Tests | `util/crate/CrateReelTest`, `CrateTierTest`, `CratePrizesTest`, `CrateSettingsTest`, `CrateMigrationTest` |
+| Public API | `util/crate/Crates`, `PluginCrates`, `CrateAdmin`, `CrateCatalogue`, `CrateSettings`, `CrateMessages`, `CrateTier`, `CrateReward`, `CrateImport` |
+| Internal | `util/crate/internal/AdminScreens`, `CrateStore`, `CrateRow`, `Prizes`, `TierTable`, `Reel`, `CrateScreens`, `CrateFaces`, `BoundBlocks` |
+| Tests | `util/crate/internal/AdminScreensTest`, `util/crate/CrateReelTest`, `CrateTierTest`, `CratePrizesTest`, `CrateSettingsTest`, `CrateMigrationTest` |

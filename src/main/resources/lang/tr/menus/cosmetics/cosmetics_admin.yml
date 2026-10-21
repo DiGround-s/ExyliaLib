@@ -1,0 +1,100 @@
+title: '{primary}&lYÖNETİM {letters_black}» {highlight}%admin_title%'
+size: 45
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: '19-25'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&l%admin_title%'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Katalog, oyuncular, vitrinler'
+      - ' {letters_black}▎ {letters}ve sandık blokları.'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Kozmetikler {letters_black}» {info}%admin_catalogue%'
+      - ' {letters_black}▎ {letters}Çevrimiçi oyuncu {letters_black}» {info}%admin_online%'
+      - ''
+  catalogue:
+    group: cards
+    material: BOOKSHELF
+    name: '{primary}&lKATALOG'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Her kozmetik: eşyasını ver,'
+      - ' {letters_black}▎ {letters}sandık anahtarı ver ya da {highlight}önizle{letters}.'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Kozmetikler {letters_black}» {info}%admin_catalogue%'
+      - ''
+      - '{warning}➥ Göz atmak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'
+  players:
+    group: cards
+    material: PLAYER_HEAD
+    name: '{primary}&lOYUNCULAR'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Anahtarlar, kilit açmalar ve her'
+      - ' {letters_black}▎ {letters}çevrimiçi oyuncunun {highlight}kuşandığı{letters}.'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Çevrimiçi {letters_black}» {info}%admin_online%'
+      - ''
+      - '{warning}➥ Göz atmak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics players'
+  showcases:
+    group: cards
+    condition: '%admin_has_showcases% == true'
+    material: ARMOR_STAND
+    name: '{primary}&lVİTRİNLER'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Kozmetikleri yakındaki herkese'
+      - ' {letters_black}▎ {letters}{highlight}döngüde {letters}gösteren yerler.'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Yerleştirilen {letters_black}» {info}%admin_showcases%'
+      - ''
+      - '{warning}➥ Yönetmek için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics showcases'
+  blocks:
+    group: cards
+    material: ENDER_CHEST
+    name: '{primary}&lSANDIK BLOKLARI'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Bir oyuncu {highlight}tıkladığında'
+      - ' {letters_black}▎ {letters}sandığı açan bloklar.'
+      - ''
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Bağlı {letters_black}» {info}%admin_blocks%'
+      - ''
+      - '{warning}➥ Yönetmek için tıkla'
+      - ''
+    actions:
+      - 'exylialib:cosmetics blocks'

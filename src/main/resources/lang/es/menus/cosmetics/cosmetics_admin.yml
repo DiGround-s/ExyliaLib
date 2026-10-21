@@ -1,0 +1,100 @@
+title: '{primary}&lADMIN {letters_black}» {highlight}%admin_title%'
+size: 45
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: '19-25'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&l%admin_title%'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}El catálogo, los jugadores, las'
+      - ' {letters_black}▎ {letters}vitrinas y los bloques de caja.'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}Cosméticos {letters_black}» {info}%admin_catalogue%'
+      - ' {letters_black}▎ {letters}Jugadores en línea {letters_black}» {info}%admin_online%'
+      - ''
+  catalogue:
+    group: cards
+    material: BOOKSHELF
+    name: '{primary}&lCATÁLOGO'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Cada cosmético: entrega su ítem,'
+      - ' {letters_black}▎ {letters}llaves de caja o mira una {highlight}vista previa{letters}.'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}Cosméticos {letters_black}» {info}%admin_catalogue%'
+      - ''
+      - '{warning}➥ Clic para explorar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'
+  players:
+    group: cards
+    material: PLAYER_HEAD
+    name: '{primary}&lJUGADORES'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Llaves, desbloqueos y lo que cada'
+      - ' {letters_black}▎ {letters}jugador en línea tiene {highlight}equipado{letters}.'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}En línea {letters_black}» {info}%admin_online%'
+      - ''
+      - '{warning}➥ Clic para explorar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics players'
+  showcases:
+    group: cards
+    condition: '%admin_has_showcases% == true'
+    material: ARMOR_STAND
+    name: '{primary}&lVITRINAS'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Lugares que muestran los cosméticos'
+      - ' {letters_black}▎ {letters}en {highlight}bucle {letters}a quien esté cerca.'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}Colocadas {letters_black}» {info}%admin_showcases%'
+      - ''
+      - '{warning}➥ Clic para gestionar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics showcases'
+  blocks:
+    group: cards
+    material: ENDER_CHEST
+    name: '{primary}&lBLOQUES DE CAJA'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Bloques que abren la caja'
+      - ' {letters_black}▎ {letters}cuando un jugador hace {highlight}clic{letters}.'
+      - ''
+      - '{secondary}Estado:'
+      - ' {letters_black}▎ {letters}Vinculados {letters_black}» {info}%admin_blocks%'
+      - ''
+      - '{warning}➥ Clic para gestionar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics blocks'

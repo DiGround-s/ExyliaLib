@@ -1,0 +1,127 @@
+title: '{primary}&lJOGADOR {letters_black}» {highlight}%player_name%'
+size: 45
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: '19-25'
+items:
+  header:
+    slot: 4
+    material: 'playerhead-%player_name%'
+    name: '{primary}&l%player_name%'
+    lore:
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Chaves de caixa {letters_black}» {info}%player_keys%'
+      - ' {letters_black}▎ {letters}Obtidos {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
+      - ' {letters_black}▎ {letters}Equipado {letters_black}» %player_equipped%'
+      - ''
+  keys:
+    group: cards
+    material: TRIPWIRE_HOOK
+    name: '{primary}&lCHAVES DE CAIXA &8[{info}%player_keys%&8]'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Chaves na conta, que abrem'
+      - ' {letters_black}▎ {letters}a caixa e nunca se {highlight}perdem{letters}.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Chaves {letters_black}» {info}%player_keys%'
+      - ''
+      - '{warning}➥ Clique esquerdo {letters_black}» {letters}+1 chave'
+      - '{warning}➥ Clique direito {letters_black}» {letters}-1 chave'
+      - '{warning}➥ Shift-clique {letters_black}» {letters}digitar uma quantidade'
+      - ''
+    actions:
+      - 'left: exylialib:cosmetics keys 1'
+      - 'right: exylialib:cosmetics keys -1'
+      - 'shift_left,shift_right: exylialib:cosmetics keys ask'
+  unlocks:
+    group: cards
+    material: CHEST
+    name: '{primary}&lDESBLOQUEIOS'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Conceda ou retire cada cosmético,'
+      - ' {letters_black}▎ {letters}para sempre, como um prêmio de {highlight}caixa{letters}.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Obtidos {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
+      - ''
+      - '{warning}➥ Clique para gerenciar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics unlocks'
+  equipped:
+    group: cards
+    condition: '%admin_has_equipped% == true'
+    material: ARMOR_STAND
+    name: '{primary}&lEQUIPADO'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}O que o jogador está usando agora.'
+      - ''
+      - '{secondary}Status:'
+      - ' {letters_black}▎ {letters}Equipado {letters_black}» %player_equipped%'
+      - ''
+      - '{error}➥ Clique para remover'
+      - ' {letters_black}Será pedida uma confirmação.'
+      - ''
+    actions:
+      - 'exylialib:cosmetics unequip'
+  favourites:
+    slot: 36
+    condition: '%admin_has_favourites% == true'
+    material: BLAZE_POWDER
+    name: '{error}&lLIMPAR FAVORITOS'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Esvazia a lista de favoritos do jogador.'
+      - ''
+      - '{error}➥ Clique para limpar'
+      - ' {letters_black}Será pedida uma confirmação.'
+      - ''
+    actions:
+      - 'exylialib:cosmetics favourites'
+  back:
+    slot: 40
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: '{error}&lVOLTAR'
+    lore:
+      - ''
+      - ' {letters_black}▎ {letters}Volta aos jogadores.'
+      - ''
+      - '{warning}➥ Clique para voltar'
+      - ''
+    actions:
+      - 'exylialib:cosmetics players'
+  clear:
+    slot: 44
+    material: BARRIER
+    name: '{error}&lLIMPAR DESBLOQUEIOS'
+    lore:
+      - ''
+      - '{secondary}Informação:'
+      - ' {letters_black}▎ {letters}Retira {highlight}tudo {letters}o que o jogador'
+      - ' {letters_black}▎ {letters}ganhou ou recebeu.'
+      - ''
+      - '{error}➥ Clique para limpar'
+      - ' {letters_black}Será pedida uma confirmação.'
+      - ''
+    actions:
+      - 'exylialib:cosmetics clear_unlocks'

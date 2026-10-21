@@ -1,0 +1,100 @@
+title: '{primary}&lАДМИН {letters_black}» {highlight}%admin_title%'
+size: 45
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: '19-25'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&l%admin_title%'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Каталог, игроки, витрины'
+      - ' {letters_black}▎ {letters}и блоки ящика.'
+      - ''
+      - '{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Косметика {letters_black}» {info}%admin_catalogue%'
+      - ' {letters_black}▎ {letters}Игроков онлайн {letters_black}» {info}%admin_online%'
+      - ''
+  catalogue:
+    group: cards
+    material: BOOKSHELF
+    name: '{primary}&lКАТАЛОГ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Вся косметика: выдай предмет,'
+      - ' {letters_black}▎ {letters}ключи от ящика или смотри {highlight}превью{letters}.'
+      - ''
+      - '{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Косметика {letters_black}» {info}%admin_catalogue%'
+      - ''
+      - '{warning}➥ Нажми, чтобы открыть'
+      - ''
+    actions:
+      - 'exylialib:cosmetics catalogue'
+  players:
+    group: cards
+    material: PLAYER_HEAD
+    name: '{primary}&lИГРОКИ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Ключи, открытия и что надето'
+      - ' {letters_black}▎ {letters}на каждом игроке {highlight}онлайн{letters}.'
+      - ''
+      - '{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Онлайн {letters_black}» {info}%admin_online%'
+      - ''
+      - '{warning}➥ Нажми, чтобы открыть'
+      - ''
+    actions:
+      - 'exylialib:cosmetics players'
+  showcases:
+    group: cards
+    condition: '%admin_has_showcases% == true'
+    material: ARMOR_STAND
+    name: '{primary}&lВИТРИНЫ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Места, где косметика крутится'
+      - ' {letters_black}▎ {letters}по {highlight}кругу {letters}для всех рядом.'
+      - ''
+      - '{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Установлено {letters_black}» {info}%admin_showcases%'
+      - ''
+      - '{warning}➥ Нажми, чтобы управлять'
+      - ''
+    actions:
+      - 'exylialib:cosmetics showcases'
+  blocks:
+    group: cards
+    material: ENDER_CHEST
+    name: '{primary}&lБЛОКИ ЯЩИКА'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Блоки, которые открывают ящик,'
+      - ' {letters_black}▎ {letters}когда игрок по ним {highlight}кликает{letters}.'
+      - ''
+      - '{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Привязано {letters_black}» {info}%admin_blocks%'
+      - ''
+      - '{warning}➥ Нажми, чтобы управлять'
+      - ''
+    actions:
+      - 'exylialib:cosmetics blocks'
