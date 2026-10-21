@@ -4,6 +4,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.text.Palette;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.minimessage.Context;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.ParsingException;
@@ -13,6 +15,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -435,11 +438,54 @@ public final class TextEngine {
         prepared = LegacyTranslator.toMiniMessage(prepared, flags);
 
         try {
-            return shadowed(parser.deserialize(prepared));
+            return shadowed(shallow(parser.deserialize(prepared)));
         } catch (RuntimeException exception) {
             // A malformed tag must not cost the caller its message. Showing the
             // raw text is far more useful than an exception in the log.
             return shadowed(Component.text(text));
+        }
+    }
+
+    /** Deeper than this, a parsed line is flattened before it is handed out. */
+    static final int MAX_DEPTH = 32;
+
+    /**
+     * The same line, with its nesting kept shallow.
+     *
+     * <p>MiniMessage nests every colour tag inside the one before it, since
+     * nothing closes them, so a long panel with a colour per word comes out
+     * hundreds of levels deep. The client reads chat as NBT and drops the
+     * connection past 512 levels ("Failed to decode packet system_chat"),
+     * which a busy {@code /exylialib} panel crossed. Each piece keeps the
+     * style it inherited, so the line looks identical one level down.
+     */
+    static Component shallow(Component component) {
+        if (depth(component, 0) <= MAX_DEPTH) {
+            return component;
+        }
+        List<Component> pieces = new ArrayList<>();
+        flatten(component, Style.empty(), pieces);
+        return Component.text().append(pieces).build();
+    }
+
+    private static int depth(Component component, int above) {
+        int deepest = above + 1;
+        if (deepest > MAX_DEPTH) {
+            return deepest;
+        }
+        for (Component child : component.children()) {
+            deepest = Math.max(deepest, depth(child, above + 1));
+        }
+        return deepest;
+    }
+
+    private static void flatten(Component component, Style inherited, List<Component> pieces) {
+        Style style = component.style().merge(inherited, Style.Merge.Strategy.IF_ABSENT_ON_TARGET);
+        if (!(component instanceof TextComponent text) || !text.content().isEmpty()) {
+            pieces.add(component.children(List.of()).style(style));
+        }
+        for (Component child : component.children()) {
+            flatten(child, style, pieces);
         }
     }
 
