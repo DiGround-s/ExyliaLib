@@ -98,6 +98,25 @@ class CachedStorageTest {
     }
 
     @Test
+    @DisplayName("\"a fresh read skips a stale copy in memory and replaces it\"")
+    void aFreshReadSkipsMemory() throws Exception {
+        RowCache cache = cacheOn(new WatchedClient());
+        UUID player = UUID.randomUUID();
+        cache.put(MODEL, player, new Effect(player, "flame", 7));
+        Effect stored = new Effect(player, "flame", 9);
+        Storage database = (Storage) Proxy.newProxyInstance(Storage.class.getClassLoader(),
+                new Class<?>[]{Storage.class},
+                (proxy, method, arguments) -> method.getName().equals("toString")
+                        ? "StoredDatabase"
+                        : CompletableFuture.completedFuture(stored));
+        CachedStorage storage = new CachedStorage(database, cache, background);
+
+        assertEquals(9, storage.findFresh(MODEL, player).get(5, TimeUnit.SECONDS).level());
+        assertEquals(9, storage.find(MODEL, player).get(5, TimeUnit.SECONDS).level(),
+                "the copy in memory should now be the row the fresh read found");
+    }
+
+    @Test
     @DisplayName("\"a refused executor skips the cache step instead of running it on the caller\"")
     void aRefusedStepIsSkipped() throws Exception {
         WatchedClient client = new WatchedClient();

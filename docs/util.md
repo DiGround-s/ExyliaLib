@@ -269,6 +269,19 @@ Material block = Weighted.pick(blocks, BlockEntry::weight).material();
 - **All-zero weights pick evenly** rather than nothing: a list an admin filled
   with zeros still works.
 
+## PermissionNumbers — numbers granted by permission
+
+*Since 1.319.0.*
+
+```java
+int vaults = PermissionNumbers.highest(player, "myplugin.vaults.amount.", settings.defaultVaults());
+```
+
+The largest whole number behind the prefix among the player's effective
+permissions, or the fallback when none carries one. A node set to `false`
+grants nothing and a tail that is not a number is skipped. Read it on the thread
+that owns the player.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,

@@ -196,6 +196,18 @@ public final class CachedStorage implements Storage {
                 }));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Straight to the database, whatever memory or Redis hold. The row read
+     * replaces this server's copy, so a {@link #find} after it is not older.
+     */
+    @Override
+    public <T> @NotNull CompletableFuture<@Nullable T> findFresh(@NotNull EntityModel<T> model,
+                                                                 @NotNull Object id) {
+        return after(delegate.findFresh(model, id), (current, row) -> current.refreshLocal(model, id, row));
+    }
+
     @Override
     public @NotNull CompletableFuture<Boolean> exists(@NotNull EntityModel<?> model,
                                                       @NotNull Object id) {

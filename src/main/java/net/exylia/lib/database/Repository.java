@@ -254,6 +254,24 @@ public final class Repository<T> {
     }
 
     /**
+     * Reads one record by its id from the database itself, past every cache.
+     *
+     * <p>{@link #find} may answer from this server's memory, which another
+     * server's write reaches only when its invalidation message arrives. That
+     * is fine for a scoreboard and wrong for a read that decides what a player
+     * may take: inside a {@link RowLocks} hold, read the row with this, or the
+     * hold can be taken right after another server's write and still be handed
+     * the row from before it. The row read replaces this server's cached copy.
+     *
+     * @param id the id, in record form
+     * @return the record, or empty when there is no such row
+     * @since 1.319.0
+     */
+    public @NotNull CompletableFuture<Optional<T>> findFresh(@NotNull Object id) {
+        return reported("findFresh", storage.findFresh(model, id).thenApply(Optional::ofNullable));
+    }
+
+    /**
      * Reads every row.
      *
      * <p>Fine for the tables that hold arenas or kits, which is what most

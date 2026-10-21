@@ -240,6 +240,24 @@ public final class RowCache {
         publish(model.table(), storedId(model, id));
     }
 
+    /**
+     * Replaces this server's copy of a row with one just read from the
+     * database, or forgets it when the row is gone. Nothing is published: the
+     * database already holds this value, so no peer is wrong about it.
+     */
+    <T> void refreshLocal(@NotNull EntityModel<T> model, @NotNull Object id, @Nullable T row) {
+        String key = keyOf(model, id);
+        if (key == null) {
+            return;
+        }
+        if (row == null) {
+            local.invalidate(key);
+        } else {
+            register(model);
+            local.put(key, row);
+        }
+    }
+
     /** Removes a row here and everywhere. */
     void drop(@NotNull EntityModel<?> model, @NotNull Object id) {
         String key = keyOf(model, id);

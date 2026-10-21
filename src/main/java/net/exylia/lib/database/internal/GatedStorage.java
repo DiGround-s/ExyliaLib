@@ -94,6 +94,12 @@ public final class GatedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<@Nullable T> findFresh(@NotNull EntityModel<T> model,
+                                                                 @NotNull Object id) {
+        return after(storage -> storage.findFresh(model, id));
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<List<T>> select(@NotNull EntityModel<T> model,
                                                           @NotNull List<String> whereColumns,
                                                           @NotNull List<Object> whereValues,

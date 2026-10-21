@@ -61,6 +61,24 @@ public interface Storage {
     <T> @NotNull CompletableFuture<@Nullable T> find(@NotNull EntityModel<T> model, @NotNull Object id);
 
     /**
+     * Reads one record by its primary key from the store itself, never from a
+     * cache in front of it.
+     *
+     * <p>A store with no cache answers it like {@link #find}. A wrapper must pass
+     * it on to what it wraps rather than to its own {@code find}.
+     *
+     * @param model the compiled record model
+     * @param id    the key, in record form
+     * @param <T>   the record type
+     * @return the record, or {@code null} when there is no such row
+     * @since 1.319.0
+     */
+    default <T> @NotNull CompletableFuture<@Nullable T> findFresh(@NotNull EntityModel<T> model,
+                                                                  @NotNull Object id) {
+        return find(model, id);
+    }
+
+    /**
      * Reads the records matching a filter, ordered and paged.
      *
      * @param model        the compiled record model

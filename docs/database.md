@@ -97,6 +97,7 @@ stats.find(id).thenAccept(found ->
 ```java
 stats.find(uuid);                       // one row by id
 stats.findAll();                        // every row — fine for arenas, not for players
+stats.findFresh(uuid);                  // the same, past every cache (1.319.0)
 stats.exists(uuid);
 stats.count();
 
@@ -179,7 +180,7 @@ votes.updateIf(vote.withClaimed(true), "claimed", false).thenAccept(won -> {
 ```java
 RowLocks locks = RowLocks.of(database, "auctions");
 
-locks.hold(auction.id(), () -> auctions.find(auction.id()).thenCompose(this::bid))
+locks.hold(auction.id(), () -> auctions.findFresh(auction.id()).thenCompose(this::bid))
      .thenAccept(done -> { if (done.isEmpty()) busy(player); });
 ```
 
@@ -220,6 +221,11 @@ locks.lease(Duration.ofSeconds(60)).holdRenewing(vault.id(), lease -> {
   reach the database, and the queue is forgotten when it empties.
 - The work runs on the database callback thread; hop through `Tasks` before
   touching the game.
+- **Read the row with `findFresh` inside a hold** (since 1.319.0). `find` may
+  answer from this server's memory, and another server's write reaches that
+  copy only when its invalidation message arrives — which can be after this
+  server took the lock the writer just gave back. `findFresh(id)` goes to the
+  database past every cache and replaces the local copy with what it read.
 - `forget(key)` deletes the row — only from inside the last hold on something
   that is gone for good.
 
