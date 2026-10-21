@@ -443,6 +443,11 @@ public final class PluginDatabase {
      * table, in the background, while the repository is being prepared, so a
      * plugin whose Redis is up starts cached from its first operation.
      */
+    private static boolean cached(EntityModel<?> model) {
+        Table table = model.type().getAnnotation(Table.class);
+        return table == null || table.cache();
+    }
+
     private Storage wrap(Storage opened) {
         RedisSettings settings = DatabaseRuntime.redis(plugin);
         if (!settings.enabled()) {
@@ -507,7 +512,7 @@ public final class PluginDatabase {
                 // reads it.
                 // A supplier, not the cache: a Redis that is down while this
                 // runs must not leave the repository uncached for the run.
-                wrap(opened)).thenCompose(storage ->
+                cached(model) ? wrap(opened) : opened).thenCompose(storage ->
                 storage.prepare(model).thenApply(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes

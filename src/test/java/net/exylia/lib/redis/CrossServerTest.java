@@ -52,6 +52,10 @@ class CrossServerTest {
     record Effect(@Id UUID uuid, @Column("kill_effect") String killEffect, @Column int level) {
     }
 
+    @Table(value = "recordings", cache = false)
+    record Recording(@Id UUID uuid, @Column(length = Column.UNBOUNDED) String data) {
+    }
+
     private Plugin lobby;
     private Plugin arena;
     private MemoryClient.Network redis;
@@ -192,6 +196,27 @@ class CrossServerTest {
         assertNotEquals(before, redis.published(), "a write should announce itself");
 
         assertEquals(2, await(onArena.find(player)).orElseThrow().level());
+    }
+
+    @Test
+    @DisplayName("\"a table that opts out of the cache never reaches Redis\"")
+    void anUncachedTableStaysInTheDatabase() {
+        withRedis("lobby-1");
+        Repository<Recording> onLobby = Databases.of(lobby).repository(Recording.class);
+        Repository<Recording> onArena = Databases.of(arena).repository(Recording.class);
+
+        UUID id = UUID.randomUUID();
+        int published = redis.published();
+        await(onLobby.save(new Recording(id, "a large blob")));
+        assertEquals(0, redis.size(), "an uncached write should not be copied to Redis");
+        assertEquals(Optional.of(new Recording(id, "a large blob")), await(onArena.find(id)));
+
+        await(onLobby.save(new Recording(id, "rewritten")));
+        assertEquals("rewritten", await(onArena.find(id)).orElseThrow().data(),
+                "an uncached read should always reach the database");
+        await(onLobby.delete(id));
+        assertEquals(published, redis.published(), "nothing about an uncached table should be announced");
+        assertTrue(await(onArena.find(id)).isEmpty());
     }
 
     // ------------------------------------------------------------ correctness

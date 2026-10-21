@@ -68,6 +68,20 @@ the same message, so it can re-read the one row that changed; see
 - **It does not cache absence.** A row that is not there is not remembered as
   missing: a first join writes exactly that row moments later.
 
+## Tables that stay out of it (since 1.343.0)
+
+```java
+@Table(value = "staff_replay_data", cache = false)
+public record ReplayData(@Id long id, @Column(length = Column.UNBOUNDED) String data) { }
+```
+
+A table of large rows written once and read rarely — recordings, backups —
+gains nothing from the cache and pays for it: every write is held in the
+server's memory for `local-seconds`, copied to Redis for `ttl-seconds`, and every
+delete is announced to the whole network. `cache = false` sends that table
+straight to the database. Its `find` always reads the database, and
+`onRemoteChange` hears nothing about it.
+
 ## When Redis stops answering
 
 Everything keeps working, straight against the database, and the console says so

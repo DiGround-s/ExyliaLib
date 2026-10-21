@@ -30,4 +30,18 @@ public @interface Table {
 
     /** The table name, exactly as it exists in the database. */
     String value();
+
+    /**
+     * Whether rows go through the Redis row cache when the plugin has one.
+     *
+     * <p>{@code false} for tables of large rows that are written once and read
+     * rarely, such as recordings or backups: cached, every write would be held
+     * in this server's memory and copied to Redis for a read that may never
+     * come, and every delete would be announced to the whole network. An
+     * uncached table always reads the database, and
+     * {@link PluginDatabase#onRemoteChange} hears nothing about it.
+     *
+     * @since 1.343.0
+     */
+    boolean cache() default true;
 }
