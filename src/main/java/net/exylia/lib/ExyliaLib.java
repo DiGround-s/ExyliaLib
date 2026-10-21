@@ -752,6 +752,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Placeholders.releaseAll();
         Actions.releaseAll();
         Commands.releaseAll();
+        net.exylia.lib.command.RuntimeCommands.releaseAll();
         net.exylia.lib.interaction.Interactions.releaseAll();
         Prefixes.releaseAll();
         Reloads.releaseAll();
@@ -1068,6 +1069,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Placeholders.unregisterAll(pluginName);
         Actions.release(pluginName);
         Commands.release(pluginName);
+        net.exylia.lib.command.RuntimeCommands.release(pluginName);
         net.exylia.lib.interaction.Interactions.release(pluginName);
         Prefixes.release(pluginName);
         Reloads.release(pluginName);
