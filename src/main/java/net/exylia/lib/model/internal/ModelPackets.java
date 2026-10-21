@@ -155,6 +155,13 @@ final class ModelPackets {
                 new EntityData<>(RESPONSIVE, EntityDataTypes.BOOLEAN, true))));
     }
 
+    /** A box's new size. */
+    static void boxSize(List<Player> viewers, int entityId, float width, float height) {
+        Broadcast.send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(WIDTH, EntityDataTypes.FLOAT, width),
+                new EntityData<>(HEIGHT, EntityDataTypes.FLOAT, height))));
+    }
+
     /** Takes many entities off clients in one packet. */
     static void destroy(List<Player> viewers, int[] entityIds) {
         if (entityIds.length > 0) {

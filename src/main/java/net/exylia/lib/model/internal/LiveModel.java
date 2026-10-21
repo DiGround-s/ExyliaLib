@@ -101,8 +101,6 @@ final class LiveModel implements ModelInstance {
     private static final long FADE_MS = 300;
     /** How long its cubes take to fly, land and melt when it comes apart. */
     private static final long APART_MS = 1_400;
-    /** The furthest a hit on a box may come from, past the box's own half width. */
-    private static final double REACH = 5.0;
 
     /** The turn a head item needs before it is posed, as ragdolls turn theirs. */
     private static final Rotation ITEM_FACING = Rotation.around(Rotation.Axis.Y, Math.PI);
@@ -166,6 +164,18 @@ final class LiveModel implements ModelInstance {
     private final boolean boxesAlongForward;
     private float boxWidth;
     private float boxHeight;
+    /** What the carrier was grown to when the boxes were sized: they grow from there with it and the model. */
+    private final double boxBase;
+    private double boxSent = 1;
+    /** Who last hit a box, on which tick: one hit a tick, however many packets a client sends. */
+    private final Map<UUID, Long> lastHit = new ConcurrentHashMap<>();
+    /** Projectiles already handed to the carrier, so one is not handed twice. */
+    private final Set<Integer> caught = java.util.Collections.newSetFromMap(new java.util.LinkedHashMap<>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Integer, Boolean> eldest) {
+            return size() > 64;
+        }
+    });
 
     private final ConcurrentLinkedQueue<Runnable> asked = new ConcurrentLinkedQueue<>();
     private final List<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
@@ -222,6 +232,7 @@ final class LiveModel implements ModelInstance {
         this.rootId = DisplayRuntime.nextEntityId();
         AttributeInstance grown = scaleOf(carrier);
         this.carrierScale = grown == null ? 1 : grown.getValue();
+        this.boxBase = carrierScale;
         // How big it is drawn: its own size, times what the carrier was grown to.
         double asDrawn = options.scale() * carrierScale;
         double footprint = Math.max(rig.max()[0] - rig.min()[0], rig.max()[2] - rig.min()[2]) / 16.0 * asDrawn;
@@ -627,6 +638,10 @@ final class LiveModel implements ModelInstance {
                 moveNametag();
             }
             send(now);
+            if (!detached && carrier != null) {
+                resizeBoxes();
+                catchProjectiles(carrier);
+            }
             ticks++;
         } catch (RuntimeException failure) {
             ModelRuntime.logger().log(Level.WARNING, "Model " + model.name() + " failed while being drawn and"
@@ -870,7 +885,8 @@ final class LiveModel implements ModelInstance {
         if (!detached) {
             for (int box = 0; box < boxIds.length; box++) {
                 double[] at = boxAt(box);
-                ModelPackets.box(one, boxIds[box], at[0], at[1], at[2], boxWidth, boxHeight);
+                ModelPackets.box(one, boxIds[box], at[0], at[1], at[2], (float) (boxWidth * boxSent),
+                        (float) (boxHeight * boxSent));
             }
         }
         tiers[tier].add(viewer);
@@ -1018,7 +1034,7 @@ final class LiveModel implements ModelInstance {
                 ModelPackets.teleport(everyone, rootId, x, y, z);
             }
         }
-        if ((moved || turned) && boxIds.length > 0 && !detached && ticks % 2 == 0) {
+        if ((moved || turned) && boxIds.length > 0 && !detached) {
             List<Player> everyone = viewers();
             for (int box = 0; box < boxIds.length; box++) {
                 double[] at = boxAt(box);
@@ -1232,31 +1248,134 @@ final class LiveModel implements ModelInstance {
 
     /** Where one box stands now: along the model's long axis, turned with the body. */
     private double[] boxAt(int box) {
-        double along = boxAlong[box];
+        double factor = boxFactor();
+        double along = boxAlong[box] * factor;
         double lx = (boxesAlongForward ? 0 : along) + offset[0];
         double lz = (boxesAlongForward ? along : 0) + offset[2];
         double turn = Math.toRadians(-yaw) + Math.PI;
         double[] turned = Poser.rotate(0, Math.sin(turn / 2), 0, Math.cos(turn / 2), lx, 0, lz);
-        double bottom = Math.max(0, rig.min()[1] / 16.0 * options.scale()) + offset[1];
+        double bottom = Math.max(0, rig.min()[1] / 16.0 * options.scale() * carrierScale * size) + offset[1];
         return new double[]{x + turned[0], y + bottom, z + turned[2]};
     }
 
-    /** A hit on one of its boxes, from the network thread: the carrier takes it, if the player could reach. */
-    void hitBy(Player player) {
+    /** How much bigger than when they were sized the boxes are now: a fight phase grew it, a skill shrank it. */
+    private double boxFactor() {
+        return boxBase > 0 ? carrierScale * size / boxBase : 1;
+    }
+
+    /** One box as the server sees it now. */
+    private org.bukkit.util.BoundingBox bounds(int box) {
+        double[] at = boxAt(box);
+        double factor = boxFactor();
+        return Boxes.box(at[0], at[1], at[2], boxWidth * factor, boxHeight * factor);
+    }
+
+    /** Sends the boxes' size again once the model has grown or shrunk enough to show. */
+    private void resizeBoxes() {
+        double factor = boxFactor();
+        if (boxIds.length == 0 || detached || Math.abs(factor - boxSent) < 0.02) {
+            return;
+        }
+        boxSent = factor;
+        List<Player> everyone = viewers();
+        for (int box : boxIds) {
+            ModelPackets.boxSize(everyone, box, (float) (boxWidth * factor), (float) (boxHeight * factor));
+        }
+    }
+
+    /**
+     * Hands the carrier every projectile that flew into one of the boxes this
+     * tick: the server only knows the carrier's own box, so an arrow would
+     * otherwise pass through the rest of the model.
+     */
+    private void catchProjectiles(LivingEntity body) {
+        if (boxIds.length == 0 || detached || viewers().isEmpty() || world == null) {
+            return;
+        }
+        org.bukkit.util.BoundingBox around = bounds(0);
+        for (int box = 1; box < boxIds.length; box++) {
+            around.union(bounds(box));
+        }
+        around.expand(4);
+        for (org.bukkit.entity.Entity nearby : world.getNearbyEntities(around,
+                entity -> entity instanceof org.bukkit.entity.Projectile)) {
+            org.bukkit.entity.Projectile projectile = (org.bukkit.entity.Projectile) nearby;
+            if (projectile.getShooter() == body || caught.contains(projectile.getEntityId())
+                    || projectile instanceof org.bukkit.entity.AbstractArrow arrow && arrow.isInBlock()) {
+                continue;
+            }
+            org.bukkit.util.Vector from = projectile.getLocation().toVector();
+            org.bukkit.util.Vector velocity = projectile.getVelocity();
+            if (Boxes.crossed(body.getBoundingBox(), from, velocity) != null) {
+                // The carrier's own box takes it, as vanilla does.
+                continue;
+            }
+            for (int box = 0; box < boxIds.length; box++) {
+                org.bukkit.util.Vector entered = Boxes.crossed(bounds(box), from, velocity);
+                if (entered == null) {
+                    continue;
+                }
+                caught.add(projectile.getEntityId());
+                if (projectile.canHitEntity(body)) {
+                    projectile.hitEntity(body, entered);
+                }
+                break;
+            }
+        }
+    }
+
+    /**
+     * A hit on one of its boxes, from the network thread: the carrier takes it
+     * if the player could have made it, as the server checks a hit on any
+     * entity: within their interaction range of the box, with nothing solid in
+     * the way, once a tick at most. The vanilla attack then weighs the
+     * player's attack cooldown as it always does.
+     */
+    void hitBy(Player player, int boxId) {
         LivingEntity body = carrier;
         if (body == null || detached || removed) {
             return;
         }
         tasks.runAtEntity(body, () -> {
-            if (!body.isValid() || !player.isOnline() || player.getWorld() != body.getWorld()) {
+            if (!body.isValid() || !player.isOnline() || player.getWorld() != body.getWorld() || detached) {
                 return;
             }
-            double reach = REACH + boxWidth / 2 + options.scale() * rig.width() / 2;
-            if (player.getLocation().distanceSquared(body.getLocation()) > reach * reach) {
+            int box = -1;
+            for (int index = 0; index < boxIds.length; index++) {
+                if (boxIds[index] == boxId) {
+                    box = index;
+                }
+            }
+            if (box < 0) {
+                return;
+            }
+            Long last = lastHit.put(player.getUniqueId(), ticks);
+            if (last != null && last == ticks) {
+                return;
+            }
+            org.bukkit.util.BoundingBox bounds = bounds(box);
+            Location eye = player.getEyeLocation();
+            AttributeInstance range = interactionRange(player);
+            if (!Boxes.reaches(bounds, eye.toVector(), range == null ? 3 : range.getValue())) {
+                return;
+            }
+            org.bukkit.util.Vector to = Boxes.nearest(bounds, eye.getX(), eye.getY(), eye.getZ())
+                    .subtract(eye.toVector());
+            double length = to.length();
+            if (length > 1.0E-3 && eye.getWorld().rayTraceBlocks(eye, to.multiply(1 / length), length,
+                    org.bukkit.FluidCollisionMode.NEVER, true) != null) {
                 return;
             }
             player.attack(body);
         });
+    }
+
+    private static @Nullable AttributeInstance interactionRange(Player player) {
+        try {
+            return player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+        } catch (RuntimeException | LinkageError older) {
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------ ending

@@ -185,7 +185,7 @@ public final class ModelRuntime {
     private static void clicked(Player player, int entityId, boolean attack) {
         LiveModel live = BOXES.get(entityId);
         if (live != null && attack) {
-            live.hitBy(player);
+            live.hitBy(player, entityId);
         }
     }
 

@@ -434,6 +434,27 @@ public final class PluginMobs {
     }
 
     /**
+     * The attacks of a model mob with a body ({@link MobModel#attacks}), as a
+     * list: each row a blow or a throw, a click opening one form with reach,
+     * arc, damage, cooldown, knockback, animation and wind-up, prefilled.
+     *
+     * <pre>{@code
+     * mobs.attacksEditor(template.model().attacks())
+     *     .title("{primary}&lATTACKS")
+     *     .onSave(attacks -> store.save(template.withModel(template.model().withAttacks(attacks))))
+     *     .open(player);
+     * }</pre>
+     *
+     * @param attacks what is being edited; copied, never held. Empty strikes with
+     *                {@link MobAttack#DEFAULT}
+     * @return the editor, ready to open
+     * @since 1.327.0
+     */
+    public @NotNull ListEditor<MobAttack> attacksEditor(@NotNull List<MobAttack> attacks) {
+        return Editors.of(plugin).list(new MobAttackDescriptor(plugin), MobAttack.class, attacks);
+    }
+
+    /**
      * One form with a field per attribute in {@link MobTemplate#ATTRIBUTES},
      * prefilled; a blank field leaves the type's vanilla value.
      *

@@ -291,9 +291,27 @@ Nothing is written until save; any other ending takes the preview down and calls
 
 The carrier's own hitbox keeps working. A model more than a quarter wider or
 taller than it gets up to four boxes of its own, laid along its long axis and
-turned with it. They are packet-only interaction entities, and a hit on one is
-handed to the carrier as that player's attack, if the player is within reach.
-Right-clicks on them are dropped.
+turned with it. A mob with a body of its own (see
+[mobs.md](mobs.md#a-body-of-its-own-since-13260)) has its carrier grown to fill
+the model, so it only needs them where one box cannot cover its shape.
+
+The boxes are packet-only interaction entities, and since 1.327.0 they are held
+to what the server holds a hit on any entity to:
+
+- **A hit** is handed to the carrier as that player's attack only if the box is
+  within the player's interaction range (the `entity_interaction_range`
+  attribute, 3 by default, plus 0.75 for the box having moved between the
+  client's frame and the server's tick), nothing solid stands between the
+  player's eyes and the box, and at most once a tick per player. The vanilla
+  attack weighs the player's attack cooldown as it does on any mob.
+- **A projectile** that flies into a box (an arrow, a trident, a snowball, a
+  fireball) is handed to the carrier where it entered, through Paper's
+  `Projectile#hitEntity`, as if the carrier's own box had stopped it. One the
+  carrier's own box takes anyway is left to vanilla.
+- **Size**: they grow and shrink with the model, a fight phase's size or a
+  SIZE skill, and move every tick it moves or turns.
+- **Right-clicks** on them are dropped, as a right-click on a mob is: the
+  player was clicking the model, not the block behind it.
 
 ## What it costs
 

@@ -774,6 +774,9 @@ With any kind but `VANILLA`:
 On Spigot there are no mob goals: the carrier is still chosen, sized and given
 its physics, but keeps its vanilla AI, reported once.
 
+`PluginMobs.attacksEditor(attacks)` edits the attacks as a list (since
+1.327.0): each row a blow or a throw, a click opening one form, prefilled.
+
 `MobCodec` stores both in the model column:
 `"body":{"kind":"HEAVY","speed":2.2}` and
 `"attacks":[{"name":"slam","reach":2.5,"damage":9.0,"cooldown":3.0}]`, each
