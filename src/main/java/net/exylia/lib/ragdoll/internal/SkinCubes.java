@@ -217,7 +217,7 @@ public final class SkinCubes {
                     if (!mixed) {
                         Material block = BlockPalette.material(painted);
                         plain = plain == null ? block : plain;
-                        mixed = block != plain || !BlockPalette.passesFor(painted, plain);
+                        mixed = block != plain;
                     }
                     all[seen++] = painted;
                 }
