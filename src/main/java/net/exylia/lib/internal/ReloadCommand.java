@@ -67,13 +67,13 @@ import java.util.function.Supplier;
  * configuration: a plugin reloads itself through its own command, exactly as
  * {@code docs/reload.md} describes.
  *
- * <h2>What {@code status} shows</h2>
+ * <h2>What {@code /exylialib} shows</h2>
  * A read-only diagnostic built from data the library already exposes
  * through public static entry points ({@link Effects}, {@link Menus},
  * {@link Actions}, {@link Regions}, {@link Databases}, {@link Redis},
  * {@link Configs}, {@link Proxy}) or that Bukkit itself exposes
  * ({@link org.bukkit.plugin.PluginManager#getPlugins()}), plus one ping to
- * the proxy bridge. {@code info} and {@code stats} are aliases of it.
+ * the proxy bridge. It is what the bare {@code /exylialib} prints.
  *
  * <h2>Permission</h2>
  * Every subcommand — including the read-only ones — sits behind
@@ -206,27 +206,6 @@ public final class ReloadCommand {
     }
 
     /**
-     * Shows what the library is and what the command does.
-     *
-     * @param sender who asked
-     */
-    @CommandPlaceholder
-    public void overview(@NotNull CommandSender sender) {
-        Text.of(header()
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Reload {letters_black}» {letters}{muted}/exylialib reload{letters} — refreshes colours, formats, economy detection and input settings.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Status {letters_black}» {letters}{muted}/exylialib status{letters} — settings, proxy bridge, modules, databases and dependents.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Update {letters_black}» {letters}{muted}/exylialib update{letters} — checks GitHub now and stages a newer release.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Export {letters_black}» {letters}{muted}/exylialib export <plugin>{letters} — writes that plugin's tables to a dump.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Import {letters_black}» {letters}{muted}/exylialib import <plugin> <file> [force]{letters} — reads one back; force MERGES rather than replacing.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Wipe {letters_black}» {letters}{muted}/exylialib wipe <plugin> <table|*>{letters} — empties tables, after a typed confirmation and an automatic dump.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Updates {letters_black}» {letters}{muted}/exylialib updates{letters} — default changes plugin updates shipped, to apply or keep.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Plugins {letters_black}» {letters}{muted}/exylialib plugins{letters} — checks every Exylia plugin for a newer release and stages it.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Pending rewards {letters_black}» {letters}{muted}/exylialib pendingrewards [player]{letters} — rewards waiting to be delivered, to give now or cancel.")
-                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Logs {letters_black}» {letters}{muted}/exylialib logs <player|*> [plugin] [action]{letters} — the staff audit log every plugin records into.")
-        ).send(sender);
-    }
-
-    /**
      * Reloads the library's own runtime settings.
      *
      * <p>One command refreshes {@code config.yml}, {@code colors.yml},
@@ -255,6 +234,9 @@ public final class ReloadCommand {
      * is, how it reaches the network, what its modules hold, its databases and
      * who depends on it.
      *
+     * <p>It is the bare command: a list of subcommands told an admin less
+     * than this does, and tab completion already lists them.
+     *
      * <p>{@code info} and {@code stats} used to split this in two, and neither
      * said whether the proxy bridge worked — the one thing a cross-server
      * problem needs answered first. The bridge line is not the cached
@@ -271,7 +253,7 @@ public final class ReloadCommand {
      *
      * @param sender who asked
      */
-    @Subcommand({"status", "info", "stats"})
+    @CommandPlaceholder
     @CommandPermission("exylialib.admin")
     public void status(@NotNull CommandSender sender) {
         // Read here, on the main thread: the ping completes on the Redis

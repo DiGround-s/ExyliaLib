@@ -330,7 +330,7 @@ public final class EditorRuntime {
         return true;
     }
 
-    /** How many editors are open. For tests and {@code /exylialib stats}. */
+    /** How many editors are open. For tests and {@code /exylialib}. */
     public static int open() {
         return OPEN.size();
     }

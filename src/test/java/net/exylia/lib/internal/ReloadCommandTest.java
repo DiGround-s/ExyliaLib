@@ -105,28 +105,6 @@ class ReloadCommandTest {
         assertTrue(text.contains("input"), "got: " + text);
     }
 
-    // ------------------------------------------------------------- overview
-
-    @Test
-    @DisplayName("the overview names the version and every subcommand")
-    void overviewShowsVersionAndUsage() {
-        command.overview(sender);
-
-        assertEquals(1, sent.size());
-        String text = sent.get(0);
-        assertTrue(text.contains("1.14.0"), "got: " + text);
-        assertTrue(text.contains("/exylialib reload"), "got: " + text);
-        assertTrue(text.contains("/exylialib status"), "got: " + text);
-    }
-
-    @Test
-    @DisplayName("the overview does not reload anything")
-    void overviewDoesNotReload() {
-        command.overview(sender);
-
-        assertEquals(0, reloads.get());
-    }
-
     // ---------------------------------------------------------------- status
 
     @Test
@@ -501,16 +479,6 @@ class ReloadCommandTest {
         assertTrue(sent.get(0).contains("force"), "the mode is shown before it runs: " + sent.get(0));
     }
 
-    @Test
-    @DisplayName("the overview names export and import too")
-    void theOverviewNamesTransfer() {
-        ReloadCommand command = withTransfers();
-        command.overview(sender);
-        String text = sent.get(0);
-        assertTrue(text.contains("/exylialib export"), "got: " + text);
-        assertTrue(text.contains("/exylialib import"), "got: " + text);
-        assertTrue(text.contains("MERGES"), "got: " + text);
-    }
     // ------------------------------------------------------------------ wipe
 
     /** The code the preview handed out, read back out of what it printed. */

@@ -16,9 +16,8 @@ that one.
 
 | Subcommand | What it does |
 | --- | --- |
-| `/exylialib` | Overview: what the command does |
 | `/exylialib reload` | Reloads the library's own runtime settings |
-| `/exylialib status` (since 1.252.0; `info` and `stats` are aliases) | Settings, a live ping of the proxy bridge, module counters, databases and dependent plugins |
+| `/exylialib` (since 1.318.0; was `status`, `info`, `stats`) | Settings, a live ping of the proxy bridge, module counters, databases and dependent plugins |
 | `/exylialib update` (since 1.65.0) | Checks GitHub now and stages a newer release |
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
@@ -55,10 +54,10 @@ The chain, verified in code:
   → input.reload()                             input.yml
 ```
 
-### `/exylialib status` (since 1.252.0)
+### `/exylialib` (since 1.318.0)
 
-One read-only panel that replaced `info` and `stats`, which still work as
-aliases. Sections, top to bottom:
+One read-only panel, printed by the bare command. Until 1.318.0 it was
+`status` (aliases `info`, `stats`) and the bare command listed subcommands. Sections, top to bottom:
 
 - **Library**: `Platform.current()`, and the `config.yml` switches from
   `LibrarySettings.get()`.
