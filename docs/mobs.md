@@ -776,6 +776,19 @@ its physics, but keeps its vanilla AI, reported once.
 
 `PluginMobs.attacksEditor(attacks)` edits the attacks as a list (since
 1.327.0): each row a blow or a throw, a click opening one form, prefilled.
+`bodyEditor(viewer, body)` and `soundsEditor(viewer, sounds)` (since 1.331.0)
+are one form each, prefilled. A mob wearing a model draws no variant, carpet or
+outline of its carrier, so `reactionsEditor(viewer, look)` offers the
+REACTIONS half of `lookEditor` alone.
+
+### Telling them apart (since 1.331.0)
+
+A custom mob is carried by a vanilla mob, and other plugins see that mob's
+type. `Mobs.isCustom(entity)` and `Mobs.typeOf(entity)`
+(`ExyliaMobs:stone_golem`) read the tag every custom mob carries, so a
+clear-lag plugin, a stacker or a mob limiter can leave them alone or count them
+apart: a pig carrying a golem is not a pig. They read the entity, so on Folia
+they run on its thread.
 
 `MobCodec` stores both in the model column:
 `"body":{"kind":"HEAVY","speed":2.2}` and

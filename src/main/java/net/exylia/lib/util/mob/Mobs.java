@@ -1,7 +1,9 @@
 package net.exylia.lib.util.mob;
 
+import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -77,6 +79,39 @@ public final class Mobs {
      */
     public static void provide(@NotNull MobStore store) {
         Mobs.store = java.util.Objects.requireNonNull(store, "store");
+    }
+
+    /**
+     * Whether an entity is a custom mob of any plugin, whatever vanilla mob it
+     * is under: a pig carrying a stone golem is not a pig. For clear-lag
+     * plugins, stackers, mob limiters and anything else that counts or removes
+     * mobs by their vanilla type.
+     *
+     * <pre>{@code
+     * if (Mobs.isCustom(entity)) return; // never stacked, never cleared
+     * }</pre>
+     *
+     * <p>Read from the entity itself: on Folia, on the entity's own thread.
+     *
+     * @param entity any entity
+     * @return whether it is one
+     * @since 1.331.0
+     */
+    public static boolean isCustom(@NotNull Entity entity) {
+        return typeOf(entity) != null;
+    }
+
+    /**
+     * What custom mob an entity is: {@code <plugin>:<template id>}, such as
+     * {@code ExyliaMobs:stone_golem}.
+     *
+     * @param entity any entity
+     * @return its type, or {@code null} for an entity that is not a custom mob
+     * @since 1.331.0
+     */
+    public static @Nullable String typeOf(@NotNull Entity entity) {
+        return entity.getPersistentDataContainer().get(net.exylia.lib.util.mob.internal.MobEngine.TAG,
+                org.bukkit.persistence.PersistentDataType.STRING);
     }
 
     /**

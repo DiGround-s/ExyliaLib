@@ -642,6 +642,93 @@ public final class PluginMobs {
         }
     }
 
+    /**
+     * The REACTIONS half of {@link #lookEditor} alone: for a mob wearing a 3D
+     * model, whose variant, body and outline are the model's, not its carrier's.
+     *
+     * @param viewer who is editing
+     * @param look   the look as it stands
+     * @return the edited look, or nothing when the viewer backed out
+     * @since 1.331.0
+     */
+    public @NotNull CompletionStage<Optional<MobLook>> reactionsEditor(@NotNull Player viewer, @NotNull MobLook look) {
+        return reactions(viewer, look);
+    }
+
+    /**
+     * One form for a model mob's {@link MobBody}, prefilled: its kind, speed,
+     * the distance it keeps, when it flees and how high it floats.
+     *
+     * <pre>{@code
+     * mobs.bodyEditor(player, template.model().body())
+     *     .thenAccept(edited -> edited.ifPresent(body ->
+     *             store.save(template.withModel(template.model().withBody(body)))));
+     * }</pre>
+     *
+     * @param viewer who is editing
+     * @param body   the body as it stands
+     * @return the edited body, or nothing when the viewer backed out
+     * @since 1.331.0
+     */
+    public @NotNull CompletionStage<Optional<MobBody>> bodyEditor(@NotNull Player viewer, @NotNull MobBody body) {
+        FormKey<String> kind = FormKey.text("kind");
+        FormKey<BigDecimal> speed = FormKey.decimal("speed");
+        FormKey<BigDecimal> keep = FormKey.decimal("keep");
+        FormKey<BigDecimal> flee = FormKey.decimal("flee");
+        FormKey<BigDecimal> hover = FormKey.decimal("hover");
+        String current = body.kind().name();
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lBODY"))
+                .choice(kind, Phrases.tr("Kind"), current, MobSkillDescriptor.options(MobBody.Kind.values()))
+                .hint(Phrases.tr("Walker, heavy, climber, flyer, hover, swimmer or static. Vanilla keeps the type's own AI and size."))
+                .decimal(speed, Phrases.tr("Speed, blocks a second"), MobSkillDescriptor.decimal(body.speed()))
+                .hint(Phrases.tr("0 is its kind's own."))
+                .decimal(keep, Phrases.tr("Keeps away, in blocks"), MobSkillDescriptor.decimal(body.keepDistance()))
+                .hint(Phrases.tr("For archers and casters. 0 closes in to strike."))
+                .decimal(flee, Phrases.tr("Flees below, in percent of its health"),
+                        MobSkillDescriptor.decimal(body.fleeBelow() * 100))
+                .hint(Phrases.tr("0 never flees."))
+                .decimal(hover, Phrases.tr("Floats over the ground, in blocks"), MobSkillDescriptor.decimal(body.hover()))
+                .hint(Phrases.tr("Hover and flyer only. 0 is its kind's own."));
+        return form.ask(values -> {
+            MobBody.Kind picked = MobBody.Kind.of(values.getOr(kind, current));
+            return new MobBody(picked == null ? body.kind() : picked,
+                    values.getOr(speed, BigDecimal.ZERO).doubleValue(),
+                    values.getOr(keep, BigDecimal.ZERO).doubleValue(),
+                    values.getOr(flee, BigDecimal.ZERO).doubleValue() / 100,
+                    values.getOr(hover, BigDecimal.ZERO).doubleValue());
+        });
+    }
+
+    /**
+     * One form for a model mob's {@link MobSounds}, prefilled: each sound as
+     * {@code sound|volume|pitch}, blank for silence, and how often it speaks.
+     *
+     * @param viewer who is editing
+     * @param sounds the sounds as they stand
+     * @return the edited sounds, or nothing when the viewer backed out
+     * @since 1.331.0
+     */
+    public @NotNull CompletionStage<Optional<MobSounds>> soundsEditor(@NotNull Player viewer,
+                                                                      @NotNull MobSounds sounds) {
+        FormKey<String> ambient = FormKey.text("ambient");
+        FormKey<String> step = FormKey.text("step");
+        FormKey<String> hurt = FormKey.text("hurt");
+        FormKey<String> death = FormKey.text("death");
+        FormKey<String> attack = FormKey.text("attack");
+        FormKey<BigDecimal> every = FormKey.decimal("every");
+        EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lSOUNDS"))
+                .field(ambient, optionalText(ambient, Phrases.tr("Now and then"), sounds.ambient()))
+                .hint(Phrases.tr("Each is sound|volume|pitch, such as minecraft:entity.iron_golem.step|1|0.7. Blank is silent."))
+                .decimal(every, Phrases.tr("Now and then, every seconds"), MobSkillDescriptor.decimal(sounds.every()))
+                .field(step, optionalText(step, Phrases.tr("Each step"), sounds.step()))
+                .field(hurt, optionalText(hurt, Phrases.tr("Hurt"), sounds.hurt()))
+                .field(death, optionalText(death, Phrases.tr("Death"), sounds.death()))
+                .field(attack, optionalText(attack, Phrases.tr("Each blow"), sounds.attack()));
+        return form.ask(values -> new MobSounds(values.getOr(ambient, ""), values.getOr(step, ""),
+                values.getOr(hurt, ""), values.getOr(death, ""), values.getOr(attack, ""),
+                values.getOr(every, BigDecimal.valueOf(sounds.every())).doubleValue()));
+    }
+
     private CompletionStage<Optional<MobLook>> reactions(Player viewer, MobLook look) {
         return Inputs.of(plugin)
                 .choice(viewer, Phrases.tr("{primary}&lREACTIONS"), List.of(Reaction.values()))
