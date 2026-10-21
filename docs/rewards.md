@@ -278,7 +278,7 @@ rewards.overflow(OverflowPolicy.DROP);   // the default
 | Policy | Does |
 | --- | --- |
 | `DROP` | drops what does not fit at the player's feet — **the default** |
-| `QUEUE` | keeps it until there is room; needs a `PendingRewards` store, and drops it if that store refuses |
+| `QUEUE` | keeps it until there is room; needs a `PendingRewards` store, and drops it if that store refuses or is full |
 | `FAIL` | gives up and reports `NO_ROOM` |
 
 What is queued is **what was left over**, not the original: a player who
@@ -332,6 +332,23 @@ The two are not alike, and getting this wrong costs TPS:
 `claim` must not return the same rewards twice: whatever it hands back is about
 to be given. Clear the rows before delivery rather than after — a duplicated
 reward is an exploit, a lost one is a support ticket.
+
+### The ceiling
+
+A queue is a place a bug writes to in a loop. A store may refuse a batch
+through `keep(UUID, List, Consumer)` (since 1.340.0): what it refuses goes to the
+consumer instead of being dropped, and `giveLater` gives it to a player who is
+here right away, on their own thread, with whatever does not fit dropped at
+their feet. Nothing is destroyed. A store that only implements the two-argument
+`keep` never refuses.
+
+The library's store (`PendingRewards.database`) holds 200 batches per player.
+It keeps each player's count in memory, recounted every five minutes, and
+writes one player's batches in order, so a burst cannot slip past the ceiling
+and a refused batch costs no task and no query. A player who is not here cannot
+be handed anything, so their batch is still written past 200, up to 1000; past
+that it is lost. Either is said once per player every five minutes, with how
+many batches it was about.
 
 `count(player)` (since 1.278.0) says how many batches a player is owed without
 taking them — for a "you have 3 rewards to claim" line on join, such as a

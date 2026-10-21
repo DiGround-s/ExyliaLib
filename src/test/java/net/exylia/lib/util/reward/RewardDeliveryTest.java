@@ -248,6 +248,33 @@ class RewardDeliveryTest {
         assertEquals(List.of("DIAMOND x3"), bag.dropped);
     }
 
+    @Test
+    @DisplayName("with QUEUE and a store at its ceiling, the refused overflow reaches the player")
+    void overflowQueueRefusedIsHandedBack() {
+        bag.roomFor(0);
+        rewards.overflow(OverflowPolicy.QUEUE).pending(new PendingRewards() {
+            @Override
+            public void keep(java.util.UUID id, List<RewardEntry> owed) {
+                throw new AssertionError("a refused batch is not written");
+            }
+
+            @Override
+            public void keep(java.util.UUID id, List<RewardEntry> owed,
+                             java.util.function.Consumer<List<RewardEntry>> refused) {
+                refused.accept(owed);
+            }
+
+            @Override
+            public List<RewardEntry> claim(java.util.UUID id) {
+                return List.of();
+            }
+        });
+
+        rewards.give(player.player(), List.of(RewardEntry.item("DIAMOND").itemAmount(3).build()));
+
+        assertEquals(List.of("DIAMOND x3"), bag.dropped, "a refused batch is dropped at their feet, never lost");
+    }
+
     // ------------------------------------------------------------------
     // Commons bug 2: the roll ran before the permission and the condition
     // ------------------------------------------------------------------

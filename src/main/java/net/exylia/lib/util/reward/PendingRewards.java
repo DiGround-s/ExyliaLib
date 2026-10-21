@@ -68,6 +68,12 @@ public interface PendingRewards {
      * scheduled and the read is already off the main thread. Pair it with
      * {@link PluginRewards#claimOnJoin()} and there is nothing else to write.
      *
+     * <p>A player is owed at most 200 batches through
+     * {@link PluginRewards#giveLater}; past that each one is handed back and
+     * given now, or written anyway when they are not here, up to 1000. The
+     * count is kept in memory and written in order per player, so the ceiling
+     * holds however fast rewards are queued, and a refusal costs no query.
+     *
      * @param plugin whose database, and whose rewards
      * @return a store backed by that database
      * @since 1.128.0
@@ -103,6 +109,28 @@ public interface PendingRewards {
      * @param owed   what they are owed, never empty
      */
     void keep(@NotNull UUID player, @NotNull List<RewardEntry> owed);
+
+    /**
+     * Keeps rewards, or hands them back when the store will not hold any more.
+     *
+     * <p>What {@link PluginRewards#giveLater} calls. A store with a ceiling
+     * passes what it refuses to {@code refused} instead of dropping it, and the
+     * plugin's rewards decide what becomes of it: a player who is here gets it
+     * now, with whatever does not fit dropped at their feet. A store without a
+     * ceiling never calls it, which is what this default does.
+     *
+     * <p>{@code refused} may be called inline or later, from any thread, and at
+     * most once per call.
+     *
+     * @param player  who is owed them
+     * @param owed    what they are owed, never empty
+     * @param refused what to do with them if they are not kept
+     * @since 1.340.0
+     */
+    default void keep(@NotNull UUID player, @NotNull List<RewardEntry> owed,
+                      @NotNull java.util.function.Consumer<List<RewardEntry>> refused) {
+        keep(player, owed);
+    }
 
     /**
      * Takes everything a player is owed, leaving nothing behind.

@@ -4,6 +4,7 @@ import net.exylia.lib.FakeServer;
 import net.exylia.lib.util.reward.PendingBatch;
 import net.exylia.lib.util.reward.PendingRewards;
 import net.exylia.lib.util.reward.RewardEntry;
+import net.exylia.lib.util.reward.internal.DatabasePending;
 import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.plugin.Plugin;
@@ -68,6 +69,37 @@ class PendingRewardsStoreTest {
 
         assertEquals(1, store.claim(player).size());
         assertEquals(Map.of(), store.owed());
+    }
+
+    @Test
+    void theCeilingHoldsUnderABurstAndHandsBackWhatItRefuses() throws InterruptedException {
+        UUID player = UUID.randomUUID();
+        int ceiling = DatabasePending.MOST_PER_PLAYER;
+        AtomicInteger handedBack = new AtomicInteger();
+        for (int i = 0; i < ceiling + 50; i++) {
+            store.keep(player, List.of(RewardEntry.command("say " + i).build()), rest -> handedBack.addAndGet(rest.size()));
+        }
+        awaitBatches(player, ceiling);
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (handedBack.get() < 50 && System.currentTimeMillis() < deadline) {
+            Thread.sleep(20);
+        }
+
+        assertEquals(ceiling, store.count(player), "racing batches must not slip past the ceiling");
+        assertEquals(50, handedBack.get(), "every refused batch is handed back, none dropped");
+
+        store.keep(player, List.of(RewardEntry.command("say late").build()), rest -> handedBack.incrementAndGet());
+        assertEquals(51, handedBack.get(), "a known ceiling refuses inline, with no task and no query");
+
+        store.keep(player, List.of(RewardEntry.command("say offline").build()));
+        awaitBatches(player, ceiling + 1);
+        assertEquals(ceiling + 1, store.count(player), "with nobody to hand it to, the batch is still written");
+
+        assertEquals(ceiling + 1, store.claim(player).size());
+        store.keep(player, List.of(RewardEntry.command("say again").build()), rest -> handedBack.incrementAndGet());
+        awaitBatches(player, 1);
+        assertEquals(1, store.count(player), "a claim frees the ledger");
+        assertEquals(51, handedBack.get());
     }
 
     private void awaitBatches(UUID player, int count) throws InterruptedException {

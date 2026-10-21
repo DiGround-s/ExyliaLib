@@ -501,9 +501,14 @@ public final class PluginRewards {
      * <p>They are handed over by {@link #claim} the next time the player is
      * around. Needs a {@link #pending(PendingRewards) store}.
      *
+     * <p>A store that will not hold any more hands them back rather than losing
+     * them. A player who is here then gets them now, on their own thread, with
+     * whatever does not fit dropped at their feet; one who is not is kept
+     * anyway, as far as the store allows.
+     *
      * @param player who is owed them
      * @param owed   what they are owed
-     * @return whether they could be kept
+     * @return whether they were handed to the store
      */
     public boolean giveLater(@NotNull UUID player, @NotNull List<RewardEntry> owed) {
         if (owed.isEmpty()) {
@@ -517,7 +522,7 @@ public final class PluginRewards {
             return false;
         }
         try {
-            store.keep(player, List.copyOf(owed));
+            store.keep(player, List.copyOf(owed), rest -> handBack(store, player, rest));
             if (claimingOnJoin && org.bukkit.Bukkit.getPlayer(player) != null) {
                 waiting.put(player, System.currentTimeMillis());
             }
@@ -526,6 +531,28 @@ public final class PluginRewards {
             debug.error("Could not keep " + owed.size() + " reward(s) owed to " + player + ".",
                     unwritable);
             return false;
+        }
+    }
+
+    /**
+     * What a store refused. Never lost: given now to a player who is here, with
+     * the overflow dropped, since queueing it again is what was just refused;
+     * kept without a ceiling's refusal for one who is not.
+     */
+    private void handBack(PendingRewards store, UUID id, List<RewardEntry> rest) {
+        Player online = org.bukkit.Bukkit.getPlayer(id);
+        if (online == null || !online.isOnline()) {
+            store.keep(id, rest);
+        } else if (tasks.isOwnedBy(online)) {
+            giveDroppingOverflow(online, rest);
+        } else {
+            tasks.runAtEntity(online, () -> giveDroppingOverflow(online, rest), () -> store.keep(id, rest));
+        }
+    }
+
+    private void giveDroppingOverflow(Player player, List<RewardEntry> rewards) {
+        for (RewardEntry entry : Rolls.ordered(rewards)) {
+            deliver(entry, player, items, OverflowPolicy.DROP);
         }
     }
 
@@ -782,6 +809,10 @@ public final class PluginRewards {
     }
 
     private RewardResult deliver(RewardEntry entry, Player player, ItemGiver giver) {
+        return deliver(entry, player, giver, overflow);
+    }
+
+    private RewardResult deliver(RewardEntry entry, Player player, ItemGiver giver, OverflowPolicy policy) {
         // Before the roll, unlike commons, which rolled first. Who may receive a
         // reward does not depend on chance, and asking in that order made a rare
         // reward report a lost roll when the real answer was a misspelled
@@ -802,14 +833,15 @@ public final class PluginRewards {
         }
 
         int amount = Rolls.amount(entry, dice);
-        RewardResult result = Providers.give(entry, player, amount, this::leftOver, giver, tasks);
+        RewardResult result = Providers.give(entry, player, amount,
+                (who, reward, remaining) -> leftOver(who, reward, remaining, policy), giver, tasks);
         record(entry, result, player);
         return result;
     }
 
-    private RewardOutcome leftOver(Player player, RewardEntry entry, int remaining) {
+    private RewardOutcome leftOver(Player player, RewardEntry entry, int remaining, OverflowPolicy policy) {
         String snapshot = entry.itemSnapshot();
-        return switch (overflow) {
+        return switch (policy) {
             case DROP -> {
                 items.drop(player, snapshot, remaining);
                 yield RewardOutcome.GIVEN;
