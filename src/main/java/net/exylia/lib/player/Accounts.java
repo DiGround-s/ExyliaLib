@@ -179,6 +179,36 @@ public final class Accounts {
     }
 
     /**
+     * Every other account that used one of this player's addresses within the
+     * window, both of them inside it: the accounts a "one per household" rule
+     * has to look at.
+     *
+     * <p>Two indexed reads per address the player used, never a scan. Completes
+     * exceptionally when the database cannot answer, and the caller decides
+     * what that means, as with {@link #sameAddress}.
+     *
+     * @param player the player
+     * @return the other accounts, never the player; empty for nobody
+     * @since 1.344.0
+     */
+    public @NotNull CompletableFuture<Set<UUID>> sharingAddress(@NotNull UUID player) {
+        long since = clock.getAsLong() - window.toMillis();
+        return recent(player, since).thenCompose(hashes -> {
+            Set<UUID> others = ConcurrentHashMap.newKeySet();
+            CompletableFuture<?>[] reads = hashes.stream()
+                    .map(hash -> addresses.where("address", hash).find().thenAccept(rows -> {
+                        for (AddressRow row : rows) {
+                            if (row.lastSeen() >= since && !row.player().equals(player)) {
+                                others.add(row.player());
+                            }
+                        }
+                    }))
+                    .toArray(CompletableFuture[]::new);
+            return CompletableFuture.allOf(reads).thenApply(done -> Set.copyOf(others));
+        });
+    }
+
+    /**
      * When the network first saw a player.
      *
      * @param player the player

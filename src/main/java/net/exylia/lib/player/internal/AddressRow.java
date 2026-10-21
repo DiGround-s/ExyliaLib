@@ -24,6 +24,6 @@ import java.util.UUID;
 public record AddressRow(
         @Id(length = 80) String id,
         @Indexed @Column UUID player,
-        @Column(length = 32) String address,
+        @Indexed @Column(length = 32) String address,
         @Column("last_seen") long lastSeen) {
 }

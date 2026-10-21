@@ -92,6 +92,22 @@ class AccountsTest {
     }
 
     @Test
+    @DisplayName("the accounts sharing an address are listed, never the player, and only within the window")
+    void sharing() throws Exception {
+        join(main, "203.0.113.7");
+        join(alt, "203.0.113.7");
+        UUID stranger = UUID.randomUUID();
+        join(stranger, "198.51.100.1");
+        UUID old = UUID.randomUUID();
+        now.addAndGet(-40 * DAY);
+        join(old, "203.0.113.7");
+        now.addAndGet(40 * DAY);
+
+        assertEquals(java.util.Set.of(alt), await(accounts.sharingAddress(main)));
+        assertEquals(java.util.Set.of(), await(accounts.sharingAddress(stranger)));
+    }
+
+    @Test
     @DisplayName("an address only counts while both used it within the window")
     void window() throws Exception {
         join(main, "203.0.113.7");

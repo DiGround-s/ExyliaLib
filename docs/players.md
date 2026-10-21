@@ -286,6 +286,7 @@ accounts.firstSeen(invited).thenAccept(first -> ...);
 | --- | --- |
 | `Accounts.of(plugin)` | the plugin's accounts, the same instance every time; from this call on, every join on this server is recorded into the plugin's database. Released with the plugin. |
 | `sameAddress(UUID, UUID)` → `CompletableFuture<Boolean>` | `true` when both players joined from one address within the window, or are online here from the same address right now. A player is the same person as themselves. Completes exceptionally when the database cannot answer: the caller decides whether that refuses. |
+| `sharingAddress(UUID)` → `CompletableFuture<Set<UUID>>` | every other account that used one of the player's addresses within the window (both inside it), never the player; two indexed reads per address. For "one per household" rules. Completes exceptionally when the database cannot answer. *Since 1.344.0.* |
 | `firstSeen(UUID)` → `CompletableFuture<Optional<Instant>>` | the earliest join any server recorded, empty for somebody never seen. Completes exceptionally when the database cannot answer, which must not read as "new". |
 | `window(Duration)` | a view that counts an address only when both used it within that long; `DEFAULT_WINDOW` is 30 days. |
 
