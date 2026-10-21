@@ -126,7 +126,9 @@ public final class BlockPalette {
 
         // Stripped wood: faint grain and the widest run of skin, hair and
         // leather tones, from pale oak's near-white to dark oak's near-black.
-        put(Material.STRIPPED_PALE_OAK_WOOD, 0xF6EEED);
+        // By name: pale oak is 1.21.4, and the constant fails the whole class on older servers.
+        Material paleOak = Material.matchMaterial("STRIPPED_PALE_OAK_WOOD");
+        if (paleOak != null) put(paleOak, 0xF6EEED);
         put(Material.STRIPPED_CHERRY_WOOD, 0xD79195);
         put(Material.STRIPPED_BIRCH_WOOD, 0xC5B076);
         put(Material.STRIPPED_OAK_WOOD, 0xB19056);
