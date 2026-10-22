@@ -350,11 +350,38 @@ public final class PluginSnapshots {
                                                                 @NotNull String contextId,
                                                                 @Nullable Function<Location, CompletableFuture<?>> goHome,
                                                                 @NotNull Set<SnapshotPart> parts) {
+        return returnAndRestore(player, contextId, goHome, parts, false);
+    }
+
+    /**
+     * The same, optionally only when the snapshot was saved on this server.
+     *
+     * <p>On a network whose servers share the plugin's database, a snapshot
+     * saved on another server describes the inventory the player had
+     * <em>there</em>. Applying it here overwrites what they own here, or gives
+     * it to them twice when the other server restores it too. With
+     * {@code thisServerOnly} such a row is left alone and this answers
+     * {@code false}; a row with no stored place, or one written before rows
+     * knew their server, counts as this server's.
+     *
+     * @param player         the player
+     * @param contextId      which snapshot
+     * @param goHome         moves the player and answers when they have arrived, or {@code null}
+     * @param parts          which parts to put back
+     * @param thisServerOnly whether to skip a snapshot saved on another server
+     * @return whether there was one to restore
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<Boolean> returnAndRestore(@NotNull Player player,
+                                                                @NotNull String contextId,
+                                                                @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                                @NotNull Set<SnapshotPart> parts,
+                                                                boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
         return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
                 .thenCompose(found -> {
                     SnapshotRow row = readable(found);
-                    if (row == null) {
+                    if (row == null || thisServerOnly && !savedHere(row)) {
                         return CompletableFuture.completedFuture(false);
                     }
                     return goneHome(player, liveHere(row.lastLocation()), goHome)
@@ -388,6 +415,12 @@ public final class PluginSnapshots {
      * server can still read it, and deleting it here would destroy the only
      * copy of somebody's inventory to tidy up a log line.
      */
+    /** Whether a row was saved on this server; one with no server in its place counts as here. */
+    private boolean savedHere(@NotNull SnapshotRow row) {
+        ExyliaLocation place = row.lastLocation();
+        return place == null || place.isSameServer(teleports().serverId());
+    }
+
     private @Nullable SnapshotRow readable(@NotNull Optional<SnapshotRow> found) {
         if (found.isEmpty() || LegacyImport.isMarker(found)) {
             return null;
@@ -416,6 +449,15 @@ public final class PluginSnapshots {
                         return;
                     }
                     PlayerState.apply(snapshot, player, parts, SnapshotRuntime::report);
+                    // Written to the player file before the row goes: a crash
+                    // after the delete would otherwise load the player as they
+                    // were before the restore (an arena kit) with nothing left
+                    // to restore from.
+                    try {
+                        player.saveData();
+                    } catch (RuntimeException failure) {
+                        debug.error("Could not save " + player.getName() + "'s data after a restore", failure);
+                    }
                     Location back = liveHere(row.lastLocation());
                     if (wentBack != null && back != null) {
                         wentBack.accept(back);
@@ -580,8 +622,26 @@ public final class PluginSnapshots {
      */
     public @NotNull CompletableFuture<Integer> restoreAll(@NotNull Player player,
                                                           @Nullable Consumer<Location> wentBack) {
+        return restoreAll(player, wentBack, false);
+    }
+
+    /**
+     * The same, optionally only from snapshots saved on this server.
+     *
+     * <p>See {@link #returnAndRestore(Player, String, Function, Set, boolean)}
+     * for why a network sharing one database wants {@code thisServerOnly}.
+     *
+     * @param player         the player
+     * @param wentBack       told where they were by the oldest snapshot, or {@code null}
+     * @param thisServerOnly whether to leave snapshots saved on another server alone
+     * @return how many snapshots were restored
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<Integer> restoreAll(@NotNull Player player,
+                                                          @Nullable Consumer<Location> wentBack,
+                                                          boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
-        return contexts(uuid).thenCompose(rows -> {
+        return contexts(uuid, thisServerOnly).thenCompose(rows -> {
             if (rows.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
@@ -629,8 +689,26 @@ public final class PluginSnapshots {
      */
     public @NotNull CompletableFuture<Integer> returnAndRestoreAll(@NotNull Player player,
                                                                    @Nullable Function<Location, CompletableFuture<?>> goHome) {
+        return returnAndRestoreAll(player, goHome, false);
+    }
+
+    /**
+     * The same, optionally only from snapshots saved on this server.
+     *
+     * <p>See {@link #returnAndRestore(Player, String, Function, Set, boolean)}
+     * for why a network sharing one database wants {@code thisServerOnly}.
+     *
+     * @param player         the player
+     * @param goHome         moves the player and answers when they have arrived, or {@code null}
+     * @param thisServerOnly whether to leave snapshots saved on another server alone
+     * @return how many snapshots were restored
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<Integer> returnAndRestoreAll(@NotNull Player player,
+                                                                   @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                                   boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
-        return contexts(uuid).thenCompose(rows -> {
+        return contexts(uuid, thisServerOnly).thenCompose(rows -> {
             if (rows.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
@@ -734,6 +812,19 @@ public final class PluginSnapshots {
      * @return the context ids
      */
     public @NotNull CompletableFuture<List<String>> contexts(@NotNull UUID uuid) {
+        return contexts(uuid, false);
+    }
+
+    /**
+     * Every context a player has a snapshot in, newest first, optionally only
+     * those saved on this server.
+     *
+     * @param uuid           the player
+     * @param thisServerOnly whether to leave out snapshots saved on another server
+     * @return the context ids
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<List<String>> contexts(@NotNull UUID uuid, boolean thisServerOnly) {
         return store().thenCompose(repository -> repository
                 .where("uuid", uuid)
                 .orderByDescending("savedAt")
@@ -741,7 +832,7 @@ public final class PluginSnapshots {
                 .thenApply(rows -> {
                     List<String> contexts = new ArrayList<>(rows.size());
                     for (SnapshotRow row : rows) {
-                        if (!LegacyImport.isMarker(row)) {
+                        if (!LegacyImport.isMarker(row) && (!thisServerOnly || savedHere(row))) {
                             contexts.add(row.contextId());
                         }
                     }

@@ -1,5 +1,6 @@
 package net.exylia.lib.session;
 
+import net.exylia.lib.session.internal.Recovering;
 import net.exylia.lib.util.snapshot.SnapshotPart;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -31,6 +32,7 @@ class PluginStaysTest {
     @BeforeEach
     void setUp() {
         Sessions.releaseAll();
+        Recovering.clearForTests();
         backend = new FakeBackend();
         stays = new PluginStays(null, new PluginSessions("ExyliaBetCore"), backend);
         other = new PluginSessions("ExyliaFFA");
@@ -171,6 +173,54 @@ class PluginStaysTest {
         assertEquals(parts, backend.restoredParts);
     }
 
+    @Test
+    void aRecoveringPlayerIsHeldUntilTheRestoreEnds() {
+        CompletableFuture<Integer> recovery = new CompletableFuture<>();
+        backend.nextRecover = recovery;
+        UUID uuid = player.getUniqueId();
+
+        CompletableFuture<Integer> recovered = stays.recover(player);
+        assertTrue(stays.isHeld(uuid));
+        assertTrue(Stays.isRecovering(uuid));
+        assertFalse(Recovering.allows(uuid, "/sell all"));
+        assertTrue(stays.enter(player, "match", null).isEmpty(), "nothing enters before the restore lands");
+
+        recovery.complete(1);
+        assertEquals(1, recovered.join());
+        assertFalse(stays.isHeld(uuid));
+        assertFalse(Stays.isRecovering(uuid));
+        assertTrue(Recovering.allows(uuid, "/sell all"));
+    }
+
+    @Test
+    void aFailedRecoveryStillLetsThePlayerGo() {
+        CompletableFuture<Integer> recovery = new CompletableFuture<>();
+        backend.nextRecover = recovery;
+        backend.quiet = true;
+        stays.recover(player);
+        recovery.completeExceptionally(new IllegalStateException("database down"));
+        assertFalse(Stays.isRecovering(player.getUniqueId()));
+    }
+
+    @Test
+    void allowedCommandsPassWhileRecovering() {
+        backend.nextRecover = new CompletableFuture<>();
+        stays.allowWhileRecovering("/MSG", "login");
+        stays.recover(player);
+        UUID uuid = player.getUniqueId();
+        assertTrue(Recovering.allows(uuid, "/msg Steve hi"));
+        assertTrue(Recovering.allows(uuid, "/essentials:msg Steve hi"));
+        assertTrue(Recovering.allows(uuid, "/LOGIN secret"));
+        assertFalse(Recovering.allows(uuid, "/ah"));
+    }
+
+    @Test
+    void recoveringLocallyAsksForThisServersSnapshotsOnly() {
+        stays.recoverLocal(player).join();
+        stays.recoverLocal(player, "duel_risk", SnapshotPart.ALL).join();
+        assertEquals(List.of("restoreAllLocal", "restoreLocal", "restoreAllLocal"), backend.calls);
+    }
+
     private static Player player(UUID uuid) {
         return (Player) Proxy.newProxyInstance(PluginStaysTest.class.getClassLoader(),
                 new Class<?>[]{Player.class}, (proxy, method, args) -> switch (method.getName()) {
@@ -188,6 +238,7 @@ class PluginStaysTest {
         final List<String> calls = new ArrayList<>();
         CompletableFuture<Void> nextSave = CompletableFuture.completedFuture(null);
         CompletableFuture<Boolean> nextRestore = CompletableFuture.completedFuture(true);
+        CompletableFuture<Integer> nextRecover = CompletableFuture.completedFuture(0);
         final List<String> contexts = new ArrayList<>();
         Set<SnapshotPart> restoredParts;
 
@@ -201,8 +252,8 @@ class PluginStaysTest {
         @Override
         public CompletableFuture<Boolean> returnAndRestore(Player player, String context,
                                                            @Nullable Function<Location, CompletableFuture<?>> goHome,
-                                                           Set<SnapshotPart> parts) {
-            calls.add("restore");
+                                                           Set<SnapshotPart> parts, boolean thisServerOnly) {
+            calls.add(thisServerOnly ? "restoreLocal" : "restore");
             contexts.add(context);
             restoredParts = parts;
             return nextRestore;
@@ -210,9 +261,10 @@ class PluginStaysTest {
 
         @Override
         public CompletableFuture<Integer> returnAndRestoreAll(Player player,
-                                                              Function<Location, CompletableFuture<?>> goHome) {
-            calls.add("restoreAll");
-            return CompletableFuture.completedFuture(0);
+                                                              Function<Location, CompletableFuture<?>> goHome,
+                                                              boolean thisServerOnly) {
+            calls.add(thisServerOnly ? "restoreAllLocal" : "restoreAll");
+            return nextRecover;
         }
 
         @Override
@@ -246,8 +298,13 @@ class PluginStaysTest {
             calls.add("strip");
         }
 
+        boolean quiet;
+
         @Override
         public void error(String message, Throwable failure) {
+            if (quiet) {
+                return;
+            }
             throw new AssertionError(message, failure);
         }
     }

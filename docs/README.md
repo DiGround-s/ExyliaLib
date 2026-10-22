@@ -47,12 +47,12 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Crates](crates.md) | A crate a plugin gets by handing over its catalogue — the roll, the keys, the reels, the payout, the blocks and the player rows shared, the rewards left to the plugin; importing a plugin's own crate data, legacy key items, placeholder aliases and item icons since 1.190.0; a shared admin menu since 1.342.0 | 1.189.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
-| [Network](network.md) | Messages from a plugin to itself on one other server or on a player's server, and the wait for players arriving here for a match | 1.349.0 |
+| [Network](network.md) | Messages from a plugin to itself on one other server or on a player's server, and the wait for players arriving here for a match | 1.347.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |
 | [Playtime](playtime.md) | How long a player has actually played on the whole network: one tracker per server shared by every plugin, idle time dropped, a once-a-minute hook for milestones | 1.341.0 |
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it; items thrown out at a spot with `giveDropping` since 1.191.0 | 1.34.0 |
-| [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart | 1.34.0 |
-| [Stays](stays.md) | A player kept in an arena or on a board and given back exactly as they came — claim, snapshot, teleport and restore in the one order that works; `DeathDrops` (whose a death's drops are) since 1.322.0 | 1.292.0 |
+| [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart; restores this server's snapshots only, on request, since 1.350.0 | 1.34.0 |
+| [Stays](stays.md) | A player kept in an arena or on a board and given back exactly as they came — claim, snapshot, teleport and restore in the one order that works; `DeathDrops` (whose a death's drops are) since 1.322.0; join recovery holds the player until it lands and `recoverLocal` for networks since 1.350.0 | 1.292.0 |
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
@@ -72,8 +72,8 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Prices](prices.md) | What an item sells for, whoever buys it back — shops and worth lists answer by priority, any plugin asks; boosting stays with the payer | 1.264.0 |
 | [Toasts](toasts.md) | The advancement popup in the corner — packets only, nothing kept, a configurable fallback without PacketEvents; `[TOAST]` in sequences | 1.278.0 |
 | [Notices](notices.md) | Messages left for a player: shown now if they are here, across the network if they are elsewhere, as a grouped summary on their next join otherwise — taken exactly once | 1.278.0 |
-| [Escrow](escrow.md) | Money and items held while a match is played — written before anything moves, settled or refunded exactly once, refunded after a crash, owed rows delivered on join or respawn; `giveItems` for items that belong to nobody's match since 1.349.0 | 1.345.0 |
-| [Trades](trades.md) | A two-player trade window: both put items in, both see both offers live, both confirm, a countdown any change resets — closing, leaving, dying or a stop gives everything back | 1.349.0 |
+| [Escrow](escrow.md) | Money and items held while a match is played — written before anything moves, settled or refunded exactly once, refunded after a crash, owed rows delivered on join or respawn; `giveItems` for items that belong to nobody's match since 1.349.0; the player file saved as items move since 1.350.0 | 1.345.0 |
+| [Trades](trades.md) | A two-player trade window: both put items in, both see both offers live, both confirm, a countdown any change resets — closing, leaving, dying or a stop gives everything back; refuses players another plugin holds since 1.350.0 | 1.349.0 |
 | [Logs](logs.md) | A staff audit log every plugin records into, browsed with /exylialib logs | 1.296.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |

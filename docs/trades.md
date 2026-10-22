@@ -47,7 +47,7 @@ trades.open(a, b).thenAccept(result -> {
 | Call | Contract |
 | --- | --- |
 | `Trades.of(plugin)` | the plugin's trades, the same instance per load; opens `Escrow.of(plugin)`, so call it in `onEnable` |
-| `open(first, second)` / `open(first, second, options)` | `CompletableFuture<TradeResult>`; `UNAVAILABLE` at once for the same player twice, an offline or dead player, or one already trading |
+| `open(first, second)` / `open(first, second, options)` | `CompletableFuture<TradeResult>`; `UNAVAILABLE` at once for the same player twice, an offline or dead player, one already trading, one held by **another** plugin through `Sessions`, or one whose [stay recovery](stays.md#recovering-on-join) is still pending (the last two since 1.350.0) |
 | `Trades.isTrading(uuid)` | whether the player has a trade open with any plugin |
 
 `TradeOptions` is immutable; each method answers a copy.
@@ -77,6 +77,18 @@ trades.open(a, b).thenAccept(result -> {
 **On `CONFIRMED` the items exist only in the result.** They have been removed
 from both windows; hand them on in the callback — `Escrow.holdItems` for a bet,
 `Escrow.giveItems` for a swap. A callback that throws before doing so loses them.
+
+*Since 1.350.0* each player's file is saved (`player.saveData()`, on their
+thread) as their window is emptied on `CONFIRMED`. Without it, a crash after the
+escrow held the bet but before the next autosave loaded both players still
+holding what they bet, while recovery refunded it too. `Escrow.holdItems` and
+`giveItems` save again once the items are in the escrow or in the other
+player's inventory.
+
+**Who may trade.** A player held through [Sessions](stays.md) by another
+plugin (an arena, an event, another plugin's duel) is refused: their inventory
+is that plugin's. A hold of the plugin opening the trade is fine, which is how a
+duel claims both players and then opens the bet window.
 
 ## The window
 

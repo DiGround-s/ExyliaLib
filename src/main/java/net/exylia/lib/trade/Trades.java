@@ -1,6 +1,8 @@
 package net.exylia.lib.trade;
 
 import net.exylia.lib.escrow.Escrow;
+import net.exylia.lib.session.Sessions;
+import net.exylia.lib.session.Stays;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.trade.internal.TradeSession;
 import org.bukkit.entity.Player;
@@ -96,7 +98,8 @@ public final class Trades {
         Objects.requireNonNull(options, "options");
         UUID a = first.getUniqueId();
         UUID b = second.getUniqueId();
-        if (a.equals(b) || !first.isOnline() || !second.isOnline() || first.isDead() || second.isDead()) {
+        if (a.equals(b) || !first.isOnline() || !second.isOnline() || first.isDead() || second.isDead()
+                || busyElsewhere(a) || busyElsewhere(b)) {
             return CompletableFuture.completedFuture(unavailable(a, b));
         }
         TradeSession session = new TradeSession(plugin, Tasks.of(plugin), escrow, first, second, options,
@@ -123,6 +126,17 @@ public final class Trades {
      */
     public static boolean isTrading(@NotNull UUID player) {
         return BUSY.containsKey(player);
+    }
+
+    /**
+     * Whether another plugin answers for the player's belongings: it holds them
+     * through {@link Sessions} (an arena, an event), or a stay of any plugin is
+     * still being recovered. A hold of this plugin's own is fine: a duel claims
+     * both players before it opens the bet.
+     */
+    private boolean busyElsewhere(UUID player) {
+        return Sessions.holder(player).filter(claim -> !claim.plugin().equals(plugin.getName())).isPresent()
+                || Stays.isRecovering(player);
     }
 
     private static TradeResult unavailable(UUID a, UUID b) {

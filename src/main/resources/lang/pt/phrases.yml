@@ -1392,3 +1392,4 @@ x, y or z: x, y ou z
 ' {letters_black}▎ {letters}Any change resets both confirmations.': ' {letters_black}▎ {letters}Qualquer mudança desfaz as duas confirmações.'
 ' {letters_black}▎ {letters}Completes in {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Conclui em {letters_black}» {info}{0}s ⌚'
 ' {letters_black}▎ {letters}Waiting for both confirmations.': ' {letters_black}▎ {letters}Aguardando as duas confirmações.'
+'{error}Your belongings are still being restored. Try again in a moment.': '{error}Seus pertences ainda estão sendo restaurados. Tente novamente em um momento.'

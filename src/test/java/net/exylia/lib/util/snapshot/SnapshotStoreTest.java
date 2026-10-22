@@ -12,6 +12,7 @@ import net.exylia.lib.util.snapshot.internal.LegacyRow;
 import net.exylia.lib.util.snapshot.internal.PlayerState;
 import net.exylia.lib.util.snapshot.internal.SnapshotRow;
 import net.exylia.lib.util.snapshot.internal.SnapshotRuntime;
+import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -160,6 +161,36 @@ class SnapshotStoreTest {
                 "a restored snapshot is used up");
         assertFalse(await(snapshots.restore(player.player(), "ffa")),
                 "and restoring again does nothing rather than something wrong");
+    }
+
+    @Test
+    @DisplayName("a restore writes the player file before the row is deleted")
+    void restoreSavesThePlayerData() {
+        SnapshotPlayer player = geared("DiGround");
+
+        await(snapshots.save(player.player(), "ffa"));
+        assertEquals(0, player.dataSaves());
+        assertTrue(await(snapshots.restore(player.player(), "ffa")));
+        assertEquals(1, player.dataSaves(), "a crash after the delete must not roll the restore back");
+    }
+
+    @Test
+    @DisplayName("this server only leaves a snapshot saved on another server alone")
+    void thisServerOnlySkipsOtherServers() {
+        SnapshotPlayer player = geared("DiGround");
+        Repository<SnapshotRow> rows = Databases.of(plugin).repository(SnapshotRow.class);
+        Snapshot elsewhere = Snapshot.of(player.player());
+        await(rows.save(SnapshotRow.of(player.id(), "arena", elsewhere,
+                ExyliaLocation.of("arena-7", new Location(world, 1, 2, 3)), System.currentTimeMillis())));
+        await(snapshots.save(player.player(), "lobby"));
+
+        assertEquals(List.of("lobby"), await(snapshots.contexts(player.id(), true)));
+        assertEquals(1, await(snapshots.restoreAll(player.player(), null, true)));
+        assertTrue(await(snapshots.has(player.id(), "arena")), "the other server's row is kept for it");
+        assertFalse(await(snapshots.returnAndRestore(player.player(), "arena", null, SnapshotPart.ALL, true)));
+
+        assertEquals(1, await(snapshots.restoreAll(player.player(), null)), "the default still restores it");
+        assertFalse(await(snapshots.has(player.id(), "arena")));
     }
 
     @Test

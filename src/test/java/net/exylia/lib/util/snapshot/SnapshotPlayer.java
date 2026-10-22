@@ -51,6 +51,7 @@ final class SnapshotPlayer {
     private volatile Location location;
     private volatile boolean online = true;
     private volatile int inventoryUpdates;
+    private volatile int dataSaves;
 
     SnapshotPlayer(String name) {
         this.name = name;
@@ -142,6 +143,10 @@ final class SnapshotPlayer {
                     // both, which is what these tests then assert.
                     case "getAttribute" -> null;
                     case "getActivePotionEffects" -> java.util.List.of();
+                    case "saveData" -> {
+                        dataSaves++;
+                        yield null;
+                    }
                     case "updateInventory" -> {
                         inventoryUpdates++;
                         yield null;
@@ -350,5 +355,9 @@ final class SnapshotPlayer {
 
     int inventoryUpdates() {
         return inventoryUpdates;
+    }
+
+    int dataSaves() {
+        return dataSaves;
     }
 }

@@ -48,6 +48,7 @@ class EscrowTest {
     private final Map<UUID, List<String>> given = new ConcurrentHashMap<>();
     /** How many items fit in any inventory. */
     private volatile int room = Integer.MAX_VALUE;
+    private final Map<UUID, Integer> saves = new ConcurrentHashMap<>();
 
     private Plugin plugin;
     private FakePlayer alice;
@@ -230,6 +231,8 @@ class EscrowTest {
         Escrow escrow = escrow();
         assertTrue(escrow.holdItems("d1", id(alice), List.of(new Stub("sword"), new Stub("helmet"))).join());
         assertTrue(escrow.holdItems("d1", id(bob), List.of(new Stub("bow"))).join());
+        FakeServer.tick(1);
+        await(() -> saves.getOrDefault(id(alice), 0) == 1 && saves.getOrDefault(id(bob), 0) == 1);
         room = 2;
 
         escrow.settleItems("d1", id(bob)).join();
@@ -239,6 +242,7 @@ class EscrowTest {
 
         await(() -> owed.count().join() == 1);
         assertEquals(2, given.get(id(bob)).size());
+        assertEquals(2, saves.get(id(bob)), "saved again once the winnings are in the inventory");
         assertFalse(given.containsKey(id(alice)));
 
         room = Integer.MAX_VALUE;
@@ -317,6 +321,11 @@ class EscrowTest {
         @Override
         public @NotNull List<ItemStack> decode(@NotNull String stored) {
             return new ArrayList<>(Arrays.stream(stored.split(",")).map(Stub::new).toList());
+        }
+
+        @Override
+        public void save(@NotNull Player player) {
+            saves.merge(player.getUniqueId(), 1, Integer::sum);
         }
 
         @Override

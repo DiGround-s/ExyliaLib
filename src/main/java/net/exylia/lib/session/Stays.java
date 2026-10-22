@@ -1,9 +1,11 @@
 package net.exylia.lib.session;
 
+import net.exylia.lib.session.internal.Recovering;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -74,5 +76,21 @@ public final class Stays {
         // memory belongs to the load that is gone.
         return BY_PLUGIN.compute(plugin.getName(), (name, stays) ->
                 stays != null && stays.plugin() == plugin ? stays : new PluginStays(plugin));
+    }
+
+    /**
+     * Whether any plugin is still recovering the player after a join.
+     *
+     * <p>While it is, the library already refuses their commands, inventory
+     * clicks, drops, pickups and interactions. A plugin that moves items or
+     * money through another path (an API call, a GUI of its own opened from
+     * code) checks this first.
+     *
+     * @param player the player
+     * @return whether a {@link PluginStays#recover} for them has not ended yet
+     * @since 1.350.0
+     */
+    public static boolean isRecovering(@NotNull UUID player) {
+        return Recovering.any(player);
     }
 }

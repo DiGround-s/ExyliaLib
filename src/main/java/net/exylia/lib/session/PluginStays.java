@@ -1,6 +1,7 @@
 package net.exylia.lib.session;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.session.internal.Recovering;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.snapshot.PluginSnapshots;
 import net.exylia.lib.util.snapshot.SnapshotPart;
@@ -15,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,6 +48,8 @@ public final class PluginStays {
     private final Set<UUID> leaving = ConcurrentHashMap.newKeySet();
     /** The snapshot context of each stay entered under a name of its own. */
     private final Map<UUID, String> contexts = new ConcurrentHashMap<>();
+    /** Command labels a player may still run while this plugin recovers them. */
+    private volatile Set<String> allowedWhileRecovering = Set.of();
 
     PluginStays(@NotNull Plugin plugin) {
         this(plugin, Sessions.of(plugin), new LiveBackend(plugin));
@@ -110,7 +114,7 @@ public final class PluginStays {
     public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull String kind,
                                          @Nullable BooleanSupplier onRelease, @NotNull String context) {
         UUID uuid = player.getUniqueId();
-        if (sessions.mine(uuid).isPresent() || leaving.contains(uuid)) {
+        if (sessions.mine(uuid).isPresent() || leaving.contains(uuid) || Recovering.any(uuid)) {
             return Optional.empty();
         }
         return sessions.claim(uuid, kind, onRelease).map(claim -> keep(player, claim, context));
@@ -144,7 +148,7 @@ public final class PluginStays {
      */
     public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull Claim claim, @NotNull String context) {
         UUID uuid = player.getUniqueId();
-        if (sessions.mine(uuid).filter(claim::equals).isEmpty() || leaving.contains(uuid)) {
+        if (sessions.mine(uuid).filter(claim::equals).isEmpty() || leaving.contains(uuid) || Recovering.any(uuid)) {
             return Optional.empty();
         }
         return Optional.of(keep(player, claim, context));
@@ -289,7 +293,7 @@ public final class PluginStays {
                 : saved.handle((ignored, failure) -> null);
         return landed
                 .thenCompose(ignored -> backend.returnAndRestore(player, context,
-                        goHome == null ? null : goHome::apply, parts))
+                        goHome == null ? null : goHome::apply, parts, false))
                 // No snapshot to come home from: one a previous join already
                 // used up. They are still standing here, so they still go home.
                 .thenCompose(restored -> restored || goHome == null
@@ -311,11 +315,47 @@ public final class PluginStays {
      * <p>Call on join. The oldest stored stay knows where they were before any
      * of it started, and that is where they are sent.
      *
+     * <p>Every snapshot the player has is restored, whichever server saved it,
+     * which is right for one server or for a network where only one server
+     * ever keeps players. On a network whose servers share the plugin's
+     * database and each keep players, use {@link #recoverLocal(Player)}.
+     *
+     * <p>Until it ends the player is held (see {@link #isHeld}): commands other
+     * than those {@link #allowWhileRecovering allowed}, inventory clicks,
+     * opening containers, drops, pickups and interactions are refused, so
+     * nothing they still hold from before the restore can be sold, stored or
+     * dropped and then handed back by it.
+     *
      * @param player the player who joined
      * @return how many snapshots were put back
      */
     public @NotNull CompletableFuture<Integer> recover(@NotNull Player player) {
-        return backend.returnAndRestoreAll(player, where -> backend.teleport(player, where))
+        return guarded(player, () -> recoverAll(player, false));
+    }
+
+    /**
+     * The same, restoring only snapshots saved on this server.
+     *
+     * <p>For a network sharing one database where more than one server keeps
+     * players. A stay saved on an arena server describes what the player had
+     * there; restoring it on the lobby would overwrite what they own on the
+     * lobby, and the arena restoring it as well would hand it out twice. Each
+     * server recovers its own, on the player's next join there.
+     *
+     * <p>Not for a plugin that saves on one server and gives back on another
+     * on purpose (a lobby stay restored on the arena): that one calls
+     * {@link #recover(Player)}.
+     *
+     * @param player the player who joined
+     * @return how many snapshots were put back
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<Integer> recoverLocal(@NotNull Player player) {
+        return guarded(player, () -> recoverAll(player, true));
+    }
+
+    private CompletableFuture<Integer> recoverAll(Player player, boolean thisServerOnly) {
+        return backend.returnAndRestoreAll(player, where -> backend.teleport(player, where), thisServerOnly)
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         backend.error("Could not give " + player.getName() + " back after a restart", failure);
@@ -340,8 +380,29 @@ public final class PluginStays {
      */
     public @NotNull CompletableFuture<Integer> recover(@NotNull Player player, @NotNull String context,
                                                        @NotNull Set<SnapshotPart> parts) {
-        return backend.returnAndRestore(player, context, where -> backend.teleport(player, where), parts)
-                .thenCompose(partial -> recover(player).thenApply(rest -> rest + (partial ? 1 : 0)))
+        return guarded(player, () -> recoverPart(player, context, parts, false));
+    }
+
+    /**
+     * The same as {@link #recover(Player, String, Set)}, restoring only
+     * snapshots saved on this server; see {@link #recoverLocal(Player)}.
+     *
+     * @param player  the player who joined
+     * @param context the context restored in part
+     * @param parts   what to put back from it
+     * @return how many snapshots were put back
+     * @since 1.350.0
+     */
+    public @NotNull CompletableFuture<Integer> recoverLocal(@NotNull Player player, @NotNull String context,
+                                                            @NotNull Set<SnapshotPart> parts) {
+        return guarded(player, () -> recoverPart(player, context, parts, true));
+    }
+
+    private CompletableFuture<Integer> recoverPart(Player player, String context, Set<SnapshotPart> parts,
+                                                   boolean thisServerOnly) {
+        return backend.returnAndRestore(player, context, where -> backend.teleport(player, where), parts,
+                        thisServerOnly)
+                .thenCompose(partial -> recoverAll(player, thisServerOnly).thenApply(rest -> rest + (partial ? 1 : 0)))
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         backend.error("Could not give " + player.getName() + " back after a restart", failure);
@@ -349,15 +410,56 @@ public final class PluginStays {
                 });
     }
 
+    /** Holds the player from the call until the recovery ends, however it ends. */
+    private CompletableFuture<Integer> guarded(Player player,
+                                               java.util.function.Supplier<CompletableFuture<Integer>> recovery) {
+        UUID uuid = player.getUniqueId();
+        Object hold = Recovering.begin(uuid, plugin == null ? "" : plugin.getName(), allowedWhileRecovering);
+        CompletableFuture<Integer> running;
+        try {
+            running = recovery.get();
+        } catch (RuntimeException failure) {
+            Recovering.end(uuid, hold);
+            throw failure;
+        }
+        return running.whenComplete((ignored, failure) -> Recovering.end(uuid, hold));
+    }
+
     /**
-     * Whether this plugin answers for the player's belongings: holding them, or
-     * still giving them back. Protection listeners guard on this.
+     * The commands a player may still run while this plugin recovers them.
+     *
+     * <p>None by default: until their belongings are back, a {@code /sell} or
+     * an {@code /ah} would trade away items the restore then gives back again.
+     * Allow only commands that touch no items, such as {@code msg} or
+     * {@code login}. Labels are matched without the slash, ignoring case and
+     * any {@code plugin:} prefix; when two plugins recover the same player, a
+     * command must be allowed by both.
+     *
+     * @param labels the command labels, such as {@code "msg"}
+     * @return this
+     * @since 1.350.0
+     */
+    public @NotNull PluginStays allowWhileRecovering(@NotNull String... labels) {
+        Set<String> allowed = new java.util.HashSet<>();
+        for (String label : labels) {
+            String clean = label.startsWith("/") ? label.substring(1) : label;
+            allowed.add(clean.toLowerCase(Locale.ROOT));
+        }
+        allowedWhileRecovering = Set.copyOf(allowed);
+        return this;
+    }
+
+    /**
+     * Whether this plugin answers for the player's belongings: holding them,
+     * still giving them back, or still recovering them after a join (since
+     * 1.350.0). Protection listeners guard on this.
      *
      * @param player the player
-     * @return whether they are held or leaving
+     * @return whether they are held, leaving or being recovered
      */
     public boolean isHeld(@NotNull UUID player) {
-        return leaving.contains(player) || sessions.holds(player);
+        return leaving.contains(player) || sessions.holds(player)
+                || Recovering.by(player, plugin == null ? "" : plugin.getName());
     }
 
     /** The plugin these stays belong to. */
@@ -372,10 +474,11 @@ public final class PluginStays {
 
         CompletableFuture<Boolean> returnAndRestore(Player player, String context,
                                                     @Nullable Function<Location, CompletableFuture<?>> goHome,
-                                                    Set<SnapshotPart> parts);
+                                                    Set<SnapshotPart> parts, boolean thisServerOnly);
 
         CompletableFuture<Integer> returnAndRestoreAll(Player player,
-                                                       Function<Location, CompletableFuture<?>> goHome);
+                                                       Function<Location, CompletableFuture<?>> goHome,
+                                                       boolean thisServerOnly);
 
         /** Moves the player; a {@code null} place is the main world's spawn. */
         CompletableFuture<Void> teleport(Player player, @Nullable Location where);
@@ -413,14 +516,15 @@ public final class PluginStays {
         @Override
         public CompletableFuture<Boolean> returnAndRestore(Player player, String context,
                                                            @Nullable Function<Location, CompletableFuture<?>> goHome,
-                                                           Set<SnapshotPart> parts) {
-            return snapshots.returnAndRestore(player, context, goHome, parts);
+                                                           Set<SnapshotPart> parts, boolean thisServerOnly) {
+            return snapshots.returnAndRestore(player, context, goHome, parts, thisServerOnly);
         }
 
         @Override
         public CompletableFuture<Integer> returnAndRestoreAll(Player player,
-                                                              Function<Location, CompletableFuture<?>> goHome) {
-            return snapshots.returnAndRestoreAll(player, goHome);
+                                                              Function<Location, CompletableFuture<?>> goHome,
+                                                              boolean thisServerOnly) {
+            return snapshots.returnAndRestoreAll(player, goHome, thisServerOnly);
         }
 
         @Override

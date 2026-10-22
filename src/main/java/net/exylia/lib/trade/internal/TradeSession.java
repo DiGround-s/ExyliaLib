@@ -494,6 +494,16 @@ public final class TradeSession {
         }
         if (state.phase() == TradeState.Phase.COMPLETING) {
             taken[side] = items;
+            // The items left the player for good: written to the player file now,
+            // so a crash before the next autosave cannot load them holding the
+            // items again while the escrow also gives them back.
+            if (player.isOnline() && tasks.isOwnedBy(player)) {
+                try {
+                    player.saveData();
+                } catch (RuntimeException failure) {
+                    Debug.of(plugin).error("Could not save " + player.getName() + "'s data after a trade", failure);
+                }
+            }
             sound(player, SUCCESS_SOUND);
         } else {
             giveBack(side, items);

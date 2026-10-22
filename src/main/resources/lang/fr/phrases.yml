@@ -1380,3 +1380,4 @@
 ' {letters_black}▎ {letters}Any change resets both confirmations.': ' {letters_black}▎ {letters}Tout changement annule les deux confirmations.'
 ' {letters_black}▎ {letters}Completes in {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Terminé dans {letters_black}» {info}{0}s ⌚'
 ' {letters_black}▎ {letters}Waiting for both confirmations.': ' {letters_black}▎ {letters}En attente des deux confirmations.'
+'{error}Your belongings are still being restored. Try again in a moment.': '{error}Tes affaires sont encore en cours de restauration. Réessaie dans un instant.'

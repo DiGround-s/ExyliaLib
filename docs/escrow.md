@@ -93,6 +93,28 @@ update), and writes one `HELD` row. Until the future completes the items exist
 only in memory; when it answers `false` the database refused, recovery failed,
 or the match already ended, and the items have been given back.
 
+### The player file has to agree with the row
+
+Paper writes a player's data to disk only on autosave and on quit, while an
+escrow row is durable the moment it is written. A crash between the two used to
+load the player as they were at the last autosave, and that disagreed with the
+database: still holding items the escrow also refunds (a dupe), or without
+items the escrow already handed over (a loss). *Since 1.350.0* the library
+writes the player file (`player.saveData()`, on the player's own thread, the
+one Folia allows) at both ends:
+
+- **`holdItems`**, once its `HELD` row has landed, for the player whose items
+  they are, when they are online here.
+- **Every hand-over into an inventory** (`settleItems`, `refundItems`,
+  `giveItems`, `deliver`), right after the items are in it.
+
+What stays the caller's: **take the items before calling `holdItems`, from
+the player's own inventory, on their thread**, and keep them out of reach of
+anything that saves the player in between (the row has not landed yet). Items
+taken from somewhere other than the player's inventory (an ender chest, a
+backpack plugin's storage) are that storage's to persist. [Trades](trades.md)
+already saves both players when a trade confirms.
+
 Items reach a player on that player's thread, into their inventory. Whatever
 does not fit — and everything, when the player is not on this server or is
 dead — becomes an owed row. **Nothing is ever dropped on the ground.** A dead
@@ -182,6 +204,9 @@ is what owns the inventory.
   thread.
 - **Money and items reach a player on that player's thread** (`runAtEntity`), and
   a player who left before it ran is owed instead.
+- **The player file is saved when items move** (1.350.0): after a `holdItems`
+  row lands and after items land in an inventory. See
+  [The player file has to agree with the row](#the-player-file-has-to-agree-with-the-row).
 - **Withdrawals run on the database callback thread**, through `Economy`, which
   is thread-safe.
 - **Nothing is cached** but the set of matches recently closed on this server.

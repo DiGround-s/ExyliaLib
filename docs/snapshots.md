@@ -153,6 +153,12 @@ already are the per-world inventory, and two systems doing that job disagree.
 - **A restore removes the row only after the player has actually been restored.**
   A player who leaves mid-restore keeps their snapshot and gets it on their next
   join.
+- **A restore writes the player file before it removes the row** (*since
+  1.350.0*). `player.saveData()` runs on the player's own thread right after
+  the snapshot is applied. Paper only writes player data on autosave and quit,
+  so a crash after the delete used to load the player as they were before the
+  restore (an arena kit) with no row left to restore from. On Folia the
+  player's own thread is the one that may save them, which is where this runs.
 - **One unreadable item costs that slot.** The rest of the snapshot survives, and
   the problem is reported once. ExyliaCommons caught everything and returned
   `null`, so a single item written by a version of the server that no longer
@@ -173,6 +179,33 @@ already are the per-world inventory, and two systems doing that job disagree.
 - **The palette reload does not apply.** Nothing here is derived from the
   palette — a snapshot holds items and numbers, and nothing in it is a
   `Component` — so there is no `invalidateAll` and no hook in `loadPalette`.
+
+## Only this server's snapshots
+
+*Since 1.350.0.* On a network whose servers share the plugin's database, a
+snapshot saved on server A describes what the player had **on A**. Restoring
+it on B overwrites what they own on B (a loss), and A restoring it as well
+on their next visit hands it out twice (a dupe). Each row already knows the
+server it was saved on, so every restore-all has a form that skips the others:
+
+```java
+snapshots.contexts(uuid, true);                       // this server's contexts only
+snapshots.restoreAll(player, wentBack, true);
+snapshots.returnAndRestoreAll(player, goHome, true);
+snapshots.returnAndRestore(player, ctx, goHome, parts, true);  // false when the row is elsewhere
+```
+
+A row with no stored place, or one written before rows knew their server
+(before 1.109.0), counts as this server's. The default stays `false`, because
+crossing servers on purpose is a supported flow: a snapshot taken on the lobby
+and given back on the arena (`restoreAndReturn`, a handover) reads a row saved
+elsewhere by design.
+
+| Your plugin | Use |
+| --- | --- |
+| One server, or a network where only one server ever saves for this plugin | the plain forms |
+| Saves on one server and restores on another on purpose | the plain forms, by context |
+| Several servers each save and restore their own players (an arena on every server) | `thisServerOnly = true` on join, or [`Stays.recoverLocal`](stays.md#recovering-on-join) |
 
 ## Partial restore
 

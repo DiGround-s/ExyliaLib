@@ -39,9 +39,52 @@ stays.enter(player, "duel", onRelease, "duel_risk");
 stays.leave(player, kept);           // also leave(player, home, kept) and leaveHere(player, kept)
 stays.recover(player, "duel_risk", kept);   // that context in part, then the rest in full
 
-// Protection listeners guard on this: held, or still on the way home.
+// A network whose servers share the database and each keep players (1.350.0):
+stays.recoverLocal(player);                          // only stays saved on this server
+stays.recoverLocal(player, "duel_risk", kept);
+
+// Commands a player may run while their join recovery is pending (1.350.0); none by default.
+stays.allowWhileRecovering("msg", "login");
+
+// Protection listeners guard on this: held, still on the way home, or still being recovered.
 stays.isHeld(player.getUniqueId());
+Stays.isRecovering(player.getUniqueId());           // any plugin, 1.350.0
 ```
+
+## Recovering on join
+
+`recover` reads the database, sends the player home and restores them there;
+that takes a few ticks after the join. Until it ends, the player holds whatever
+their player file had: an inventory rolled back by the crash, or the kit of the
+arena they crashed out of. *Since 1.350.0* every recover holds the player for
+that window, automatically:
+
+- `isHeld` answers `true` for the recovering plugin, and `Stays.isRecovering`
+  for any plugin; `enter` is refused, and so is a [trade](trades.md).
+- The library refuses their commands (except those every recovering plugin
+  allowed with `allowWhileRecovering`; labels match without the slash,
+  ignoring case and any `plugin:` prefix), inventory clicks and drags,
+  opening containers, dropping, picking up and interacting with blocks and
+  entities. A refused command says why, in the player's chat.
+- The hold ends when the recovery ends, restored or failed. A plugin that is
+  disabled mid-recovery drops its holds.
+
+Nothing to change at the call site. Do allow an authentication plugin's
+`login`/`register` if the server runs one, or a slow database keeps the player
+from logging in until the recovery lands.
+
+**Which recover.** Snapshots stored in a shared database are visible to every
+server. `recover` restores all of them, which is right on a single server and
+on a network where only one server keeps players for the plugin. When several
+servers each keep players (every arena server runs the plugin), use
+`recoverLocal`: a stay saved on the arena server describes what the player had
+there, and restoring it on the lobby overwrites the lobby inventory, or doubles
+it when the arena later restores it too. See
+[Snapshots](snapshots.md#only-this-servers-snapshots).
+
+Each restore also writes the player file before its row is deleted, so a crash
+right after a recovery cannot bring the pre-restore inventory back
+([Snapshots](snapshots.md#contracts)).
 
 ## What it keeps
 
@@ -66,6 +109,8 @@ works, which every arena plugin used to learn on its own:
 - A second `leave` while the first runs does nothing; the first finishes.
 - `enter(..., context)` (1.348.0) saves under that snapshot context instead of `stay`; `leave`/`leaveHere` with a `Set<SnapshotPart>` restore only those parts and still use the snapshot up.
 - A plugin that enters under a context restored in part recovers with `recover(player, context, parts)`: the plain `recover` restores every snapshot in full, that one included.
+- `recover`/`recoverLocal` hold the player until they end (1.350.0); `enter` is refused meanwhile.
+- `recoverLocal` restores only snapshots saved on this server; `recover` restores every server's (1.350.0).
 - `leave` on a player this plugin is not keeping does nothing.
 - A player with no snapshot left (a previous join used it) is still sent home.
 - Nothing to close: claims go with the plugin, snapshots survive for `recover`.
@@ -91,4 +136,5 @@ if (DeathDrops.claimedBy(player).isPresent()) return;   // in a graves plugin
 ## Source and tests
 
 - Public: `session/Stays.java`, `session/PluginStays.java`, `session/DeathDrops.java`.
+- Internal: `session/internal/Recovering.java` — the recovery holds and the listener that enforces them, registered by the library.
 - Tests: `src/test/java/net/exylia/lib/session/PluginStaysTest.java`.

@@ -197,6 +197,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new InputListener(), this);
         // Trade windows, for the same reason: the holder says whose trade it is.
         getServer().getPluginManager().registerEvents(new net.exylia.lib.trade.internal.TradeListener(), this);
+        // Players whose stays are still being recovered keep their hands off everything.
+        getServer().getPluginManager().registerEvents(new net.exylia.lib.session.internal.Recovering(), this);
         // The chat answer to a prompt is taken out of chat separately: it has to
         // land on whichever chat event this server uses, or a legacy listener
         // reads the answer before the cancel reaches it.
@@ -1109,6 +1111,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // activity by a plugin that is going away is free again, which is the
         // one state the rest of the server can still act on.
         Sessions.forgetPlugin(pluginName);
+        net.exylia.lib.session.internal.Recovering.forgetPlugin(pluginName);
         net.exylia.lib.session.DeathDrops.forgetPlugin(pluginName);
 
         // Everything a plugin still uses from its own onDisable, which has not

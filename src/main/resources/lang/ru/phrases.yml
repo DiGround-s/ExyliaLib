@@ -1380,3 +1380,4 @@
 ' {letters_black}▎ {letters}Any change resets both confirmations.': ' {letters_black}▎ {letters}Любое изменение сбрасывает оба подтверждения.'
 ' {letters_black}▎ {letters}Completes in {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Завершится через {letters_black}» {info}{0}с ⌚'
 ' {letters_black}▎ {letters}Waiting for both confirmations.': ' {letters_black}▎ {letters}Ожидание обоих подтверждений.'
+'{error}Your belongings are still being restored. Try again in a moment.': '{error}Твои вещи ещё восстанавливаются. Попробуй снова через мгновение.'

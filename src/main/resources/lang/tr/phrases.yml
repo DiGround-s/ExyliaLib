@@ -1392,3 +1392,4 @@ x, y or z: x, y veya z
 ' {letters_black}▎ {letters}Any change resets both confirmations.': ' {letters_black}▎ {letters}Her değişiklik iki onayı da sıfırlar.'
 ' {letters_black}▎ {letters}Completes in {letters_black}» {info}{0}s ⌚': ' {letters_black}▎ {letters}Tamamlanmasına {letters_black}» {info}{0}sn ⌚'
 ' {letters_black}▎ {letters}Waiting for both confirmations.': ' {letters_black}▎ {letters}İki onay da bekleniyor.'
+'{error}Your belongings are still being restored. Try again in a moment.': '{error}Eşyaların hâlâ geri yükleniyor. Birazdan tekrar dene.'

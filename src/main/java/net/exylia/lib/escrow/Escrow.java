@@ -132,6 +132,10 @@ public final class Escrow {
 
         /** Gives the items on the player's thread; answers what did not fit. */
         @NotNull List<ItemStack> give(@NotNull Player player, @NotNull List<ItemStack> items);
+
+        /** Writes the player's data to their file, on their thread. */
+        default void save(@NotNull Player player) {
+        }
     }
 
     private static final Hands BUKKIT = new Hands() {
@@ -157,6 +161,11 @@ public final class Escrow {
         @Override
         public @NotNull List<ItemStack> give(@NotNull Player player, @NotNull List<ItemStack> items) {
             return new ArrayList<>(player.getInventory().addItem(items.toArray(new ItemStack[0])).values());
+        }
+
+        @Override
+        public void save(@NotNull Player player) {
+            player.saveData();
         }
     };
 
@@ -391,7 +400,10 @@ public final class Escrow {
      * Records items already taken from a player as their stake on a match.
      *
      * <p>Take the items first, then call this: until the future completes they
-     * exist only in memory. When it answers {@code false} &mdash; the database
+     * exist only in memory. Once the row has landed, the player's data is
+     * written to their file (when they are online here, on their thread;
+     * since 1.350.0), so a crash before the next autosave cannot load them
+     * still holding items the escrow also refunds. When it answers {@code false} &mdash; the database
      * refused, recovery failed, or the match already ended &mdash; the items
      * have been given back to the player (or owed to them).
      *
@@ -430,6 +442,7 @@ public final class Escrow {
                 if (closedItems.getIfPresent(matchId) != null) {
                     return giveBackItems(row).thenApply(done -> false);
                 }
+                saveData(player);
                 return CompletableFuture.completedFuture(true);
             }).thenCompose(answer -> answer);
         });
@@ -614,7 +627,32 @@ public final class Escrow {
             if (!left.isEmpty()) {
                 owe(OwedRow.items(name, player, hands.encode(left), reason));
             }
+            // The row that held these is already settled, refunded or deleted:
+            // a crash before the next autosave would load the player without them.
+            save(online);
         }, () -> owe(OwedRow.items(name, player, items, reason)));
+    }
+
+    /**
+     * Writes an online player's data to their file on their thread, so the file
+     * agrees with a row that just took items from them or gave items to them.
+     */
+    private void saveData(UUID player) {
+        Player online = Bukkit.getPlayer(player);
+        if (online != null) {
+            tasks.runAtEntity(online, () -> save(online), () -> { });
+        }
+    }
+
+    private void save(Player player) {
+        if (!player.isOnline()) {
+            return;
+        }
+        try {
+            hands.save(player);
+        } catch (RuntimeException failure) {
+            debug.error("Escrow: could not save " + player.getName() + "'s data.", failure);
+        }
     }
 
     private void owe(OwedRow row) {
