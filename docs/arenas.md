@@ -82,6 +82,17 @@ regeneration is logged and the instance is freed anyway; the future says
 a lease can never free an arena somebody else has since taken. Move the
 players out before releasing; nobody is teleported away.
 
+## After a crash, and in menus (1.348.0)
+
+- `regenerateIdle()` regenerates every **free** instance from its schematic,
+  holding it out of the pool until its blocks are back; instances in a match are
+  left alone. Call it once after registering on start: a crash mid-match left the
+  original with the blocks that match placed, and nothing in memory remembers it
+  was taken. Completes with how many came back, never exceptionally.
+- `usage(id)` answers `Optional<Usage(busy, copies, maxCopies)>` from memory —
+  `busy` counts instances in a match or regenerating — cheap enough for a menu
+  `Supplier`.
+
 ## Copies are kept
 
 `TemporaryWorld` plots are never given back, so the pool keeps every copy it

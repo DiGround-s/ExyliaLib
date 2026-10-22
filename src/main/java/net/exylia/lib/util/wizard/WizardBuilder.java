@@ -4,6 +4,7 @@ import net.exylia.lib.input.InputRequest;
 import net.exylia.lib.region.SelectionOptions;
 import net.exylia.lib.region.SelectionResult;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -57,6 +59,7 @@ public final class WizardBuilder {
     private boolean summary;
     private boolean progress;
     private Consumer<WizardValues> onFinish;
+    private BiConsumer<Player, WizardValues> finisher;
     private Consumer<WizardOutcome> onCancel;
 
     WizardBuilder(String id, boolean progressByDefault) {
@@ -270,6 +273,24 @@ public final class WizardBuilder {
      */
     public @NotNull WizardBuilder onFinish(@NotNull Consumer<WizardValues> onFinish) {
         this.onFinish = Objects.requireNonNull(onFinish, "onFinish");
+        this.finisher = null;
+        return this;
+    }
+
+    /**
+     * The same, told which player confirmed.
+     *
+     * <p>One definition then serves every admin: the player is the run's, not
+     * captured when the flow was compiled. Replaces the one-argument form, and
+     * the other way round.
+     *
+     * @param onFinish what to do, given the player and their answers
+     * @return this builder
+     * @since 1.348.0
+     */
+    public @NotNull WizardBuilder onFinish(@NotNull BiConsumer<Player, WizardValues> onFinish) {
+        this.finisher = Objects.requireNonNull(onFinish, "onFinish");
+        this.onFinish = null;
         return this;
     }
 
@@ -308,7 +329,7 @@ public final class WizardBuilder {
             throw new WizardException("Wizard '" + id + "' declares no steps, so it would open"
                     + " and close in the same tick.");
         }
-        return new Wizard(id, title, steps, summary, progress, onFinish, onCancel);
+        return new Wizard(id, title, steps, summary, progress, onFinish, finisher, onCancel);
     }
 
     /**

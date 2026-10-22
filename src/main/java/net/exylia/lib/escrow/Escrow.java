@@ -31,6 +31,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -466,6 +467,24 @@ public final class Escrow {
         closedItems.put(matchId, Boolean.TRUE);
         return claimItems(matchId, StakeState.REFUNDED).thenAccept(won ->
                 won.forEach(row -> give(row.player(), row.items(), "escrow:refund")));
+    }
+
+    /**
+     * The matches a player still has items held on, on any server sharing the database.
+     *
+     * <p>For a join handler that must know whether the player's inventory is in
+     * the escrow before restoring anything: a risk duel interrupted by a crash
+     * after the loser's items were held, say.
+     *
+     * @param player the player
+     * @return the match ids, empty when nothing of theirs is held
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Set<String>> heldItemMatches(@NotNull UUID player) {
+        // ponytail: filtered by (plugin, player, state) without an index on player; add one if a table grows large.
+        return itemRows.all().where("plugin", name).where("player", player).where("state", StakeState.HELD)
+                .find().thenApply(rows -> rows.stream().map(ItemRow::matchId)
+                        .collect(Collectors.toCollection(java.util.TreeSet::new)));
     }
 
     private CompletableFuture<List<ItemRow>> claimItems(String matchId, StakeState next) {

@@ -42,6 +42,7 @@ escrow.refundItems(duelId);
 | `holdItems(matchId, player, items)` | `CompletableFuture<Boolean>`; `false` means the items were given back |
 | `settleItems(matchId, winner)` | every held item of the match to the winner |
 | `refundItems(matchId)` | every player's own items back |
+| `heldItemMatches(player)` | `CompletableFuture<Set<String>>`: the matches the player still has `HELD` items on, any server (1.348.0); a join handler asks before restoring an inventory the escrow owns |
 | `deliver(player)` | hands over everything owed to the player; the library calls it on join |
 
 `Payout(currency, pot, tax, prize)`: `tax` is `pot × tax` rounded **down** to

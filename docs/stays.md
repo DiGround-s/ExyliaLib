@@ -32,6 +32,13 @@ sessions.claim(player, "match", onRelease).flatMap(claim -> stays.enter(player, 
 // Join: whatever a crash left behind goes back, and so does the player.
 stays.recover(player);
 
+// A stay restored in part (1.348.0): its own snapshot context, and only the parts named on the
+// way out and on join. A risk duel keeps everything but the inventory the escrow took.
+Set<SnapshotPart> kept = SnapshotPart.allExcept(SnapshotPart.INVENTORY, SnapshotPart.ARMOR, SnapshotPart.OFF_HAND);
+stays.enter(player, "duel", onRelease, "duel_risk");
+stays.leave(player, kept);           // also leave(player, home, kept) and leaveHere(player, kept)
+stays.recover(player, "duel_risk", kept);   // that context in part, then the rest in full
+
 // Protection listeners guard on this: held, or still on the way home.
 stays.isHeld(player.getUniqueId());
 ```
@@ -57,6 +64,8 @@ works, which every arena plugin used to learn on its own:
 - `enter` is refused when any plugin holds the player, this one included.
 - `enter(player, claim)` (1.294.0) takes a claim this plugin already holds instead; refused when the claim is not current or the player is still leaving.
 - A second `leave` while the first runs does nothing; the first finishes.
+- `enter(..., context)` (1.348.0) saves under that snapshot context instead of `stay`; `leave`/`leaveHere` with a `Set<SnapshotPart>` restore only those parts and still use the snapshot up.
+- A plugin that enters under a context restored in part recovers with `recover(player, context, parts)`: the plain `recover` restores every snapshot in full, that one included.
 - `leave` on a player this plugin is not keeping does nothing.
 - A player with no snapshot left (a previous join used it) is still sent home.
 - Nothing to close: claims go with the plugin, snapshots survive for `recover`.

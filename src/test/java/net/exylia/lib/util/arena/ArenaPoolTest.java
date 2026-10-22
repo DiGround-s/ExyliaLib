@@ -146,6 +146,29 @@ class ArenaPoolTest {
     }
 
     @Test
+    void regeneratingIdleArenasSkipsBusyOnesAndHoldsTheRestUntilDone() {
+        pool.register(template("forest", 1));
+        pool.register(template("desert", 0));
+        take("forest");
+        CompletableFuture<Integer> done = pool.regenerateIdle();
+        assertEquals(1, placement.regenerations.size(), "only the free desert original");
+        assertTrue(pool.acquire("desert").join().isEmpty(), "still regenerating");
+        assertEquals(new ArenaPool.Usage(1, 0, 0), pool.usage("desert").orElseThrow());
+        placement.finishRegenerations();
+        assertEquals(1, done.join());
+        assertEquals(new ArenaPool.Usage(0, 0, 0), pool.usage("desert").orElseThrow());
+    }
+
+    @Test
+    void usageCountsBusyInstancesAndCopies() {
+        pool.register(template("forest", 3));
+        take("forest");
+        take("forest");
+        assertEquals(new ArenaPool.Usage(2, 1, 3), pool.usage("forest").orElseThrow());
+        assertTrue(pool.usage("missing").isEmpty());
+    }
+
+    @Test
     void aFreedCopyIsReusedRatherThanPastedAgain() {
         pool.register(template("forest", 3));
         take("forest");

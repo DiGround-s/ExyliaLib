@@ -88,8 +88,11 @@ as they are in a menu.
 ```
 
 `partOf`, `offsetIn`, `storage(n)`, `hotbar(n)` and `at(items, index)` read it;
-`capture(player)` writes what somebody is wearing and carrying into it, and
-`trim` drops the empty tail. It is deliberately not Bukkit's `getContents()`
+`capture(player)` writes what somebody is wearing and carrying into it,
+`apply(player, items)` (1.348.0) is its inverse — it replaces the player's whole
+inventory with the loadout, cloned, emptying every position the loadout has no
+item for — `contentsSlot(index)` maps a position to Bukkit's `getContents()`
+slot, and `trim` drops the empty tail. It is deliberately not Bukkit's `getContents()`
 order, which starts at the hotbar and ends with the armour upside down — a
 loadout is read by people far more often than it is handed to `setContents`.
 

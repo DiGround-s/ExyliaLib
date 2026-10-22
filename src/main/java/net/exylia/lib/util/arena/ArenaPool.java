@@ -189,6 +189,61 @@ public final class ArenaPool {
     }
 
     /**
+     * How busy a template is, for a menu.
+     *
+     * @param busy      instances in a match or regenerating
+     * @param copies    copies made so far, besides the original
+     * @param maxCopies copies allowed
+     * @since 1.348.0
+     */
+    public record Usage(int busy, int copies, int maxCopies) {
+    }
+
+    /**
+     * How busy a template is right now; read from memory, cheap enough for a menu lambda.
+     *
+     * @param id the template's id
+     * @return its usage, or empty when no template has that id
+     * @since 1.348.0
+     */
+    public @NotNull Optional<Usage> usage(@NotNull String id) {
+        Entry entry = entries.get(id);
+        if (entry == null) {
+            return Optional.empty();
+        }
+        int busy = 0;
+        for (ArenaInstance instance : entry.instances) {
+            ArenaInstance.State state = instance.state.get();
+            if (state == ArenaInstance.State.IN_USE || state == ArenaInstance.State.REGENERATING) {
+                busy++;
+            }
+        }
+        return Optional.of(new Usage(busy, entry.copies.get(), entry.template.maxCopies()));
+    }
+
+    /**
+     * Regenerates every free instance from its schematic, taking it out of the
+     * pool until its blocks are back.
+     *
+     * <p>Call once after registering on start: a crash or restart mid-match
+     * leaves the original with the blocks that match placed, and nothing in
+     * memory remembers it was taken. Instances in a match are left alone.
+     *
+     * @return how many instances were regenerated successfully
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Integer> regenerateIdle() {
+        List<CompletableFuture<Boolean>> runs = new ArrayList<>();
+        for (Entry entry : entries.values()) {
+            for (ArenaInstance instance : entry.instances) {
+                runs.add(instance.regenerateIdle());
+            }
+        }
+        return CompletableFuture.allOf(runs.toArray(CompletableFuture[]::new))
+                .handle((ignored, failure) -> (int) runs.stream().filter(run -> run.getNow(false)).count());
+    }
+
+    /**
      * Takes one arena of a template.
      *
      * @param id the template's id

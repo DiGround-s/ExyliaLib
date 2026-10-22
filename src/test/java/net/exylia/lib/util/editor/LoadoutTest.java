@@ -132,4 +132,20 @@ class LoadoutTest {
             return kind;
         }
     }
+
+    @Test
+    @DisplayName("applying writes each position to the slot capture reads it from")
+    void contentsSlotsInvertCapture() {
+        assertEquals(39, Loadout.contentsSlot(0));
+        assertEquals(36, Loadout.contentsSlot(3));
+        assertEquals(40, Loadout.contentsSlot(Loadout.OFFHAND));
+        assertEquals(9, Loadout.contentsSlot(Loadout.storage(0)));
+        assertEquals(35, Loadout.contentsSlot(Loadout.storage(26)));
+        assertEquals(0, Loadout.contentsSlot(Loadout.hotbar(0)));
+        assertEquals(8, Loadout.contentsSlot(Loadout.hotbar(8)));
+        assertEquals(-1, Loadout.contentsSlot(Loadout.SIZE));
+        Set<Integer> slots = new java.util.HashSet<>();
+        for (int index = 0; index < Loadout.SIZE; index++) slots.add(Loadout.contentsSlot(index));
+        assertEquals(Loadout.SIZE, slots.size());
+    }
 }

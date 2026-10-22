@@ -3,6 +3,7 @@ package net.exylia.lib.session;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.snapshot.PluginSnapshots;
+import net.exylia.lib.util.snapshot.SnapshotPart;
 import net.exylia.lib.util.snapshot.Snapshots;
 import net.exylia.lib.util.teleport.Teleports;
 import org.bukkit.Bukkit;
@@ -33,7 +34,7 @@ import java.util.function.Function;
  */
 public final class PluginStays {
 
-    /** The snapshot context every stay of a plugin is saved under. */
+    /** The snapshot context a stay is saved under unless {@code enter} names another. */
     static final String CONTEXT = "stay";
 
     private final Plugin plugin;
@@ -43,6 +44,8 @@ public final class PluginStays {
     private final Map<UUID, CompletableFuture<Void>> saves = new ConcurrentHashMap<>();
     /** Players on their way out, still protected after their claim may be gone. */
     private final Set<UUID> leaving = ConcurrentHashMap.newKeySet();
+    /** The snapshot context of each stay entered under a name of its own. */
+    private final Map<UUID, String> contexts = new ConcurrentHashMap<>();
 
     PluginStays(@NotNull Plugin plugin) {
         this(plugin, Sessions.of(plugin), new LiveBackend(plugin));
@@ -86,11 +89,31 @@ public final class PluginStays {
      */
     public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull String kind,
                                          @Nullable BooleanSupplier onRelease) {
+        return enter(player, kind, onRelease, CONTEXT);
+    }
+
+    /**
+     * The same, saved under a snapshot context of the plugin's choosing.
+     *
+     * <p>For a stay whose snapshot must not be restored in full: a risk duel
+     * gives back everything but the inventory it was fought for. The name is
+     * what {@link #recover(Player, String, Set)} is told on join, so it must not
+     * be one the plugin also uses for {@link Snapshots} of its own.
+     *
+     * @param player    the player
+     * @param kind      what they will be doing
+     * @param onRelease how to give them back when another plugin asks; must end in {@link #leave}
+     * @param context   the snapshot context, such as {@code duel_risk}
+     * @return the stay, or empty when another plugin, or another stay of this one, has them
+     * @since 1.348.0
+     */
+    public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull String kind,
+                                         @Nullable BooleanSupplier onRelease, @NotNull String context) {
         UUID uuid = player.getUniqueId();
         if (sessions.mine(uuid).isPresent() || leaving.contains(uuid)) {
             return Optional.empty();
         }
-        return sessions.claim(uuid, kind, onRelease).map(claim -> keep(player, claim));
+        return sessions.claim(uuid, kind, onRelease).map(claim -> keep(player, claim, context));
     }
 
     /**
@@ -107,22 +130,40 @@ public final class PluginStays {
      * @since 1.294.0
      */
     public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull Claim claim) {
+        return enter(player, claim, CONTEXT);
+    }
+
+    /**
+     * The same, saved under a snapshot context of the plugin's choosing.
+     *
+     * @param player  the player
+     * @param claim   this plugin's current claim on them
+     * @param context the snapshot context
+     * @return the stay, or empty when the claim is no longer current or the player is still leaving
+     * @since 1.348.0
+     */
+    public @NotNull Optional<Stay> enter(@NotNull Player player, @NotNull Claim claim, @NotNull String context) {
         UUID uuid = player.getUniqueId();
         if (sessions.mine(uuid).filter(claim::equals).isEmpty() || leaving.contains(uuid)) {
             return Optional.empty();
         }
-        return Optional.of(keep(player, claim));
+        return Optional.of(keep(player, claim, context));
     }
 
-    private Stay keep(Player player, Claim claim) {
+    private Stay keep(Player player, Claim claim, String context) {
         UUID uuid = player.getUniqueId();
+        if (CONTEXT.equals(context)) {
+            contexts.remove(uuid);
+        } else {
+            contexts.put(uuid, context);
+        }
         // Closing hands whatever was on the cursor or in the crafting grid back
         // to the inventory, so the snapshot holds it. A screen only closes on
         // its owner's thread.
         if (backend.owns(player)) {
             backend.close(player);
         }
-        CompletableFuture<Void> saved = backend.save(player);
+        CompletableFuture<Void> saved = backend.save(player, context);
         saves.put(uuid, saved);
         return new Stay(claim, saved);
     }
@@ -158,7 +199,23 @@ public final class PluginStays {
      *         next asks after the release rather than during it
      */
     public @NotNull CompletableFuture<Void> leave(@NotNull Player player) {
-        return depart(player, where -> backend.teleport(player, where));
+        return depart(player, where -> backend.teleport(player, where), SnapshotPart.ALL);
+    }
+
+    /**
+     * The same, putting back only the parts named.
+     *
+     * <p>The snapshot is used up all the same. For a stay whose inventory went
+     * somewhere else: a risk duel's loser had it taken by the escrow, so giving
+     * it back as well would hand it out twice.
+     *
+     * @param player the player
+     * @param parts  what to put back, such as {@code SnapshotPart.allExcept(INVENTORY, ARMOR, OFF_HAND)}
+     * @return completes once they are home and free
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Void> leave(@NotNull Player player, @NotNull Set<SnapshotPart> parts) {
+        return depart(player, where -> backend.teleport(player, where), parts);
     }
 
     /**
@@ -169,7 +226,21 @@ public final class PluginStays {
      * @return completes once they are there and free
      */
     public @NotNull CompletableFuture<Void> leave(@NotNull Player player, @NotNull Location home) {
-        return depart(player, ignored -> backend.teleport(player, home));
+        return depart(player, ignored -> backend.teleport(player, home), SnapshotPart.ALL);
+    }
+
+    /**
+     * The same, to a place of the plugin's choosing, putting back only the parts named.
+     *
+     * @param player the player
+     * @param home   where they go
+     * @param parts  what to put back
+     * @return completes once they are there and free
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Void> leave(@NotNull Player player, @NotNull Location home,
+                                                  @NotNull Set<SnapshotPart> parts) {
+        return depart(player, ignored -> backend.teleport(player, home), parts);
     }
 
     /**
@@ -182,11 +253,24 @@ public final class PluginStays {
      * @return completes once they are restored and free
      */
     public @NotNull CompletableFuture<Void> leaveHere(@NotNull Player player) {
-        return depart(player, null);
+        return depart(player, null, SnapshotPart.ALL);
+    }
+
+    /**
+     * The same, putting back only the parts named.
+     *
+     * @param player the player
+     * @param parts  what to put back
+     * @return completes once they are restored and free
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Void> leaveHere(@NotNull Player player, @NotNull Set<SnapshotPart> parts) {
+        return depart(player, null, parts);
     }
 
     private CompletableFuture<Void> depart(Player player,
-                                          @Nullable Function<Location, CompletableFuture<Void>> goHome) {
+                                          @Nullable Function<Location, CompletableFuture<Void>> goHome,
+                                          Set<SnapshotPart> parts) {
         UUID uuid = player.getUniqueId();
         Optional<Claim> claim = sessions.mine(uuid);
         CompletableFuture<Void> saved = saves.remove(uuid);
@@ -197,14 +281,15 @@ public final class PluginStays {
             // Already on the way out: the first leave finishes the job.
             return CompletableFuture.completedFuture(null);
         }
+        String context = contexts.getOrDefault(uuid, CONTEXT);
         // Nothing from here rides home on the cursor or in the grid.
         backend.onEntity(player, () -> backend.putAway(player));
         CompletableFuture<Void> landed = saved == null
                 ? CompletableFuture.completedFuture(null)
                 : saved.handle((ignored, failure) -> null);
         return landed
-                .thenCompose(ignored -> backend.returnAndRestore(player,
-                        goHome == null ? null : goHome::apply))
+                .thenCompose(ignored -> backend.returnAndRestore(player, context,
+                        goHome == null ? null : goHome::apply, parts))
                 // No snapshot to come home from: one a previous join already
                 // used up. They are still standing here, so they still go home.
                 .thenCompose(restored -> restored || goHome == null
@@ -214,6 +299,7 @@ public final class PluginStays {
                     if (failure != null) {
                         backend.error("Could not give " + player.getName() + " back", failure);
                     }
+                    contexts.remove(uuid, context);
                     leaving.remove(uuid);
                     claim.ifPresent(Claim::release);
                 });
@@ -230,6 +316,32 @@ public final class PluginStays {
      */
     public @NotNull CompletableFuture<Integer> recover(@NotNull Player player) {
         return backend.returnAndRestoreAll(player, where -> backend.teleport(player, where))
+                .whenComplete((ignored, failure) -> {
+                    if (failure != null) {
+                        backend.error("Could not give " + player.getName() + " back after a restart", failure);
+                    }
+                });
+    }
+
+    /**
+     * The same, for a plugin whose stays use a context that is only ever restored in part.
+     *
+     * <p>The named context is put back first with only the parts given, sending
+     * the player where it remembers; every other snapshot is then restored in
+     * full, as {@link #recover(Player)} does. A plugin that enters under such a
+     * context must recover through this, never the plain one, which would give
+     * that snapshot back whole.
+     *
+     * @param player  the player who joined
+     * @param context the context restored in part, such as {@code duel_risk}
+     * @param parts   what to put back from it
+     * @return how many snapshots were put back
+     * @since 1.348.0
+     */
+    public @NotNull CompletableFuture<Integer> recover(@NotNull Player player, @NotNull String context,
+                                                       @NotNull Set<SnapshotPart> parts) {
+        return backend.returnAndRestore(player, context, where -> backend.teleport(player, where), parts)
+                .thenCompose(partial -> recover(player).thenApply(rest -> rest + (partial ? 1 : 0)))
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
                         backend.error("Could not give " + player.getName() + " back after a restart", failure);
@@ -256,10 +368,11 @@ public final class PluginStays {
     /** What the rules need from the server, so the tests can stand in for it. */
     interface Backend {
 
-        CompletableFuture<Void> save(Player player);
+        CompletableFuture<Void> save(Player player, String context);
 
-        CompletableFuture<Boolean> returnAndRestore(Player player,
-                                                    @Nullable Function<Location, CompletableFuture<?>> goHome);
+        CompletableFuture<Boolean> returnAndRestore(Player player, String context,
+                                                    @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                    Set<SnapshotPart> parts);
 
         CompletableFuture<Integer> returnAndRestoreAll(Player player,
                                                        Function<Location, CompletableFuture<?>> goHome);
@@ -293,14 +406,15 @@ public final class PluginStays {
         }
 
         @Override
-        public CompletableFuture<Void> save(Player player) {
-            return snapshots.save(player, CONTEXT);
+        public CompletableFuture<Void> save(Player player, String context) {
+            return snapshots.save(player, context);
         }
 
         @Override
-        public CompletableFuture<Boolean> returnAndRestore(Player player,
-                                                           @Nullable Function<Location, CompletableFuture<?>> goHome) {
-            return snapshots.returnAndRestore(player, CONTEXT, goHome);
+        public CompletableFuture<Boolean> returnAndRestore(Player player, String context,
+                                                           @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                           Set<SnapshotPart> parts) {
+            return snapshots.returnAndRestore(player, context, goHome, parts);
         }
 
         @Override

@@ -45,7 +45,16 @@ final class ArenaInstance {
 
     /** Regenerates, then frees; completes {@code true} when the blocks came back. */
     CompletableFuture<Boolean> release() {
-        if (!state.compareAndSet(State.IN_USE, State.REGENERATING)) {
+        return regenerateFrom(State.IN_USE);
+    }
+
+    /** Regenerates a free instance nobody is using; {@code false} when it was not free. */
+    CompletableFuture<Boolean> regenerateIdle() {
+        return regenerateFrom(State.FREE);
+    }
+
+    private CompletableFuture<Boolean> regenerateFrom(State from) {
+        if (!state.compareAndSet(from, State.REGENERATING)) {
             return CompletableFuture.completedFuture(false);
         }
         CompletableFuture<Boolean> regenerated;

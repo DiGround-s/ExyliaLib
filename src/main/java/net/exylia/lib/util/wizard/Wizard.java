@@ -1,10 +1,12 @@
 package net.exylia.lib.util.wizard;
 
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -49,16 +51,20 @@ public final class Wizard {
     private final boolean summary;
     private final boolean progress;
     private final Consumer<WizardValues> onFinish;
+    private final BiConsumer<Player, WizardValues> finisher;
     private final Consumer<WizardOutcome> onCancel;
 
     Wizard(String id, String title, List<WizardStep> steps, boolean summary, boolean progress,
-           @Nullable Consumer<WizardValues> onFinish, @Nullable Consumer<WizardOutcome> onCancel) {
+           @Nullable Consumer<WizardValues> onFinish, @Nullable BiConsumer<Player, WizardValues> finisher,
+           @Nullable Consumer<WizardOutcome> onCancel) {
         this.id = id;
         this.title = title;
         this.steps = steps;
         this.summary = summary;
         this.progress = progress;
         this.onFinish = onFinish;
+        this.finisher = finisher != null ? finisher
+                : onFinish != null ? (player, values) -> onFinish.accept(values) : null;
         this.onCancel = onCancel;
     }
 
@@ -140,6 +146,17 @@ public final class Wizard {
     @org.jetbrains.annotations.ApiStatus.Internal
     public @Nullable Consumer<WizardValues> onFinish() {
         return onFinish;
+    }
+
+    /**
+     * What to run once, on a completed and confirmed run, told who ran it; set
+     * by either form of {@code onFinish}.
+     *
+     * @since 1.348.0
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public @Nullable BiConsumer<Player, WizardValues> finisher() {
+        return finisher;
     }
 
     /** What to run when the flow ends any other way. */

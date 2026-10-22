@@ -1,5 +1,6 @@
 package net.exylia.lib.session;
 
+import net.exylia.lib.util.snapshot.SnapshotPart;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -145,6 +147,30 @@ class PluginStaysTest {
         assertTrue(backend.calls.contains("strip"));
     }
 
+    @Test
+    void aNamedContextIsSavedAndRestoredInPart() {
+        Set<SnapshotPart> parts = SnapshotPart.allExcept(SnapshotPart.INVENTORY);
+        stays.enter(player, "duel", null, "duel_risk");
+        stays.leave(player, parts).join();
+        assertEquals(List.of("duel_risk", "duel_risk"), backend.contexts);
+        assertEquals(parts, backend.restoredParts);
+        assertTrue(Sessions.isFree(player.getUniqueId()));
+
+        backend.contexts.clear();
+        stays.enter(player, "duel", null);
+        stays.leave(player).join();
+        assertEquals(List.of(PluginStays.CONTEXT, PluginStays.CONTEXT), backend.contexts);
+        assertEquals(SnapshotPart.ALL, backend.restoredParts);
+    }
+
+    @Test
+    void recoveringInPartPutsThatContextBackBeforeTheRest() {
+        Set<SnapshotPart> parts = SnapshotPart.allExcept(SnapshotPart.INVENTORY);
+        assertEquals(1, stays.recover(player, "duel_risk", parts).join());
+        assertEquals(List.of("restore", "restoreAll"), backend.calls);
+        assertEquals(parts, backend.restoredParts);
+    }
+
     private static Player player(UUID uuid) {
         return (Player) Proxy.newProxyInstance(PluginStaysTest.class.getClassLoader(),
                 new Class<?>[]{Player.class}, (proxy, method, args) -> switch (method.getName()) {
@@ -162,17 +188,23 @@ class PluginStaysTest {
         final List<String> calls = new ArrayList<>();
         CompletableFuture<Void> nextSave = CompletableFuture.completedFuture(null);
         CompletableFuture<Boolean> nextRestore = CompletableFuture.completedFuture(true);
+        final List<String> contexts = new ArrayList<>();
+        Set<SnapshotPart> restoredParts;
 
         @Override
-        public CompletableFuture<Void> save(Player player) {
+        public CompletableFuture<Void> save(Player player, String context) {
             calls.add("save");
+            contexts.add(context);
             return nextSave;
         }
 
         @Override
-        public CompletableFuture<Boolean> returnAndRestore(Player player,
-                                                           @Nullable Function<Location, CompletableFuture<?>> goHome) {
+        public CompletableFuture<Boolean> returnAndRestore(Player player, String context,
+                                                           @Nullable Function<Location, CompletableFuture<?>> goHome,
+                                                           Set<SnapshotPart> parts) {
             calls.add("restore");
+            contexts.add(context);
+            restoredParts = parts;
             return nextRestore;
         }
 

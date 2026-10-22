@@ -263,6 +263,20 @@ class EscrowTest {
         assertEquals(List.of("bow"), given.get(id(bob)));
     }
 
+    @Test
+    @DisplayName("a player's held items are found by match until they are paid out")
+    void heldItemMatches() {
+        Escrow escrow = escrow();
+        assertTrue(escrow.heldItemMatches(id(alice)).join().isEmpty());
+        escrow.holdItems("d1", id(alice), List.of(new Stub("sword"))).join();
+        escrow.holdItems("d2", id(alice), List.of(new Stub("bow"))).join();
+        assertEquals(java.util.Set.of("d1", "d2"), escrow.heldItemMatches(id(alice)).join());
+        assertTrue(escrow.heldItemMatches(id(bob)).join().isEmpty());
+
+        escrow.settleItems("d1", id(bob)).join();
+        assertEquals(java.util.Set.of("d2"), escrow.heldItemMatches(id(alice)).join());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static UUID id(FakePlayer player) {

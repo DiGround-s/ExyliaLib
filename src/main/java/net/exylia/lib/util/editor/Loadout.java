@@ -185,6 +185,46 @@ public final class Loadout {
     }
 
     /**
+     * Puts a loadout on a player, replacing everything they wear and carry.
+     *
+     * <p>The inverse of {@link #capture}: every position is cloned into its own
+     * slot and every position the loadout has no item for is emptied, so what
+     * the player held before does not survive under the kit. Call it on the
+     * player's own thread.
+     *
+     * @param player whose inventory to replace
+     * @param items  the loadout, in this class's order; {@code null} empties the player
+     * @since 1.348.0
+     */
+    public static void apply(@NotNull Player player, @Nullable List<ItemStack> items) {
+        ItemStack[] contents = new ItemStack[SIZE];
+        for (int index = 0; index < SIZE; index++) {
+            ItemStack item = at(items, index);
+            contents[contentsSlot(index)] = item == null ? null : item.clone();
+        }
+        player.getInventory().setContents(contents);
+    }
+
+    /**
+     * Where a loadout position lands in Bukkit's {@code getContents()} array.
+     *
+     * @param index the loadout position
+     * @return the contents slot: hotbar {@code 0-8}, storage {@code 9-35},
+     *         boots to helmet {@code 36-39}, offhand {@code 40}; {@code -1} outside the layout
+     * @since 1.348.0
+     */
+    public static int contentsSlot(int index) {
+        Part part = partOf(index);
+        if (part == null) return -1;
+        return switch (part) {
+            case HELMET, CHESTPLATE, LEGGINGS, BOOTS -> 39 - index;
+            case OFFHAND -> 40;
+            case STORAGE -> 9 + (index - STORAGE_START);
+            case HOTBAR -> index - HOTBAR_START;
+        };
+    }
+
+    /**
      * Drops the empty tail of a loadout.
      *
      * <p>Trailing empties are not part of it: somebody who clears the last row

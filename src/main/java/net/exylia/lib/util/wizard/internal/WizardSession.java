@@ -44,6 +44,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -951,10 +952,10 @@ final class WizardSession implements WizardRun {
             return;
         }
         WizardValues collected = snapshot();
-        Consumer<WizardValues> onFinish = wizard.onFinish();
+        BiConsumer<Player, WizardValues> onFinish = wizard.finisher();
         if (onFinish != null) {
             try {
-                onFinish.accept(collected);
+                onFinish.accept(player, collected);
             } catch (RuntimeException broken) {
                 debug.error("What wizard '" + wizard.id() + "' was meant to create failed.",
                         broken);

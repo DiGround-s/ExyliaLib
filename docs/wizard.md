@@ -229,6 +229,7 @@ what the outer branch collected.
 | `summary()` | Review and confirm before anything is applied |
 | `progress(boolean)` | The boss bar, on or off. Defaults to `WizardSettings.progress()` |
 | `onFinish(Consumer<WizardValues>)` | What to create. Runs exactly once, only on `COMPLETED` |
+| `onFinish(BiConsumer<Player, WizardValues>)` | The same, told which player confirmed (1.348.0), so one compiled `Wizard` serves every admin |
 | `onCancel(Consumer<WizardOutcome>)` | Optional, for saying something specific per ending |
 | `build()` | Compiles it |
 

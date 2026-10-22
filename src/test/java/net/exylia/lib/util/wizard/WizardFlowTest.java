@@ -96,6 +96,23 @@ class WizardFlowTest {
     }
 
     @Test
+    @DisplayName("the two-argument finish is told the player who ran it")
+    void finishKnowsThePlayer() {
+        AtomicReference<org.bukkit.entity.Player> who = new AtomicReference<>();
+        Wizard quick = harness.wizards().define("quick")
+                .ask(ID, step -> step.id("Arena id"))
+                .onFinish((player, values) -> who.set(player))
+                .build();
+
+        harness.wizards().start(harness.player(), quick);
+        harness.settle();
+        harness.answer("blitz");
+
+        assertEquals(harness.player(), who.get());
+        harness.assertNothingLeaked();
+    }
+
+    @Test
     @DisplayName("the result stage carries the answers, once")
     void resultCarriesAnswers() {
         Wizard arena = harness.wizards().define("arena")
