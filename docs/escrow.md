@@ -43,6 +43,7 @@ escrow.refundItems(duelId);
 | `settleItems(matchId, winner)` | every held item of the match to the winner |
 | `refundItems(matchId)` | every player's own items back |
 | `heldItemMatches(player)` | `CompletableFuture<Set<String>>`: the matches the player still has `HELD` items on, any server (1.348.0); a join handler asks before restoring an inventory the escrow owns |
+| `giveItems(player, items)` | items that belong to nobody's match (a cancelled or swapped [trade](trades.md)): into the inventory, the rest owed. Since 1.349.0 |
 | `deliver(player)` | hands over everything owed to the player; the library calls it on join |
 
 `Payout(currency, pot, tax, prize)`: `tax` is `pot × tax` rounded **down** to
@@ -93,8 +94,11 @@ only in memory; when it answers `false` the database refused, recovery failed,
 or the match already ended, and the items have been given back.
 
 Items reach a player on that player's thread, into their inventory. Whatever
-does not fit — and everything, when the player is not on this server — becomes
-an owed row. **Nothing is ever dropped on the ground.**
+does not fit — and everything, when the player is not on this server or is
+dead — becomes an owed row. **Nothing is ever dropped on the ground.** A dead
+player's inventory is cleared on respawn, so items owed while dead are handed
+over a few ticks after they respawn (since 1.349.0), and on their next join
+otherwise.
 
 ## Owed rows and delivery
 
@@ -205,7 +209,7 @@ Rows are kept after they settle, as a record. Nothing expires them.
 
 - Public: `escrow/Escrow.java` (`Hold`, `Payout`).
 - Internal: `escrow/internal/` — `StakeRow`, `ItemRow`, `OwedRow`, `StakeState`.
-- Library hooks: `Escrow.joined` on join, `Escrow.release` in
+- Library hooks: `Escrow.joined` on join, `Escrow.respawned` on respawn, `Escrow.release` in
   `releaseAfterDisable`, `Escrow.releaseAll` on shutdown.
 - Tests: `src/test/java/net/exylia/lib/escrow/EscrowTest.java` against H2 with
   an in-memory currency and stub items (`Escrow.setHands`): settle once with

@@ -195,6 +195,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // One listener for every plugin's questions, for the same reason: a
         // chat or inventory event fires once and the session says whose it is.
         getServer().getPluginManager().registerEvents(new InputListener(), this);
+        // Trade windows, for the same reason: the holder says whose trade it is.
+        getServer().getPluginManager().registerEvents(new net.exylia.lib.trade.internal.TradeListener(), this);
         // The chat answer to a prompt is taken out of chat separately: it has to
         // land on whichever chat event this server uses, or a legacy listener
         // reads the answer before the cancel reaches it.
@@ -712,6 +714,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         EditorRuntime.releaseAll();
         net.exylia.lib.internal.UpdatesMenu.release();
         Menus.releaseAll();
+        net.exylia.lib.trade.Trades.releaseAll();
         Regions.releaseAll();
         Blocks.releaseAll();
         net.exylia.lib.region.internal.PlacedBlockRuntime.unwatch();
@@ -799,6 +802,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // goes with them.
         EditorRuntime.forget(event.getPlayer().getUniqueId());
         MenuRuntime.forgetEverywhere(event.getPlayer().getUniqueId());
+        // Their half of a trade goes back into the inventory that is about to be saved.
+        net.exylia.lib.trade.Trades.left(event.getPlayer());
         net.exylia.lib.ui.ClickGuard.forget(event.getPlayer().getUniqueId());
         // Before the input module: ending a run cancels the question it was
         // waiting on, and a question already forgotten cannot be cancelled.
@@ -938,6 +943,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         BoardManager.reinit(event.getPlayer());
         net.exylia.lib.npc.internal.PlacedRuntime.respawned(event.getPlayer());
+        // Items owed while dead: an inventory handed to a corpse is cleared on respawn.
+        net.exylia.lib.escrow.Escrow.respawned(event.getPlayer());
     }
 
     /**
@@ -1057,6 +1064,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // holding anything of this plugin's to click with.
         net.exylia.lib.item.Items.release(pluginName);
         Menus.release(pluginName);
+        // Before the task module, and while the escrow a return may owe through
+        // is still open (it is released a tick later): items in a trade window
+        // go back to their owners now.
+        net.exylia.lib.trade.Trades.release(pluginName);
         // Same reason, and one more: a pending question holds a future the
         // dying plugin is waiting on. Ending it as SHUT_DOWN releases that
         // waiter; leaving it would hand a player a form whose answer has

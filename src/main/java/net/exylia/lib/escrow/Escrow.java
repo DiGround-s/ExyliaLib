@@ -174,6 +174,7 @@ public final class Escrow {
 
     private static final int MAX_ID = 64;
     private static final long JOIN_DELAY_TICKS = 60L;
+    private static final long RESPAWN_DELAY_TICKS = 5L;
     private static final Map<String, Escrow> OPEN = new ConcurrentHashMap<>();
 
     private final Plugin plugin;
@@ -192,6 +193,8 @@ public final class Escrow {
     private final Cache<String, Boolean> closedMoney = closedCache();
     private final Cache<String, Boolean> closedItems = closedCache();
     private volatile CompletableFuture<Void> recovered = CompletableFuture.completedFuture(null);
+    /** Players owed items while dead, handed them on respawn rather than on their next join. */
+    private final java.util.Set<UUID> owedWhileDead = ConcurrentHashMap.newKeySet();
 
     private Escrow(Plugin plugin) {
         this.plugin = plugin;
@@ -505,6 +508,32 @@ public final class Escrow {
         });
     }
 
+    /**
+     * Gives items to a player that belong to nobody's match: into their
+     * inventory on their own thread, and whatever does not fit &mdash; or all
+     * of it, when they are offline or dead &mdash; on their next join or
+     * respawn. Nothing is ever dropped on the ground.
+     *
+     * <p>For items a caller already took from somewhere and must not lose: a
+     * cancelled trade, the two sides of a plain trade swapped over.
+     *
+     * @param player who receives them
+     * @param items  the items; air and nulls are skipped, and each is copied
+     * @since 1.349.0
+     */
+    public void giveItems(@NotNull UUID player, @NotNull List<ItemStack> items) {
+        Objects.requireNonNull(player, "player");
+        List<ItemStack> copy = new ArrayList<>(items.size());
+        for (ItemStack item : items) {
+            if (item != null && !item.isEmpty()) {
+                copy.add(item.clone());
+            }
+        }
+        if (!copy.isEmpty()) {
+            give(player, hands.encode(copy), "escrow:give");
+        }
+    }
+
     // --------------------------------------------------------------- delivery
 
     /**
@@ -521,6 +550,7 @@ public final class Escrow {
      */
     public @NotNull CompletableFuture<Void> deliver(@NotNull Player player) {
         UUID id = player.getUniqueId();
+        owedWhileDead.remove(id);
         return owed.all().where("plugin", name).where("player", id).find()
                 .thenCompose(rows -> each(rows, row -> owed.delete(row.id())))
                 .thenAccept(taken -> taken.forEach(row -> {
@@ -567,6 +597,12 @@ public final class Escrow {
             return;
         }
         tasks.runAtEntity(online, () -> {
+            if (online.isDead()) {
+                // A dead player's inventory is cleared on respawn: owed, and handed over then.
+                owe(OwedRow.items(name, player, items, reason));
+                owedWhileDead.add(player);
+                return;
+            }
             List<ItemStack> left;
             try {
                 left = hands.give(online, hands.decode(items));
@@ -668,6 +704,15 @@ public final class Escrow {
     public static void joined(@NotNull Player player) {
         for (Escrow escrow : OPEN.values()) {
             escrow.tasks.runAtEntityLater(player, JOIN_DELAY_TICKS, () -> escrow.deliver(player));
+        }
+    }
+
+    /** Delivers what a player was owed while dead, once they are back. Called by the library. */
+    public static void respawned(@NotNull Player player) {
+        for (Escrow escrow : OPEN.values()) {
+            if (escrow.owedWhileDead.remove(player.getUniqueId())) {
+                escrow.tasks.runAtEntityLater(player, RESPAWN_DELAY_TICKS, () -> escrow.deliver(player));
+            }
         }
     }
 
