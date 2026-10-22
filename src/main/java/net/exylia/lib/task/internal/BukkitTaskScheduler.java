@@ -10,6 +10,9 @@ import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 /**
  * Implementation for single-threaded servers: Bukkit, Spigot, Paper and their
  * non-regionised forks.
@@ -25,6 +28,10 @@ import org.jetbrains.annotations.Nullable;
 public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     private final BukkitScheduler scheduler;
+    /** Entity timers share one ticker; scheduled from any thread, run on the main one. */
+    private final Queue<EntityTimer> entityTimers = new ConcurrentLinkedQueue<>();
+    private @Nullable BukkitTask entityTicker;
+    private volatile long entityTicks;
 
     public BukkitTaskScheduler(Plugin plugin) {
         super(plugin);
@@ -140,18 +147,67 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
                                                 @NotNull Runnable task) {
         TaskHandle dropped = dropIfStopped();
         if (dropped != null) return dropped;
-        // Folia stops an entity timer once the entity is gone; mirror that here so
-        // behaviour matches on both platforms.
+        // One Bukkit timer per player per feature grows with the server: every
+        // entity timer of this plugin rides one shared ticker instead.
         TrackedHandle handle = newHandle(true);
-        BukkitTask bukkitTask = scheduler.runTaskTimer(plugin, repeating(handle, () -> {
-            if (exists(entity)) {
-                task.run();
-            } else {
-                handle.cancel();
-            }
-        }), normalizeTicks(delayTicks), normalizeTicks(periodTicks));
-        bind(handle, bukkitTask::cancel);
+        EntityTimer timer = new EntityTimer(entity, repeating(handle, task), handle,
+                entityTicks + normalizeTicks(delayTicks), normalizeTicks(periodTicks));
+        bind(handle, () -> {
+            entityTimers.remove(timer);
+            stopEntityTickerIfIdle();
+        });
+        addEntityTimer(timer);
         return handle;
+    }
+
+    private synchronized void addEntityTimer(EntityTimer timer) {
+        if (entityTicker != null && entityTicker.isCancelled()) {
+            // The server killed the ticker (plugin disabled): its timers died with it.
+            entityTimers.forEach(stale -> stale.handle.cancel());
+        }
+        entityTimers.add(timer);
+        if (entityTicker == null || entityTicker.isCancelled()) {
+            entityTicker = scheduler.runTaskTimer(plugin, this::tickEntityTimers, 1L, 1L);
+        }
+    }
+
+    private void tickEntityTimers() {
+        long now = ++entityTicks;
+        for (EntityTimer timer : entityTimers) {
+            if (now < timer.next) continue;
+            timer.next = now + timer.period;
+            // Folia stops an entity timer once the entity is gone; mirror that here so
+            // behaviour matches on both platforms.
+            if (exists(timer.entity)) {
+                timer.task.run();
+            } else {
+                timer.handle.cancel();
+            }
+        }
+    }
+
+    /** An idle plugin keeps no task at all. */
+    private synchronized void stopEntityTickerIfIdle() {
+        if (entityTimers.isEmpty() && entityTicker != null) {
+            entityTicker.cancel();
+            entityTicker = null;
+        }
+    }
+
+    private static final class EntityTimer {
+        final Entity entity;
+        final Runnable task;
+        final TrackedHandle handle;
+        final long period;
+        long next;
+
+        EntityTimer(Entity entity, Runnable task, TrackedHandle handle, long next, long period) {
+            this.entity = entity;
+            this.task = task;
+            this.handle = handle;
+            this.next = next;
+            this.period = period;
+        }
     }
 
     // ------------------------------------------------------------------

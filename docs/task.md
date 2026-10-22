@@ -64,6 +64,7 @@ correctly costs nothing.
 - Exception isolation: a task that throws does not kill the scheduler.
 - Tick normalization (delay 0 means "next tick").
 - Entity timers stop on their own when the entity is gone. A player counts as gone only once it disconnects, so its timers survive death and respawn.
+- On Paper, every entity timer of a plugin rides one shared server task, started with the first and stopped with the last, so per-player timers do not grow the task count with the player count. Folia keeps one per entity, as its regions require.
 - Scheduling from a plugin that is already disabled, which the server's own
   scheduler answers by throwing. A one-shot (including `runAsync`) runs inline,
   on the thread that asked, so a save or a cleanup issued from `onDisable`

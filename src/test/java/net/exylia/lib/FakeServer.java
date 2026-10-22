@@ -248,6 +248,8 @@ public final class FakeServer {
         asyncRunsForReal = false;
         deliverFiredEvents = false;
         tick = 0;
+        // Dropped tasks die as they would with the server: a cached scheduler must see its timer gone.
+        SCHEDULED.forEach(scheduled -> scheduled.cancelled = true);
         SCHEDULED.clear();
         DISABLED.clear();
         ONLINE.clear();
