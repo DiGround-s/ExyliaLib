@@ -166,6 +166,18 @@ class PluginStaysTest {
     }
 
     @Test
+    void looseItemsAreKeptOnlyWhenTheInventoryIsNotRestored() {
+        stays.enter(player, "duel", null);
+        stays.leave(player).join();
+        assertTrue(backend.calls.contains("putAway"));
+
+        backend.calls.clear();
+        stays.enter(player, "duel", null, "duel_risk");
+        stays.leave(player, SnapshotPart.allExcept(SnapshotPart.INVENTORY)).join();
+        assertTrue(backend.calls.contains("putAwayKeep"));
+    }
+
+    @Test
     void recoveringInPartPutsThatContextBackBeforeTheRest() {
         Set<SnapshotPart> parts = SnapshotPart.allExcept(SnapshotPart.INVENTORY);
         assertEquals(1, stays.recover(player, "duel_risk", parts).join());
@@ -290,7 +302,8 @@ class PluginStaysTest {
         }
 
         @Override
-        public void putAway(Player player) {
+        public void putAway(Player player, boolean keep) {
+            calls.add(keep ? "putAwayKeep" : "putAway");
         }
 
         @Override

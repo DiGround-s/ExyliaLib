@@ -1,6 +1,7 @@
 package net.exylia.lib.session;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.escrow.Escrow;
 import net.exylia.lib.session.internal.Recovering;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.snapshot.PluginSnapshots;
@@ -12,10 +13,13 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.CraftingInventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -286,8 +290,10 @@ public final class PluginStays {
             return CompletableFuture.completedFuture(null);
         }
         String context = contexts.getOrDefault(uuid, CONTEXT);
-        // Nothing from here rides home on the cursor or in the grid.
-        backend.onEntity(player, () -> backend.putAway(player));
+        // Nothing from here rides home on the cursor or in the grid. When the
+        // inventory is not restored, what is there is theirs and goes into it.
+        boolean keep = !parts.contains(SnapshotPart.INVENTORY);
+        backend.onEntity(player, () -> backend.putAway(player, keep));
         CompletableFuture<Void> landed = saved == null
                 ? CompletableFuture.completedFuture(null)
                 : saved.handle((ignored, failure) -> null);
@@ -490,7 +496,13 @@ public final class PluginStays {
 
         void close(Player player);
 
-        void putAway(Player player);
+        /**
+         * Empties the cursor and the crafting grid and closes the screen.
+         *
+         * @param keep whether those items go into the inventory (what does not fit is owed)
+         *             rather than being deleted; true when the inventory is not restored
+         */
+        void putAway(Player player, boolean keep);
 
         void strip(Player player, GameMode mode);
 
@@ -557,19 +569,39 @@ public final class PluginStays {
         }
 
         @Override
-        public void putAway(Player player) {
+        public void putAway(Player player, boolean keep) {
             // Neither the cursor nor the crafting grid is a slot a snapshot or a
             // clear touches, so an item parked there outlives both.
+            List<ItemStack> loose = new ArrayList<>();
             if (player.getOpenInventory().getTopInventory() instanceof CraftingInventory grid) {
+                if (keep) {
+                    for (ItemStack item : grid.getMatrix()) {
+                        if (item != null && !item.isEmpty()) {
+                            loose.add(item);
+                        }
+                    }
+                }
                 grid.clear();
+            }
+            ItemStack cursor = player.getItemOnCursor();
+            if (keep && !cursor.isEmpty()) {
+                loose.add(cursor);
             }
             player.setItemOnCursor(null);
             player.closeInventory();
+            if (!loose.isEmpty()) {
+                // Same step, same thread: no tick in which they are nowhere.
+                List<ItemStack> rest = new ArrayList<>(
+                        player.getInventory().addItem(loose.toArray(new ItemStack[0])).values());
+                if (!rest.isEmpty()) {
+                    Escrow.of(plugin).giveItems(player.getUniqueId(), rest);
+                }
+            }
         }
 
         @Override
         public void strip(Player player, GameMode mode) {
-            putAway(player);
+            putAway(player, false);
             player.getInventory().clear();
             player.setGameMode(mode);
         }

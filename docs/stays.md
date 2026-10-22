@@ -107,6 +107,7 @@ works, which every arena plugin used to learn on its own:
 - `enter` is refused when any plugin holds the player, this one included.
 - `enter(player, claim)` (1.294.0) takes a claim this plugin already holds instead; refused when the claim is not current or the player is still leaving.
 - A second `leave` while the first runs does nothing; the first finishes.
+- On the way out the cursor and the crafting grid are emptied. With the inventory restored their items are discarded (the snapshot holds the real inventory); with a leave that does not restore `INVENTORY`, they go into the inventory in the same step, and what does not fit is owed through `Escrow.giveItems` (1.350.1).
 - `enter(..., context)` (1.348.0) saves under that snapshot context instead of `stay`; `leave`/`leaveHere` with a `Set<SnapshotPart>` restore only those parts and still use the snapshot up.
 - A plugin that enters under a context restored in part recovers with `recover(player, context, parts)`: the plain `recover` restores every snapshot in full, that one included.
 - `recover`/`recoverLocal` hold the player until they end (1.350.0); `enter` is refused meanwhile.
