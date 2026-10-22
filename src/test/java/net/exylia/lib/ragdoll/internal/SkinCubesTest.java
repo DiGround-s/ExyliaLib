@@ -194,7 +194,7 @@ class SkinCubesTest {
     }
 
     @Test
-    @DisplayName("a clear base pixel takes the jacket over it, or grey, and never a hole")
+    @DisplayName("a clear base pixel takes the jacket over it, or its own colour opaque, as the client draws it")
     void clearBaseIsFilled() {
         BufferedImage skin = coordinates(64, 64);
         skin.setRGB(20, 20, 0);
@@ -203,7 +203,7 @@ class SkinCubesTest {
 
         skin.setRGB(20, 36, 0);
         BufferedImage bare = cube(high(skin, false), RagdollPart.TORSO, 0, 0);
-        assertEquals(0xFF9E9E9E, at(bare, 8, 8));
+        assertEquals(0xFF000000, at(bare, 8, 8));
         assertEquals(0, at(bare, 40, 8) >>> 24, "no jacket there, so no hat texel either");
     }
 

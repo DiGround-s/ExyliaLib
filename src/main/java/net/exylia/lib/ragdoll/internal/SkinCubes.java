@@ -49,10 +49,10 @@ public final class SkinCubes {
     private static final int HEAD = 8;
 
     /**
-     * What a base texel is painted when the skin has nothing there.
+     * What a model's texel is painted when its texture has nothing there.
      *
-     * <p>A skull draws a clear base texel as a hole straight through the head,
-     * and the empty column of a slim arm would otherwise be exactly that.
+     * <p>A skull draws a clear base texel as a hole straight through the head.
+     * A skin never needs it: its clear texels keep their own colour, opaque.
      */
     private static final int FILL = 0xFF9E9E9E;
 
@@ -319,8 +319,11 @@ public final class SkinCubes {
                     int painted = sample(skin, base, face, column, row, region);
                     int worn = over == null ? 0 : sample(skin, over, face, column, row, region);
                     boolean wornSolid = (worn >>> 24) >= 128;
-                    if ((painted >>> 24) < 128) {
-                        painted = wornSolid ? worn : FILL;
+                    // The client draws a skin's base layer opaque in whatever colour
+                    // a clear pixel holds, usually black: a slim design uploaded as
+                    // classic shows its empty column that way on the player too.
+                    if ((painted >>> 24) < 128 && wornSolid) {
+                        painted = worn;
                     }
                     painted |= 0xFF000000;
                     head.setRGB(HEAD_BASE.x(face) + column, HEAD_BASE.y(face) + row, painted);
