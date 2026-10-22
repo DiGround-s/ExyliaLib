@@ -727,6 +727,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Snapshots.releaseAll();
         net.exylia.lib.util.NetworkCooldowns.releaseAll();
         net.exylia.lib.notice.Notices.releaseAll();
+        net.exylia.lib.escrow.Escrow.releaseAll();
         net.exylia.lib.command.ServerCommands.releaseAll();
         net.exylia.lib.log.Logs.releaseAll();
         net.exylia.lib.settings.internal.SettingsRuntime.releaseAll();
@@ -867,6 +868,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.util.NetworkCooldowns.joined(id);
         // Schedules its read for a few seconds on; nothing waits for it here.
         net.exylia.lib.notice.Notices.joined(player);
+        // Owed payouts and items, a few seconds on, on the player's own thread.
+        net.exylia.lib.escrow.Escrow.joined(player);
         net.exylia.lib.command.ServerCommands.joined(player);
         net.exylia.lib.settings.internal.SettingsRuntime.joined(id);
         // Permissions are settled by the time a player joins; whatever was
@@ -1157,6 +1160,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // plugin's repositories, and a join must not write through a closed one.
         net.exylia.lib.util.NetworkCooldowns.release(plugin);
         net.exylia.lib.notice.Notices.release(plugin);
+        net.exylia.lib.escrow.Escrow.release(plugin);
         net.exylia.lib.command.ServerCommands.release(plugin);
         // Writes the plugin's queued log entries while its database is still open.
         net.exylia.lib.log.Logs.release(plugin);

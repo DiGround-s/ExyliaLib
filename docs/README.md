@@ -70,6 +70,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Prices](prices.md) | What an item sells for, whoever buys it back — shops and worth lists answer by priority, any plugin asks; boosting stays with the payer | 1.264.0 |
 | [Toasts](toasts.md) | The advancement popup in the corner — packets only, nothing kept, a configurable fallback without PacketEvents; `[TOAST]` in sequences | 1.278.0 |
 | [Notices](notices.md) | Messages left for a player: shown now if they are here, across the network if they are elsewhere, as a grouped summary on their next join otherwise — taken exactly once | 1.278.0 |
+| [Escrow](escrow.md) | Money and items held while a match is played — written before anything moves, settled or refunded exactly once, refunded after a crash, owed rows delivered on join | 1.345.0 |
 | [Logs](logs.md) | A staff audit log every plugin records into, browsed with /exylialib logs | 1.296.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
