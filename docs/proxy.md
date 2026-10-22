@@ -133,6 +133,10 @@ server whose proxy has no bridge finds out in five seconds rather than never.
 
 ## Adding a capability
 
+A plugin talking to itself on another backend needs no proxy module: that is
+[network](network.md), over Redis.
+
+
 A module on the proxy (one class, see the ExyliaProxyUtils README) and one
 `Proxy.request(player, "name", payload)` here. The payload is a string the
 module defines; nothing in the library needs to change for a new one.
