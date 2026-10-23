@@ -71,6 +71,7 @@ one currency, plus one the top-level facade does not expose:
 | `view.balance / has / withdraw / deposit / charge / pay / transfer` | as above, on this currency |
 | `view.set(uuid, amount)` | set the balance to an exact value; **zero is allowed here**, unlike everywhere else |
 | `view.balanceLater(uuid)` | the balance of somebody who may not be here, fetched: a `CompletableFuture` |
+| `view.withdrawLater(uuid, amount, transaction)` | a withdraw that works from any thread, for items and experience too: a `CompletableFuture<EconomyResponse>` (1.353.0) |
 
 `balance` answers from memory, because scoreboards and placeholders read it
 every tick — and for a stored currency memory is the players on this server, so
@@ -640,7 +641,18 @@ Economy.register(ExperienceCurrency.points(rewards));   // xp_points
   async scoreboard, a database callback — answers the last count taken on the
   player's thread and asks for a fresh one, at most one pending per player;
   `balanceLater` waits for the fresh count. A withdraw off that thread is
-  refused.
+  refused; **charge from anywhere with `withdrawLater`** (since 1.353.0),
+  which runs the withdraw on the player's thread for these currencies and
+  completes at once for every other one:
+
+  ```java
+  Economy.of(currency).withdrawLater(player, price, Transaction.of("shop:buy"))
+          .thenAccept(response -> { if (response.isSuccess()) give(); });
+  ```
+
+  Code that charges after a database write, in an async task or on a timer
+  must use it, or an item or experience price always fails. A `has` check
+  off that thread may read zero for the same reason: let the withdraw decide.
 - **A deposit is a reward delivery, never an item on the ground.** On the
   player's thread items go through `PluginRewards` under its overflow policy, so
   `QUEUE` keeps what does not fit for the next join. Anywhere else the deposit

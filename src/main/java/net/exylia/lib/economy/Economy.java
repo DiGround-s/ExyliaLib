@@ -414,6 +414,43 @@ public final class Economy {
             return response;
         }
 
+        /**
+         * Removes an amount from any thread.
+         *
+         * <p>{@link #withdraw} is refused off the player's thread for a
+         * currency that lives on the player, such as items or experience.
+         * This one runs it there, so a charge made from a database callback
+         * or an async task works with every currency. Never completes
+         * exceptionally: a failure is a {@code FAILURE} response.
+         *
+         * @since 1.353.0
+         */
+        public @NotNull java.util.concurrent.CompletableFuture<EconomyResponse> withdrawLater(
+                @NotNull UUID player, @NotNull BigDecimal amount, @NotNull Transaction transaction) {
+            requirePlayer(player);
+            requireAmount(amount);
+            Optional<CurrencyProvider> provider = provider();
+            if (provider.isEmpty()) {
+                return java.util.concurrent.CompletableFuture.completedFuture(EconomyResponse.notAvailable());
+            }
+            CurrencyProvider p = provider.get();
+            java.util.concurrent.CompletableFuture<EconomyResponse> pending;
+            try {
+                pending = p.withdrawLater(player, amount, transaction);
+            } catch (RuntimeException failure) {
+                pending = java.util.concurrent.CompletableFuture.failedFuture(failure);
+            }
+            return pending.handle((response, failure) -> {
+                if (failure != null || response == null) {
+                    return EconomyResponse.failure("exception");
+                }
+                if (response.isSuccess()) {
+                    changed(p, player, response.balance().add(response.amount()), response.balance(), transaction);
+                }
+                return response;
+            });
+        }
+
         public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
             return deposit(player, amount, Transaction.NONE);
         }

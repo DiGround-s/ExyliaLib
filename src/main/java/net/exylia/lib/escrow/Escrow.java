@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.economy.CurrencyKind;
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.economy.EconomyResponse;
 import net.exylia.lib.economy.Transaction;
@@ -279,7 +280,9 @@ public final class Escrow {
                 return CompletableFuture.completedFuture(Hold.FAILED);
             }
             Economy.CurrencyView view = Economy.of(currency);
-            if (!view.has(player, amount)) {
+            // Items and experience are counted only on the player's thread, so off it a balance
+            // may read zero; their withdraw checks the funds itself.
+            if (!livesOnPlayer(currency) && !view.has(player, amount)) {
                 return CompletableFuture.completedFuture(Hold.CANNOT_PAY);
             }
             StakeRow pending = StakeRow.pending(name, server, matchId, player, currency, amount);
@@ -290,15 +293,19 @@ public final class Escrow {
         });
     }
 
+    private static boolean livesOnPlayer(String currency) {
+        CurrencyKind kind = Economy.kind(currency.isBlank() ? Economy.defaultId() : currency);
+        return kind == CurrencyKind.ITEM || kind == CurrencyKind.EXPERIENCE;
+    }
+
     private CompletableFuture<Hold> charge(StakeRow pending, Economy.CurrencyView view) {
-        EconomyResponse response;
-        try {
-            response = view.withdraw(pending.player(), pending.amount(),
-                    Transaction.of("escrow:stake").by(pending.player()));
-        } catch (RuntimeException failure) {
-            debug.error("Escrow: the economy failed to charge " + pending.player() + ".", failure);
-            response = EconomyResponse.failure("exception");
-        }
+        // Later, not plain withdraw: this runs on a database callback, and items or experience
+        // can only be taken on the player's own thread.
+        return view.withdrawLater(pending.player(), pending.amount(),
+                Transaction.of("escrow:stake").by(pending.player())).thenCompose(response -> charged(pending, response));
+    }
+
+    private CompletableFuture<Hold> charged(StakeRow pending, EconomyResponse response) {
         if (!response.isSuccess()) {
             Hold answer = response.type() == EconomyResponse.Type.INSUFFICIENT_FUNDS ? Hold.CANNOT_PAY : Hold.FAILED;
             // A pending row that fails to become VOID is voided by the next start anyway.

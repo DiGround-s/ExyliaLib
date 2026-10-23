@@ -172,6 +172,14 @@ public final class ExperienceCurrency implements CurrencyProvider {
                 : EconomyResponse.failure("The experience could not be kept for a player who is not here.");
     }
 
+    /** Hops to the player's thread, the only one that may take from them. */
+    @Override
+    public @NotNull java.util.concurrent.CompletableFuture<EconomyResponse> withdrawLater(
+            @NotNull UUID player, @NotNull BigDecimal amount, @NotNull net.exylia.lib.economy.Transaction transaction) {
+        return balances.onThread(player, () -> withdraw(player, amount, transaction),
+                () -> EconomyResponse.failure("The player is not on this server."));
+    }
+
     @Override
     public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount) {
         Player online = Bukkit.getPlayer(player);

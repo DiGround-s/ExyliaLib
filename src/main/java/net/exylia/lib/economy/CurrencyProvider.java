@@ -275,6 +275,21 @@ public interface CurrencyProvider {
     }
 
     /**
+     * Removes from a balance wherever it can be done, carrying why.
+     *
+     * <p>The default is {@link #withdraw(UUID, BigDecimal, Transaction)},
+     * already complete. A currency that lives on the player (items,
+     * experience) runs it on the player's thread instead, so a caller on a
+     * database callback can still charge it.
+     *
+     * @since 1.353.0
+     */
+    default @NotNull CompletableFuture<EconomyResponse> withdrawLater(@NotNull UUID player, @NotNull BigDecimal amount,
+                                                                      @NotNull Transaction transaction) {
+        return CompletableFuture.completedFuture(withdraw(player, amount, transaction));
+    }
+
+    /**
      * Sets a balance, carrying why.
      *
      * @since 1.150.0

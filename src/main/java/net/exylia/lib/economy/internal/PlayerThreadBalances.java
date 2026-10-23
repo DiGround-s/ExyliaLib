@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * A balance that lives on the player, read only on the player's thread.
@@ -69,6 +70,37 @@ public final class PlayerThreadBalances {
                     () -> answer.complete(BigDecimal.ZERO));
         } catch (RuntimeException stopped) {
             answer.complete(last(player));
+        }
+        return answer;
+    }
+
+    /**
+     * Runs an operation on the player's thread: now when already there,
+     * scheduled otherwise. A player who is not here, or who leaves first,
+     * gets {@code absent}.
+     *
+     * @since 1.353.0
+     */
+    public <T> @NotNull CompletableFuture<T> onThread(@NotNull UUID player, @NotNull Supplier<T> operation,
+                                                     @NotNull Supplier<T> absent) {
+        Player online = Bukkit.getPlayer(player);
+        if (online == null) {
+            return CompletableFuture.completedFuture(absent.get());
+        }
+        if (tasks.isOwnedBy(online)) {
+            return CompletableFuture.completedFuture(operation.get());
+        }
+        CompletableFuture<T> answer = new CompletableFuture<>();
+        try {
+            tasks.runAtEntity(online, () -> {
+                try {
+                    answer.complete(operation.get());
+                } catch (RuntimeException failure) {
+                    answer.completeExceptionally(failure);
+                }
+            }, () -> answer.complete(absent.get()));
+        } catch (RuntimeException stopped) {
+            answer.complete(absent.get());
         }
         return answer;
     }
