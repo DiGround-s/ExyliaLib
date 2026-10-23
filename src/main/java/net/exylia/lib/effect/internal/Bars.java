@@ -105,13 +105,20 @@ final class Bars {
         viewer.showBossBar(bar);
     }
 
+    /**
+     * Changes a showing bar.
+     *
+     * <p>On the packet path every change is sent as a whole new add, never as an
+     * update. The client replaces a bar added again under the same id in place,
+     * but an update for a bar it does not have (lost to a server switch, a
+     * reconfiguration, or a proxy or translator in between) throws and
+     * disconnects the player. The add costs a title more; the bar only changes
+     * when its drawn width or its text does.
+     */
     static void bossBarUpdate(Player viewer, UUID id, Component title, float progress,
-                              boolean titleChanged) {
+                              String colour, String overlay, boolean titleChanged) {
         if (Packets.available()) {
-            PacketSender.bossBarProgress(viewer, id, clamp(progress));
-            if (titleChanged) {
-                PacketSender.bossBarTitle(viewer, id, title);
-            }
+            PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
             return;
         }
         BossBar bar = FALLBACK.get(id);
@@ -123,22 +130,11 @@ final class Bars {
         }
     }
 
-    /** Sends only the title, for a bar whose drawn progress did not move. */
-    static void bossBarTitleOnly(Player viewer, UUID id, Component title) {
+    /** Changes a showing bar's colour and overlay, sent whole like any other change. */
+    static void bossBarStyle(Player viewer, UUID id, Component title, float progress,
+                             String colour, String overlay) {
         if (Packets.available()) {
-            PacketSender.bossBarTitle(viewer, id, title);
-            return;
-        }
-        BossBar bar = FALLBACK.get(id);
-        if (bar != null) {
-            bar.name(title);
-        }
-    }
-
-    /** Changes a showing bar's colour and overlay. */
-    static void bossBarStyle(Player viewer, UUID id, String colour, String overlay) {
-        if (Packets.available()) {
-            PacketSender.bossBarStyle(viewer, id, colour, overlay);
+            PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
             return;
         }
         BossBar bar = FALLBACK.get(id);

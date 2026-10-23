@@ -247,11 +247,11 @@ final class Displays {
                 if (!changed) {
                     return;
                 }
-                Bars.bossBarTitleOnly(viewer, id, title);
+                Bars.bossBarUpdate(viewer, id, title, progress, colour, overlay, true);
                 return;
             }
             lastSteps = steps;
-            Bars.bossBarUpdate(viewer, id, title, progress, changed);
+            Bars.bossBarUpdate(viewer, id, title, progress, colour, overlay, changed);
         }
 
         @Override

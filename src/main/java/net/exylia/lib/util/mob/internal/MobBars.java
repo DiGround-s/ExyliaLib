@@ -77,8 +77,8 @@ final class MobBars {
                 LiveBars.show(player, id, title, left, colour, "progress");
                 continue;
             }
-            if (titleChanged || moved) LiveBars.update(player, id, title, left, titleChanged);
-            if (recoloured) LiveBars.style(player, id, colour, "progress");
+            if (titleChanged || moved) LiveBars.update(player, id, title, left, colour, "progress", titleChanged);
+            if (recoloured) LiveBars.style(player, id, title, left, colour, "progress");
         }
         bar.title = title;
         bar.progress = left;

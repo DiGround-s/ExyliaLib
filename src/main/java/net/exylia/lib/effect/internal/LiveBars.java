@@ -26,13 +26,15 @@ public final class LiveBars {
     }
 
     /** Moves a showing bar, its title too when it changed. */
-    public static void update(Player viewer, UUID id, Component title, float progress, boolean titleChanged) {
-        Bars.bossBarUpdate(viewer, id, title, progress, titleChanged);
+    public static void update(Player viewer, UUID id, Component title, float progress,
+                              String colour, String overlay, boolean titleChanged) {
+        Bars.bossBarUpdate(viewer, id, title, progress, colour, overlay, titleChanged);
     }
 
     /** Recolours a showing bar. */
-    public static void style(Player viewer, UUID id, String colour, String overlay) {
-        Bars.bossBarStyle(viewer, id, colour, overlay);
+    public static void style(Player viewer, UUID id, Component title, float progress,
+                             String colour, String overlay) {
+        Bars.bossBarStyle(viewer, id, title, progress, colour, overlay);
     }
 
     /** Takes a bar off a client. */

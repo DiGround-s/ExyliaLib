@@ -60,29 +60,6 @@ final class PacketSender {
         send(player, packet);
     }
 
-    /** Updates only the fill, which is what a timer changes every tick. */
-    static void bossBarProgress(Player player, UUID id, float progress) {
-        WrapperPlayServerBossBar packet =
-                new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_HEALTH);
-        packet.setHealth(progress);
-        send(player, packet);
-    }
-
-    static void bossBarTitle(Player player, UUID id, Component title) {
-        WrapperPlayServerBossBar packet =
-                new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_TITLE);
-        packet.setTitle(title);
-        send(player, packet);
-    }
-
-    static void bossBarStyle(Player player, UUID id, String colour, String overlay) {
-        WrapperPlayServerBossBar packet =
-                new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_STYLE);
-        packet.setColor(colour(colour));
-        packet.setOverlay(overlay(overlay));
-        send(player, packet);
-    }
-
     static void bossBarRemove(Player player, UUID id) {
         send(player, new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.REMOVE));
     }
