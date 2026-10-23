@@ -102,6 +102,7 @@ truth again.
 ```java
 Movement movement();
 void freeze(Player player);
+void freeze(Player player, boolean lockRotation);   // 1.351.0+
 void unfreeze(Player player);
 boolean isFrozen(Player player);
 ```
@@ -113,6 +114,11 @@ turned back to where it pointed a round trip ago. A dropped packet takes its
 rotation with it, though; a plugin that needs every turn of a frozen player
 reads the rotation packets itself, before this hook cancels them. A
 `PlayerMoveEvent` guard covers the case PacketEvents is missing.
+
+`freeze(player, true)` locks the camera as well: every rotation off the
+anchor's is dropped and answered with the anchor's yaw and pitch, absolute
+(a countdown nobody may pre-aim through). Freezing again replaces the lock,
+so `freeze(player)` later frees the camera and keeps the player pinned.
 
 Limits: knockback, pistons and a plugin teleport still move the player
 server-side; the anchor does not follow. Freeze again after moving them on

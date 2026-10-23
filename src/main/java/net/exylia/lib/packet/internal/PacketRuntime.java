@@ -74,6 +74,8 @@ public final class PacketRuntime {
     private static final Map<UUID, Location> ANCHORS = new ConcurrentHashMap<>();
     /** frozen player -> plugin that froze them. */
     private static final Map<UUID, String> FROZEN_BY = new ConcurrentHashMap<>();
+    /** Frozen players whose camera is locked to the anchor's rotation as well. */
+    private static final Set<UUID> ROTATION_LOCKED = ConcurrentHashMap.newKeySet();
     /** viewer -> fake block positions they were shown. */
     private static final Map<UUID, Set<Location>> FAKED = new ConcurrentHashMap<>();
     /** viewer -> outlined position to the client-side entity drawing it. */
@@ -275,6 +277,7 @@ public final class PacketRuntime {
         ENTITY_IDS.clear();
         ANCHORS.clear();
         FROZEN_BY.clear();
+        ROTATION_LOCKED.clear();
         FAKED.clear();
         OUTLINED.clear();
         SPECTATING.clear();
@@ -422,6 +425,10 @@ public final class PacketRuntime {
         return ANCHORS.get(player);
     }
 
+    static boolean rotationLocked(UUID player) {
+        return ROTATION_LOCKED.contains(player);
+    }
+
     /** Whether any plugin's rule says {@code viewer} may see {@code target}. */
     static boolean allowed(Player viewer, Player target) {
         if (viewer.equals(target)) {
@@ -445,6 +452,7 @@ public final class PacketRuntime {
         ENTITY_IDS.remove(player.getEntityId());
         ANCHORS.remove(id);
         FROZEN_BY.remove(id);
+        ROTATION_LOCKED.remove(id);
         FAKED.remove(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
@@ -585,10 +593,14 @@ public final class PacketRuntime {
             if (anchor == null || to == null || !anchor.getWorld().equals(to.getWorld())) {
                 return;
             }
-            if (anchor.distanceSquared(to) > 1e-6) {
+            boolean locked = ROTATION_LOCKED.contains(event.getPlayer().getUniqueId());
+            if (anchor.distanceSquared(to) > 1e-6
+                    || locked && PacketHooks.turned(anchor, to.getYaw(), to.getPitch())) {
                 Location back = anchor.clone();
-                back.setYaw(to.getYaw());
-                back.setPitch(to.getPitch());
+                if (!locked) {
+                    back.setYaw(to.getYaw());
+                    back.setPitch(to.getPitch());
+                }
                 event.setTo(back);
             }
         }
@@ -684,6 +696,7 @@ public final class PacketRuntime {
                 if (name.equals(FROZEN_BY.get(id))) {
                     ANCHORS.remove(id);
                     FROZEN_BY.remove(id);
+                    ROTATION_LOCKED.remove(id);
                 }
             }
             for (UUID id : new ArrayList<>(REVEALING.keySet())) {
@@ -815,8 +828,19 @@ public final class PacketRuntime {
 
         @Override
         public void freeze(@NotNull Player player) {
-            ANCHORS.put(player.getUniqueId(), player.getLocation().clone());
-            FROZEN_BY.put(player.getUniqueId(), name);
+            freeze(player, false);
+        }
+
+        @Override
+        public void freeze(@NotNull Player player, boolean lockRotation) {
+            UUID id = player.getUniqueId();
+            if (lockRotation) {
+                ROTATION_LOCKED.add(id);
+            } else {
+                ROTATION_LOCKED.remove(id);
+            }
+            ANCHORS.put(id, player.getLocation().clone());
+            FROZEN_BY.put(id, name);
             sink();
         }
 
@@ -825,6 +849,7 @@ public final class PacketRuntime {
             if (name.equals(FROZEN_BY.get(player.getUniqueId()))) {
                 FROZEN_BY.remove(player.getUniqueId());
                 ANCHORS.remove(player.getUniqueId());
+                ROTATION_LOCKED.remove(player.getUniqueId());
             }
         }
 

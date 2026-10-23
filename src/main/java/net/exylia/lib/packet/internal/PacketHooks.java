@@ -607,15 +607,18 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
+        boolean locked = PacketRuntime.rotationLocked(player);
         if (type == PacketType.Play.Client.PLAYER_POSITION
-                || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION) {
+                || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION
+                || locked && type == PacketType.Play.Client.PLAYER_ROTATION) {
             WrapperPlayClientPlayerFlying packet = new WrapperPlayClientPlayerFlying(event);
             var at = packet.getLocation();
-            if (!moved(anchor, at.getX(), at.getY(), at.getZ())) {
+            boolean turned = locked && packet.hasRotationChanged() && turned(anchor, at.getYaw(), at.getPitch());
+            if (!turned && (!packet.hasPositionChanged() || !moved(anchor, at.getX(), at.getY(), at.getZ()))) {
                 return;
             }
             event.setCancelled(true);
-            snapBack(user, anchor);
+            snapBack(user, anchor, locked);
         } else if (type == PacketType.Play.Client.VEHICLE_MOVE) {
             WrapperPlayClientVehicleMove packet = new WrapperPlayClientVehicleMove(event);
             var at = packet.getPosition();
@@ -623,7 +626,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 return;
             }
             event.setCancelled(true);
-            snapBack(user, anchor);
+            snapBack(user, anchor, locked);
         } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
             // WASD held while frozen: swallowed so a vehicle does not creep.
             event.setCancelled(true);
@@ -700,19 +703,27 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         return dx * dx + dy * dy + dz * dz > 1e-6;
     }
 
+    /** Whether a rotation is off the anchor's, yaw compared modulo a full turn. */
+    static boolean turned(Location anchor, float yaw, float pitch) {
+        float dYaw = Math.abs(((yaw - anchor.getYaw()) % 360f + 540f) % 360f - 180f);
+        return dYaw > 0.01f || Math.abs(pitch - anchor.getPitch()) > 0.01f;
+    }
+
     /**
-     * Puts the player back on the anchor without touching where they look.
+     * Puts the player back on the anchor, and on its rotation when locked.
      *
-     * <p>The rotation is sent relative, as zero: an absolute one could only be
-     * the rotation of the packet being answered, which is a round trip old by
-     * the time it lands, and would turn the camera back by whatever the mouse
-     * did in between — a stutter on every step for somebody aiming while they
-     * hold a movement key.
+     * <p>Unlocked, the rotation is sent relative, as zero: an absolute one
+     * could only be the rotation of the packet being answered, which is a
+     * round trip old by the time it lands, and would turn the camera back by
+     * whatever the mouse did in between — a stutter on every step for somebody
+     * aiming while they hold a movement key. Locked, turning the camera back
+     * is the point, so the anchor's rotation is sent as it is.
      */
-    private static void snapBack(User user, Location anchor) {
+    private static void snapBack(User user, Location anchor, boolean lockRotation) {
         user.sendPacket(new WrapperPlayServerPlayerPositionAndLook(
-                anchor.getX(), anchor.getY(), anchor.getZ(), 0f, 0f,
-                RelativeFlag.YAW.or(RelativeFlag.PITCH).getMask(),
+                anchor.getX(), anchor.getY(), anchor.getZ(),
+                lockRotation ? anchor.getYaw() : 0f, lockRotation ? anchor.getPitch() : 0f,
+                lockRotation ? (byte) 0 : RelativeFlag.YAW.or(RelativeFlag.PITCH).getMask(),
                 ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE), false));
     }
 
