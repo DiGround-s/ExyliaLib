@@ -72,7 +72,8 @@ final class MobBars {
         boolean recoloured = phase != bar.phase;
         for (Player player : near.values()) {
             UUID id = id(entity.getUniqueId(), player.getUniqueId());
-            if (bar.viewers.put(player.getUniqueId(), player) == null) {
+            // A different Player under the same id rejoined: its client never had the bar.
+            if (bar.viewers.put(player.getUniqueId(), player) != player) {
                 LiveBars.show(player, id, title, left, colour, "progress");
                 continue;
             }

@@ -47,6 +47,16 @@ abstract class ActiveDisplay implements Display {
     /** Guards cleanup, so ending from several directions still ends once. */
     private final AtomicBoolean ended = new AtomicBoolean();
 
+    /**
+     * Whether the first draw has run.
+     *
+     * <p>Redraws wait for it. On Paper the shared entity ticker was scheduled
+     * before the draw task and runs first in the tick both are due, and a boss
+     * bar update for a bar the client was never sent disconnects the client.
+     * Only read and written on the viewer's thread.
+     */
+    private boolean drawn;
+
     private volatile Rendered rendered;
     private volatile Runnable onEnd;
     private volatile TaskHandle task;
@@ -89,7 +99,10 @@ abstract class ActiveDisplay implements Display {
             EffectRuntime.supersede(this);
         }
         EffectRuntime.register(this);
-        run(() -> draw(viewer, rendered, timer));
+        run(() -> {
+            draw(viewer, rendered, timer);
+            drawn = true;
+        });
 
         if (!needsTicking()) {
             // Nothing will ever change, so there is no task to run. A permanent
@@ -111,7 +124,9 @@ abstract class ActiveDisplay implements Display {
                 timer.advance(periodTicks);
             }
             try {
-                redraw(viewer, rendered, timer);
+                if (drawn) {
+                    redraw(viewer, rendered, timer);
+                }
             } catch (Throwable throwable) {
                 EffectRuntime.logger(owner).log(Level.WARNING,
                         "An effect failed while redrawing and has been stopped.", throwable);
@@ -217,6 +232,13 @@ abstract class ActiveDisplay implements Display {
         }
     }
 
+    /** Redraws on request, unless the first draw has not run yet: it will draw the latest text itself. */
+    private void redrawIfDrawn() {
+        if (drawn && !ended.get()) {
+            redraw(viewer, rendered, timer);
+        }
+    }
+
     /**
      * Runs something on the thread that owns the viewer.
      *
@@ -261,7 +283,7 @@ abstract class ActiveDisplay implements Display {
     private Display replace(Rendered next) {
         this.rendered = next;
         if (!ended.get()) {
-            run(() -> redraw(viewer, rendered, timer));
+            run(this::redrawIfDrawn);
         }
         return this;
     }
@@ -275,7 +297,7 @@ abstract class ActiveDisplay implements Display {
     void invalidate() {
         this.rendered = new Rendered(rendered.raw(), rendered.timeStyle());
         if (!ended.get()) {
-            run(() -> redraw(viewer, rendered, timer));
+            run(this::redrawIfDrawn);
         }
     }
 
@@ -302,7 +324,7 @@ abstract class ActiveDisplay implements Display {
     /** Triggers a redraw on the viewer's thread. Subclasses use this. */
     protected void rerender() {
         if (!ended.get()) {
-            run(() -> redraw(viewer, rendered, timer));
+            run(this::redrawIfDrawn);
         }
     }
 
