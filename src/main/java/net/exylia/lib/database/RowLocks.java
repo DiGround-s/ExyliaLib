@@ -13,8 +13,11 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 /**
  * Locks that hold across every server sharing a database, and that a crash
@@ -188,6 +191,90 @@ public final class RowLocks {
     public <T> @NotNull CompletableFuture<Optional<T>> holdRenewing(
             @NotNull String key, @NotNull Function<? super Lease, ? extends CompletableFuture<T>> work) {
         return hold(key, true, work);
+    }
+
+    /**
+     * Changes one row while holding its lock: {@link #write(Repository, String, UnaryOperator, BiPredicate, Consumer)}
+     * with nothing to run before the lock is given back.
+     *
+     * @since 1.354.0
+     */
+    public <T> @NotNull CompletableFuture<Optional<T>> write(@NotNull Repository<T> rows, @NotNull String id,
+                                                             @NotNull UnaryOperator<T> change,
+                                                             @NotNull BiPredicate<? super T, ? super T> same) {
+        return write(rows, id, change, same, row -> { });
+    }
+
+    /**
+     * Changes one row while holding its lock, the row's id being the key.
+     *
+     * <pre>{@code
+     * locks.write(accounts, id, account -> account.withBalance(account.balance().add(amount)), Account::sameBalance)
+     *      .thenAccept(stored -> stored.ifPresentOrElse(this::deposited, this::busy));
+     * }</pre>
+     *
+     * <p>The change gets the row as the database holds it now ({@link Repository#findFresh}),
+     * never a copy another server's write has not reached yet, and runs on the database
+     * callback thread: it only computes. It answers the row to store; the same row writes
+     * nothing, and {@code null} declines.
+     *
+     * <h2>A failed save may have landed</h2>
+     * A timeout can arrive after the row committed. The lock is still held when the save
+     * fails, so nobody else can have written the row: reading it back settles it. A row that
+     * holds what was written proves the save landed; one that still holds what was read
+     * proves it did not. When neither can be told, the write completes with
+     * {@link WriteUnknownException}, and whoever paid for the change is neither refunded nor
+     * paid on.
+     *
+     * @param rows   the row's repository
+     * @param id     the row's id, which is also the key locked
+     * @param change the row to store, given the row as stored now
+     * @param same   whether two rows hold the same; it must tell the row read from the row
+     *               written, or a failed save can never be settled
+     * @param stored runs with the row as stored afterwards, before the lock is given back, so
+     *               two changes made one after the other are cached in the order they were written
+     * @param <T>    the row
+     * @return the row as stored afterwards; empty when the row is gone, the change declined,
+     *         the save did not land, or another server held the lock for every attempt.
+     *         Completes with {@link WriteUnknownException} when the save may have landed and
+     *         that cannot be told, or with the failure of the read or the change itself
+     * @since 1.354.0
+     */
+    public <T> @NotNull CompletableFuture<Optional<T>> write(@NotNull Repository<T> rows, @NotNull String id,
+                                                             @NotNull UnaryOperator<T> change,
+                                                             @NotNull BiPredicate<? super T, ? super T> same,
+                                                             @NotNull Consumer<? super T> stored) {
+        Objects.requireNonNull(rows, "rows");
+        Objects.requireNonNull(change, "change");
+        Objects.requireNonNull(same, "same");
+        Objects.requireNonNull(stored, "stored");
+        return hold(id, () -> rows.findFresh(id).thenCompose(found -> {
+            T before = found.orElse(null);
+            T next = before == null ? null : change.apply(before);
+            CompletableFuture<T> written = next == null || next.equals(before)
+                    ? CompletableFuture.completedFuture(next)
+                    : rows.save(next)
+                            .handle((ignored, failure) -> failure == null
+                                    ? CompletableFuture.completedFuture(next)
+                                    : landed(rows, id, before, next, same, unwrap(failure)))
+                            .thenCompose(Function.identity());
+            return written.thenApply(row -> {
+                if (row != null) stored.accept(row);
+                return row;
+            });
+        }));
+    }
+
+    /** Settles a save that failed, while its lock is still held: the row written, {@code null} when it did not land. */
+    private static <T> CompletableFuture<T> landed(Repository<T> rows, String id, T before, T written,
+                                                   BiPredicate<? super T, ? super T> same, Throwable failure) {
+        return rows.findFresh(id).handle((row, unreachable) -> {
+            if (unreachable == null && row.isPresent() && !same.test(before, written)) {
+                if (same.test(row.get(), written)) return written;
+                if (same.test(row.get(), before)) return null;
+            }
+            throw new WriteUnknownException("the row " + id, failure);
+        });
     }
 
     private <T> CompletableFuture<Optional<T>> hold(String key, boolean renewing,

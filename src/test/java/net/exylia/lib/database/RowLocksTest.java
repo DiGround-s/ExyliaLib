@@ -185,4 +185,25 @@ class RowLocksTest {
         assertEquals(Optional.of(false), renewed);
         assertEquals("thief", await(rows.find("auctions:3")).orElseThrow().holder());
     }
+
+    @Test
+    @DisplayName("a write changes the row as stored, declines on null and writes nothing for the same row")
+    void writeChangesTheFreshRow() {
+        Repository<LockRow> rows = Databases.of(plugin).repository(LockRow.class);
+        await(rows.save(new LockRow("row", "", 0L, 1L)));
+        RowLocks locks = server();
+        List<Long> stored = new ArrayList<>();
+
+        Optional<LockRow> changed = await(locks.write(rows, "row",
+                row -> new LockRow(row.id(), row.holder(), row.expiresAt(), row.version() + 1),
+                (a, b) -> a.version() == b.version(), row -> stored.add(row.version())));
+        assertEquals(2L, changed.orElseThrow().version());
+        assertEquals(2L, await(rows.findFresh("row")).orElseThrow().version());
+        assertEquals(List.of(2L), stored, "the stored row is handed over before the lock is given back");
+
+        assertTrue(await(locks.write(rows, "row", row -> null, (a, b) -> true)).isEmpty(), "null declines");
+        assertEquals(2L, await(locks.write(rows, "row", row -> row, (a, b) -> true)).orElseThrow().version());
+        assertTrue(await(locks.write(rows, "missing", row -> row, (a, b) -> true)).isEmpty(), "a missing row");
+        assertEquals(0, locks.queuedKeys());
+    }
 }

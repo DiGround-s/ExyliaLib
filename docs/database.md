@@ -226,6 +226,19 @@ locks.lease(Duration.ofSeconds(60)).holdRenewing(vault.id(), lease -> {
   copy only when its invalidation message arrives — which can be after this
   server took the lock the writer just gave back. `findFresh(id)` goes to the
   database past every cache and replaces the local copy with what it read.
+- **`write(rows, id, change, same[, stored])`** (since 1.354.0) is the usual
+  shape of a hold: it reads the row with `findFresh`, stores what `change`
+  answers (the same row writes nothing, `null` declines) and runs `stored`
+  before the lock is given back. A save that fails is read back while the lock
+  is still held: a row holding what was written proves it landed, one holding
+  what was read proves it did not, and anything else completes with
+  `WriteUnknownException` — refund nothing and pay nothing for that one.
+  `same` must tell the row read from the row written (a balance, a stamp).
+
+```java
+locks.write(accounts, id, account -> account.withBalance(account.balance().add(amount)), Account::sameBalance)
+     .thenAccept(stored -> stored.ifPresentOrElse(this::deposited, this::busy));
+```
 - `forget(key)` deletes the row — only from inside the last hold on something
   that is gone for good.
 
