@@ -222,12 +222,23 @@ public final class Modifiers {
     /** {@link #money(UUID, String, BigDecimal)} inside a scope. */
     public static @NotNull BigDecimal money(@NotNull UUID player, @NotNull String source, @Nullable String scope,
                                             @NotNull BigDecimal amount) {
-        return scaledMoney(amount, factor(player, MONEY, source, scope));
+        return scaledMoney(null, amount, factor(player, MONEY, source, scope));
     }
 
-    private static BigDecimal scaledMoney(BigDecimal amount, double factor) {
+    /**
+     * {@link #money(UUID, String, String, BigDecimal)} in a named currency, rounded to its decimals.
+     *
+     * @param currency the currency's id, {@code null} for the default one
+     * @since 1.353.0
+     */
+    public static @NotNull BigDecimal money(@NotNull UUID player, @NotNull String source, @Nullable String scope,
+                                            @Nullable String currency, @NotNull BigDecimal amount) {
+        return scaledMoney(currency, amount, factor(player, MONEY, source, scope));
+    }
+
+    private static BigDecimal scaledMoney(String id, BigDecimal amount, double factor) {
         if (factor == 1.0) return amount;
-        CurrencyInfo currency = Economy.info(null);
+        CurrencyInfo currency = Economy.info(id);
         int decimals = currency.decimals() < 0 ? 2 : currency.decimals();
         return currency.scale(amount.multiply(BigDecimal.valueOf(factor)).setScale(decimals, RoundingMode.DOWN));
     }
@@ -252,6 +263,20 @@ public final class Modifiers {
         if (amount == null || amount.signum() <= 0 || !Economy.isAvailable()) return BigDecimal.ZERO;
         BigDecimal paid = money(player, source, scope, amount);
         return Economy.pay(player, paid) ? paid : BigDecimal.ZERO;
+    }
+
+    /**
+     * {@link #pay(UUID, String, String, BigDecimal)} in a named currency.
+     *
+     * @param currency the currency's id, {@code null} or blank for the default one
+     * @since 1.353.0
+     */
+    public static @NotNull BigDecimal pay(@NotNull UUID player, @NotNull String source, @Nullable String scope,
+                                          @Nullable String currency, @Nullable BigDecimal amount) {
+        if (currency == null || currency.isBlank()) return pay(player, source, scope, amount);
+        if (amount == null || amount.signum() <= 0) return BigDecimal.ZERO;
+        BigDecimal paid = money(player, source, scope, currency, amount);
+        return paid.signum() > 0 && Economy.of(currency).pay(player, paid) ? paid : BigDecimal.ZERO;
     }
 
     // ------------------------------------------------------------------ xp and drops
@@ -367,7 +392,7 @@ public final class Modifiers {
         }
         try {
             BigDecimal amount = new BigDecimal(entry.value().trim());
-            return entry.toBuilder().value(scaledMoney(amount, factor).toPlainString()).build();
+            return entry.toBuilder().value(scaledMoney(entry.currency(), amount, factor).toPlainString()).build();
         } catch (RuntimeException notAnAmount) {
             // Not a number: refused by the delivery as it is, boosted or not.
             return entry;
