@@ -163,20 +163,21 @@ public final class CosmeticPurchases {
         CompletableFuture<Result> done = new CompletableFuture<>();
         done.whenComplete((result, failure) -> IN_FLIGHT.remove(uuid));
         try {
-            onGlobal(plugin, () -> {
+            // The player's thread, not the global one: items and experience can only be taken there.
+            Tasks.of(plugin).runAtEntity(player, () -> {
                 try {
                     charge(plugin, player, itemId, itemName, price, owned, grant, done);
                 } catch (Throwable failure) {
                     done.completeExceptionally(failure);
                 }
-            });
+            }, () -> done.complete(Result.UNAVAILABLE));
         } catch (Throwable failure) {
             done.completeExceptionally(failure);
         }
         return done;
     }
 
-    /** Runs on the global thread: re-checks, charges, and waits for the grant. */
+    /** Runs on the player's thread: re-checks, charges, and waits for the grant. */
     private static void charge(Plugin plugin, Player player, String itemId, String itemName, Price price,
                                BooleanSupplier owned, Supplier<CompletableFuture<Boolean>> grant,
                                CompletableFuture<Result> done) {

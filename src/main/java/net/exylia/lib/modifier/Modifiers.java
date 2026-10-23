@@ -226,13 +226,15 @@ public final class Modifiers {
     }
 
     /**
-     * {@link #money(UUID, String, String, BigDecimal)} in a named currency, rounded to its decimals.
+     * {@link #money(UUID, String, String, BigDecimal)} in a named currency. Only the
+     * default currency is boosted, as {@link #moneyFactor} says; any other comes back unchanged.
      *
      * @param currency the currency's id, {@code null} for the default one
-     * @since 1.353.0
+     * @since 1.353.1
      */
     public static @NotNull BigDecimal money(@NotNull UUID player, @NotNull String source, @Nullable String scope,
                                             @Nullable String currency, @NotNull BigDecimal amount) {
+        if (!defaultCurrency(currency)) return amount;
         return scaledMoney(currency, amount, factor(player, MONEY, source, scope));
     }
 
@@ -269,7 +271,7 @@ public final class Modifiers {
      * {@link #pay(UUID, String, String, BigDecimal)} in a named currency.
      *
      * @param currency the currency's id, {@code null} or blank for the default one
-     * @since 1.353.0
+     * @since 1.353.1
      */
     public static @NotNull BigDecimal pay(@NotNull UUID player, @NotNull String source, @Nullable String scope,
                                           @Nullable String currency, @Nullable BigDecimal amount) {
