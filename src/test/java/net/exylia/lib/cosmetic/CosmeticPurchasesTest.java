@@ -55,25 +55,31 @@ class CosmeticPurchasesTest {
         return CosmeticPurchases.purchase(plugin, steve.player(), "flame", "Flame", price, () -> false, () -> grant);
     }
 
+    /** The charge runs on the player's thread, so the fake server has to tick for it to finish. */
+    private static <T> T await(CompletableFuture<T> future) {
+        for (int i = 0; i < 20 && !future.isDone(); i++) FakeServer.tick(1);
+        return future.join();
+    }
+
     @Test
     @DisplayName("a granted purchase keeps the money; a failed grant refunds it")
     void refundsAFailedGrant() {
-        assertEquals(CosmeticPurchases.Result.SUCCESS, buy(CompletableFuture.completedFuture(true)).join());
+        assertEquals(CosmeticPurchases.Result.SUCCESS, await(buy(CompletableFuture.completedFuture(true))));
         assertEquals(0, new BigDecimal("300").compareTo(gems.balances.get(uuid)));
 
         gems.balances.put(uuid, new BigDecimal("800"));
         CompletableFuture<CosmeticPurchases.Result> failed = buy(CompletableFuture.failedFuture(new IllegalStateException("db down")));
         FakeServer.tick(1);
-        assertEquals(CosmeticPurchases.Result.FAILED, failed.join());
+        assertEquals(CosmeticPurchases.Result.FAILED, await(failed));
         assertEquals(0, new BigDecimal("800").compareTo(gems.balances.get(uuid)));
 
         assertEquals(CosmeticPurchases.Result.INSUFFICIENT_FUNDS,
-                CosmeticPurchases.purchase(plugin, steve.player(), "flame", "Flame",
+                await(CosmeticPurchases.purchase(plugin, steve.player(), "flame", "Flame",
                         new Price(new BigDecimal("900"), "gems"), () -> false,
-                        () -> CompletableFuture.completedFuture(true)).join());
+                        () -> CompletableFuture.completedFuture(true))));
         assertEquals(CosmeticPurchases.Result.ALREADY_OWNED,
-                CosmeticPurchases.purchase(plugin, steve.player(), "flame", "Flame", price, () -> true,
-                        () -> CompletableFuture.completedFuture(true)).join());
+                await(CosmeticPurchases.purchase(plugin, steve.player(), "flame", "Flame", price, () -> true,
+                        () -> CompletableFuture.completedFuture(true))));
     }
 
     @Test
@@ -81,12 +87,12 @@ class CosmeticPurchasesTest {
     void oneAtATime() {
         CompletableFuture<Boolean> slow = new CompletableFuture<>();
         CompletableFuture<CosmeticPurchases.Result> first = buy(slow);
-        assertEquals(CosmeticPurchases.Result.BUSY, buy(CompletableFuture.completedFuture(true)).join());
+        assertEquals(CosmeticPurchases.Result.BUSY, await(buy(CompletableFuture.completedFuture(true))));
 
         slow.complete(true);
-        assertEquals(CosmeticPurchases.Result.SUCCESS, first.join());
+        assertEquals(CosmeticPurchases.Result.SUCCESS, await(first));
         assertEquals(0, new BigDecimal("300").compareTo(gems.balances.get(uuid)));
-        assertEquals(CosmeticPurchases.Result.INSUFFICIENT_FUNDS, buy(CompletableFuture.completedFuture(true)).join());
+        assertEquals(CosmeticPurchases.Result.INSUFFICIENT_FUNDS, await(buy(CompletableFuture.completedFuture(true))));
     }
 
     @Test
