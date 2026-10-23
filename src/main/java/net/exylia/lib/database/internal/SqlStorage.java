@@ -272,20 +272,15 @@ public final class SqlStorage implements Storage {
     }
 
     /**
-     * Removes the rows matching a filter, one key at a time.
+     * Removes the rows matching a filter.
      *
-     * <p>Not the statement it wants to be. {@link SqlBackend} exposes a delete
-     * by primary key and nothing wider, and it owns the pool, so a single
-     * {@code DELETE ... WHERE} cannot be issued from here — the matching rows
-     * are read first and then removed by key. That costs a read the ideal
-     * version does not, and on a table with a serialised inventory column the
-     * read is the expensive half.
-     *
-     * <p>It is still correct, and correct in the two ways that matter: the
-     * count returned is rows actually removed, and the whole thing runs on one
-     * background task rather than handing the caller a partially applied
-     * result. When the backend grows a filtered delete this method becomes one
-     * line, and nothing above it changes.
+     * <p>A filter with no limit is one {@code DELETE ... WHERE} on the server,
+     * and that is every scheduled purge. The rest — a limit, or an empty
+     * filter — reads the matching rows and removes them by key: no engine here
+     * agrees on {@code DELETE ... LIMIT} (Postgres has none), and an empty
+     * filter is a wipe the dialect refuses to spell as a delete. That fallback
+     * costs a read of the whole row, which on a serialised inventory column is
+     * the expensive half; it is bounded by the limit, so it is the rare case.
      *
      * <p>The key is decoded back to record form before being handed to
      * {@link SqlBackend#delete}, which encodes it again through the column that
@@ -297,6 +292,9 @@ public final class SqlStorage implements Storage {
                                    List<String> columns,
                                    List<Object> values,
                                    int limit) throws SQLException {
+        if (limit <= 0 && !columns.isEmpty()) {
+            return backend.deleteWhere(model, columns, values);
+        }
         List<T> doomed = backend.select(model, columns, values, List.of(), limit, 0);
         int removed = 0;
         for (T row : doomed) {

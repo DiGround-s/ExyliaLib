@@ -763,6 +763,26 @@ class SqlBackendTest {
         assertNull(backend.find(model, uuid));
     }
 
+    @Test
+    @DisplayName("a filtered delete is one statement, counts what it removed, and spares the rest")
+    void deleteWhere() throws SQLException {
+        backend.ensureTable(model);
+        UUID kept = UUID.randomUUID();
+        backend.save(model, stats(UUID.randomUUID(), 1200, "red"));
+        backend.save(model, stats(UUID.randomUUID(), 1200, "red"));
+        backend.save(model, stats(kept, 1300, "red"));
+        backend.save(model, stats(UUID.randomUUID(), 1200, "blue"));
+
+        assertEquals(2, backend.deleteWhere(model, List.of("clan", "elo"), List.of("red", 1200)));
+        assertEquals(0, backend.deleteWhere(model, List.of("clan", "elo"), List.of("red", 1200)));
+        assertEquals(2L, backend.count(model, List.of(), List.of()));
+        assertNotNull(backend.find(model, kept));
+        // A UUID filter is encoded through its column, or it matches nothing.
+        assertEquals(1, backend.deleteWhere(model, List.of("uuid"), List.of(kept)));
+        assertThrows(IllegalArgumentException.class,
+                () -> backend.deleteWhere(model, List.of(), List.of()));
+    }
+
     // ------------------------------------------------------------------ read
 
     @Test

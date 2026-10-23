@@ -658,13 +658,48 @@ public final class SqlBackend implements AutoCloseable {
     }
 
     /**
+     * Removes the rows matching a filter, in one statement.
+     *
+     * <p>The rows never leave the server: no read first, no delete per key. On
+     * a table of serialised blobs the read was the whole cost, spent on data
+     * that was about to be thrown away.
+     *
+     * @param model        the record model
+     * @param whereColumns column names compared with {@code =}, joined by
+     *                     {@code AND}; never empty — see {@link Dialect#delete}
+     * @param whereValues  the values, in record form, one per column
+     * @return how many rows were removed
+     * @throws SQLException             if the delete failed
+     * @throws IllegalArgumentException if the filter is empty, the columns and
+     *                                  values do not line up, or a column is not
+     *                                  in the model
+     * @since 1.340.0
+     */
+    public int deleteWhere(@NotNull EntityModel<?> model,
+                           @NotNull List<String> whereColumns,
+                           @NotNull List<Object> whereValues) throws SQLException {
+        if (whereColumns.size() != whereValues.size()) {
+            throw new IllegalArgumentException("delete on " + model.table() + " got "
+                    + whereColumns.size() + " columns and " + whereValues.size() + " values");
+        }
+        List<ColumnModel> filter = resolve(model, whereColumns);
+        String sql = statements.computeIfAbsent("deleteWhere:" + model.key() + ":" + names(filter),
+                key -> dialect.delete(model, names(filter)));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            bindWhere(statement, filter, whereValues);
+            return statement.executeUpdate();
+        }
+    }
+
+    /**
      * Removes every row of a table.
      *
      * <p>One statement, whatever the table holds. The obvious alternative —
      * reading the keys and deleting them one at a time, which is what
-     * {@link SqlStorage#deleteWhere} has to do — pulls every row over the wire
-     * to throw it away, and on a table with a serialised inventory column that
-     * is the whole cost of the operation spent on data nobody reads.
+     * {@link SqlStorage#deleteWhere} still does with a limit — pulls every row
+     * over the wire to throw it away, and on a table with a serialised
+     * inventory column that is the whole cost of the operation spent on data nobody reads.
      *
      * @param model the record model
      * @return how many rows were removed
