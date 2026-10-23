@@ -296,6 +296,26 @@ the block, so call it on the thread that owns the location. A client that
 reloads the chunk sees the real state. In a sequence: `[LID] open` /
 `[LID] close` (see [sequences.md](sequences.md)).
 
+## HeldMaps
+
+Since 1.352.0. A map in a player's main hand that exists only on their screen:
+a QR code to scan, a picture.
+
+```java
+HeldMaps.show(player, QrCodes.mapPixels(Totp.uri("My Server", name, secret)));
+// ... they scan it ...
+HeldMaps.hide(player);   // the real item is drawn again
+```
+
+The picture is sent under a map id far above any real one and the held slot is
+told it holds a filled map, both past the listeners so an overlay cannot
+swallow them. Nothing is written: no map file, no item to drop or dupe. The
+next time the server sends that slot (`hide`, using the item, scrolling away
+and back) the real item returns, so show it to somebody standing still.
+`show` is safe from any thread; `hide` calls `updateInventory()` and runs on
+the player's thread. Clients from before 1.20.5 do not read the map id
+component and see an empty map.
+
 ## Lifecycle
 
 What a plugin hid, froze, faked, opened or wrote under items is undone when that plugin is

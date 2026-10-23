@@ -339,10 +339,39 @@ resolved once per plugin instance; one that is missing, cannot be resolved or
 throws answers "allowed" and is logged once. Ask on the thread that owns the
 location.
 
+## Totp — authenticator app codes
+
+Since 1.352.0. RFC 6238 one-time passwords, the six digits Google
+Authenticator, Authy, Aegis or 1Password show: HMAC-SHA1, 30-second steps,
+six digits (the only parameters every app honours).
+
+```java
+String secret = Totp.newSecret();                    // 160 bits, base32; store it sealed
+String uri = Totp.uri("My Server", name, secret);    // what the app imports
+
+long step = Totp.verify(secret, typed, System.currentTimeMillis());
+if (step < 0 || step <= lastStep) refuse();          // wrong, or a code already used
+```
+
+`verify` accepts the step on either side of now, ignores spaces (`123 456`),
+compares in constant time, and returns the matched step so the caller can
+refuse a replay. `code(secret, step)`, `base32` and `base32Decode` are public
+for tests and manual entry. Time is a parameter: no clock to inject.
+
+## QrCodes — QR codes and map pixels
+
+Since 1.352.0. `QrCodes.matrix(text)` is the code as `boolean[row][column]`;
+`QrCodes.mapPixels(text)` draws it centred on a 128×128 map (`MAP_WHITE` and
+`MAP_BLACK` colour ids, row by row), ready for
+[`HeldMaps.show`](packets.md#heldmaps). Error correction M; a map fits about
+200 characters, more throws `IllegalArgumentException`. Encoding is ZXing core,
+shaded and relocated to `net.exylia.lib.internal.zxing`.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java`, `util/PvpZones.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`.
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `TotpTest.java`,
+  `QrCodesTest.java` (scans the map pixels back with ZXing's reader).

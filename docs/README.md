@@ -18,7 +18,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on; `NetworkCooldowns` that survive relogs and server hops since 1.184.0 | 1.10.0 |
-| [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats`, `Expressions`, `Weighted`, `PlayerStates` (god mode and vanish over EssentialsX and CMI, 1.332.0) and `PvpZones` (is PvP refused here, over WorldGuard, ExyliaLib regions, Lands, GriefPrevention, Towny and SuperiorSkyblock2, 1.335.0) | 1.9.0 |
+| [Utilities](util.md) | `util.Effects` (potions from strings), `TimeFormats`, `Expressions`, `Weighted`, `PlayerStates` (god mode and vanish over EssentialsX and CMI, 1.332.0) and `PvpZones` (is PvP refused here, over WorldGuard, ExyliaLib regions, Lands, GriefPrevention, Towny and SuperiorSkyblock2, 1.335.0); `Totp` (authenticator codes) and `QrCodes` (QR codes on a map) since 1.352.0 | 1.9.0 |
 | [Debug](debug.md) | Coloured console output: log, success, warn, error, debug — and the banner; server-wide switch since 1.27.0, gradient name and type labels since 1.35.0 | 1.13.0 |
 | [Reloading](reload.md) | `Reloads` steps, library-reload listeners, and `/exylialib` (`reload`, `info`, `stats`) | 1.14.0 |
 | [Skulls](skulls.md) | Player heads from base64, a URL or a name — cached, shared and never blocking | 1.19.0 |
@@ -57,7 +57,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
-| [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders, lines under items and chest lids — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0, `ChestLids` 1.272.0) |
+| [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders, lines under items, chest lids and maps held only on screen — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0, `ChestLids` 1.272.0, `HeldMaps` 1.352.0) |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
