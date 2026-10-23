@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import revxrsal.commands.annotation.Command;
 import revxrsal.commands.annotation.CommandPlaceholder;
 import revxrsal.commands.annotation.Optional;
+import revxrsal.commands.annotation.Single;
 import revxrsal.commands.annotation.Subcommand;
 import revxrsal.commands.annotation.Suggest;
 import revxrsal.commands.annotation.SuggestWith;
@@ -36,8 +37,9 @@ public final class EditorCommand {
      *
      * @param plugin one plugin's subjects only; every subject the sender may edit otherwise
      */
+    // @Single: a trailing String is greedy and Lamp would route "apply <code> ..." here as one name.
     @CommandPlaceholder
-    public void open(@NotNull CommandSender sender, @Optional @SuggestWith(Editable.class) String plugin) {
+    public void open(@NotNull CommandSender sender, @Optional @Single @SuggestWith(Editable.class) String plugin) {
         WebEditorRuntime.get().open(sender, plugin == null || plugin.isBlank() ? null : plugin.trim());
     }
 
