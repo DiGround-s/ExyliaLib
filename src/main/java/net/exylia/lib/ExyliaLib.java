@@ -166,6 +166,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
      */
     @Override
     public void onLoad() {
+        // First thing at startup: on a server older than the baseline, the
+        // errors that follow make sense only once this has been read.
+        net.exylia.lib.internal.MinimumVersion.check(getLogger());
         int flags = WorldGuardFlags.registerDefaults();
         if (flags > 0) {
             getLogger().info("Registered " + flags + " WorldGuard flag(s): "

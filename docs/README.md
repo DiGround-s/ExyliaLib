@@ -103,3 +103,9 @@ Root classes that are not a module:
 - `net.exylia.lib.platform.Platform` — `current()`, `isFolia()`, `isPaper()`.
 - `net.exylia.lib.internal.LibrarySettings`, `internal.ExyliaLibUpdater` —
   internal, free to change without notice.
+- `net.exylia.lib.internal.MinimumVersion` — the minimum Minecraft version is
+  1.21.4. On an older server the lib still loads (nothing changes for whoever
+  runs it) but logs a boxed console error at startup naming the detected
+  version, because Exylia plugins will fail mid-game there with
+  `NoSuchMethodError`. Versions compare number by number, so `26.x` counts as
+  newer than `1.21.x`.
