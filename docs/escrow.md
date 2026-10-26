@@ -40,6 +40,7 @@ escrow.refundItems(duelId);
 | `hold(matchId, player, currency, amount)` | `CompletableFuture<Hold>`: `HELD`, `CANNOT_PAY` or `FAILED`; never completes exceptionally |
 | `holdMore(matchId, player, currency, amount)` | a further stake (a double, a split, a raise) for a player who already holds one on the match; `FAILED`, charging nothing, when they hold none. Since 1.356.0 |
 | `settle(matchId, winner)` / `settle(matchId, winner, tax)` | `CompletableFuture<List<Payout>>`, one per currency in the pot; empty when nothing was held |
+| `settle(matchId, winners, tax)` | the same, the prize split evenly between a side of winners (a team), the rounding going to the first. Since 1.360.0 |
 | `settleAmount(matchId, player, amount)` / `settleAmount(…, counted)` | `CompletableFuture<Boolean>`: pays one player an amount the game worked out instead of the pot; see [Paying an amount](#paying-an-amount). Since 1.356.0 |
 | `refund(matchId)` | every held stake back to whoever paid it |
 | `refund(matchId, player)` | one player's stakes and items back, the rest stay held (since 1.356.0) |

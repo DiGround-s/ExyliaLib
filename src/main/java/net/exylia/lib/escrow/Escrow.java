@@ -405,8 +405,34 @@ public final class Escrow {
      */
     public @NotNull CompletableFuture<List<Payout>> settle(@NotNull String matchId, @NotNull UUID winner,
                                                            double tax) {
-        checkId(matchId);
         Objects.requireNonNull(winner, "winner");
+        return settle(matchId, List.of(winner), tax);
+    }
+
+    /**
+     * Pays every stake still held on a match to a side of winners, such as a
+     * team: the prize of each currency is split evenly between them, rounded
+     * down to the currency's decimals, and what the rounding leaves goes to the
+     * first winner, so nothing but the tax is kept back. Settled once, as
+     * {@link #settle(String, UUID, double)} is.
+     *
+     * <pre>{@code
+     * escrow.settle(matchId, List.of(alice, bob), 0.05);    // the pot less 5%, half each
+     * }</pre>
+     *
+     * @param matchId the match
+     * @param winners who share the pot, at least one
+     * @param tax     the fraction kept back, {@code 0..1}
+     * @return one payout per currency in the pot, its {@code prize} being what
+     *         the winners were paid together; empty when nothing was held
+     * @since 1.360.0
+     */
+    public @NotNull CompletableFuture<List<Payout>> settle(@NotNull String matchId, @NotNull List<UUID> winners,
+                                                           double tax) {
+        checkId(matchId);
+        Objects.requireNonNull(winners, "winners");
+        if (winners.isEmpty()) throw new IllegalArgumentException("A pot is settled to at least one winner.");
+        winners.forEach(winner -> Objects.requireNonNull(winner, "winner"));
         double fraction = Double.isNaN(tax) ? 0 : Math.max(0, Math.min(1, tax));
         closedMoney.put(matchId, Boolean.TRUE);
         return claim(matchId, StakeState.SETTLED).thenApply(won -> {
@@ -416,14 +442,24 @@ public final class Escrow {
             }
             List<Payout> payouts = new ArrayList<>(pots.size());
             pots.forEach((currency, pot) -> {
-                Payout payout = Payout.of(currency, pot, fraction, Economy.info(currency).decimals());
+                int decimals = Economy.info(currency).decimals();
+                Payout payout = Payout.of(currency, pot, fraction, decimals);
                 payouts.add(payout);
-                if (payout.prize().signum() > 0) {
-                    pay(winner, currency, payout.prize(), "escrow:payout");
+                List<BigDecimal> shares = split(payout.prize(), winners.size(), decimals);
+                for (int i = 0; i < winners.size(); i++) {
+                    if (shares.get(i).signum() > 0) pay(winners.get(i), currency, shares.get(i), "escrow:payout");
                 }
             });
             return payouts;
         });
+    }
+
+    /** A prize split {@code ways} ways, rounded down to {@code decimals}, the first share taking the rest. */
+    static @NotNull List<BigDecimal> split(@NotNull BigDecimal prize, int ways, int decimals) {
+        BigDecimal share = prize.divide(BigDecimal.valueOf(ways), Math.max(0, decimals), RoundingMode.DOWN);
+        List<BigDecimal> shares = new ArrayList<>(java.util.Collections.nCopies(ways, share));
+        shares.set(0, prize.subtract(share.multiply(BigDecimal.valueOf(ways - 1L))));
+        return shares;
     }
 
     /** {@link #settleAmount(String, UUID, BigDecimal, int)} counting every stake held. */

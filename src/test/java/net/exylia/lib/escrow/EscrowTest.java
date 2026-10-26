@@ -120,6 +120,23 @@ class EscrowTest {
     }
 
     @Test
+    @DisplayName("a pot settled to a side is split evenly, less the tax, the rounding going to the first")
+    void settleSplit() {
+        Escrow escrow = escrow();
+        escrow.hold("d1", id(alice), "gems", new BigDecimal("40")).join();
+        escrow.hold("d1", id(bob), "gems", new BigDecimal("40")).join();
+
+        escrow.settle("d1", List.of(id(alice), id(bob)), 0.1).join();
+        FakeServer.tick(1);
+
+        assertBalance(alice, "96");
+        assertBalance(bob, "96");
+        assertTrue(escrow.settle("d1", List.of(id(alice), id(bob)), 0.1).join().isEmpty());
+        assertEquals(List.of(new BigDecimal("3.34"), new BigDecimal("3.33"), new BigDecimal("3.33")),
+                Escrow.split(new BigDecimal("10.00"), 3, 2));
+    }
+
+    @Test
     @DisplayName("a refund gives each stake back once, and a settle after it pays nothing")
     void refundOnce() {
         Escrow escrow = escrow();
