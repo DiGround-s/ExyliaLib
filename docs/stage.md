@@ -77,6 +77,34 @@ degrees and stands no nearer than `nearest` blocks. It only moves a plane
 nothing was placed on yet, so **call `table` before anything reads the plane**:
 a point taken before it is where the board was before the zoom.
 
+## Tables in the world (1.367.0)
+
+A screen is its viewer's alone until others are let in. `Stage.watchers(viewer, others)`
+shows every stage the viewer has open, in the pose it is in, and every stage drawn
+for them later, to those players too; `Stage.watchedWithin(viewer, radius)` lets in
+whoever stands near (not one another plugin holds in a session, who may be in a
+room of their own) and is called again every half second as people come and go,
+from the viewer's thread. An empty list gives the screens back to the viewer alone:
+call it when their game ends. Only the viewer's clicks, hovers and sounds count; a
+win's fireworks and a loss's smoke go to everyone watching. Built on
+`DisplayHandle#viewers(list)`, which changes who sees one display mid-motion.
+
+`PlacedTables` keeps the places an admin set down for a game: a spot where the player
+stands facing the board, a hologram `ahead` blocks in front of it that reads free or
+in use and takes the click, and who plays there. Kept in a YAML file in the plugin's
+folder.
+
+```java
+tables = new PlacedTables(plugin, "tables.yml", 2.5, hooks);   // look(table), lines(table, occupant), clicked(player, table)
+tables.place("blackjack-1", "blackjack", admin.getLocation());
+tables.claim(id, player.getUniqueId());                        // false: someone else is at it
+tables.release(id, player.getUniqueId());
+tables.remove(id); tables.all(); tables.of(player); tables.refresh(); tables.close();
+```
+
+A table game skips the `Enclosure` (the point is to be seen) and confines the player
+to a small square at the spot with `Movement#confine`.
+
 ## Building on it
 
 Everything a richer screen needs is public, so a plugin draws its own pieces on

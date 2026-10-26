@@ -216,4 +216,19 @@ public interface DisplayHandle {
      */
     default void speedUp(double factor) {
     }
+
+    /**
+     * Changes who sees it: a player new to the list is shown it in the pose
+     * everyone else sees, mid-motion included, and one no longer on it is sent
+     * the destroy.
+     *
+     * <p>For a display shown to a list. One shown to whoever is within a
+     * radius re-reads its own audience every half second, which undoes this.
+     * Safe from any thread; a display that cannot do it ignores it.
+     *
+     * @param viewers who sees it from now on
+     * @since 1.367.0
+     */
+    default void viewers(@NotNull java.util.List<Player> viewers) {
+    }
 }

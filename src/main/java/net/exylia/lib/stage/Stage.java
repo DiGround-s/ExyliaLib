@@ -58,6 +58,13 @@ import java.util.concurrent.ThreadLocalRandom;
  * here touches the world. Every piece lives at most {@code life} milliseconds, so a stage nobody
  * closes still goes by itself; and everything a plugin drew goes when that plugin is disabled.
  *
+ * <h2>Watched</h2>
+ * A screen is its viewer's alone unless others are let in: {@link #watchers} shows every stage a
+ * player has open, and every one opened for them later, to other players too, as at a table that
+ * stands in the world with people round it; {@link #watchedWithin} lets in whoever is near, and is
+ * called again as they come and go. Only the viewer's clicks, hovers and sounds count: the others
+ * only look.
+ *
  * @since 1.356.0
  */
 public class Stage implements CardSprite.Canvas {
@@ -73,6 +80,10 @@ public class Stage implements CardSprite.Canvas {
     private static final double HEADROOM = 0.55;
     /** The stages each player has open, so what follows a screen (a panel under it) can find their edges. */
     private static final Map<UUID, Set<Stage>> OPEN = new ConcurrentHashMap<>();
+    /** Everyone who sees a player's screens, the player first; absent for the player alone. */
+    private static final Map<UUID, List<Player>> WATCHED = new ConcurrentHashMap<>();
+    /** Every stage drawn for a player and not closed, so watchers who arrive are shown it. */
+    private static final Map<UUID, Set<Stage>> LIVE = new ConcurrentHashMap<>();
 
     /** How something ended: the colour the verdict banner is outlined in. */
     public enum Outcome {
@@ -89,7 +100,7 @@ public class Stage implements CardSprite.Canvas {
     protected final long life;
     protected final Rotation facing;
     protected final StageTheme theme;
-    private final List<Player> audience;
+    private volatile List<Player> audience;
     private final List<DisplayHandle> pieces = new ArrayList<>();
     private final List<StageButton> buttons = new ArrayList<>();
     private DisplayHandle header;
@@ -118,7 +129,62 @@ public class Stage implements CardSprite.Canvas {
         this.life = life;
         this.theme = Objects.requireNonNull(theme, "theme");
         this.facing = StageLook.facing(plane);
-        this.audience = List.of(viewer);
+        this.audience = WATCHED.getOrDefault(viewer.getUniqueId(), List.of(viewer));
+        LIVE.computeIfAbsent(viewer.getUniqueId(), id -> java.util.Collections.synchronizedSet(
+                java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()))).add(this);
+    }
+
+    /**
+     * Shows a player's screens to other players as well, from now on: every stage they have open, in
+     * the pose it is in, and every stage drawn for them later. An empty list gives them their screens
+     * back to themselves. Call it on the thread their stages are drawn from.
+     *
+     * @param viewer the player whose screens are watched
+     * @param others who else sees them; the viewer is left out if listed
+     * @since 1.367.0
+     */
+    public static void watchers(@NotNull Player viewer, @NotNull java.util.Collection<? extends Player> others) {
+        List<Player> everyone = new ArrayList<>(others.size() + 1);
+        everyone.add(viewer);
+        for (Player other : others) {
+            if (other != null && !other.getUniqueId().equals(viewer.getUniqueId()) && !everyone.contains(other)) {
+                everyone.add(other);
+            }
+        }
+        List<Player> now = List.copyOf(everyone);
+        UUID id = viewer.getUniqueId();
+        List<Player> before = WATCHED.getOrDefault(id, List.of(viewer));
+        if (new java.util.HashSet<>(before).equals(new java.util.HashSet<>(now))) return;
+        if (now.size() == 1) WATCHED.remove(id);
+        else WATCHED.put(id, now);
+        Set<Stage> live = LIVE.get(id);
+        if (live == null) return;
+        List<Stage> stages;
+        synchronized (live) {
+            stages = List.copyOf(live);
+        }
+        for (Stage stage : stages) {
+            stage.audience = now;
+            List.copyOf(stage.pieces).forEach(piece -> piece.viewers(now));
+        }
+    }
+
+    /**
+     * Lets whoever stands within {@code radius} blocks of a player watch their screens, and nobody
+     * else: call it again every half second or so, from the player's thread, as people come and go.
+     * A player some plugin holds in a {@linkplain net.exylia.lib.session.Sessions session} (playing a
+     * game of their own, perhaps in a room of their own) is not let in.
+     *
+     * @since 1.367.0
+     */
+    public static void watchedWithin(@NotNull Player viewer, double radius) {
+        watchers(viewer, viewer.getLocation().getNearbyPlayers(radius).stream()
+                .filter(other -> net.exylia.lib.session.Sessions.holder(other).isEmpty()).toList());
+    }
+
+    /** Who sees this stage: its viewer, and whoever {@link #watchers} let in. */
+    public @NotNull List<Player> audience() {
+        return audience;
     }
 
     @Override
@@ -387,14 +453,16 @@ public class Stage implements CardSprite.Canvas {
                 var firework = Effects.firework().at(plane.point(i == 0 ? -0.9 : 0.9, up + 0.6, -0.6))
                         .shape(i == 0 ? "BALL_LARGE" : "BURST").instant();
                 for (String colour : colours) firework.colour(StageLook.hex(colour));
-                firework.fade(StageLook.hex(colours.getFirst())).launchAt(viewer);
+                firework.fade(StageLook.hex(colours.getFirst()));
+                audience.forEach(firework::launchAt);
             }
         }
     }
 
     /** A loss: a puff of smoke over the board. */
     public void deflate(double up) {
-        Effects.particle("SMOKE").at(plane.point(0, up, 0.3)).count(25).spread(0.6, 0.3, 0.1).speed(0.02).show(viewer);
+        var smoke = Effects.particle("SMOKE").at(plane.point(0, up, 0.3)).count(25).spread(0.6, 0.3, 0.1).speed(0.02);
+        audience.forEach(smoke::show);
     }
 
     /** Takes one piece down before the rest. */
@@ -413,6 +481,10 @@ public class Stage implements CardSprite.Canvas {
         title = null;
         info = null;
         forget(this);
+        LIVE.computeIfPresent(viewer.getUniqueId(), (id, live) -> {
+            live.remove(this);
+            return live.isEmpty() ? null : live;
+        });
     }
 
     /**
@@ -457,5 +529,7 @@ public class Stage implements CardSprite.Canvas {
     /** Forgets every stage, for shutdown. */
     public static void releaseAll() {
         OPEN.clear();
+        WATCHED.clear();
+        LIVE.clear();
     }
 }

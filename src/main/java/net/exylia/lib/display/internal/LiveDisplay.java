@@ -429,6 +429,11 @@ final class LiveDisplay implements DisplayHandle {
     }
 
     @Override
+    public void viewers(List<Player> viewers) {
+        DisplayRuntime.retrack(this, List.copyOf(viewers));
+    }
+
+    @Override
     public void speedUp(double factor) {
         DisplayRuntime.speedUp(this, factor);
     }
