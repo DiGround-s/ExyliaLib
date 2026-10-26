@@ -49,6 +49,7 @@ a stage with a table, a heading and a few buttons.
 | `StageTheme` | The look a plugin passes in: table, frame, buttons, verdict, win effects, button sounds, zoom. A record with `@Comment`s and a no-argument default, so it embeds in the plugin's config |
 | `Enclosure` / `EnclosureTheme` | The room: six inward-facing slabs and faint stars, the blocks inside sent as air, the player hidden from everyone and everyone from them |
 | `StageHud` | One deadline and one boss bar per seat: `clock`, `expired`, `secondsLeft`, `ticked`, `bar`, `stop`, `stopAll`; static `line(text, values)`, `lines`, `row` |
+| `StageGuide` | Two panels at a seated player's sides, a quarter turn away from the board: a title over lines on each, rows optionally with an item. `new StageGuide(viewer, seat, displays, theme, look, leftTitle, leftRows, rightTitle, rightRows)`, `rows(lines, values)`, `close()`; `Look(distance, lift, scale)` embeds in a plugin's config (since 1.362.0) |
 | `StageLook` | Helpers: `rgb(token, fallback)`, `block(name, fallback)`, `item`, `play(player, "NAME\|vol\|pitch"[, factor])`, `pitch`, `facing(plane)`, `still`, `pop` (staggered entrances), `pulse`, `fit`, `width`, `hex` |
 | `kit/PlayingCard` | The 52-card deck: `shuffledDeck()`, `decks(n[, random])`, `label()`, `Suit`; the 40-card Spanish deck: `spanishDeck()`, `spanishLabel()` (since 1.361.0) |
 | `kit/CardSprite` | A card dealt with a glide, face up or down: `reveal`, `glow`, `lift`, `muck`, `remove`. Draws on a `CardSprite.Canvas`, which `Stage` is. `Style.with(Deck.SPANISH)` draws Spanish faces: the number over a sword, club, coin or cup in the suit's colour (since 1.361.0) |
@@ -88,7 +89,8 @@ top without forking the module:
 - a panel that follows a finished screen (play again / leave): a second `Stage`
   placed under `Stage.feet(player)`, with `StageButton`s; `Stage.retire(player,
   keep)` takes the finished screen's buttons down first;
-- a side panel: another `Stage` on a plane turned to the side.
+- a side panel: another `Stage` on a plane turned to the side; for how a game is
+  played and won, `StageGuide` draws both.
 
 ## Contracts
 
