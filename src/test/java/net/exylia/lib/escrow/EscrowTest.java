@@ -281,6 +281,98 @@ class EscrowTest {
         assertEquals(java.util.Set.of("d2"), escrow.heldItemMatches(id(alice)).join());
     }
 
+    @Test
+    @DisplayName("a further stake needs a first one, joins the pot, and is refused once the match ended")
+    void holdMore() {
+        Escrow escrow = escrow();
+        assertTrue(escrow.isReady());
+        assertEquals(Escrow.Hold.FAILED, escrow.holdMore("d1", id(alice), "gems", BigDecimal.TEN).join());
+        assertBalance(alice, "100");
+
+        escrow.hold("d1", id(alice), "gems", BigDecimal.TEN).join();
+        assertEquals(Escrow.Hold.HELD, escrow.holdMore("d1", id(alice), "gems", BigDecimal.TEN).join());
+        assertEquals(Escrow.Hold.FAILED, escrow.holdMore("d1", id(bob), "gems", BigDecimal.TEN).join());
+        escrow.hold("d1", id(bob), "gems", BigDecimal.TEN).join();
+
+        List<Escrow.Payout> payouts = escrow.settle("d1", id(bob)).join();
+        FakeServer.tick(1);
+        assertEquals(0, new BigDecimal("30").compareTo(payouts.getFirst().pot()));
+        assertBalance(bob, "120");
+        assertEquals(Escrow.Hold.FAILED, escrow.holdMore("d1", id(alice), "gems", BigDecimal.TEN).join());
+        assertBalance(alice, "80");
+    }
+
+    @Test
+    @DisplayName("an amount is paid once, the stakes the game used are settled, and an unused extra goes back")
+    void settleAmount() throws InterruptedException {
+        Escrow escrow = escrow();
+        escrow.hold("r1", id(alice), "gems", BigDecimal.TEN).join();
+        Thread.sleep(5);
+        escrow.holdMore("r1", id(alice), "gems", BigDecimal.TEN).join();
+        assertBalance(alice, "80");
+
+        assertTrue(escrow.settleAmount("r1", id(alice), new BigDecimal("25"), 1).join());
+        assertFalse(escrow.settleAmount("r1", id(alice), new BigDecimal("25")).join());
+        escrow.refund("r1").join();
+        await(() -> states(StakeState.REFUNDED) == 1);
+        FakeServer.tick(1);
+
+        assertBalance(alice, "115");
+        assertEquals(1, states(StakeState.SETTLED));
+
+        escrow.hold("r2", id(bob), "gems", BigDecimal.TEN).join();
+        assertTrue(escrow.settleAmount("r2", id(bob), BigDecimal.ZERO).join());
+        FakeServer.tick(1);
+        assertBalance(bob, "90");
+    }
+
+    @Test
+    @DisplayName("two settles of an amount racing each other, or a refund, pay it once")
+    void settleAmountRace() {
+        Escrow escrow = escrow();
+        int matches = 20;
+        for (int i = 0; i < matches; i++) {
+            escrow.hold("r" + i, id(alice), "gems", BigDecimal.ONE).join();
+        }
+        List<java.util.concurrent.CompletableFuture<?>> racing = new ArrayList<>();
+        for (int i = 0; i < matches; i++) {
+            String match = "r" + i;
+            racing.add(java.util.concurrent.CompletableFuture.supplyAsync(
+                    () -> escrow.settleAmount(match, id(alice), new BigDecimal("3")).join()));
+            racing.add(java.util.concurrent.CompletableFuture.supplyAsync(
+                    () -> escrow.settleAmount(match, id(alice), new BigDecimal("3")).join()));
+            if (i % 2 == 0) {
+                racing.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> escrow.refund(match).join()));
+            }
+        }
+        racing.forEach(java.util.concurrent.CompletableFuture::join);
+        FakeServer.tick(1);
+
+        long settled = states(StakeState.SETTLED);
+        long refunded = states(StakeState.REFUNDED);
+        assertEquals(matches, settled + refunded);
+        BigDecimal expected = new BigDecimal(80 + 3 * settled + refunded);
+        assertBalance(alice, expected.toPlainString());
+    }
+
+    @Test
+    @DisplayName("held items are paid out at a multiplier, and nothing at zero")
+    void settleItemsMultiplied() {
+        Escrow escrow = escrow();
+        escrow.holdItems("h1", id(alice), List.of(new Stub("sword"))).join();
+        escrow.holdItems("h2", id(bob), List.of(new Stub("bow"))).join();
+
+        escrow.settleItems("h1", id(alice), 3).join();
+        escrow.settleItems("h1", id(alice), 3).join();
+        escrow.settleItems("h2", id(bob), 0).join();
+        escrow.refundItems("h2").join();
+        FakeServer.tick(1);
+
+        assertEquals(List.of("sword", "sword", "sword"), given.get(id(alice)));
+        assertFalse(given.containsKey(id(bob)));
+        assertEquals(2L, items.where("state", StakeState.SETTLED).count().join());
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static UUID id(FakePlayer player) {

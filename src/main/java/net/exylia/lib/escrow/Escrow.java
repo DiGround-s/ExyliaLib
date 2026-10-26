@@ -252,6 +252,21 @@ public final class Escrow {
         return recovered;
     }
 
+    /**
+     * Whether holds are taken right now: recovery is done and did not fail.
+     *
+     * <p>For a screen or a command that answers at once, greying out a stake
+     * button instead of waiting on {@link #recovery()}. A hold made while this
+     * is {@code false} still waits for recovery, or answers {@code FAILED}.
+     *
+     * @return {@code true} once the last run's leftovers have been dealt with
+     * @since 1.356.0
+     */
+    public boolean isReady() {
+        CompletableFuture<Void> current = recovered;
+        return current.isDone() && !current.isCompletedExceptionally();
+    }
+
     // ------------------------------------------------------------------ money
 
     /**
@@ -269,12 +284,54 @@ public final class Escrow {
      */
     public @NotNull CompletableFuture<Hold> hold(@NotNull String matchId, @NotNull UUID player,
                                                  @NotNull String currency, @NotNull BigDecimal amount) {
+        checkStake(matchId, player, currency, amount);
+        return take(matchId, player, currency, amount);
+    }
+
+    /**
+     * Charges a further stake for a player who already holds one on the match:
+     * a double, a split, a raise. Written down before the money moves exactly
+     * like the first, and settled or refunded with it.
+     *
+     * <p>Answers {@code FAILED}, charging nothing, when the player holds no
+     * stake on the match &mdash; it never started, or it already ended. A
+     * charge still in flight when the match ends goes straight back, as with
+     * {@link #hold}.
+     *
+     * @param matchId  the match, which must already hold a stake of this player
+     * @param player   who pays, online on this server
+     * @param currency the currency id; empty for the server's default
+     * @param amount   how much, above zero
+     * @return how it went; never completes exceptionally
+     * @since 1.356.0
+     */
+    public @NotNull CompletableFuture<Hold> holdMore(@NotNull String matchId, @NotNull UUID player,
+                                                     @NotNull String currency, @NotNull BigDecimal amount) {
+        checkStake(matchId, player, currency, amount);
+        if (closedMoney.getIfPresent(matchId) != null) {
+            return CompletableFuture.completedFuture(Hold.FAILED);
+        }
+        return stakes.all().where("plugin", name).where("matchId", matchId).where("player", player)
+                .where("state", StakeState.HELD).count()
+                .thenCompose(held -> held == 0 ? CompletableFuture.completedFuture(Hold.FAILED)
+                        : take(matchId, player, currency, amount))
+                .exceptionally(failure -> {
+                    debug.error("Escrow: could not hold a further stake of " + player + " on " + matchId + ".",
+                            failure);
+                    return Hold.FAILED;
+                });
+    }
+
+    private static void checkStake(String matchId, UUID player, String currency, BigDecimal amount) {
         checkId(matchId);
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(currency, "currency");
         if (amount.signum() <= 0) {
             throw new IllegalArgumentException("A stake must be above zero, and " + amount + " is not.");
         }
+    }
+
+    private CompletableFuture<Hold> take(String matchId, UUID player, String currency, BigDecimal amount) {
         return ready().thenCompose(ready -> {
             if (!ready) {
                 return CompletableFuture.completedFuture(Hold.FAILED);
@@ -367,6 +424,81 @@ public final class Escrow {
             });
             return payouts;
         });
+    }
+
+    /** {@link #settleAmount(String, UUID, BigDecimal, int)} counting every stake held. */
+    public @NotNull CompletableFuture<Boolean> settleAmount(@NotNull String matchId, @NotNull UUID player,
+                                                            @NotNull BigDecimal amount) {
+        return settleAmount(matchId, player, amount, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Ends a match by paying one player an amount the game worked out, rather
+     * than the pot: what a round played against the server's rules is now
+     * worth, nothing when it was lost.
+     *
+     * <pre>{@code
+     * escrow.settleAmount(roundId, player, stake.multiply(BigDecimal.TWO), hands);   // won at 2x
+     * escrow.settleAmount(roundId, player, BigDecimal.ZERO);                         // lost
+     * }</pre>
+     *
+     * <p>The first {@code counted} stakes held on the match, oldest first, are
+     * settled; any held after them &mdash; an extra charged while the player
+     * was leaving, which the game never used &mdash; goes back to whoever paid
+     * it. The amount is paid in the currency of the oldest stake, rounded down
+     * to its decimals, and paid once: only the call that settles the oldest
+     * stake pays, so a second call, a racing {@link #refund} or another server
+     * pays nothing. A player who is offline, or whose deposit is refused, is
+     * paid on their next join.
+     *
+     * @param matchId the match
+     * @param player  who is paid
+     * @param amount  what they are paid, zero or above
+     * @param counted how many of the held stakes the game used, from 1
+     * @return whether this call settled the match; {@code false} when nothing
+     *         was held or another call got there first
+     * @since 1.356.0
+     */
+    public @NotNull CompletableFuture<Boolean> settleAmount(@NotNull String matchId, @NotNull UUID player,
+                                                            @NotNull BigDecimal amount, int counted) {
+        checkId(matchId);
+        Objects.requireNonNull(player, "player");
+        if (amount.signum() < 0 || counted < 1) {
+            throw new IllegalArgumentException("An amount is zero or above and counted is 1 or more, and "
+                    + amount + " / " + counted + " are not.");
+        }
+        closedMoney.put(matchId, Boolean.TRUE);
+        return stakes.all().where("plugin", name).where("matchId", matchId).where("state", StakeState.HELD)
+                .find().thenCompose(rows -> {
+                    if (rows.isEmpty()) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    List<StakeRow> ordered = new ArrayList<>(rows);
+                    ordered.sort(java.util.Comparator.comparingLong(StakeRow::updatedAt).thenComparing(StakeRow::id));
+                    List<StakeRow> used = ordered.subList(0, Math.min(counted, ordered.size()));
+                    List<StakeRow> extra = ordered.subList(used.size(), ordered.size());
+                    StakeRow oldest = used.getFirst();
+                    // The oldest stake first: whoever moves it owns the match, and a call that loses
+                    // it touches nothing else, so the amount is paid once.
+                    return stakes.updateIf(oldest.with(StakeState.SETTLED), "state", StakeState.HELD)
+                            .thenCompose(won -> {
+                                if (!won) {
+                                    return CompletableFuture.completedFuture(false);
+                                }
+                                extra.forEach(this::giveBack);
+                                return each(used.subList(1, used.size()),
+                                        row -> stakes.updateIf(row.with(StakeState.SETTLED), "state", StakeState.HELD))
+                                        .thenApply(rest -> {
+                                            BigDecimal paid = amount.setScale(
+                                                    Math.max(0, Economy.info(oldest.currency()).decimals()),
+                                                    RoundingMode.DOWN);
+                                            if (paid.signum() > 0) {
+                                                pay(player, oldest.currency(), paid, "escrow:payout");
+                                            }
+                                            return true;
+                                        });
+                            });
+                });
     }
 
     /**
@@ -466,14 +598,36 @@ public final class Escrow {
      * @return completes when the items have been recorded as settled and dispatched
      */
     public @NotNull CompletableFuture<Void> settleItems(@NotNull String matchId, @NotNull UUID winner) {
+        return settleItems(matchId, winner, 1);
+    }
+
+    /**
+     * Hands every item still held on a match to its winner {@code multiplier}
+     * times over: a stake won at 3x is paid back three times, one lost at 0x
+     * is settled and nothing is given. Delivered as {@link #settleItems(String, UUID)}
+     * delivers, and a second call does nothing.
+     *
+     * @param matchId    the match
+     * @param winner     who takes the items
+     * @param multiplier how many times over, {@code 0} or above
+     * @return completes when the items have been recorded as settled and dispatched
+     * @since 1.356.0
+     */
+    public @NotNull CompletableFuture<Void> settleItems(@NotNull String matchId, @NotNull UUID winner,
+                                                        int multiplier) {
         checkId(matchId);
         Objects.requireNonNull(winner, "winner");
+        if (multiplier < 0) {
+            throw new IllegalArgumentException("A multiplier is 0 or above, and " + multiplier + " is not.");
+        }
         closedItems.put(matchId, Boolean.TRUE);
         return claimItems(matchId, StakeState.SETTLED).thenAccept(won -> {
             String all = won.stream().map(ItemRow::items).filter(items -> !items.isEmpty())
                     .collect(Collectors.joining(","));
-            if (!all.isEmpty()) {
-                give(winner, all, "escrow:payout");
+            if (!all.isEmpty() && multiplier > 0) {
+                // ponytail: the encoded stacks repeated, which the inventory merges; grows with the multiplier,
+                // so scale each stack's amount instead if multipliers ever reach the hundreds.
+                give(winner, String.join(",", java.util.Collections.nCopies(multiplier, all)), "escrow:payout");
             }
         });
     }

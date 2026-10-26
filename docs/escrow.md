@@ -36,11 +36,15 @@ escrow.refundItems(duelId);
 | --- | --- |
 | `Escrow.of(plugin)` | the plugin's escrow, the same instance per load; the first call starts recovery |
 | `recovery()` | completes when recovery is done; fails when the last run's rows could not be read |
+| `isReady()` | the same, answered now: `true` once recovery is done and did not fail. Since 1.356.0 |
 | `hold(matchId, player, currency, amount)` | `CompletableFuture<Hold>`: `HELD`, `CANNOT_PAY` or `FAILED`; never completes exceptionally |
+| `holdMore(matchId, player, currency, amount)` | a further stake (a double, a split, a raise) for a player who already holds one on the match; `FAILED`, charging nothing, when they hold none. Since 1.356.0 |
 | `settle(matchId, winner)` / `settle(matchId, winner, tax)` | `CompletableFuture<List<Payout>>`, one per currency in the pot; empty when nothing was held |
+| `settleAmount(matchId, player, amount)` / `settleAmount(…, counted)` | `CompletableFuture<Boolean>`: pays one player an amount the game worked out instead of the pot; see [Paying an amount](#paying-an-amount). Since 1.356.0 |
 | `refund(matchId)` | every held stake back to whoever paid it |
 | `holdItems(matchId, player, items)` | `CompletableFuture<Boolean>`; `false` means the items were given back |
 | `settleItems(matchId, winner)` | every held item of the match to the winner |
+| `settleItems(matchId, winner, multiplier)` | the same, `multiplier` times over; `0` settles them and gives nothing. Since 1.356.0 |
 | `refundItems(matchId)` | every player's own items back |
 | `heldItemMatches(player)` | `CompletableFuture<Set<String>>`: the matches the player still has `HELD` items on, any server (1.348.0); a join handler asks before restoring an inventory the escrow owns |
 | `giveItems(player, items)` | items that belong to nobody's match (a cancelled or swapped [trade](trades.md)): into the inventory, the rest owed. Since 1.349.0 |
@@ -56,6 +60,30 @@ which is what a money sink is for.
   experience currency, a plugin's own. Empty means the server's default.
 - `hold` is for a player online on this server: an economy may accept a charge
   to somebody who is not before checking they can pay it.
+- A winner exempt from the tax (a permission, a rank) is settled with a `tax`
+  of `0`; the payout then reports nothing kept back.
+
+## Paying an amount
+
+`settle` pays the pot to a winner. A round played against the server's rules
+has no pot: the game decides what the stake is now worth.
+
+```java
+escrow.hold(roundId, uuid, "coins", stake);
+escrow.holdMore(roundId, uuid, "coins", stake);            // the player doubled
+escrow.settleAmount(roundId, uuid, stake.multiply(new BigDecimal("4")), 2);   // won both
+escrow.settleAmount(roundId, uuid, BigDecimal.ZERO);       // or lost: settled, nothing paid
+```
+
+- The first `counted` stakes held, oldest first, are settled. Any held after
+  them (an extra charged while the player was leaving, which the game never
+  used) goes back to whoever paid it.
+- The amount is paid in the oldest stake's currency, rounded down to its
+  decimals, and **paid once**: the call that moves the oldest stake out of
+  `HELD` owns the match, and a call that loses it touches nothing else. A second
+  call, a racing `refund` or another server answers `false` and pays nothing.
+- Like every payment here, an offline player or a refused deposit is owed and
+  paid on the next join.
 
 ## The order is the whole point
 
@@ -241,4 +269,6 @@ Rows are kept after they settle, as a record. Nothing expires them.
   tax, refund once, a settle racing a refund moving each stake once, refused
   holds, a hold after the match ended, recovery (held refunded, pending voided,
   another server's rows untouched, items returned), owed money delivered once,
-  and item overflow owed rather than dropped.
+  item overflow owed rather than dropped, a further stake needing a first one,
+  an amount paid once with an unused extra refunded (also under racing calls),
+  and items paid at a multiplier.
