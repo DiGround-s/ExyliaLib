@@ -95,12 +95,14 @@ public final class Previews {
      */
     public static void release(@NotNull String pluginName) {
         PreviewRuntime.endAllOf(pluginName);
-        BY_PLUGIN.remove(pluginName);
+        PluginPreviews previews = BY_PLUGIN.remove(pluginName);
+        if (previews != null) previews.shutdown();
     }
 
     /** Ends every preview on the server, on shutdown. */
     public static void releaseAll() {
         PreviewRuntime.endEverything();
+        BY_PLUGIN.values().forEach(PluginPreviews::shutdown);
         BY_PLUGIN.clear();
     }
 }

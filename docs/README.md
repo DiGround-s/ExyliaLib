@@ -42,7 +42,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Displays](displays.md) | Item, block and text displays that move, spin and fall by themselves — packet-only, animated by the client; restyled, retargeted from their pose on screen and shown to a tracked audience while they play since 1.272.0 | 1.85.0 |
 | [VFX](vfx.md) | Effects built in Java and played as one: a timeline of displays, sounds, particles and screen shake, ground telegraphs, floating damage numbers, chained motions and flat ragdoll skins | 1.197.0 |
 | [Sequences](sequences.md) | Choreographed effects from configuration: shapes, sounds, delays — the ExyliaCommons syntax, compiled once; effects with odds, conditions and an audience since 1.57.0 | 1.30.0 |
-| [Previews](previews.md) | Showing one player an effect on a configured stage, and putting them back | 1.30.0 |
+| [Previews](previews.md) | Showing one player an effect on a configured stage and putting them back, or lending it to try on mannequins | 1.30.0 |
 | [Showcases](showcases.md) | Places that show a plugin's cosmetics off on a loop to whoever stands near — the places, the pacing and the cleanup shared, the turn left to the plugin | 1.188.0 |
 | [Crates](crates.md) | A crate a plugin gets by handing over its catalogue — the roll, the keys, the reels, the payout, the blocks and the player rows shared, the rewards left to the plugin; importing a plugin's own crate data, legacy key items, placeholder aliases and item icons since 1.190.0; a shared admin menu since 1.342.0 | 1.189.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |

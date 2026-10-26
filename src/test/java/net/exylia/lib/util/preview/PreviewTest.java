@@ -313,4 +313,48 @@ class PreviewTest {
         // finished or was cut short.
         assertTrue(reopened[0], "the menu would never come back");
     }
+
+    // -------------------------------------------------------------- mannequin
+
+    @Test
+    @DisplayName("mannequin mode shows nothing until a mannequin is placed")
+    void mannequinModeNeedsAMannequin() {
+        previews.using(new PreviewSettings().withMode(PreviewMode.MANNEQUIN));
+
+        assertFalse(previews.available());
+        assertNull(previews.show(viewer.player(), effect));
+    }
+
+    @Test
+    @DisplayName("mannequin mode lends the effect without moving anybody, one loan at a time")
+    void mannequinModeLendsWithoutMoving() {
+        Location dummy = new Location(world, 102, 64, 200, 0f, 0f);
+        previews.using(new PreviewSettings().withMode(PreviewMode.MANNEQUIN).withMannequinAt(dummy));
+        boolean[] called = {false};
+
+        assertTrue(previews.available());
+        Preview first = previews.show(viewer.player(), effect, () -> called[0] = true);
+        assertNotNull(first);
+        assertTrue(viewer.teleports().isEmpty(), "a mannequin preview moved the player");
+        assertFalse(Previews.isPreviewing(viewer.player()), "a loan is not a locked preview");
+
+        Preview second = previews.show(viewer.player(), effect);
+        assertTrue(first.isFinished(), "a second loan did not replace the first");
+        second.end();
+        assertTrue(second.isFinished());
+        assertFalse(called[0], "afterwards ran for a player who never left");
+    }
+
+    @Test
+    @DisplayName("the nearest mannequin is found and removed, the rest kept")
+    void mannequinsAreRemovedByProximity() {
+        Location a = new Location(world, 0, 64, 0);
+        Location b = new Location(world, 30, 64, 0);
+        PreviewSettings settings = new PreviewSettings().withMannequinAt(a).withMannequinAt(b);
+
+        String near = settings.mannequinNear(new Location(world, 1, 64, 1), 5);
+        assertNotNull(near);
+        assertEquals(1, settings.withoutMannequin(near).mannequin().locations().size());
+        assertNull(settings.mannequinNear(new Location(world, 15, 64, 0), 5));
+    }
 }

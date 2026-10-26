@@ -29,6 +29,49 @@ Pass a `Supplier<PreviewSettings>` rather than a snapshot: it is read on each
 preview, so a reload — or an admin moving the stage — is picked up without
 anyone remembering to re-register.
 
+## Mannequin mode
+
+Since 1.355.0. A hit or kill effect is over in a moment, so seeing it once on a
+stage sells it badly. With `mode: MANNEQUIN` nobody is moved: `show` lends the
+player the sequence for `mannequin.trial-seconds`, and every left click on one
+of the plugin's mannequins plays it there, for them alone, as often as they
+like.
+
+```java
+previews = Previews.of(this)
+        .using(() -> config.get().preview())
+        .trialBar((player, secondsLeft) -> Text.component(lines.trialBar().replace("%seconds%", "" + secondsLeft)));
+
+// Admin commands: the settings are the plugin's, so it saves them itself.
+config.update(c -> c.withPreview(c.preview().withMannequinAt(admin.getLocation())));
+String near = config.get().preview().mannequinNear(admin.getLocation(), 5); // null when none is close
+config.update(c -> c.withPreview(c.preview().withoutMannequin(near)));
+config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
+```
+
+- **Mannequins are placed NPCs** (default skin, facing the way the admin faced).
+  A timer a second keeps them in step with the settings, so a reload, an admin
+  placing one or a world that loads late needs no call. They are taken down
+  when the plugin is disabled.
+- **The loan never touches what the player has equipped.** The effect plays on
+  the mannequins and nowhere else, so it cannot be carried into a real fight.
+  It is played with no target, so a `[POTION]` line or a victim's title never
+  lands on the player.
+- **One loan per player per plugin;** a second preview replaces it.
+- **A boss bar counts it down.** Its text comes from `trialBar`, so it lives in
+  the plugin's translated messages; unset, it reads a short English line.
+- **It ends** when the time is up, when the player walks further than
+  `mannequin.radius` from every mannequin after reaching one, when they leave,
+  or when the plugin is disabled. `Preview#end()` ends it too.
+- **`afterwards` is not run in this mode.** The player never left where they
+  were; a menu reopening half a minute later would only get in their way.
+- **A loan is not a preview lock:** `Previews.isPreviewing` stays false, and the
+  player moves, fights and chats as usual.
+- **`vanish-on-hit`** hides the struck mannequin from that player while the
+  effect plays (its length, or 3 s for an endless or very long one), so a kill
+  effect reads as a death.
+- `available()` is true once a mannequin stands in a loaded world.
+
 ## Why a configured stage, and not an emptied room
 
 ExyliaCommons cleared the chunks around the player by sending a whole chunk
@@ -99,6 +142,12 @@ preview:
   settle-ticks: 4     # wait after the teleport, so the client has the position
   linger-ticks: 20    # how long to hold the stage after the effect ends
   max-ticks: 600      # the safety net
+  mode: TELEPORT      # or MANNEQUIN (since 1.355.0)
+  mannequin:
+    locations: []     # written by the plugin's mannequin add command
+    trial-seconds: 30
+    radius: 12.0      # walking further from every mannequin ends the loan
+    vanish-on-hit: false
   # Every one of these is ticks, and every one also reads 1s, 30s or 1m30s.
 ```
 
@@ -113,10 +162,11 @@ before the effect it is meant to outlast.
 ## Source and tests
 
 - Public: `util/preview/` — `Previews`, `PluginPreviews`, `Preview`,
-  `PreviewSettings`.
+  `PreviewSettings`, `PreviewMode`.
 - Internal: `util/preview/internal/` — `PreviewRuntime` (the registry and every
   interrupting listener), `PreviewSession`, `StagedPlayer` (capture and
-  restore).
+  restore), `MannequinTrials` (mannequins and loans).
 - Tests: `PreviewTest` covers the stage, the missing stage, the restore,
-  quitting, a second preview replacing the first, plugin disable, and two
-  players at once.
+  quitting, a second preview replacing the first, plugin disable, two
+  players at once, and the mannequin mode (no mannequin, no move, one loan,
+  removal by proximity).

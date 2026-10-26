@@ -8,6 +8,9 @@ import org.bukkit.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Where and how a preview stage is built.
  *
@@ -35,6 +38,10 @@ import org.jetbrains.annotations.Nullable;
  * @param settleTicks  how long to wait after the teleport before playing
  * @param lingerTicks  how long to keep the stage after the effect ends
  * @param maxTicks     the longest a preview may last, whatever happens
+ * @param mode         whether a preview moves the player to the stage or lends
+ *                     them the effect to try on a mannequin (since 1.355.0)
+ * @param mannequin    the mannequins a {@link PreviewMode#MANNEQUIN} preview is
+ *                     tried on (since 1.355.0)
  *
  * @since 1.30.0
  */
@@ -73,12 +80,33 @@ public record PreviewSettings(
         @Comment("The longest a preview may last. A safety net: whatever goes")
         @Comment("wrong, the player is returned after this.")
         @Comment("Reads a written duration too: 1s, 500ms, 2m.")
-        @Time(Time.Unit.TICKS) int maxTicks
+        @Time(Time.Unit.TICKS) int maxTicks,
+
+        @Comment("How a preview is shown.")
+        @Comment("TELEPORT  - the player is moved to the location above, shown the effect")
+        @Comment("            once, and put back.")
+        @Comment("MANNEQUIN - nobody is moved: the player is lent the effect for a while")
+        @Comment("            and hits the mannequins below with it as often as they like.")
+        @Comment("            The effect plays on the mannequins only, never in a real fight.")
+        PreviewMode mode,
+
+        Mannequin mannequin
 ) {
 
     /** Safe defaults with no stage, so a fresh install previews nothing. */
     public PreviewSettings() {
-        this("", 5.0, 4, 20, 20 * 30);
+        this("", 5.0, 4, 20, 20 * 30, PreviewMode.TELEPORT, new Mannequin());
+    }
+
+    /**
+     * The settings before mannequins existed: a teleport preview.
+     *
+     * @deprecated since 1.355.0; use the canonical constructor, which also
+     *             takes the {@link PreviewMode} and the {@link Mannequin}s.
+     */
+    @Deprecated
+    public PreviewSettings(String location, double distance, int settleTicks, int lingerTicks, int maxTicks) {
+        this(location, distance, settleTicks, lingerTicks, maxTicks, PreviewMode.TELEPORT, new Mannequin());
     }
 
     public PreviewSettings {
@@ -89,12 +117,145 @@ public record PreviewSettings(
         // The safety net cannot be shorter than the wait plus the linger, or it
         // would fire before the effect it is meant to outlast.
         maxTicks = Math.max(settleTicks + lingerTicks + 20, maxTicks);
+        mode = mode == null ? PreviewMode.TELEPORT : mode;
+        mannequin = mannequin == null ? new Mannequin() : mannequin;
     }
 
     /** The same settings with a different stage, for a command that moves it. */
     public @NotNull PreviewSettings at(@NotNull Location stage) {
         return new PreviewSettings(ExyliaLocation.of(stage).toString(),
-                distance, settleTicks, lingerTicks, maxTicks);
+                distance, settleTicks, lingerTicks, maxTicks, mode, mannequin);
+    }
+
+    /** The same settings shown another way. @since 1.355.0 */
+    public @NotNull PreviewSettings withMode(@NotNull PreviewMode mode) {
+        return new PreviewSettings(location, distance, settleTicks, lingerTicks, maxTicks, mode, mannequin);
+    }
+
+    /** The same settings with other mannequin settings. @since 1.355.0 */
+    public @NotNull PreviewSettings withMannequin(@NotNull Mannequin mannequin) {
+        return new PreviewSettings(location, distance, settleTicks, lingerTicks, maxTicks, mode, mannequin);
+    }
+
+    /** The same settings with the mannequins standing somewhere else. @since 1.355.0 */
+    public @NotNull PreviewSettings withMannequins(@NotNull List<String> locations) {
+        return withMannequin(mannequin.withLocations(locations));
+    }
+
+    /**
+     * The same settings with one more mannequin, where an admin stands and
+     * facing the way they face.
+     *
+     * @since 1.355.0
+     */
+    public @NotNull PreviewSettings withMannequinAt(@NotNull Location where) {
+        List<String> locations = new ArrayList<>(mannequin.locations());
+        locations.add(ExyliaLocation.of(where).toString());
+        return withMannequins(locations);
+    }
+
+    /**
+     * The mannequin closest to a spot, if one is within reach.
+     *
+     * @param where where to look from
+     * @param reach how far away it may stand, in blocks
+     * @return its entry as written in the file, or {@code null} when none is close
+     * @since 1.355.0
+     */
+    public @Nullable String mannequinNear(@NotNull Location where, double reach) {
+        String nearest = null;
+        double best = reach * reach;
+        for (String entry : mannequin.locations()) {
+            Location at = parse(entry);
+            if (at == null || !at.getWorld().equals(where.getWorld())) continue;
+            double distance = at.distanceSquared(where);
+            if (distance <= best) {
+                best = distance;
+                nearest = entry;
+            }
+        }
+        return nearest;
+    }
+
+    /** The same settings without one mannequin, named as {@link #mannequinNear} returns it. @since 1.355.0 */
+    public @NotNull PreviewSettings withoutMannequin(@NotNull String entry) {
+        List<String> locations = new ArrayList<>(mannequin.locations());
+        locations.remove(entry);
+        return withMannequins(locations);
+    }
+
+    /**
+     * Whether a preview can be shown in the mode in force: a stage for
+     * {@link PreviewMode#TELEPORT}, a mannequin in a loaded world for
+     * {@link PreviewMode#MANNEQUIN}.
+     *
+     * @since 1.355.0
+     */
+    public boolean ready() {
+        if (mode == PreviewMode.TELEPORT) return stage() != null;
+        return mannequin.locations().stream().anyMatch(entry -> parse(entry) != null);
+    }
+
+    /** A stored location as a live one, or {@code null} when it is not one or its world is not loaded. */
+    static @Nullable Location parse(@NotNull String entry) {
+        try {
+            Location at = ExyliaLocation.fromString(entry).toBukkitLocation();
+            return at == null || at.getWorld() == null ? null : at;
+        } catch (RuntimeException notALocation) {
+            return null;
+        }
+    }
+
+    /**
+     * The mannequins a {@link PreviewMode#MANNEQUIN} preview is tried on.
+     *
+     * @param locations   where they stand, in the stored {@link ExyliaLocation} form
+     * @param trialSeconds how long a player is lent the effect, in seconds
+     * @param radius      how far a player may walk from every mannequin before the
+     *                    loan ends, once they have reached one
+     * @param vanishOnHit whether a struck mannequin disappears for that player while
+     *                    the effect plays, so a kill effect reads as a death
+     * @since 1.355.0
+     */
+    public record Mannequin(
+            @Comment("Where the mannequins stand, as server,world,x,y,z,yaw,pitch.")
+            @Comment("Place them in game with this plugin's preview mannequin add admin command,")
+            @Comment("which writes where you stand and the way you face.")
+            List<String> locations,
+
+            @Key("trial-seconds")
+            @Comment("How long a player is lent the effect they preview.")
+            @Comment("Reads a written duration too: 30s, 1m.")
+            @Time(Time.Unit.SECONDS) int trialSeconds,
+
+            @Comment("Once a player has reached a mannequin, walking further than this")
+            @Comment("from all of them ends the loan early, in blocks.")
+            double radius,
+
+            @Key("vanish-on-hit")
+            @Comment("Whether a struck mannequin disappears for that player while the")
+            @Comment("effect plays, so a kill effect reads as a death.")
+            boolean vanishOnHit) {
+
+        public Mannequin() {
+            this(List.of(), 30, 12.0, false);
+        }
+
+        public Mannequin {
+            locations = locations == null ? List.of() : List.copyOf(locations);
+            trialSeconds = Math.max(1, trialSeconds);
+            radius = Math.max(2, radius);
+        }
+
+        /** The same settings with the mannequins standing somewhere else. */
+        public @NotNull Mannequin withLocations(@NotNull List<String> locations) {
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit);
+        }
+
+        /** The same settings with a struck mannequin vanishing, or not. */
+        public @NotNull Mannequin withVanishOnHit(boolean vanishOnHit) {
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit);
+        }
     }
 
     /**

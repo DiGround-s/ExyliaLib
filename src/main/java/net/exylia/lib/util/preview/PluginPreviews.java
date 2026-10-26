@@ -3,14 +3,17 @@ package net.exylia.lib.util.preview;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.preview.internal.MannequinTrials;
 import net.exylia.lib.util.preview.internal.PreviewRuntime;
 import net.exylia.lib.util.sequence.Sequence;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 /**
@@ -39,11 +42,13 @@ public final class PluginPreviews {
     private final TaskScheduler tasks;
     private final Debug debug;
     private volatile Supplier<PreviewSettings> settings = PreviewSettings::new;
+    private final MannequinTrials mannequins;
 
     PluginPreviews(@NotNull Plugin plugin) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
+        this.mannequins = new MannequinTrials(plugin, tasks, this::settings);
     }
 
     /** The plugin these belong to. */
@@ -62,6 +67,7 @@ public final class PluginPreviews {
      */
     public @NotNull PluginPreviews using(@NotNull PreviewSettings settings) {
         this.settings = () -> settings;
+        mannequins.start();
         return this;
     }
 
@@ -76,6 +82,22 @@ public final class PluginPreviews {
      */
     public @NotNull PluginPreviews using(@NotNull Supplier<PreviewSettings> settings) {
         this.settings = settings;
+        mannequins.start();
+        return this;
+    }
+
+    /**
+     * What the boss bar says while a player is trying an effect on a mannequin.
+     *
+     * <p>Called once a second with the seconds left, so the text can live in the
+     * plugin's own translated messages. Unset, the bar reads a short English line.
+     *
+     * @param text the bar's text for a player and the seconds they have left
+     * @return this
+     * @since 1.355.0
+     */
+    public @NotNull PluginPreviews trialBar(@Nullable BiFunction<Player, Integer, Component> text) {
+        mannequins.bar(text);
         return this;
     }
 
@@ -88,13 +110,14 @@ public final class PluginPreviews {
      * Whether this plugin has a stage to preview on.
      *
      * <p>False until a location is configured, and false when the configured
-     * world is not loaded. Ask before offering a preview, so the player is told
+     * world is not loaded. In {@link PreviewMode#MANNEQUIN} mode: false until a
+     * mannequin stands in a loaded world. Ask before offering a preview, so the player is told
      * why rather than clicking a button that does nothing.
      *
      * @return whether {@link #show} would work
      */
     public boolean available() {
-        return settings().stage() != null;
+        return settings().ready();
     }
 
     /**
@@ -120,14 +143,33 @@ public final class PluginPreviews {
      * all when there was no stage to show them: nothing happened, so there is
      * nothing to come back from.
      *
+     * <h2>In mannequin mode</h2>
+     * Nobody is moved. The player is lent the sequence for
+     * {@code mannequin.trial-seconds}, and every left click on one of this
+     * plugin's mannequins plays it there, for them alone, as often as they
+     * like. A second preview replaces the loan. It ends when the time is up,
+     * when they walk further than {@code mannequin.radius} from every mannequin
+     * after reaching one, when they leave, or when the plugin is disabled.
+     * {@code afterwards} is <b>not</b> run in this mode: the player never left
+     * where they were, and a menu reopening half a minute later would only get
+     * in their way.
+     *
      * @param viewer     who to show it to
      * @param sequence   what to show
      * @param afterwards what to do when it ends, such as reopening a menu
      * @return the running preview, or {@code null} when there is no stage
+     *         (or, in mannequin mode, no mannequin)
      */
     public @Nullable Preview show(@NotNull Player viewer, @NotNull Sequence sequence,
                                   @Nullable Runnable afterwards) {
         PreviewSettings current = settings();
+        if (current.mode() == PreviewMode.MANNEQUIN) {
+            if (!current.ready()) {
+                debug.debug("A mannequin preview was asked for before a mannequin was placed.");
+                return null;
+            }
+            return mannequins.lend(viewer, sequence);
+        }
         Location stage = current.stage();
         if (stage == null) {
             if (current.location().isBlank()) {
@@ -151,7 +193,13 @@ public final class PluginPreviews {
      * @return how many were ended
      */
     public int endAll() {
-        return PreviewRuntime.endAllOf(plugin.getName());
+        return PreviewRuntime.endAllOf(plugin.getName()) + mannequins.endAll();
+    }
+
+    /** Ends everything and takes the mannequins down, when the plugin goes. */
+    void shutdown() {
+        endAll();
+        mannequins.shutdown();
     }
 
     @Override
