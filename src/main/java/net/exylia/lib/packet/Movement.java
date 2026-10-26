@@ -50,6 +50,27 @@ public interface Movement {
     }
 
     /**
+     * Keeps a player inside a square they may walk around in: {@code reach} blocks to each side of
+     * {@code centre}, turned with its yaw, the way an {@link net.exylia.lib.stage.Enclosure}'s walls
+     * are. A step that would take their body past an edge is refused and they are put back where they
+     * last stood inside; jumping and looking around are free.
+     *
+     * <p>A click inside it always lands: an invisible hitbox, only in the player's client, fills the
+     * square, so the client never takes a click at nothing for a miss (which shuts its next clicks
+     * out for half a second). Its own packets never reach the server; the arm swing does, as usual.
+     *
+     * <p>Replaces a {@link #freeze}, and a freeze replaces it; {@link #unfreeze} lets them go.
+     *
+     * @param player the player, standing inside the square
+     * @param centre the middle of the square; its yaw turns it
+     * @param reach  how far each edge is from the middle, in blocks
+     * @since 1.366.0
+     */
+    default void confine(@NotNull Player player, @NotNull org.bukkit.Location centre, double reach) {
+        freeze(player);
+    }
+
+    /**
      * Lets a player move again.
      *
      * @param player the player

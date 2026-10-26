@@ -26,6 +26,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
@@ -163,6 +164,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     private static final byte GLOWING = 0x40;
     private static final Vector3f OUTSET = new Vector3f(-0.005f, -0.005f, -0.005f);
     private static final Vector3f OVERSIZE = new Vector3f(1.01f, 1.01f, 1.01f);
+    // Interaction entity metadata.
+    private static final int INTERACTION_WIDTH = 8;
+    private static final int INTERACTION_HEIGHT = 9;
+    private static final int INTERACTION_RESPONSIVE = 10;
 
     /** Display slot 1: the sidebar. */
     private static final int SIDEBAR_SLOT = 1;
@@ -609,26 +614,48 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         PacketTypeCommon type = event.getPacketType();
         boolean locked = PacketRuntime.rotationLocked(player);
+        PacketRuntime.Pen pen = PacketRuntime.penOf(player);
         if (type == PacketType.Play.Client.PLAYER_POSITION
                 || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION
                 || locked && type == PacketType.Play.Client.PLAYER_ROTATION) {
             WrapperPlayClientPlayerFlying packet = new WrapperPlayClientPlayerFlying(event);
             var at = packet.getLocation();
+            if (pen != null && packet.hasPositionChanged() && pen.holds(at.getX(), at.getZ())) {
+                PacketRuntime.settle(player, at.getX(), at.getY(), at.getZ());
+                return;
+            }
             boolean turned = locked && packet.hasRotationChanged() && turned(anchor, at.getYaw(), at.getPitch());
             if (!turned && (!packet.hasPositionChanged() || !moved(anchor, at.getX(), at.getY(), at.getZ()))) {
                 return;
             }
-            event.setCancelled(true);
             snapBack(user, anchor, locked);
+            if (locked) {
+                event.setCancelled(true);
+                return;
+            }
+            // The step is refused, the look is not: dropping the whole packet would leave the server
+            // aiming every click from wherever the player looked before they last pressed a key.
+            packet.setLocation(new com.github.retrooper.packetevents.protocol.world.Location(
+                    anchor.getX(), anchor.getY(), anchor.getZ(), at.getYaw(), at.getPitch()));
+            event.markForReEncode(true);
         } else if (type == PacketType.Play.Client.VEHICLE_MOVE) {
             WrapperPlayClientVehicleMove packet = new WrapperPlayClientVehicleMove(event);
             var at = packet.getPosition();
+            if (pen != null && pen.holds(at.getX(), at.getZ())) {
+                PacketRuntime.settle(player, at.getX(), at.getY(), at.getZ());
+                return;
+            }
             if (!moved(anchor, at.getX(), at.getY(), at.getZ())) {
                 return;
             }
             event.setCancelled(true);
             snapBack(user, anchor, locked);
-        } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
+        } else if (pen != null && type == PacketType.Play.Client.INTERACT_ENTITY) {
+            // A click on the pen's hitbox: the server never spawned it, and the swing that came with it is the click.
+            if (new WrapperPlayClientInteractEntity(event).getEntityId() == pen.hitbox()) {
+                event.setCancelled(true);
+            }
+        } else if (pen == null && type == PacketType.Play.Client.PLAYER_INPUT) {
             // WASD held while frozen: swallowed so a vehicle does not creep. On foot, sneaking still goes
             // through: the client lowers its own camera either way, and a server that never hears of it
             // aims everything picked by where the player looks from eyes that are no longer there.
@@ -821,6 +848,18 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             BLOCK_IDS.put(data, id);
         }
         return id;
+    }
+
+    @Override
+    public void hitbox(Player viewer, int entityId, Location at, float width, float height) {
+        send(viewer, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
+                EntityTypes.INTERACTION, new Vector3d(at.getX(), at.getY(), at.getZ()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        // Responsive: a right-click on it swings the arm, so it reaches the server as a click too.
+        send(viewer, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(INTERACTION_WIDTH, EntityDataTypes.FLOAT, width),
+                new EntityData<>(INTERACTION_HEIGHT, EntityDataTypes.FLOAT, height),
+                new EntityData<>(INTERACTION_RESPONSIVE, EntityDataTypes.BOOLEAN, true))));
     }
 
     @Override

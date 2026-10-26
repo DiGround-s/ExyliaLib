@@ -30,6 +30,10 @@ public interface PacketSink {
     /** Outlines one block for one viewer with a client-side display entity. */
     void glowingBlock(Player viewer, int entityId, Location at, BlockData data, int argb);
 
+    /** An invisible hitbox, for one viewer, whose bottom is centred on {@code at}. */
+    default void hitbox(Player viewer, int entityId, Location at, float width, float height) {
+    }
+
     /** Removes client-side entities from one viewer. */
     void destroyEntities(Player viewer, int[] entityIds);
 

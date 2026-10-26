@@ -103,6 +103,7 @@ truth again.
 Movement movement();
 void freeze(Player player);
 void freeze(Player player, boolean lockRotation);   // 1.351.0+
+void confine(Player player, Location centre, double reach);   // 1.366.0+
 void unfreeze(Player player);
 boolean isFrozen(Player player);
 ```
@@ -110,10 +111,19 @@ boolean isFrozen(Player player);
 Position packets from a frozen client are dropped and answered with a
 teleport back to the anchor, so the server never sees the move. Rotation is
 kept: the teleport carries it relative and as zero, so the camera is never
-turned back to where it pointed a round trip ago. A dropped packet takes its
-rotation with it, though; a plugin that needs every turn of a frozen player
-reads the rotation packets itself, before this hook cancels them. A
+turned back to where it pointed a round trip ago, and since 1.366.0 a refused
+step reaches the server with its position put back on the anchor and its
+rotation intact, so the server always knows where the player looks. A
 `PlayerMoveEvent` guard covers the case PacketEvents is missing.
+
+`confine(player, centre, reach)` lets the player walk inside a square,
+`reach` blocks to each side of `centre` and turned with its yaw (an
+`Enclosure`'s walls, with `reach` its theme's reach): a step past an edge is
+refused like a frozen one, back to where they last stood inside. An invisible
+client-side hitbox fills the square, so a click at nothing is never a miss to
+the client, which would otherwise ignore the next clicks for half a second;
+its packets are kept from the server, the arm swing is not. `unfreeze` ends
+it, and a `freeze` replaces it.
 
 `freeze(player, true)` locks the camera as well: every rotation off the
 anchor's is dropped and answered with the anchor's yaw and pitch, absolute

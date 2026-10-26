@@ -76,6 +76,8 @@ public final class PacketRuntime {
     private static final Map<UUID, String> FROZEN_BY = new ConcurrentHashMap<>();
     /** Frozen players whose camera is locked to the anchor's rotation as well. */
     private static final Set<UUID> ROTATION_LOCKED = ConcurrentHashMap.newKeySet();
+    /** Confined player -> the square they may walk in. Their anchor follows them inside it. */
+    private static final Map<UUID, Pen> PENS = new ConcurrentHashMap<>();
     /** viewer -> fake block positions they were shown. */
     private static final Map<UUID, Set<Location>> FAKED = new ConcurrentHashMap<>();
     /** viewer -> outlined position to the client-side entity drawing it. */
@@ -278,6 +280,7 @@ public final class PacketRuntime {
         ANCHORS.clear();
         FROZEN_BY.clear();
         ROTATION_LOCKED.clear();
+        PENS.clear();
         FAKED.clear();
         OUTLINED.clear();
         SPECTATING.clear();
@@ -429,6 +432,42 @@ public final class PacketRuntime {
         return ROTATION_LOCKED.contains(player);
     }
 
+    /**
+     * The square a confined player may walk in, {@code reach} to each side of {@code centre} turned
+     * with its yaw, and the client-side hitbox that fills it.
+     */
+    record Pen(Location centre, double reach, int hitbox) {
+
+        boolean holds(double x, double z) {
+            double dx = x - centre.getX();
+            double dz = z - centre.getZ();
+            double yaw = Math.toRadians(centre.getYaw());
+            double cos = Math.cos(yaw);
+            double sin = Math.sin(yaw);
+            return Math.abs(dx * cos + dz * sin) <= reach && Math.abs(dz * cos - dx * sin) <= reach;
+        }
+    }
+
+    static @Nullable Pen penOf(UUID player) {
+        return PENS.get(player);
+    }
+
+    /** Moves a confined player's anchor to where they now stand inside their pen. */
+    static void settle(UUID player, double x, double y, double z) {
+        ANCHORS.computeIfPresent(player, (id, anchor) ->
+                new Location(anchor.getWorld(), x, y, z, anchor.getYaw(), anchor.getPitch()));
+    }
+
+    /** Forgets a player's pen and takes its hitbox out of their client. */
+    private static void unpen(UUID player) {
+        Pen pen = PENS.remove(player);
+        PacketSink out = sink;
+        Player online = Bukkit.getPlayer(player);
+        if (pen != null && out != null && online != null) {
+            out.destroyEntities(online, new int[]{pen.hitbox()});
+        }
+    }
+
     /** Whether any plugin's rule says {@code viewer} may see {@code target}. */
     static boolean allowed(Player viewer, Player target) {
         if (viewer.equals(target)) {
@@ -453,6 +492,7 @@ public final class PacketRuntime {
         ANCHORS.remove(id);
         FROZEN_BY.remove(id);
         ROTATION_LOCKED.remove(id);
+        PENS.remove(id);
         FAKED.remove(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
@@ -593,7 +633,13 @@ public final class PacketRuntime {
             if (anchor == null || to == null || !anchor.getWorld().equals(to.getWorld())) {
                 return;
             }
-            boolean locked = ROTATION_LOCKED.contains(event.getPlayer().getUniqueId());
+            UUID id = event.getPlayer().getUniqueId();
+            Pen pen = PENS.get(id);
+            if (pen != null && pen.holds(to.getX(), to.getZ())) {
+                settle(id, to.getX(), to.getY(), to.getZ());
+                return;
+            }
+            boolean locked = ROTATION_LOCKED.contains(id);
             if (anchor.distanceSquared(to) > 1e-6
                     || locked && PacketHooks.turned(anchor, to.getYaw(), to.getPitch())) {
                 Location back = anchor.clone();
@@ -697,6 +743,7 @@ public final class PacketRuntime {
                     ANCHORS.remove(id);
                     FROZEN_BY.remove(id);
                     ROTATION_LOCKED.remove(id);
+                    unpen(id);
                 }
             }
             for (UUID id : new ArrayList<>(REVEALING.keySet())) {
@@ -834,6 +881,7 @@ public final class PacketRuntime {
         @Override
         public void freeze(@NotNull Player player, boolean lockRotation) {
             UUID id = player.getUniqueId();
+            unpen(id);
             if (lockRotation) {
                 ROTATION_LOCKED.add(id);
             } else {
@@ -845,11 +893,27 @@ public final class PacketRuntime {
         }
 
         @Override
+        public void confine(@NotNull Player player, @NotNull Location centre, double reach) {
+            freeze(player);
+            // The body is 0.6 wide: kept that far in, it never pokes through a wall.
+            double inside = Math.max(0, reach - 0.35);
+            PacketSink out = sink();
+            int hitbox = out == null ? -1 : out.newEntityId();
+            PENS.put(player.getUniqueId(), new Pen(centre.clone(), inside, hitbox));
+            if (out != null) {
+                // Wide enough to hold the eyes from any corner, from below the feet to well over the head.
+                float width = (float) (2 * (inside * Math.sqrt(2) + 1));
+                out.hitbox(player, hitbox, centre.clone().subtract(0, 2, 0), width, 10f);
+            }
+        }
+
+        @Override
         public void unfreeze(@NotNull Player player) {
             if (name.equals(FROZEN_BY.get(player.getUniqueId()))) {
                 FROZEN_BY.remove(player.getUniqueId());
                 ANCHORS.remove(player.getUniqueId());
                 ROTATION_LOCKED.remove(player.getUniqueId());
+                unpen(player.getUniqueId());
             }
         }
 
