@@ -175,6 +175,49 @@ class LobbyTest {
     }
 
     @Test
+    @DisplayName("an invitation to several keeps its seats for them and starts once every one sat down")
+    void invitationToSeveral() {
+        FakePlayer cy = new FakePlayer("Cy");
+        FakeServer.online(host.player(), ann.player(), bob.player(), cy.player());
+        Table<String> table = lobby.invite(host.player(), "poker", rules(2, 3), List.of(ann.player(), bob.player()))
+                .orElseThrow();
+        assertTrue(told(host, "Invitation sent to Ann, Bob."));
+        assertTrue(told(bob, "Host invites you to their table."));
+        assertTrue(lobby.open(subject -> true).isEmpty(), "an invitation is not listed");
+
+        lobby.accept(ann.player(), "Host");
+        assertFalse(table.isPublic(), "the last seat stays Bob's");
+        lobby.join(cy.player(), table);
+        assertEquals(2, table.seats().size());
+        lobby.accept(bob.player(), null);
+        assertEquals("started 3", calls.getLast());
+    }
+
+    @Test
+    @DisplayName("one invitee declining leaves the others; the host may start with those who accepted")
+    void severalDecline() {
+        Table<String> table = lobby.invite(host.player(), "poker", rules(2, 3), List.of(ann.player(), bob.player()))
+                .orElseThrow();
+        lobby.accept(ann.player(), null);
+        lobby.decline(bob.player(), "Host");
+        assertEquals(TableState.OPEN, table.state());
+        assertTrue(told(host, "Bob declined your invitation."));
+        assertTrue(lobby.invitesTo(bob.player().getUniqueId()).isEmpty());
+        assertTrue(told(host, "Enough players are seated."));
+        lobby.start(host.player());
+        assertEquals("started 2", calls.getLast());
+
+        calls.clear();
+        lobby.finish(table);
+        lobby.invite(host.player(), "poker", rules(2, 3), List.of(ann.player(), bob.player())).orElseThrow();
+        lobby.decline(ann.player(), null);
+        assertFalse(calls.contains("ended DECLINED"), "Bob may still answer");
+        lobby.decline(bob.player(), null);
+        assertEquals("ended DECLINED", calls.getLast());
+        assertTrue(Sessions.isFree(host.player()));
+    }
+
+    @Test
     @DisplayName("a refused admission gives the seat back and tells the player why")
     void refused() {
         Table<String> table = lobby.create(host.player(), "chess", rules(2, 2), null).orElseThrow();

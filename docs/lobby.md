@@ -22,6 +22,7 @@ TableRules rules = new TableRules("tabletop:checkers", "/checkers", 2, 2,
 
 lobby.create(host, match, rules, null);       // /checkers create: an open table
 lobby.create(host, match, rules, target);     // /checkers duel <player>: an invitation
+lobby.invite(host, match, rules, players);    // /poker duel <a> <b> <c>: one invitation each (1.359.0+)
 lobby.open(m -> m.game() == checkers);        // the open tables, oldest first, for a menu
 lobby.join(player, table);                    // a click in that menu
 lobby.accept(target, hostName);               // /checkers accept [host]  (null: the newest)
@@ -103,6 +104,16 @@ still there.
 An invitation to a table of more than two opens to everyone once the invitee
 sits down, and from then on waits as long as an open table does.
 
+An invitation to several players (`invite`, 1.359.0+) keeps its seats for them:
+nobody else may sit down, `Table.invitees()` lists them and `Table.awaits(uuid)`
+says whether one still has to answer. It starts by itself once every invitee has
+sat down. One who declines is dropped and the host is told (`declined`); once
+nobody is left to answer, the host is offered the early start (`startable`) with
+those who accepted. It ends as `DECLINED` only when every invitee declined, and
+as `EXPIRED` after `inviteExpiry` like any invitation. Rules sized to the
+invitation (`maxSeats` = invitees + 1, `minSeats` = 2) are what make that early
+start possible.
+
 ## One table at a time
 
 Taking a seat claims the player through [sessions](../src/main/java/net/exylia/lib/session/Sessions.java)
@@ -153,5 +164,5 @@ no-argument `accept` overload calling `accept(target, null)`).
   the start, early start, drops keeping seat numbers, ending once),
   `lobby/LobbyTest` (on the fake server: a table filled, played and finished;
   one table at a time and claims held by others; invitation expiry; accept and
-  decline; refused and late admissions; early start and a drop mid-play;
+  decline; invitations to several, their kept seats and partial declines; refused and late admissions; early start and a drop mid-play;
   eviction by another plugin; leaving before the start).

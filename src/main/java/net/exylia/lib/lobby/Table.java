@@ -36,8 +36,10 @@ public final class Table<T> {
     private final String id;
     private final T subject;
     private final TableRules rules;
-    /** The one player an invitation was sent to, or {@code null} for a table anybody may take. */
-    private final UUID invitee;
+    /** The players an invitation was sent to, in the order invited; empty for a table anybody may take. */
+    private final List<UUID> invitees;
+    /** Invitees who have not declined. */
+    private final Set<UUID> awaiting;
     private final long createdAt;
     private final List<Seat> seats = new ArrayList<>();
     /** Seats taken whose admission is still running; the table starts only once none are. */
@@ -53,10 +55,15 @@ public final class Table<T> {
     private TaskHandle timer;
 
     Table(@NotNull T subject, @NotNull TableRules rules, @NotNull Seat host, @Nullable UUID invitee, long now) {
+        this(subject, rules, host, invitee == null ? List.of() : List.of(invitee), now);
+    }
+
+    Table(@NotNull T subject, @NotNull TableRules rules, @NotNull Seat host, @NotNull List<UUID> invitees, long now) {
         this.id = newId();
         this.subject = Objects.requireNonNull(subject, "subject");
         this.rules = Objects.requireNonNull(rules, "rules");
-        this.invitee = invitee;
+        this.invitees = List.copyOf(invitees);
+        this.awaiting = new HashSet<>(invitees);
         this.createdAt = now;
         seats.add(host);
         pending.add(host.player());
@@ -84,23 +91,43 @@ public final class Table<T> {
         return rules;
     }
 
-    /** The player an invitation was sent to; {@code null} for an open table. */
+    /** The first player an invitation was sent to; {@code null} for an open table. */
     public @Nullable UUID invitee() {
-        return invitee;
-    }
-
-    public boolean isInvitation() {
-        return invitee != null;
+        return invitees.isEmpty() ? null : invitees.getFirst();
     }
 
     /**
-     * Whether anybody may take a free seat: an open table, or an invitation once its invitee sat down.
+     * Every player an invitation was sent to, in the order invited; empty for an open table.
      *
-     * <p>An invitation to a table of more than two would otherwise never fill: once the invitee has
-     * accepted, the remaining seats are open to everyone.
+     * @since 1.359.0
+     */
+    public @NotNull List<UUID> invitees() {
+        return invitees;
+    }
+
+    public boolean isInvitation() {
+        return !invitees.isEmpty();
+    }
+
+    /**
+     * Whether an invitation sent to this player still waits for their answer: they were invited,
+     * have not declined, and hold no seat.
+     *
+     * @since 1.359.0
+     */
+    public synchronized boolean awaits(@NotNull UUID player) {
+        return awaiting.contains(player) && seatOf(player) < 0;
+    }
+
+    /**
+     * Whether anybody may take a free seat: an open table, or an invitation to one player once they sat down.
+     *
+     * <p>An invitation to one player at a table of more than two would otherwise never fill: once the
+     * invitee has accepted, the remaining seats are open to everyone. An invitation to several keeps
+     * its seats for them.
      */
     public synchronized boolean isPublic() {
-        return invitee == null || seatOf(invitee) >= 0;
+        return invitees.isEmpty() || (invitees.size() == 1 && seatOf(invitees.getFirst()) >= 0);
     }
 
     public long createdAt() {
@@ -189,7 +216,7 @@ public final class Table<T> {
      */
     synchronized boolean reserve(Seat seat) {
         if (state != TableState.OPEN || seats.size() >= rules.maxSeats() || seatOf(seat.player()) >= 0) return false;
-        if (!isPublic() && !invitee.equals(seat.player())) return false;
+        if (!isPublic() && !awaiting.contains(seat.player())) return false;
         seats.add(seat);
         pending.add(seat.player());
         if (seats.size() >= rules.maxSeats()) state = TableState.STARTING;
@@ -263,6 +290,21 @@ public final class Table<T> {
         int index = seatOf(player);
         if (index < 0 || state != TableState.PLAYING || !gone.add(player)) return -1;
         return index;
+    }
+
+    /**
+     * An invitee declines.
+     *
+     * @return whether they were still awaited
+     */
+    synchronized boolean decline(UUID player) {
+        return seatOf(player) < 0 && awaiting.remove(player);
+    }
+
+    /** Whether no invitee is left to answer: every one sat down or declined. */
+    synchronized boolean answered() {
+        for (UUID player : awaiting) if (seatOf(player) < 0) return false;
+        return true;
     }
 
     synchronized void expireAt(long at) {

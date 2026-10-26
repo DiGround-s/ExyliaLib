@@ -42,6 +42,8 @@ import java.util.function.Supplier;
  * lobby.create(host, match, rules, null);
  * // /checkers duel <player>   an invitation, answered with clickable buttons
  * lobby.create(host, match, rules, target);
+ * // /poker duel <a> <b> <c>   one invitation each, the seats kept for them
+ * lobby.invite(host, match, rules, List.of(a, b, c));
  * // /checkers accept [host], /checkers deny [host], /checkers start, /checkers cancel, /checkers leave
  * lobby.accept(target, hostName);
  * lobby.decline(target, hostName);
@@ -59,7 +61,8 @@ import java.util.function.Supplier;
  * An <b>open table</b> is listed ({@link #open}) and its seats go to whoever takes them first:
  * taking one is a reservation under the table's lock, so two players taking the last seat cannot
  * both get it. An <b>invitation</b> is sent to one player, who accepts or declines; at a table of
- * more than two it opens to everyone once they sit down. A table starts by itself when full, or when
+ * more than two it opens to everyone once they sit down. An invitation to several ({@link #invite})
+ * keeps its seats for them. A table starts by itself when full, or when
  * its host starts it with at least {@link TableRules#minSeats} seated. One that waits past its expiry
  * ends as {@link TableEnd#EXPIRED}.
  *
@@ -152,7 +155,7 @@ public final class Lobby<T> {
 
     private List<Table<T>> invitations(UUID target) {
         return tables.values().stream()
-                .filter(table -> target.equals(table.invitee()) && !table.isPublic() && table.state() == TableState.OPEN)
+                .filter(table -> table.awaits(target) && !table.isPublic() && table.state() == TableState.OPEN)
                 .sorted(Comparator.comparingLong(Table<T>::createdAt).reversed())
                 .toList();
     }
@@ -168,8 +171,23 @@ public final class Lobby<T> {
      */
     public @NotNull Optional<Table<T>> create(@NotNull Player host, @NotNull T subject, @NotNull TableRules rules,
                                               @Nullable Player invitee) {
+        return invite(host, subject, rules, invitee == null ? List.of() : List.of(invitee));
+    }
+
+    /**
+     * Opens a table: listed for anybody when {@code invitees} is empty, an invitation to each of them
+     * otherwise. An invitation to several keeps its seats for them: it starts once every one has sat
+     * down, or earlier on its host's word, and ends as {@link TableEnd#DECLINED} only when every one
+     * declined. Nothing is sent when any invitee is the host or busy.
+     *
+     * @return the table, still {@link TableState#CREATING}; empty when the host or an invitee was refused
+     * @since 1.359.0
+     */
+    public @NotNull Optional<Table<T>> invite(@NotNull Player host, @NotNull T subject, @NotNull TableRules rules,
+                                              @NotNull List<? extends Player> invitees) {
         LobbyMessages lines = text.get();
-        if (invitee != null) {
+        List<Player> invited = invitees.stream().<Player>map(player -> player).distinct().toList();
+        for (Player invitee : invited) {
             if (invitee.getUniqueId().equals(host.getUniqueId())) {
                 send(host, lines.self(), null);
                 return Optional.empty();
@@ -180,7 +198,7 @@ public final class Lobby<T> {
             }
         }
         Table<T> table = new Table<>(subject, rules, new Seat(host.getUniqueId(), host.getName()),
-                invitee == null ? null : invitee.getUniqueId(), System.currentTimeMillis());
+                invited.stream().map(Player::getUniqueId).toList(), System.currentTimeMillis());
         if (!take(host, table, null)) return Optional.empty();
         tables.put(table.id(), table);
         admit(table, host, () -> {
@@ -190,19 +208,19 @@ public final class Lobby<T> {
                 return;
             }
             hooks.joined(table, table.host());
-            Duration expiry = invitee == null ? rules.openExpiry() : rules.inviteExpiry();
+            Duration expiry = invited.isEmpty() ? rules.openExpiry() : rules.inviteExpiry();
             expireIn(table, expiry);
-            if (invitee == null) {
+            if (invited.isEmpty()) {
                 send(host, lines.created(), values(table));
             } else {
-                send(host, lines.inviteSent(), values(table).putText("player", invitee.getName()));
-                invite(table, host, invitee, expiry);
+                send(host, lines.inviteSent(), values(table).putText("player", names(invited.stream().map(Player::getName).toList())));
+                for (Player invitee : invited) sendInvite(table, host, invitee, expiry);
             }
         }, () -> end(table, null));
         return Optional.of(table);
     }
 
-    private void invite(Table<T> table, Player host, Player invitee, Duration expiry) {
+    private void sendInvite(Table<T> table, Player host, Player invitee, Duration expiry) {
         LobbyMessages lines = text.get();
         String command = table.rules().command();
         Values values = values(table)
@@ -211,6 +229,10 @@ public final class Lobby<T> {
                 .put("accept", button(command + " accept " + host.getName(), lines.acceptHover(), lines.acceptButton()))
                 .put("decline", button(command + " deny " + host.getName(), lines.declineHover(), lines.declineButton()));
         onPlayer(invitee, () -> messages.send(invitee, lines.invite(), values));
+    }
+
+    private static String names(List<String> names) {
+        return String.join(", ", names);
     }
 
     private static String button(String command, String hover, String label) {
@@ -235,7 +257,7 @@ public final class Lobby<T> {
         admit(table, player, () -> {
             hooks.joined(table, seat);
             if (table.state() == TableState.STARTING) return;
-            if (player.getUniqueId().equals(table.invitee()) && !table.isFull()) {
+            if (table.invitees().size() == 1 && player.getUniqueId().equals(table.invitee()) && !table.isFull()) {
                 // The invitation is now an open table: it waits as long as one does.
                 expireIn(table, table.rules().openExpiry());
             }
@@ -263,21 +285,32 @@ public final class Lobby<T> {
     }
 
     /**
-     * Declines an invitation, ending it as {@link TableEnd#DECLINED}.
+     * Declines an invitation. One sent to this player alone ends as {@link TableEnd#DECLINED}; one sent
+     * to several goes on with the others, and ends so only when nobody is left to sit down. Once every
+     * invitee has answered, the host is offered to start with those who accepted.
      *
      * @param host the name of the player who sent it, as typed; {@code null} for the newest one
      */
     public void decline(@NotNull Player target, @Nullable String host) {
         LobbyMessages lines = text.get();
         Optional<Table<T>> invitation = invitationFrom(target, host);
-        if (invitation.isEmpty() || !invitation.get().advance(TableState.OPEN, TableState.ENDED)) {
+        if (invitation.isEmpty() || !invitation.get().decline(target.getUniqueId())) {
             send(target, lines.noInvite(), Values.of().putText("player", host == null ? "" : host));
             return;
         }
         Table<T> table = invitation.get();
-        close(table, TableEnd.DECLINED);
+        boolean alone = table.seats().size() == 1 && table.answered();
+        if (alone) {
+            if (!table.advance(TableState.OPEN, TableState.ENDED)) {
+                send(target, lines.noInvite(), Values.of().putText("player", host == null ? "" : host));
+                return;
+            }
+            close(table, TableEnd.DECLINED);
+        }
         send(target, lines.youDeclined(), values(table).putText("player", table.host().name()));
-        send(Bukkit.getPlayer(table.host().player()), lines.declined(), values(table).putText("player", target.getName()));
+        Player owner = Bukkit.getPlayer(table.host().player());
+        send(owner, lines.declined(), values(table).putText("player", target.getName()));
+        if (!alone && table.answered()) offerStart(table);
     }
 
     private Optional<Table<T>> invitationFrom(Player target, @Nullable String host) {
@@ -505,8 +538,14 @@ public final class Lobby<T> {
         LobbyMessages lines = text.get();
         Values values = values(table).putText("player", joined.name());
         for (Seat seat : table.seats()) send(Bukkit.getPlayer(seat.player()), lines.waiting(), values);
+        offerStart(table);
+    }
+
+    /** Offers the host to start early, once enough have sat down. */
+    private void offerStart(Table<T> table) {
+        LobbyMessages lines = text.get();
         TableRules rules = table.rules();
-        if (rules.startsEarly() && table.seats().size() >= rules.minSeats()) {
+        if (table.state() == TableState.OPEN && rules.startsEarly() && table.seats().size() >= rules.minSeats()) {
             send(Bukkit.getPlayer(table.host().player()), lines.startable(), values(table).put("start",
                     button(rules.command() + " start", lines.startHover(), lines.startButton())));
         }
@@ -521,10 +560,12 @@ public final class Lobby<T> {
         if (seats.size() > 1) {
             for (Seat seat : seats) send(Bukkit.getPlayer(seat.player()), lines.tableExpired(), values(table));
         } else if (table.isInvitation()) {
-            Player invitee = Bukkit.getPlayer(Objects.requireNonNull(table.invitee()));
+            List<Player> invitees = table.invitees().stream().map(Bukkit::getPlayer).filter(Objects::nonNull).toList();
             send(Bukkit.getPlayer(table.host().player()), lines.inviteExpired(),
-                    values(table).putText("player", invitee == null ? "" : invitee.getName()));
-            send(invitee, lines.inviteExpiredTarget(), values(table).putText("player", table.host().name()));
+                    values(table).putText("player", names(invitees.stream().map(Player::getName).toList())));
+            for (Player invitee : invitees) {
+                send(invitee, lines.inviteExpiredTarget(), values(table).putText("player", table.host().name()));
+            }
         } else {
             send(Bukkit.getPlayer(table.host().player()), lines.openExpired(), values(table));
         }
