@@ -6,6 +6,8 @@ import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.PluginDisplays;
 import net.exylia.lib.display.Rotation;
+import net.exylia.lib.overlay.OverlayDefinition;
+import net.exylia.lib.overlay.PluginOverlays;
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.Visibility;
 import org.bukkit.Bukkit;
@@ -14,6 +16,7 @@ import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 /**
  * A dark room drawn round a player, for them alone, so all they see is the screen in front of them
@@ -47,6 +51,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * air ({@link FakeBlocks}): nothing of the world pokes through the walls or stands in front of the
  * screen. A block that changes nearby is sent again by the server and shows until the room is next
  * drawn.
+ *
+ * <h2>Inventory</h2>
+ * With {@link #overlay} set, a player in a room wears that overlay until it closes: their own items
+ * out of sight and only what the plugin draws there, such as a button to leave.
  *
  * <h2>Visibility</h2>
  * The constructor installs the plugin's {@link Visibility#rule} (one per plugin). A plugin that has a
@@ -78,6 +86,8 @@ public final class Enclosure {
     private final Map<UUID, Room> rooms = new ConcurrentHashMap<>();
     /** Players in a room right now, hidden from everyone and everyone from them. */
     private final Set<UUID> screened = ConcurrentHashMap.newKeySet();
+    private volatile PluginOverlays overlays;
+    private volatile Supplier<OverlayDefinition> overlay;
 
     /**
      * @param displays   the plugin's displays, which draw the walls
@@ -89,6 +99,20 @@ public final class Enclosure {
         this.blocks = Objects.requireNonNull(blocks, "blocks");
         this.visibility = Objects.requireNonNull(visibility, "visibility");
         visibility.rule(this::allows);
+    }
+
+    /**
+     * What a player wears while in a room, from {@link #open} until {@link #close}: an overlay that
+     * hides the rest of the inventory ({@link OverlayDefinition.Builder#hideRest()}) leaves only the
+     * screen and what the overlay draws. Asked again each time a room opens, so a reloaded language
+     * shows on the next one. {@code null} for none, the default.
+     *
+     * @since 1.358.0
+     */
+    public @NotNull Enclosure overlay(@Nullable PluginOverlays overlays, @Nullable Supplier<OverlayDefinition> overlay) {
+        this.overlays = overlays;
+        this.overlay = overlays == null ? null : overlay;
+        return this;
     }
 
     /** Whether neither player is in a room: the rule this installs, for a plugin composing its own. */
@@ -116,6 +140,8 @@ public final class Enclosure {
         blocks.show(player, emptied(at, theme));
         rooms.put(player.getUniqueId(), new Room(at, draw(player, at, theme)));
         screen(player.getUniqueId(), true);
+        Supplier<OverlayDefinition> wear = overlay;
+        if (current == null && wear != null) overlays.show(player, wear.get());
     }
 
     /** Takes a player's room down, gives them the real blocks back and lets them see, and be seen by, everyone again. */
@@ -125,6 +151,7 @@ public final class Enclosure {
         take(room);
         Player online = Bukkit.getPlayer(player);
         if (online != null) blocks.clear(online);
+        if (online != null && overlay != null) overlays.hide(online);
         screen(player, false);
     }
 

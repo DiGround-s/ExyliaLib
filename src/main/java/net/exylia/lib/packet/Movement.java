@@ -10,6 +10,8 @@ import org.jetbrains.annotations.NotNull;
  * answered with a teleport back to the anchor, so the server never sees the
  * move and the client snaps back at once. Looking around is still allowed,
  * unless the freeze asks for the rotation too ({@link #freeze(Player, boolean)}).
+ * Sneaking is allowed as well, on foot, so the server's eyes stay where the
+ * client's camera is.
  * A {@code PlayerMoveEvent} guard backs the packet path up on servers where
  * PacketEvents is missing, which is the one case where the client may drift
  * a tick before being put back.

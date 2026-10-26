@@ -105,6 +105,14 @@ top without forking the module:
 - **Visibility.** `new Enclosure(...)` installs the plugin's visibility rule
   (one per plugin). A plugin with a rule of its own composes the two:
   `visibility.rule((v, t) -> rooms.allows(v, t) && mine(v, t))`.
+- **Inventory.** `rooms.overlay(Overlays.of(this), () -> definition)` dresses
+  every player in a room in an [overlay](overlays.md) until the room closes.
+  With `hideRest()` and one leave button, all they see is the screen and the
+  way out (1.358.0+).
+- **Sneaking.** A frozen player (`Movement.freeze`) may still sneak on foot,
+  so the eyes `StagePlane.pick` reads match the client's camera (1.358.0+).
+- **Button labels.** A label of one or two glyphs (`+`, `-`, an arrow) is an
+  icon and is drawn as tall as its plate holds (1.358.0+).
 - **No PacketEvents, nothing drawn.** Pieces come back `null`; every method
   accepts a `null` piece. Picking still works: it is server-side maths.
 - **Reload.** Nothing is cached from the palette: colours are read when a piece

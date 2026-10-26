@@ -32,7 +32,8 @@ import java.util.List;
  * }</pre>
  *
  * <p>The label is fitted to the plate from its length, so a long translation shrinks instead of
- * spilling over the next button. Hovering and pressing play the theme's sounds to the viewer; a
+ * spilling over the next button, and a label of one or two glyphs is drawn as an icon, as tall as
+ * the plate holds. Hovering and pressing play the theme's sounds to the viewer; a
  * theme with blank sounds leaves them to the caller. Used from the stage's thread, like the stage.
  *
  * @since 1.356.0
@@ -42,6 +43,9 @@ public final class StageButton {
     /** How wide a character is drawn at scale 1, in blocks; generous, for wide server fonts. */
     private static final double CHAR_WIDTH = 0.18;
     private static final double MAX_LABEL = 0.75;
+    /** A label of a glyph or two (+, −, an arrow) is an icon, drawn as tall as the plate holds. */
+    private static final int ICON_LENGTH = 2;
+    private static final double ICON_FILL = 3.6;
     private static final long HOVER_MILLIS = 120L;
 
     private final Stage stage;
@@ -128,7 +132,8 @@ public final class StageButton {
     private DisplayHandle draw(Component text, long delay) {
         String plain = Text.of(PlainTextComponentSerializer.plainText().serialize(text)).plain();
         double fit = (width * 0.86) / Math.max(1, plain.length() * CHAR_WIDTH);
-        double scale = Math.min(MAX_LABEL, Math.min(fit, height * 2.4));
+        double cap = plain.strip().length() <= ICON_LENGTH ? height * ICON_FILL : Math.min(MAX_LABEL, height * 2.4);
+        double scale = Math.min(fit, cap);
         Location at = stage.plane.point(across, up - Stage.TEXT_HEIGHT * scale / 2, 0.05);
         return stage.show(Stage.textModel(text).background(0).textShadow(true),
                 StageLook.pop(stage.facing, scale, scale, scale, delay, stage.life), at);

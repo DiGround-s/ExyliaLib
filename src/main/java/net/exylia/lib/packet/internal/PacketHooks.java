@@ -28,6 +28,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChangeGameState;
@@ -628,8 +629,22 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             event.setCancelled(true);
             snapBack(user, anchor, locked);
         } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
-            // WASD held while frozen: swallowed so a vehicle does not creep.
-            event.setCancelled(true);
+            // WASD held while frozen: swallowed so a vehicle does not creep. On foot, sneaking still goes
+            // through: the client lowers its own camera either way, and a server that never hears of it
+            // aims everything picked by where the player looks from eyes that are no longer there.
+            if (event.getServerVersion().isOlderThan(ServerVersion.V_1_21_2)
+                    || !(event.getPlayer() instanceof Player viewer) || viewer.isInsideVehicle()) {
+                event.setCancelled(true);
+                return;
+            }
+            WrapperPlayClientPlayerInput input = new WrapperPlayClientPlayerInput(event);
+            input.setForward(false);
+            input.setBackward(false);
+            input.setLeft(false);
+            input.setRight(false);
+            input.setJump(false);
+            input.setSprint(false);
+            event.markForReEncode(true);
         }
     }
 
