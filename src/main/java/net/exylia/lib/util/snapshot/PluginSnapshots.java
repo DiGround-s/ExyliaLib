@@ -418,7 +418,7 @@ public final class PluginSnapshots {
     /** Whether a row was saved on this server; one with no server in its place counts as here. */
     private boolean savedHere(@NotNull SnapshotRow row) {
         ExyliaLocation place = row.lastLocation();
-        return place == null || place.isSameServer(teleports().serverId());
+        return place == null || teleports().isHere(place);
     }
 
     private @Nullable SnapshotRow readable(@NotNull Optional<SnapshotRow> found) {
@@ -550,7 +550,7 @@ public final class PluginSnapshots {
                 .thenCompose(found -> {
                     ExyliaLocation back = found.filter(row -> !LegacyImport.isMarker(row))
                             .map(SnapshotRow::lastLocation).orElse(null);
-                    if (back != null && !back.isSameServer(teleports().serverId())) {
+                    if (back != null && !teleports().isHere(back)) {
                         // A handover, not a teleport: the player stops existing
                         // here the moment it starts, so there is no "on arrival"
                         // on this server to restore in.
@@ -764,7 +764,7 @@ public final class PluginSnapshots {
 
     /** A stored place as a live location, only when it is on this server and its world is loaded. */
     private @Nullable Location liveHere(@Nullable ExyliaLocation place) {
-        if (place == null || !place.isSameServer(teleports().serverId())) {
+        if (place == null || !teleports().isHere(place)) {
             return null;
         }
         return place.toBukkitLocation();

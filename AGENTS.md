@@ -1494,6 +1494,10 @@ plugin already had start answering from Redis and notifying the other servers.
 - **`server-id` is the one from the config, not a random UUID.** In commons it
   was regenerated on every startup: one collision left two servers ignoring each
   other forever and no log could name the sender.
+- **"Is this server" is `Teleports.isThisServer`/`isHere`, never `serverId().equalsIgnoreCase`.**
+  It also accepts no name and the `previous-ids`, so a server that played alone
+  (stamped `server-1` before 1.365.0) and joins a network renamed keeps its
+  homes, warps and arenas. `here()` writes no server name without Redis.
 - **A Redis that is down fails fast, it doesn't hang.** The pool's `maxWait` is
   bounded; commons left it at the default (infinite) and an outage turned into
   parked threads.

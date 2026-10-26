@@ -484,7 +484,7 @@ nothing that only ever runs locally has to know the module can cross a network.
 | `of(String server, Location)` | A named server, from a live location. |
 | `fromString(String)` | Reads either stored format. Throws `IllegalArgumentException` on anything else. |
 | `isLocal()` | Whether `server()` is `null`. |
-| `isSameServer(String currentServer)` | A local place answers `true` for whatever the caller says it is running as. Not case sensitive. |
+| `isSameServer(String currentServer)` | A local place answers `true` for whatever the caller says it is running as. Not case sensitive. Knows nothing of `previous-ids`: compare with `PluginTeleports.isHere(place)` instead. |
 | `toBukkitLocation()` | The live location, or `null` when the world is not loaded here — which is also the answer for a place on another server. |
 | `toString()` | Always the seven-part form. |
 
@@ -544,7 +544,16 @@ A `Location` is a pointer into a loaded world and means nothing on another
 server; anything stored, or shown to another server, is an `ExyliaLocation`.
 `Teleports.of(plugin).here(player)` writes one for where a player stands,
 named after this server — what the proxy calls it when the bridge is up, the
-`server-id` of the plugin's Redis block otherwise (`serverId()`). Records can
+`server-id` of the plugin's Redis block otherwise (`serverId()`). Without
+Redis it is written with no server (`-`, "wherever you are"), so a server
+that later joins a network under its real name still owns it (*since
+1.365.0*; before, it was stamped `server-1`).
+
+Whether a stored name is this server is `isThisServer(String)`, and whether a
+place is here is `isHere(ExyliaLocation)` (*since 1.365.0*, also
+`PluginNetwork.isThisServer`): no name, `serverId()`, or any of the Redis
+block's `previous-ids`. Never compare with `serverId().equalsIgnoreCase(...)`:
+that reads everything saved before a rename as another server's. Records can
 declare `@Column ExyliaLocation` directly (*since 1.109.0*); a column that
 used to be a `Location` reads its old six-part rows as places on the server
 that reads them, so nothing needs migrating. Hand the place back to

@@ -91,7 +91,7 @@ public final class ProxyRuntime {
     private static volatile @Nullable Optional<Network> network;
 
     /** The plugin whose {@code database.yml} turns Redis on, and the name it gives this server. */
-    private record Network(@NotNull Plugin owner, @NotNull String serverId) {
+    private record Network(@NotNull Plugin owner, @NotNull String serverId, @NotNull List<String> previousIds) {
     }
 
     private ProxyRuntime() {
@@ -232,6 +232,17 @@ public final class ProxyRuntime {
     }
 
     /**
+     * The names this server ran under before, from the same block as
+     * {@link #networkServerId()}.
+     *
+     * @return the {@code previous-ids} of the Redis the bridge rides, or empty
+     *         when no plugin turns Redis on
+     */
+    public static @NotNull Optional<List<String>> networkPreviousIds() {
+        return network().map(Network::previousIds);
+    }
+
+    /**
      * Picks the Redis the bridge rides, once for the life of the server.
      *
      * <p>Read straight from each installed plugin's {@code database.yml} rather
@@ -272,7 +283,9 @@ public final class ProxyRuntime {
                     .getConfigurationSection("database.redis");
             if (block != null && block.getBoolean("enabled")) {
                 String id = block.getString("server-id");
-                return Optional.of(new Network(candidate, id == null || id.isBlank() ? "server-1" : id.trim()));
+                List<String> previous = block.getStringList("previous-ids").stream()
+                        .filter(name -> !name.isBlank()).map(String::trim).toList();
+                return Optional.of(new Network(candidate, id == null || id.isBlank() ? "server-1" : id.trim(), previous));
             }
         }
         return Optional.empty();

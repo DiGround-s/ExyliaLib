@@ -108,9 +108,17 @@ ExyliaCommons used, so a server that had Redis working keeps its file.
 | `local-entries` | `10000` | Rows kept in memory at most. |
 | `key-prefix` | `exylia` | Isolates one network from another on a shared Redis. |
 | `server-id` | `server-1` | **Different on every server.** |
+| `previous-ids` | `[]` | Names this server had before, still read as this one. *Since 1.365.0.* |
 
 `server-id` is how a server ignores its own invalidations. Two servers sharing
 one ignore each other's changes, which looks exactly like Redis not working.
+
+`previous-ids` is for a rename. A server that played alone saved its places as
+`server-1` (before 1.365.0) and, once it joins a network as `events`, would
+read every home, warp and arena it has as another server's. Listing
+`server-1` here makes them its own again with nothing migrated; plugins write
+the new name the next time they save one. Never list a name another server of
+the network uses.
 
 `local-seconds` is shorter than `ttl-seconds` on purpose: it is the backstop for
 an invalidation that never arrived, so a shorter value bounds how long a server

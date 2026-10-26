@@ -1401,3 +1401,7 @@ x, y or z: x, y ou z
 '{error}Closed': '{error}Fechado'
 '{success}Open': '{success}Aberto'
 '{warning}➥ Click to play': '{warning}➥ Clique para jogar'
+'{letters_black}▎ {letters}Previous ids {letters_black}» {info}{0}': '{letters_black}▎ {letters}Nomes anteriores {letters_black}» {info}{0}'
+'{letters_black}▎ {letters}Proxy name {letters_black}» {0}': '{letters_black}▎ {letters}Nome no proxy {letters_black}» {0}'
+'{success}✔ {info}{0}': '{success}✔ {info}{0}'
+'{error}✘ {info}{0} {letters_black}(server-id is {1}, they must match)': '{error}✘ {info}{0} {letters_black}(server-id é {1}, devem coincidir)'

@@ -13,6 +13,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -121,7 +122,7 @@ public final class PluginTeleports {
      * @return the request to describe and start
      */
     public @NotNull TeleportRequest to(@NotNull Player player, @NotNull ExyliaLocation destination) {
-        if (!destination.isSameServer(CrossServer.serverId(plugin))) {
+        if (!isHere(destination)) {
             // A place naming this server is a local teleport, not a handover to
             // itself: the stored string says which server wrote it, and on the
             // server that wrote it that name means "here".
@@ -229,23 +230,57 @@ public final class PluginTeleports {
      * another server of the network; this can be handed straight back to
      * {@link #to(Player, ExyliaLocation)} from anywhere.
      *
+     * <p>Named after this server only when Redis is on. A server on its own
+     * saves "wherever you are" instead, so the day it joins a network under
+     * its real name everything it saved is still its own.
+     *
      * @param player who
-     * @return their place, named after this server
+     * @return their place, named after this server on a network
      * @since 1.109.0
      */
     public @NotNull ExyliaLocation here(@NotNull Player player) {
-        return ExyliaLocation.of(serverId(), player.getLocation());
+        return here(player.getLocation());
     }
 
     /**
      * A live location as a place that knows its server.
      *
+     * <p>Named after this server only when Redis is on, as {@link #here(Player)}.
+     *
      * @param location where, on this server
-     * @return the place, named after this server
+     * @return the place, named after this server on a network
      * @since 1.109.0
      */
     public @NotNull ExyliaLocation here(@NotNull Location location) {
-        return ExyliaLocation.of(serverId(), location);
+        return ExyliaLocation.of(CrossServer.isNetworked(plugin) ? serverId() : null, location);
+    }
+
+    /**
+     * Whether a stored server name means this server: no name, the current
+     * one, or one listed in {@code previous-ids}.
+     *
+     * <p>Compare with this, never with {@code serverId().equalsIgnoreCase}:
+     * that answers "somebody else's" for everything a renamed server saved
+     * under its old name.
+     *
+     * @param server the stored name, or {@code null}
+     * @return whether it is this server
+     * @since 1.365.0
+     */
+    public boolean isThisServer(@Nullable String server) {
+        return CrossServer.isThisServer(plugin, server);
+    }
+
+    /**
+     * Whether a stored place is on this server, as {@link #isThisServer(String)}
+     * reads its name. Its world may still be missing.
+     *
+     * @param place the place
+     * @return whether it is on this server
+     * @since 1.365.0
+     */
+    public boolean isHere(@NotNull ExyliaLocation place) {
+        return isThisServer(place.server());
     }
 
     /**

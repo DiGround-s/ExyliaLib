@@ -4,6 +4,8 @@ import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Time;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 /**
  * How a server reaches Redis, and how long it trusts what it finds there.
  *
@@ -29,6 +31,7 @@ import org.jetbrains.annotations.NotNull;
  * @param localEntries how many rows this process keeps at most
  * @param keyPrefix    what every key of this network starts with
  * @param serverId     this server's name, used to ignore its own invalidations
+ * @param previousIds  names this server ran under before, still read as this one
  * @since 1.31.0
  */
 @Comment("Shared cache and cross-server invalidation.")
@@ -94,12 +97,45 @@ public record RedisSettings(
         @Comment("Used to ignore its own messages, and to say which server a")
         @Comment("change came from. Give every server a different one: two")
         @Comment("servers sharing a name ignore each other's changes.")
-        String serverId
+        String serverId,
+
+        @Comment("Names this server had before, read as this server.")
+        @Comment("Homes, warps, arenas and every other place saved under an old")
+        @Comment("name keep working here after a rename, and are saved under the")
+        @Comment("new one the next time they change. A server that played alone")
+        @Comment("and joins a network puts server-1 here.")
+        @Comment("Never list a name another server of the network is using.")
+        List<String> previousIds
 ) {
 
     /** The defaults: off, and pointed at a local Redis if it is ever turned on. */
     public RedisSettings() {
-        this(false, "localhost", 6379, "", 0, 8, 1800, 300, 10_000, "exylia", "server-1");
+        this(false, "localhost", 6379, "", 0, 8, 1800, 300, 10_000, "exylia", "server-1", List.of());
+    }
+
+    /**
+     * Settings without previous names, as they were before a server could have any.
+     *
+     * @deprecated use the canonical constructor, which takes {@code previousIds}
+     */
+    @Deprecated(since = "1.365.0")
+    public RedisSettings(boolean enabled, String host, int port, String password, int database,
+                         int poolSize, int ttlSeconds, int localSeconds, int localEntries,
+                         String keyPrefix, String serverId) {
+        this(enabled, host, port, password, database, poolSize, ttlSeconds, localSeconds,
+                localEntries, keyPrefix, serverId, List.of());
+    }
+
+    /**
+     * The names this server ran under before, trimmed, never {@code null}.
+     *
+     * @since 1.365.0
+     */
+    public @NotNull List<String> previousIds() {
+        return previousIds == null ? List.of() : previousIds.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(String::trim)
+                .toList();
     }
 
     /** The key prefix, never empty: an empty one would put keys at the root. */

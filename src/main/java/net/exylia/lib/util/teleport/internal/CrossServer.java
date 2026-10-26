@@ -220,6 +220,51 @@ public final class CrossServer {
     }
 
     /**
+     * Whether a stored server name means this server.
+     *
+     * <p>Yes for no name at all (a place saved as "wherever you are"), for
+     * {@link #serverId(Plugin)}, and for every name in {@code previous-ids}:
+     * a server renamed, or one that played alone as {@code server-1} and then
+     * joined a network, still owns what it saved before.
+     *
+     * @param plugin the plugin asking, whose {@code database.yml} is read
+     * @param server the stored name, or {@code null}
+     * @return whether it is this server
+     */
+    public static boolean isThisServer(@NotNull Plugin plugin, @Nullable String server) {
+        if (server == null || server.isBlank() || server.equals("-")) {
+            return true;
+        }
+        String name = server.trim();
+        if (name.equalsIgnoreCase(serverId(plugin))) {
+            return true;
+        }
+        List<String> previous = ProxyRuntime.networkPreviousIds()
+                .orElseGet(() -> settings(plugin).previousIds());
+        for (String old : previous) {
+            if (old.equalsIgnoreCase(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Whether this server is set up to be one of several, so a place saved
+     * here has to say which server it is on.
+     *
+     * <p>Read from configuration, not from whether Redis or the proxy answer
+     * now, so a place saved during an outage carries the same name as one
+     * saved a minute later.
+     *
+     * @param plugin the plugin asking
+     * @return whether Redis is turned on for this server
+     */
+    public static boolean isNetworked(@NotNull Plugin plugin) {
+        return ProxyRuntime.networkServerId().isPresent() || settings(plugin).enabled();
+    }
+
+    /**
      * Queues a destination on another server and sends the player there.
      *
      * <p><b>Threading:</b> safe from anywhere. The Redis write is I/O and runs
@@ -408,7 +453,7 @@ public final class CrossServer {
             debug.warn("No server was named to send " + player.getName() + " to.");
             return CompletableFuture.completedFuture(TeleportResult.CROSS_SERVER_UNAVAILABLE);
         }
-        if (target.equalsIgnoreCase(serverId(plugin))) {
+        if (isThisServer(plugin, target)) {
             // Already there: the proxy would refuse, and there is nothing to do.
             return CompletableFuture.completedFuture(TeleportResult.SUCCESS);
         }

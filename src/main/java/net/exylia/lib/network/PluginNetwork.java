@@ -53,6 +53,18 @@ public final class PluginNetwork {
     }
 
     /**
+     * Whether a stored server name means this server: no name, the current
+     * one, or one listed in {@code previous-ids}.
+     *
+     * @param server the stored name, or {@code null}
+     * @return whether it is this server
+     * @since 1.365.0
+     */
+    public boolean isThisServer(@Nullable String server) {
+        return CrossServer.isThisServer(plugin, server);
+    }
+
+    /**
      * Sends a payload to this plugin's handlers of {@code channel} on one server.
      *
      * <p>One Redis round trip on the calling thread, like
@@ -167,7 +179,7 @@ public final class PluginNetwork {
     }
 
     private boolean isHere(String server) {
-        return server.equalsIgnoreCase(serverId()) || server.equalsIgnoreCase(Redis.serverId(plugin));
+        return isThisServer(server) || server.equalsIgnoreCase(Redis.serverId(plugin));
     }
 
     /** {@code <target>|<payload>}. */

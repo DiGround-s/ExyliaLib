@@ -103,6 +103,33 @@ class TeleportCrossServerTest {
         return "exylia:teleport:pending:" + who.player().getUniqueId();
     }
 
+    // ------------------------------------------------------- this server's names
+
+    @Test
+    @DisplayName("a server on its own saves places without a server name")
+    void aLoneServerSavesUnnamedPlaces() {
+        assertNull(teleports.here(player.player()).server());
+        assertTrue(teleports.isThisServer(null));
+        assertTrue(teleports.isThisServer("server-1"));
+        assertFalse(teleports.isThisServer("events"));
+    }
+
+    @Test
+    @DisplayName("a renamed server still owns what it saved under a previous id")
+    void previousIdsAreThisServer() {
+        redis = new MemoryClient();
+        RedisRuntime.installForTests((settings, name) -> new Journalling(redis, journal));
+        DatabaseRuntime.installRedisForTests(new RedisSettings(true, "localhost", 6379, "",
+                0, 8, 1800, 300, 10_000, "exylia", "events", List.of(" server-1 ", "")));
+
+        assertEquals("events", teleports.here(player.player()).server());
+        assertTrue(teleports.isThisServer("events"));
+        assertTrue(teleports.isThisServer("SERVER-1"));
+        assertTrue(teleports.isThisServer("-"));
+        assertTrue(teleports.isHere(ExyliaLocation.fromString("server-1,lobby,1.0,64.0,1.0,0.0,0.0")));
+        assertFalse(teleports.isThisServer("lobby-2"));
+    }
+
     // -------------------------------------------------------------- no Redis
 
     @Test

@@ -17,6 +17,7 @@ import net.exylia.lib.hologram.internal.HologramRuntime;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.proxy.Proxy;
 import net.exylia.lib.proxy.ProxyReply;
+import net.exylia.lib.proxy.ProxyPlayer;
 import net.exylia.lib.proxy.internal.ProxyRuntime;
 import net.exylia.lib.redis.Redis;
 import net.exylia.lib.region.Regions;
@@ -28,6 +29,7 @@ import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.Menus;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -49,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -261,11 +264,20 @@ public final class ReloadCommand {
         String library = librarySection();
         String rest = modulesSection() + databaseSection() + dependentsSection();
         String serverId = ProxyRuntime.networkServerId().orElse(null);
+        List<String> previous = ProxyRuntime.networkPreviousIds().orElse(List.of());
         long started = System.nanoTime();
         Proxy.request("ping", "").thenAccept(reply -> {
             long millis = (System.nanoTime() - started) / 1_000_000L;
-            Text.of(library + networkSection(reply, millis, serverId, Proxy.players().size()) + rest)
-                    .send(sender);
+            // Only a player has a server on the proxy to ask about; asked once
+            // the ping is back, so a silent proxy costs one wait, not two.
+            CompletableFuture<String> proxyName = reply.isOk() && sender instanceof Player player
+                    ? Proxy.find(player.getUniqueId().toString())
+                            .thenApply(found -> found.map(ProxyPlayer::server).orElse(null))
+                            .completeOnTimeout(null, 2, TimeUnit.SECONDS)
+                    : CompletableFuture.completedFuture(null);
+            proxyName.thenAccept(name -> Text.of(library
+                    + networkSection(reply, millis, serverId, previous, name, Proxy.players().size()) + rest)
+                    .send(sender));
         });
     }
 
@@ -296,11 +308,28 @@ public final class ReloadCommand {
      * @param players  names on the network as of the last refresh
      */
     static String networkSection(ProxyReply reply, long millis, @Nullable String serverId, int players) {
+        return networkSection(reply, millis, serverId, List.of(), null, players);
+    }
+
+    /**
+     * The network block, with the names this server had before and the name
+     * the proxy knows the asking player's server by.
+     *
+     * @param previous  the {@code previous-ids}, empty for none
+     * @param proxyName what the proxy calls this server, or {@code null} when
+     *                  nobody could be asked
+     */
+    static String networkSection(ProxyReply reply, long millis, @Nullable String serverId,
+                                 List<String> previous, @Nullable String proxyName, int players) {
         StringBuilder text = new StringBuilder("\n\n").append(Phrases.tr("{secondary}Network:"));
         text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Redis {letters_black}» {0}",
                 Redis.isActive() ? Phrases.tr("{success}on {letters_black}({0})", Redis.stats()) : Phrases.tr("{muted}off")));
         if (serverId != null) {
             text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Server id {letters_black}» {info}{0}", serverId));
+        }
+        if (!previous.isEmpty()) {
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Previous ids {letters_black}» {info}{0}",
+                    String.join(", ", previous)));
         }
         text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Proxy bridge {letters_black}» {0}", switch (reply.status()) {
             case OK -> Phrases.tr("{success}{0} {letters_black}({info}{1}ms{letters_black})", reply.detail(), millis);
@@ -309,6 +338,13 @@ public final class ReloadCommand {
             case UNKNOWN_MODULE -> Phrases.tr("{warning}answered, but too old to know ping {letters_black}— {letters}update ExyliaProxyUtils");
             default -> Phrases.tr("{error}{0}", reply.detail());
         }));
+        if (reply.isOk() && proxyName != null && serverId != null) {
+            text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Proxy name {letters_black}» {0}",
+                    proxyName.equalsIgnoreCase(serverId)
+                            ? Phrases.tr("{success}✔ {info}{0}", proxyName)
+                            : Phrases.tr("{error}✘ {info}{0} {letters_black}(server-id is {1}, they must match)",
+                                    proxyName, serverId)));
+        }
         if (reply.isOk()) {
             text.append("\n").append(Phrases.tr("{letters_black}▎ {letters}Network players {letters_black}» {info}{0}", players));
         }
