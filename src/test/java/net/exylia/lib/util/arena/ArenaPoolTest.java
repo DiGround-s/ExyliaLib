@@ -127,6 +127,20 @@ class ArenaPoolTest {
     }
 
     @Test
+    void acquireCopyLeavesTheOriginalAloneAndReusesFreedCopies() {
+        pool.register(template("forest", 1));
+        ArenaLease copy = pool.acquireCopy("forest").join().orElseThrow();
+        assertTrue(copy.isClone());
+        assertTrue(pool.acquireCopy("forest").join().isEmpty(), "the only copy is taken");
+        assertFalse(take("forest").isClone(), "the original was never handed out");
+        copy.release();
+        placement.finishRegenerations();
+        assertEquals(1, pool.acquireCopy("forest").join().orElseThrow().copy());
+        assertEquals(1, placement.pastes);
+        assertTrue(pool.acquireCopy("missing").join().isEmpty());
+    }
+
+    @Test
     void zeroCopiesNeverPastes() {
         pool.register(template("forest", 0));
         take("forest");

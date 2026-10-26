@@ -279,6 +279,29 @@ public final class ArenaPool {
         return copyFrom(candidates, 0);
     }
 
+    /**
+     * Takes a copy of a template, never its original: a free copy first, else a
+     * new one. For a game that plays several of the same arena side by side while
+     * the original stays the setting it is played around (a lobby, a showcase).
+     *
+     * @param id the template's id
+     * @return the lease, or empty when the template is unknown, every copy is
+     *         taken and no new one could be made
+     * @since 1.363.0
+     */
+    public @NotNull CompletableFuture<Optional<ArenaLease>> acquireCopy(@NotNull String id) {
+        Entry entry = entries.get(id);
+        if (entry == null) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        for (ArenaInstance instance : entry.instances) {
+            if (instance.copy != 0 && instance.tryAcquire()) {
+                return CompletableFuture.completedFuture(Optional.of(new ArenaLease(instance)));
+            }
+        }
+        return copyFrom(List.of(entry), 0);
+    }
+
     private CompletableFuture<Optional<ArenaLease>> copyFrom(List<Entry> candidates, int index) {
         if (index >= candidates.size()) {
             return CompletableFuture.completedFuture(Optional.empty());

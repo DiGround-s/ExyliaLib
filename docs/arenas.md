@@ -55,6 +55,10 @@ slot back and moves on to the next id. Unknown ids are skipped. The futures
 never complete exceptionally. The order is the caller's: shuffle the ids for a
 random arena.
 
+`acquireCopy(id)` (1.363.0) skips the original: a free copy, else a new one,
+else empty. For a game that plays several copies side by side while the original
+stays the place it is played around, such as an event's lobby.
+
 ## Leases
 
 A lease is already moved to its instance, so the plugin never cares whether it
