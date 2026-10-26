@@ -50,8 +50,8 @@ a stage with a table, a heading and a few buttons.
 | `Enclosure` / `EnclosureTheme` | The room: six inward-facing slabs and faint stars, the blocks inside sent as air, the player hidden from everyone and everyone from them |
 | `StageHud` | One deadline and one boss bar per seat: `clock`, `expired`, `secondsLeft`, `ticked`, `bar`, `stop`, `stopAll`; static `line(text, values)`, `lines`, `row` |
 | `StageLook` | Helpers: `rgb(token, fallback)`, `block(name, fallback)`, `item`, `play(player, "NAME\|vol\|pitch"[, factor])`, `pitch`, `facing(plane)`, `still`, `pop` (staggered entrances), `pulse`, `fit`, `width`, `hex` |
-| `kit/PlayingCard` | The 52-card deck: `shuffledDeck()`, `decks(n[, random])`, `label()`, `Suit` |
-| `kit/CardSprite` | A card dealt with a glide, face up or down: `reveal`, `glow`, `lift`, `muck`, `remove`. Draws on a `CardSprite.Canvas`, which `Stage` is |
+| `kit/PlayingCard` | The 52-card deck: `shuffledDeck()`, `decks(n[, random])`, `label()`, `Suit`; the 40-card Spanish deck: `spanishDeck()`, `spanishLabel()` (since 1.361.0) |
+| `kit/CardSprite` | A card dealt with a glide, face up or down: `reveal`, `glow`, `lift`, `muck`, `remove`. Draws on a `CardSprite.Canvas`, which `Stage` is. `Style.with(Deck.SPANISH)` draws Spanish faces: the number over a sword, club, coin or cup in the suit's colour (since 1.361.0) |
 | `kit/DieSprite` | A cube with pips on the face towards the seat: `thrown(...)`, `roll(value, millis)`, `throwFrom`, `show`, `hide`, `toss`, `glow` |
 | `kit/StageFx` | `stamp` (a label slammed onto free table), `fling` (items thrown on an arc), `burst`, `play` (pitch climbing, clamped), `Drumroll` |
 

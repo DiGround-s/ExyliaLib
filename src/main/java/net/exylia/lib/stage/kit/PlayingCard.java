@@ -53,6 +53,35 @@ public record PlayingCard(int rank, Suit suit) {
         };
     }
 
+    /**
+     * What the card reads in the 40-card Spanish deck, where the jack, queen and king are the sota,
+     * caballo and rey: {@code 1} to {@code 7}, then {@code 10}, {@code 11} and {@code 12}.
+     *
+     * @since 1.361.0
+     */
+    public String spanishLabel() {
+        return switch (rank) {
+            case 11 -> "10";
+            case 12 -> "11";
+            case 13 -> "12";
+            case 14 -> "1";
+            default -> String.valueOf(rank);
+        };
+    }
+
+    /**
+     * The 40-card Spanish deck, shuffled from a secure random source: the standard deck without
+     * eights, nines and tens, spades standing for espadas, clubs for bastos, diamonds for oros and
+     * hearts for copas. A {@link CardSprite} drawn with {@link CardSprite.Deck#SPANISH} shows them so.
+     *
+     * @since 1.361.0
+     */
+    public static List<PlayingCard> spanishDeck() {
+        List<PlayingCard> deck = new ArrayList<>(shuffledDeck());
+        deck.removeIf(card -> card.rank() >= 8 && card.rank() <= 10);
+        return deck;
+    }
+
     /** A full deck, shuffled from a secure random source. */
     public static List<PlayingCard> shuffledDeck() {
         return decks(1, RANDOM);

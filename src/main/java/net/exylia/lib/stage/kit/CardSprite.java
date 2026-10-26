@@ -10,6 +10,7 @@ import net.exylia.lib.stage.StageHud;
 import net.exylia.lib.stage.StageLook;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * A playing card on a table, drawn by a {@link Stage}: dealt in from the deck with a glide, face
@@ -29,13 +30,38 @@ import org.bukkit.Material;
  */
 public final class CardSprite {
 
+    /**
+     * How a face is drawn. {@code FRENCH} writes the rank and the suit symbol, {@code A♠}. {@code SPANISH}
+     * draws the 40-card Spanish deck players of truco and escoba know: the number ({@code 1} to {@code 7},
+     * {@code 10} to {@code 12}) over the suit as an item, a sword for espadas, a club for bastos, a coin
+     * for oros and a cup for copas, each in its own colour.
+     *
+     * @since 1.361.0
+     */
+    public enum Deck { FRENCH, SPANISH }
+
     /** The look of every card, so a game passes one value rather than a dozen. */
     public record Style(String faceBlock, String backBlock, String red, String black, String back,
-                        double width, double height, double textScale) {
+                        double width, double height, double textScale, Deck deck) {
+
+        /** A French card, as before {@link Deck} existed. */
+        public Style(String faceBlock, String backBlock, String red, String black, String back,
+                     double width, double height, double textScale) {
+            this(faceBlock, backBlock, red, black, back, width, height, textScale, Deck.FRENCH);
+        }
 
         public static Style standard() {
             return new Style("WHITE_CONCRETE", "PURPLE_CONCRETE", "{error}", "{letters_black}", "{letters}&l✦",
                     0.3, 0.44, 1.1);
+        }
+
+        /**
+         * The same look drawing another deck.
+         *
+         * @since 1.361.0
+         */
+        public Style with(Deck deck) {
+            return new Style(faceBlock, backBlock, red, black, back, width, height, textScale, deck);
         }
     }
 
@@ -44,6 +70,8 @@ public final class CardSprite {
     private final Location at;
     private DisplayHandle plate;
     private DisplayHandle label;
+    /** The suit of a Spanish face, drawn as an item; {@code null} otherwise. */
+    private DisplayHandle icon;
     private PlayingCard card;
     private boolean faceUp;
 
@@ -77,8 +105,7 @@ public final class CardSprite {
     public void reveal(PlayingCard card) {
         this.card = card;
         this.faceUp = true;
-        canvas.erase(plate);
-        canvas.erase(label);
+        erase();
         draw(0, 0, 0);
     }
 
@@ -90,7 +117,7 @@ public final class CardSprite {
     /** Lifts the card out of its row a little, as a selected or winning card. */
     public void lift(double up) {
         if (plate == null) return;
-        for (DisplayHandle piece : new DisplayHandle[]{plate, label}) {
+        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon}) {
             DisplayKeyframe here = piece == null ? null : piece.pose();
             if (here != null) {
                 piece.moveTo(new DisplayKeyframe(0L, here.x(), (float) up, here.z(), here.rotation(),
@@ -105,7 +132,7 @@ public final class CardSprite {
      */
     public void muck(double across, double up, long millis) {
         float[] by = canvas.facing().apply(new float[]{(float) across, (float) up, 0f});
-        for (DisplayHandle piece : new DisplayHandle[]{plate, label}) {
+        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon}) {
             DisplayKeyframe here = piece == null ? null : piece.pose();
             if (here == null) continue;
             // The new motion is the piece's whole remaining life, so it ends where it vanishes.
@@ -117,13 +144,20 @@ public final class CardSprite {
         }
         plate = null;
         label = null;
+        icon = null;
     }
 
     public void remove() {
+        erase();
+    }
+
+    private void erase() {
         canvas.erase(plate);
         canvas.erase(label);
+        canvas.erase(icon);
         plate = null;
         label = null;
+        icon = null;
     }
 
     public PlayingCard card() {
@@ -135,13 +169,46 @@ public final class CardSprite {
         String block = faceUp ? style.faceBlock() : style.backBlock();
         plate = canvas.draw(DisplayModel.block(StageLook.block(block, Material.WHITE_CONCRETE)).light(15),
                 glide(facing, style.width(), style.height(), 0.02, fromAcross, fromUp, delay), at);
+        double scale = style.textScale();
+        if (faceUp && style.deck() == Deck.SPANISH) {
+            // The number over the top half, the suit's item filling the bottom half.
+            double number = scale * 0.7;
+            label = canvas.draw(DisplayModel.text(StageHud.line(spanishColour(card.suit()) + "&l" + card.spanishLabel(), null))
+                            .billboard("FIXED").light(15).background(0),
+                    glide(facing, number, number, number, fromAcross, fromUp, delay),
+                    at.clone().add(forward(facing, 0.02)));
+            double size = Math.min(style.width(), style.height() / 2) * 0.8;
+            icon = canvas.draw(DisplayModel.item(new ItemStack(spanishIcon(card.suit()))).light(15),
+                    glide(facing, size, size, size * 0.1, fromAcross, fromUp, delay),
+                    at.clone().add(up(facing, -style.height() / 4)).add(forward(facing, 0.025)));
+            return;
+        }
         String text = faceUp
                 ? (card.suit().isRed() ? style.red() : style.black()) + "&l" + card.label() + "<newline>" + card.suit().symbol()
                 : style.back();
-        double scale = style.textScale();
         label = canvas.draw(DisplayModel.text(StageHud.line(text, null)).billboard("FIXED").light(15).background(0),
                 glide(facing, scale, scale, scale, fromAcross, fromUp, delay),
                 at.clone().add(0, -Stage.TEXT_HEIGHT * scale, 0).add(forward(facing, 0.02)));
+    }
+
+    /** The colours of a Spanish deck: gold oros, red copas, blue espadas, green bastos. */
+    private static String spanishColour(PlayingCard.Suit suit) {
+        return switch (suit) {
+            case DIAMONDS -> "{highlight}";
+            case HEARTS -> "{error}";
+            case SPADES -> "{info}";
+            case CLUBS -> "{success}";
+        };
+    }
+
+    /** The item a Spanish suit is drawn as. */
+    private static Material spanishIcon(PlayingCard.Suit suit) {
+        return switch (suit) {
+            case DIAMONDS -> Material.GOLD_NUGGET;
+            case HEARTS -> Material.FLOWER_POT;
+            case SPADES -> Material.IRON_SWORD;
+            case CLUBS -> Material.STICK;
+        };
     }
 
     /** From the deck to its place, with the turn of a card being flipped down onto the table. */
@@ -156,6 +223,11 @@ public final class CardSprite {
                 new DisplayKeyframe(0L, from[0], from[1], from[2], flipped, sx * 0.01f, sy * 0.01f, sz),
                 new DisplayKeyframe(delay, from[0], from[1], from[2], flipped, sx, sy, sz),
                 new DisplayKeyframe(delay + 260L, 0f, 0f, 0f, facing, sx, sy, sz)), canvas.life());
+    }
+
+    private static org.bukkit.util.Vector up(Rotation facing, double distance) {
+        float[] out = facing.apply(new float[]{0f, (float) distance, 0f});
+        return new org.bukkit.util.Vector(out[0], out[1], out[2]);
     }
 
     private static org.bukkit.util.Vector forward(Rotation facing, double distance) {

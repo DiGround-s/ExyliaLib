@@ -26,6 +26,9 @@ class KitTest {
         assertEquals("A", new PlayingCard(14, PlayingCard.Suit.HEARTS).label());
         assertEquals("10", new PlayingCard(10, PlayingCard.Suit.CLUBS).label());
         assertTrue(PlayingCard.Suit.DIAMONDS.isRed());
+        assertEquals("1", new PlayingCard(14, PlayingCard.Suit.CLUBS).spanishLabel());
+        assertEquals("12", new PlayingCard(13, PlayingCard.Suit.CLUBS).spanishLabel());
+        assertEquals(40, PlayingCard.spanishDeck().size());
     }
 
     @Test
