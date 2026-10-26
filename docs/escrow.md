@@ -42,6 +42,7 @@ escrow.refundItems(duelId);
 | `settle(matchId, winner)` / `settle(matchId, winner, tax)` | `CompletableFuture<List<Payout>>`, one per currency in the pot; empty when nothing was held |
 | `settleAmount(matchId, player, amount)` / `settleAmount(…, counted)` | `CompletableFuture<Boolean>`: pays one player an amount the game worked out instead of the pot; see [Paying an amount](#paying-an-amount). Since 1.356.0 |
 | `refund(matchId)` | every held stake back to whoever paid it |
+| `refund(matchId, player)` | one player's stakes and items back, the rest stay held (since 1.356.0) |
 | `holdItems(matchId, player, items)` | `CompletableFuture<Boolean>`; `false` means the items were given back |
 | `settleItems(matchId, winner)` | every held item of the match to the winner |
 | `settleItems(matchId, winner, multiplier)` | the same, `multiplier` times over; `0` settles them and gives nothing. Since 1.356.0 |

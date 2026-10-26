@@ -137,6 +137,24 @@ class EscrowTest {
     }
 
     @Test
+    @DisplayName("a player refunded alone gets their stake back once, and the other stake still wins the pot")
+    void refundOne() {
+        Escrow escrow = escrow();
+        escrow.hold("d1", id(alice), "gems", new BigDecimal("30")).join();
+        escrow.hold("d1", id(bob), "gems", new BigDecimal("50")).join();
+
+        escrow.refund("d1", id(bob)).join();
+        escrow.refund("d1", id(bob)).join();
+        FakeServer.tick(1);
+        assertBalance(bob, "100");
+
+        escrow.settle("d1", id(alice)).join();
+        FakeServer.tick(1);
+        assertBalance(alice, "100");
+        assertBalance(bob, "100");
+    }
+
+    @Test
     @DisplayName("a settle racing a refund moves each stake once")
     void raceSettleRefund() {
         Escrow escrow = escrow();

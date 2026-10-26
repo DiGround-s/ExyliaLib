@@ -515,6 +515,30 @@ public final class Escrow {
                 won.forEach(row -> pay(row.player(), row.currency(), row.amount(), "escrow:refund")));
     }
 
+    /**
+     * Gives one player back what they still have held on a match, money and
+     * items, and leaves everybody else's stake held: a guest who stands up
+     * before the match starts. The match stays open, so they may stake again.
+     *
+     * @param matchId the match
+     * @param player  who is leaving it
+     * @return completes when their refunds have been recorded and dispatched
+     * @since 1.356.0
+     */
+    public @NotNull CompletableFuture<Void> refund(@NotNull String matchId, @NotNull UUID player) {
+        checkId(matchId);
+        Objects.requireNonNull(player, "player");
+        CompletableFuture<Void> money = stakes.all().where("plugin", name).where("matchId", matchId)
+                .where("player", player).where("state", StakeState.HELD).find()
+                .thenCompose(rows -> CompletableFuture.allOf(rows.stream().map(this::giveBack)
+                        .toArray(CompletableFuture[]::new)));
+        CompletableFuture<Void> items = itemRows.all().where("plugin", name).where("matchId", matchId)
+                .where("player", player).where("state", StakeState.HELD).find()
+                .thenCompose(rows -> CompletableFuture.allOf(rows.stream().map(this::giveBackItems)
+                        .toArray(CompletableFuture[]::new)));
+        return CompletableFuture.allOf(money, items);
+    }
+
     /** Moves every held stake of a match to {@code next}; answers only the rows this call moved. */
     private CompletableFuture<List<StakeRow>> claim(String matchId, StakeState next) {
         return stakes.all().where("plugin", name).where("matchId", matchId).where("state", StakeState.HELD)
