@@ -35,6 +35,7 @@ class UpdatesMenuTest {
         net.exylia.lib.settings.internal.SettingsMenu.anchor(FakeServer.class);
         net.exylia.lib.log.internal.LogsMenu.anchor(FakeServer.class);
         net.exylia.lib.util.crate.internal.AdminScreens.anchor(FakeServer.class);
+        net.exylia.lib.modes.internal.ModesMenu.anchor(FakeServer.class);
         plugin = FakeServer.newPlugin("ExyliaLib", folder.toFile());
     }
 

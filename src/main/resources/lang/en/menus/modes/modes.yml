@@ -1,0 +1,40 @@
+# The modes screens: every way to play the plugins on this server offer.
+# Restyle them freely: the library only adds keys missing from this file.
+# The hub: up to seven category cards. pagination.slots is set by the
+# library, which centres the cards on the third row (slots 18-26).
+title: '{primary}&lMODES'
+size: 45
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+pagination:
+  item_template:
+    material: '%icon%'
+    name: '%name%'
+    glow: '%glow%'
+    lore:
+      - '%lore%'
+    actions:
+      - 'exylialib:modes_click'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&lMODES'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Every way to play on this server,'
+      - ' {letters_black}▎ {letters}grouped by {highlight}kind{letters}.'
+      - ''
+      - '{secondary}Stats:'
+      - ' {letters_black}▎ {letters}Playing {letters_black}» {info}%modes_playing%'
+      - ''

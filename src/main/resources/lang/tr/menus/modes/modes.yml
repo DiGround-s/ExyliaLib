@@ -1,0 +1,36 @@
+title: '{primary}&lMODLAR'
+size: 45
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+pagination:
+  item_template:
+    material: '%icon%'
+    name: '%name%'
+    glow: '%glow%'
+    lore:
+      - '%lore%'
+    actions:
+      - 'exylialib:modes_click'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&lMODLAR'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Sunucuda oynamanın tüm yolları,'
+      - ' {letters_black}▎ {letters}{highlight}türlerine{letters} göre gruplanmış.'
+      - ''
+      - '{secondary}İstatistikler:'
+      - ' {letters_black}▎ {letters}Oynayan {letters_black}» {info}%modes_playing%'
+      - ''

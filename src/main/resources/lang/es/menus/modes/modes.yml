@@ -1,0 +1,36 @@
+title: '{primary}&lMODOS'
+size: 45
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|1.0|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|1.0|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|1.0|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+pagination:
+  item_template:
+    material: '%icon%'
+    name: '%name%'
+    glow: '%glow%'
+    lore:
+      - '%lore%'
+    actions:
+      - 'exylialib:modes_click'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: '{primary}&lMODOS'
+    lore:
+      - ''
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Todas las formas de jugar en el servidor,'
+      - ' {letters_black}▎ {letters}agrupadas por {highlight}tipo{letters}.'
+      - ''
+      - '{secondary}Estadísticas:'
+      - ' {letters_black}▎ {letters}Jugando {letters_black}» {info}%modes_playing%'
+      - ''

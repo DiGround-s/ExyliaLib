@@ -739,6 +739,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.command.ServerCommands.releaseAll();
         net.exylia.lib.log.Logs.releaseAll();
         net.exylia.lib.settings.internal.SettingsRuntime.releaseAll();
+        net.exylia.lib.modes.Modes.releaseAll();
         net.exylia.lib.player.Accounts.releaseAll();
         // Writes everybody's time while the database is still open: on a full
         // stop the players are still online when plugins are disabled.
@@ -1182,6 +1183,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes the plugin's queued log entries while its database is still open.
         net.exylia.lib.log.Logs.release(plugin);
         net.exylia.lib.settings.internal.SettingsRuntime.release(plugin);
+        net.exylia.lib.modes.Modes.release(plugin);
         net.exylia.lib.player.Accounts.release(plugin);
         // Writes the host's players' time through its database before it closes,
         // then hands hosting to the next plugin that opened it.

@@ -451,7 +451,7 @@ public final class SettingsMenu {
     }
 
     /** A hub or page with its cards centred on one row: a copy of the file with the slots filled in. */
-    static YamlConfiguration centred(YamlConfiguration file, int rowStart, int count) {
+    public static YamlConfiguration centred(YamlConfiguration file, int rowStart, int count) {
         YamlConfiguration yaml = new YamlConfiguration();
         try {
             yaml.loadFromString(file.saveToString());
