@@ -1,6 +1,6 @@
-package net.exylia.lib.api.betcore.event;
+package net.exylia.lib.api.tabletop.event;
 
-import net.exylia.lib.api.betcore.BetMatch;
+import net.exylia.lib.api.tabletop.TableMatch;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
@@ -12,22 +12,22 @@ import org.jetbrains.annotations.NotNull;
  * <p>Cancelling it keeps the seat free with nothing charged; the plugin that cancels tells the
  * player why.
  *
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public class BetMatchJoinEvent extends BetEvent implements Cancellable {
+public class TableMatchJoinEvent extends TableEvent implements Cancellable {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    private final BetMatch match;
+    private final TableMatch match;
     private final Player player;
     private boolean cancelled;
 
-    public BetMatchJoinEvent(@NotNull BetMatch match, @NotNull Player player) {
+    public TableMatchJoinEvent(@NotNull TableMatch match, @NotNull Player player) {
         this.match = match;
         this.player = player;
     }
 
-    public @NotNull BetMatch getMatch() {
+    public @NotNull TableMatch getMatch() {
         return match;
     }
 

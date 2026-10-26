@@ -1,6 +1,6 @@
-package net.exylia.lib.api.betcore.event;
+package net.exylia.lib.api.tabletop.event;
 
-import net.exylia.lib.api.betcore.BetGameInfo;
+import net.exylia.lib.api.tabletop.TableGameInfo;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.HandlerList;
@@ -12,22 +12,22 @@ import java.math.BigDecimal;
 /**
  * A player is about to list an offer or send a duel, before their stake is taken.
  *
- * <p>Cancelling it stops the bet with nothing charged; the plugin that cancels tells the player why.
+ * <p>Cancelling it stops the match with nothing charged; the plugin that cancels tells the player why.
  *
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public class BetMatchCreateEvent extends BetEvent implements Cancellable {
+public class TableMatchCreateEvent extends TableEvent implements Cancellable {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
     private final Player host;
     private final Player invitee;
-    private final BetGameInfo game;
+    private final TableGameInfo game;
     private final String currency;
     private final BigDecimal stake;
     private boolean cancelled;
 
-    public BetMatchCreateEvent(@NotNull Player host, @Nullable Player invitee, @NotNull BetGameInfo game,
+    public TableMatchCreateEvent(@NotNull Player host, @Nullable Player invitee, @NotNull TableGameInfo game,
                                @NotNull String currency, @NotNull BigDecimal stake) {
         this.host = host;
         this.invitee = invitee;
@@ -45,7 +45,7 @@ public class BetMatchCreateEvent extends BetEvent implements Cancellable {
         return invitee;
     }
 
-    public @NotNull BetGameInfo getGame() {
+    public @NotNull TableGameInfo getGame() {
         return game;
     }
 

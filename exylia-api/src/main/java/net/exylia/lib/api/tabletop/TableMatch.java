@@ -1,4 +1,4 @@
-package net.exylia.lib.api.betcore;
+package net.exylia.lib.api.tabletop;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
  * A match as it stood when it was read: a copy, never updated afterwards.
  *
- * @param id        a short id, as {@code /betadmin cancel} takes it
+ * @param id        a short id, as the admin cancel command takes it
  * @param gameId    the game being played
  * @param state     where the match is
  * @param currency  the ExyliaLib economy id of the currency staked
@@ -21,15 +21,15 @@ import java.util.UUID;
  * @param arena     the arena it is played in, or {@code null} before it has one
  * @param createdAt when it was created, epoch millis
  * @param startedAt when it started being played, epoch millis, or {@code 0}
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public record BetMatch(@NotNull String id, @NotNull String gameId, @NotNull MatchState state,
+public record TableMatch(@NotNull String id, @NotNull String gameId, @NotNull MatchState state,
                        @NotNull String currency, @NotNull BigDecimal stake, @NotNull BigDecimal pot,
-                       @NotNull List<BetSeat> seats, @Nullable UUID invitee, @Nullable String arena,
+                       @NotNull List<TableSeat> seats, @Nullable UUID invitee, @Nullable String arena,
                        long createdAt, long startedAt) {
 
     /** The player who created it. */
-    public @NotNull BetSeat host() {
+    public @NotNull TableSeat host() {
         return seats.getFirst();
     }
 

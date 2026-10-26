@@ -1,25 +1,25 @@
-package net.exylia.lib.api.betcore.event;
+package net.exylia.lib.api.tabletop.event;
 
-import net.exylia.lib.api.betcore.BetMatch;
+import net.exylia.lib.api.tabletop.TableMatch;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Every player of a match is in the arena and the first turn is being played.
  *
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public class BetMatchStartEvent extends BetEvent {
+public class TableMatchStartEvent extends TableEvent {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    private final BetMatch match;
+    private final TableMatch match;
 
-    public BetMatchStartEvent(@NotNull BetMatch match) {
+    public TableMatchStartEvent(@NotNull TableMatch match) {
         this.match = match;
     }
 
-    public @NotNull BetMatch getMatch() {
+    public @NotNull TableMatch getMatch() {
         return match;
     }
 

@@ -1,4 +1,4 @@
-package net.exylia.lib.api.betcore;
+package net.exylia.lib.api.tabletop;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -9,7 +9,7 @@ import java.util.UUID;
  *
  * @param player who sits there
  * @param name   their name when they sat down
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public record BetSeat(@NotNull UUID player, @NotNull String name) {
+public record TableSeat(@NotNull UUID player, @NotNull String name) {
 }

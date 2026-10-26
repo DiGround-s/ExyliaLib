@@ -1,9 +1,9 @@
-package net.exylia.lib.api.betcore;
+package net.exylia.lib.api.tabletop;
 
 /**
  * Where a match is in its life. Each state is entered once, in this order.
  *
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
 public enum MatchState {
 

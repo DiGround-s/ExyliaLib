@@ -86,9 +86,9 @@ whenever its internals move; the API's version moves only when the contract
 does, so a developer targeting `exylia-api:1.0.0` is not disturbed by library
 releases.
 
-`exylia-api` 2.0.0 replaced `api.betcore` whole: the contract written for the
-first ExyliaBetCore (menu boards, rounds, modes) described a plugin that no longer
-exists, and no plugin implemented or consumed it.
+`exylia-api` 2.0.0 replaced the first board-game contract whole: written for
+menu boards, rounds and modes, it described a plugin that no longer exists, and
+no plugin implemented or consumed it.
 
 `exylia-api` 2.1.0 deprecated `MarketLogEvent` (plugins record into ExyliaLib's
 `net.exylia.lib.log.Logs` since ExyliaLib 1.296.0, see [logs.md](logs.md)) and
@@ -100,6 +100,14 @@ carries stubs for them.
 applying vanilla rules to thrown items (ExyliaCombat's pearl cooldown) can tell
 a projectile a special item launched from a player's own throw. It defaults to
 `false`.
+
+`exylia-api` 3.0.0 replaced that package with `api.tabletop`, for the plugin
+that runs player-against-player board games (ExyliaTabletop): `TableService`,
+`TableGameInfo`, `TableMatch`, `TableSeat`, `TableStats`, `MatchState`,
+`EndReason` and the `TableMatch*Event`s, the same capability as before under
+neutral names. The game category enum is gone, since every game the contract
+describes is played against another player. A removal is a major release; the
+package's only implementation moved with it.
 
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
@@ -144,14 +152,13 @@ plugin imports it from there.
 Twenty-three services across twenty-two plugins, plus one plugin that publishes
 only events. Every one is reached the same way:
 `ExyliaAPI.get(<Service>.class)`. The event counts leave out abstract bases
-such as `BetEvent` and `PracticeEvent`.
+such as `TableEvent` and `PracticeEvent`.
 
 | Package | Service | Plugin | Events |
 | --- | --- | --- | --- |
 | `api.armorskin` | `ArmorSkinService` | ExyliaArmorSkin | 2 |
 | `api.armortrims` | `ArmorTrimService` | ExyliaArmorTrims | 2 |
 | `api.arrows` | `ArrowsService` | ExyliaArrows | 1 |
-| `api.betcore` | `BetCoreService` | ExyliaBetCore | 4 |
 | `api.capture` | `CaptureService` | ExyliaCapture | 3 |
 | `api.chatcosmetics` | `CosmeticsService`, `ChatService` | ExyliaChatCosmetics | 10 |
 | `api.clans` | `ClansService` | ExyliaClans | 8 |
@@ -170,6 +177,7 @@ such as `BetEvent` and `PracticeEvent`.
 | `api.specials` | `SpecialsService` | ExyliaSpecialsV3 | 3 |
 | `api.staff` | `StaffService` | ExyliaStaff | 5 |
 | `api.survival` | `SurvivalService` | ExyliaSurvivalCore | 10 |
+| `api.tabletop` | `TableService` | ExyliaTabletop | 4 |
 | `api.totems` | — | ExyliaTotems | 2 |
 | `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 8 |
 | `api.aimtrainer` | `AimTrainerService` | ExyliaAimTrainer | 7 |

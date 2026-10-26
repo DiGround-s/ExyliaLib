@@ -1,4 +1,4 @@
-package net.exylia.lib.api.betcore;
+package net.exylia.lib.api.tabletop;
 
 import net.exylia.lib.api.ExyliaAPI;
 import org.bukkit.entity.Player;
@@ -12,10 +12,10 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * ExyliaBetCore: players bet on games they play against each other, on boards drawn in arenas.
+ * ExyliaTabletop: players stake on board games they play against each other, on boards drawn in arenas.
  *
  * <pre>{@code
- * ExyliaAPI.get(BetCoreService.class).ifPresent(bets -> bets.openLobby(player, "tictactoe"));
+ * ExyliaAPI.get(TableService.class).ifPresent(tables -> tables.openLobby(player, "tictactoe"));
  * }</pre>
  *
  * <p>Reads answer from memory and are safe from any thread. Everything that acts runs the same
@@ -24,28 +24,28 @@ import java.util.concurrent.CompletableFuture;
  * outcome listens for the events in {@code event}.
  *
  * @see ExyliaAPI#get(Class)
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public interface BetCoreService {
+public interface TableService {
 
     // ── Games ──────────────────────────────────────────────────────────────
 
     /** Every game this build ships, playable or not. */
     @NotNull
     @Unmodifiable
-    List<BetGameInfo> games();
+    List<TableGameInfo> games();
 
     @NotNull
-    Optional<BetGameInfo> game(@NotNull String gameId);
+    Optional<TableGameInfo> game(@NotNull String gameId);
 
     // ── Matches ────────────────────────────────────────────────────────────
 
     @NotNull
-    Optional<BetMatch> match(@NotNull String matchId);
+    Optional<TableMatch> match(@NotNull String matchId);
 
     /** The live match a player has a seat in: an offer, a duel, or one being played. */
     @NotNull
-    Optional<BetMatch> matchOf(@NotNull UUID player);
+    Optional<TableMatch> matchOf(@NotNull UUID player);
 
     /** Whether the player is in an arena, playing or about to. */
     boolean isPlaying(@NotNull UUID player);
@@ -53,12 +53,12 @@ public interface BetCoreService {
     /** Every live match. */
     @NotNull
     @Unmodifiable
-    List<BetMatch> matches();
+    List<TableMatch> matches();
 
     /** The open offers of a game anybody may take, oldest first. */
     @NotNull
     @Unmodifiable
-    List<BetMatch> offers(@NotNull String gameId);
+    List<TableMatch> offers(@NotNull String gameId);
 
     // ── Acting as a player ─────────────────────────────────────────────────
 
@@ -92,5 +92,5 @@ public interface BetCoreService {
 
     /** A player's record at a game; zeros when they never played it. */
     @NotNull
-    CompletableFuture<BetStats> stats(@NotNull UUID player, @NotNull String gameId);
+    CompletableFuture<TableStats> stats(@NotNull UUID player, @NotNull String gameId);
 }

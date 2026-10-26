@@ -1,7 +1,7 @@
-package net.exylia.lib.api.betcore.event;
+package net.exylia.lib.api.tabletop.event;
 
-import net.exylia.lib.api.betcore.BetMatch;
-import net.exylia.lib.api.betcore.EndReason;
+import net.exylia.lib.api.tabletop.TableMatch;
+import net.exylia.lib.api.tabletop.EndReason;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -13,19 +13,19 @@ import java.util.UUID;
  * A match ended: paid out to a winner, or refunded. Fired once per match, offers and duels that
  * expired or were cancelled included.
  *
- * @since exylia-api 2.0.0
+ * @since exylia-api 3.0.0
  */
-public class BetMatchEndEvent extends BetEvent {
+public class TableMatchEndEvent extends TableEvent {
 
     private static final HandlerList HANDLERS = new HandlerList();
 
-    private final BetMatch match;
+    private final TableMatch match;
     private final UUID winner;
     private final EndReason reason;
     private final BigDecimal prize;
     private final BigDecimal fee;
 
-    public BetMatchEndEvent(@NotNull BetMatch match, @Nullable UUID winner, @NotNull EndReason reason,
+    public TableMatchEndEvent(@NotNull TableMatch match, @Nullable UUID winner, @NotNull EndReason reason,
                             @NotNull BigDecimal prize, @NotNull BigDecimal fee) {
         this.match = match;
         this.winner = winner;
@@ -34,7 +34,7 @@ public class BetMatchEndEvent extends BetEvent {
         this.fee = fee;
     }
 
-    public @NotNull BetMatch getMatch() {
+    public @NotNull TableMatch getMatch() {
         return match;
     }
 
@@ -52,7 +52,7 @@ public class BetMatchEndEvent extends BetEvent {
         return prize;
     }
 
-    /** What the house kept; zero on a refund. */
+    /** What the server kept as its fee; zero on a refund. */
     public @NotNull BigDecimal getFee() {
         return fee;
     }

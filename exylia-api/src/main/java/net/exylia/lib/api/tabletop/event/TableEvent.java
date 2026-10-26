@@ -1,4 +1,4 @@
-package net.exylia.lib.api.betcore.event;
+package net.exylia.lib.api.tabletop.event;
 
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
@@ -17,19 +17,19 @@ import org.bukkit.event.Event;
  * without a scheduler hop of your own.
  *
  * <h2>The match on these events is a snapshot</h2>
- * Every event that names a match carries a {@link net.exylia.lib.api.betcore.BetMatch},
+ * Every event that names a match carries a {@link net.exylia.lib.api.tabletop.TableMatch},
  * which is the match as it was when the event was made. It is a copy on purpose:
  * the live match belongs to this plugin's own thread and its own classloader, and
  * a handle to it would be neither safe to read from a handler nor visible to the
  * plugin holding one. Ask
- * {@link net.exylia.lib.api.betcore.BetCoreService#match(String)} with
- * {@link net.exylia.lib.api.betcore.BetMatch#id()} when you need the current state.
+ * {@link net.exylia.lib.api.tabletop.TableService#match(String)} with
+ * {@link net.exylia.lib.api.tabletop.TableMatch#id()} when you need the current state.
  *
- * @since 1.0.0
+ * @since exylia-api 3.0.0
  */
-public abstract class BetEvent extends Event {
+public abstract class TableEvent extends Event {
 
-    protected BetEvent() {
+    protected TableEvent() {
         super(!Bukkit.isPrimaryThread());
     }
 }
