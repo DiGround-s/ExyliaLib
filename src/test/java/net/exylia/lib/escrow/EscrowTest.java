@@ -454,7 +454,7 @@ class EscrowTest {
         }
     }
 
-    /** An in-memory currency. */
+    /** An in-memory currency; synchronised, since racing settles pay from several threads. */
     private static final class Gems implements CurrencyProvider {
         final Map<UUID, BigDecimal> balances = new ConcurrentHashMap<>();
 
@@ -466,14 +466,14 @@ class EscrowTest {
         @Override public @NotNull String symbol() { return "◆"; }
 
         @Override
-        public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
+        public synchronized @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount) {
             BigDecimal next = balance(player).add(amount);
             balances.put(player, next);
             return EconomyResponse.success(amount, next);
         }
 
         @Override
-        public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount) {
+        public synchronized @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount) {
             BigDecimal current = balance(player);
             if (current.compareTo(amount) < 0) return EconomyResponse.insufficientFunds(amount, current);
             BigDecimal next = current.subtract(amount);
