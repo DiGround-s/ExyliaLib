@@ -22,8 +22,8 @@ final class Displays {
     /**
      * A title, optionally driven by a timer.
      *
-     * <p>The first draw carries the fade timings; later ones do not, or the
-     * title would restart its fade on every redraw and pulse.
+     * <p>Only the first draw fades in; redraws replace the text with no
+     * fade-in, or the title would restart its fade on every redraw and pulse.
      */
     static final class TitleDisplay extends ActiveDisplay {
 
@@ -72,7 +72,7 @@ final class Displays {
                     && ticksSinceSent + period < fadeIn + stay) {
                 return;
             }
-            Bars.titleText(viewer, title, sub);
+            Bars.titleText(viewer, title, sub, stay, fadeOut);
             sent(title, sub);
         }
 

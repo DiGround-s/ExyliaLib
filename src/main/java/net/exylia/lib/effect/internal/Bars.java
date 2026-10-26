@@ -63,13 +63,16 @@ final class Bars {
     }
 
     /**
-     * Replaces the text of a showing title without restarting its fade.
+     * Replaces the text of a showing title without fading it in again.
      *
-     * <p>The title parts are exactly the two text packets and nothing else, so
-     * the timings the title is already running under are left alone. Re-sending
-     * them would restart the fade and make a countdown pulse once a tick.
+     * <p>The client restarts the whole fade-in, stay and fade-out on every new
+     * title text, so a countdown redrawn each tick under a fade-in never got
+     * past its first faded frame. The timings go first with no fade-in: the
+     * new text shows at once and stays as long as the first draw asked.
      */
-    static void titleText(Player viewer, Component title, Component subtitle) {
+    static void titleText(Player viewer, Component title, Component subtitle, int stay, int fadeOut) {
+        viewer.sendTitlePart(TitlePart.TIMES, Title.Times.times(
+                Duration.ZERO, Duration.ofMillis(stay * 50L), Duration.ofMillis(fadeOut * 50L)));
         viewer.sendTitlePart(TitlePart.SUBTITLE, subtitle);
         viewer.sendTitlePart(TitlePart.TITLE, title);
     }
