@@ -51,7 +51,7 @@ import java.util.stream.Collectors;
  *     escrow = Escrow.of(this);          // refunds what the last run left held
  * }
  *
- * escrow.hold(duelId, player.getUniqueId(), "coins", bet).thenAccept(hold -> {
+ * escrow.hold(duelId, player.getUniqueId(), "coins", stake).thenAccept(hold -> {
  *     if (hold != Escrow.Hold.HELD) refuse(player, hold);
  * });
  * escrow.holdItems(duelId, player.getUniqueId(), taken);   // items you already removed

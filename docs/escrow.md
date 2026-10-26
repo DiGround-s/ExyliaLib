@@ -1,6 +1,6 @@
 # Escrow
 
-Money and items held while a match is played — a duel bet, a wager, a pot — so
+Money and items held while a match is played — a duel stake, a wager, a pot — so
 no restart, crash or quit ever loses or doubles a stake. Since 1.345.0.
 
 Entry point: `net.exylia.lib.escrow.Escrow`.
@@ -18,7 +18,7 @@ escrow.hold(duelId, player.getUniqueId(), "coins", new BigDecimal("500")).thenAc
     if (hold != Escrow.Hold.HELD) cancel(duelId, hold);    // CANNOT_PAY or FAILED
 });
 
-// Items bet: take them from the player first, then record them.
+// Items staked: take them from the player first, then record them.
 escrow.holdItems(duelId, player.getUniqueId(), taken);
 
 // Somebody won.
