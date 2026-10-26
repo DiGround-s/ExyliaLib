@@ -1,5 +1,6 @@
 package net.exylia.lib.trade.internal;
 
+import net.exylia.lib.internal.Holders;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -16,7 +17,7 @@ import org.bukkit.inventory.InventoryView;
 public final class TradeListener implements Listener {
 
     private static TradeSession.Window window(InventoryView view) {
-        return view.getTopInventory().getHolder(false) instanceof TradeSession.Window window ? window : null;
+        return Holders.of(view.getTopInventory()) instanceof TradeSession.Window window ? window : null;
     }
 
     // LOWEST so a plugin reading the click afterwards sees it already refused.
