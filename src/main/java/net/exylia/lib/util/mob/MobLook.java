@@ -15,7 +15,10 @@ import org.bukkit.entity.Wolf;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * How a custom mob looks beyond its equipment: its colour, what it wears on
@@ -118,11 +121,50 @@ public record MobLook(@NotNull String variant, @NotNull String body, @NotNull St
      */
     public static final List<String> LOWS = List.of("wounded", "frantic");
 
+    /**
+     * Auras that ship with the library, for {@link PluginMobs#auras}: confetti,
+     * sparks, galaxy, firestorm, waterworks and ender, in that order, so an
+     * unknown name wears confetti. For a plugin that offers looks without an
+     * aura file of its own.
+     *
+     * @since 1.357.0
+     */
+    public static final Map<String, List<String>> STOCK_AURAS = stockAuras();
+
     private static final List<String> CARPETS = List.of("MAGENTA_CARPET", "LIGHT_BLUE_CARPET", "YELLOW_CARPET",
             "LIME_CARPET", "PINK_CARPET", "CYAN_CARPET", "ORANGE_CARPET", "PURPLE_CARPET", "RED_CARPET",
             "WHITE_CARPET");
     private static final List<String> HORSE_ARMOUR = List.of("LEATHER_HORSE_ARMOR", "IRON_HORSE_ARMOR",
             "GOLDEN_HORSE_ARMOR", "DIAMOND_HORSE_ARMOR");
+
+    private static Map<String, List<String>> stockAuras() {
+        Map<String, List<String>> auras = new LinkedHashMap<>();
+        auras.put("confetti", List.of(
+                "[CIRCLE] DUST;color:{accent};size:1.2;radius:1.1;points:1;y:1.3;rotate:%angle%",
+                "[CIRCLE] DUST;color:{highlight};size:1.2;radius:1.1;points:1;y:1.3;rotate:%angle2%",
+                "[CIRCLE] DUST;color:{info};size:1.2;radius:1.1;points:1;y:1.3;rotate:%angle3%",
+                "[PARTICLE] DUST;color:{success};size:0.8;count:1;offset:0.6,0.5,0.6;y:1.5"));
+        auras.put("sparks", List.of(
+                "[CIRCLE] FIREWORK;radius:1.0;points:3;y:1.4;rotate:%angle%",
+                "[PARTICLE] END_ROD;count:1;offset:0.5,0.6,0.5;speed:0.01;y:1.4"));
+        auras.put("galaxy", List.of(
+                "[CIRCLE] DUST;color:{primary};size:1.1;radius:1.2;points:2;y:0.3;rotate:%angle%",
+                "[CIRCLE] DUST;color:{secondary};size:1.1;radius:0.9;points:2;y:2.1;rotate:%angle2%",
+                "[CIRCLE] END_ROD;radius:1.2;points:1;y:1.2;rotate:%angle3%"));
+        auras.put("firestorm", List.of(
+                "[CIRCLE] FLAME;radius:0.9;points:2;y:0.2;rotate:%angle%",
+                "[CIRCLE] FLAME;radius:0.7;points:2;y:1.2;rotate:%angle2%",
+                "[PARTICLE] LAVA;count:1;offset:0.4,0.3,0.4;y:1.2"));
+        auras.put("waterworks", List.of(
+                "[CIRCLE] SPLASH;radius:1.0;points:4;y:1.6;rotate:%angle%",
+                "[CIRCLE] BUBBLE_POP;radius:0.8;points:2;y:0.6;rotate:%angle2%",
+                "[PARTICLE] DRIPPING_WATER;count:1;offset:0.5,0.2,0.5;y:2.0"));
+        auras.put("ender", List.of(
+                "[CIRCLE] REVERSE_PORTAL;radius:1.1;points:3;y:0.4;rotate:%angle%",
+                "[CIRCLE] WITCH;radius:0.8;points:1;y:1.8;rotate:%angle2%",
+                "[PARTICLE] PORTAL;count:3;offset:0.4,0.6,0.4;speed:0.3;y:1.0"));
+        return Collections.unmodifiableMap(auras);
+    }
 
     public MobLook {
         variant = clean(variant);

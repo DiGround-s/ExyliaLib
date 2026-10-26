@@ -138,7 +138,7 @@ call needs a running server.
 | `onDeath(Consumer<MobDeath>)` | told every death, break and expiry, on the mob's thread; a handler that throws is reported and the rest still run |
 | `offDeath(Consumer<MobDeath>)` → `boolean` | since 1.195.0; stops telling that same instance; whether it was listening |
 | `onHit(Consumer<MobHit>)` / `offHit(Consumer<MobHit>)` → `boolean` | since 1.195.0; every counted hit in hits mode, the breaking one included, on the mob's thread |
-| `auras(Map<String, List<String>>)` / `auras()` | since 1.195.0; the named auras a look can wear, replacing the ones before; in order, the first is the fallback |
+| `auras(Map<String, List<String>>)` / `auras()` | since 1.195.0; the named auras a look can wear, replacing the ones before; in order, the first is the fallback; `MobLook.STOCK_AURAS` (since 1.357.0) is the six the library ships (confetti, sparks, galaxy, firestorm, waterworks, ender) |
 | `effectRadius(double)` / `effectRadius()` | since 1.195.0; blocks from which skill effects, effect skills and auras are seen; 32 until set. Entrances and deaths are seen from here too |
 | `visuals(MobVisuals)` / `visuals()` | since 1.199.0; the reactions switch, the numbers' range, the shake multiplier and the cap on large effects at once; `MobVisuals.DEFAULT` until set, see [Reactions](#reactions-since-11990) |
 | `skillsEditor(List<MobSkill>)` → `ListEditor<MobSkill>` | the list editor over skills |
