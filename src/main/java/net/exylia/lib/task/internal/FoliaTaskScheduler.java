@@ -169,19 +169,36 @@ public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task) {
+        return runAtEntityLater(entity, delayTicks, task, null);
+    }
+
+    @Override
+    public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task,
+                                                @Nullable Runnable retired) {
         TaskHandle stopped = runIfStopped(() -> {
             if (exists(entity)) {
                 task.run();
+            } else if (retired != null) {
+                retired.run();
             }
         });
         if (stopped != null) return stopped;
         TrackedHandle handle = newHandle(false);
         Runnable body = once(handle, task);
+        Runnable onRetired = () -> {
+            try {
+                if (retired != null) {
+                    retired.run();
+                }
+            } finally {
+                handle.complete();
+            }
+        };
 
         ScheduledTask scheduled = entity.getScheduler().runDelayed(plugin, ignored -> body.run(),
-                handle::complete, normalizeTicks(delayTicks));
+                onRetired, normalizeTicks(delayTicks));
         if (scheduled == null) {
-            handle.complete();
+            onRetired.run();
             return handle;
         }
         bind(handle, canceller(scheduled));

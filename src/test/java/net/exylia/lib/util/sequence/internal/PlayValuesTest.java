@@ -65,6 +65,19 @@ class PlayValuesTest {
     }
 
     @Test
+    @DisplayName("follow survives every copy of the target and is off by default")
+    void followSurvivesCopies() {
+        org.bukkit.entity.Player buffed = new FakePlayer("Buffed").at(new Location(world, 0, 64, 0)).player();
+        SequenceTarget still = SequenceTarget.at(new Location(world, 0, 64, 0));
+        SequenceTarget moving = still.follow(buffed).by(buffed).on(buffed).within(8)
+                .movedTo(new Location(world, 5, 64, 0)).values(Values.of("a", "b"));
+
+        assertNull(still.follows());
+        assertSame(buffed, moving.follows());
+        assertNull(moving.follow(null).follows());
+    }
+
+    @Test
     @DisplayName("text lines take a trailing who:, and still mean the source without one")
     void readers() {
         Steps.TitleStep nearby = (Steps.TitleStep) compile("[TITLE] Won;%reward%;0.2;2;0.5;who:nearby");

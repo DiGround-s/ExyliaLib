@@ -230,6 +230,22 @@ public interface TaskScheduler {
     @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task);
 
     /**
+     * Runs a task on the thread that owns an entity, after a delay, or
+     * {@code retired} instead if the entity is gone by then.
+     *
+     * @param entity     the entity the task acts on
+     * @param delayTicks ticks to wait before running; values below 1 are treated as 1
+     * @param task       the work to run
+     * @param retired    run instead of {@code task} if the entity no longer exists,
+     *                   or {@code null} to simply drop the task
+     * @return a handle that can cancel the task before it starts
+     * @see #runAtEntity(Entity, Runnable, Runnable)
+     * @since 1.364.0
+     */
+    @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task,
+                                         @Nullable Runnable retired);
+
+    /**
      * Runs a repeating task on the thread that owns an entity.
      *
      * <p>The timer stops on its own when the entity is removed, so this is the

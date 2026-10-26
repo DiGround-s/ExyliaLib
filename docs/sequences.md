@@ -271,6 +271,30 @@ no connected player. The line's `detail:`, `glow:`, `light:` and `hold:`/`offhan
 `hat:` still apply over the model, and `size:` multiplies its scale. Placed NPCs
 perform this way ([npcs.md](npcs.md#performances)).
 
+### Following an entity through delays (since 1.364.0)
+
+A sequence is anchored where it started, so a line after a `[DELAY]` plays where
+the player stood seconds ago. `SequenceTarget.follow(entity)` re-anchors every
+resume after a hold to where that entity is now:
+
+```java
+sequences.play(buff, SequenceTarget.at(player.getLocation()).by(player).on(player).follow(player));
+```
+
+```yaml
+- '[SOUND] BLOCK_BEACON_ACTIVATE;0.6;1.4'
+- '[DELAY] 8'
+- '[SOUND] BLOCK_BEACON_DEACTIVATE;0.5;1.8'   # at the player's feet, eight seconds later
+- '[PARTICLE] END_ROD;count:12;offset:0.3,0.8,0.3'
+```
+
+Off by default, so every existing play keeps its fixed anchor. The resume runs on the
+entity's own scheduler (`TaskScheduler.runAtEntityLater(entity, ticks, task, retired)`,
+also new), which is what reads its location safely on Folia. If the entity is gone
+(a player who logged out, a removed mob) the rest of the sequence is skipped and the
+run ends; a dead player is still followed. Steps before the first hold, and the frames
+of an animated shape already drawing, keep the position they started with.
+
 ### Shapes
 
 `CIRCLE` `SPHERE` `BEAM` `SPIRAL` `DOUBLE_HELIX` `TORNADO` `STAR` `CAGE` `DISC`

@@ -95,13 +95,21 @@ final class SequenceRuntime {
             if (next >= steps.size()) {
                 break;
             }
-            TaskHandle handle = run.scheduler().runAtLocationLater(target.location(),
-                    Math.max(1L, hold / TICK_MS),
-                    () -> {
+            long ticks = Math.max(1L, hold / TICK_MS);
+            org.bukkit.entity.Entity follows = target.follows();
+            // A followed entity is read on its own thread when the hold ends,
+            // and a sequence whose entity is gone by then ends there.
+            TaskHandle handle = follows == null
+                    ? run.scheduler().runAtLocationLater(target.location(), ticks, () -> {
                         if (!run.isCancelled()) {
                             advance(steps, next, target, run);
                         }
-                    });
+                    })
+                    : run.scheduler().runAtEntityLater(follows, ticks, () -> {
+                        if (!run.isCancelled()) {
+                            advance(steps, next, target.movedTo(follows.getLocation()), run);
+                        }
+                    }, run::finishWhenTrailsEnd);
             run.owns(handle);
             return;
         }

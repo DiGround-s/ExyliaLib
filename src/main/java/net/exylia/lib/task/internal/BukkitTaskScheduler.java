@@ -135,9 +135,17 @@ public final class BukkitTaskScheduler extends AbstractTaskScheduler {
 
     @Override
     public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task) {
+        return runAtEntityLater(entity, delayTicks, task, null);
+    }
+
+    @Override
+    public @NotNull TaskHandle runAtEntityLater(@NotNull Entity entity, long delayTicks, @NotNull Runnable task,
+                                                @Nullable Runnable retired) {
         return runLater(delayTicks, () -> {
             if (exists(entity)) {
                 task.run();
+            } else if (retired != null) {
+                retired.run();
             }
         });
     }

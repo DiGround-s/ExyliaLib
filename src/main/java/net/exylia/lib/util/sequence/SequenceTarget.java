@@ -65,6 +65,9 @@ public final class SequenceTarget {
     /** The body {@code [RAGDOLL]} wears instead of a player's, or {@code null}. */
     private final net.exylia.lib.ragdoll.RagdollModel wearing;
 
+    /** The entity the steps after a hold move with, or {@code null} to stay put. */
+    private final Entity follows;
+
     /**
      * The last answer {@link #observers()} gave, and when.
      *
@@ -87,14 +90,15 @@ public final class SequenceTarget {
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
-        this(location, source, target, visibility, radius, Map.of(), Map.of(), null);
+        this(location, source, target, visibility, radius, Map.of(), Map.of(), null, null);
     }
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius,
                            Map<String, String> values, Map<String, ItemStack> items,
-                           net.exylia.lib.ragdoll.RagdollModel wearing) {
+                           net.exylia.lib.ragdoll.RagdollModel wearing, Entity follows) {
         this.wearing = wearing;
+        this.follows = follows;
         this.location = location;
         this.source = source;
         this.target = target;
@@ -137,7 +141,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget by(@Nullable Player player) {
-        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing);
+        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing, follows);
     }
 
     /**
@@ -149,7 +153,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget on(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing);
+        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing, follows);
     }
 
     /**
@@ -164,7 +168,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget visibleTo(@Nullable BiPredicate<Player, Player> predicate) {
-        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing);
+        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing, follows);
     }
 
     /**
@@ -187,7 +191,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget within(double blocks) {
-        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing);
+        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing, follows);
     }
 
     /**
@@ -200,7 +204,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget movedTo(@NotNull Location destination) {
-        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing);
+        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing, follows);
     }
 
     /**
@@ -231,7 +235,7 @@ public final class SequenceTarget {
             merged.put(value.getKey(), String.valueOf(value.getValue()));
         }
         return new SequenceTarget(location, source, target, visibility, radius,
-                Map.copyOf(merged), items, wearing);
+                Map.copyOf(merged), items, wearing, follows);
     }
 
     /**
@@ -249,7 +253,7 @@ public final class SequenceTarget {
         Map<String, ItemStack> merged = new LinkedHashMap<>(items);
         merged.put(name.toLowerCase(Locale.ROOT), item);
         return new SequenceTarget(location, source, target, visibility, radius, values,
-                Map.copyOf(merged), wearing);
+                Map.copyOf(merged), wearing, follows);
     }
 
     /**
@@ -313,7 +317,7 @@ public final class SequenceTarget {
      * @since 1.302.0
      */
     public @NotNull SequenceTarget wearing(@Nullable net.exylia.lib.ragdoll.RagdollModel model) {
-        return new SequenceTarget(location, source, target, visibility, radius, values, items, model);
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, model, follows);
     }
 
     /**
@@ -323,6 +327,38 @@ public final class SequenceTarget {
      */
     public @Nullable net.exylia.lib.ragdoll.RagdollModel wearing() {
         return wearing;
+    }
+
+    /**
+     * Keeps the steps after a {@code [DELAY]} where an entity is now, rather
+     * than where the sequence started.
+     *
+     * <pre>{@code
+     * sequences.play(buff, SequenceTarget.at(player.getLocation()).by(player).follow(player));
+     * }</pre>
+     *
+     * <p>What an effect that ends on someone wants: a buff's closing sound
+     * five seconds in plays at the player's feet, not where they stood when it
+     * began. Each resume after a hold runs on the entity's own thread and
+     * re-anchors there; if the entity is gone by then, the rest of the
+     * sequence is skipped. Steps before the first hold, and the frames of a
+     * shape already drawing, keep the position they started with.
+     *
+     * @param entity what to move with, or {@code null} to stay where it started
+     * @return a new target
+     * @since 1.364.0
+     */
+    public @NotNull SequenceTarget follow(@Nullable Entity entity) {
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, entity);
+    }
+
+    /**
+     * The entity the steps after a hold move with, or {@code null} when they stay put.
+     *
+     * @since 1.364.0
+     */
+    public @Nullable Entity follows() {
+        return follows;
     }
 
     /** Where this happens. */
