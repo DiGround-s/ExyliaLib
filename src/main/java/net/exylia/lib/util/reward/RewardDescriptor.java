@@ -33,7 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 /**
  * How a reward draws and edits itself on screen.
@@ -89,13 +89,13 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     private final boolean weighted;
 
     /** The owning plugin's own lines under each row, drawn fresh every redraw. */
-    private final Function<RewardEntry, List<String>> extraLore;
+    private final BiFunction<RewardEntry, List<RewardEntry>, List<String>> extraLore;
 
     RewardDescriptor(Plugin plugin) {
-        this(plugin, false, entry -> List.of());
+        this(plugin, false, (entry, siblings) -> List.of());
     }
 
-    RewardDescriptor(Plugin plugin, boolean weighted, Function<RewardEntry, List<String>> extraLore) {
+    RewardDescriptor(Plugin plugin, boolean weighted, BiFunction<RewardEntry, List<RewardEntry>, List<String>> extraLore) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.weighted = weighted;
         this.extraLore = Objects.requireNonNull(extraLore, "extraLore");
@@ -186,7 +186,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
         lore.add(Phrases.tr(" {letters_black}▎ {letters}Value {letters_black}» {highlight}{0}", entry.preview()));
         lore.add("");
         lore.add(Phrases.tr("{secondary}Odds:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
+        // In a draw the weight already answers how often; a chance below 100 is
+        // only shown so an old one can still be found and cleared.
+        if (asksChance(entry)) {
+            lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
+        }
         lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}", number(entry.weight())));
         String share = share(entry, siblings, weighted);
         if (share != null) {
@@ -205,7 +209,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                         entry.condition()));
             }
         }
-        List<String> extra = extraLore.apply(entry);
+        List<String> extra = extraLore.apply(entry, siblings);
         if (!extra.isEmpty()) {
             lore.add("");
             lore.addAll(extra);
@@ -513,8 +517,10 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
             form.integer(MINIMUM, Phrases.tr("Least amount"), low(entry))
                     .integer(MAXIMUM, Phrases.tr("Most amount"), high(entry));
         }
-        form.decimal(CHANCE, Phrases.tr("Chance out of 100"), BigDecimal.valueOf(entry.chance()))
-                .decimal(WEIGHT, Phrases.tr("Weight against its siblings"), BigDecimal.valueOf(entry.weight()))
+        if (asksChance(entry)) {
+            form.decimal(CHANCE, Phrases.tr("Chance out of 100"), BigDecimal.valueOf(entry.chance()));
+        }
+        form.decimal(WEIGHT, Phrases.tr("Weight against its siblings"), BigDecimal.valueOf(entry.weight()))
                 .text(PERMISSION, Phrases.tr("Permission needed (blank for none)"), entry.permission())
                 .text(CONDITION, Phrases.tr("Condition (blank for none)"), entry.condition(), 2)
                 .text(MESSAGE, Phrases.tr("Message when it lands (blank for none)"), entry.deliveryMessage(), 3)
@@ -583,11 +589,13 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
                                        boolean payload, boolean amounts, boolean currency) {
         RewardEntry.Builder builder = entry.toBuilder()
                 .name(blankToNull(values.getText(NAME)))
-                .chance(values.getDecimal(CHANCE).doubleValue())
                 .weight(values.getDecimal(WEIGHT).doubleValue())
                 .permission(blankToNull(values.getText(PERMISSION)))
                 .condition(blankToNull(values.getText(CONDITION)))
                 .deliveryMessage(blankToNull(values.getText(MESSAGE)));
+        if (values.has(CHANCE)) {
+            builder.chance(values.getDecimal(CHANCE).doubleValue());
+        }
 
         if (payload) {
             String written = values.getText(PAYLOAD);
@@ -665,6 +673,11 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     private static long high(RewardEntry entry) {
         return entry.isRanged() ? entry.maxAmount() : Math.max(1, entry.itemAmount());
+    }
+
+    /** Whether the chance is a knob of its own here, rather than noise beside the weight. */
+    private boolean asksChance(RewardEntry entry) {
+        return !weighted || entry.chance() < RewardEntry.ALWAYS;
     }
 
     private static String chance(RewardEntry entry) {

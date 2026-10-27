@@ -91,6 +91,13 @@ picker, and everything else goes straight to one prefilled dialog.
 A reward copied here pastes into any other reward editor, in this plugin or
 another.
 
+`weightedEditor(rewards[, extraLore])` is the same screen for a list drawn by
+weight (a crate): shift-clicks step the weight, every row shows its real share,
+and the chance is neither shown nor asked, because the weight already says how
+often. A reward still carrying a chance below 100 keeps showing it so it can be
+cleared. Since 1.368.0 `extraLore` can be a `(reward, rows) -> lines` function,
+handed the list as it stands, for lines that depend on the whole draw.
+
 ## Reward types
 
 | Type | Payload | Since |

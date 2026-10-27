@@ -293,6 +293,25 @@ public final class PluginRewards {
      */
     public @NotNull ListEditor<RewardEntry> weightedEditor(@NotNull List<RewardEntry> rewards,
                                                            @NotNull java.util.function.Function<RewardEntry, List<String>> extraLore) {
+        return weightedEditor(rewards, (entry, siblings) -> extraLore.apply(entry));
+    }
+
+    /**
+     * The same, with the plugin's lines also handed the list as it stands now,
+     * so a line that depends on the whole draw (a rarity read from the real
+     * share) moves as other rewards change.
+     *
+     * <p>A weighted editor does not ask for a chance: the weight already says
+     * how often. A reward that still carries a chance below 100 shows and
+     * asks for it, so it can be cleared.
+     *
+     * @param rewards   what is being edited; copied, never held
+     * @param extraLore the row and every row in the editor, asked on every redraw
+     * @return the editor, ready to open
+     * @since 1.368.0
+     */
+    public @NotNull ListEditor<RewardEntry> weightedEditor(@NotNull List<RewardEntry> rewards,
+                                                           @NotNull java.util.function.BiFunction<RewardEntry, List<RewardEntry>, List<String>> extraLore) {
         return Editors.of(plugin()).list(new RewardDescriptor(plugin(), true, extraLore), RewardEntry.class, rewards)
                 .button(RewardDescriptor.sortByWeight());
     }
