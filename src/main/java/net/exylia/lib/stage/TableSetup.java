@@ -1,6 +1,12 @@
 package net.exylia.lib.stage;
 
+import net.exylia.lib.action.ActionContext;
+import net.exylia.lib.action.ActionResult;
+import net.exylia.lib.action.Actions;
+import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.display.DisplayHandle;
+import net.exylia.lib.overlay.OverlayKeys;
+import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.Displays;
@@ -16,11 +22,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BoundingBox;
 import org.jetbrains.annotations.NotNull;
@@ -58,6 +62,7 @@ final class TableSetup implements Listener {
     private final Plugin plugin;
     private final PlacedTables tables;
     private final PluginMessages messages;
+    private final PluginActions actions;
     private final Map<UUID, Draft> drafts = new ConcurrentHashMap<>();
 
     private static final class Draft {
@@ -82,16 +87,46 @@ final class TableSetup implements Listener {
         this.tables = tables;
         this.messages = PluginMessages.of(plugin);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        // The overlay takes every click made with a tool it draws and runs that tool's actions: the
+        // clicks never reach an interact event, so the tools answer through actions of their own.
+        this.actions = Actions.of(plugin, plugin.getName().toLowerCase(java.util.Locale.ROOT)
+                .replaceAll("[^a-z0-9_]", "") + "_tablesetup");
+        actions.registerSync("seat", (context, args) -> press(context, true));
+        actions.registerSync("board", (context, args) -> press(context, false));
+        actions.registerSync("done", (context, args) -> {
+            Draft draft = drafts.get(context.player().getUniqueId());
+            if (draft != null) finish(context.player(), draft);
+            return ActionResult.success();
+        });
+        actions.registerSync("cancel", (context, args) -> {
+            Draft draft = drafts.get(context.player().getUniqueId());
+            if (draft != null) {
+                end(context.player());
+                messages.send(context.player(), draft.text.cancelled(), null);
+            }
+            return ActionResult.success();
+        });
+    }
+
+    private ClickBindings bind(String left, String right) {
+        String namespace = actions.namespace();
+        return new ClickBindings.Builder()
+                .add("left,shift_left: " + namespace + ":" + left, actions::template)
+                .add("right,shift_right: " + namespace + ":" + right, actions::template)
+                .build();
     }
 
     void start(Player admin, String id, String game, PlacedTables.SetupText text, Consumer<PlacedTables.Placed> done) {
         end(admin);
         drafts.put(admin.getUniqueId(), new Draft(id, game, text, done));
-        UiItem seat = UiItem.of(Item.of("OAK_STAIRS").name(text.seatTool()).lore(text.seatLore()).build()).build();
+        UiItem seat = UiItem.of(Item.of("OAK_STAIRS").name(text.seatTool()).lore(text.seatLore()).build())
+                .bindings(bind("seat", "board")).build();
         OverlayDefinition.Builder tools = OverlayDefinition.of(OVERLAY).hideRest().pickup(false);
         for (int slot = 0; slot < DONE_SLOT; slot++) tools.slot(slot, seat);
-        tools.slot(DONE_SLOT, UiItem.of(Item.of("LIME_DYE").name(text.doneTool()).lore(text.doneLore()).build()).build());
-        tools.slot(CANCEL_SLOT, UiItem.of(Item.of("BARRIER").name(text.cancelTool()).lore(text.cancelLore()).build()).build());
+        tools.slot(DONE_SLOT, UiItem.of(Item.of("LIME_DYE").name(text.doneTool()).lore(text.doneLore()).build())
+                .bindings(bind("done", "done")).build());
+        tools.slot(CANCEL_SLOT, UiItem.of(Item.of("BARRIER").name(text.cancelTool()).lore(text.cancelLore()).build())
+                .bindings(bind("cancel", "cancel")).build());
         Overlays.of(plugin).show(admin, tools.build());
         messages.send(admin, text.started(), Values.of().putText("table", id));
     }
@@ -100,42 +135,36 @@ final class TableSetup implements Listener {
         return drafts.containsKey(admin);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onInteract(PlayerInteractEvent event) {
-        Player admin = event.getPlayer();
+    /** A tool pressed on a block: a seat marked or taken back, or the board put there. */
+    private ActionResult press(ActionContext context, boolean seat) {
+        Player admin = context.player();
         Draft draft = drafts.get(admin.getUniqueId());
-        if (draft == null) return;
-        event.setCancelled(true);
-        if (event.getHand() != EquipmentSlot.HAND || event.getAction() == Action.PHYSICAL) return;
-        int slot = admin.getInventory().getHeldItemSlot();
-        if (slot == DONE_SLOT) {
-            finish(admin, draft);
-            return;
-        }
-        if (slot == CANCEL_SLOT) {
-            end(admin);
-            messages.send(admin, draft.text.cancelled(), null);
-            return;
-        }
-        Block block = event.getClickedBlock();
-        if (block == null) return;
-        if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
-            DisplayHandle marker = draft.seats.remove(block);
-            if (marker != null) {
-                marker.remove();
-                renumber(admin, draft);
-                messages.send(admin, draft.text.seatRemoved(), Values.of("seats", draft.seats.size()));
-                return;
-            }
-            draft.seats.put(block, null);
-            renumber(admin, draft);
-            messages.send(admin, draft.text.seatAdded(), Values.of("seat", draft.seats.size()).put("seats", draft.seats.size()));
-        } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+        Block block = context.get(OverlayKeys.BLOCK).orElse(null);
+        if (draft == null || block == null) return ActionResult.success();
+        if (!seat) {
             draft.board = block;
             if (draft.boardMarker != null) draft.boardMarker.remove();
             draft.boardMarker = marker(admin, top(block).add(0, 0.7, 0), draft.text.boardMarker(), Values.of());
             messages.send(admin, draft.text.boardSet(), null);
+            return ActionResult.success();
         }
+        DisplayHandle marker = draft.seats.remove(block);
+        if (marker != null) {
+            marker.remove();
+            renumber(admin, draft);
+            messages.send(admin, draft.text.seatRemoved(), Values.of("seats", draft.seats.size()));
+            return ActionResult.success();
+        }
+        draft.seats.put(block, null);
+        renumber(admin, draft);
+        messages.send(admin, draft.text.seatAdded(), Values.of("seat", draft.seats.size()).put("seats", draft.seats.size()));
+        return ActionResult.success();
+    }
+
+    /** A click with a slot the overlay does not draw (or a client the overlay missed): never a real use while setting up. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onInteract(PlayerInteractEvent event) {
+        if (drafts.containsKey(event.getPlayer().getUniqueId())) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
