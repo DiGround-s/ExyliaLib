@@ -136,8 +136,35 @@ public final class PlacedTables {
             return 0;
         }
 
+        /**
+         * The small hologram over one seat, {@code occupant} {@code null} while it is free: where to sit.
+         * Clicking it is clicking the table. Defaults to none.
+         *
+         * @since 1.371.0
+         */
+        default @NotNull List<String> seatLines(@NotNull Placed table, int seat, @Nullable UUID occupant) {
+            return List.of();
+        }
+
         /** A player clicked the hologram, on their thread. */
         void clicked(@NotNull Player player, @NotNull Placed table);
+    }
+
+    /**
+     * What {@link #setup} says and names, from the plugin's messages. Tools: {@code seatTool} in most of
+     * the hotbar, {@code doneTool} and {@code cancelTool} in its last two slots. Lines: {@code started}
+     * ({@code %table%}), {@code seatAdded} ({@code %seat%}, {@code %seats%}), {@code seatRemoved}
+     * ({@code %seats%}), {@code boardSet}, {@code noSeats}, {@code cancelled}; markers drawn for the admin:
+     * {@code seatMarker} ({@code %seat%}) and {@code boardMarker}.
+     *
+     * @since 1.371.0
+     */
+    public record SetupText(@NotNull String seatTool, @NotNull List<String> seatLore,
+                            @NotNull String doneTool, @NotNull List<String> doneLore,
+                            @NotNull String cancelTool, @NotNull List<String> cancelLore,
+                            @NotNull String started, @NotNull String seatAdded, @NotNull String seatRemoved,
+                            @NotNull String boardSet, @NotNull String noSeats, @NotNull String cancelled,
+                            @NotNull String seatMarker, @NotNull String boardMarker) {
     }
 
     private final Plugin plugin;
@@ -145,6 +172,7 @@ public final class PlacedTables {
     private final double ahead;
     private final Hooks hooks;
     private final Map<String, Placed> tables = new ConcurrentHashMap<>();
+    private TableSetup setup;
     /** Who sits in each seat of a table someone sits at; a free seat is {@code null}. */
     private final Map<String, UUID[]> occupants = new ConcurrentHashMap<>();
 
@@ -171,11 +199,23 @@ public final class PlacedTables {
      * @since 1.369.0
      */
     public static @NotNull HologramConfig look(double height) {
+        // Turned to the viewer round the vertical axis only, and never grown on hover: it stands still.
+        HologramConfig.Properties still = new HologramConfig.Properties("VERTICAL", "CENTER", 1.0, 1.0, 1.0, true,
+                false, 200, 0.25, 255, false, "#00000000", -1, false);
         return new HologramConfig(true, HologramConfig.Kind.TEXT, List.of(), "", "", false, 24, 0, height, 0,
-                new HologramConfig.Properties(), new HologramConfig.Refresh(),
-                new HologramConfig.Click(List.of(), 1.8, 400, 1.04, HologramConfig.Click.STYLE_BUTTON,
+                still, new HologramConfig.Refresh(),
+                new HologramConfig.Click(List.of(), 1.8, 400, 1.0, HologramConfig.Click.STYLE_BUTTON,
                         "{primary}", "{secondary}", "UI_BUTTON_CLICK;0.5;1.5", Map.of(), 6));
     }
+
+    /** The look of the small hologram over a seat. */
+    private static final HologramConfig SEAT_LOOK = new HologramConfig(true, HologramConfig.Kind.TEXT, List.of(), "",
+            "", false, 16, 0, 1.15, 0,
+            new HologramConfig.Properties("VERTICAL", "CENTER", 1.0, 1.0, 1.0, true, false, 200, 0.25, 255, false,
+                    "#00000000", -1, false),
+            new HologramConfig.Refresh(),
+            new HologramConfig.Click(List.of(), 0.9, 400, 1.0, HologramConfig.Click.STYLE_NONE, "{primary}",
+                    "{secondary}", "UI_BUTTON_CLICK;0.5;1.5", Map.of(), 6));
 
     /**
      * The line tag that floats a game's icon in a hologram: {@code <head:...>} for a head value
@@ -198,6 +238,84 @@ public final class PlacedTables {
         save();
         show(table);
         return table;
+    }
+
+    /**
+     * Sets a table down with its seats, or replaces the one with that id: {@code board} is where its
+     * hologram stands (the middle of the table), each seat where its player sits looking at their board.
+     *
+     * @since 1.371.0
+     */
+    public synchronized @NotNull Placed place(@NotNull String id, @NotNull String game, @NotNull Location board,
+                                              @NotNull List<Location> seats) {
+        hideSeats(tables.get(id));
+        List<Spot> spots = seats.stream().map(seat -> new Spot(seat.getX(), seat.getY(), seat.getZ(), seat.getYaw())).toList();
+        Placed table = new Placed(id, game, Objects.requireNonNull(board.getWorld(), "world").getName(),
+                board.getX(), board.getY(), board.getZ(), board.getYaw(), spots);
+        tables.put(id, table);
+        occupants.remove(id);
+        save();
+        show(table);
+        return table;
+    }
+
+    /**
+     * Turns the admin's hotbar into the tools that set a table down by clicking it (see
+     * {@link TableSetup}): left-click chairs for seats, right-click where the board goes, DONE. The table
+     * is set down, or the one with that id replaced, once they finish; {@code done} runs then, on their
+     * thread. Ends by itself when they quit; {@link #cancelSetup} ends it early.
+     *
+     * @since 1.371.0
+     */
+    public void setup(@NotNull Player admin, @NotNull String id, @NotNull String game, @NotNull SetupText text,
+                      @NotNull java.util.function.Consumer<Placed> done) {
+        synchronized (this) {
+            if (setup == null) setup = new TableSetup(plugin, this);
+        }
+        setup.start(admin, id, game, text, done);
+    }
+
+    /** Ends an admin's setup without setting anything down. @since 1.371.0 */
+    public void cancelSetup(@NotNull Player admin) {
+        if (setup != null) setup.end(admin);
+    }
+
+    /**
+     * The first free id for a new table of a game: {@code blackjack-1}, {@code blackjack-2}...
+     *
+     * @since 1.371.0
+     */
+    public @NotNull String nextId(@NotNull String game) {
+        for (int n = 1; ; n++) {
+            String id = game + "-" + n;
+            if (!tables.containsKey(id)) return id;
+        }
+    }
+
+    /**
+     * The table nearest to a place, its hologram or any of its seats within {@code radius} blocks.
+     *
+     * @since 1.371.0
+     */
+    public @NotNull Optional<Placed> nearest(@NotNull Location at, double radius) {
+        if (at.getWorld() == null) return Optional.empty();
+        Placed best = null;
+        double bestDistance = radius * radius;
+        for (Placed table : tables.values()) {
+            if (!table.world().equals(at.getWorld().getName())) continue;
+            List<Location> places = new ArrayList<>();
+            places.add(table.spot());
+            for (int seat = 0; seat < table.seats().size(); seat++) places.add(table.seat(seat));
+            for (Location place : places) {
+                if (place == null) continue;
+                double distance = place.distanceSquared(at);
+                if (distance <= bestDistance) {
+                    bestDistance = distance;
+                    best = table;
+                }
+            }
+        }
+        return Optional.ofNullable(best);
     }
 
     /**
@@ -230,6 +348,7 @@ public final class PlacedTables {
         Placed table = tables.get(id);
         if (table == null) return false;
         Placed bare = new Placed(id, table.game(), table.world(), table.x(), table.y(), table.z(), table.yaw());
+        hideSeats(table);
         tables.put(id, bare);
         occupants.remove(id);
         save();
@@ -239,7 +358,9 @@ public final class PlacedTables {
 
     /** Takes a table away; whether there was one. Whoever plays there finishes their game. */
     public synchronized boolean remove(@NotNull String id) {
-        if (tables.remove(id) == null) return false;
+        Placed removed = tables.remove(id);
+        if (removed == null) return false;
+        hideSeats(removed);
         occupants.remove(id);
         Holograms.remove(plugin, hologramId(id));
         save();
@@ -355,6 +476,7 @@ public final class PlacedTables {
     /** Takes every hologram down, for a shutdown. The tables stay in the file. */
     public void close() {
         tables.keySet().forEach(id -> Holograms.remove(plugin, hologramId(id)));
+        tables.values().forEach(this::hideSeats);
         occupants.clear();
     }
 
@@ -375,10 +497,35 @@ public final class PlacedTables {
             Placed now = tables.get(table.id());
             if (now != null) hooks.clicked(player, now);
         });
+        for (int seat = 0; seat < table.seats().size(); seat++) {
+            String id = seatHologramId(table.id(), seat);
+            List<String> lines = hooks.seatLines(table, seat, seat < seated.size() ? seated.get(seat) : null);
+            Location at = table.seat(seat);
+            if (lines.isEmpty() || at == null) {
+                Holograms.remove(plugin, id);
+                continue;
+            }
+            Hologram marker = Holograms.show(plugin, id, at, SEAT_LOOK);
+            marker.lines(lines);
+            marker.onClick(player -> {
+                Placed now = tables.get(table.id());
+                if (now != null) hooks.clicked(player, now);
+            });
+        }
     }
 
     private static String hologramId(String id) {
         return "table:" + id;
+    }
+
+    private static String seatHologramId(String id, int seat) {
+        return "table:" + id + ":seat:" + seat;
+    }
+
+    /** Takes a table's seat holograms down, before its seats change or it goes. */
+    private void hideSeats(@Nullable Placed table) {
+        if (table == null) return;
+        for (int seat = 0; seat < table.seats().size(); seat++) Holograms.remove(plugin, seatHologramId(table.id(), seat));
     }
 
     private void load() {

@@ -86,7 +86,7 @@ whoever stands near (not one another plugin holds in a session, who may be in a
 room of their own) and is called again every half second as people come and go,
 from the viewer's thread. An empty list gives the screens back to the viewer alone:
 call it when their game ends. Only the viewer's clicks, hovers and sounds count; a
-win's fireworks and a loss's smoke go to everyone watching. Built on
+win's fireworks and a loss's smoke are the viewer's alone (1.371.0). Built on
 `DisplayHandle#viewers(list)`, which changes who sees one display mid-motion.
 
 `PlacedTables` keeps the places an admin set down for a game: a spot where the player
@@ -104,6 +104,20 @@ tables.remove(id); tables.all(); tables.of(player); tables.refresh(); tables.clo
 
 A table game skips the `Enclosure` (the point is to be seen) and confines the player
 to a small square at the spot with `Movement#confine`.
+
+### Setting a table down by clicking it (1.371.0)
+
+`tables.setup(admin, tables.nextId(game), game, setupText, placed -> ...)` turns the
+admin's hotbar into tools for a while (drawn over it, nothing moves): left-click a
+chair (stair, slab, block) to make it a seat or take it back, right-click a block to
+put the board there, DONE (slot 8) sets the table down, the barrier (slot 9) cancels.
+Seats are numbered over the chairs for the admin as they go and face the board (the
+right-clicked block, else the middle of the seats; one seat with no board clicked
+faces the way the admin looks). `SetupText` is the plugin's wording. `place(id, game,
+board, seats)` is the same without the clicking; `nearest(location, radius)` finds the
+table an admin stands at, `nextId(game)` names a new one. `Hooks.seatLines(table, seat,
+occupant)` floats a small clickable line over each seat (where to sit); the table's
+own look (`look(height)`) turns round the vertical axis only and never grows on hover.
 
 ### What watchers must not see (1.370.0)
 

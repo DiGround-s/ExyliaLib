@@ -499,7 +499,8 @@ public class Stage implements CardSprite.Canvas {
                         .shape(i == 0 ? "BALL_LARGE" : "BURST").instant();
                 for (String colour : colours) firework.colour(StageLook.hex(colour));
                 firework.fade(StageLook.hex(colours.getFirst()));
-                audience.forEach(firework::launchAt);
+                // The winner's alone: whoever watches sees the coins fall on the board, not fireworks in their face.
+                firework.launchAt(viewer);
             }
         }
     }
@@ -507,7 +508,7 @@ public class Stage implements CardSprite.Canvas {
     /** A loss: a puff of smoke over the board. */
     public void deflate(double up) {
         var smoke = Effects.particle("SMOKE").at(plane.point(0, up, 0.3)).count(25).spread(0.6, 0.3, 0.1).speed(0.02);
-        audience.forEach(smoke::show);
+        smoke.show(viewer);
     }
 
     /** Takes one piece down before the rest. */
