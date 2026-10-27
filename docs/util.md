@@ -305,6 +305,22 @@ luck = roll.record(luck, chosen);                              // what the playe
 - Weights follow `Weighted`. Rules are keyed by name, so reordering them keeps
   every stored count.
 
+## CommandLabels — is this command on the allowlist
+
+*Since 1.380.0.*
+
+```java
+if (!CommandLabels.listed(event.getMessage(), config.allowedCommands())) event.setCancelled(true);
+String label = CommandLabels.label("/Essentials:MSG Bob");   // "msg"
+```
+
+| Call | Contract |
+| --- | --- |
+| `label(line)` | the label, lower case, without the slash or a `plugin:` prefix; empty for none or `null` |
+| `listed(line, allowed)` | whether the label is one of the entries, each written with or without a slash, any case; `false` for an empty label |
+
+The stays' join recovery reads command labels the same way.
+
 ## PermissionNumbers — numbers granted by permission
 
 *Since 1.319.0.*
@@ -406,8 +422,8 @@ shaded and relocated to `net.exylia.lib.internal.zxing`.
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `TotpTest.java`,
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `TotpTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).

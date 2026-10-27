@@ -104,11 +104,7 @@ public final class Recovering implements Listener {
 
     /** A command line's label, lower case, without the slash or a {@code plugin:} namespace. */
     static String label(String line) {
-        String trimmed = line.startsWith("/") ? line.substring(1) : line;
-        int space = trimmed.indexOf(' ');
-        String label = space < 0 ? trimmed : trimmed.substring(0, space);
-        int colon = label.indexOf(':');
-        return (colon < 0 ? label : label.substring(colon + 1)).toLowerCase(Locale.ROOT);
+        return net.exylia.lib.util.CommandLabels.label(line);
     }
 
     /** Drops every hold a plugin left behind; a disabled plugin finishes no recovery. */
