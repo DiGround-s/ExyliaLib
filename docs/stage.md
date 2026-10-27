@@ -105,6 +105,25 @@ tables.remove(id); tables.all(); tables.of(player); tables.refresh(); tables.clo
 A table game skips the `Enclosure` (the point is to be seen) and confines the player
 to a small square at the spot with `Movement#confine`.
 
+### Seats and chairs (1.369.0)
+
+A table for several players is placed at its centre and given seats one by one:
+`addSeat(id, location)` where each player sits facing their board, `clearSeats(id)`
+to start over. Players take the first free seat with `sit(id, uuid)` (its index, or
+-1 when full), read with `seated(id)` / `seatOf(id, uuid)`, and leave it with
+`release`. A table without seats is still one seat at its spot, as before. Its
+hologram stands over the centre; `Hooks.lines(table, seated)` reads every seat,
+`Hooks.lift(table, seated)` raises it clear of the boards while played, and
+`update(id)` redraws it when the lines read something else (a stake). `look(height)`
+is the shared hologram look, `icon(icon)` the line tag that floats a game's icon.
+
+`Chairs.of(plugin).sit(player, at, stoodUp)` sits a player down (on their thread, at
+the seat): they ride an invisible block display, hips on `at` (feet 0.6 below), so put
+seats on stairs or slabs. Sneaking stands an unlocked player up and runs `stoodUp`;
+`lock(player, true)` keeps them seated (while a match is played); `stand(player)` is
+the plugin standing them up. Quitting, dying and the plugin's disable take the seat
+away; it is never saved.
+
 ## Building on it
 
 Everything a richer screen needs is public, so a plugin draws its own pieces on

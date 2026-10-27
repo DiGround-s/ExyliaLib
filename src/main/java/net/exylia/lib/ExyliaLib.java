@@ -1005,6 +1005,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.release(pluginName);
         // Before its displays: the stages a plugin left open are found by them.
         net.exylia.lib.stage.Stage.release(event.getPlugin());
+        net.exylia.lib.stage.Chairs.release(event.getPlugin());
         // After the sequences that drew them, so nothing spawns a display
         // between the two: what is on a client stays on that client until it
         // relogs, and no part of the server will take it off afterwards.
