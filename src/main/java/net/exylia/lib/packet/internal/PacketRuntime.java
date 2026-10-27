@@ -78,6 +78,10 @@ public final class PacketRuntime {
     private static final Set<UUID> ROTATION_LOCKED = ConcurrentHashMap.newKeySet();
     /** Confined player -> the square they may walk in. Their anchor follows them inside it. */
     private static final Map<UUID, Pen> PENS = new ConcurrentHashMap<>();
+    /** When each pen's hitbox was last sent to its player. */
+    private static final Map<UUID, Long> PEN_SENT = new ConcurrentHashMap<>();
+    /** How often a pen's hitbox is sent again while its player plays. */
+    private static final long PEN_RESEND_MILLIS = 2000L;
     /** viewer -> fake block positions they were shown. */
     private static final Map<UUID, Set<Location>> FAKED = new ConcurrentHashMap<>();
     /** viewer -> outlined position to the client-side entity drawing it. */
@@ -458,8 +462,32 @@ public final class PacketRuntime {
                 new Location(anchor.getWorld(), x, y, z, anchor.getYaw(), anchor.getPitch()));
     }
 
+    /**
+     * Sends a pen's hitbox again once it has gone a while unsent. A client can drop it without the server
+     * hearing (a chunk sent again round it, a room's blocks redrawn), and without it every click at
+     * nothing makes the client ignore the next ones for half a second: sent again, it is never gone long.
+     */
+    static void keepPen(Player player, Pen pen) {
+        long now = System.currentTimeMillis();
+        Long last = PEN_SENT.get(player.getUniqueId());
+        if (last != null && now - last < PEN_RESEND_MILLIS) {
+            return;
+        }
+        PEN_SENT.put(player.getUniqueId(), now);
+        PacketSink out = sink;
+        if (out != null) {
+            out.hitbox(player, pen.hitbox(), pen.centre().clone().subtract(0, 2, 0), penWidth(pen.reach()), 10f);
+        }
+    }
+
+    /** Wide enough to hold the eyes from any corner of a pen {@code inside} to each side. */
+    static float penWidth(double inside) {
+        return (float) (2 * (inside * Math.sqrt(2) + 1));
+    }
+
     /** Forgets a player's pen and takes its hitbox out of their client. */
     private static void unpen(UUID player) {
+        PEN_SENT.remove(player);
         Pen pen = PENS.remove(player);
         PacketSink out = sink;
         Player online = Bukkit.getPlayer(player);
@@ -902,8 +930,8 @@ public final class PacketRuntime {
             PENS.put(player.getUniqueId(), new Pen(centre.clone(), inside, hitbox));
             if (out != null) {
                 // Wide enough to hold the eyes from any corner, from below the feet to well over the head.
-                float width = (float) (2 * (inside * Math.sqrt(2) + 1));
-                out.hitbox(player, hitbox, centre.clone().subtract(0, 2, 0), width, 10f);
+                out.hitbox(player, hitbox, centre.clone().subtract(0, 2, 0), penWidth(inside), 10f);
+                PEN_SENT.put(player.getUniqueId(), System.currentTimeMillis());
             }
         }
 

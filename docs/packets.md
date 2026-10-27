@@ -122,7 +122,9 @@ rotation intact, so the server always knows where the player looks. A
 refused like a frozen one, back to where they last stood inside. An invisible
 client-side hitbox fills the square, so a click at nothing is never a miss to
 the client, which would otherwise ignore the next clicks for half a second;
-its packets are kept from the server, the arm swing is not. `unfreeze` ends
+its packets are kept from the server, the arm swing is not. It is sent again
+every two seconds while the player plays (1.378.0), so a client that dropped
+it (a chunk or a room redrawn round it) has it back at once. `unfreeze` ends
 it, and a `freeze` replaces it.
 
 `freeze(player, true)` locks the camera as well: every rotation off the

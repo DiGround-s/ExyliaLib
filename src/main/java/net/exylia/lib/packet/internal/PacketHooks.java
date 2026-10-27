@@ -615,6 +615,9 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         PacketTypeCommon type = event.getPacketType();
         boolean locked = PacketRuntime.rotationLocked(player);
         PacketRuntime.Pen pen = PacketRuntime.penOf(player);
+        if (pen != null && event.getPlayer() instanceof Player penned) {
+            PacketRuntime.keepPen(penned, pen);
+        }
         if (type == PacketType.Play.Client.PLAYER_POSITION
                 || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION
                 || locked && type == PacketType.Play.Client.PLAYER_ROTATION) {
