@@ -121,6 +121,23 @@ table an admin stands at, `nextId(game)` names a new one. `Hooks.seatLines(table
 occupant)` floats a small clickable line over each seat (where to sit); the table's
 own look (`look(height)`) turns round the vertical axis only and never grows on hover.
 
+### A stage for everyone near (1.377.0)
+
+A board that belongs to a place rather than a player (a live roulette everybody near bets on) is a
+public stage: `new Stage(plane, displays, life, theme, radius, magnify)` (a subclass passes the same to
+`super`). Every piece is a display shown by radius, so it is drawn once whoever comes and goes, and a
+crowd costs the server what one viewer costs. It has no viewer (`viewer()` is `null`, `isPublic()` is
+`true`): no clicks, hovers or buttons; sounds, smoke, fireworks and `StageFx.burst` go to
+`spectators()`, whoever is within the radius now (read from the world: call it on the region thread of
+where it stands). A screen written for a player (a game's view) is drawn publicly unchanged once it
+takes this constructor.
+
+`magnify` draws everything that many times larger about the plane's middle, so a screen laid out for
+a seat two blocks away reads from across a room. Pieces, poses and glides stay in the stage's own units:
+a handle's `then`, `moveTo` and `pose()` are magnified on the way in and read back unmagnified
+(`DisplayMotion#magnified` and `DisplayKeyframe#magnified` do the arithmetic). Build the plane with
+`StagePlane`'s constructor: it is not brought nearer by `table`'s zoom.
+
 ### What watchers must not see (1.370.0)
 
 A game with hidden information (a hand, dice under a cup, a fleet) is watched too:

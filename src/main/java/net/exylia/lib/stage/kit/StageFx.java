@@ -48,7 +48,8 @@ public final class StageFx {
     /** A burst of particles at a point of a board, seen by this view's player only. */
     public static void burst(Stage view, String particle, Location at, int count, double spread) {
         if (particle == null || particle.isBlank() || count <= 0) return;
-        Effects.particle(particle).at(at).count(count).spread(spread, spread, spread * 0.3).speed(0.05).show(view.viewer());
+        var effect = Effects.particle(particle).at(at).count(count).spread(spread, spread, spread * 0.3).speed(0.05);
+        view.spectators().forEach(effect::show);
     }
 
     /**

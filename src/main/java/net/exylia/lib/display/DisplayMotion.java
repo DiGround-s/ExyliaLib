@@ -732,6 +732,26 @@ public final class DisplayMotion {
     }
 
     /**
+     * The same motion through a magnifier: every pose's offsets and sizes {@code factor} times larger
+     * (see {@link DisplayKeyframe#magnified}), its timing and any loop kept.
+     *
+     * @param factor how many times larger
+     * @return the magnified motion
+     * @since 1.377.0
+     */
+    public @NotNull DisplayMotion magnified(double factor) {
+        if (factor == 1.0) {
+            return this;
+        }
+        List<DisplayKeyframe> larger = new ArrayList<>(poses.size());
+        for (DisplayKeyframe pose : poses) {
+            larger.add(pose.magnified(factor));
+        }
+        return new DisplayMotion(larger, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
+    }
+
+    /**
      * The same motion starting somewhere else.
      *
      * @param dx east

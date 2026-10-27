@@ -329,6 +329,9 @@ in with `BACK_OUT` while it flips at a steady rate. `turnTo(rotation)` turns
 from `rotation(...)` to another by the shorter arc, with any spin on top.
 `DisplayMotion.between(from, to, millis, easing)` is that glide as a motion.
 
+`motion.magnified(factor)` (1.377.0) is the same motion with every offset and size `factor` times
+larger, timing and loops kept: a whole group of pieces drawn larger about their anchor.
+
 `DisplayMotion.spline(keys, life)` runs a Catmull-Rom curve through every
 keyframe instead of stopping at each one (offsets and sizes; the rotation turns
 between neighbouring keyframes), cut into a pose about every 100 ms.

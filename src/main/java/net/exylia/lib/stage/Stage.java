@@ -99,7 +99,13 @@ public class Stage implements CardSprite.Canvas {
         }
     }
 
+    /** Whose screen it is; {@code null} for a {@linkplain #isPublic() public} stage. */
     protected final Player viewer;
+    /** For a public stage: how far away it is seen, in blocks; 0 for a player's own. */
+    private final double radius;
+    /** For a public stage: how many times larger everything is drawn about the plane's middle; 1 otherwise. */
+    private final double magnify;
+    private final Location middle;
     protected final StagePlane plane;
     protected final PluginDisplays displays;
     protected final long life;
@@ -137,9 +143,61 @@ public class Stage implements CardSprite.Canvas {
         this.life = life;
         this.theme = Objects.requireNonNull(theme, "theme");
         this.facing = StageLook.facing(plane);
+        this.radius = 0;
+        this.magnify = 1;
+        this.middle = null;
         this.audience = WATCHED.getOrDefault(viewer.getUniqueId(), List.of(viewer));
         LIVE.computeIfAbsent(viewer.getUniqueId(), id -> java.util.Collections.synchronizedSet(
                 java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()))).add(this);
+    }
+
+    /**
+     * A public stage: one board standing in the world for everyone within {@code radius} blocks of it,
+     * drawn once, whoever comes and goes (every piece is a display shown by radius, so a crowd costs
+     * what one viewer costs). Nobody owns it: it has no clicks, hovers or buttons, its sounds, smoke and
+     * fireworks go to whoever is near, and {@link #viewer()} is {@code null}. Everything a player's
+     * stage draws, a public one draws the same way, so a game's screen can be shown to a whole room.
+     *
+     * <p>{@code magnify} draws everything that many times larger about the plane's middle, poses and
+     * glides included (a handle's {@code then}, {@code moveTo} and {@code pose} work in the stage's own
+     * units): a screen laid out for a seat two blocks away, read from across a room.
+     *
+     * @param plane    where it stands; built with {@link StagePlane}'s constructor
+     * @param life     the longest any piece lives, in milliseconds
+     * @param radius   how far away it is seen, in blocks
+     * @param magnify  how many times larger it is drawn, 1 as laid out
+     * @since 1.377.0
+     */
+    public Stage(@NotNull StagePlane plane, @NotNull PluginDisplays displays, long life, @NotNull StageTheme theme,
+                 double radius, double magnify) {
+        this.viewer = null;
+        this.plane = Objects.requireNonNull(plane, "plane");
+        this.displays = Objects.requireNonNull(displays, "displays");
+        this.life = life;
+        this.theme = Objects.requireNonNull(theme, "theme");
+        this.facing = StageLook.facing(plane);
+        this.radius = Math.max(1, radius);
+        this.magnify = magnify > 0 ? magnify : 1;
+        this.middle = plane.point(0, 0, 0);
+        this.audience = List.of();
+    }
+
+    /** Whether it stands for everyone near rather than for one player. @since 1.377.0 */
+    public boolean isPublic() {
+        return viewer == null;
+    }
+
+    /**
+     * Who sees it now: its viewer and their watchers, or for a public stage whoever is within its
+     * radius (read from the world: call it on the thread that owns where it stands). What sounds,
+     * particles and fireworks are shown to.
+     *
+     * @since 1.377.0
+     */
+    public @NotNull List<Player> spectators() {
+        if (viewer != null) return audience;
+        if (middle.getWorld() == null) return List.of();
+        return List.copyOf(middle.getNearbyPlayers(radius));
     }
 
     /**
@@ -281,7 +339,8 @@ public class Stage implements CardSprite.Canvas {
         return life;
     }
 
-    public @NotNull Player viewer() {
+    /** Whose screen it is; {@code null} for a public stage. */
+    public Player viewer() {
         return viewer;
     }
 
@@ -444,7 +503,7 @@ public class Stage implements CardSprite.Canvas {
         framed(across, up, width, height);
         Location edge = plane.point(across, up - height / 2 - FRAME_REACH, 0);
         if (foot == null || edge.getY() < foot.getY()) foot = edge;
-        OPEN.computeIfAbsent(viewer.getUniqueId(), id -> ConcurrentHashMap.newKeySet()).add(this);
+        if (viewer != null) OPEN.computeIfAbsent(viewer.getUniqueId(), id -> ConcurrentHashMap.newKeySet()).add(this);
     }
 
     /**
@@ -529,7 +588,8 @@ public class Stage implements CardSprite.Canvas {
                 for (String colour : colours) firework.colour(StageLook.hex(colour));
                 firework.fade(StageLook.hex(colours.getFirst()));
                 // The winner's alone: whoever watches sees the coins fall on the board, not fireworks in their face.
-                firework.launchAt(viewer);
+                if (viewer != null) firework.launchAt(viewer);
+                else spectators().forEach(firework::launchAt);
             }
         }
     }
@@ -537,7 +597,7 @@ public class Stage implements CardSprite.Canvas {
     /** A loss: a puff of smoke over the board. */
     public void deflate(double up) {
         var smoke = Effects.particle("SMOKE").at(plane.point(0, up, 0.3)).count(25).spread(0.6, 0.3, 0.1).speed(0.02);
-        smoke.show(viewer);
+        spectators().forEach(smoke::show);
     }
 
     /** Takes one piece down before the rest. */
@@ -557,6 +617,7 @@ public class Stage implements CardSprite.Canvas {
         header = null;
         title = null;
         info = null;
+        if (viewer == null) return;
         forget(this);
         LIVE.computeIfPresent(viewer.getUniqueId(), (id, live) -> {
             live.remove(this);
@@ -574,6 +635,14 @@ public class Stage implements CardSprite.Canvas {
         // See-through text skips the depth buffer, so up to 1.21.11 the table drawn after it paints over it;
         // and those clients draw a translucent panel sky blue over a black table, so text goes bare.
         if (model.kind() == DisplayModel.Kind.TEXT) model = model.seeThrough(false).background(0);
+        if (viewer == null) {
+            Location larger = middle.clone().add(at.clone().subtract(middle).toVector().multiply(magnify));
+            DisplayHandle shown = displays.show(model, motion.magnified(magnify), larger, radius);
+            if (shown == null) return null;
+            DisplayHandle handle = magnify == 1 ? shown : new Magnified(shown, magnify);
+            pieces.add(handle);
+            return handle;
+        }
         Scope scope = drawing;
         DisplayHandle handle = scope == Scope.OTHERS
                 ? displays.showKept(model, motion, at, seenBy(scope, audience))
@@ -613,5 +682,88 @@ public class Stage implements CardSprite.Canvas {
         WATCHED.clear();
         SHOWING.clear();
         LIVE.clear();
+    }
+
+    /**
+     * A piece of a magnified public stage: what it is handed (a new motion, a pose to glide to) is in the
+     * stage's own units and magnified on the way in, and its pose is read back in them.
+     */
+    private record Magnified(DisplayHandle piece, double factor) implements DisplayHandle {
+
+        @Override
+        public void remove() {
+            piece.remove();
+        }
+
+        @Override
+        public boolean isShowing() {
+            return piece.isShowing();
+        }
+
+        @Override
+        public void settle(long millis) {
+            piece.settle(millis);
+        }
+
+        @Override
+        public @Nullable DisplayModel model() {
+            return piece.model();
+        }
+
+        @Override
+        public void restyle(@NotNull DisplayModel model) {
+            piece.restyle(model);
+        }
+
+        @Override
+        public void showing(@NotNull ItemStack item) {
+            piece.showing(item);
+        }
+
+        @Override
+        public void text(@NotNull Component text) {
+            piece.text(text);
+        }
+
+        @Override
+        public void text(@NotNull java.util.function.Function<Player, Component> text) {
+            piece.text(text);
+        }
+
+        @Override
+        public void glow(int rgb) {
+            piece.glow(rgb);
+        }
+
+        @Override
+        public void light(int level) {
+            piece.light(level);
+        }
+
+        @Override
+        public @Nullable DisplayKeyframe pose() {
+            DisplayKeyframe pose = piece.pose();
+            return pose == null ? null : pose.magnified(1 / factor);
+        }
+
+        @Override
+        public void then(@NotNull DisplayMotion next) {
+            piece.then(next.magnified(factor));
+        }
+
+        @Override
+        public void moveTo(@NotNull DisplayKeyframe target, long millis, @NotNull DisplayMotion.Easing easing) {
+            piece.moveTo(target.magnified(factor), millis, easing);
+        }
+
+        @Override
+        public void speedUp(double factor) {
+            piece.speedUp(factor);
+        }
+
+        @Override
+        public void viewers(@NotNull List<Player> viewers) {
+            piece.viewers(viewers);
+        }
     }
 }

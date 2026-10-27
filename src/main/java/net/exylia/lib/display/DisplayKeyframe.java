@@ -66,6 +66,21 @@ public record DisplayKeyframe(long atMillis, float x, float y, float z,
     }
 
     /**
+     * The same pose seen through a magnifier: its offsets and its sizes {@code factor} times larger, the
+     * turn and the time unchanged. A whole piece drawn this way about its anchor is the same piece,
+     * bigger, in the same place relative to everything else magnified with it.
+     *
+     * @param factor how many times larger
+     * @return the magnified pose
+     * @since 1.377.0
+     */
+    public @NotNull DisplayKeyframe magnified(double factor) {
+        if (factor == 1.0) return this;
+        return new DisplayKeyframe(atMillis, (float) (x * factor), (float) (y * factor), (float) (z * factor),
+                rotation, (float) (scaleX * factor), (float) (scaleY * factor), (float) (scaleZ * factor));
+    }
+
+    /**
      * The pose a fraction of the way from this one to another.
      *
      * <p>What the client draws between two poses: offsets and sizes in a
