@@ -85,6 +85,9 @@ public class Stage implements CardSprite.Canvas {
     /** Every stage drawn for a player and not closed, so watchers who arrive are shown it. */
     private static final Map<UUID, Set<Stage>> LIVE = new ConcurrentHashMap<>();
 
+    /** Who sees a piece: everyone watching, the viewer alone, or everyone watching but the viewer. */
+    private enum Scope { ALL, VIEWER, OTHERS }
+
     /** How something ended: the colour the verdict banner is outlined in. */
     public enum Outcome {
         WIN, LOSE, DRAW;
@@ -102,6 +105,9 @@ public class Stage implements CardSprite.Canvas {
     protected final StageTheme theme;
     private volatile List<Player> audience;
     private final List<DisplayHandle> pieces = new ArrayList<>();
+    /** Who a piece is for, when not everyone watching: see {@link #secretly} and {@link #toOthers}. */
+    private final Map<DisplayHandle, Scope> scoped = java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+    private Scope drawing = Scope.ALL;
     private final List<StageButton> buttons = new ArrayList<>();
     private DisplayHandle header;
     private DisplayHandle title;
@@ -165,7 +171,7 @@ public class Stage implements CardSprite.Canvas {
         }
         for (Stage stage : stages) {
             stage.audience = now;
-            List.copyOf(stage.pieces).forEach(piece -> piece.viewers(now));
+            List.copyOf(stage.pieces).forEach(piece -> piece.viewers(stage.seenBy(stage.scoped.get(piece), now)));
         }
     }
 
@@ -180,6 +186,45 @@ public class Stage implements CardSprite.Canvas {
     public static void watchedWithin(@NotNull Player viewer, double radius) {
         watchers(viewer, viewer.getLocation().getNearbyPlayers(radius).stream()
                 .filter(other -> net.exylia.lib.session.Sessions.holder(other).isEmpty()).toList());
+    }
+
+    /**
+     * Draws what only the viewer may see, whoever watches: a hand of cards, dice under a cup, a fleet.
+     * Every piece drawn inside {@code draw} (a {@link net.exylia.lib.stage.kit.CardSprite} included)
+     * stays the viewer's alone. Draw what watchers see in its place with {@link #toOthers}.
+     *
+     * @since 1.370.0
+     */
+    @Override
+    public void secretly(@NotNull Runnable draw) {
+        within(Scope.VIEWER, draw);
+    }
+
+    /**
+     * Draws what everyone watching sees but the viewer: the back of a card the viewer sees face up. Drawn
+     * even while nobody watches, so whoever arrives later is shown it.
+     *
+     * @since 1.370.0
+     */
+    @Override
+    public void toOthers(@NotNull Runnable draw) {
+        within(Scope.OTHERS, draw);
+    }
+
+    private void within(Scope scope, Runnable draw) {
+        Scope before = drawing;
+        drawing = scope;
+        try {
+            draw.run();
+        } finally {
+            drawing = before;
+        }
+    }
+
+    private List<Player> seenBy(@Nullable Scope scope, List<Player> everyone) {
+        if (scope == null || scope == Scope.ALL) return everyone;
+        if (scope == Scope.VIEWER) return List.of(viewer);
+        return everyone.stream().filter(player -> !player.getUniqueId().equals(viewer.getUniqueId())).toList();
     }
 
     /** Who sees this stage: its viewer, and whoever {@link #watchers} let in. */
@@ -470,12 +515,14 @@ public class Stage implements CardSprite.Canvas {
         if (piece == null) return;
         piece.remove();
         pieces.remove(piece);
+        scoped.remove(piece);
     }
 
     /** Takes everything down; the stage can be drawn on again afterwards. */
     public void close() {
         pieces.forEach(DisplayHandle::remove);
         pieces.clear();
+        scoped.clear();
         buttons.clear();
         header = null;
         title = null;
@@ -497,9 +544,13 @@ public class Stage implements CardSprite.Canvas {
         // See-through text skips the depth buffer, so up to 1.21.11 the table drawn after it paints over it;
         // and those clients draw a translucent panel sky blue over a black table, so text goes bare.
         if (model.kind() == DisplayModel.Kind.TEXT) model = model.seeThrough(false).background(0);
-        DisplayHandle handle = displays.show(model, motion, at, audience);
+        Scope scope = drawing;
+        DisplayHandle handle = scope == Scope.OTHERS
+                ? displays.showKept(model, motion, at, seenBy(scope, audience))
+                : displays.show(model, motion, at, seenBy(scope, audience));
         if (handle == null) return null;
         pieces.add(handle);
+        if (scope != Scope.ALL) scoped.put(handle, scope);
         return handle;
     }
 

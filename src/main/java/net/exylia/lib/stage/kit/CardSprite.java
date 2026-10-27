@@ -26,6 +26,9 @@ import org.bukkit.inventory.ItemStack;
  * card.reveal(card.card());                                  // turned over
  * }</pre>
  *
+ * <p>A card in a player's hand is {@linkplain #held held}: its face is drawn for that player alone, and
+ * whoever watches their screen sees its back, until it is {@linkplain #uncover uncovered} (a showdown).
+ *
  * @since 1.356.0
  */
 public final class CardSprite {
@@ -74,6 +77,10 @@ public final class CardSprite {
     private DisplayHandle icon;
     private PlayingCard card;
     private boolean faceUp;
+    private boolean held;
+    /** The back watchers see while a held card is face up to its holder. */
+    private DisplayHandle coverPlate;
+    private DisplayHandle coverLabel;
 
     /** What a view lends a card so it can draw on it; {@link Stage} implements it. */
     public interface Canvas {
@@ -84,6 +91,15 @@ public final class CardSprite {
         Rotation facing();
 
         long life();
+
+        /** Draws what only the canvas's own player may see; a canvas nobody watches just draws it. @since 1.370.0 */
+        default void secretly(Runnable draw) {
+            draw.run();
+        }
+
+        /** Draws what whoever watches sees but the canvas's own player; a canvas nobody watches draws nothing. @since 1.370.0 */
+        default void toOthers(Runnable draw) {
+        }
     }
 
     /**
@@ -93,15 +109,28 @@ public final class CardSprite {
      */
     public CardSprite(Canvas canvas, Style style, Location at, PlayingCard card, boolean faceUp,
                       double fromAcross, double fromUp, long delay) {
+        this(canvas, style, at, card, faceUp, false, fromAcross, fromUp, delay);
+    }
+
+    /**
+     * Deals a card as {@link #CardSprite(Canvas, Style, Location, PlayingCard, boolean, double, double, long)},
+     * held or not.
+     *
+     * @param held whether it is in the canvas player's hand: its face is theirs alone, watchers see its back
+     * @since 1.370.0
+     */
+    public CardSprite(Canvas canvas, Style style, Location at, PlayingCard card, boolean faceUp, boolean held,
+                      double fromAcross, double fromUp, long delay) {
         this.canvas = canvas;
         this.style = style;
         this.at = at.clone();
         this.card = card;
         this.faceUp = faceUp && card != null;
+        this.held = held;
         draw(fromAcross, fromUp, delay);
     }
 
-    /** Turns the card over to show its face, with a half turn. */
+    /** Turns the card over to show its face, with a half turn. A held card shows it to its holder alone. */
     public void reveal(PlayingCard card) {
         this.card = card;
         this.faceUp = true;
@@ -109,15 +138,32 @@ public final class CardSprite {
         draw(0, 0, 0);
     }
 
+    /**
+     * Shows a held card's face to everyone watching too, as at a showdown; turns it over if it was down.
+     *
+     * @since 1.370.0
+     */
+    public void uncover() {
+        if (!held && faceUp) return;
+        held = false;
+        if (card != null) reveal(card);
+    }
+
+    /** Whether its face is its holder's alone. @since 1.370.0 */
+    public boolean held() {
+        return held;
+    }
+
     /** Outlines the card, or takes the outline off with a negative colour. */
     public void glow(int rgb) {
         if (plate != null) plate.glow(rgb);
+        if (coverPlate != null) coverPlate.glow(rgb);
     }
 
     /** Lifts the card out of its row a little, as a selected or winning card. */
     public void lift(double up) {
         if (plate == null) return;
-        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon}) {
+        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon, coverPlate, coverLabel}) {
             DisplayKeyframe here = piece == null ? null : piece.pose();
             if (here != null) {
                 piece.moveTo(new DisplayKeyframe(0L, here.x(), (float) up, here.z(), here.rotation(),
@@ -132,7 +178,7 @@ public final class CardSprite {
      */
     public void muck(double across, double up, long millis) {
         float[] by = canvas.facing().apply(new float[]{(float) across, (float) up, 0f});
-        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon}) {
+        for (DisplayHandle piece : new DisplayHandle[]{plate, label, icon, coverPlate, coverLabel}) {
             DisplayKeyframe here = piece == null ? null : piece.pose();
             if (here == null) continue;
             // The new motion is the piece's whole remaining life, so it ends where it vanishes.
@@ -145,6 +191,8 @@ public final class CardSprite {
         plate = null;
         label = null;
         icon = null;
+        coverPlate = null;
+        coverLabel = null;
     }
 
     public void remove() {
@@ -155,9 +203,13 @@ public final class CardSprite {
         canvas.erase(plate);
         canvas.erase(label);
         canvas.erase(icon);
+        canvas.erase(coverPlate);
+        canvas.erase(coverLabel);
         plate = null;
         label = null;
         icon = null;
+        coverPlate = null;
+        coverLabel = null;
     }
 
     public PlayingCard card() {
@@ -165,6 +217,24 @@ public final class CardSprite {
     }
 
     private void draw(double fromAcross, double fromUp, long delay) {
+        if (!held || !faceUp) {
+            drawSide(faceUp, fromAcross, fromUp, delay);
+            return;
+        }
+        canvas.secretly(() -> drawSide(true, fromAcross, fromUp, delay));
+        // Whoever watches sees the back; the face pieces are kept, the back ones put aside as the cover.
+        DisplayHandle facePlate = plate;
+        DisplayHandle faceLabel = label;
+        DisplayHandle faceIcon = icon;
+        canvas.toOthers(() -> drawSide(false, fromAcross, fromUp, delay));
+        coverPlate = plate;
+        coverLabel = label;
+        plate = facePlate;
+        label = faceLabel;
+        icon = faceIcon;
+    }
+
+    private void drawSide(boolean faceUp, double fromAcross, double fromUp, long delay) {
         Rotation facing = canvas.facing();
         String block = faceUp ? style.faceBlock() : style.backBlock();
         plate = canvas.draw(DisplayModel.block(StageLook.block(block, Material.WHITE_CONCRETE)).light(15),
@@ -186,6 +256,7 @@ public final class CardSprite {
         String text = faceUp
                 ? (card.suit().isRed() ? style.red() : style.black()) + "&l" + card.label() + "<newline>" + card.suit().symbol()
                 : style.back();
+        icon = null;
         label = canvas.draw(DisplayModel.text(StageHud.line(text, null)).billboard("FIXED").light(15).background(0),
                 glide(facing, scale, scale, scale, fromAcross, fromUp, delay),
                 at.clone().add(0, -Stage.TEXT_HEIGHT * scale, 0).add(forward(facing, 0.02)));

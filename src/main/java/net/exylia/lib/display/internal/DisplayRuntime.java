@@ -265,11 +265,17 @@ public final class DisplayRuntime {
      */
     public static DisplayHandle show(String owner, DisplayModel model, DisplayMotion motion,
                                      Location at, List<Player> viewers, int vehicleId) {
+        return show(owner, model, motion, at, viewers, vehicleId, false);
+    }
+
+    /** As {@link #show(String, DisplayModel, DisplayMotion, Location, List, int)}; {@code kept} draws it for nobody yet too. */
+    public static DisplayHandle show(String owner, DisplayModel model, DisplayMotion motion,
+                                     Location at, List<Player> viewers, int vehicleId, boolean kept) {
         if (!available) {
             warnOnce(owner);
             return null;
         }
-        if (viewers.isEmpty() || ids == null) {
+        if (viewers.isEmpty() && !kept || ids == null) {
             return null;
         }
         // Refused before the packets are built, not after: the point of the

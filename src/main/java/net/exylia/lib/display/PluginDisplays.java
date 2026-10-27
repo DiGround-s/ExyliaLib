@@ -51,6 +51,17 @@ public final class PluginDisplays {
     }
 
     /**
+     * As {@link #show(DisplayModel, DisplayMotion, Location, List)}, but drawn even while nobody is
+     * listed: {@link DisplayHandle#viewers} lets players in later, in the pose it has reached by then.
+     *
+     * @since 1.370.0
+     */
+    public @Nullable DisplayHandle showKept(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
+                                            @NotNull Location at, @NotNull List<Player> viewers) {
+        return DisplayRuntime.show(pluginName, model, motion, at, viewers, 0, true);
+    }
+
+    /**
      * Shows one display to whoever is within a radius of it, for as long as it
      * lasts.
      *

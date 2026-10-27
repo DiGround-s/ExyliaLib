@@ -105,6 +105,17 @@ tables.remove(id); tables.all(); tables.of(player); tables.refresh(); tables.clo
 A table game skips the `Enclosure` (the point is to be seen) and confines the player
 to a small square at the spot with `Movement#confine`.
 
+### What watchers must not see (1.370.0)
+
+A game with hidden information (a hand, dice under a cup, a fleet) is watched too:
+draw the secret inside `stage.secretly(() -> ...)`, seen by the viewer alone whoever
+watches, and what watchers see in its place inside `stage.toOthers(() -> ...)` (drawn
+even before anyone watches, so latecomers get it). A `CardSprite` dealt with
+`held = true` does both by itself: its face for its holder, its back for watchers,
+until `uncover()` (a showdown) shows it to all. Pieces keep their scope when people
+start or stop watching. `PluginDisplays#showKept` is the display drawn for nobody
+yet that `toOthers` stands on.
+
 ### Seats and chairs (1.369.0)
 
 A table for several players is placed at its centre and given seats one by one:
