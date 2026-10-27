@@ -85,7 +85,9 @@ for them later, to those players too; `Stage.watchedWithin(viewer, radius)` lets
 whoever stands near (not one another plugin holds in a session, who may be in a
 room of their own) and is called again every half second as people come and go,
 from the viewer's thread. An empty list gives the screens back to the viewer alone:
-call it when their game ends. Only the viewer's clicks, hovers and sounds count; a
+call it when their game ends. A bystander near several players shown this way (a table of eight) watches only the
+nearest one's screens (1.374.0), so they see one board, not every board crossed over the
+table, and a crowded table costs its crowd once rather than once per seat. Only the viewer's clicks, hovers and sounds count; a
 win's fireworks and a loss's smoke are the viewer's alone (1.371.0). Built on
 `DisplayHandle#viewers(list)`, which changes who sees one display mid-motion.
 

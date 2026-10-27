@@ -82,6 +82,8 @@ public class Stage implements CardSprite.Canvas {
     private static final Map<UUID, Set<Stage>> OPEN = new ConcurrentHashMap<>();
     /** Everyone who sees a player's screens, the player first; absent for the player alone. */
     private static final Map<UUID, List<Player>> WATCHED = new ConcurrentHashMap<>();
+    /** The players whose screens bystanders may watch right now, so each bystander watches only the nearest. */
+    private static final Map<UUID, Player> SHOWING = new ConcurrentHashMap<>();
     /** Every stage drawn for a player and not closed, so watchers who arrive are shown it. */
     private static final Map<UUID, Set<Stage>> LIVE = new ConcurrentHashMap<>();
 
@@ -161,6 +163,7 @@ public class Stage implements CardSprite.Canvas {
         UUID id = viewer.getUniqueId();
         List<Player> before = WATCHED.getOrDefault(id, List.of(viewer));
         if (new java.util.HashSet<>(before).equals(new java.util.HashSet<>(now))) return;
+        if (others.isEmpty()) SHOWING.remove(id);
         if (now.size() == 1) WATCHED.remove(id);
         else WATCHED.put(id, now);
         Set<Stage> live = LIVE.get(id);
@@ -179,13 +182,39 @@ public class Stage implements CardSprite.Canvas {
      * Lets whoever stands within {@code radius} blocks of a player watch their screens, and nobody
      * else: call it again every half second or so, from the player's thread, as people come and go.
      * A player some plugin holds in a {@linkplain net.exylia.lib.session.Sessions session} (playing a
-     * game of their own, perhaps in a room of their own) is not let in.
+     * game of their own, perhaps in a room of their own) is not let in. A bystander near several players
+     * shown this way (a table of eight) watches only the nearest one's screens (1.374.0): one board in
+     * front of them rather than every board at the table crossed over each other, and a table's cost
+     * that does not grow with its seats times its crowd. {@link #watchers} with an empty list ends it.
      *
      * @since 1.367.0
      */
     public static void watchedWithin(@NotNull Player viewer, double radius) {
+        SHOWING.put(viewer.getUniqueId(), viewer);
+        // Gone, or showing nothing any more (its plugin disabled mid-game): never the nearest again.
+        SHOWING.values().removeIf(shown -> !shown.isOnline() || !LIVE.containsKey(shown.getUniqueId()));
         watchers(viewer, viewer.getLocation().getNearbyPlayers(radius).stream()
-                .filter(other -> net.exylia.lib.session.Sessions.holder(other).isEmpty()).toList());
+                .filter(other -> net.exylia.lib.session.Sessions.holder(other).isEmpty())
+                .filter(other -> nearestShown(other, radius) == viewer)
+                .toList());
+    }
+
+    /** The player shown to bystanders nearest to one, within {@code radius}; the lowest id wins a tie. */
+    private static @Nullable Player nearestShown(Player bystander, double radius) {
+        Location at = bystander.getLocation();
+        Player best = null;
+        double bestDistance = radius * radius;
+        for (Player shown : SHOWING.values()) {
+            Location there = shown.getLocation();
+            if (there.getWorld() != at.getWorld()) continue;
+            double distance = there.distanceSquared(at);
+            if (distance < bestDistance || distance == bestDistance && best != null
+                    && shown.getUniqueId().compareTo(best.getUniqueId()) < 0) {
+                best = shown;
+                bestDistance = distance;
+            }
+        }
+        return best;
     }
 
     /**
@@ -582,6 +611,7 @@ public class Stage implements CardSprite.Canvas {
     public static void releaseAll() {
         OPEN.clear();
         WATCHED.clear();
+        SHOWING.clear();
         LIVE.clear();
     }
 }
