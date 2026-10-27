@@ -8,6 +8,8 @@ import net.exylia.lib.region.SelectionMode;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
+
 /**
  * Everything the library itself says to a player.
  *
@@ -60,22 +62,30 @@ public record LibraryMessages(
         @NotNull Purchase purchase,
 
         @Comment("What /exylialib logs, the staff audit log, says.")
-        @NotNull Logs logs
+        @NotNull Logs logs,
+
+        @Comment("Setting a table down by clicking its chairs, and the line over each seat.")
+        @NotNull Tables tables
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection(), new Players(), new Purchase(), new Logs());
+        this(new Wizard(), new Selection(), new Players(), new Purchase(), new Logs(), new Tables());
+    }
+
+    /** The messages before tables had any, with their defaults. */
+    public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase, Logs logs) {
+        this(wizard, selection, players, purchase, logs, null);
     }
 
     /** The messages before the staff log had any, with its defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase) {
-        this(wizard, selection, players, purchase, null);
+        this(wizard, selection, players, purchase, null, null);
     }
 
     /** The messages before purchases had any, with the purchase defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players) {
-        this(wizard, selection, players, null, null);
+        this(wizard, selection, players, null, null, null);
     }
 
     public LibraryMessages {
@@ -93,6 +103,9 @@ public record LibraryMessages(
         }
         if (logs == null) {
             logs = new Logs();
+        }
+        if (tables == null) {
+            tables = new Tables();
         }
     }
 
@@ -739,6 +752,73 @@ public record LibraryMessages(
             instance = current.get();
         }
         return get();
+    }
+
+    /**
+     * Setting a table down by clicking its chairs ({@code PlacedTables#setup}), and the line floated over
+     * each seat of a table standing in the world.
+     *
+     * @since 1.373.0
+     */
+    public record Tables(
+            @Key("seat-tool") @Comment("The tools drawn in the admin's hotbar while they set a table down.")
+            @NotNull String seatTool,
+            @Key("seat-tool-lore") @NotNull List<String> seatToolLore,
+            @Key("done-tool") @NotNull String doneTool,
+            @Key("done-tool-lore") @NotNull List<String> doneToolLore,
+            @Key("cancel-tool") @NotNull String cancelTool,
+            @Key("cancel-tool-lore") @NotNull List<String> cancelToolLore,
+            @Comment("What they are told as they go. %table%; %seat% the seat just marked, %seats% how many.")
+            @NotNull String started,
+            @Key("seat-added") @NotNull String seatAdded,
+            @Key("seat-removed") @NotNull String seatRemoved,
+            @Key("board-set") @NotNull String boardSet,
+            @Key("no-seats") @NotNull String noSeats,
+            @NotNull String cancelled,
+            @Key("seat-marker") @Comment("Drawn over each chair marked, and over the board's place, for the admin alone.")
+            @NotNull String seatMarker,
+            @Key("board-marker") @NotNull String boardMarker,
+            @Key("seat-free") @Comment("Floated over a seat of a table: free, or taken (%player%).")
+            @NotNull List<String> seatFree,
+            @Key("seat-taken") @NotNull List<String> seatTaken
+    ) {
+
+        /** The Exylia defaults. */
+        public Tables() {
+            this(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        }
+
+        public Tables {
+            seatTool = orDefault(seatTool, "{primary}&lSEAT");
+            seatToolLore = seatToolLore != null ? List.copyOf(seatToolLore) : List.of("",
+                    "{warning}➥ Left-click {letters_black}» {letters}a chair becomes a seat, or stops being one",
+                    "{warning}➥ Right-click {letters_black}» {letters}the board goes on that block", "");
+            doneTool = orDefault(doneTool, "{success}&lDONE");
+            doneToolLore = doneToolLore != null ? List.copyOf(doneToolLore) : List.of("",
+                    "{letters}Sets the table down.", "", "{warning}➥ Click to finish", "");
+            cancelTool = orDefault(cancelTool, "{error}&lCANCEL");
+            cancelToolLore = cancelToolLore != null ? List.copyOf(cancelToolLore) : List.of("",
+                    "{letters}Leaves without changing anything.", "", "{error}➥ Click to cancel", "");
+            started = orDefault(started, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Table {highlight}%table% "
+                    + "{letters_black}» {letters}left-click each chair, right-click where the board goes, then {success}DONE{letters}.");
+            seatAdded = orDefault(seatAdded, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}Seat {info}%seat% {letters}marked.");
+            seatRemoved = orDefault(seatRemoved, "[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Seat taken back "
+                    + "{letters_black}» {info}%seats% {letters}left.");
+            boardSet = orDefault(boardSet, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}The board goes there.");
+            noSeats = orDefault(noSeats, "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Left-click at least one chair first.");
+            cancelled = orDefault(cancelled, "{muted}Setting the table down was cancelled. Nothing changed.");
+            seatMarker = orDefault(seatMarker, "{success}&l%seat%");
+            boardMarker = orDefault(boardMarker, "{info}&l✦");
+            seatFree = seatFree != null ? List.copyOf(seatFree) : List.of("{success}● {letters}Free");
+            seatTaken = seatTaken != null ? List.copyOf(seatTaken) : List.of("{highlight}%player%");
+        }
+
+        /** What {@code PlacedTables#setup} names and says. */
+        public net.exylia.lib.stage.PlacedTables.SetupText setup() {
+            return new net.exylia.lib.stage.PlacedTables.SetupText(seatTool, seatToolLore, doneTool, doneToolLore,
+                    cancelTool, cancelToolLore, started, seatAdded, seatRemoved, boardSet, noSeats, cancelled,
+                    seatMarker, boardMarker);
+        }
     }
 
     /**

@@ -113,7 +113,7 @@ chair (stair, slab, block) to make it a seat or take it back, right-click a bloc
 put the board there, DONE (slot 8) sets the table down, the barrier (slot 9) cancels.
 Seats are numbered over the chairs for the admin as they go and face the board (the
 right-clicked block, else the middle of the seats; one seat with no board clicked
-faces the way the admin looks). `SetupText` is the plugin's wording. `place(id, game,
+faces the way the admin looks). `SetupText` is the plugin's wording; `setup(admin, id, game, done)` (1.373.0) uses the library's own (`tables` in its messages, every language), as the seat lines do by default. `place(id, game,
 board, seats)` is the same without the clicking; `nearest(location, radius)` finds the
 table an admin stands at, `nextId(game)` names a new one. `Hooks.seatLines(table, seat,
 occupant)` floats a small clickable line over each seat (where to sit); the table's

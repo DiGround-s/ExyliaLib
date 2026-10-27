@@ -138,12 +138,17 @@ public final class PlacedTables {
 
         /**
          * The small hologram over one seat, {@code occupant} {@code null} while it is free: where to sit.
-         * Clicking it is clicking the table. Defaults to none.
+         * Clicking it is clicking the table. Defaults to the library's lines ({@code tables.seat-free} and
+         * {@code tables.seat-taken} in its messages); an empty list floats nothing.
          *
          * @since 1.371.0
          */
         default @NotNull List<String> seatLines(@NotNull Placed table, int seat, @Nullable UUID occupant) {
-            return List.of();
+            net.exylia.lib.text.LibraryMessages.Tables text = net.exylia.lib.text.LibraryMessages.get().tables();
+            if (occupant == null) return text.seatFree();
+            Player player = Bukkit.getPlayer(occupant);
+            net.exylia.lib.text.Values values = net.exylia.lib.text.Values.of().putText("player", player == null ? "?" : player.getName());
+            return text.seatTaken().stream().map(values::apply).toList();
         }
 
         /** A player clicked the hologram, on their thread. */
@@ -273,6 +278,17 @@ public final class PlacedTables {
             if (setup == null) setup = new TableSetup(plugin, this);
         }
         setup.start(admin, id, game, text, done);
+    }
+
+    /**
+     * {@link #setup(Player, String, String, SetupText, java.util.function.Consumer)} in the library's own
+     * words ({@code tables} in its messages, in the server's language).
+     *
+     * @since 1.373.0
+     */
+    public void setup(@NotNull Player admin, @NotNull String id, @NotNull String game,
+                      @NotNull java.util.function.Consumer<Placed> done) {
+        setup(admin, id, game, net.exylia.lib.text.LibraryMessages.get().tables().setup(), done);
     }
 
     /** Ends an admin's setup without setting anything down. @since 1.371.0 */

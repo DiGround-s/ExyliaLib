@@ -55,3 +55,36 @@ logs:
   detail-line: ' {letters_black}▎ {letters}%line%'
   view-items: '{warning}➥ Clique pour voir les objets'
   view-entry: '{warning}➥ Clique pour ouvrir l''entrée'
+tables:
+  seat-tool: '{primary}&lSIÈGE'
+  seat-tool-lore:
+  - ''
+  - '{warning}➥ Clic gauche {letters_black}» {letters}une chaise devient un siège, ou ne l''est plus'
+  - '{warning}➥ Clic droit {letters_black}» {letters}le plateau va sur ce bloc'
+  - ''
+  done-tool: '{success}&lTERMINÉ'
+  done-tool-lore:
+  - ''
+  - '{letters}Pose la table.'
+  - ''
+  - '{warning}➥ Clique pour terminer'
+  - ''
+  cancel-tool: '{error}&lANNULER'
+  cancel-tool-lore:
+  - ''
+  - '{letters}Quitte sans rien changer.'
+  - ''
+  - '{error}➥ Clique pour annuler'
+  - ''
+  started: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Table {highlight}%table% {letters_black}» {letters}clic gauche sur chaque chaise, clic droit là où va le plateau, puis {success}TERMINÉ{letters}.'
+  seat-added: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}Siège {info}%seat% {letters}marqué.'
+  seat-removed: '[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Siège retiré {letters_black}» {info}%seats% {letters}restants.'
+  board-set: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}Le plateau ira là.'
+  no-seats: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Fais d''abord un clic gauche sur au moins une chaise.'
+  cancelled: '{muted}La pose de la table a été annulée. Rien n''a changé.'
+  seat-marker: '{success}&l%seat%'
+  board-marker: '{info}&l✦'
+  seat-free:
+  - '{success}● {letters}Libre'
+  seat-taken:
+  - '{highlight}%player%'

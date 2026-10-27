@@ -55,3 +55,36 @@ logs:
   detail-line: ' {letters_black}▎ {letters}%line%'
   view-items: '{warning}➥ Clique para ver os itens'
   view-entry: '{warning}➥ Clique para abrir o registro'
+tables:
+  seat-tool: '{primary}&lLUGAR'
+  seat-tool-lore:
+  - ''
+  - '{warning}➥ Clique esq. {letters_black}» {letters}uma cadeira vira lugar, ou deixa de ser'
+  - '{warning}➥ Clique dir. {letters_black}» {letters}o tabuleiro vai nesse bloco'
+  - ''
+  done-tool: '{success}&lPRONTO'
+  done-tool-lore:
+  - ''
+  - '{letters}Coloca a mesa.'
+  - ''
+  - '{warning}➥ Clique para terminar'
+  - ''
+  cancel-tool: '{error}&lCANCELAR'
+  cancel-tool-lore:
+  - ''
+  - '{letters}Sai sem mudar nada.'
+  - ''
+  - '{error}➥ Clique para cancelar'
+  - ''
+  started: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Mesa {highlight}%table% {letters_black}» {letters}clique esq. em cada cadeira, clique dir. onde vai o tabuleiro e depois {success}PRONTO{letters}.'
+  seat-added: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}Lugar {info}%seat% {letters}marcado.'
+  seat-removed: '[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Lugar removido {letters_black}» {info}%seats% {letters}restantes.'
+  board-set: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}O tabuleiro vai ali.'
+  no-seats: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Primeiro dê clique esq. em pelo menos uma cadeira.'
+  cancelled: '{muted}A colocação da mesa foi cancelada. Nada mudou.'
+  seat-marker: '{success}&l%seat%'
+  board-marker: '{info}&l✦'
+  seat-free:
+  - '{success}● {letters}Livre'
+  seat-taken:
+  - '{highlight}%player%'

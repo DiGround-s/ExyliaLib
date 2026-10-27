@@ -55,3 +55,36 @@ logs:
   detail-line: ' {letters_black}▎ {letters}%line%'
   view-items: '{warning}➥ Eşyaları görmek için tıkla'
   view-entry: '{warning}➥ Kaydı açmak için tıkla'
+tables:
+  seat-tool: '{primary}&lKOLTUK'
+  seat-tool-lore:
+  - ''
+  - '{warning}➥ Sol tık {letters_black}» {letters}sandalye koltuk olur ya da koltuk olmaktan çıkar'
+  - '{warning}➥ Sağ tık {letters_black}» {letters}tahta o bloğa gelir'
+  - ''
+  done-tool: '{success}&lTAMAM'
+  done-tool-lore:
+  - ''
+  - '{letters}Masayı kurar.'
+  - ''
+  - '{warning}➥ Bitirmek için tıkla'
+  - ''
+  cancel-tool: '{error}&lİPTAL'
+  cancel-tool-lore:
+  - ''
+  - '{letters}Hiçbir şeyi değiştirmeden çıkar.'
+  - ''
+  - '{error}➥ İptal etmek için tıkla'
+  - ''
+  started: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Masa {highlight}%table% {letters_black}» {letters}her sandalyeye sol tık, tahtanın geleceği yere sağ tık, sonra {success}TAMAM{letters}.'
+  seat-added: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}{info}%seat%{letters}. koltuk işaretlendi.'
+  seat-removed: '[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Koltuk kaldırıldı {letters_black}» {info}%seats% {letters}kaldı.'
+  board-set: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}Tahta oraya gelecek.'
+  no-seats: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Önce en az bir sandalyeye sol tıkla.'
+  cancelled: '{muted}Masa kurulumu iptal edildi. Hiçbir şey değişmedi.'
+  seat-marker: '{success}&l%seat%'
+  board-marker: '{info}&l✦'
+  seat-free:
+  - '{success}● {letters}Boş'
+  seat-taken:
+  - '{highlight}%player%'

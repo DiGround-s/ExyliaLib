@@ -55,3 +55,36 @@ logs:
   detail-line: ' {letters_black}▎ {letters}%line%'
   view-items: '{warning}➥ Нажми, чтобы посмотреть предметы'
   view-entry: '{warning}➥ Нажми, чтобы открыть запись'
+tables:
+  seat-tool: '{primary}&lМЕСТО'
+  seat-tool-lore:
+  - ''
+  - '{warning}➥ ЛКМ {letters_black}» {letters}стул становится местом или перестаёт им быть'
+  - '{warning}➥ ПКМ {letters_black}» {letters}доска будет на этом блоке'
+  - ''
+  done-tool: '{success}&lГОТОВО'
+  done-tool-lore:
+  - ''
+  - '{letters}Ставит стол.'
+  - ''
+  - '{warning}➥ Нажми, чтобы закончить'
+  - ''
+  cancel-tool: '{error}&lОТМЕНА'
+  cancel-tool-lore:
+  - ''
+  - '{letters}Выход без изменений.'
+  - ''
+  - '{error}➥ Нажми, чтобы отменить'
+  - ''
+  started: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Стол {highlight}%table% {letters_black}» {letters}ЛКМ по каждому стулу, ПКМ туда, где будет доска, затем {success}ГОТОВО{letters}.'
+  seat-added: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}Место {info}%seat% {letters}отмечено.'
+  seat-removed: '[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Место убрано {letters_black}» {letters}осталось {info}%seats%{letters}.'
+  board-set: '[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}Доска будет здесь.'
+  no-seats: '[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Сначала нажми ЛКМ хотя бы по одному стулу.'
+  cancelled: '{muted}Установка стола отменена. Ничего не изменилось.'
+  seat-marker: '{success}&l%seat%'
+  board-marker: '{info}&l✦'
+  seat-free:
+  - '{success}● {letters}Свободно'
+  seat-taken:
+  - '{highlight}%player%'
