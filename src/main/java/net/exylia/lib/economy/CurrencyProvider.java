@@ -234,6 +234,21 @@ public interface CurrencyProvider {
     }
 
     /**
+     * The object this provider published as Vault's economy service, or {@code null} when it
+     * published none.
+     *
+     * <p>Unlike {@link #servesVault()}, this holds while another plugin wraps that service: a
+     * plugin that puts a pass-through in front of Vault asks {@link Economy#reportsVault(Object)}
+     * whether what it would wrap is already announced, and leaves it alone if so.
+     *
+     * @return the published service, or {@code null}
+     * @since 1.372.0
+     */
+    default @Nullable Object vaultService() {
+        return null;
+    }
+
+    /**
      * Whether this provider fires {@link BalanceChangeEvent} itself.
      *
      * <p>The library fires the event when an operation returns, from what the

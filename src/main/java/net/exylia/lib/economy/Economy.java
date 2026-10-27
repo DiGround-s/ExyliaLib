@@ -132,6 +132,27 @@ public final class Economy {
     }
 
     /**
+     * Whether a Vault economy service belongs to a registered currency that fires
+     * {@link BalanceChangeEvent} for every change made through it, Vault calls included.
+     *
+     * <p>For a plugin that watches Vault by wrapping its service: such a service is already
+     * reported, and wrapping it would report each change twice and hide that currency from the
+     * library as Vault's own. Takes {@code Object} so that a caller without Vault, or calling by
+     * reflection, can ask.
+     *
+     * @param service the provider Vault's services manager holds
+     * @return whether it is already reported through the library
+     * @since 1.372.0
+     */
+    public static boolean reportsVault(@Nullable Object service) {
+        if (service == null) return false;
+        for (CurrencyProvider provider : CurrencyRegistry.providers().values()) {
+            if (provider.announcesChanges() && provider.vaultService() == service) return true;
+        }
+        return false;
+    }
+
+    /**
      * The id a currency is really kept under.
      *
      * <p>{@code vault} is a second name for the registered currency that serves Vault, when one

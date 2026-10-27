@@ -706,6 +706,14 @@ with `true` while Vault serves it. The `vault` currency is then that currency
 under a second name, and `Economy.currencies()` leaves `vault` out so a wallet
 lists the balance once.
 
+Such a provider also answers `vaultService()` with the object it registered
+with Vault (since 1.372.0). That answer holds while another plugin wraps the
+service. A plugin that watches Vault by putting a pass-through in front of it
+asks `Economy.reportsVault(service)` first and leaves the service alone when
+the answer is `true`: that currency already fires `BalanceChangeEvent` for
+every change, and a wrapper would count each one twice and stop the library
+from knowing that the currency serves Vault.
+
 ### Reading what players type
 
 `Economy.parseAmount("2.5k")` reads `100`, `2.5k`, `1m` and `3b`, and answers

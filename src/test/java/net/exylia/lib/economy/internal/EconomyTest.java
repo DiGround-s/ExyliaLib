@@ -476,6 +476,34 @@ class EconomyTest {
     }
 
     @Test
+    @DisplayName("a vault service is reported only by an announcing currency that published it")
+    void reportsVaultOnlyForAnnouncingPublisher() {
+        Object service = new Object();
+        CurrencyRegistry.install("quiet", new FakeCurrency("quiet") {
+            @Override
+            public Object vaultService() {
+                return service;
+            }
+        });
+        assertFalse(Economy.reportsVault(service));
+
+        CurrencyRegistry.install("coins", new FakeCurrency("coins") {
+            @Override
+            public boolean announcesChanges() {
+                return true;
+            }
+
+            @Override
+            public Object vaultService() {
+                return service;
+            }
+        });
+        assertTrue(Economy.reportsVault(service));
+        assertFalse(Economy.reportsVault(new Object()));
+        assertFalse(Economy.reportsVault(null));
+    }
+
+    @Test
     @DisplayName("vault served by another plugin keeps its own events")
     void vaultWithoutAliasIsAnnounced() {
         FakeCurrency vault = install("vault");
