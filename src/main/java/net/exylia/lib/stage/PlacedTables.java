@@ -239,7 +239,7 @@ public final class PlacedTables {
         Placed table = new Placed(id, game, Objects.requireNonNull(spot.getWorld(), "world").getName(),
                 spot.getX(), spot.getY(), spot.getZ(), spot.getYaw());
         tables.put(id, table);
-        occupants.remove(id);
+        keepSeated(id, tables.get(id).seatCount());
         save();
         show(table);
         return table;
@@ -258,7 +258,7 @@ public final class PlacedTables {
         Placed table = new Placed(id, game, Objects.requireNonNull(board.getWorld(), "world").getName(),
                 board.getX(), board.getY(), board.getZ(), board.getYaw(), spots);
         tables.put(id, table);
-        occupants.remove(id);
+        keepSeated(id, tables.get(id).seatCount());
         save();
         show(table);
         return table;
@@ -366,7 +366,7 @@ public final class PlacedTables {
         Placed bare = new Placed(id, table.game(), table.world(), table.x(), table.y(), table.z(), table.yaw());
         hideSeats(table);
         tables.put(id, bare);
-        occupants.remove(id);
+        keepSeated(id, tables.get(id).seatCount());
         save();
         show(bare);
         return true;
@@ -496,7 +496,20 @@ public final class PlacedTables {
         occupants.clear();
     }
 
-    private void show(Placed table) {
+    /**
+     * Keeps who sits at a table whose seats were set down anew: whoever plays there keeps their seat
+     * (dropped only when it no longer exists), so a new player is never given it while they play.
+     */
+    private void keepSeated(String id, int seats) {
+        UUID[] before = occupants.get(id);
+        if (before == null) return;
+        UUID[] kept = Arrays.copyOf(before, seats);
+        if (Arrays.stream(kept).allMatch(Objects::isNull)) occupants.remove(id);
+        else occupants.put(id, kept);
+    }
+
+    /** Draws a table's holograms from who sits there now; one at a time, so an older reading never lands last. */
+    private synchronized void show(Placed table) {
         Location spot = table.spot();
         if (spot == null) return;
         List<UUID> seated = seated(table.id());
