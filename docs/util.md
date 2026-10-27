@@ -269,6 +269,42 @@ Material block = Weighted.pick(blocks, BlockEntry::weight).material();
 - **All-zero weights pick evenly** rather than nothing: a list an admin filled
   with zeros still works.
 
+## FairRoll — a weighted roll that remembers the player
+
+*Since 1.379.0.*
+
+```java
+FairRoll<Kit> roll = FairRoll.of(kits, Kit::weight, Kit::id, Kit::rank)
+        .avoidRecent(3)                                        // not one of the last 3 results
+        .rules(List.of(new FairRoll.Rule("epic", 3, 10)));     // 10 rolls in a row below rank 3 force one
+
+FairRoll.Result<Kit> result = roll.roll(profile.luck());       // picked(), forced(), luck()
+profile = profile.withLuck(result.luck());                     // stored by the caller, per player
+
+List<Kit> offer = roll.rollDistinct(luck, 3, random);          // a draft: distinct, the first with pity
+luck = roll.record(luck, chosen);                              // what the player kept
+```
+
+| Call | Contract |
+| --- | --- |
+| `of(entries, weight, key, tier)` | a roll over a copy of the entries; tiers are numbers, higher is rarer |
+| `avoidRecent(n)` / `rules(list)` | a new roll with anti-repeat / guarantees; the roll itself is immutable |
+| `roll(luck[, random])` | one entry, and the `Luck` after it; `picked` is `null` only for an empty list |
+| `rollDistinct(luck, n, random)` | up to `n` different entries, the first rolled as `roll` rolls; records nothing |
+| `record(luck, entry)` | the luck after receiving `entry` |
+
+- **`Luck(recent, misses)`** is plain data the caller stores: the keys of the
+  latest results (at most `avoidRecent`) and, per rule name, the rolls in a row
+  below its tier. `Luck.NONE` is a player who never rolled.
+- **Anti-repeat gives way.** When leaving the recent keys out would leave
+  nothing, they are rolled again rather than nothing.
+- **A rule is due** once its misses reach `after`; the roll then draws only
+  among entries of at least its tier and the count restarts. Several due: the
+  highest tier wins. A rule nothing in the list satisfies is ignored, and its
+  count keeps growing. `after` of `0` or less turns a rule off.
+- Weights follow `Weighted`. Rules are keyed by name, so reordering them keeps
+  every stored count.
+
 ## PermissionNumbers — numbers granted by permission
 
 *Since 1.319.0.*
@@ -370,8 +406,8 @@ shaded and relocated to `net.exylia.lib.internal.zxing`.
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `TotpTest.java`,
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `TotpTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).
