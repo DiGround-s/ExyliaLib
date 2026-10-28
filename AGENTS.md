@@ -1693,6 +1693,8 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
 | values on a live item | `item/ItemValues`, `PluginItems.values()` | — | [docs/items.md](docs/items.md) | 1.63.0 |
 | util (expressions) | `util/Expressions` | — | [docs/util.md](docs/util.md) | 1.63.0 |
+| util (periods) | `util/PeriodClock` | — | [docs/util.md](docs/util.md) | 1.381.0 |
+| util (upgrades) | `util/upgrade/Upgrade`, `Upgrades`, `Purchase` | `Upgrades.charge` (test seam) | [docs/util.md](docs/util.md) | 1.381.0 |
 | ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |
 | formatted row values | `ui/UiEntry.Builder.withFormatted`; `item/PluginItems.render(item, viewer, values, formatted)` | `item/internal/ItemRenderer.text` | [docs/menus.md](docs/menus.md), [docs/items.md](docs/items.md) | 1.28.0 |
 | small text | `small-text` in `internal/LibrarySettings`; measuring in `text/Centering` | `text/internal/SmallText`, `TextEngine.smallText` | [docs/text.md](docs/text.md) | 1.29.0 |

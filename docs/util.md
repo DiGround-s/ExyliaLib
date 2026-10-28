@@ -419,11 +419,80 @@ Since 1.352.0. `QrCodes.matrix(text)` is the code as `boolean[row][column]`;
 200 characters, more throws `IllegalArgumentException`. Encoding is ZXing core,
 shaded and relocated to `net.exylia.lib.internal.zxing`.
 
+## PeriodClock — days and weeks that start at a reset hour
+
+*Since 1.381.0.*
+
+```java
+PeriodClock clock = PeriodClock.of("Europe/Madrid", 5, DayOfWeek.MONDAY);
+String today = clock.key(PeriodClock.Period.DAILY);       // "2026-10-27"
+long left = clock.remaining(PeriodClock.Period.WEEKLY);   // millis until the week rolls over
+```
+
+When daily and weekly things roll over: missions, daily rewards, limits.
+Everything is derived from the wall clock, so nothing is scheduled and a server
+that was down over a reset needs no catch-up: a player who comes back after a
+week is simply in another period than their rows say.
+
+| Call | Contract |
+| --- | --- |
+| `of(timezone, resetHour, weekStart)` | a clock; blank or unknown zone is the server's, the hour wraps into 0-23 |
+| `key(period[, moment])` | the period's name, its first day as `2026-10-27`: the same on every server of a network for the same instant |
+| `previousKey(period)` | the name of the period before the current one |
+| `startsAt / endsAt(period, moment)` | epoch millis |
+| `remaining(period)` | millis left of the current period, never negative |
+
+- A day starts at the reset hour, not at midnight: 03:00 with a reset hour of 5
+  is still yesterday. A week starts on `weekStart`, a month on its first day,
+  both at the reset hour.
+- Cheap enough to build on every call, which is how a reloaded hour or zone is
+  picked up; zone ids are parsed once per distinct value. Pure, any thread.
+
+## Upgrades — levels a player buys one at a time
+
+*Since 1.381.0.* Package `net.exylia.lib.util.upgrade`.
+
+```java
+Upgrade luck = new Upgrade("luck", 10, "250 * %level% ^ 1.5", "gems", "%level% * 2", Map.of("level", 5));
+
+luck.price(3);                       // what level 3 costs
+luck.effect(owned);                  // the value the plugin applies at the level owned
+luck.check(owned, profile::value);   // MAXED, LOCKED (requirement, needed) or READY (next, price)
+
+Upgrades.buy(uuid, luck, owned, profile::value).thenAccept(purchase -> {
+    if (purchase.bought()) profile.raise("luck");   // the plugin stores levels
+});
+```
+
+Every plugin with "spend currency to raise a level" wrote the same loop: a cost
+curve, a cap, a requirement, a charge, and a second click that charged twice.
+
+| Type / call | Contract |
+| --- | --- |
+| `Upgrade(id, maxLevel, cost, currency, effect, requirements)` | immutable; id lower case, max at least 1, blank currency is the default one; a no-argument default for config records |
+| `price(level)` | the cost formula with `%level%` = the level being bought and `%max%`; two decimals, never negative; zero outside `1..max` or unreadable |
+| `effect(level)` | the effect formula at the level owned (0 included), clamped to `0..max`; 0 when unreadable |
+| `check(owned, progress)` | `Check(state, next, price, requirement, needed)`; requirements checked in map order, the first one short is named |
+| `problems()` | what does not read, for a load-time warning |
+| `Upgrades.buy(uuid, upgrade, owned, progress)` | `CompletableFuture<Purchase>`, never exceptional |
+| `Purchase` | `outcome` (`BOUGHT`, `MAXED`, `LOCKED`, `INSUFFICIENT_FUNDS` with `shortfall`, `BUSY`, `FAILED`), `level`, `price`, `requirement`, `needed`, `response` |
+
+- **Charged through `Economy.of(currency).withdrawLater`**, so a purchase works
+  from any thread and in every currency, items and experience included. The
+  transaction reason is `upgrade:<id>`. A free level is bought without a charge.
+- **One purchase at a time per player and upgrade id**: a second click while the
+  charge is under way answers `BUSY`. The library stores no levels; the plugin
+  raises its own on `bought()`, before the next click reads the old one.
+- Requirement names are the plugin's (`level`, `prestige`, `kills`): `progress`
+  answers the player's value of each one.
+- Formulas are `Expressions`: no placeholders other than `%level%` and `%max%`,
+  so nothing touches PlaceholderAPI and every call is pure.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `TotpTest.java`,
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).
