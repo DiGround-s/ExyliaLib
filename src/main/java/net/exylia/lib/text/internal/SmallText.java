@@ -43,9 +43,10 @@ public final class SmallText {
      * <p>A zero means "no replacement, copy the character": that covers
      * everything that is not a letter, and the two letters Unicode has no
      * small capital for. The table runs past ASCII to cover the accented
-     * letters of Latin-1 and Latin Extended-A/B.
+     * letters of Latin-1 and Latin Extended-A/B, and on to Cyrillic for the
+     * uppercase of {@code ғ}.
      */
-    private static final char[] SMALL = new char[0x250];
+    private static final char[] SMALL = new char[0x500];
 
     static {
         map('a', 'ᴀ');
@@ -82,16 +83,27 @@ public final class SmallText {
         // A plus a combining accent, and the A is what gets drawn.
         for (char c = 0x80; c < SMALL.length; c++) {
             char base = Normalizer.normalize(String.valueOf(c), Normalizer.Form.NFD).charAt(0);
-            if (base < 0x80 && Character.isLetter(c)) {
+            if (SMALL[c] == 0 && base < 0x80 && Character.isLetter(c)) {
                 SMALL[c] = SMALL[base];
             }
         }
     }
 
-    /** Registers a glyph for both cases of a letter, since they share one. */
+    /**
+     * Registers a glyph for both cases of a letter, since they share one.
+     *
+     * <p>Also for the uppercase of the glyph itself: a line already in small
+     * capitals that someone uppercases turns {@code ʀ} into {@code Ʀ},
+     * {@code ǫ} into {@code Ǫ} and {@code ғ} into {@code Ғ}, full-size letters
+     * that stick out of the line. They are drawn back as the small capital.
+     */
     private static void map(char lower, char small) {
         SMALL[lower] = small;
         SMALL[Character.toUpperCase(lower)] = small;
+        char upper = Character.toUpperCase(small);
+        if (upper < SMALL.length) {
+            SMALL[upper] = small;
+        }
     }
 
     private SmallText() {

@@ -103,6 +103,13 @@ class SmallTextTest {
     }
 
     @Test
+    @DisplayName("an uppercased small capitals line is drawn small again")
+    void uppercasedSmallCapitals() {
+        String small = plain("TRUCO QUFR");
+        assertEquals("ᴛʀᴜᴄᴏ ǫᴜғʀ", plain(small.toUpperCase(java.util.Locale.ROOT)));
+    }
+
+    @Test
     @DisplayName("s and x stay lowercase, as ExyliaCommons drew them")
     void lettersWithoutASmallCapital() {
         // Unicode has no small capital for these two. Commons drew lowercase
