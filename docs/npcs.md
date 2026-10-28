@@ -184,6 +184,8 @@ guide.update(guide.spec().toBuilder().pose(NpcPose.SNEAKING).build());
 guide.swing();
 guide.play(NpcAnimation.parse("wave"));      // for everybody who sees it
 guide.play(NpcAnimation.parse("bow"), player); // for one viewer only
+guide.glow(player, 0xFFD700);                // only this player sees it outlined
+guide.resetGlow(player);                     // back to the spec's outline
 
 npcs.placed("guide");                        // Optional<PlacedNpc>
 npcs.allPlaced();
@@ -237,6 +239,24 @@ How it behaves:
   (`INTERACT_AT` and the off-hand duplicate are ignored), sneaking makes it a
   shift click. A second click from the same player within 200 ms is dropped. The
   handler runs on the clicking player's thread.
+- **Other plugins observe clicks through `PlacedNpcClickEvent`** (since 1.392.0),
+  fired for every counted click on every placed NPC, handler or not, on the
+  clicking player's thread right before the owner's handler. It carries
+  `getPlayer()`, `npc()`, `npcId()`, `owner()` (the plugin that placed it) and
+  `click()`. ExyliaDisplays' NPCs are placed NPCs, so their clicks fire it too:
+
+  ```java
+  @EventHandler
+  void on(PlacedNpcClickEvent event) {
+      if (event.owner().getName().equals("ExyliaDisplays")) count(event.getPlayer(), event.npcId());
+  }
+  ```
+- **One viewer's own outline:** `glow(player, 0xRRGGBB)` (since 1.392.0) shows
+  that player alone an outline, or none with a negative colour; everybody else
+  keeps the spec's. It wins over the spec, also across `update`, until
+  `resetGlow(player)`, and is forgotten when the player leaves. A viewer who has
+  the NPC on screen gets it at once (entity flag plus the NPC's team colour,
+  both per player), anybody else with their next spawn.
 - **`update` sends only what changed:** equipment and pose are one packet each; a
   new skin, scale or glow gives every viewer the NPC again.
 - **Thread-safe.** Every method can be called from any thread; everything that
@@ -414,7 +434,7 @@ prefer vanilla moves for anything that fires on every click of a crowd.
 
 - Public: `npc/` — `Npcs`, `PluginNpcs`, `NpcModel`, `NpcPose`, `NpcHandle`;
   placed NPCs: `PlacedNpc`, `NpcSpec`, `NpcSkin`, `NpcLook`, `NpcAnimation`,
-  `NpcAnimations`, `NpcPerformance`.
+  `NpcAnimations`, `NpcPerformance`, `PlacedNpcClickEvent`.
 - Internal: `npc/internal/` — the driver, `PlacedRuntime` and `PlacedNpcImpl`
   for placed NPCs, `NpcStage` (where a performance is played, a seam for tests), and the one class that names PacketEvents (`NpcPackets`,
   which also holds the click listener).

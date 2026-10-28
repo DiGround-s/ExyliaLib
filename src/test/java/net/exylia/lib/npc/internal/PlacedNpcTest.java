@@ -12,6 +12,7 @@ import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.npc.PlacedNpc;
+import net.exylia.lib.npc.PlacedNpcClickEvent;
 import net.exylia.lib.npc.PluginNpcs;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Location;
@@ -48,6 +49,7 @@ class PlacedNpcTest {
     private final AtomicInteger nextId = new AtomicInteger(500);
     private final AtomicInteger mojangCalls = new AtomicInteger();
     private final List<String> sent = new CopyOnWriteArrayList<>();
+    private final List<String> glows = new CopyOnWriteArrayList<>();
 
     private Plugin plugin;
     private PluginNpcs npcs;
@@ -59,6 +61,7 @@ class PlacedNpcTest {
         @Override
         public void announce(Player viewer, UUID profile, String name, String[] skin, int glow) {
             sent.add("announce:" + viewer.getName() + ":" + (skin == null ? "default" : skin[0]));
+            glows.add(viewer.getName() + ":" + glow);
         }
 
         @Override
@@ -120,6 +123,11 @@ class PlacedNpcTest {
         @Override
         public void destroy(Player viewer, int entityId, UUID profile, String name) {
             sent.add("destroy:" + viewer.getName() + ":" + entityId);
+        }
+
+        @Override
+        public void glow(Player viewer, int entityId, String name, int glow, boolean hidden) {
+            sent.add("glow:" + viewer.getName() + ":" + Integer.toHexString(glow));
         }
 
         @Override
@@ -295,6 +303,49 @@ class PlacedNpcTest {
         assertTrue(PlacedRuntime.isPlaced(500));
         npc.remove();
         assertFalse(PlacedRuntime.isPlaced(500));
+    }
+
+    @Test
+    @DisplayName("every counted click fires PlacedNpcClickEvent, with or without a handler")
+    void clicksFireTheEvent() {
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+
+        PlacedRuntime.clicked(near.player(), 500, false);
+        PlacedRuntime.clicked(near.player(), 500, false);
+        PlacedRuntime.clicked(far.player(), 500, true);
+        FakeServer.tick(1);
+
+        List<PlacedNpcClickEvent> events = FakeServer.events(PlacedNpcClickEvent.class);
+        assertEquals(1, events.size(), "the double press counts once; a non-viewer never");
+        PlacedNpcClickEvent event = events.get(0);
+        assertEquals("guide", event.npcId());
+        assertEquals(plugin, event.owner());
+        assertEquals(near.player(), event.getPlayer());
+        assertEquals(Click.RIGHT, event.click());
+        assertEquals(npc, event.npc());
+    }
+
+    @Test
+    @DisplayName("a viewer's own outline reaches only them, now and on the next spawn")
+    void glowPerViewer() {
+        FakePlayer other = new FakePlayer("Other").at(new Location(world, -3, 64, 0));
+        FakeServer.online(near.player(), far.player(), other.player());
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        npc.glow(near.player(), 0xFFD700);
+        show();
+        assertTrue(glows.contains("Near:" + 0xFFD700), "announced with their colour");
+        assertTrue(glows.contains("Other:-1"), "everybody else sees the spec's");
+
+        sent.clear();
+        npc.glow(other.player(), 0x00FF00);
+        assertEquals(List.of("glow:Other:ff00"), sent, "sent to them alone, at once");
+
+        sent.clear();
+        npc.resetGlow(other.player());
+        assertEquals(List.of("glow:Other:ffffffff"), sent);
+        npc.resetGlow(other.player());
+        assertEquals(1, sent.size(), "nothing changed, nothing sent");
     }
 
     @Test

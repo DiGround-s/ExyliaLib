@@ -344,15 +344,26 @@ final class NpcPackets implements NpcSink, PlacedSink {
         // A team of its own hides the nametag, keeps it from pushing anybody, and is the
         // only place a client reads an outline colour from. The name is generated, so
         // no real player can ever be taken into it.
+        Broadcast.send(viewer, new WrapperPlayServerTeams(name,
+                WrapperPlayServerTeams.TeamMode.CREATE, teamInfo(glow), name));
+    }
+
+    private static WrapperPlayServerTeams.ScoreBoardTeamInfo teamInfo(int glow) {
         NamedTextColor colour = glow < 0 ? NamedTextColor.WHITE
                 : NamedTextColor.nearestTo(TextColor.color(glow));
+        return new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
+                Component.empty(), WrapperPlayServerTeams.NameTagVisibility.NEVER,
+                WrapperPlayServerTeams.CollisionRule.NEVER, colour,
+                WrapperPlayServerTeams.OptionData.NONE);
+    }
+
+    @Override
+    public void glow(Player viewer, int entityId, String name, int glow, boolean hidden) {
+        byte flags = hidden ? FLAG_INVISIBLE : glow >= 0 ? FLAG_GLOWING : 0;
+        Broadcast.send(viewer, new WrapperPlayServerEntityMetadata(entityId,
+                List.of(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, flags))));
         Broadcast.send(viewer, new WrapperPlayServerTeams(name,
-                WrapperPlayServerTeams.TeamMode.CREATE,
-                new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
-                        Component.empty(), WrapperPlayServerTeams.NameTagVisibility.NEVER,
-                        WrapperPlayServerTeams.CollisionRule.NEVER, colour,
-                        WrapperPlayServerTeams.OptionData.NONE),
-                name));
+                WrapperPlayServerTeams.TeamMode.UPDATE, teamInfo(glow)));
     }
 
     @Override

@@ -43,6 +43,9 @@ public interface PlacedNpc {
      * second of that player's previous one is dropped, which is how one press that the
      * client sends twice counts once.
      *
+     * <p>One handler, the owner's. Another plugin that wants to know about clicks listens
+     * to {@link PlacedNpcClickEvent}, fired for every counted click just before this.
+     *
      * @param handler the handler, or {@code null} for none
      */
     void onClick(@Nullable BiConsumer<Player, Click> handler);
@@ -157,6 +160,35 @@ public interface PlacedNpc {
      */
     default boolean isPerforming() {
         return false;
+    }
+
+    /**
+     * Gives one viewer an outline of their own, which nobody else sees.
+     *
+     * <pre>{@code
+     * guide.glow(player, 0xFFD700);   // only this player sees it outlined in gold
+     * }</pre>
+     *
+     * <p>Wins over {@link NpcSpec#glow()} for that viewer until {@link #resetGlow}, also
+     * across {@link #update}; a negative colour takes the spec's outline away for them.
+     * Sent at once to a viewer who has it on screen, and with the next spawn otherwise.
+     * Forgotten when the player leaves. The colour is the nearest of the sixteen a team
+     * can outline in.
+     *
+     * @param viewer who sees it
+     * @param rgb    {@code 0xRRGGBB}, or negative for no outline
+     * @since 1.392.0
+     */
+    default void glow(@NotNull Player viewer, int rgb) {
+    }
+
+    /**
+     * Puts one viewer back on the spec's outline.
+     *
+     * @param viewer who had their own
+     * @since 1.392.0
+     */
+    default void resetGlow(@NotNull Player viewer) {
     }
 
     /** Whether a player has it on screen. */

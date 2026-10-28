@@ -755,7 +755,8 @@ Never a per-module click parser.
   `PluginTeleports.to`, `[ACTION]` is `Actions.compile` (resolved when it runs,
   so late registrations count). Only `[DELAY]` and the click filter are its own.
 - **A module's own verb is a token**, `Interactions.token(plugin, "SAY", handler)`,
-  registered before the lines compile and released with the plugin. `DELAY`,
+  looked up when the line runs (so late registration counts; an unregistered
+  one is reported once on click) and released with the plugin. `DELAY`,
   `SERVER`, `TELEPORT` and `ACTION` cannot be taken.
 - **Compile never throws.** A bad line is reported once and skipped.
 - **Order is the contract.** One line at a time, each on its own thread; a
@@ -1692,7 +1693,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | command | `command/Commands`, `PluginCommands`, `CommandLine`, `CommandActor`, `CommandResult` | — | — | 1.21.0 |
 | item | `item/Items`, `PluginItems`, `Item`, `Source`, `Appearance`, `Traits`, `Potion`, `Trim`, `Banner`, `Consumable`, `Modifier`, `Problems` | `item/internal/` | [docs/items.md](docs/items.md) | 1.22.0 |
 | values on a live item | `item/ItemValues`, `PluginItems.values()` | — | [docs/items.md](docs/items.md) | 1.63.0 |
-| util (expressions) | `util/Expressions`, `util/Formula` (1.385.0) | — | [docs/util.md](docs/util.md) | 1.63.0 |
+| util (expressions) | `util/Expressions`, `util/Formula` (1.385.0), `util/Condition` (1.392.0) | — | [docs/util.md](docs/util.md) | 1.63.0 |
 | util (periods) | `util/PeriodClock` | — | [docs/util.md](docs/util.md) | 1.381.0 |
 | util (upgrades) | `util/upgrade/Upgrade`, `Upgrades`, `Purchase` | `Upgrades.charge` (test seam) | [docs/util.md](docs/util.md) | 1.381.0 |
 | ui | `ui/Menus`, `PluginMenus`, `UiSession`, `UiDefinition`, `UiSection`, `UiEntry`, `UiItem`, `UiKeys`, `UiFillers`, `UiRefresh`, `UiSounds`, `ClickBindings`, `ClickKind`, `ClickPolicy`, `Pages`, `Slots` | `ui/internal/` | [docs/menus.md](docs/menus.md) | 1.22.0 |

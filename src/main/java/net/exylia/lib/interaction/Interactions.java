@@ -13,6 +13,7 @@ import net.exylia.lib.text.Values;
 import net.exylia.lib.util.sequence.Sequence;
 import net.exylia.lib.util.sequence.SequenceTarget;
 import net.exylia.lib.util.sequence.Sequences;
+import net.exylia.lib.util.sequence.internal.SequenceCompiler;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import net.exylia.lib.util.teleport.Teleports;
 import org.bukkit.entity.Player;
@@ -79,6 +80,9 @@ public final class Interactions {
     }
 
     private static final Map<String, Registered> TOKENS = new ConcurrentHashMap<>();
+
+    /** {@code plugin:TOKEN} already reported as unregistered when clicked. */
+    private static final Set<String> UNKNOWN_REPORTED = ConcurrentHashMap.newKeySet();
 
     private Interactions() {
         throw new AssertionError("No instances.");
@@ -156,9 +160,10 @@ public final class Interactions {
      * Interactions.token(this, "SAY", (player, click, text, data) -> bubble(player, text));
      * }</pre>
      *
-     * <p>Register before compiling the lines that use it: a token unknown when a
-     * line compiles is reported and the line skipped. Released when the plugin
-     * disables.
+     * <p>Lines compiled before it was registered pick it up: a token that is not
+     * an effect is looked up when the line runs, and one still unregistered then
+     * is reported once and skipped (since 1.392.0; before, it was dropped at
+     * compile). Released when the plugin disables.
      *
      * @param plugin  the owner
      * @param name    the token, without brackets; case does not matter
@@ -202,14 +207,22 @@ public final class Interactions {
         return starters;
     }
 
+    /** Whether a sequence line would read the token: a built-in effect or a shape. */
+    private static boolean isEffect(Plugin plugin, String token) {
+        return SequenceCompiler.isBuiltIn(token)
+                || Sequences.of(plugin).shapeNames().contains(token.toLowerCase(Locale.ROOT));
+    }
+
     /** Forgets a plugin's tokens; lifecycle calls this. */
     public static void release(@NotNull String pluginName) {
         TOKENS.values().removeIf(registered -> registered.plugin().equals(pluginName));
+        UNKNOWN_REPORTED.removeIf(key -> key.startsWith(pluginName + ':'));
     }
 
     /** Forgets every token. */
     public static void releaseAll() {
         TOKENS.clear();
+        UNKNOWN_REPORTED.clear();
     }
 
     // ------------------------------------------------------------ compiling
@@ -332,12 +345,18 @@ public final class Interactions {
                         done.complete(true);
                     });
                 }
-                if (TOKENS.containsKey(token)) {
+                if (TOKENS.containsKey(token) || !isEffect(plugin, token)) {
+                    // Looked up when it runs, so a token another plugin registers after
+                    // these lines compiled still counts. One nobody has registered by the
+                    // time it is clicked is reported once and skipped.
                     Arg argument = Arg.of(rest);
                     return (owner, player, click, data) -> onPlayer(owner, player, done -> {
                         Registered registered = TOKENS.get(token);
                         if (registered != null) {
                             registered.handler().run(player, click, argument.render(player, data), data);
+                        } else if (UNKNOWN_REPORTED.add(owner.getName() + ':' + token)) {
+                            Debug.of(owner).warn("In " + name + ", [" + token + "] was skipped: no plugin"
+                                    + " has registered it, and it is not an effect");
                         }
                         done.complete(true);
                     });

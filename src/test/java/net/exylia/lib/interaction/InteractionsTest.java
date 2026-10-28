@@ -100,10 +100,9 @@ class InteractionsTest {
                 "console: say hi",
                 "[MESSAGE] hi",
                 "  ");
-        assertEquals(List.of("left: arena join", "console: say hi", "[MESSAGE] hi"),
-                interaction.lines());
+        assertEquals(List.of("left: arena join", "[NOPE] x", "console: say hi", "[MESSAGE] hi"),
+                interaction.lines(), "an unknown token may be registered later, so it is kept");
         assertTrue(Interactions.compile(plugin, null).isEmpty());
-        assertTrue(compile("[NOPE]").isEmpty());
     }
 
     @Test
@@ -173,7 +172,21 @@ class InteractionsTest {
         Interactions.release("Displays");
         finish(compiled.run(steve.player(), Click.LEFT));
         assertEquals(1, said.size(), "a released token does not run");
-        assertTrue(compile("[SAY] x").isEmpty(), "and is unknown to new lines");
+        finish(compile("[SAY] x", "after").run(steve.player(), Click.LEFT));
+        assertEquals(1, said.size(), "nor in new lines, which carry on past it");
+    }
+
+    @Test
+    @DisplayName("a token registered after the lines compiled still runs")
+    void lateToken() {
+        Interaction compiled = compile("[GREET] hi", "after");
+        finish(compiled.run(steve.player(), Click.RIGHT));
+        assertEquals(List.of("after"), steve.commands(), "unregistered: skipped, the rest runs");
+
+        List<String> said = new ArrayList<>();
+        Interactions.token(plugin, "GREET", (player, click, argument, data) -> said.add(argument));
+        finish(compiled.run(steve.player(), Click.RIGHT));
+        assertEquals(List.of("hi"), said);
     }
 
     @Test

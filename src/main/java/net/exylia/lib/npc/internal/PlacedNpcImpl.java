@@ -9,8 +9,10 @@ import net.exylia.lib.npc.NpcPose;
 import net.exylia.lib.npc.NpcSkin;
 import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.PlacedNpc;
+import net.exylia.lib.npc.PlacedNpcClickEvent;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -88,6 +90,9 @@ final class PlacedNpcImpl implements PlacedNpc {
     private NpcStage.Act act;
     /** Who the NPC is hidden from while {@link #act} plays. */
     private final Set<UUID> hidden = ConcurrentHashMap.newKeySet();
+
+    /** Outlines one viewer sees instead of the spec's; negative is none. */
+    private final Map<UUID, Integer> glows = new ConcurrentHashMap<>();
     /** What ends {@link #act} when its body stands in its last pose. */
     private TaskHandle ending;
 
@@ -148,6 +153,36 @@ final class PlacedNpcImpl implements PlacedNpc {
     @Override
     public void onClick(@Nullable BiConsumer<Player, Click> handler) {
         this.handler = handler;
+    }
+
+    @Override
+    public void glow(@NotNull Player viewer, int rgb) {
+        setGlow(viewer, rgb < 0 ? -1 : rgb & 0xFFFFFF);
+    }
+
+    @Override
+    public void resetGlow(@NotNull Player viewer) {
+        setGlow(viewer, null);
+    }
+
+    private synchronized void setGlow(Player player, @Nullable Integer rgb) {
+        UUID uuid = player.getUniqueId();
+        Integer before = rgb == null ? glows.remove(uuid) : glows.put(uuid, rgb);
+        if (Objects.equals(before, rgb) || removed) {
+            return;
+        }
+        Viewer viewer = viewers.get(uuid);
+        if (viewer == null) {
+            // Not on their screen yet: the next spawn carries it.
+            return;
+        }
+        sink().glow(player, entityId, name, seenBy(uuid, spec).glow(), hidden.contains(uuid));
+    }
+
+    /** The spec as one viewer sees it: with their own outline, when they have one. */
+    private NpcSpec seenBy(UUID viewer, NpcSpec current) {
+        Integer own = glows.get(viewer);
+        return own == null || own == current.glow() ? current : current.toBuilder().glow(own).build();
     }
 
     @Override
@@ -367,7 +402,7 @@ final class PlacedNpcImpl implements PlacedNpc {
         for (UUID uuid : hidden) {
             Viewer viewer = viewers.get(uuid);
             if (viewer != null && viewer.drawn) {
-                sink().hide(viewer.player, entityId, current, false);
+                sink().hide(viewer.player, entityId, seenBy(uuid, current), false);
             }
         }
         hidden.clear();
@@ -604,14 +639,15 @@ final class PlacedNpcImpl implements PlacedNpc {
     private void announce(Player player, NpcSpec current) {
         viewers.put(player.getUniqueId(), new Viewer(player));
         sink().announce(player, profile, name, PlacedRuntime.skinFor(current.skin(), player),
-                current.glow());
+                seenBy(player.getUniqueId(), current).glow());
     }
 
     private void draw(Viewer viewer, NpcSpec current, Location at) {
         viewer.drawn = true;
         viewer.yaw = at.getYaw();
         viewer.pitch = at.getPitch();
-        sink().draw(viewer.player, entityId, profile, name, current, at, at.getYaw(), at.getPitch());
+        sink().draw(viewer.player, entityId, profile, name, seenBy(viewer.player.getUniqueId(), current),
+                at, at.getYaw(), at.getPitch());
         if (current.sitting()) {
             if (seatId < 0) {
                 seatId = PlacedRuntime.newEntityId();
@@ -729,11 +765,14 @@ final class PlacedNpcImpl implements PlacedNpc {
             fire(trigger, null);
         }
         BiConsumer<Player, Click> current = handler;
-        if (current == null) {
-            return;
-        }
         Click click = Click.of(attack, player.isSneaking());
-        Tasks.of(owner).runAtEntity(player, () -> current.accept(player, click));
+        Tasks.of(owner).runAtEntity(player, () -> {
+            // Every click, handler or not: another plugin may be counting them.
+            Bukkit.getPluginManager().callEvent(new PlacedNpcClickEvent(player, this, owner, click));
+            if (current != null) {
+                current.accept(player, click);
+            }
+        });
     }
 
     /** Takes it off one player's screen. */
@@ -765,6 +804,7 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** Forgets a player who left, without sending them anything. */
     void forget(UUID player) {
         viewers.remove(player);
+        glows.remove(player);
         greeted.remove(player);
     }
 

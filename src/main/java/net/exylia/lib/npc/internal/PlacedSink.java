@@ -50,6 +50,16 @@ interface PlacedSink {
     }
 
     /** Turns the head and body. */
+    /**
+     * Changes the outline one viewer sees on a body they were announced: the flag on
+     * the entity and the colour of its team.
+     *
+     * @param glow   {@code 0xRRGGBB}, or negative for none
+     * @param hidden whether a performance has it invisible for them right now
+     */
+    default void glow(Player viewer, int entityId, String name, int glow, boolean hidden) {
+    }
+
     void look(Player viewer, int entityId, float yaw, float pitch);
 
     /** Puts it somewhere outright. */

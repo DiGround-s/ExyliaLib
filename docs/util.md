@@ -276,6 +276,43 @@ Contracts:
   is only as thread safe as the resolvers involved, which for PlaceholderAPI
   means the main thread; pass a `null` player from elsewhere.
 
+## Condition — whether a comparison written in a config holds
+
+Since 1.392.0.
+
+```java
+Condition unlocked = Condition.parse("%player_level% >= 5");   // parse once, at load
+if (unlocked.problem() != null) logger.warning(unlocked.problem());
+boolean met = unlocked.test(player, false);                      // unreadable counts as not met
+boolean free = Condition.parse(text).test(side -> resolve(side), true);
+```
+
+The notation rewards, effects, schedules and holograms already read: a left
+side, one of `>= <= == != > <`, a right side, placeholders resolved on both.
+`==`/`!=` compare text ignoring case, the rest compare numbers. Blank holds;
+`true`/`false`, written or as what a lone placeholder resolves to, mean
+themselves.
+
+Contracts:
+
+- **Unreadable is the caller's choice.** Each `test` names what an unreadable
+  condition answers: `true` where a typo must not withhold something (a
+  reward), `false` where it must not grant something (a quest step). The
+  module's own internal evaluator keeps failing open, as it always has.
+- **`problem()` is known at parse** (no operator, a missing side), so it can
+  be reported once at load. A side that does not resolve to a number is only
+  known when tested, and answers the same fallback.
+- **The operator is found in the text as written**, so a placeholder whose
+  value contains `>` cannot move it.
+- Immutable and safe to share; placeholder resolution is only as thread safe
+  as its resolvers.
+
+Two neighbours people look for here: a written length of time (`30s`,
+`1m30s`, `2h`, `1d`, bare seconds) is `InputParser.duration().parse(text)`
+(`.optional()`, or `.error()` for why it was refused) or
+`Ticks.parseSeconds(text, fallback)`; a `KEY|volume|pitch` sound is
+`Effects.soundFrom(line).show(player)` (`net.exylia.lib.effect`).
+
 ## Weighted — one entry, rolled by weight
 
 Since 1.258.0.
@@ -515,8 +552,8 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Formula.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
-  `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
+  `TimeFormatsTest.java`, `ExpressionsTest.java`, `ConditionTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).

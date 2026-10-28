@@ -33,6 +33,23 @@ import java.util.Map;
  */
 public final class SequenceCompiler {
 
+    /**
+     * The tokens {@link #compileLine} answers besides shapes. Kept next to its switch:
+     * a token added there and not here is read as somebody else's by the interactions.
+     */
+    private static final java.util.Set<String> BUILT_IN = java.util.Set.of(
+            "DELAY", "PARTICLE", "SOUND", "LIGHTNING", "EXPLOSION", "FIREWORK", "COMMAND",
+            "POTION", "BLOCK_BREAK", "TITLE", "ACTION_BAR", "TOAST", "MESSAGE", "LID", "NPC",
+            "RAGDOLL", "CAMERA", "SHAKE");
+
+    /**
+     * Whether a token, upper case and without brackets, is one of the built-in effects
+     * (shapes aside, which are per plugin).
+     */
+    public static boolean isBuiltIn(@NotNull String token) {
+        return BUILT_IN.contains(token);
+    }
+
     /** How many milliseconds a tick is, for the file's seconds. */
     private static final long TICK_MS = 50L;
 

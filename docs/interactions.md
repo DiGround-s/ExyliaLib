@@ -64,8 +64,11 @@ Interactions.token(this, "SAY", (player, click, text, data) ->
 ```
 
 The handler runs on the clicking player's thread, in its place in the list,
-with everything after `[SAY]` rendered. Register before compiling the lines
-that use it. `DELAY`, `SERVER`, `TELEPORT` and `ACTION` are built in and
+with everything after `[SAY]` rendered. Registering after the lines compiled
+works too (since 1.392.0): a token that is not an effect is looked up when the
+line runs, so another plugin that enables later still reaches lines compiled
+before it. A token nobody has registered by the time it is clicked is reported
+once per plugin, naming it, and the line is skipped; the rest still run. `DELAY`, `SERVER`, `TELEPORT` and `ACTION` are built in and
 cannot be taken; a token another plugin holds throws. Tokens are released when
 their plugin disables, and a compiled line whose token was released does
 nothing.
@@ -83,7 +86,7 @@ name, and runs like one. Holograms use it for `[PAGE]`.
 
 ## Contracts
 
-- **Compiled once, never throws.** A line that cannot be read (an unknown token,
+- **Compiled once, never throws.** A line that cannot be read (a broken effect,
   `[DELAY] soon`, `[TELEPORT] world;1;2`, a filter with nothing after it) is
   reported once through `Debug`, naming where it came from, and left out.
   `lines()` lists what survived.
