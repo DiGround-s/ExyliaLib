@@ -362,6 +362,31 @@ public interface KillEffectService {
      */
     boolean preview(@NotNull Player viewer, @NotNull String effectId);
 
+    /**
+     * Draws an effect at a place for one player alone, where they already are.
+     *
+     * <p>For a kill being watched again: a killcam, a replay, a cutscene. The
+     * kill already happened and already played its effect, so nothing about it
+     * is real this time — no {@link KillEffectPlayEvent}, no region flag, no
+     * limit per killer, and no line lands on anybody but the viewer. Bodies in
+     * it wear the viewer's skin, which in a killcam is the victim's own. It is
+     * somebody else's effect to the viewer, so their particle setting is asked
+     * as for any effect that is not their own.
+     *
+     * <p>Call it on the thread that owns {@code where}.
+     *
+     * @param effectId the effect id, case insensitive
+     * @param where    where it plays; copied, never held
+     * @param viewer   the only player who sees it
+     * @return {@code false} when no effect goes by that id, it draws nothing,
+     *         the viewer hides other players' effects, or the installed
+     *         ExyliaKillEffect is older than this method
+     * @since 1.9.0
+     */
+    default boolean show(@NotNull String effectId, @NotNull Location where, @NotNull Player viewer) {
+        return false;
+    }
+
     // ── Menus ──────────────────────────────────────────────────────────────
 
     /**
