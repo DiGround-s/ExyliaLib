@@ -267,8 +267,30 @@ public final class BuiltinEffects {
     }
 
     /**
+     * How long a PASSIVE potion with no duration lasts: 30 seconds, topped up
+     * every 10 seconds while held. Never infinite, so a crash
+     * before the unequip cannot save it with the player forever.
+     */
+    static final int PASSIVE_TICKS = 600;
+
+    /** A potion's duration in ticks: {@link #PASSIVE_TICKS} for an untimed PASSIVE one. */
+    static int potionTicks(boolean timed, String trigger, double seconds) {
+        return !timed && trigger.equals("PASSIVE") ? PASSIVE_TICKS : (int) Math.max(1, Math.round(seconds * 20));
+    }
+
+    /**
+     * Whether an active effect is the one an untimed PASSIVE potion gave: same
+     * amplifier and at most {@link #PASSIVE_TICKS} left, or infinite (what
+     * versions before 1.387.1 applied, cleaned up on the next unequip).
+     */
+    static boolean passiveGranted(int amplifier, int remaining, int wanted) {
+        return amplifier == wanted && (remaining == PotionEffect.INFINITE_DURATION || remaining <= PASSIVE_TICKS);
+    }
+
+    /**
      * {@code potion: { target, type, level, duration }}; level 1 is amplifier 0.
-     * On a PASSIVE ability, with no duration, it lasts until unequipped and
+     * On a PASSIVE ability, with no duration, it lasts {@link #PASSIVE_TICKS},
+     * {@link AbilityEffect#sustain} tops it up while held and
      * {@link AbilityEffect#revert} removes it.
      */
     private static AbilityEffect potion(AbilityArgs args) {
@@ -289,8 +311,7 @@ public final class BuiltinEffects {
                 PotionEffectType type = lazy.get();
                 if (type == null) return;
                 int amplifier = Math.max(0, (int) Math.round(level.applyOr(1, ctx.level())) - 1);
-                int ticks = !timed && ctx.trigger().equals("PASSIVE") ? PotionEffect.INFINITE_DURATION
-                        : (int) Math.max(1, Math.round(seconds.applyOr(5, ctx.level()) * 20));
+                int ticks = potionTicks(timed, ctx.trigger(), seconds.applyOr(5, ctx.level()));
                 PotionEffect effect = new PotionEffect(type, ticks, amplifier, true, true, true);
                 for (LivingEntity target : targets.resolve(ctx)) {
                     ctx.at(target, () -> target.addPotionEffect(effect));
@@ -305,9 +326,28 @@ public final class BuiltinEffects {
                 int amplifier = Math.max(0, (int) Math.round(level.applyOr(1, ctx.level())) - 1);
                 for (LivingEntity target : targets.resolve(ctx)) {
                     PotionEffect active = target.getPotionEffect(type);
-                    if (active != null && active.getAmplifier() == amplifier && active.isInfinite()) {
+                    if (active != null && passiveGranted(active.getAmplifier(), active.getDuration(), amplifier)) {
                         target.removePotionEffect(type);
                     }
+                }
+            }
+
+            @Override
+            public void sustain(AbilityContext ctx) {
+                if (timed) return;
+                PotionEffectType type = lazy.get();
+                if (type == null) return;
+                int amplifier = Math.max(0, (int) Math.round(level.applyOr(1, ctx.level())) - 1);
+                PotionEffect effect = new PotionEffect(type, PASSIVE_TICKS, amplifier, true, true, true);
+                for (LivingEntity target : targets.resolve(ctx)) {
+                    ctx.at(target, () -> {
+                        // Only what is still ours: milk, death or a stronger potion took it otherwise.
+                        PotionEffect active = target.getPotionEffect(type);
+                        if (active != null && active.getAmplifier() == amplifier && !active.isInfinite()
+                                && active.getDuration() <= PASSIVE_TICKS) {
+                            target.addPotionEffect(effect);
+                        }
+                    });
                 }
             }
         };

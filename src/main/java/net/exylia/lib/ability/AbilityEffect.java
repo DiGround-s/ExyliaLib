@@ -51,6 +51,19 @@ public interface AbilityEffect {
     }
 
     /**
+     * Keeps {@link #apply} going for a PASSIVE ability still held; called every
+     * 10 seconds on the holder's thread.
+     *
+     * <p>Nothing by default. The built-in {@code potion} tops its finite
+     * effect back up, so nothing it grants outlives the session.
+     *
+     * @param context bound to the same holder and level
+     * @since 1.387.1
+     */
+    default void sustain(@NotNull AbilityContext context) {
+    }
+
+    /**
      * Builds an effect from what the YAML wrote, once, at load.
      *
      * <p>Read every key here, not in {@link #apply}: a key nobody read while

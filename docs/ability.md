@@ -112,7 +112,7 @@ in seconds.
 | `LOW_HEALTH` | a hit takes the holder from above 30% of max health to 30% or less | event, attacker |
 | `EQUIP` / `UNEQUIP` | a refresh finds the holding added / removed | — |
 | `INTERVAL` | every `every` seconds while held; one timer per player | — |
-| `PASSIVE` | sugar: the effects apply on equip and `revert` on unequip | — |
+| `PASSIVE` | sugar: the effects apply on equip, `sustain` every 10 seconds while held, and `revert` on unequip | — |
 
 Bukkit triggers listen at `HIGHEST`, ignoring cancelled events where the event
 can be cancelled. A plugin adds its own with `trigger(name)` and fires them with
@@ -164,7 +164,7 @@ pets. Armour stands are never `nearby` targets.
 | `launch` | `target` (victim), `strength` formula (1) | straight up |
 | `ignite` | `target` (victim), `duration` (3s) | sets on fire, never shortening a longer fire |
 | `freeze` | `target` (victim), `duration` (3s) | powder-snow frost |
-| `potion` | `target` (victim), `type`, `level` formula (1), `duration` (5s) | a potion effect; on `PASSIVE` with no `duration` it lasts until unequipped and is removed then |
+| `potion` | `target` (victim), `type`, `level` formula (1), `duration` (5s) | a potion effect; on `PASSIVE` with no `duration` it lasts 30 seconds, is topped up every 10 seconds while held and removed on unequip (never infinite, see *Contracts*) |
 | `cleanse` | `target` (self), `types`: `negative`, `all` or names (`negative`) | removes potion effects |
 | `cancel` | — | cancels the trigger's event |
 | `drops` | `multiplier` formula, `to: inventory` | multiplies the firing's drops once, through the `drops` modifiers; `to: inventory` sends delivered drops to the holder |
@@ -272,13 +272,24 @@ listens.
   pick-up, item break, inventory close and, on Paper, armour change (a class
   loaded only there), coalesced to once per tick; on respawn and after milk
   everything held equips again. A refresh that answers the same list fires
-  nothing; changes fire `UNEQUIP` then `EQUIP`.
+  nothing; changes fire `UNEQUIP` then `EQUIP`. `refresh`, and every refresh
+  the library schedules, does nothing for a player who is offline or no longer
+  valid (dead, removed) and creates no cache entry for them.
+- **Passive potions are finite.** An untimed `PASSIVE` `potion` is applied for
+  30 seconds, never infinite, and the player's existing timer (the one INTERVAL
+  uses, one per player, every second) calls `sustain` every 10 seconds to top
+  it back up while it is still the one granted. If the server dies before the
+  unequip, the saved effect runs out within 30 seconds of the next login
+  instead of staying forever. Infinite effects left by versions before 1.387.1
+  are removed on the next unequip of the same ability. A custom effect keeps a
+  PASSIVE state alive the same way by overriding `AbilityEffect#sustain`.
 - **No proc chains.** Damage an ability deals (`ctx.damage`, `damage`) never
   fires `ATTACK` or `HIT_TAKEN` again unless the ability says `chain: true`,
   and chains stop at three levels deep. The guard is per thread and shared by
   every plugin.
 - **Leaks.** Caches, INTERVAL timers and area breaks are keyed to the plugin
-  and released on quit and on disable; `PASSIVE` effects revert then.
+  and released on quit and on disable; `PASSIVE` effects revert then. A PASSIVE
+  holding keeps a per-player timer (shared with INTERVAL) for `sustain`.
 - **Reload.** Compile again and call `refreshAll()`: old holdings unequip, new
   ones equip. Damage over time already running finishes with its old numbers.
   Palette reloads: not applicable, nothing here derives from the palette.
@@ -431,5 +442,5 @@ mine) does so in its `check` or before calling `start`.
 | Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
 | Hit shaping | `ability/DamageShaping` (`bonus-damage`, `armour-pierce`, built-in scales, pending pierces) |
 | Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
-| Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
+| Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/internal/PassivePotionTest` (finite PASSIVE duration, revert match), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`, PASSIVE sustain timer, refresh offline guard), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
 | Test seam | `PluginAbilities.detached(plugin)` (no listeners) and `dice(DoubleSupplier)` (the roll), package-private |

@@ -370,6 +370,64 @@ class PluginAbilitiesTest {
         }
     }
 
+    @Test
+    @DisplayName("held PASSIVE abilities are sustained every 10 seconds, and stop once unequipped")
+    void passiveSustain() {
+        List<String> calls = new ArrayList<>();
+        abilities.effect("aura", args -> new AbilityEffect() {
+            @Override
+            public void apply(AbilityContext ctx, AbilityReport report) {
+                calls.add("apply");
+            }
+
+            @Override
+            public void sustain(AbilityContext ctx) {
+                calls.add("sustain@" + ctx.level());
+            }
+        });
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("trigger", "PASSIVE");
+        source.put("effects", List.of("aura"));
+        holdings = List.of(new Held(compile("aura", source), 3, null));
+        abilities.refresh(holder);
+        assertEquals(List.of("apply"), calls);
+
+        FakeServer.tick(20 * 9);
+        assertEquals(List.of("apply"), calls, "not before 10 seconds");
+        FakeServer.tick(20 * 2);
+        assertEquals(List.of("apply", "sustain@3"), calls);
+
+        holdings = List.of();
+        abilities.refresh(holder);
+        FakeServer.tick(20 * 30);
+        assertEquals(List.of("apply", "sustain@3"), calls, "the timer stopped with the holding");
+    }
+
+    @Test
+    @DisplayName("refresh is a no-op for an offline or dead player and caches nothing for them")
+    void refreshOffline() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("trigger", "EQUIP");
+        source.put("effects", List.of(Map.of("record", Map.of("tag", "on"))));
+        holdings = List.of(new Held(compile("ghost", source), 1, null));
+
+        FakePlayer leaving = new FakePlayer("Alex");
+        leaving.disconnect();
+        abilities.refresh(leaving.player());
+        abilities.refreshSoon(leaving.player());
+        FakeServer.tick(2);
+        assertEquals(List.of(), abilities.held(leaving.player()), "no cache entry for an offline player");
+
+        FakePlayer dead = new FakePlayer("Sam");
+        dead.die();
+        abilities.refresh(dead.player());
+        assertEquals(List.of(), abilities.held(dead.player()), "no cache entry for an invalid player");
+        assertFalse(log.contains("on@1.0"), "nothing equipped: " + log);
+
+        abilities.refresh(holder);
+        assertTrue(log.contains("on@1.0"), "an online player still refreshes: " + log);
+    }
+
     private Ability hold1(Ability ability) {
         hold(ability);
         return ability;

@@ -95,6 +95,8 @@ public final class PluginAbilities {
             "effects", "chain", "every");
     /** A hit leaving the holder at or below this share of their health fires LOW_HEALTH. */
     static final double LOW_HEALTH = 0.3;
+    /** Seconds between {@link AbilityEffect#sustain} calls for held PASSIVE abilities. */
+    static final int SUSTAIN_SECONDS = 10;
 
     private final Plugin plugin;
     private final TaskScheduler tasks;
@@ -449,7 +451,8 @@ public final class PluginAbilities {
     /**
      * Asks the holdings function again for one player, now; EQUIP, UNEQUIP and
      * PASSIVE fire for what changed. Call it on the player's thread after
-     * anything the library cannot see.
+     * anything the library cannot see. Does nothing for a player who is
+     * offline or no longer valid (dead, removed).
      *
      * @param player whose holdings
      */
@@ -475,6 +478,7 @@ public final class PluginAbilities {
 
     /** Refreshes next tick, once however many events ask in between. */
     void refreshSoon(Player player) {
+        if (gone(player)) return;
         if (pending.add(player.getUniqueId())) {
             tasks.runAtEntityLater(player, 1, () -> {
                 pending.remove(player.getUniqueId());
@@ -488,6 +492,8 @@ public final class PluginAbilities {
      *              so everything held now equips again
      */
     void refresh(Player player, boolean fresh) {
+        // A scheduled refresh can land after a quit: no cache entry, no timer for a ghost.
+        if (gone(player)) return;
         List<Held> now;
         try {
             now = List.copyOf(holdings.apply(player));
@@ -513,13 +519,19 @@ public final class PluginAbilities {
         for (Held held : removed) unequip(player, held);
         for (Held held : added) equip(player, held);
 
-        boolean wantsTimer = next.byTrigger.containsKey(Triggers.INTERVAL);
+        // PASSIVE needs the timer too: its finite potions are topped up from it.
+        boolean wantsTimer = next.byTrigger.containsKey(Triggers.INTERVAL)
+                || next.byTrigger.containsKey(Triggers.PASSIVE);
         if (wantsTimer && next.interval == null) {
             next.interval = tasks.runAtEntityTimer(player, 20, 20, () -> interval(player));
         } else if (!wantsTimer && next.interval != null) {
             next.interval.cancel();
             next.interval = null;
         }
+    }
+
+    private static boolean gone(Player player) {
+        return !player.isOnline() || !player.isValid();
     }
 
     /** Forgets a player who left: timers stop, PASSIVE effects revert. */
@@ -571,11 +583,28 @@ public final class PluginAbilities {
         }
     }
 
+    private void sustain(Player player, @Nullable Held[] passive) {
+        if (passive == null) return;
+        for (Held held : passive) {
+            AbilityContext context = new AbilityContext(this, player, Triggers.PASSIVE);
+            context.bind(held, 1);
+            for (AbilityEffect effect : held.ability().effects()) {
+                try {
+                    effect.sustain(context);
+                } catch (RuntimeException failure) {
+                    reportOnce("sustain:" + held.ability().id(), "Sustaining " + held.ability().id() + " failed.",
+                            failure);
+                }
+            }
+        }
+    }
+
     private void interval(Player player) {
         Holding holding = cache.get(player.getUniqueId());
         if (holding == null) return;
         Held[] held = holding.byTrigger.get(Triggers.INTERVAL);
         int tick = ++holding.ticks;
+        if (tick % SUSTAIN_SECONDS == 0) sustain(player, holding.byTrigger.get(Triggers.PASSIVE));
         if (held == null) return;
         AbilityContext context = new AbilityContext(this, player, Triggers.INTERVAL);
         try {
