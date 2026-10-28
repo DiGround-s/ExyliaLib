@@ -43,6 +43,8 @@ public final class PluginInstances {
     /** How long a player handed over may take to turn up here. */
     static final Duration ARRIVAL_WAIT = Duration.ofSeconds(30);
     private static final String GONE = "gone" + '\t';
+    /** Opens a note that withdraws an earlier one: the move it announced did not happen. */
+    static final String WITHDRAWN = "!";
 
     private final Plugin plugin;
     private final TaskScheduler tasks;
@@ -76,16 +78,10 @@ public final class PluginInstances {
             }
         });
         network.on(arrivals, message -> {
-            String payload = message.payload();
-            int split = payload.indexOf('|');
-            if (split <= 0) return;
-            UUID player;
-            try {
-                player = UUID.fromString(payload.substring(0, split));
-            } catch (IllegalArgumentException unreadable) {
-                return;
-            }
-            expect(player, payload.substring(split + 1));
+            Note note = Note.parse(message.payload());
+            if (note == null) return;
+            if (note.withdrawn()) expected.remove(note.player(), note.text());
+            else expect(note.player(), note.text());
         });
     }
 
@@ -242,8 +238,9 @@ public final class PluginInstances {
     /**
      * Sends a player to another instance with a note its
      * {@link #onArrival} reads: the note first, then the move, so it does not
-     * matter which lands first. A handover to this server runs the arrival
-     * here at once.
+     * matter which lands first. A move that fails withdraws the note there
+     * (since 1.383.1), so a later ordinary join is not taken for the arrival.
+     * A handover to this server runs the arrival here at once.
      *
      * @param player who to send
      * @param server the instance, as {@link Instance#server()} names it
@@ -265,13 +262,35 @@ public final class PluginInstances {
                     result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
                     return;
                 }
-                Teleports.of(plugin).toServer(player, server).whenComplete((moved, failure) ->
-                        result.complete(failure != null ? TeleportResult.CROSS_SERVER_UNAVAILABLE : moved));
+                UUID id = player.getUniqueId();
+                Teleports.of(plugin).toServer(player, server).whenComplete((moved, failure) -> {
+                    TeleportResult outcome = failure != null ? TeleportResult.CROSS_SERVER_UNAVAILABLE : moved;
+                    // The note is already there: left alone, a normal join within the wait would
+                    // still run the arrival, placing a player who never asked to come.
+                    if (!outcome.isSuccess()) tasks.runAsync(() -> network.send(server, arrivals, WITHDRAWN + id + "|" + note));
+                    result.complete(outcome);
+                });
             } catch (RuntimeException failure) {
                 result.complete(TeleportResult.CROSS_SERVER_UNAVAILABLE);
             }
         });
         return result;
+    }
+
+    /** A note on the arrivals channel: {@code <uuid>|<note>}, or {@code !<uuid>|<note>} to withdraw it. */
+    record Note(UUID player, String text, boolean withdrawn) {
+
+        static @Nullable Note parse(String payload) {
+            boolean withdrawn = payload.startsWith(WITHDRAWN);
+            String body = withdrawn ? payload.substring(WITHDRAWN.length()) : payload;
+            int split = body.indexOf('|');
+            if (split <= 0) return null;
+            try {
+                return new Note(UUID.fromString(body.substring(0, split)), body.substring(split + 1), withdrawn);
+            } catch (IllegalArgumentException unreadable) {
+                return null;
+            }
+        }
     }
 
     private void expect(UUID player, String note) {

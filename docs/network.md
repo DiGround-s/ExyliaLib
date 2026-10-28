@@ -130,7 +130,7 @@ best.filter(found -> !instances.isThisServer(found.server()))
 | `instances()` | Every live instance: this server's own first, read from its supplier now, then each other one heard within 3 periods. A map read, safe from any thread and from a menu's supplier. |
 | `pick(Mode, part)` | The best instance for one more player, `Instances.pick` over `instances()` with this server preferred on a tie. |
 | `players(part)` | Players in one part (or in total for `null`) across the group. |
-| `handover(player, server, note)` | Sends the note to that server, then `toServer`. To this server: no move, the arrival runs here. `CROSS_SERVER_UNAVAILABLE` when no Redis carries the note. |
+| `handover(player, server, note)` | Sends the note to that server, then `toServer`; a move that fails withdraws the note there (1.383.1), so a normal join within the wait is not taken for the arrival. To this server: no move, the arrival runs here. `CROSS_SERVER_UNAVAILABLE` when no Redis carries the note. |
 | `onArrival(BiConsumer<Player, String>)` | Runs for a player handed over here once they are online (up to 30 s), on their thread, with the note. |
 | `expected(UUID)` | The note of a player on their way here, for a join listener that would otherwise place them itself. |
 | `stop()` | Stops publishing and tells the group at once, so nobody is sent to a server that is shutting down. From `onDisable`. |
@@ -149,7 +149,8 @@ Contracts:
 - **No Redis, no pool**: the heartbeat stays on this server and `instances()`
   is this server alone, so `pick` answers this server or nothing.
 - **The note travels before the move**, like a match: the arriving server
-  knows why they came before they join.
+  knows why they came before they join. A failed move sends `!<uuid>|<note>`
+  after it, which drops that note (1.383.1); older servers ignore the line.
 - **Nothing is carried but the note.** Inventories, stays and snapshots stay
   with their server: a plugin that keeps players in [stays](stays.md) hands
   over only players it is not keeping, and recovers with `recoverLocal`.
@@ -172,4 +173,4 @@ Contracts:
 | Public | `network/Network`, `PluginNetwork`, `Delivery`, `Arrival`, `Instances`, `PluginInstances`, `Instance` |
 | Transport | `redis/Channels`, channel `net:<name>` per plugin, frame `<target server>` + pipe + payload |
 | Transport (instances) | channel `instances:<group>` for heartbeats (tab-separated lines), network channel `instances-arrive:<group>` for notes |
-| Tests | `network/NetworkTest` — addressing, case, payload pipes, no Redis, no bridge, the arrival split; `network/InstancesTest` — picking per mode, caps, parts, staleness and ties, the heartbeat wire form |
+| Tests | `network/NetworkTest` — addressing, case, payload pipes, no Redis, no bridge, the arrival split; `network/InstancesTest` — picking per mode, caps, parts, staleness and ties, the heartbeat wire form; `network/InstanceNoteTest` — notes and their withdrawal |
