@@ -38,8 +38,8 @@ and none of them sees the others' beacons.
 
 What that costs is that nothing else will take it away, so the module owns the
 life of every piece: it goes when it is removed, when its player leaves, when
-its plugin is disabled, and when the server stops. A death or a change of
-world is **not** an end: the client threw the entities away by itself, and
+its plugin is disabled, and when the server stops. A death, a change of
+world or a long teleport is **not** an end: the client threw the entities away by itself, and
 the next tick draws them again where the player now is, because a journey does
 not stop when somebody dies.
 
@@ -120,6 +120,22 @@ The label is a `DoubleFunction<Component>` given the distance in blocks. It is
 asked again whenever the rounded distance changes, on the player's thread, so
 it must only build a component. It grows with distance like an anchored text.
 
+How it is drawn is the style's `label`, a `GuideTextStyle` (since 1.393.0).
+Only its text fields apply; where it floats is the beacon's. The default,
+`BeaconStyle.DEFAULT_LABEL`, is a light dark panel hidden by terrain, growing
+up to 8 times. A waypoint that must read from anywhere:
+
+```java
+BeaconStyle style = BeaconStyle.of(glass, 0x8A51C4)
+        .label(BeaconStyle.DEFAULT_LABEL.background(0).seeThrough(true).growWithDistance(true, 24));
+```
+
+Growing keeps it the same size on screen (full size up to 8 blocks, then in
+proportion). The beam is drawn up to the cut-over, about 136 blocks at ten
+chunks, so a `maxScale` under `cut-over / 8` (17 there) lets the label shrink
+before the stand-in takes over. Beside the stand-in it is drawn at
+`scale × markerDistance / 10`.
+
 ### When the target is too far
 
 A client draws nothing past its view distance. Past the cut-over, the beam is
@@ -142,6 +158,7 @@ companion text instead.
 | `labelHeight` | 2.8 |
 | `markerDistance` | 30 |
 | `farDistance` | 0 (automatic) |
+| `label` | `DEFAULT_LABEL`: anchored, background `0x60000000`, not see-through, grows up to 8 |
 
 ## Trails
 
@@ -251,6 +268,7 @@ bar: tell those players in chat instead.
 | `remove()` / `clear(player)` | destroyed on that client now |
 | the player leaves | forgotten, no packets |
 | the player changes world or respawns | destroyed and drawn again next tick |
+| the player teleports within the world further than half their view distance (at least 32 blocks) | destroyed and drawn again 5 ticks later, where they landed (since 1.393.0) |
 | the plugin is disabled | everything it shows is destroyed |
 | the server stops | everything is destroyed, the glow listener dropped |
 
@@ -272,4 +290,4 @@ PacketEvents, for everything but a modded-client waypoint. Without it
   PacketEvents
 - Tests: `RouteTest` (nearest point, window, heading, ground snap, thinning),
   `GuideGeometryTest` (the clamped stand-in, the companion's spot, distance
-  scaling, the cut-over)
+  scaling, the cut-over, the long-teleport threshold)

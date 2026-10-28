@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Where guidance is placed, without a world. */
 class GuideGeometryTest {
@@ -71,5 +73,14 @@ class GuideGeometryTest {
         assertEquals(20, GuideGeometry.turn(350, 10), EPSILON);
         assertEquals(90, GuideGeometry.turn(-90, 0), EPSILON);
         assertEquals(-90f, GuideGeometry.yawTowards(0, 0, 5, 0), 1e-4);
+    }
+
+    @Test
+    @DisplayName("a teleport past half the view distance, never under 32 blocks, redraws the guidance")
+    void longTeleport() {
+        assertFalse(GuideGeometry.isLongTeleport(0, 0, 30, 0, 2));
+        assertTrue(GuideGeometry.isLongTeleport(0, 0, 33, 0, 2));
+        assertFalse(GuideGeometry.isLongTeleport(0, 0, 50, 50, 10));
+        assertTrue(GuideGeometry.isLongTeleport(0, 0, 81, 0, 10));
     }
 }

@@ -89,4 +89,17 @@ final class GuideGeometry {
     static double turn(double from, double to) {
         return Math.abs(((to - from) % 360 + 540) % 360 - 180);
     }
+
+    /**
+     * Whether a move inside one world went far enough for the client to drop
+     * what guidance it held: more than half the view distance across
+     * (never under 32 blocks), which unloads the chunks behind the player.
+     */
+    // ponytail: a half-view threshold, not per-piece chunk checks; a redraw costs a few packets
+    static boolean isLongTeleport(double fromX, double fromZ, double toX, double toZ, int viewChunks) {
+        double limit = Math.max(32, viewChunks * 8);
+        double dx = toX - fromX;
+        double dz = toZ - fromZ;
+        return dx * dx + dz * dz > limit * limit;
+    }
 }

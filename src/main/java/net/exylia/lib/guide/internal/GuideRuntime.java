@@ -9,6 +9,7 @@ import net.exylia.lib.guide.GuideTrail;
 import net.exylia.lib.guide.GuideWaypoint;
 import net.exylia.lib.guide.Route;
 import net.exylia.lib.guide.TrailStyle;
+import net.exylia.lib.task.Tasks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -43,8 +44,12 @@ public final class GuideRuntime {
     /** plugin name to player to that plugin's session for them. */
     private static final Map<String, Map<UUID, ViewerSession>> SESSIONS = new ConcurrentHashMap<>();
 
+    /** Long enough for the move, and on Folia the region hand-over, to land. */
+    private static final long TELEPORT_REDRAW_TICKS = 5L;
+
     private static GuidePackets listener;
     private static volatile boolean available;
+    private static Plugin library;
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static boolean warned;
 
@@ -57,6 +62,7 @@ public final class GuideRuntime {
      * @param plugin the library
      */
     public static void init(Plugin plugin) {
+        library = plugin;
         logger = plugin.getLogger();
         available = GuidePackets.ready();
         if (available) {
@@ -194,6 +200,18 @@ public final class GuideRuntime {
                 session.forgetClient();
             }
         }
+    }
+
+    /**
+     * A long teleport in one world. The event fires before the move lands, so
+     * the redraw waits a few ticks on the player's own thread, where they now
+     * are; drawing now would spawn everything back at the old place.
+     */
+    static void teleported(Player player) {
+        if (library == null) {
+            return;
+        }
+        Tasks.of(library).runAtEntityLater(player, TELEPORT_REDRAW_TICKS, () -> clientReset(player));
     }
 
     /** How many players have guidance from anybody, for diagnostics. */

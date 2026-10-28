@@ -2,7 +2,6 @@ package net.exylia.lib.guide.internal;
 
 import net.exylia.lib.guide.BeaconStyle;
 import net.exylia.lib.guide.GuideBeacon;
-import net.exylia.lib.guide.GuideTextStyle;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -31,7 +30,6 @@ final class LiveBeacon extends Piece implements GuideBeacon {
     private static final double MARKER_HEIGHT = 3;
     private static final double MARKER_MOVE = 0.4;
     private static final int MARKER_GLIDE = 4;
-    private static final GuideTextStyle LABEL = GuideTextStyle.anchored().background(0x60000000);
 
     private final BeaconStyle style;
     private final DoubleFunction<Component> label;
@@ -120,7 +118,9 @@ final class LiveBeacon extends Piece implements GuideBeacon {
             if (!drawn) {
                 spawn(player, goal.getX(), goal.getY(), goal.getZ(), style.height(), viewRange);
             }
-            float scale = GuideGeometry.scaleFor(gap, 1f, 8f);
+            float base = style.label().scale();
+            float scale = style.label().scaleWithDistance()
+                    ? GuideGeometry.scaleFor(gap, base, style.label().maxScale()) : base;
             if (Math.abs(scale - labelScale) > labelScale * 0.05f) {
                 labelScale = scale;
                 GuidePackets.resizeText(player, text, scale, 4);
@@ -131,7 +131,7 @@ final class LiveBeacon extends Piece implements GuideBeacon {
             double markerBase = at[1] - MARKER_HEIGHT / 2;
             if (!drawn) {
                 spawn(player, at[0], markerBase, at[2], MARKER_HEIGHT, viewRange);
-                GuidePackets.resizeText(player, text, labelScale = (float) (style.markerDistance() / 10.0), 0);
+                GuidePackets.resizeText(player, text, labelScale = (float) (style.label().scale() * style.markerDistance() / 10.0), 0);
                 markerX = at[0];
                 markerY = markerBase;
                 markerZ = at[2];
@@ -169,8 +169,8 @@ final class LiveBeacon extends Piece implements GuideBeacon {
         GuidePackets.spawnBlock(player, inner, x, y, z, 0f, core, width * 0.35f, (float) height,
                 width * 0.35f, -1, viewRange, glide);
         double labelY = marker ? y + height + 0.6 : y + style.labelHeight();
-        labelScale = 1f;
-        GuidePackets.spawnText(player, text, x, labelY, z, Component.empty(), LABEL, labelScale,
+        labelScale = style.label().scale();
+        GuidePackets.spawnText(player, text, x, labelY, z, Component.empty(), style.label(), labelScale,
                 GuidePackets.BILLBOARD_CENTER, glide, viewRange);
         rounded = Long.MIN_VALUE;
         drawn = true;
