@@ -109,6 +109,13 @@ final class PositionSet {
         return size;
     }
 
+    /** Forgets every position, keeping the table's capacity. */
+    void clear() {
+        java.util.Arrays.fill(keys, 0L);
+        hasZero = false;
+        size = 0;
+    }
+
     boolean isEmpty() {
         return size == 0;
     }

@@ -30,6 +30,8 @@ public final class ArenaLease {
 
     private final ArenaInstance instance;
     private final AtomicReference<CompletableFuture<Boolean>> released = new AtomicReference<>();
+    /** The last in-place regeneration; a release waits for it. */
+    private CompletableFuture<Boolean> regenerating = CompletableFuture.completedFuture(true);
 
     ArenaLease(ArenaInstance instance) {
         this.instance = instance;
@@ -88,12 +90,41 @@ public final class ArenaLease {
     }
 
     /**
+     * Puts the arena back as the schematic has it while keeping it: between two
+     * rounds of one match. Its loose entities are removed, its blocks regenerated
+     * and anyone buried lifted out, exactly as {@link #release()} does, and what the
+     * region recorded as placed by players is forgotten; the arena stays this
+     * lease's.
+     *
+     * <p>Move the players onto their spawns after it completes, not before: the
+     * regeneration works chunk by chunk and does not wait for anyone to stop
+     * building. Calls are queued, never run at once, and a {@link #release()} made
+     * meanwhile waits for the last one.
+     *
+     * @return completes {@code true} when the blocks came back, {@code false} when the
+     *         regeneration failed (it is logged) or the lease was already released.
+     *         Never completes exceptionally.
+     * @since 1.388.0
+     */
+    public synchronized @NotNull CompletableFuture<Boolean> regenerate() {
+        if (isReleased()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> next = regenerating
+                .thenCompose(ignored -> instance.regenerateInUse())
+                .exceptionally(failure -> false);
+        regenerating = next;
+        return next;
+    }
+
+    /**
      * Gives the arena back: its loose entities are removed and its blocks
      * regenerated from the schematic, and only then can it be acquired again.
      *
      * <p>Move the players out first; anyone still inside is lifted out of the
      * blocks, not taken away. Calling it again returns the same future and does
      * nothing else, so a lease is never released twice into somebody else's match.
+     * A {@link #regenerate()} still running is waited for first.
      *
      * @return completes once the arena is free: {@code true} when the blocks came
      *         back, {@code false} when regeneration failed (it is logged, and the
@@ -101,10 +132,16 @@ public final class ArenaLease {
      */
     public @NotNull CompletableFuture<Boolean> release() {
         CompletableFuture<Boolean> mine = new CompletableFuture<>();
-        if (!released.compareAndSet(null, mine)) {
-            return released.get();
+        CompletableFuture<Boolean> before;
+        synchronized (this) {
+            if (!released.compareAndSet(null, mine)) {
+                return released.get();
+            }
+            before = regenerating;
         }
-        instance.release().whenComplete((ok, failure) -> mine.complete(failure == null && ok));
+        before.handle((ignored, failure) -> null)
+                .thenCompose(ignored -> instance.release())
+                .whenComplete((ok, failure) -> mine.complete(failure == null && Boolean.TRUE.equals(ok)));
         return mine;
     }
 

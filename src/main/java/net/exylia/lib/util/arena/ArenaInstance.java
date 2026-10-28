@@ -48,6 +48,17 @@ final class ArenaInstance {
         return regenerateFrom(State.IN_USE);
     }
 
+    /**
+     * Regenerates an instance still in a match, which stays taken: between two rounds.
+     * The lease serialises it with its release, so the two never paste at once.
+     */
+    CompletableFuture<Boolean> regenerateInUse() {
+        if (state.get() != State.IN_USE) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return regenerate().handle((ok, failure) -> failure == null && Boolean.TRUE.equals(ok));
+    }
+
     /** Regenerates a free instance nobody is using; {@code false} when it was not free. */
     CompletableFuture<Boolean> regenerateIdle() {
         return regenerateFrom(State.FREE);
@@ -57,13 +68,7 @@ final class ArenaInstance {
         if (!state.compareAndSet(from, State.REGENERATING)) {
             return CompletableFuture.completedFuture(false);
         }
-        CompletableFuture<Boolean> regenerated;
-        try {
-            regenerated = entry.pool.placement.regenerate(entry.template.schematic(), bounds, world);
-        } catch (RuntimeException failure) {
-            regenerated = CompletableFuture.failedFuture(failure);
-        }
-        return regenerated.handle((ok, failure) -> {
+        return regenerate().handle((ok, failure) -> {
             // FREE first, then the closed check: close() does the opposite, so
             // whichever runs second sees the other and the region is dropped once.
             state.set(State.FREE);
@@ -72,6 +77,20 @@ final class ArenaInstance {
             }
             return failure == null && Boolean.TRUE.equals(ok);
         });
+    }
+
+    /**
+     * Puts the blocks back from the schematic, then forgets what the region recorded
+     * as placed by players: none of those blocks is left.
+     */
+    private CompletableFuture<Boolean> regenerate() {
+        CompletableFuture<Boolean> regenerated;
+        try {
+            regenerated = entry.pool.placement.regenerate(entry.template.schematic(), bounds, world);
+        } catch (RuntimeException failure) {
+            regenerated = CompletableFuture.failedFuture(failure);
+        }
+        return regenerated.whenComplete((ok, failure) -> entry.pool.placement.forgetPlaced(region));
     }
 
     /** Takes a free copy of a closed template out for good. */

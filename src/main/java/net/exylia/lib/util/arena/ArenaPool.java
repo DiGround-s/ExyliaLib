@@ -5,6 +5,7 @@ import net.exylia.lib.region.Cuboid;
 import net.exylia.lib.region.PluginRegions;
 import net.exylia.lib.region.PolicySet;
 import net.exylia.lib.region.RegionId;
+import net.exylia.lib.region.internal.PlacedBlockRuntime;
 import net.exylia.lib.region.RegionSnapshot;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.region.WorldIdentity;
@@ -72,6 +73,9 @@ public final class ArenaPool {
         CompletableFuture<Location> copy(ArenaTemplate template);
 
         CompletableFuture<Boolean> regenerate(String schematic, Cuboid bounds, World world);
+
+        /** Forgets the blocks the region recorded as placed by players. */
+        void forgetPlaced(RegionId region);
 
         RegionId register(String key, World world, Cuboid bounds, PolicySet policies);
 
@@ -391,6 +395,11 @@ public final class ArenaPool {
                 }
                 return result.isSuccess();
             });
+        }
+
+        @Override
+        public void forgetPlaced(RegionId region) {
+            PlacedBlockRuntime.forget(region);
         }
 
         @Override

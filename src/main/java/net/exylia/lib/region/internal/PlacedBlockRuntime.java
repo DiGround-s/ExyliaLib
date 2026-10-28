@@ -223,6 +223,33 @@ public final class PlacedBlockRuntime {
         }
     }
 
+    /**
+     * Forgets every block recorded in one region, temporary ones included, while the
+     * region stays registered: for an arena whose blocks were just put back from its
+     * schematic, where nothing a player placed is left.
+     *
+     * <p>The tables are emptied in place rather than removed, for the same reason as
+     * {@link #untrack}.
+     *
+     * @param id the region
+     * @since 1.388.0
+     */
+    public static void forget(@NotNull RegionId id) {
+        PositionSet positions = PLACED.get(Objects.requireNonNull(id, "id"));
+        if (positions != null) {
+            synchronized (positions) {
+                positions.clear();
+            }
+        }
+        ArrayDeque<Temporary> queue = EXPIRING.get(id);
+        if (queue != null) {
+            synchronized (queue) {
+                PENDING.addAndGet(-queue.size());
+                queue.clear();
+            }
+        }
+    }
+
     /** Forgets every recorded block and stops the sweeper. */
     public static void releaseAll() {
         PLACED.clear();

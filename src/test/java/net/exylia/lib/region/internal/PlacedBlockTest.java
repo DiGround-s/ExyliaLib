@@ -205,6 +205,22 @@ class PlacedBlockTest {
         assertFalse(PlacedBlockRuntime.tracked(arena.id(), 1, 2, 3));
     }
 
+    @Test
+    @DisplayName("forgetting a region empties its record and keeps it recording")
+    void forgettingKeepsTheRegion() {
+        RegionSnapshot arena = regions.register(arena("arena", BUILD_ONLY));
+        PlacedBlockRuntime.placed(arena, UUID.randomUUID(), Material.STONE, 1, 2, 3);
+        PlacedBlockRuntime.placed(arena, UUID.randomUUID(), Material.STONE, 0, 0, 0);
+
+        PlacedBlockRuntime.forget(arena.id());
+        assertFalse(PlacedBlockRuntime.tracked(arena.id(), 1, 2, 3));
+        assertFalse(PlacedBlockRuntime.tracked(arena.id(), 0, 0, 0));
+        assertTrue(PlacedBlockRuntime.tracking());
+
+        PlacedBlockRuntime.placed(arena, UUID.randomUUID(), Material.STONE, 1, 2, 3);
+        assertTrue(PlacedBlockRuntime.tracked(arena.id(), 1, 2, 3));
+    }
+
     // ------------------------------------------------------------------
     // Temporary blocks
     // ------------------------------------------------------------------

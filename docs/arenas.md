@@ -72,6 +72,7 @@ got the original:
 | `box(name)` | a `Cuboid`, or `null` |
 | `region()` | the `RegionId` registered over `bounds()` |
 | `isClone()`, `copy()` | `0` for the original, `1`+ for copies |
+| `regenerate()` | regenerate in place and keep it: between rounds (1.388.0) |
 | `release()` | regenerate, then free |
 
 A copy is a pure translation along X and Z: the schematic's origin (the box
@@ -85,6 +86,31 @@ regeneration is logged and the instance is freed anyway; the future says
 `false`. Calling `release()` again returns the same future and does nothing:
 a lease can never free an arena somebody else has since taken. Move the
 players out before releasing; nobody is teleported away.
+
+Every regeneration, a release's or one in place, also forgets what the
+arena's region recorded as placed by players (`player_build_only`,
+`temporary_blocks`, see [regions](regions.md#who-placed-this-block)): the
+schematic's blocks are back, so none of those records describes a block any
+more, and a pending temporary block is never cleared over the schematic's.
+
+## Rounds (1.388.0)
+
+A match of several rounds keeps its arena and puts it back between them:
+
+```java
+lease.regenerate().thenAccept(ok -> tasks.run(() -> {
+    // then the players onto lease.point("a") / ("b"), reset, countdown
+}));
+```
+
+`regenerate()` does what `release()` does to the blocks — loose entities
+cleared, blocks back, anyone buried lifted out, placed-block records
+forgotten — while the instance stays the lease's. Move the players onto their
+spawns after it completes: the paste is chunked and does not wait for anyone to
+stop building, so freeze or stop the builders first. Calls on one lease are
+queued, never run at once; a `release()` made meanwhile waits for the last of
+them. On a released lease it does nothing and completes `false`. Never
+completes exceptionally; a failed regeneration is logged and completes `false`.
 
 ## After a crash, and in menus (1.348.0)
 
@@ -139,8 +165,6 @@ from the palette is kept, so there is nothing to reload.
 
 - Regenerate only a playable sub-box; the whole `bounds` is the schematic.
 - Free copies or shrink the pool; copies live for the run.
-- Round restarts without freeing (`PluginSchematics.regenerate` on
-  `lease.bounds()` does that).
 
 ## Source and tests
 
@@ -149,4 +173,4 @@ from the palette is kept, so there is nothing to reload.
   state machine), `ArenaPool.Placement` (the world, replaced in tests).
 - Tests: `src/test/java/net/exylia/lib/util/arena/ArenaPoolTest.java` — offsets
   of points and boxes, the copy limit, reuse, double release, failed pastes,
-  reload and removal.
+  reload and removal, regeneration in place and a release waiting for it.

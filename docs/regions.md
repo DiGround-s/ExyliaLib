@@ -378,6 +378,9 @@ A record is forgotten when its block is broken, blown up, scooped into a bucket
 or starts to fall, and when the region is unregistered, replaced without the
 policy, or released with its plugin. There is no separate expiry and nothing to
 clean up: the record lives exactly as long as the region does.
+An [arena](arenas.md) regenerated from its schematic (released, or in place
+between rounds) also forgets its region's record, temporary blocks included,
+through `PlacedBlockRuntime.forget` (1.388.0): the blocks it described are gone.
 
 A break is not the only way a block leaves. A consumer enforcing
 `player_build_only` asks the same question of an explosion's block list and of a

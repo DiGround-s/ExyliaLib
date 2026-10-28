@@ -31,6 +31,7 @@ class ArenaPoolTest {
         final World temporary = FakeServer.newWorld("temporary");
         final List<CompletableFuture<Boolean>> regenerations = new ArrayList<>();
         final Set<String> regions = new HashSet<>();
+        final List<RegionId> forgotten = new ArrayList<>();
         int pastes;
         boolean failPaste;
 
@@ -51,6 +52,11 @@ class ArenaPoolTest {
         }
 
         @Override
+        public void forgetPlaced(RegionId region) {
+            forgotten.add(region);
+        }
+
+        @Override
         public RegionId register(String key, World world, Cuboid bounds, PolicySet policies) {
             regions.add(key);
             return new RegionId("test", key);
@@ -62,8 +68,10 @@ class ArenaPoolTest {
         }
 
         void finishRegenerations() {
-            new ArrayList<>(regenerations).forEach(future -> future.complete(true));
-            regenerations.clear();
+            // Only the ones waiting now: a release queued behind one starts its own.
+            List<CompletableFuture<Boolean>> due = new ArrayList<>(regenerations);
+            regenerations.removeAll(due);
+            due.forEach(future -> future.complete(true));
         }
     }
 
@@ -157,6 +165,43 @@ class ArenaPoolTest {
         placement.finishRegenerations();
         assertTrue(released.join());
         assertFalse(take("forest").isClone());
+    }
+
+    @Test
+    void regeneratingInPlaceKeepsTheArenaAndForgetsWhatPlayersPlaced() {
+        pool.register(template("forest", 0));
+        ArenaLease lease = take("forest");
+        CompletableFuture<Boolean> regenerated = lease.regenerate();
+        assertEquals(1, placement.regenerations.size());
+        placement.finishRegenerations();
+        assertTrue(regenerated.join());
+        assertEquals(List.of(lease.region()), placement.forgotten);
+        assertTrue(pool.acquire("forest").join().isEmpty(), "still this lease's");
+    }
+
+    @Test
+    void aReleaseWaitsForTheRegenerationInPlace() {
+        pool.register(template("forest", 0));
+        ArenaLease lease = take("forest");
+        CompletableFuture<Boolean> regenerated = lease.regenerate();
+        CompletableFuture<Boolean> released = lease.release();
+        assertEquals(1, placement.regenerations.size(), "the release has not started");
+        placement.finishRegenerations();
+        assertTrue(regenerated.join());
+        assertFalse(released.isDone());
+        assertEquals(1, placement.regenerations.size(), "now the release's own");
+        placement.finishRegenerations();
+        assertTrue(released.join());
+        assertFalse(take("forest").isClone());
+    }
+
+    @Test
+    void aReleasedLeaseNoLongerRegenerates() {
+        pool.register(template("forest", 0));
+        ArenaLease lease = take("forest");
+        lease.release();
+        placement.finishRegenerations();
+        assertFalse(lease.regenerate().join());
     }
 
     @Test
