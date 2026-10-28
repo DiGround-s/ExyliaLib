@@ -339,6 +339,10 @@ recorder.watch(48);   // everything within 48 blocks, by itself
 mobs, items, arrows, boats — and writes down every block that changes inside it
 from the server's own events, with what it was and what it became.
 
+`watch(BoundingBox)` (1.389.0) watches a box instead of a cube around the
+anchor: an arena's own bounds, so a copy pasted next door, or a fight in it, is
+never part of the recording.
+
 ## The black box
 
 A recorder has to be started before something happens. The black box is always
@@ -416,6 +420,16 @@ replays.stage(replay).thenAccept(stage -> Tasks.at(viewer, () ->
             watching.hud(status -> bar(status));
             watching.onLeave(() -> overlay.hide(viewer));
         })));
+```
+
+A recording made without terrain against a place the plugin owns (an arena
+it leased for the viewer) needs no laying down: `replays.stage(replay, anchor)`
+(1.389.0) is a stage over that place, played `SOLID` around the anchor, ready
+at once. `close()` stops its playbacks; the place stays the plugin's.
+
+```java
+ReplayStage stage = replays.stage(replay, lease.point("a"));
+ReplayViewer.open(plugin, viewer, stage, null);
 ```
 
 `ReplayViewer` is the camera and the controls: adventure mode, flying,

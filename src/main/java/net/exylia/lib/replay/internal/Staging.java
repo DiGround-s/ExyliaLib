@@ -57,6 +57,11 @@ final class Staging implements ReplayStage {
         this.anchors = anchors;
     }
 
+    /** A stage on a place the caller owns: one anchor for every scene, nothing laid down. */
+    static ReplayStage at(String owner, Replay replay, Location anchor) {
+        return new Staging(owner, replay, new Location[] {anchor.clone()});
+    }
+
     /** Reserves the plots and lays the ground down; completes once it is all there. */
     static CompletableFuture<ReplayStage> build(String owner, Replay replay, TaskScheduler scheduler) {
         if (!replay.hasTerrain()) {

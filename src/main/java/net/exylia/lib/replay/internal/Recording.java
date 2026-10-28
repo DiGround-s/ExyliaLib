@@ -14,6 +14,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.BoundingBox;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -81,6 +82,8 @@ public final class Recording implements ReplayRecorder {
     private volatile TaskHandle debrisTask;
     private volatile TaskHandle watchTask;
     private volatile double watchRadius;
+    /** The zone watched instead of the radius, in the anchor's world; {@code null} for the radius. */
+    private volatile BoundingBox watchBox;
     private volatile boolean running = true;
     private volatile int worldMarks;
     private Replay finished;
@@ -175,7 +178,20 @@ public final class Recording implements ReplayRecorder {
     @Override
     public void watch(double radius) {
         if (!running || radius <= 0) return;
+        watchBox = null;
         watchRadius = radius;
+        startWatching();
+    }
+
+    @Override
+    public void watch(@NotNull BoundingBox box) {
+        if (!running || box.getVolume() <= 0) return;
+        watchBox = box.clone();
+        watchRadius = 0;
+        startWatching();
+    }
+
+    private void startWatching() {
         if (watchTask != null) return;
         watchTask = scheduler.runAtLocationTimer(anchor, 1L, WATCH_EVERY, this::scanZone);
     }
@@ -183,9 +199,11 @@ public final class Recording implements ReplayRecorder {
     /** Follows whatever has wandered into the watched zone since the last look. */
     private void scanZone() {
         double radius = watchRadius;
-        if (!running || radius <= 0 || anchor.getWorld() == null) return;
+        BoundingBox box = watchBox;
+        if (!running || radius <= 0 && box == null || anchor.getWorld() == null) return;
         try {
-            for (Entity entity : anchor.getWorld().getNearbyEntities(anchor, radius, radius, radius)) {
+            for (Entity entity : box != null ? anchor.getWorld().getNearbyEntities(box)
+                    : anchor.getWorld().getNearbyEntities(anchor, radius, radius, radius)) {
                 if (!Tracking.worthRecording(entity)) continue;
                 if (followers.containsKey(entity.getUniqueId())) {
                     if (entity instanceof Player player) follow(player);
@@ -201,9 +219,11 @@ public final class Recording implements ReplayRecorder {
     /** Whether a place is inside the zone this recording watches by itself. */
     boolean watches(Location at) {
         double radius = watchRadius;
-        if (radius <= 0 || at.getWorld() == null || !at.getWorld().equals(anchor.getWorld())) {
+        BoundingBox box = watchBox;
+        if (radius <= 0 && box == null || at.getWorld() == null || !at.getWorld().equals(anchor.getWorld())) {
             return false;
         }
+        if (box != null) return box.contains(at.getX(), at.getY(), at.getZ());
         return Math.abs(at.getX() - anchor.getX()) <= radius
                 && Math.abs(at.getY() - anchor.getY()) <= radius
                 && Math.abs(at.getZ() - anchor.getZ()) <= radius;

@@ -129,6 +129,25 @@ public final class PluginReplays {
     }
 
     /**
+     * A stage over a place this plugin owns outright, such as an arena it
+     * leased for the viewer: the recording is played there with its blocks
+     * written for real ({@link ReplayWorld#SOLID}), rebuilt around the anchor.
+     *
+     * <p>For a recording made without terrain against a known place, which is
+     * what {@link ReplayViewer} then puts somebody in front of. Nothing is laid
+     * down and nothing is waited for; closing it stops its playbacks and leaves
+     * the place to its owner, whose blocks the playback already put back.
+     *
+     * @param replay what to show
+     * @param anchor the same place in the arena the recording was anchored to
+     * @return the stage
+     * @since 1.389.0
+     */
+    public @NotNull ReplayStage stage(@NotNull Replay replay, @NotNull Location anchor) {
+        return ReplayRuntime.stage(pluginName, replay, anchor);
+    }
+
+    /**
      * Starts this plugin's use of the black box: the last stretch of everything
      * around every player, cut out after the fact.
      *

@@ -143,6 +143,10 @@ public final class ReplayRuntime {
         return Staging.build(owner, replay, schedulerOrFail(owner));
     }
 
+    public static ReplayStage stage(String owner, Replay replay, Location anchor) {
+        return Staging.at(owner, replay, anchor);
+    }
+
     static TaskScheduler scheduler() {
         return scheduler;
     }

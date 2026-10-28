@@ -4,6 +4,7 @@ import org.bukkit.Location;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.util.BoundingBox;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -100,6 +101,18 @@ public interface ReplayRecorder {
      * @since 1.241.0
      */
     void watch(double radius);
+
+    /**
+     * The same over a box rather than a cube around the anchor: an arena's own
+     * bounds, so a copy pasted next door is never part of this recording.
+     *
+     * <p>In the anchor's world. Replaces a radius watched before, and the other
+     * way round.
+     *
+     * @param box the zone, in world coordinates
+     * @since 1.389.0
+     */
+    void watch(@NotNull BoundingBox box);
 
     /**
      * Stops recording somebody, leaving what was already recorded of them.
