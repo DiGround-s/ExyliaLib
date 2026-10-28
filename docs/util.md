@@ -235,6 +235,30 @@ API:
 | `evaluate(formula, player, fallback)` | player's placeholders resolved first |
 | `evaluate(formula, player, data, fallback)` | with extra values, as `Placeholders.apply` takes them |
 | `tryEvaluate(resolved)` | `OptionalDouble`; empty when unreadable |
+| `compile(formula, variables...)` | a reusable `Formula`; throws `IllegalArgumentException` with the reason when unreadable (since 1.385.0) |
+
+### Compiled formulas (since 1.385.0)
+
+```java
+Formula chance = Expressions.compile("6 + level * 4", "level");
+double odds = chance.apply(3);          // 18
+double safe = chance.applyOr(0, 3);     // the fallback instead of NaN
+```
+
+For a number worked out on a hot path, such as an ability's chance on every
+hit: the text is parsed once and `apply` walks a tree. Variables are real
+variables, not text substituted before parsing, so `level` never touches
+`levels`. Names are letters, digits and `_`, matched ignoring case; a name
+followed by `(` is always a function. Placeholders are not resolved: fill them
+in first or pass the value as a variable.
+
+- `apply(values...)` takes the values in the order the variables were
+  declared; a missing one counts as `0`. Arithmetic with no answer at those
+  values (division by zero, an infinity) answers `NaN`; `applyOr(fallback,
+  values...)` answers the fallback.
+- `isConstant()`: a formula naming none of its variables is worked out once,
+  at compile.
+- Immutable and safe to share between threads.
 
 Contracts:
 
@@ -491,7 +515,7 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Formula.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,

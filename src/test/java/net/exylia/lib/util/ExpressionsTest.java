@@ -98,4 +98,50 @@ class ExpressionsTest {
     void deepNestingDoesNotCrash() {
         unreadable("(".repeat(50_000) + "1");
     }
+
+    @Test
+    @DisplayName("a compiled formula reads its variables as variables, not as text")
+    void compiledVariables() {
+        Formula chance = Expressions.compile("6 + level * 4", "level");
+        assertEquals(10.0, chance.apply(1));
+        assertEquals(18.0, chance.apply(3));
+        assertTrue(!chance.isConstant());
+
+        Formula two = Expressions.compile("max(level, bonus) * 2", "level", "bonus");
+        assertEquals(10.0, two.apply(2, 5));
+        assertEquals(0.0, Expressions.compile("level", "level").apply(), "a missing value counts as zero");
+        assertEquals(6.0, Expressions.compile("LEVEL * 2", "level").apply(3), "names ignore case");
+        assertEquals(4.0, Expressions.compile("max * 2", "max").apply(2), "a name without ( is a variable");
+    }
+
+    @Test
+    @DisplayName("a compiled formula with no variables is worked out once")
+    void compiledConstant() {
+        Formula constant = Expressions.compile("2 + 3 * 4", "level");
+        assertTrue(constant.isConstant());
+        assertEquals(14.0, constant.apply(99));
+    }
+
+    @Test
+    @DisplayName("an unreadable formula fails to compile, with the reason")
+    void compiledRejections() {
+        for (String broken : new String[]{"2 +", "levels * 2", "%level% + 1", "nonsense(2)", "(".repeat(50_000) + "1"}) {
+            try {
+                Expressions.compile(broken, "level");
+                org.junit.jupiter.api.Assertions.fail("should be rejected: " + broken);
+            } catch (IllegalArgumentException expected) {
+                assertTrue(expected.getMessage() != null);
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("arithmetic with no answer falls back, at the values that break it")
+    void compiledFallback() {
+        Formula ratio = Expressions.compile("10 / level", "level");
+        assertEquals(5.0, ratio.apply(2));
+        assertTrue(Double.isNaN(ratio.apply(0)));
+        assertEquals(1.0, ratio.applyOr(1.0, 0));
+        assertEquals(1.0, Expressions.compile("9 ^ 9 ^ level", "level").applyOr(1.0, 9));
+    }
 }

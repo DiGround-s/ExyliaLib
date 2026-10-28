@@ -102,12 +102,7 @@ public final class Expressions {
      */
     public static @NotNull OptionalDouble tryEvaluate(@NotNull String formula) {
         try {
-            Parser parser = new Parser(formula);
-            double value = parser.expression();
-            parser.skipSpace();
-            if (!parser.done()) {
-                return OptionalDouble.empty();
-            }
+            double value = new Parser(formula, new String[0]).parse().eval(new double[0]);
             return Double.isFinite(value) ? OptionalDouble.of(value) : OptionalDouble.empty();
         } catch (ArithmeticException | IllegalArgumentException | StackOverflowError unreadable) {
             // StackOverflowError is in here because deep nesting is reachable
@@ -117,7 +112,48 @@ public final class Expressions {
     }
 
     /**
-     * A recursive-descent parser over the formula text.
+     * Reads a formula once, to be worked out many times.
+     *
+     * <pre>{@code
+     * Formula chance = Expressions.compile("6 + level * 4", "level");
+     * double odds = chance.apply(3);   // 18
+     * }</pre>
+     *
+     * <p>For a number worked out on a hot path &mdash; an ability's chance on
+     * every hit &mdash; where parsing the text each time is the cost. The
+     * variables are real variables, not text substituted before parsing: a
+     * variable called {@code level} never turns {@code levels} into
+     * {@code 3s}, and {@link Formula#apply} parses nothing.
+     *
+     * <p>Variable names are letters, digits and {@code _}, starting with a
+     * letter, matched ignoring case. A name followed by {@code (} is always a
+     * function, so a variable may be called {@code max}. Placeholders are not
+     * resolved here: fill them in first, or pass the value as a variable.
+     *
+     * @param formula   the formula as written
+     * @param variables the names it may use, in the order {@link Formula#apply}
+     *                  takes their values
+     * @return the compiled formula
+     * @throws IllegalArgumentException when the text cannot be read, with the reason
+     * @since 1.385.0
+     */
+    public static @NotNull Formula compile(@NotNull String formula, @NotNull String... variables) {
+        String[] names = variables.clone();
+        try {
+            return new Formula(formula, names, new Parser(formula, names).parse());
+        } catch (StackOverflowError tooDeep) {
+            throw new IllegalArgumentException("Nested too deeply");
+        }
+    }
+
+    /** One step of a compiled formula; throws {@link ArithmeticException} when it has no answer. */
+    interface Node {
+        double eval(double[] values);
+    }
+
+    /**
+     * A recursive-descent parser over the formula text, building the tree a
+     * {@link Formula} walks.
      *
      * <p>Precedence, loosest first: {@code + -}, then {@code * / %}, then
      * {@code ^}, then a signed atom. {@code ^} binds right, so
@@ -126,66 +162,82 @@ public final class Expressions {
     private static final class Parser {
 
         private final String source;
+        private final String[] variables;
         private int at;
 
-        private Parser(String source) {
+        private Parser(String source, String[] variables) {
             this.source = source;
+            this.variables = variables;
         }
 
-        private double expression() {
-            double value = term();
+        private Node parse() {
+            Node node = expression();
+            skipSpace();
+            if (!done()) {
+                throw new IllegalArgumentException("Unexpected text at position " + at);
+            }
+            return node;
+        }
+
+        private Node expression() {
+            Node value = term();
             while (true) {
                 skipSpace();
+                Node left = value;
                 if (take('+')) {
-                    value += term();
+                    Node right = term();
+                    value = v -> left.eval(v) + right.eval(v);
                 } else if (take('-')) {
-                    value -= term();
+                    Node right = term();
+                    value = v -> left.eval(v) - right.eval(v);
                 } else {
                     return value;
                 }
             }
         }
 
-        private double term() {
-            double value = power();
+        private Node term() {
+            Node value = power();
             while (true) {
                 skipSpace();
+                Node left = value;
                 if (take('*')) {
-                    value *= power();
+                    Node right = power();
+                    value = v -> left.eval(v) * right.eval(v);
                 } else if (take('/')) {
-                    value = divide(value, power());
+                    Node right = power();
+                    value = v -> divide(left.eval(v), right.eval(v));
                 } else if (take('%')) {
-                    double divisor = power();
-                    if (divisor == 0.0) {
-                        throw new ArithmeticException("Remainder by zero");
-                    }
-                    value %= divisor;
+                    Node right = power();
+                    value = v -> remainder(left.eval(v), right.eval(v));
                 } else {
                     return value;
                 }
             }
         }
 
-        private double power() {
-            double base = atom();
+        private Node power() {
+            Node base = atom();
             skipSpace();
             if (take('^')) {
                 // Right associative: the exponent is a whole power chain.
-                return Math.pow(base, power());
+                Node exponent = power();
+                return v -> Math.pow(base.eval(v), exponent.eval(v));
             }
             return base;
         }
 
-        private double atom() {
+        private Node atom() {
             skipSpace();
             if (take('-')) {
-                return -atom();
+                Node inner = atom();
+                return v -> -inner.eval(v);
             }
             if (take('+')) {
                 return atom();
             }
             if (take('(')) {
-                double value = expression();
+                Node value = expression();
                 skipSpace();
                 if (!take(')')) {
                     throw new IllegalArgumentException("Missing closing parenthesis");
@@ -193,41 +245,50 @@ public final class Expressions {
                 return value;
             }
             if (!done() && Character.isLetter(source.charAt(at))) {
-                return function();
+                return name();
             }
-            return number();
+            double number = number();
+            return v -> number;
         }
 
-        private double function() {
+        /** A function when a parenthesis follows, otherwise a variable. */
+        private Node name() {
             int start = at;
-            while (!done() && Character.isLetter(source.charAt(at))) {
+            while (!done() && (Character.isLetterOrDigit(source.charAt(at)) || source.charAt(at) == '_')) {
                 at++;
             }
             String name = source.substring(start, at).toLowerCase(Locale.ROOT);
-
+            int afterName = at;
             skipSpace();
             if (!take('(')) {
+                for (int i = 0; i < variables.length; i++) {
+                    if (variables[i].equalsIgnoreCase(name)) {
+                        int index = i;
+                        at = afterName;
+                        return v -> index < v.length ? v[index] : 0.0;
+                    }
+                }
                 throw new IllegalArgumentException("Expected ( after " + name);
             }
-            double first = expression();
+            Node first = expression();
             skipSpace();
 
-            double result;
+            Node result;
             if (take(',')) {
-                double second = expression();
+                Node second = expression();
                 skipSpace();
                 result = switch (name) {
-                    case "min" -> Math.min(first, second);
-                    case "max" -> Math.max(first, second);
+                    case "min" -> v -> Math.min(first.eval(v), second.eval(v));
+                    case "max" -> v -> Math.max(first.eval(v), second.eval(v));
                     default -> throw new IllegalArgumentException(name + " takes one value, not two");
                 };
             } else {
                 result = switch (name) {
-                    case "abs" -> Math.abs(first);
-                    case "floor" -> Math.floor(first);
-                    case "ceil" -> Math.ceil(first);
-                    case "round" -> Math.round(first);
-                    case "sqrt" -> sqrt(first);
+                    case "abs" -> v -> Math.abs(first.eval(v));
+                    case "floor" -> v -> Math.floor(first.eval(v));
+                    case "ceil" -> v -> Math.ceil(first.eval(v));
+                    case "round" -> v -> Math.round(first.eval(v));
+                    case "sqrt" -> v -> sqrt(first.eval(v));
                     case "min", "max" -> throw new IllegalArgumentException(name + " takes two values");
                     default -> throw new IllegalArgumentException("Unknown function " + name);
                 };
@@ -256,6 +317,13 @@ public final class Expressions {
                 throw new ArithmeticException("Division by zero");
             }
             return value / divisor;
+        }
+
+        private static double remainder(double value, double divisor) {
+            if (divisor == 0.0) {
+                throw new ArithmeticException("Remainder by zero");
+            }
+            return value % divisor;
         }
 
         private static double sqrt(double value) {
