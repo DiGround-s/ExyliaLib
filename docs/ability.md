@@ -269,8 +269,9 @@ listens.
   trigger nobody holds costs one map read, and each listener asks that first.
   Formulas, conditions and effects are compiled objects.
 - **Holdings** are asked again on join, held-slot change, hand swap, drop,
-  pick-up, item break, inventory close and, on Paper, armour change (a class
-  loaded only there), coalesced to once per tick; on respawn and after milk
+  pick-up, item break, inventory close and, on Paper, armour change and a
+  change to the held, armour or offhand slot (an item replaced in place by
+  `/clear` + `/give` or a kit; classes loaded only there), coalesced to once per tick; on respawn and after milk
   everything held equips again. A refresh that answers the same list fires
   nothing; changes fire `UNEQUIP` then `EQUIP`. `refresh`, and every refresh
   the library schedules, does nothing for a player who is offline or no longer
@@ -439,7 +440,7 @@ mine) does so in its `check` or before calling `start`.
 | | |
 | --- | --- |
 | Public API | `ability/Abilities`, `PluginAbilities`, `Ability`, `Held`, `AbilityContext`, `ContextKey`, `AbilityEffect`, `AbilityCondition`, `AbilityArgs`, `AbilityReport`, `AbilityOutcome`, `AbilityGate`, `AbilityScale`, `Triggers`, `AreaBreaks`, `AreaBreak`, `AreaShape`; `util/Formula`, `util/Expressions.compile` |
-| Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
+| Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` and `ability/PaperSlotListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
 | Hit shaping | `ability/DamageShaping` (`bonus-damage`, `armour-pierce`, built-in scales, pending pierces) |
 | Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
 | Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/internal/PassivePotionTest` (finite PASSIVE duration, revert match), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`, PASSIVE sustain timer, refresh offline guard), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |

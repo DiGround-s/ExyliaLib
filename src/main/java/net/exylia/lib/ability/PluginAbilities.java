@@ -147,15 +147,20 @@ public final class PluginAbilities {
         AbilityListener listener = new AbilityListener(this);
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         listeners.add(listener);
+        listenOnPaper("com.destroystokyo.paper.event.player.PlayerArmorChangeEvent", "PaperArmourListener");
+        listenOnPaper("io.papermc.paper.event.player.PlayerInventorySlotChangeEvent", "PaperSlotListener");
+    }
+
+    /** Registers a Paper-only listener, loaded by name so Spigot never resolves the class. */
+    private void listenOnPaper(String event, String listenerClass) {
         try {
-            // Paper only; loaded by name so Spigot never resolves the class.
-            Class.forName("com.destroystokyo.paper.event.player.PlayerArmorChangeEvent");
-            Listener armour = (Listener) Class.forName("net.exylia.lib.ability.PaperArmourListener")
+            Class.forName(event);
+            Listener paper = (Listener) Class.forName("net.exylia.lib.ability." + listenerClass)
                     .getDeclaredConstructor(PluginAbilities.class).newInstance(this);
-            Bukkit.getPluginManager().registerEvents(armour, plugin);
-            listeners.add(armour);
+            Bukkit.getPluginManager().registerEvents(paper, plugin);
+            listeners.add(paper);
         } catch (ReflectiveOperationException | LinkageError spigot) {
-            // Spigot: inventory close and the other refresh points cover armour.
+            // Spigot: inventory close and the other refresh points cover it.
         }
     }
 
