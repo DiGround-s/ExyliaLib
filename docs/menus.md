@@ -632,7 +632,8 @@ already knows what it drew there.
 
 A button is never picked up, and a drag touching any button is refused. Slots
 listed under `editable_slots` stay the player's, and `session.inputs()` returns
-whatever they left in them.
+whatever they left in them. A redraw (`refresh()`, `PluginMenus.update(...)`)
+never clears them: only the menu's own slots are wiped and drawn again.
 
 ### One click, one run (1.295.0+)
 

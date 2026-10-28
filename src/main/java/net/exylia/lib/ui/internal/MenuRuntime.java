@@ -260,7 +260,8 @@ public final class MenuRuntime {
         Remembered where = take(viewer, definition.id());
 
         MenuHolder holder = new MenuHolder();
-        Inventory inventory = Session.inventoryFor(holder, definition, viewer, context, sections);
+        Inventory inventory = Session.inventoryFor(holder, definition, viewer, context, sections,
+                where == null ? Map.of() : where.pages());
         Session session = new Session(this, viewer, definition, items, inventory,
                 generations.incrementAndGet(), context);
         holder.bind(session, inventory);

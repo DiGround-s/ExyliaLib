@@ -845,7 +845,7 @@ final class Session implements UiSession {
         slots.clear();
         drawn.clear();
         reread();
-        inventory.clear();
+        clearOwnSlots();
         drawFillers();
         for (Map.Entry<Integer, UiItem> fixed : definition.items().entrySet()) {
             drawFixed(fixed.getKey(), fixed.getValue());
@@ -853,6 +853,25 @@ final class Session implements UiSession {
         drawGroups();
         for (UiSection list : definition.sections().values()) {
             drawSection(list);
+        }
+    }
+
+    /**
+     * Empties every slot the menu draws, leaving its input slots alone.
+     *
+     * <p>An input slot holds what the player put there, not what the menu
+     * drew: clearing it on a redraw deletes the player's item.
+     */
+    private void clearOwnSlots() {
+        Set<Integer> kept = inputSlots();
+        if (kept.isEmpty()) {
+            inventory.clear();
+            return;
+        }
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (!kept.contains(slot)) {
+                inventory.setItem(slot, null);
+            }
         }
     }
 
@@ -1371,10 +1390,25 @@ final class Session implements UiSession {
      */
     static Component title(UiDefinition definition, Player viewer, Map<String, Object> context,
                            Map<String, ? extends Collection<UiEntry>> sections) {
+        return title(definition, viewer, context, sections, Map.of());
+    }
+
+    /**
+     * The same title, for a window reopening on the pages it was left on.
+     *
+     * <p>The page is clamped exactly as {@link #seed} will clamp it, so the
+     * window opens reading the page it shows rather than {@code 1}: the seed
+     * records that page as already titled and would never correct it.
+     */
+    static Component title(UiDefinition definition, Player viewer, Map<String, Object> context,
+                           Map<String, ? extends Collection<UiEntry>> sections,
+                           Map<String, Integer> remembered) {
         UiSection only = definition.section();
         Collection<UiEntry> rows = only == null ? null : sections.get(only.id());
         int pages = rows == null ? 1 : only.pagesFor(rows.size());
-        return titleText(definition.title(), context, 1, pages).forPlayer(viewer).build();
+        int page = rows == null ? 1
+                : Pages.clamp(remembered.getOrDefault(only.id(), 1), rows.size(), only.perPage());
+        return titleText(definition.title(), context, page, pages).forPlayer(viewer).build();
     }
 
     /**
@@ -1447,7 +1481,15 @@ final class Session implements UiSession {
     static Inventory inventoryFor(MenuHolder holder, UiDefinition definition, Player viewer,
                                   Map<String, Object> context,
                                   Map<String, ? extends Collection<UiEntry>> sections) {
-        Component title = title(definition, viewer, context, sections);
+        return inventoryFor(holder, definition, viewer, context, sections, Map.of());
+    }
+
+    /** The same window, titled for the pages it reopens on. */
+    static Inventory inventoryFor(MenuHolder holder, UiDefinition definition, Player viewer,
+                                  Map<String, Object> context,
+                                  Map<String, ? extends Collection<UiEntry>> sections,
+                                  Map<String, Integer> remembered) {
+        Component title = title(definition, viewer, context, sections, remembered);
         org.bukkit.event.inventory.InventoryType type = definition.kind().type();
         // A chest is created by slot count because its size is configured;
         // everything else has a fixed shape the server already knows.
