@@ -274,14 +274,20 @@ public final class BuiltinEffects {
     private static AbilityEffect potion(AbilityArgs args) {
         Targets targets = Targets.read(args, Targets.Kind.VICTIM);
         String name = args.string("type", "");
-        PotionEffectType type = potionType(name);
-        if (type == null) throw new IllegalArgumentException("unknown potion type '" + name + "'");
         Formula level = args.formula("level", "1");
         boolean timed = args.has("duration");
         Formula seconds = args.seconds("duration", 5);
+        LazyPotion lazy = new LazyPotion(name);
+        if (!lazy.checkable()) {
+            // No server to ask (a unit test): resolved on the first proc instead.
+        } else if (lazy.get() == null) {
+            throw new IllegalArgumentException("unknown potion type '" + name + "'");
+        }
         return new AbilityEffect() {
             @Override
             public void apply(AbilityContext ctx, AbilityReport report) {
+                PotionEffectType type = lazy.get();
+                if (type == null) return;
                 int amplifier = Math.max(0, (int) Math.round(level.applyOr(1, ctx.level())) - 1);
                 int ticks = !timed && ctx.trigger().equals("PASSIVE") ? PotionEffect.INFINITE_DURATION
                         : (int) Math.max(1, Math.round(seconds.applyOr(5, ctx.level()) * 20));
@@ -294,6 +300,8 @@ public final class BuiltinEffects {
 
             @Override
             public void revert(AbilityContext ctx) {
+                PotionEffectType type = lazy.get();
+                if (type == null) return;
                 int amplifier = Math.max(0, (int) Math.round(level.applyOr(1, ctx.level())) - 1);
                 for (LivingEntity target : targets.resolve(ctx)) {
                     PotionEffect active = target.getPotionEffect(type);
@@ -438,8 +446,8 @@ public final class BuiltinEffects {
     // ------------------------------------------------------------------ world
 
     /**
-     * {@code break-area: { shape: plane | cube | vein, radius, depth, max,
-     * budget, compat-events, exclude, only, to: inventory }} on the block the
+     * {@code break-area: { shape: plane | cube | vein | column, radius, depth, max,
+     * length, vertical, budget, compat-events, exclude, only, to: inventory }} on the block the
      * trigger broke; {@code only} takes what the {@code block} condition takes.
      *  Its drops join the firing's drops, so smelting and multipliers
      * apply once to the whole area.
@@ -449,6 +457,8 @@ public final class BuiltinEffects {
         Formula radius = args.formula("radius", "1");
         Formula depth = args.formula("depth", "0");
         Formula max = args.formula("max", "64");
+        Formula length = args.formula("length", "8");
+        boolean vertical = args.flag("vertical", false);
         int budget = args.integer("budget", AreaBreak.DEFAULT_BUDGET);
         int compat = args.integer("compat-events", 0);
         List<Material> exclude = new ArrayList<>();
@@ -460,7 +470,7 @@ public final class BuiltinEffects {
         Set<Material> only = BlockMatcher.compile(args.raw("only"), args::problem);
         if (args.has("only") && only.isEmpty()) args.problem("'only' names no block; it is ignored");
         boolean toInventory = args.string("to", "ground").equalsIgnoreCase("inventory");
-        if (!Set.of("plane", "cube", "vein").contains(shape)) {
+        if (!Set.of("plane", "cube", "vein", "column").contains(shape)) {
             throw new IllegalArgumentException("unknown shape '" + shape + "'");
         }
         return (ctx, report) -> {
@@ -470,6 +480,7 @@ public final class BuiltinEffects {
             AreaShape area = switch (shape) {
                 case "cube" -> AreaShape.cube((int) Math.round(radius.applyOr(1, level)));
                 case "vein" -> AreaShape.vein((int) Math.round(max.applyOr(64, level)));
+                case "column" -> AreaShape.column((int) Math.round(length.applyOr(8, level)), vertical);
                 default -> AreaShape.plane((int) Math.round(radius.applyOr(1, level)),
                         (int) Math.round(depth.applyOr(0, level)));
             };
@@ -599,19 +610,69 @@ public final class BuiltinEffects {
 
     // ------------------------------------------------------------------ helpers
 
+    /**
+     * A potion type looked up by name when first asked and then kept, so an
+     * effect compiles where there is no registry (a unit test) and resolves
+     * on its first proc on a server.
+     */
+    static final class LazyPotion {
+        private final String name;
+        private volatile @Nullable PotionEffectType type;
+        private volatile boolean resolved;
+
+        LazyPotion(String name) {
+            this.name = name;
+        }
+
+        /** Whether the registry can be asked now; false without a server. */
+        boolean checkable() {
+            if (resolved) return true;
+            try {
+                get();
+                return resolved;
+            } catch (RuntimeException | LinkageError noServer) {
+                return false;
+            }
+        }
+
+        /** The type, or {@code null} when it is unknown or there is no registry yet. */
+        @Nullable PotionEffectType get() {
+            if (resolved) return type;
+            if (name.isBlank()) {
+                resolved = true;
+                return null;
+            }
+            PotionEffectType found;
+            try {
+                found = potionType(name);
+            } catch (RuntimeException | LinkageError noServer) {
+                return null;
+            }
+            type = found;
+            resolved = true;
+            return found;
+        }
+    }
+
+    /** By key, then by legacy name; throws when neither lookup can run (no server). */
     private static @Nullable PotionEffectType potionType(String name) {
-        if (name.isBlank()) return null;
         String key = name.trim().toLowerCase(Locale.ROOT);
+        RuntimeException registryFailure = null;
         try {
             NamespacedKey namespaced = key.contains(":") ? NamespacedKey.fromString(key) : NamespacedKey.minecraft(key);
             PotionEffectType type = namespaced == null ? null : Registry.EFFECT.get(namespaced);
             if (type != null) return type;
-        } catch (RuntimeException | LinkageError noRegistry) {
-            // Fall through to the name lookup.
+        } catch (RuntimeException noRegistry) {
+            registryFailure = noRegistry;
         }
-        @SuppressWarnings("deprecation")
-        PotionEffectType legacy = PotionEffectType.getByName(name.trim().toUpperCase(Locale.ROOT));
-        return legacy;
+        try {
+            @SuppressWarnings("deprecation")
+            PotionEffectType legacy = PotionEffectType.getByName(name.trim().toUpperCase(Locale.ROOT));
+            return legacy;
+        } catch (RuntimeException noServer) {
+            if (registryFailure != null) noServer.addSuppressed(registryFailure);
+            throw noServer;
+        }
     }
 
     private static int roll(double amount) {

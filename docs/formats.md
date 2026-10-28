@@ -71,6 +71,7 @@ Fixed, allocation-free beyond the string returned, safe from any thread.
 | `percentOfFraction(double)` | `0.75` → `"75%"` |
 | `percentOf(double, double)` | `(3, 4)` → `"75%"` |
 | `ordinal(long)` | `3` → `"3rd"`, `11` → `"11th"` |
+| `roman(int)` | `3` → `"III"`, `14` → `"XIV"`; outside 1-3999 the digits (*1.387.0*) |
 
 ### Compact notation
 

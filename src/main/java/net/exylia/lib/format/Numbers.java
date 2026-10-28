@@ -329,6 +329,36 @@ public final class Numbers {
         };
     }
 
+    // ---------------------------------------------------------- roman
+
+    private static final int[] ROMAN_VALUES = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+    private static final String[] ROMAN_SYMBOLS = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V",
+            "IV", "I"};
+
+    /**
+     * A level as players read it on an item: {@code 3} becomes {@code "III"},
+     * {@code 14} {@code "XIV"}.
+     *
+     * <p>Roman numerals have no zero, no negatives and nothing past 3999, so
+     * those stay digits rather than becoming an empty string.
+     *
+     * @param value the number
+     * @return the numeral, or the digits outside 1 to 3999
+     * @since 1.387.0
+     */
+    public static @NotNull String roman(int value) {
+        if (value <= 0 || value >= 4000) return String.valueOf(value);
+        StringBuilder out = new StringBuilder(8);
+        int left = value;
+        for (int i = 0; i < ROMAN_VALUES.length; i++) {
+            while (left >= ROMAN_VALUES[i]) {
+                out.append(ROMAN_SYMBOLS[i]);
+                left -= ROMAN_VALUES[i];
+            }
+        }
+        return out.toString();
+    }
+
     // ---------------------------------------------------------- helpers
 
     /**

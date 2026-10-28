@@ -314,6 +314,9 @@ form. This is for descriptions that live in a config and are too long for one:
 
 // Straight from a config key that may be a String or a list:
 .withFormatted("description", Lines.value(section, "description"))
+
+// Prose with no breaks of its own, wrapped to the tooltip (1.387.0):
+.withFormatted("description", Lines.wrap(description, 34))
 ```
 
 ```yaml

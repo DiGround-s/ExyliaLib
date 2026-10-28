@@ -219,4 +219,18 @@ class NumbersTest {
             assertEquals(expected, Numbers.compact(1_500L));
         }
     }
+
+    @Test
+    @DisplayName("roman numerals from 1 to 3999; the rest stay digits")
+    void roman() {
+        assertEquals("I", Numbers.roman(1));
+        assertEquals("III", Numbers.roman(3));
+        assertEquals("IX", Numbers.roman(9));
+        assertEquals("XIV", Numbers.roman(14));
+        assertEquals("MCMXCIV", Numbers.roman(1994));
+        assertEquals("MMMCMXCIX", Numbers.roman(3999));
+        assertEquals("0", Numbers.roman(0));
+        assertEquals("-2", Numbers.roman(-2));
+        assertEquals("4000", Numbers.roman(4000));
+    }
 }

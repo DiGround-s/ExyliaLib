@@ -50,14 +50,26 @@ final class AbilityListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDamageByEntity(EntityDamageByEntityEvent event) {
-        if (event.getDamager() instanceof Player attacker && event.getEntity() instanceof LivingEntity victim
-                && abilities.holds(attacker, Triggers.ATTACK)) {
-            abilities.fire(attacker, Triggers.ATTACK, ctx -> ctx.event(event).victim(victim));
+        boolean attack = event.getDamager() instanceof Player attacker && event.getEntity() instanceof LivingEntity
+                && abilities.holds(attacker, Triggers.ATTACK);
+        boolean taken = event.getEntity() instanceof Player victim && abilities.holds(victim, Triggers.HIT_TAKEN);
+        if (!attack && !taken) return;
+        // Pierces wait until both sides changed the hit: a later bonus would recompute armour.
+        DamageShaping shaping = abilities.shaping();
+        shaping.deferring(true);
+        try {
+            if (attack) {
+                LivingEntity victim = (LivingEntity) event.getEntity();
+                abilities.fire((Player) event.getDamager(), Triggers.ATTACK, ctx -> ctx.event(event).victim(victim));
+            }
+            if (taken) {
+                LivingEntity attacker = living(event.getDamager());
+                abilities.fire((Player) event.getEntity(), Triggers.HIT_TAKEN, ctx -> ctx.event(event).attacker(attacker));
+            }
+        } finally {
+            shaping.deferring(false);
         }
-        if (event.getEntity() instanceof Player victim && abilities.holds(victim, Triggers.HIT_TAKEN)) {
-            LivingEntity attacker = living(event.getDamager());
-            abilities.fire(victim, Triggers.HIT_TAKEN, ctx -> ctx.event(event).attacker(attacker));
-        }
+        shaping.apply(event);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -88,19 +100,25 @@ final class AbilityListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent event) {
-        if (event.getEntity() instanceof Player shooter && abilities.holds(shooter, Triggers.BOW_SHOOT)) {
+        if (!(event.getEntity() instanceof Player shooter)) return;
+        if (abilities.projectileLevels() && event.getProjectile() instanceof Projectile projectile) {
+            abilities.stamp(projectile, shooter);
+        }
+        if (abilities.holds(shooter, Triggers.BOW_SHOOT)) {
             abilities.fire(shooter, Triggers.BOW_SHOOT, ctx -> ctx.event(event));
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onProjectileHit(ProjectileHitEvent event) {
-        if (event.getEntity().getShooter() instanceof Player shooter
-                && abilities.holds(shooter, Triggers.PROJECTILE_HIT)) {
-            LivingEntity victim = event.getHitEntity() instanceof LivingEntity living ? living : null;
-            abilities.fire(shooter, Triggers.PROJECTILE_HIT, ctx -> ctx.event(event).victim(victim)
-                    .block(event.getHitBlock()).location(event.getEntity().getLocation()));
-        }
+        if (!(event.getEntity().getShooter() instanceof Player shooter)) return;
+        java.util.List<Held> carried = abilities.projectileLevels() ? abilities.carried(event.getEntity()) : null;
+        if (carried == null && !abilities.holds(shooter, Triggers.PROJECTILE_HIT)) return;
+        LivingEntity victim = event.getHitEntity() instanceof LivingEntity living ? living : null;
+        java.util.function.Consumer<AbilityContext> setup = ctx -> ctx.event(event).victim(victim)
+                .block(event.getHitBlock()).location(event.getEntity().getLocation());
+        if (carried != null) abilities.fire(shooter, Triggers.PROJECTILE_HIT, carried.toArray(Held[]::new), setup);
+        else abilities.fire(shooter, Triggers.PROJECTILE_HIT, setup);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

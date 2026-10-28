@@ -56,6 +56,7 @@ public final class AbilityContext {
     private boolean ownsDrops;
     private boolean finished;
     private final List<Consumer<List<ItemStack>>> dropTransforms = new ArrayList<>(2);
+    private final List<Consumer<List<ItemStack>>> lastTransforms = new ArrayList<>(1);
 
     AbilityContext(@NotNull PluginAbilities abilities, @NotNull Player holder, @NotNull String trigger) {
         this.abilities = abilities;
@@ -254,6 +255,28 @@ public final class AbilityContext {
     }
 
     /**
+     * {@link #transformDrops}, but after every transform registered with it,
+     * whatever order the effects ran in: how a cap (a curse that undoes
+     * Fortune and multipliers) sees the final amounts.
+     *
+     * <p>Applied to the firing's list when the firing ends &mdash; also when
+     * the list is not the library's to deliver (a death's drops, changed
+     * before the event finishes) &mdash; and to anything delivered later
+     * through {@link #deliver}. Several run in the order they were added.
+     *
+     * <pre>{@code
+     * ctx.transformDropsLast(items -> items.forEach(item -> item.setAmount(Math.min(item.getAmount(), 1))));
+     * }</pre>
+     *
+     * @param transform changes the list in place
+     * @since 1.387.0
+     */
+    public void transformDropsLast(@NotNull Consumer<List<ItemStack>> transform) {
+        drops();
+        lastTransforms.add(transform);
+    }
+
+    /**
      * Delivers items through this firing's drops: into the current list while
      * the firing runs, or transformed and spawned when it already finished.
      *
@@ -269,6 +292,7 @@ public final class AbilityContext {
             }
         }
         dropTransforms.forEach(transform -> transform.accept(items));
+        lastTransforms.forEach(transform -> transform.accept(items));
         spawn(items);
     }
 
@@ -282,10 +306,15 @@ public final class AbilityContext {
 
     void finish() {
         finished = true;
-        if (!ownsDrops) return;
         List<ItemStack> drops = get(ContextKey.DROPS);
+        if (!ownsDrops) {
+            // Not ours to deliver: the plain transforms already ran; the last ones run now.
+            if (drops != null && !lastTransforms.isEmpty()) lastTransforms.forEach(transform -> transform.accept(drops));
+            return;
+        }
         if (drops == null || drops.isEmpty()) return;
         dropTransforms.forEach(transform -> transform.accept(drops));
+        lastTransforms.forEach(transform -> transform.accept(drops));
         spawn(drops);
     }
 

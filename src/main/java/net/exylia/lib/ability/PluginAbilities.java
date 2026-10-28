@@ -12,9 +12,12 @@ import net.exylia.lib.util.editor.Editors;
 import net.exylia.lib.util.editor.ListEditor;
 import net.exylia.lib.util.sequence.Sequence;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.Listener;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -99,6 +102,12 @@ public final class PluginAbilities {
     private final Map<String, AbilityEffect.Factory> effects = new ConcurrentHashMap<>();
     private final Map<String, AbilityCondition.Factory> conditions = new ConcurrentHashMap<>();
     private final Set<String> triggers = ConcurrentHashMap.newKeySet();
+    private final Map<String, AbilityScale.Factory> scales = new ConcurrentHashMap<>();
+    /** The last ability compiled under each id: what a projectile's stamp resolves to. */
+    private final Map<String, Ability> compiled = new ConcurrentHashMap<>();
+    private final DamageShaping shaping = new DamageShaping();
+    private final NamespacedKey shotKey;
+    private volatile boolean projectileLevels;
     private final Map<UUID, Holding> cache = new ConcurrentHashMap<>();
     private final Set<UUID> pending = ConcurrentHashMap.newKeySet();
     private final Set<String> reported = ConcurrentHashMap.newKeySet();
@@ -115,8 +124,10 @@ public final class PluginAbilities {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.owner = plugin.getName().toLowerCase(Locale.ROOT);
+        this.shotKey = new NamespacedKey(plugin, "ability-levels");
         triggers.addAll(Triggers.BUILT_IN);
         BuiltinEffects.register(this);
+        DamageShaping.register(this);
         BuiltinConditions.register(this);
         if (listen) listen();
     }
@@ -180,6 +191,36 @@ public final class PluginAbilities {
     public @NotNull PluginAbilities condition(@NotNull String name, @NotNull AbilityCondition.Factory factory) {
         conditions.put(name.toLowerCase(Locale.ROOT), factory);
         return this;
+    }
+
+    /**
+     * Registers what {@code bonus-damage: { by: <name> }} scales by, next to
+     * the built-in {@code missing-health} and {@code health-gap}; replaces one
+     * of the same name. Register before compiling.
+     *
+     * <pre>{@code
+     * abilities.scale("combo", args -> {
+     *     long window = args.duration("window", Duration.ofSeconds(3)).toMillis();
+     *     return ctx -> combos.hit(ctx.holder(), window);
+     * });
+     * }</pre>
+     *
+     * @param name    the value of {@code by}, lower case
+     * @param factory builds it from the effect's line at load
+     * @return this
+     * @since 1.387.0
+     */
+    public @NotNull PluginAbilities scale(@NotNull String name, @NotNull AbilityScale.Factory factory) {
+        scales.put(name.toLowerCase(Locale.ROOT), factory);
+        return this;
+    }
+
+    @Nullable AbilityScale.Factory scaleFactory(String name) {
+        return scales.get(name);
+    }
+
+    DamageShaping shaping() {
+        return shaping;
     }
 
     /**
@@ -280,8 +321,10 @@ public final class PluginAbilities {
                 said.accept("unknown key '" + key + "' (kept, ignored)");
             }
         }
-        return new Ability(id, trigger, chance, cooldown, compiledConditions, compiledEffects, chain, every, copy,
-                owner);
+        Ability ability = new Ability(id, trigger, chance, cooldown, compiledConditions, compiledEffects, chain,
+                every, copy, owner);
+        compiled.put(id, ability);
+        return ability;
     }
 
     List<AbilityEffect> compileEffects(@Nullable Object raw, Consumer<String> problems) {
@@ -559,13 +602,17 @@ public final class PluginAbilities {
      */
     public int fire(@NotNull Player holder, @NotNull String trigger, @Nullable Consumer<AbilityContext> setup) {
         String name = trigger.toUpperCase(Locale.ROOT);
+        Holding holding = cache.get(holder.getUniqueId());
+        if (holding == null) return 0;
+        return fire(holder, name, holding.byTrigger.get(name), setup);
+    }
+
+    /** Fires with these holdings instead of the cached ones: a projectile's stamped levels. */
+    int fire(Player holder, String name, Held @Nullable [] held, @Nullable Consumer<AbilityContext> setup) {
         if ((name.equals(Triggers.ATTACK) || name.equals(Triggers.HIT_TAKEN)) && ChainGuard.blocksDamageTriggers()) {
             return 0;
         }
-        Holding holding = cache.get(holder.getUniqueId());
-        if (holding == null) return 0;
-        Held[] held = holding.byTrigger.get(name);
-        if (held == null) return 0;
+        if (held == null || held.length == 0) return 0;
 
         AbilityContext context = new AbilityContext(this, holder, name);
         if (setup != null) setup.accept(context);
@@ -576,8 +623,90 @@ public final class PluginAbilities {
             }
         } finally {
             context.finish();
+            if (!shaping.deferring()) shaping.apply(context.event());
         }
         return procs;
+    }
+
+    // ------------------------------------------------------------------ projectiles
+
+    /**
+     * Whether PROJECTILE_HIT reads the levels a shot left the bow with: on
+     * BOW_SHOOT the shooter's PROJECTILE_HIT holdings are stamped on the
+     * projectile, and when it lands those fire, whatever the shooter holds
+     * by then. A projectile with no stamp (thrown by hand, shot before this
+     * was on) falls back to the shooter's current holdings. Off by default:
+     * the hit reads the current holdings, as before.
+     *
+     * @param enabled whether shots carry their levels
+     * @return this
+     * @since 1.387.0
+     */
+    public @NotNull PluginAbilities projectileLevels(boolean enabled) {
+        this.projectileLevels = enabled;
+        return this;
+    }
+
+    /** Whether shots carry their levels; see {@link #projectileLevels(boolean)}. */
+    public boolean projectileLevels() {
+        return projectileLevels;
+    }
+
+    /**
+     * Stamps the shooter's current PROJECTILE_HIT holdings on a projectile,
+     * as BOW_SHOOT does when {@link #projectileLevels(boolean)} is on; for a
+     * plugin that launches projectiles of its own. On the projectile's thread.
+     *
+     * @param projectile the shot
+     * @param shooter    whose holdings
+     * @since 1.387.0
+     */
+    public void stamp(@NotNull Projectile projectile, @NotNull Player shooter) {
+        Holding holding = cache.get(shooter.getUniqueId());
+        Held[] held = holding == null ? null : holding.byTrigger.get(Triggers.PROJECTILE_HIT);
+        projectile.getPersistentDataContainer().set(shotKey, PersistentDataType.STRING, encodeShot(held));
+    }
+
+    /**
+     * The holdings a projectile was {@linkplain #stamp stamped} with, each
+     * resolved to the ability last compiled under its id; ids no longer
+     * compiled are left out.
+     *
+     * @param projectile the shot
+     * @return the holdings, or {@code null} when it carries no stamp
+     * @since 1.387.0
+     */
+    public @Nullable List<Held> carried(@NotNull Projectile projectile) {
+        String stamp = projectile.getPersistentDataContainer().get(shotKey, PersistentDataType.STRING);
+        return stamp == null ? null : decodeShot(stamp, compiled::get);
+    }
+
+    /** {@code id\tlevel} lines; pure, for tests. */
+    static String encodeShot(Held @Nullable [] held) {
+        if (held == null) return "";
+        StringBuilder out = new StringBuilder();
+        for (Held one : held) {
+            if (!out.isEmpty()) out.append('\n');
+            out.append(one.ability().id()).append('\t').append(one.level());
+        }
+        return out.toString();
+    }
+
+    static List<Held> decodeShot(String stamp, Function<String, @Nullable Ability> abilities) {
+        List<Held> out = new ArrayList<>();
+        if (stamp.isEmpty()) return out;
+        for (String line : stamp.split("\n")) {
+            int tab = line.lastIndexOf('\t');
+            if (tab <= 0) continue;
+            Ability ability = abilities.apply(line.substring(0, tab));
+            if (ability == null) continue;
+            try {
+                out.add(new Held(ability, Integer.parseInt(line.substring(tab + 1)), null));
+            } catch (NumberFormatException unreadable) {
+                // A stamp written by something else: skipped.
+            }
+        }
+        return out;
     }
 
     /** Whether anybody holds an ability on this trigger: the listener's first, cheapest question. */
@@ -717,6 +846,7 @@ public final class PluginAbilities {
         cache.clear();
         pending.clear();
         outcomes.clear();
+        shaping.clear();
     }
 
     void reportOnce(String key, String message, @Nullable Throwable failure) {

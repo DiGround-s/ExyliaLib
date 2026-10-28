@@ -155,4 +155,72 @@ public final class Lines {
         return String.join(NEWLINE, lines);
     }
 
+    /**
+     * Wraps prose into lore lines of about {@code width} visible characters,
+     * joined with {@link #NEWLINE}, so a row value expands into several lines.
+     *
+     * <pre>{@code
+     * entry.withFormatted("description", Lines.wrap(description, 34));
+     * }</pre>
+     *
+     * <p>Greedy, word by word; a word longer than the width gets a line of its
+     * own. Width counts what the player sees: palette tokens
+     * ({@code {highlight}}), legacy codes ({@code &l}) and MiniMessage tags
+     * ({@code <bold>}) count for nothing. Breaks already in the text are kept.
+     *
+     * @param text  the prose, or {@code null}
+     * @param width visible characters per line, 1 at least
+     * @return the wrapped value, or {@link #OMIT} when the text is blank, so
+     *         the line it fills is not drawn
+     * @since 1.387.0
+     */
+    public static @NotNull String wrap(@Nullable String text, int width) {
+        if (text == null || text.isBlank()) {
+            return OMIT;
+        }
+        int max = Math.max(1, width);
+        StringBuilder out = new StringBuilder(text.length() + 16);
+        for (String paragraph : split(text.trim())) {
+            if (!out.isEmpty()) {
+                out.append(NEWLINE);
+            }
+            int line = 0;
+            for (String word : paragraph.trim().split("\\s+")) {
+                if (word.isEmpty()) {
+                    continue;
+                }
+                int visible = visibleLength(word);
+                if (line > 0 && line + 1 + visible > max) {
+                    out.append(NEWLINE);
+                    line = 0;
+                } else if (line > 0) {
+                    out.append(' ');
+                    line++;
+                }
+                out.append(word);
+                line += visible;
+            }
+        }
+        return out.toString();
+    }
+
+    /** Characters a player sees: palette tokens, {@code &x} codes and {@code <tags>} left out. */
+    static int visibleLength(String word) {
+        int visible = 0;
+        for (int i = 0; i < word.length(); i++) {
+            char c = word.charAt(i);
+            int close = c == '{' ? word.indexOf('}', i) : c == '<' ? word.indexOf('>', i) : -1;
+            if (close > i && word.substring(i + 1, close).matches("[#/!a-zA-Z0-9_:.\\-]+")) {
+                i = close;
+                continue;
+            }
+            if (c == '&' && i + 1 < word.length() && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(word.charAt(i + 1)) >= 0) {
+                i++;
+                continue;
+            }
+            visible++;
+        }
+        return visible;
+    }
+
 }

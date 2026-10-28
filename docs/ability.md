@@ -46,12 +46,13 @@ abilities.refresh(player);
 | Type | Role |
 | --- | --- |
 | `Abilities` | `of(plugin)`: one `PluginAbilities` per plugin; released on disable |
-| `PluginAbilities` | compile, holdings, refresh, refreshAll, held, effect, condition, trigger, sequences, fire, gate, onOutcome, editor |
+| `PluginAbilities` | compile, holdings, refresh, refreshAll, held, effect, condition, scale, trigger, sequences, fire, gate, onOutcome, projectileLevels, stamp, carried, editor |
 | `Ability` | immutable compiled definition: `id`, `trigger`, `chance(level)`, `cooldown(level)`, `cooldownKey`, `conditions`, `effects`, `chain`, `every`, `source` |
 | `Held` | record `(Ability ability, int level, @Nullable EquipmentSlot slot)` |
-| `AbilityContext` | holder, level, trigger, event, victim, attacker, location, block, scale, typed `ContextKey<T>` values, drops |
+| `AbilityContext` | holder, level, trigger, event, victim, attacker, location, block, scale, typed `ContextKey<T>` values, drops, `transformDrops`, `transformDropsLast` (*1.387.0*), `deliver` |
 | `AbilityEffect` | `apply(context, report)`, `revert(context)`; built by `AbilityEffect.Factory` from `AbilityArgs` |
 | `AbilityCondition` | `test(context)`; built by `AbilityCondition.Factory` from `AbilityArgs` |
+| `AbilityScale` | what `bonus-damage: { by }` multiplies by; registered with `scale(name, factory)` (*1.387.0*) |
 | `AbilityArgs` | what one line wrote: `value`, `string`, `number`, `integer`, `flag`, `formula`, `seconds`, `duration`, `strings`, `problem` |
 | `AbilityReport` | what a proc did: damage, healing, targets, drops |
 | `AbilityOutcome` | record per attempt for metrics; ids only, never a `Player` |
@@ -103,7 +104,7 @@ in seconds.
 | `KILL` | the holder kills | event, victim, `DROPS` (the death's own list) |
 | `DEATH` | the holder dies | event, attacker |
 | `BOW_SHOOT` | the holder shoots a bow or crossbow | event |
-| `PROJECTILE_HIT` | the holder's projectile lands | event, victim, block, location |
+| `PROJECTILE_HIT` | the holder's projectile lands; with `projectileLevels(true)`, the levels the shot left the bow with | event, victim, block, location |
 | `BLOCK_BREAK` | the holder breaks a block; never for an area break's extra blocks | event, block |
 | `FISH` | the holder catches something | event, victim (a caught entity) |
 | `JUMP` | the holder jumps (the jump statistic, Spigot and Paper alike) | event |
@@ -153,6 +154,8 @@ pets. Armour stands are never `nearby` targets.
 
 | Effect | Keys (defaults) | What it does |
 | --- | --- | --- |
+| `bonus-damage` | `amount` formula (10), `mode` `percent \| flat` (percent), `by` (none), `max` formula (1000) | raises the trigger's hit itself (*1.387.0*): armour still applies, knockback stays vanilla, nothing extra lands. The bonus is `min(max, amount * units)`, `units` 1 or what the `by` [scale](#hit-shaping) says |
+| `armour-pierce` | `ignore` formula, percent (100), `of` `armor \| protection` (armor) | that share of what armour points, or Protection enchantments, take off the hit is ignored, applied after every ability changed the hit (*1.387.0*) |
 | `damage` | `target` (victim), `amount` formula (1), `mode` `flat \| percent \| true` (flat), `every` duration (0), `times` (1) | hurts; `percent` of max health, `true` ignores armour; `every`/`times` spread it over time on the target's scheduler with the proc's numbers |
 | `heal` | `target` (self), `amount` formula (1), `mode` `flat \| percent` | restores health |
 | `absorption` | `target` (self), `amount` formula (2), `max` (20) | adds absorption up to `max` |
@@ -168,7 +171,7 @@ pets. Armour stands are never `nearby` targets.
 | `xp` | `multiplier` formula, or `amount` formula | multiplies the event's experience (kill, block), or gives `amount`; through the `xp` modifiers |
 | `money` | `amount` formula | pays the holder through `Modifiers.pay` |
 | `smelt` | — | turns the drops into their furnace results, once |
-| `break-area` | `shape` `plane \| cube \| vein` (plane), `radius` formula (1), `depth` formula (0), `max` formula (64, vein), `budget` (64), `compat-events` (0), `exclude` (materials), `only` (what `block` takes, *1.386.0*), `to: inventory` | an [area break](#area-breaks) around the trigger's block; its drops join the firing's drops |
+| `break-area` | `shape` `plane \| cube \| vein \| column` (plane), `radius` formula (1), `depth` formula (0), `max` formula (64, vein), `length` formula (8, column), `vertical` (false, column; *1.387.0*), `budget` (64), `compat-events` (0), `exclude` (materials), `only` (what `block` takes, *1.386.0*), `to: inventory` | an [area break](#area-breaks) around the trigger's block; its drops join the firing's drops |
 | `teleport` | `target` (self), `to` `forward \| victim \| attacker \| block` (forward), `distance` formula (5) | players through `Teleports` with no warm-up and a safe landing; mobs directly |
 | `sequence` | value: a name, or `lines` + `target` (self) | plays the plugin's named sequence (`sequences(lookup)`) or lines compiled once |
 | `vfx` | `target` (victim), `indicator` (true), `shake` radius (0) | floats this proc's damage or healing over the target; tilts nearby cameras |
@@ -177,7 +180,44 @@ pets. Armour stands are never `nearby` targets.
 
 Effects that work out an amount multiply it by the gate's factor
 (`ctx.scale()`): damage, heal, absorption, lifesteal, knockback, pull, launch,
-drops, xp, money. Chance and cooldown are not scaled.
+drops, xp, money, bonus-damage, armour-pierce. Chance and cooldown are not
+scaled.
+
+`potion` resolves its type through the server's registry; with no server (a
+unit test) it compiles anyway and resolves on its first proc (*1.387.0*). On a
+server an unknown type is still reported at load.
+
+### Hit shaping
+
+*1.387.0.* `bonus-damage` and `armour-pierce` change the trigger's own
+`EntityDamageEvent` (ATTACK, HIT_TAKEN, or a plugin trigger fired with a damage
+event), so armour, knockback and the hit's other plugins see one hit.
+
+```yaml
+- bonus-damage: { amount: 6 + level * 6 }                         # +12% at level 1
+- bonus-damage: { mode: flat, amount: level * 3 }
+- bonus-damage: { by: missing-health, amount: level * 15 }        # all of it at no health left
+- bonus-damage: { by: sprint, amount: 2 + level, max: 6 + level * 6 }   # a plugin's scale
+- armour-pierce: { ignore: 100, of: armor }
+```
+
+`by` built in: `missing-health` (0 at full health, 1 at none) and `health-gap`
+(0 when the victim's max health is the holder's or less, 1 at twice it or
+more). A plugin adds its own before compiling; the factory reads any key of its
+own from the same line:
+
+```java
+abilities.scale("combo", args -> {
+    long window = args.duration("window", Duration.ofSeconds(3)).toMillis();
+    return ctx -> combos.hit(ctx.holder(), window);      // units: hits stacked
+});
+```
+
+**Pierces apply last.** `setDamage` recomputes armour, so a bonus after a
+pierce would undo it. Pierces are noted per event (the largest share of each
+kind wins) and applied after the library's damage handler fired ATTACK and
+HIT_TAKEN, or, for a plugin trigger, when that `fire` ends. A plugin listener
+that changes the damage later, at `HIGHEST`, recomputes armour again.
 
 ### Drops, once
 
@@ -188,6 +228,22 @@ inventory. `smelt` and `drops` register a transform with
 `ctx.transformDrops`, applied at that moment to everything, area-break drops
 included, whatever order the effects ran in. On `KILL` the list is the death's
 own and transforms apply at once.
+
+`ctx.transformDropsLast` (*1.387.0*) runs after every `transformDrops`, also
+on `KILL` (when the firing ends) and on area-break drops delivered on later
+ticks: how a cap that must see the final amounts (a curse undoing Fortune and
+multipliers) goes after every multiplier, whichever effect ran first.
+
+### Projectile levels
+
+*1.387.0.* By default `PROJECTILE_HIT` fires what the shooter holds when the
+shot lands, so switching to a sword mid-flight changes the arrow.
+`abilities.projectileLevels(true)` stamps the shooter's PROJECTILE_HIT holdings
+(ability ids and levels, in the projectile's data) on BOW_SHOOT, and the hit
+fires those, each resolved to the ability last compiled under its id. A
+projectile with no stamp falls back to the current holdings. `stamp(projectile,
+shooter)` does it for a projectile a plugin launches itself; `carried(projectile)`
+reads it back, `null` when there is none.
 
 ## Order of an attempt
 
@@ -288,6 +344,8 @@ AreaBreaks.of(plugin)
 | `AreaShape.plane(radius, depth)` | a square `2r+1` wide across the way the breaker looks (flat when looking up or down past 45 degrees), `depth + 1` layers along it |
 | `AreaShape.cube(radius)` | a cube `2r+1` wide |
 | `AreaShape.vein(max)` | the connected blocks (26 neighbours) of the origin's material, at most `max` |
+| `AreaShape.column(length)` | a line `length` long, origin included, away from the breaker along the way they look (*1.387.0*) |
+| `AreaShape.column(length, true)` | the same, always straight down, or up when the breaker looks above the horizon |
 
 Every shape plans at most `AreaShape.LIMIT` (4096) blocks. The origin is never
 in the plan: its own event breaks it.
@@ -298,6 +356,7 @@ in the plan: its own event breaks it.
 | `compatEvents(n)` | fire a real `BlockBreakEvent` for up to `n` blocks (0, off); a cancelled one is not broken |
 | `exclude(materials)` | never broken, on top of spawners, containers, beacons and portal frames |
 | `only(materials)` | only these break, after `exclude`; empty lifts it (*1.386.0*) |
+| `replace(Replace)` | changes blocks instead of breaking them (*1.387.0*); see below |
 | `check(Check)` | per block, after the region check; how WorldGuard and claims get a say |
 | `deliver(consumer)` | takes the merged drops once instead of the default delivery |
 | `toInventory(boolean)` | default delivery to the inventory, overflow dropped once |
@@ -331,6 +390,28 @@ What makes it cheap, and the contract other plugins rely on:
 - **Endings.** A breaker who quits, and a plugin that disables, end the
   operation; the drops collected so far land at the origin.
 
+### Replace mode
+
+*1.387.0.* `replace(AreaBreak.Replace)` changes each planned block instead of
+breaking it, with the same planning, budget, region check and `check`: the
+block becomes what the replacer answers (`null` leaves it), without physics.
+Nothing drops, no experience, no compat events, no durability, and the tool's
+preferred blocks do not filter the plan. `Summary.broken` counts the blocks
+changed.
+
+```java
+AreaBreaks.of(plugin).around(player, block, AreaShape.cube(1))
+        .only(tillable)
+        .replace(AreaBreak.Replace.till())
+        .start();
+```
+
+| Built-in | Becomes |
+| --- | --- |
+| `Replace.till()` | grass, dirt and dirt path with air above: farmland |
+| `Replace.path()` | grass, dirt, coarse dirt, podzol, mycelium and rooted dirt with air above: dirt path |
+| `Replace.strip()` | logs, wood, stems and hyphae: their `STRIPPED_` variant, axis kept |
+
 A plugin that hands breaks inside its own regions to a bulk path of its own (a
 mine) does so in its `check` or before calling `start`.
 
@@ -346,8 +427,9 @@ mine) does so in its `check` or before calling `start`.
 
 | | |
 | --- | --- |
-| Public API | `ability/Abilities`, `PluginAbilities`, `Ability`, `Held`, `AbilityContext`, `ContextKey`, `AbilityEffect`, `AbilityCondition`, `AbilityArgs`, `AbilityReport`, `AbilityOutcome`, `AbilityGate`, `Triggers`, `AreaBreaks`, `AreaBreak`, `AreaShape`; `util/Formula`, `util/Expressions.compile` |
+| Public API | `ability/Abilities`, `PluginAbilities`, `Ability`, `Held`, `AbilityContext`, `ContextKey`, `AbilityEffect`, `AbilityCondition`, `AbilityArgs`, `AbilityReport`, `AbilityOutcome`, `AbilityGate`, `AbilityScale`, `Triggers`, `AreaBreaks`, `AreaBreak`, `AreaShape`; `util/Formula`, `util/Expressions.compile` |
 | Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
+| Hit shaping | `ability/DamageShaping` (`bonus-damage`, `armour-pierce`, built-in scales, pending pierces) |
 | Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
-| Tests | `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
+| Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
 | Test seam | `PluginAbilities.detached(plugin)` (no listeners) and `dice(DoubleSupplier)` (the roll), package-private |

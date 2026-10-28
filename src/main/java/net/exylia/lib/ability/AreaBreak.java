@@ -16,6 +16,9 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Orientable;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.ExperienceOrb;
 import org.bukkit.entity.Player;
@@ -29,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -44,6 +48,9 @@ import java.util.function.Predicate;
  *
  * <p>See {@link AreaBreaks} for what makes it cheap. Every method here runs on
  * the breaker's thread.
+ *
+ * <p>With {@link #replace(Replace)} it changes blocks instead of breaking
+ * them (till, path, strip) with the same planning, budget and checks.
  *
  * @since 1.385.0
  */
@@ -70,6 +77,7 @@ public final class AreaBreak {
     private boolean toInventory;
     private @Nullable Sequence sequence;
     private @Nullable Consumer<Summary> onFinish;
+    private @Nullable Replace replace;
 
     // Running state.
     private boolean started;
@@ -105,7 +113,45 @@ public final class AreaBreak {
     }
 
     /**
-     * What one operation did.
+     * What a block becomes in {@linkplain #replace(Replace) replace mode}.
+     *
+     * <pre>{@code
+     * AreaBreaks.of(plugin).around(player, block, AreaShape.cube(1))
+     *         .replace(AreaBreak.Replace.till())
+     *         .start();
+     * }</pre>
+     *
+     * @since 1.387.0
+     */
+    @FunctionalInterface
+    public interface Replace {
+        /**
+         * Asked per block after every check, on the breaker's thread.
+         *
+         * @param block the block, as it is
+         * @return what it becomes, or {@code null} to leave it
+         */
+        @Nullable BlockData into(@NotNull Block block);
+
+        /** A hoe: grass, dirt and paths with air above become farmland. */
+        static @NotNull Replace till() {
+            return Replacements.TILL;
+        }
+
+        /** A shovel: grass and the dirts with air above become a dirt path. */
+        static @NotNull Replace path() {
+            return Replacements.PATH;
+        }
+
+        /** An axe: logs, wood, stems and hyphae become their stripped variant, axis kept. */
+        static @NotNull Replace strip() {
+            return Replacements.STRIP;
+        }
+    }
+
+    /**
+     * What one operation did. In replace mode {@code broken} counts the
+     * blocks changed, and {@code items} and {@code experience} are 0.
      *
      * @param planned    blocks planned
      * @param broken     blocks broken
@@ -175,6 +221,20 @@ public final class AreaBreak {
         return this;
     }
 
+    /**
+     * Changes blocks instead of breaking them: each planned block that passes
+     * the region check and {@link #check} becomes what {@code replace}
+     * answers, without physics. Nothing drops, no experience, no compat
+     * events and no durability; the tool's preferred blocks do not filter the
+     * plan (the replacer decides). {@code null} goes back to breaking.
+     *
+     * @since 1.387.0
+     */
+    public @NotNull AreaBreak replace(@Nullable Replace replace) {
+        this.replace = replace;
+        return this;
+    }
+
     /** Told what it did, once, when it ends. */
     public @NotNull AreaBreak onFinish(@Nullable Consumer<Summary> onFinish) {
         this.onFinish = onFinish;
@@ -195,7 +255,7 @@ public final class AreaBreak {
         tool = breaker.getInventory().getItemInMainHand().clone();
         scratch = new Location(world, 0, 0, 0);
 
-        int[] look = lookAxis(breaker.getLocation());
+        int[] look = shape.vertical() ? verticalAxis(breaker.getLocation()) : lookAxis(breaker.getLocation());
         PackedBlocks planned = new PackedBlocks(shape.max() < 64 ? shape.max() : 64);
         Predicate<Material> breakable = this::breakable;
         AreaPlanner.plan(shape.kind(), shape.radius(), shape.depth(), shape.max(),
@@ -253,6 +313,13 @@ public final class AreaBreak {
         if (!Regions.resolve(world.getUID(), x + 0.5, y + 0.5, z + 0.5, CommonRegionPolicies.BREAK).value()) return;
         Block block = world.getBlockAt(x, y, z);
         if (check != null && !check.allows(breaker, block)) return;
+        if (replace != null) {
+            BlockData next = replace.into(block);
+            if (next == null) return;
+            block.setBlockData(next, false);
+            broken++;
+            return;
+        }
 
         boolean dropItems = true;
         if (compatEvents > 0) {
@@ -277,7 +344,7 @@ public final class AreaBreak {
         if (done) return;
         done = true;
         AreaBreaks.untrack(plugin.getName(), this);
-        wearTool();
+        if (replace == null) wearTool();
         Location where = origin.getLocation().add(0.5, 0.5, 0.5);
         World world = origin.getWorld();
         if (experience > 0) {
@@ -309,6 +376,7 @@ public final class AreaBreak {
         if (type.isAir() || type == Material.WATER || type == Material.LAVA || excluded.contains(type)) return false;
         if (only != null && !only.contains(type)) return false;
         if (!type.isBlock() || type.getHardness() < 0) return false;
+        if (replace != null) return true;
         return effective.computeIfAbsent(type, material -> tool.getType().isAir()
                 || material.createBlockData().isPreferredTool(tool));
     }
@@ -395,6 +463,55 @@ public final class AreaBreak {
         if (yaw >= 135 && yaw < 225) return new int[]{0, 0, -1};
         if (yaw >= 225 && yaw < 315) return new int[]{1, 0, 0};
         return new int[]{0, 0, 1};
+    }
+
+    /** Straight down, or straight up when the breaker looks above the horizon. */
+    static int[] verticalAxis(Location eye) {
+        return eye.getPitch() < 0 ? new int[]{0, 1, 0} : new int[]{0, -1, 0};
+    }
+
+    /** The built-in replacers; the tables are built once, when first used. */
+    static final class Replacements {
+        static final Set<Material> TILLABLE = Collections.unmodifiableSet(EnumSet.of(
+                Material.GRASS_BLOCK, Material.DIRT, Material.DIRT_PATH));
+        static final Set<Material> PATHABLE = Collections.unmodifiableSet(EnumSet.of(
+                Material.GRASS_BLOCK, Material.DIRT, Material.COARSE_DIRT, Material.PODZOL, Material.MYCELIUM,
+                Material.ROOTED_DIRT));
+        static final Map<Material, Material> STRIPPED = stripped();
+
+        static final Replace TILL = block -> intoUnderAir(block, TILLABLE, Material.FARMLAND);
+        static final Replace PATH = block -> intoUnderAir(block, PATHABLE, Material.DIRT_PATH);
+        static final Replace STRIP = block -> {
+            Material bare = STRIPPED.get(block.getType());
+            if (bare == null) return null;
+            BlockData data = bare.createBlockData();
+            if (block.getBlockData() instanceof Orientable from && data instanceof Orientable to) {
+                to.setAxis(from.getAxis());
+            }
+            return data;
+        };
+
+        private Replacements() {
+        }
+
+        private static @Nullable BlockData intoUnderAir(Block block, Set<Material> from, Material into) {
+            if (!from.contains(block.getType()) || !block.getRelative(BlockFace.UP).getType().isAir()) return null;
+            return into.createBlockData();
+        }
+
+        /** A log, wood, stem or hyphae and its {@code STRIPPED_} variant. */
+        static Map<Material, Material> stripped() {
+            Map<Material, Material> map = new EnumMap<>(Material.class);
+            for (Material material : Material.values()) {
+                String name = material.name();
+                if (name.startsWith("LEGACY_") || name.startsWith("STRIPPED_")) continue;
+                if (!(name.endsWith("_LOG") || name.endsWith("_WOOD") || name.endsWith("_STEM")
+                        || name.endsWith("_HYPHAE"))) continue;
+                Material bare = Material.getMaterial("STRIPPED_" + name);
+                if (bare != null) map.put(material, bare);
+            }
+            return Collections.unmodifiableMap(map);
+        }
     }
 
     private static Set<Material> defaultExcluded() {

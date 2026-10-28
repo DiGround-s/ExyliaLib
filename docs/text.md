@@ -423,6 +423,7 @@ entry.withFormatted("description", Lines.value(section, "description"));
 | `value(section, keys...)` | the same read back as one canonical `<nl>` value, or `""` |
 | `split(String)` | split an already-resolved value; normalizes CRLF, LF, CR, and literal `\n`; `List.of()` for null or empty |
 | `join(List)` | join lines into canonical `<nl>` format; `""` for null or empty |
+| `wrap(text, width)` | prose wrapped word by word to about `width` visible characters per line, joined with `<nl>`; palette tokens, `&x` codes and `<tags>` take no width, written breaks stay, a longer word gets its own line; `Lines.OMIT` for null or blank (*1.387.0*) |
 
 Contracts:
 

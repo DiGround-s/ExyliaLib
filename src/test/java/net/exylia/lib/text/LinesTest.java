@@ -212,4 +212,17 @@ class LinesTest {
     void noInstances() {
         assertTrue(java.lang.reflect.Modifier.isFinal(Lines.class.getModifiers()));
     }
+
+    @Test
+    @DisplayName("wrap breaks prose by what the player sees, keeps breaks, and omits a blank text")
+    void wrap() {
+        assertEquals("one two<nl>three", Lines.wrap("one two three", 7));
+        assertEquals("{highlight}one &ltwo<nl>three", Lines.wrap("{highlight}one &ltwo three", 7),
+                "tokens and codes take no width");
+        assertEquals("<bold>abc</bold> de", Lines.wrap("<bold>abc</bold> de", 6));
+        assertEquals("a<nl>b c", Lines.wrap("a<nl>b c", 20), "a written break stays");
+        assertEquals("averyveryverylongword<nl>x", Lines.wrap("averyveryverylongword x", 5));
+        assertEquals(Lines.OMIT, Lines.wrap("  ", 10));
+        assertEquals(Lines.OMIT, Lines.wrap(null, 10));
+    }
 }
