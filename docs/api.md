@@ -109,6 +109,13 @@ neutral names. The game category enum is gone, since every game the contract
 describes is played against another player. A removal is a major release; the
 package's only implementation moved with it.
 
+`exylia-api` 3.2.0 (ExyliaLib 1.383.0) added `api.duels.DuelKitSource`, the
+other direction from a service: a plugin that owns kits (ExyliaRandomKitsCore)
+registers one and ExyliaDuels offers its kits in kit duels. ExyliaDuels reads
+every registration (`ServicesManager.getRegistrations`), so several sources
+sit side by side, and equips both players with the same seed so a rolled kit
+is the same kit for both. See [Kit sources for duels](#kit-sources-for-duels).
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
@@ -182,6 +189,8 @@ such as `TableEvent` and `PracticeEvent`.
 | `api.totemtrainer` | `TotemTrainerService` | ExyliaTotemTrainer | 8 |
 | `api.aimtrainer` | `AimTrainerService` | ExyliaAimTrainer | 7 |
 
+| `api.duels` | `DuelKitSource` (implemented by kit owners, read by ExyliaDuels) | ExyliaRandomKitsCore | — |
+
 ExyliaTotems has no service on purpose: it holds nothing worth asking about, and
 it cancels the death it handles, so neither `PlayerDeathEvent` nor
 `EntityResurrectEvent` reaches an observer. Its two events are the whole of its
@@ -195,6 +204,26 @@ statistics and rewards. See [custom-minigames.md](custom-minigames.md).
 ExyliaProxyUtils is not here. It runs on Velocity and BungeeCord, which have no
 Bukkit `ServicesManager` and no Lukittu Spigot loader, so it needs a different
 mechanism than this one.
+
+## Kit sources for duels
+
+`DuelKitSource` is implemented by the plugin that owns the kits and read by
+ExyliaDuels, the opposite of every service above:
+
+```java
+getServer().getServicesManager().register(DuelKitSource.class, source, plugin, ServicePriority.Normal);
+```
+
+| Method | Contract |
+| --- | --- |
+| `id()` | lower case, unique; a duel stores its kit as `<source>:<kit>` |
+| `kits(viewer)` | what the challenge screen lists now; memory only |
+| `equip(player, kit, seed)` | on the player's thread, inventory already empty, once per player with the duel's seed |
+| `finished(kit, seed, winner, loser)` | a decided duel, global thread; default no-op |
+
+A network duel is fought on the arena server, so the source must be installed
+there; where it is absent the kit is not offered and a duel naming it is
+called off before anybody is dressed.
 
 ## What a service drives
 

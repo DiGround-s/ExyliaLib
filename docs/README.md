@@ -47,7 +47,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Crates](crates.md) | A crate a plugin gets by handing over its catalogue — the roll, the keys, the reels, the payout, the blocks and the player rows shared, the rewards left to the plugin; importing a plugin's own crate data, legacy key items, placeholder aliases and item icons since 1.190.0; a shared admin menu since 1.342.0 | 1.189.0 |
 | [Redis](redis.md) | A shared cache that makes one database look the same from every server — a change on one is visible on the others immediately | 1.31.0 |
 | [Proxy](proxy.md) | Talking to the proxy: `player-proxy:`/`console-proxy:` lines and `Proxy.request` reach ExyliaProxyUtils on Velocity or BungeeCord, and every request is answered | 1.101.0 |
-| [Network](network.md) | Messages from a plugin to itself on one other server or on a player's server, and the wait for players arriving here for a match | 1.347.0 |
+| [Network](network.md) | Messages from a plugin to itself on one other server or on a player's server, and the wait for players arriving here for a match; `Instances` (servers running one game as a pool: heartbeats, the best server per mode and cap, handovers with a note) since 1.383.0 | 1.347.0 |
 | [Players](players.md) | A player who is not here: one `ExyliaPlayer` over online, offline and network players, and the command arguments that resolve them without blocking; `Accounts` (same person? first seen) since 1.184.0 | 1.146.0 |
 | [Playtime](playtime.md) | How long a player has actually played on the whole network: one tracker per server shared by every plugin, idle time dropped, a once-a-minute hook for milestones | 1.341.0 |
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it; items thrown out at a spot with `giveDropping` since 1.191.0 | 1.34.0 |
@@ -87,7 +87,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Discord webhooks](discord.md) | Messages to Discord webhooks written in config — Components V2 cards with link buttons, pings only from the template, escaped values, rate limits, dead-webhook detection, and asking a player for a URL | 1.245.0 |
 | [Modules](modules.md) | Switchable parts of a plugin — `PluginModule` and `PluginModules`: per-module files, listeners, actions, menus, commands and timers, switched in config, with modules that require others | 1.276.0 |
 | [Web editor](web-editor.md) | Every plugin file edited from the browser: config files, messages, menus and other YAML discovered on their own (with `exclude`/`discover` to opt out), plus registered subjects (records, YAML a plugin compiles itself, stores of entries such as mines), uploaded plugin by plugin gzip-compressed; changes pulled by a command and confirmed when they matter | 1.304.0 (discovery and protocol v2 1.307.0) |
-| [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI` | 1.112.0 |
+| [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI`; `DuelKitSource` (kits another plugin offers ExyliaDuels) since 1.383.0 | 1.112.0 |
 | [Custom minigames](custom-minigames.md) | Registering a minigame of your own with ExyliaEvents: what you declare, what it does for you | 1.186.0 |
 Migration notes:
 

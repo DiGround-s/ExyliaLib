@@ -104,6 +104,58 @@ Inventory on the arena server is that server's own; a plugin that dresses
 players there keeps them in a [stay](stays.md) on the arena server and
 releases it with `leaveHere` before sending them home.
 
+## Instances: one plugin on several servers as a pool
+
+*Since 1.383.0.* Several servers running the same game (every RandomKits
+server of a group) publish their head count on a heartbeat and send each new
+player to the best one. Entry point `Instances.of(plugin, group)`, one per
+plugin and group, made once in `onEnable`.
+
+```java
+PluginInstances instances = Instances.of(this, "randomkits")
+        .publish(() -> Instances.status(!routerOnly,
+                new Instance.Load(game.playing(), 80),               // total, soft cap (0 = none)
+                Map.of("castle", new Instance.Load(game.count("castle"), 40))))
+        .onArrival((player, note) -> game.join(player, note));    // their thread, after the join
+
+Optional<Instance> best = instances.pick(Instances.Mode.FILL_FIRST, "castle");
+best.filter(found -> !instances.isThisServer(found.server()))
+    .ifPresent(found -> instances.handover(player, found.server(), "castle"));
+```
+
+| Call | What it does |
+| --- | --- |
+| `publish(Supplier<Status>)` | Sends this server's `Status(accepting, total, parts)` every period (2 s) on an async timer, and stops with the plugin. The supplier reads memory: it runs off the main thread, and on every read of the pool for this server's own entry. |
+| `period(Duration)` | The heartbeat period, at least 1 s; an instance is forgotten 3 periods after its last heartbeat. Same value on every server of a group. |
+| `instances()` | Every live instance: this server's own first, read from its supplier now, then each other one heard within 3 periods. A map read, safe from any thread and from a menu's supplier. |
+| `pick(Mode, part)` | The best instance for one more player, `Instances.pick` over `instances()` with this server preferred on a tie. |
+| `players(part)` | Players in one part (or in total for `null`) across the group. |
+| `handover(player, server, note)` | Sends the note to that server, then `toServer`. To this server: no move, the arrival runs here. `CROSS_SERVER_UNAVAILABLE` when no Redis carries the note. |
+| `onArrival(BiConsumer<Player, String>)` | Runs for a player handed over here once they are online (up to 30 s), on their thread, with the note. |
+| `expected(UUID)` | The note of a player on their way here, for a join listener that would otherwise place them itself. |
+| `stop()` | Stops publishing and tells the group at once, so nobody is sent to a server that is shutting down. From `onDisable`. |
+
+`Instances.pick(instances, mode, part, preferred, now, maxAge)` is the pure
+choice: instances seen within `maxAge`, `accepting`, with room under their
+total cap and, when a part is named, having that part with room under its
+cap. `LEAST_PLAYERS` takes the emptiest, `FILL_FIRST` the fullest (players of
+the part when one is named). Ties: `preferred`, then the higher TPS, then the
+name.
+
+Contracts:
+
+- **Heartbeats are stamped with the receiver's clock**, so clock skew between
+  servers never makes one look stale or immortal.
+- **No Redis, no pool**: the heartbeat stays on this server and `instances()`
+  is this server alone, so `pick` answers this server or nothing.
+- **The note travels before the move**, like a match: the arriving server
+  knows why they came before they join.
+- **Nothing is carried but the note.** Inventories, stays and snapshots stay
+  with their server: a plugin that keeps players in [stays](stays.md) hands
+  over only players it is not keeping, and recovers with `recoverLocal`.
+  Player data stored as deltas under `RowLocks` should be saved before the
+  handover, so the arriving server reads it current.
+
 ## What a network needs configured
 
 - `database.redis.enabled: true` in the consumer's `database.yml`, the same
@@ -117,6 +169,7 @@ releases it with `leaveHere` before sending them home.
 
 | | |
 | --- | --- |
-| Public | `network/Network`, `PluginNetwork`, `Delivery`, `Arrival` |
+| Public | `network/Network`, `PluginNetwork`, `Delivery`, `Arrival`, `Instances`, `PluginInstances`, `Instance` |
 | Transport | `redis/Channels`, channel `net:<name>` per plugin, frame `<target server>` + pipe + payload |
-| Tests | `network/NetworkTest` — addressing, case, payload pipes, no Redis, no bridge, the arrival split |
+| Transport (instances) | channel `instances:<group>` for heartbeats (tab-separated lines), network channel `instances-arrive:<group>` for notes |
+| Tests | `network/NetworkTest` — addressing, case, payload pipes, no Redis, no bridge, the arrival split; `network/InstancesTest` — picking per mode, caps, parts, staleness and ties, the heartbeat wire form |
