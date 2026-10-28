@@ -459,9 +459,8 @@ luck.price(3);                       // what level 3 costs
 luck.effect(owned);                  // the value the plugin applies at the level owned
 luck.check(owned, profile::value);   // MAXED, LOCKED (requirement, needed) or READY (next, price)
 
-Upgrades.buy(uuid, luck, owned, profile::value).thenAccept(purchase -> {
-    if (purchase.bought()) profile.raise("luck");   // the plugin stores levels
-});
+Upgrades.buy(uuid, luck, owned, profile::value, level -> profile.raise("luck", level))
+        .thenAccept(purchase -> { if (!purchase.bought()) tell(purchase); });
 ```
 
 Every plugin with "spend currency to raise a level" wrote the same loop: a cost
@@ -474,7 +473,7 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
 | `effect(level)` | the effect formula at the level owned (0 included), clamped to `0..max`; 0 when unreadable |
 | `check(owned, progress)` | `Check(state, next, price, requirement, needed)`; requirements checked in map order, the first one short is named |
 | `problems()` | what does not read, for a load-time warning |
-| `Upgrades.buy(uuid, upgrade, owned, progress)` | `CompletableFuture<Purchase>`, never exceptional |
+| `Upgrades.buy(uuid, upgrade, owned, progress, store)` | `CompletableFuture<Purchase>`, never exceptional; `store` gets the level bought, once, before the guard opens (1.384.0). The overload without `store` leaves storing to the caller and is open to a double charge |
 | `Purchase` | `outcome` (`BOUGHT`, `MAXED`, `LOCKED`, `INSUFFICIENT_FUNDS` with `shortfall`, `BUSY`, `FAILED`), `level`, `price`, `requirement`, `needed`, `response` |
 
 - **Charged through `Economy.of(currency).withdrawLater`**, so a purchase works
@@ -482,7 +481,8 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
   transaction reason is `upgrade:<id>`. A free level is bought without a charge.
 - **One purchase at a time per player and upgrade id**: a second click while the
   charge is under way answers `BUSY`. The library stores no levels; the plugin
-  raises its own on `bought()`, before the next click reads the old one.
+  raises its own in `store`, which runs before the guard opens, so the next
+  click never reads the old level and pays for it twice.
 - Requirement names are the plugin's (`level`, `prestige`, `kills`): `progress`
   answers the player's value of each one.
 - Formulas are `Expressions`: no placeholders other than `%level%` and `%max%`,

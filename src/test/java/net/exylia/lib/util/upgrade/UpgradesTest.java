@@ -139,4 +139,19 @@ class UpgradesTest {
         assertEquals(Purchase.Outcome.FAILED, Upgrades.buy(player, LUCK, 0, name -> 99).join().outcome());
         assertEquals(Purchase.Outcome.FAILED, Upgrades.buy(player, LUCK, 0, name -> 99).join().outcome());
     }
+
+    @Test
+    void theLevelIsStoredBeforeTheNextClickCanStart() {
+        CompletableFuture<EconomyResponse> pending = new CompletableFuture<>();
+        Upgrades.charge = (currency, who, price, transaction) -> pending;
+        int[] stored = {0};
+        CompletableFuture<Purchase> first = Upgrades.buy(player, LUCK, 0, name -> 99, level -> {
+            stored[0] = level;
+            // a click arriving while storing must still be refused
+            assertEquals(Purchase.Outcome.BUSY, Upgrades.buy(player, LUCK, 0, name -> 99).join().outcome());
+        });
+        pending.complete(EconomyResponse.success(BigDecimal.TEN, BigDecimal.ZERO));
+        assertTrue(first.join().bought());
+        assertEquals(1, stored[0]);
+    }
 }
