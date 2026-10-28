@@ -4,17 +4,22 @@ import net.exylia.lib.ability.AbilityArgs;
 import net.exylia.lib.ability.AbilityCondition;
 import net.exylia.lib.ability.AbilityContext;
 import net.exylia.lib.ability.PluginAbilities;
+import net.exylia.lib.modes.Mode;
+import net.exylia.lib.modes.Modes;
 import net.exylia.lib.region.CommonRegionPolicies;
 import net.exylia.lib.region.PolicyKey;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.util.combat.Combat;
 import net.exylia.lib.util.internal.Conditions;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,7 +29,7 @@ import java.util.function.Predicate;
 
 /**
  * The conditions every plugin gets: target, health, in-combat, sneaking,
- * sprinting, blocking, gliding, in-water, world, region-policy, mode,
+ * sprinting, blocking, gliding, in-water, world, region-policy, mode, block,
  * permission and placeholder. {@code not} and {@code any} are structural and
  * live in {@link PluginAbilities}.
  */
@@ -61,10 +66,8 @@ public final class BuiltinConditions {
                     : ctx.location().getWorld().getName().toLowerCase(Locale.ROOT));
         });
         abilities.condition("region-policy", BuiltinConditions::regionPolicy);
-        abilities.condition("mode", args -> {
-            Set<String> modes = lower(values(args));
-            return ctx -> modes.contains(ctx.holder().getGameMode().name().toLowerCase(Locale.ROOT));
-        });
+        abilities.condition("mode", BuiltinConditions::mode);
+        abilities.condition("block", BuiltinConditions::block);
         abilities.condition("permission", args -> {
             String node = scalar(args);
             return ctx -> ctx.holder().hasPermission(node);
@@ -137,6 +140,39 @@ public final class BuiltinConditions {
                 if (!Boolean.TRUE.equals(Regions.resolve(ctx.location(), key).value())) return false;
             }
             return true;
+        };
+    }
+
+    /**
+     * {@code mode: survival}, or a list: the holder's game mode. {@code mode: { id: chess }},
+     * or a list of ids: the {@linkplain Modes#current mode} the holder is playing.
+     */
+    private static AbilityCondition mode(AbilityArgs args) {
+        if (args.value() == null && args.has("id")) {
+            Set<String> ids = lower(args.strings("id"));
+            return ctx -> {
+                Mode current = Modes.current(ctx.holder());
+                return current != null && ids.contains(current.id());
+            };
+        }
+        Set<String> modes = lower(values(args));
+        return ctx -> modes.contains(ctx.holder().getGameMode().name().toLowerCase(Locale.ROOT));
+    }
+
+    /** {@code block: { types: [DIAMOND_ORE], tags: [minecraft:logs] }}: the context block is one of them. */
+    private static AbilityCondition block(AbilityArgs args) {
+        Object written = args.value();
+        if (written == null) {
+            Map<String, Object> keyed = new LinkedHashMap<>();
+            keyed.put("types", args.raw("types"));
+            keyed.put("tags", args.raw("tags"));
+            written = keyed;
+        }
+        Set<Material> types = BlockMatcher.compile(written, args::problem);
+        if (types.isEmpty()) args.problem("names no block; it never holds");
+        return ctx -> {
+            Block block = ctx.block();
+            return block != null && types.contains(block.getType());
         };
     }
 

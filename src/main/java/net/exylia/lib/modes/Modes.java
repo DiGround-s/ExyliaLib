@@ -4,6 +4,7 @@ import net.exylia.lib.modes.internal.ModesMenu;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -161,6 +162,29 @@ public final class Modes {
         List<Category> all = new ArrayList<>(used.values());
         all.sort(Comparator.comparingInt(Category::order).thenComparing(Category::name, String.CASE_INSENSITIVE_ORDER));
         return all;
+    }
+
+    /**
+     * The mode a player is in right now: the first registered mode whose
+     * {@link Mode.Builder#playing} claims them.
+     *
+     * <pre>{@code
+     * Mode mode = Modes.current(player);
+     * if (mode != null && mode.id().equals("chess")) { ... }
+     * }</pre>
+     *
+     * <p>Asks every mode's predicate, which reads memory, so it is cheap
+     * enough for an ability condition. Any thread.
+     *
+     * @param player who to ask about
+     * @return the mode, or {@code null} when no mode claims them
+     * @since 1.386.0
+     */
+    public static @Nullable Mode current(@NotNull Player player) {
+        for (Owned<Mode> owned : MODES.values()) {
+            if (owned.value().isPlaying(player)) return owned.value();
+        }
+        return null;
     }
 
     private static Map<String, Category> described() {

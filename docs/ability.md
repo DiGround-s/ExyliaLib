@@ -142,7 +142,8 @@ pets. Armour stands are never `nearby` targets.
 | `sneaking`, `sprinting`, `blocking`, `gliding`, `in-water` | value: `true`, `false`, `self` or `victim` | the subject is (or with `false` is not) in that state; `self` by default |
 | `world` | value: a name or a list | the location is in one of them |
 | `region-policy` | value: a boolean policy name or a list (`pvp`, `build`, `break`, `interact`, `fall_damage`, `item_drop`, `item_pickup`, `entry`, `exit`) | every one resolves to true at the location (`Regions.resolve`) |
-| `mode` | value: a game mode or a list (`survival`, `creative`, `adventure`, `spectator`) | the holder's game mode is one of them |
+| `mode` | value: a game mode or a list (`survival`, `creative`, `adventure`, `spectator`); or `id`: a [mode](modes.md) id or a list (*1.386.0*) | the holder's game mode is one of them; with `id`, `Modes.current(holder)` is one of them |
+| `block` | `types` (materials), `tags` (block tags, `minecraft:logs`); or a list where `#minecraft:logs` is a tag (*1.386.0*) | the context block is one of them; no block never holds. Tags expand into an `EnumSet` at load |
 | `permission` | value: a node | the holder has it |
 | `placeholder` | value: `'%player_level% >= 10'` | the shared comparison holds; resolves placeholders on every attempt, the one condition that does; an unreadable one is reported once and holds |
 | `not` | value: a condition name, or a condition line | it does not hold |
@@ -167,7 +168,7 @@ pets. Armour stands are never `nearby` targets.
 | `xp` | `multiplier` formula, or `amount` formula | multiplies the event's experience (kill, block), or gives `amount`; through the `xp` modifiers |
 | `money` | `amount` formula | pays the holder through `Modifiers.pay` |
 | `smelt` | — | turns the drops into their furnace results, once |
-| `break-area` | `shape` `plane \| cube \| vein` (plane), `radius` formula (1), `depth` formula (0), `max` formula (64, vein), `budget` (64), `compat-events` (0), `exclude` (materials), `to: inventory` | an [area break](#area-breaks) around the trigger's block; its drops join the firing's drops |
+| `break-area` | `shape` `plane \| cube \| vein` (plane), `radius` formula (1), `depth` formula (0), `max` formula (64, vein), `budget` (64), `compat-events` (0), `exclude` (materials), `only` (what `block` takes, *1.386.0*), `to: inventory` | an [area break](#area-breaks) around the trigger's block; its drops join the firing's drops |
 | `teleport` | `target` (self), `to` `forward \| victim \| attacker \| block` (forward), `distance` formula (5) | players through `Teleports` with no warm-up and a safe landing; mobs directly |
 | `sequence` | value: a name, or `lines` + `target` (self) | plays the plugin's named sequence (`sequences(lookup)`) or lines compiled once |
 | `vfx` | `target` (victim), `indicator` (true), `shake` radius (0) | floats this proc's damage or healing over the target; tilts nearby cameras |
@@ -296,6 +297,7 @@ in the plan: its own event breaks it.
 | `budget(n)` | blocks per tick (`DEFAULT_BUDGET` 64); the rest continues next tick on the breaker's scheduler |
 | `compatEvents(n)` | fire a real `BlockBreakEvent` for up to `n` blocks (0, off); a cancelled one is not broken |
 | `exclude(materials)` | never broken, on top of spawners, containers, beacons and portal frames |
+| `only(materials)` | only these break, after `exclude`; empty lifts it (*1.386.0*) |
 | `check(Check)` | per block, after the region check; how WorldGuard and claims get a say |
 | `deliver(consumer)` | takes the merged drops once instead of the default delivery |
 | `toInventory(boolean)` | default delivery to the inventory, overflow dropped once |
@@ -346,6 +348,6 @@ mine) does so in its `check` or before calling `start`.
 | --- | --- |
 | Public API | `ability/Abilities`, `PluginAbilities`, `Ability`, `Held`, `AbilityContext`, `ContextKey`, `AbilityEffect`, `AbilityCondition`, `AbilityArgs`, `AbilityReport`, `AbilityOutcome`, `AbilityGate`, `Triggers`, `AreaBreaks`, `AreaBreak`, `AreaShape`; `util/Formula`, `util/Expressions.compile` |
 | Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
-| Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks` |
-| Tests | `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
+| Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
+| Tests | `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
 | Test seam | `PluginAbilities.detached(plugin)` (no listeners) and `dice(DoubleSupplier)` (the roll), package-private |

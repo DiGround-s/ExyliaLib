@@ -142,6 +142,28 @@ public final class WorldGuardRegions {
     }
 
     /**
+     * Returns whether WorldGuard lets a player build at a location: the same
+     * answer WorldGuard gives when that player places or breaks a block there,
+     * bypass permission included.
+     *
+     * <pre>{@code
+     * if (!WorldGuardRegions.canBuild(player, block.getLocation())) return;
+     * }</pre>
+     *
+     * <p>Soft: {@code true} without WorldGuard, for a location with no world,
+     * and when WorldGuard cannot answer. Call it from the thread that owns the
+     * location, as WorldGuard's own listeners do.
+     *
+     * @since 1.386.0
+     */
+    public static boolean canBuild(@NotNull Player player, @NotNull Location location) {
+        if (location.getWorld() == null || !available()) {
+            return true;
+        }
+        return WorldGuardAccess.canBuild(player, location);
+    }
+
+    /**
      * Returns every region id defined in a world, for tab completion and
      * config validation.
      *

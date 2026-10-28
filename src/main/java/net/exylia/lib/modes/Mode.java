@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
@@ -56,6 +57,7 @@ public final class Mode {
     private final @Nullable String permission;
     private final BooleanSupplier open;
     private final @Nullable IntSupplier players;
+    private final @Nullable Predicate<Player> playing;
 
     private Mode(Builder builder) {
         this.id = builder.id;
@@ -68,6 +70,7 @@ public final class Mode {
         this.permission = builder.permission;
         this.open = builder.open;
         this.players = builder.players;
+        this.playing = builder.playing;
     }
 
     /**
@@ -132,6 +135,16 @@ public final class Mode {
         return players == null ? -1 : Math.max(0, players.getAsInt());
     }
 
+    /**
+     * Whether the player is in this mode right now; {@code false} when the
+     * plugin did not say ({@link Builder#playing}). Memory only, any thread.
+     *
+     * @since 1.386.0
+     */
+    public boolean isPlaying(@NotNull Player player) {
+        return playing != null && playing.test(player);
+    }
+
     /** Whether the player may play it. */
     public boolean allowed(@NotNull Player player) {
         return permission == null || player.hasPermission(permission);
@@ -155,6 +168,7 @@ public final class Mode {
         private @Nullable String permission;
         private BooleanSupplier open = () -> true;
         private @Nullable IntSupplier players;
+        private @Nullable Predicate<Player> playing;
 
         private Builder(String id, Consumer<Player> action) {
             Objects.requireNonNull(id, "id");
@@ -224,6 +238,18 @@ public final class Mode {
          */
         public @NotNull Builder players(@NotNull IntSupplier players) {
             this.players = Objects.requireNonNull(players, "players");
+            return this;
+        }
+
+        /**
+         * Whether a player is in this mode right now, so {@link Modes#current}
+         * can answer. Left out, the mode never claims anyone.
+         *
+         * @param playing memory only, any thread: a set of players the plugin keeps
+         * @since 1.386.0
+         */
+        public @NotNull Builder playing(@NotNull Predicate<Player> playing) {
+            this.playing = Objects.requireNonNull(playing, "playing");
             return this;
         }
 

@@ -149,4 +149,17 @@ class ModesTest {
             net.exylia.lib.debug.DebugCapture.stop();
         }
     }
+
+    @Test
+    @DisplayName("current answers the mode whose playing predicate claims the player, null otherwise")
+    void current() {
+        AtomicBoolean playing = new AtomicBoolean();
+        Modes.register(tables, mode("checkers"));
+        Modes.register(tables, Mode.of("chess", player -> { }).playing(player -> playing.get()).build());
+        assertEquals(null, Modes.current(steve.player()));
+        playing.set(true);
+        assertEquals("chess", Modes.current(steve.player()).id());
+        Modes.release(tables);
+        assertEquals(null, Modes.current(steve.player()));
+    }
 }

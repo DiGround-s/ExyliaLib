@@ -64,6 +64,7 @@ public final class AreaBreak {
     private int budget = DEFAULT_BUDGET;
     private int compatEvents;
     private final Set<Material> excluded = EnumSet.noneOf(Material.class);
+    private @Nullable Set<Material> only;
     private @Nullable Check check;
     private @Nullable Consumer<List<ItemStack>> deliver;
     private boolean toInventory;
@@ -133,6 +134,17 @@ public final class AreaBreak {
     /** Materials never broken, on top of the defaults (spawners and containers). */
     public @NotNull AreaBreak exclude(@NotNull Collection<Material> materials) {
         excluded.addAll(materials);
+        return this;
+    }
+
+    /**
+     * Only these materials break; the rest of the area stays. Applied after
+     * {@link #exclude}. An empty collection lifts the restriction.
+     *
+     * @since 1.386.0
+     */
+    public @NotNull AreaBreak only(@NotNull Collection<Material> materials) {
+        this.only = materials.isEmpty() ? null : EnumSet.copyOf(materials);
         return this;
     }
 
@@ -295,6 +307,7 @@ public final class AreaBreak {
 
     private boolean breakable(Material type) {
         if (type.isAir() || type == Material.WATER || type == Material.LAVA || excluded.contains(type)) return false;
+        if (only != null && !only.contains(type)) return false;
         if (!type.isBlock() || type.getHardness() < 0) return false;
         return effective.computeIfAbsent(type, material -> tool.getType().isAir()
                 || material.createBlockData().isPreferredTool(tool));

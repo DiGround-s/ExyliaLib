@@ -439,8 +439,9 @@ public final class BuiltinEffects {
 
     /**
      * {@code break-area: { shape: plane | cube | vein, radius, depth, max,
-     * budget, compat-events, exclude, to: inventory }} on the block the trigger
-     * broke. Its drops join the firing's drops, so smelting and multipliers
+     * budget, compat-events, exclude, only, to: inventory }} on the block the
+     * trigger broke; {@code only} takes what the {@code block} condition takes.
+     *  Its drops join the firing's drops, so smelting and multipliers
      * apply once to the whole area.
      */
     private static AbilityEffect breakArea(AbilityArgs args) {
@@ -456,6 +457,8 @@ public final class BuiltinEffects {
             if (material == null) args.problem("unknown material " + name + " in exclude; ignored");
             else exclude.add(material);
         }
+        Set<Material> only = BlockMatcher.compile(args.raw("only"), args::problem);
+        if (args.has("only") && only.isEmpty()) args.problem("'only' names no block; it is ignored");
         boolean toInventory = args.string("to", "ground").equalsIgnoreCase("inventory");
         if (!Set.of("plane", "cube", "vein").contains(shape)) {
             throw new IllegalArgumentException("unknown shape '" + shape + "'");
@@ -472,7 +475,7 @@ public final class BuiltinEffects {
             };
             if (toInventory) ctx.with(ContextKey.DROPS_TO_INVENTORY, true);
             int planned = AreaBreaks.of(ctx.abilities().plugin()).around(ctx.holder(), block, area)
-                    .budget(budget).compatEvents(compat).exclude(exclude)
+                    .budget(budget).compatEvents(compat).exclude(exclude).only(only)
                     .deliver(ctx::deliver)
                     .start();
             if (planned > 0) report.target();

@@ -19,6 +19,16 @@ unrelated regions — so every answer is scoped to the world of the location ask
 about, and `WorldGuardRegion.qualified()` gives the `world:id` form a config file
 needs to tell them apart.
 
+## Building
+
+```java
+if (!WorldGuardRegions.canBuild(player, block.getLocation())) return;
+```
+
+WorldGuard's own answer to "may this player place or break a block here",
+bypass permission included. *Since 1.386.0.* Soft: `true` without WorldGuard,
+and when it cannot answer. Ask from the thread that owns the location.
+
 ## Flags
 
 ```java

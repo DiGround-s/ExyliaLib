@@ -2,7 +2,9 @@ package net.exylia.lib.util.worldguard.internal;
 
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
@@ -10,6 +12,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import net.exylia.lib.util.worldguard.WorldGuardRegion;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -54,6 +57,21 @@ public final class WorldGuardAccess {
                     .queryState(null, Flags.PVP) == StateFlag.State.DENY;
         } catch (RuntimeException unavailable) {
             return false;
+        }
+    }
+
+    /** WorldGuard's own build test: bypass first, then the build flag and membership; {@code true} if it cannot answer. */
+    public static boolean canBuild(@NotNull Player player, @NotNull Location location) {
+        try {
+            LocalPlayer local = WorldGuardPlugin.inst().wrapPlayer(player);
+            if (WorldGuard.getInstance().getPlatform().getSessionManager()
+                    .hasBypass(local, BukkitAdapter.adapt(location.getWorld()))) {
+                return true;
+            }
+            return WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
+                    .testBuild(BukkitAdapter.adapt(location), local);
+        } catch (RuntimeException unavailable) {
+            return true;
         }
     }
 

@@ -41,6 +41,7 @@ Modes.open(player, "tabletop");   // straight to one
 | `permission(node)` | none | a player without it sees the mode locked |
 | `open(BooleanSupplier)` | always open | live: a closed mode is shown, not hidden |
 | `players(IntSupplier)` | not shown | live: on the card, and added up on its category's |
+| `playing(Predicate<Player>)` | claims nobody | whether a player is in it now, for `Modes.current` (*1.386.0*) |
 
 `open` and `players` are asked every second while the screen is open, on the
 viewer's thread: read memory (a map, a counter the plugin keeps), never a
@@ -66,6 +67,7 @@ no modes is not shown.
 | `Modes.modes()` | every mode, by category order, then mode order and name |
 | `Modes.modes(category)` | one category's modes |
 | `Modes.categories()` | every category with at least one mode, by order and name |
+| `Modes.current(player)` | the mode whose `playing` claims the player, or `null` (*1.386.0*); what the ability `mode: { id }` condition asks |
 | `Modes.unregister(plugin, id)` | removes one mode |
 
 For a plugin that draws its own selector from the same catalog. Lists are
@@ -109,5 +111,5 @@ a single render; the screens are recompiled with the library's other menus on
   on shutdown.
 - Tests: `src/test/java/net/exylia/lib/modes/internal/ModesTest.java` — shared
   and undescribed categories in order, replacing an id, release taking only the
-  owner's modes, live state and player counts on a card, locked modes, and every
+  owner's modes, `current` following `playing`, live state and player counts on a card, locked modes, and every
   screen compiling with the hub centred and the root list without BACK.

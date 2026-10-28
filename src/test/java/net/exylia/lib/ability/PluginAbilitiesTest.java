@@ -320,6 +320,56 @@ class PluginAbilitiesTest {
         assertEquals(holder.getUniqueId(), proc.holder());
     }
 
+    private int fireWith(Map<String, Object> condition, org.bukkit.Material type) {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put("trigger", "ATTACK");
+        source.put("conditions", List.of(condition));
+        source.put("effects", List.of(Map.of("record", Map.of("tag", "effect"))));
+        hold(compile("conditional-" + log.size() + "-" + problems.size(), source));
+        org.bukkit.block.Block block = type == null ? null : (org.bukkit.block.Block) java.lang.reflect.Proxy.newProxyInstance(
+                getClass().getClassLoader(), new Class<?>[]{org.bukkit.block.Block.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getType" -> type;
+                    case "hashCode" -> System.identityHashCode(proxy);
+                    case "equals" -> proxy == args[0];
+                    default -> null;
+                });
+        return abilities.fire(holder, Triggers.ATTACK, ctx -> ctx.block(block));
+    }
+
+    @Test
+    @DisplayName("block matches the context block against its types; no block never holds")
+    void blockCondition() {
+        roll = 0;
+        Map<String, Object> ores = Map.of("block", Map.of("types", List.of("DIAMOND_ORE", "minecraft:iron_ore")));
+        assertEquals(1, fireWith(ores, org.bukkit.Material.DIAMOND_ORE));
+        assertEquals(0, fireWith(ores, org.bukkit.Material.STONE));
+        assertEquals(0, fireWith(ores, null));
+        assertTrue(problems.isEmpty(), problems.toString());
+        assertEquals(1, fireWith(Map.of("block", List.of("IRON_ORE", "NOT_A_BLOCK")), org.bukkit.Material.IRON_ORE));
+        assertEquals(1, problems.size(), problems.toString());
+    }
+
+    @Test
+    @DisplayName("mode keeps the game-mode meaning, and mode: { id } asks Modes.current")
+    void modeCondition() {
+        roll = 0;
+        java.util.Set<java.util.UUID> inChess = new java.util.HashSet<>();
+        net.exylia.lib.modes.Modes.register(FakeServer.newPlugin("Tables"),
+                net.exylia.lib.modes.Mode.of("chess", player -> { })
+                        .playing(player -> inChess.contains(player.getUniqueId())).build());
+        try {
+            Map<String, Object> chess = Map.of("mode", Map.of("id", "chess"));
+            assertEquals(0, fireWith(chess, null));
+            inChess.add(holder.getUniqueId());
+            assertEquals(1, fireWith(chess, null));
+            assertEquals(0, fireWith(Map.of("mode", Map.of("id", List.of("checkers"))), null));
+            assertTrue(problems.isEmpty(), problems.toString());
+        } finally {
+            net.exylia.lib.modes.Modes.releaseAll();
+        }
+    }
+
     private Ability hold1(Ability ability) {
         hold(ability);
         return ability;
