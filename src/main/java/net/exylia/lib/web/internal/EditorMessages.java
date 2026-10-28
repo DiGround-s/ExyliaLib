@@ -109,7 +109,8 @@ final class EditorMessages {
         for (String reason : reasons) {
             text.append(line(reason));
         }
-        text.append("\n[center]{letters}").append("\n[center]").append(applyButton(code, true)).append("\n[center]{letters}");
+        // Not centred: a centring tag works only at the start of a message, and this one opens with the header.
+        text.append("\n{letters}").append("\n").append(applyButton(code, true));
         return text.toString();
     }
 

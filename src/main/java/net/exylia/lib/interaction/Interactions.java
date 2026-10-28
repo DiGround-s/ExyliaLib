@@ -181,6 +181,27 @@ public final class Interactions {
         }
     }
 
+    /**
+     * What a line can start with, for tab completion: the click filters, the
+     * {@code [TOKEN]}s (built in, registered and sequence ones) and the
+     * command prefixes.
+     *
+     * @return the starters as typed, filters first
+     * @since 1.382.0
+     */
+    public static @NotNull List<String> starters() {
+        List<String> starters = new ArrayList<>(List.of("left:", "right:", "shift_left:", "shift_right:",
+                "shift:", "any:"));
+        java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION"));
+        tokens.addAll(TOKENS.keySet());
+        tokens.addAll(Sequences.tokens());
+        for (String token : tokens) {
+            starters.add("[" + token + "]");
+        }
+        starters.addAll(List.of("console:", "player:", "player-proxy:", "console-proxy:"));
+        return starters;
+    }
+
     /** Forgets a plugin's tokens; lifecycle calls this. */
     public static void release(@NotNull String pluginName) {
         TOKENS.values().removeIf(registered -> registered.plugin().equals(pluginName));

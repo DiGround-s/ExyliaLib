@@ -79,6 +79,15 @@ class InteractionsTest {
     }
 
     @Test
+    @DisplayName("the starters offer filters, tokens and command prefixes")
+    void starters() {
+        List<String> starters = Interactions.starters();
+        assertEquals("left:", starters.get(0));
+        assertTrue(starters.containsAll(List.of("[DELAY]", "[MESSAGE]", "[SOUND]", "console:")));
+        assertFalse(starters.contains("[PARTICLE_SHAPE]"));
+    }
+
+    @Test
     @DisplayName("a bad line is skipped and the rest compile")
     void badLinesAreSkipped() {
         Interaction interaction = compile(

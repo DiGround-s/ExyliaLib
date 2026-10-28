@@ -93,6 +93,16 @@ public final class Sequences {
         }
     }
 
+    /**
+     * Every {@code [TOKEN]} a sequence line starts with, without brackets, the
+     * ones an admin reaches for first. For tab completion.
+     *
+     * @since 1.382.0
+     */
+    public static @NotNull java.util.List<String> tokens() {
+        return SequenceLine.tokens(java.util.Set.of());
+    }
+
     /** How many sequences are playing across every plugin, for diagnostics. */
     public static int active() {
         int total = 0;
