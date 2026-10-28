@@ -33,6 +33,8 @@ final class LiveCamera implements CameraHandle {
     private final int entityId;
     private final List<CameraPath.Frame> frames;
     private final boolean loop;
+    /** What rides the camera, or {@code null} for a bare shot. */
+    private final CameraOverlay overlay;
     private long startedAt;
 
     /** What was already true of each viewer before the shot touched them. */
@@ -46,6 +48,12 @@ final class LiveCamera implements CameraHandle {
 
     LiveCamera(Plugin plugin, List<Player> viewers, int entityId,
                List<CameraPath.Frame> frames, boolean loop, long now) {
+        this(plugin, viewers, entityId, frames, loop, now, null);
+    }
+
+    LiveCamera(Plugin plugin, List<Player> viewers, int entityId,
+               List<CameraPath.Frame> frames, boolean loop, long now, CameraOverlay overlay) {
+        this.overlay = overlay;
         this.plugin = plugin;
         this.viewers = viewers;
         this.entityId = entityId;
@@ -86,6 +94,11 @@ final class LiveCamera implements CameraHandle {
             }
         }
         sink.spawn(viewers, entityId, frames.get(0), holdTicks());
+        if (overlay != null) {
+            // Seated before the view moves into the camera, so the first frame
+            // the player sees through it already has its bars and its fade.
+            overlay.start(sink, viewers, entityId, frames.get(0));
+        }
         sink.look(viewers, entityId);
     }
 
@@ -140,6 +153,9 @@ final class LiveCamera implements CameraHandle {
             sink.move(viewers, entityId, frames.get(nextFrame));
             nextFrame++;
         }
+        if (overlay != null) {
+            overlay.update(sink, viewers, now - startedAt);
+        }
         return due;
     }
 
@@ -165,6 +181,11 @@ final class LiveCamera implements CameraHandle {
             }
             if (!wasFrozen[index]) {
                 packets.movement().unfreeze(viewer);
+            }
+        }
+        if (overlay != null) {
+            for (int panel : overlay.ids()) {
+                sink.destroy(viewers, panel);
             }
         }
         sink.destroy(viewers, entityId);

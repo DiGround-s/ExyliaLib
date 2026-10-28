@@ -285,6 +285,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // on the server rather than one per shot.
         CameraRuntime.init(this);
         getServer().getPluginManager().registerEvents(new CameraListener(), this);
+        // After the packet, nametag and client modules a guide draws through.
+        net.exylia.lib.guide.internal.GuideRuntime.init(this);
         MenuRuntime.init(this);
         // Overlays refuse a pickup and forget a player who leaves; everything
         // else they refuse is refused as a packet.
@@ -675,6 +677,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
+        // Before the modules it draws through, for the same reason as on a disable.
+        net.exylia.lib.guide.Guides.releaseAll();
         ClientRuntime.shutdown();
         NametagRuntime.shutdown();
         // Before the packet module: giving a view back, unfreezing and drawing
@@ -1028,6 +1032,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // plugin's waypoints and cooldowns is a packet too — all of them to
         // players who are still here. It has to happen while the client module
         // is still up, not on the way out with the rest of the shutdown.
+        // Before the client, nametag and packet modules: taking a guide down is
+        // a packet to a player who is still here, and its waypoints, glows and
+        // outlines are put out through those modules.
+        net.exylia.lib.guide.Guides.release(pluginName);
         ClientRuntime.release(pluginName);
         // Same reason: putting a nametag back to normal is a packet to a player
         // who is still on the server.

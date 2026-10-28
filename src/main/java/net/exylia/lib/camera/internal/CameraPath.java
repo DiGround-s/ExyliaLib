@@ -78,6 +78,26 @@ final class CameraPath {
     }
 
     /**
+     * Samples a shot through fixed places.
+     *
+     * <p>Reads nothing from the world: every key is already where the camera
+     * goes, and a cinematic that walks into a wall was authored that way.
+     *
+     * @param shot the keys
+     * @return one frame per {@link CameraShot#SAMPLE_MILLIS}, starting at zero
+     */
+    static List<Frame> of(net.exylia.lib.camera.WorldShot shot) {
+        long duration = shot.durationMillis();
+        int count = (int) (duration / CameraShot.SAMPLE_MILLIS) + 1;
+        List<Frame> frames = new ArrayList<>(count);
+        for (int step = 0; step < count; step++) {
+            double[] where = shot.at(Math.min(duration, step * CameraShot.SAMPLE_MILLIS));
+            frames.add(new Frame(where[0], where[1], where[2], (float) where[3], (float) where[4]));
+        }
+        return frames;
+    }
+
+    /**
      * Where the camera is, and which way it looks, for one moment of the shot.
      *
      * <p>The angle is measured from the subject's own back, so {@code yaw=0} is

@@ -60,6 +60,38 @@ public final class PluginCameras {
     }
 
     /**
+     * Plays a shot through fixed places to one player.
+     *
+     * <p>The player stays frozen where they stand, drawn as a spectator, while
+     * their view travels the keys; they get it back when the shot ends, is
+     * stopped, or they leave, die or change world. Nothing happens for a player
+     * in another world than the shot.
+     *
+     * @param player who watches
+     * @param shot   the keys, subtitles, bars and fade
+     * @return the handle, or {@code null} when there is nothing to play
+     * @since 1.391.0
+     */
+    public @Nullable CameraHandle play(@NotNull Player player, @NotNull WorldShot shot) {
+        return CameraRuntime.play(plugin, shot, List.of(player));
+    }
+
+    /**
+     * Plays a shot through fixed places to several players at once.
+     *
+     * <p>One camera entity and one set of panels for all of them: a cinematic
+     * at the start of an event costs what it costs for one viewer.
+     *
+     * @param players who watches; those in another world are left out
+     * @param shot    the keys, subtitles, bars and fade
+     * @return the handle, or {@code null} when there is nothing to play
+     * @since 1.391.0
+     */
+    public @Nullable CameraHandle play(@NotNull List<Player> players, @NotNull WorldShot shot) {
+        return CameraRuntime.play(plugin, shot, players);
+    }
+
+    /**
      * Ends whatever this player is looking through, whoever started it.
      *
      * <p>Not only this plugin's: a player is looking through one camera at a

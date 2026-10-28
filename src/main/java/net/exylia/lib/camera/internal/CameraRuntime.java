@@ -163,6 +163,48 @@ public final class CameraRuntime {
         return camera;
     }
 
+    /**
+     * Plays one shot through fixed places, with whatever rides its camera.
+     *
+     * <p>Viewers in another world than the shot are left out: their client has
+     * none of the chunks it films.
+     *
+     * @param plugin  whose shot it is
+     * @param shot    the keys and the overlay
+     * @param viewers who looks through it
+     * @return the handle, or {@code null} when there is nothing to play
+     */
+    public static CameraHandle play(Plugin plugin, net.exylia.lib.camera.WorldShot shot,
+                                    List<Player> viewers) {
+        if (!available) {
+            warnOnce(plugin.getName());
+            return null;
+        }
+        if (viewers.isEmpty() || shot.isEmpty()) {
+            return null;
+        }
+        List<Player> watching = new ArrayList<>(viewers.size());
+        for (Player viewer : viewers) {
+            if (viewer != null && viewer.isOnline()
+                    && (shot.world() == null || shot.world().equals(viewer.getWorld()))) {
+                stop(viewer);
+                watching.add(viewer);
+            }
+        }
+        if (watching.isEmpty()) {
+            return null;
+        }
+        LiveCamera camera = new LiveCamera(plugin, List.copyOf(watching), sink.newEntityId(),
+                CameraPath.of(shot), false, clock.getAsLong(),
+                shot.hasOverlay() ? new CameraOverlay(shot, sink) : null);
+        for (Player viewer : watching) {
+            FILMING.put(viewer.getUniqueId(), camera);
+        }
+        camera.start(sink);
+        LIVE.add(camera);
+        return camera;
+    }
+
     /** Ends whatever one player is looking through, if anything. */
     public static void stop(Player player) {
         LiveCamera camera = FILMING.get(player.getUniqueId());

@@ -116,6 +116,14 @@ every registration (`ServicesManager.getRegistrations`), so several sources
 sit side by side, and equips both players with the same seed so a rolled kit
 is the same kit for both. See [Kit sources for duels](#kit-sources-for-duels).
 
+`exylia-api` 3.4.0 (ExyliaLib 1.391.0) added `api.journey` for ExyliaJourney:
+`JourneyService` (start, stop, complete and reset a journey; a player's running
+journeys as `JourneyProgress`; `state`; `trigger(player, key, amount)` for
+`CUSTOM` objectives; `playCinematic`; the journey and cinematic ids),
+`JourneyState`, `StartResult`, and the events `JourneyStartEvent`
+(cancellable), `JourneyStepCompleteEvent`, `JourneyCompleteEvent` and
+`JourneySkipEvent`.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
@@ -156,7 +164,7 @@ plugin imports it from there.
 
 ## Services
 
-Twenty-three services across twenty-two plugins, plus one plugin that publishes
+Twenty-four services across twenty-three plugins, plus one plugin that publishes
 only events. Every one is reached the same way:
 `ExyliaAPI.get(<Service>.class)`. The event counts leave out abstract bases
 such as `TableEvent` and `PracticeEvent`.
@@ -174,6 +182,7 @@ such as `TableEvent` and `PracticeEvent`.
 | `api.events` | `EventsService` | ExyliaEvents | 6 |
 | `api.ffa` | `FfaService` | ExyliaFFA | 4 |
 | `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | 1 |
+| `api.journey` | `JourneyService` | ExyliaJourney | 4 |
 | `api.killeffect` | `KillEffectService` | ExyliaKillEffect | 1 |
 | `api.market` | `MarketService` (`isModuleEnabled`, `autoSell`); events `MarketDealEvent`, `MarketLogEvent` (deprecated, see [logs.md](logs.md)), `TradeRequestEvent`, `SellWandUseEvent` | ExyliaMarket | 2 |
 | `api.pearls` | `PearlsService` | ExyliaPearls | 1 |

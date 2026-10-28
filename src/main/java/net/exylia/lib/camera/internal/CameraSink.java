@@ -1,5 +1,6 @@
 package net.exylia.lib.camera.internal;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -40,4 +41,25 @@ interface CameraSink {
 
     /** Takes the camera off every client that was shown it. */
     void destroy(List<Player> viewers, int entityId);
+
+    /**
+     * Puts one flat text panel in the world at the camera, ready to ride it.
+     *
+     * <p>Defaulted to nothing so a sink that only moves cameras (a test that
+     * asserts on the path) does not have to know overlays exist.
+     */
+    default void spawnPanel(List<Player> viewers, int entityId, CameraPath.Frame at, CameraOverlay.Panel panel) {
+    }
+
+    /** Seats passengers on the camera, which is what makes them move with it on the same frame. */
+    default void mount(List<Player> viewers, int vehicleId, int[] passengers) {
+    }
+
+    /** Replaces a panel's text. */
+    default void text(List<Player> viewers, int entityId, Component text) {
+    }
+
+    /** Replaces a panel's background colour, which is how a fade is ramped. */
+    default void background(List<Player> viewers, int entityId, int argb) {
+    }
 }

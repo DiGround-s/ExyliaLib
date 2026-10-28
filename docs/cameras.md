@@ -192,6 +192,63 @@ The life is therefore held by the module. A shot ends when it runs out, when
 somebody stops it, when the player leaves, dies or changes world, when its
 plugin is disabled, or when the server stops. There is no seventh case.
 
+## Shots through fixed places (since 1.391.0)
+
+A `CameraShot` films the player in their own terms. A cinematic is the
+opposite: authored once, in the world, by somebody flying the path, and every
+viewer must see exactly that. `WorldShot` is that shot.
+
+```java
+WorldShot intro = WorldShot.builder()
+        .key(0, gate)                       // a Location: where the camera is and where it looks
+        .key(4, square, "smooth")
+        .key(9, castle, "in_out")
+        .subtitle(0.5, 3.5, guideName, Text.of("{letters}Welcome to the city.").build())
+        .subtitle(4.5, 4, guideName, Text.of("{letters}The castle is up the hill.").build())
+        .letterbox(true)
+        .fade(0.6, 0.8)
+        .build();
+
+cameras.play(player, intro);             // or play(List<Player>, intro): one camera for all
+```
+
+- **Keys are absolute**: a `Location`, yaw and pitch included, at a time in
+  seconds **from the start of the shot** (not from the key before), which is
+  how a recorded path and a subtitle track are both written. The camera holds
+  the first key until its time and the last until the shot ends. Keys are put
+  in time order; two at the same moment keep the last one given.
+- **Easing** is the same vocabulary as above; an unknown name throws
+  `IllegalArgumentException` from `key`. A recorded path wants `smooth` on
+  every key, which runs one curve through all of them. Each yaw is unwrapped
+  against the one before, so a pan across north turns the short way.
+- **Subtitles** (`subtitle(start, seconds, [speaker,] text)`) are drawn in the
+  lower part of the view on a translucent panel, the speaker on its own line
+  above. Two lines that overlap show the one that started last. A shot lasts
+  until its last key or its last subtitle, whichever is later.
+- **Letterbox** draws two black bars; **fade** ramps a black panel from opaque
+  to clear over the first seconds and back over the last.
+- **They ride the camera.** Subtitles, bars and fade are text displays seated
+  on the camera entity with a camera-facing billboard, so the client moves
+  them with the view on the same frame however fast it pans, at no packet per
+  move. A subtitle is sent once per line; the fade in steps of a few percent.
+  They are placed for the default 70° field of view: a wider one sees thinner
+  bars, and the panels are oversized so no edge ever shows.
+- **Up to three minutes** (`WorldShot.MAX_MILLIS`), rather than a
+  `CameraShot`'s sixty seconds: a narrated scene of eight subtitle lines
+  already needs most of a minute. Keys past it are dropped.
+- **Everything else is the same**: the viewer is frozen and drawn as a
+  spectator, only what this module did is put back, and the shot ends when it
+  runs out, is stopped, or the viewer leaves, dies or changes world, or its
+  plugin is disabled. Viewers in another world than the shot are left out.
+
+What it cannot film: the client draws only the chunks around the viewer's own
+body, which stays where it stood. A path that leaves the viewer's view
+distance films the edge of the loaded world. Keep a cinematic within about the
+server's view distance of where it is watched, or move the player there first
+through the [teleport module](teleport.md) and back afterwards. There is no
+`[CAMERA]` sequence syntax for it: a sequence line is relative to whoever set
+it off, and a world shot is relative to nothing.
+
 ## Requirements
 
 PacketEvents. A camera is packets and nothing else, so there is no fallback
@@ -201,8 +258,10 @@ worth pretending about; without it, `isSupported()` is false, `play` returns
 ## Source and tests
 
 - `net.exylia.lib.camera` — `Cameras`, `PluginCameras`, `CameraShot`,
-  `CameraHandle`
+  `CameraHandle`, `WorldShot` (1.391.0)
 - `net.exylia.lib.camera.internal` — the runtime, the path solver and the one
   class that names PacketEvents
 - `CameraShotTest`, `CameraPathTest` — the parser and the geometry, both without
-  a server
+  a server; `WorldShotTest` (keys, unwrapped yaw, the curve through keys, the
+  subtitle track and the fade) and `CameraOverlayTest` (panels seated before the
+  view moves in, sent only when due)
