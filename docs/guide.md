@@ -268,6 +268,9 @@ doors, and never across a wall's corner.
   from here (as opposed to the budget, the range or an unloaded chunk).
 - The route runs through cell centres at foot height, straight runs thinned
   (0.3 blocks), so the trail spaces its markers along it like a recorded one.
+- `path(from, target)` (since 1.398.0) runs the same search between two
+  places nobody has to stand at, for a route built ahead of time (an editor
+  saving the way from spawn to a shop). Same bounds, same answer.
 
 | `TrailStyle` | Default |
 | --- | --- |

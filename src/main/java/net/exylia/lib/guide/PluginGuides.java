@@ -271,6 +271,22 @@ public final class PluginGuides {
     }
 
     /**
+     * The way a player could walk from one place to another, the same search as
+     * {@link #path(Player, Location)} from a place nobody needs to stand at:
+     * for building a route ahead of time (a tutorial path from spawn to a
+     * shop), not for drawing one to a player now.
+     *
+     * @param from   where the walk starts, at foot height
+     * @param target where to
+     * @return the path; completes on an async thread
+     * @since 1.398.0
+     */
+    public @NotNull java.util.concurrent.CompletableFuture<GuidePath> path(@NotNull Location from,
+                                                                         @NotNull Location target) {
+        return net.exylia.lib.guide.internal.GuidePaths.find(plugin, from.clone(), target);
+    }
+
+    /**
      * Takes down everything this plugin shows one player.
      *
      * @param player the player
