@@ -378,7 +378,8 @@ box.capture(event.getEntity()).thenAccept(replay ->
 - **Cost.** A frame per player per tick, a frame per other entity only when it
   moves (and a heartbeat twice a second). Nothing is written anywhere until a
   capture is asked for. One box serves the server; two plugins that open one
-  share it and it keeps the larger of what each asked for.
+  share it and it keeps the larger of what each asked for (and the finer
+  `entitySampleEvery`). Measured figures are under *What the black box costs*.
 - **Hidden players.** `hidden` is read every sample: staff in vanish are never in
   a recording.
 
@@ -397,6 +398,52 @@ the pings of whoever it follows. A player leaving writes `ReplayMark.QUIT` with
 Paper's reason (`TIMED_OUT`, `KICKED`…). `replay.last(kind, actor, tick)` reads
 the figure in force at any tick, which is what a board shown while watching is
 made of.
+
+### What the black box costs
+
+Everything the box does on the server thread is its players' timers, so the
+work is laid out to read each thing once and nothing it cannot keep:
+
+- **Each thing is read once, by whoever gets to it first.** A crowd is a
+  hundred players with the same mobs around them; once one timer has read a
+  mob, every other one skips it until it is due again. Players are read every
+  tick; everything else every `entitySampleEvery` ticks (2 by default,
+  `BlackBoxSettings.entitySampleEvery(int)`, 1 to 5).
+- **The ticks in between are filled in when a capture is cut.** The last
+  `entitySampleEvery` ticks before each frame move the body there in a straight
+  line, rotation included, so a mob read every other tick walks as smoothly as
+  one read every tick. A jump of more than four blocks a tick is a teleport and
+  stays a jump.
+- **Past `maxEntities`, what has no tape is not read at all.** A look around a
+  player (once a second, or at once after a teleport) leaves it out, so a full
+  box costs nothing for the mobs it cannot keep. Past ninety-six things around
+  one player the nearest are kept, each distance worked out once.
+- **Equipment is read when it changes.** Paper's `EntityEquipmentChangedEvent`
+  marks the slot, and everything is read once a second besides. On a server
+  without that event, hands every other tick and armour every five.
+- **A frame is twenty-seven bytes.** Positions in thousandths of a block (what
+  the file holds, so nothing a capture writes is lost), the world as an index
+  into a table shared by every tape, angles in 65536 steps a turn and health in
+  half points.
+
+Measured on Paper 1.21.4 with 100 bots walking and fighting in clusters among
+about 2,500 mobs, at `BlackBoxSettings.defaults()` (the 1,500-entity cap full
+the whole run), against the same server with no box run right after it. The
+host was saturated by other work (40 % CPU pressure before, 61 % after), so
+absolute tick times are high and only the differences mean anything:
+
+| | Before (1.399.0) | Now |
+|---|---|---|
+| Replay share of server-thread samples | 4.9 % | 1.6 % |
+| Server-thread time in replay code | 2.26 ms a tick | 0.80 ms a tick |
+| Heap after a full GC, against no box | +35 MB | +26 MB (tapes 23 MB → 6 MB; the rest is marks) |
+| Allocation in replay code, two minutes | 0.80 GB | 0.12 GB |
+
+`Replays.stats()` returns a `BlackBoxStats` with what the box holds right now:
+tapes of players and of everything else, frames, rough heap bytes of the tapes,
+the marks and the block changes, how often in the last second a look left
+something out because the box was full, and the time spent sampling in the last
+second. It walks every tape, so it is for a command, not for every tick.
 
 ### Keeping the ground once
 

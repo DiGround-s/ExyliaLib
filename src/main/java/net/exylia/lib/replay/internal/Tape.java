@@ -276,7 +276,8 @@ final class Tape {
         int known = lastPlace;
         if (known >= 0) {
             Place place = PLACES[known];
-            if (place.squareX == squareX && place.squareZ == squareZ && place.world.equals(world)) return known;
+            if (place.squareX == squareX && place.squareZ == squareZ
+                    && (place.world == world || place.world.equals(world))) return known;
         }
         Place wanted = new Place(world, squareX, squareZ, (double) squareX * SQUARE, (double) squareZ * SQUARE);
         Integer index = PLACE_INDEX.get(wanted);
