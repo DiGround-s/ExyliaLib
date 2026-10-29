@@ -33,6 +33,7 @@ public final class CameraListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         CameraRuntime.stop(event.getPlayer());
+        CameraRuntime.forgetHud(event.getPlayer().getUniqueId());
     }
 
     /** Ends the shot when its subject dies, before the respawn screen. */

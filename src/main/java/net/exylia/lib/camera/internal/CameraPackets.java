@@ -96,8 +96,19 @@ final class CameraPackets implements CameraSink {
 
     @Override
     public void move(List<Player> viewers, int entityId, CameraPath.Frame to) {
+        if (to.cut()) {
+            // A cut lands at once: no interpolation for this one position, then
+            // back to the steady glide. The client applies them in this order.
+            send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                    new EntityData<>(POS_ROT_DURATION, EntityDataTypes.INT, 0))));
+        }
         send(viewers, new WrapperPlayServerEntityTeleport(entityId,
                 new Vector3d(to.x(), to.y(), to.z()), to.yaw(), to.pitch(), false));
+        if (to.cut()) {
+            send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                    new EntityData<>(POS_ROT_DURATION, EntityDataTypes.INT,
+                            (int) Math.max(1L, net.exylia.lib.camera.CameraShot.SAMPLE_MILLIS / 50L)))));
+        }
     }
 
     @Override
@@ -115,13 +126,21 @@ final class CameraPackets implements CameraSink {
         send(viewers, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
                 EntityTypes.TEXT_DISPLAY, new Vector3d(at.x(), at.y(), at.z()),
                 0f, 0f, 0f, 0, Optional.empty()));
+        restyle(viewers, entityId, panel);
+    }
+
+    @Override
+    public void restyle(List<Player> viewers, int entityId, CameraOverlay.Panel panel) {
         float distance = panel.distance();
-        // Half a turn about the view axis: the panel then grows downwards from
-        // its origin, so a bottom bar's edge is exactly where it was put.
-        Quaternion4f turn = panel.flipped() ? new Quaternion4f(0f, 0f, 1f, 0f) : new Quaternion4f(0f, 0f, 0f, 1f);
+        Quaternion4f turn = new Quaternion4f(0f, 0f, 0f, 1f);
+        byte flags = (byte) ((panel.shadow() ? 0x01 : 0) | (panel.seeThrough() ? 0x02 : 0) | switch (panel.align()) {
+            case LEFT -> 0x08;
+            case RIGHT -> 0x10;
+            default -> 0;
+        });
         send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
-                        new Vector3f(0f, panel.y() * distance, -distance)),
+                        new Vector3f(panel.x() * distance, panel.y() * distance, -distance)),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
                         new Vector3f(panel.scaleX() * distance, panel.scaleY() * distance, 1f)),
                 new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION, turn),
@@ -132,7 +151,7 @@ final class CameraPackets implements CameraSink {
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, panel.text()),
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, panel.lineWidth()),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, panel.background()),
-                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) (panel.shadow() ? 0x01 : 0)))));
+                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, flags))));
     }
 
     @Override

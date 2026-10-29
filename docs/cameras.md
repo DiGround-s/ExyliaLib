@@ -241,6 +241,87 @@ cameras.play(player, intro);             // or play(List<Player>, intro): one ca
   runs out, is stopped, or the viewer leaves, dies or changes world, or its
   plugin is disabled. Viewers in another world than the shot are left out.
 
+### Cuts, dips, aim, title cards and subtitle layout (since 1.397.0)
+
+```java
+WorldShot scene = WorldShot.builder()
+        .key(0, gate, "smooth")
+        .key(4, square, "smooth")
+        .cut(6, tower)                      // jumps here at 6 s, nothing travelled in between
+        .dip(6, 1.0)                        // black at 6 s: 0.5 s darkening, 0.5 s clearing
+        .key(10, towerTop, "smooth")
+        .lookAt(6, 10, statue)              // aims at the statue while it rises
+        .title(0.2, 2.5, Text.of("{primary}&lCHAPTER I").build())
+        .subtitle(new WorldShot.Subtitle(1000, 3000, ann, line, WorldShot.Position.BOTTOM,
+                WorldShot.Align.LEFT, 0, -1, null))
+        .subtitle(new WorldShot.Subtitle(1500, 3000, bob, reply, WorldShot.Position.BOTTOM,
+                WorldShot.Align.RIGHT, 0, -1, null))
+        .letterbox(0.12)                    // each bar a little over a tenth of the screen
+        .subtitleStyle(new WorldShot.TextStyle(0x59000000, true, 300, 1.2, false, 0.011))
+        .build();
+```
+
+- **`cut(seconds, at)`** holds the key before until that moment, then lands
+  on `at` with no interpolation (the one teleport is sent with a zero glide).
+  The spline never flows across a cut. A cut stays within the chunks the
+  viewer's client has: for something far away or in another world, end the
+  shot there, move the viewer through the [teleport module](teleport.md) and
+  play the next shot, which is what ExyliaJourney's cinematics do.
+- **`dip(seconds, length)`** ramps the fade panel to black and back, black at
+  `seconds`. Put it on a cut so the jump is never seen.
+- **`lookAt(from, to, target)`** turns the camera onto a point for a window,
+  whatever yaw and pitch the keys say. Give the keys at either end of the
+  window the same aim so entering and leaving it does not snap.
+- **`title(start, seconds, text)`** is big centred text, drawn in front of the
+  fade so it reads over black.
+- **Subtitles** that overlap all show, up to `WorldShot.MAX_LINES` (4), each on
+  its own panel and keeping it while it shows. A `Subtitle` takes a
+  `Position` (`BOTTOM`, `CENTER`, `TOP`), an `Align` (`LEFT`, `CENTER`,
+  `RIGHT`: the side of the screen and the text alignment), an `offset` (a
+  fraction of the screen's height, up) and a `line` slot (`-1` for the next
+  free one). Lines sharing a position and a side stack by their estimated
+  wrapped height. A `WorldShot.TextStyle` (background ARGB, alpha 0 for no
+  panel; shadow; wrap width in pixels, halved for side lines; scale; see
+  through; gap between stacked lines) is set for the whole shot with
+  `subtitleStyle(...)` and `titleStyle(...)`, or per line as the `Subtitle`'s
+  last component (`null` for the shot's). `TextStyle.SUBTITLE` and
+  `TextStyle.TITLE` are the defaults. The four-argument constructor is the old
+  centred line.
+- **`letterbox(size)`** sets each bar's share of the screen's height at the
+  default 70° field of view (`DEFAULT_BAR_SIZE` is the old size); the two bars
+  are symmetric. A higher field of view sees larger bars: the server is never
+  told it. Before 1.397.0 the bottom bar was not drawn at all.
+
+### Hiding the HUD (since 1.397.0)
+
+```java
+cameras.hideHud(player, EnumSet.allOf(Hud.class));   // BOSSBAR, SCOREBOARD, CHAT, ACTIONBAR, TITLES
+cameras.say(player, skipLine);                       // a line that belongs to the cinematic, past the shade
+// ... the shot, or several in a row
+cameras.showHud(player);
+```
+
+For that player alone: every boss bar (any plugin's) and the sidebar are taken
+off and come back exactly as they are when `showHud` runs, because the module
+follows those two from their packets all the time; chat that arrives meanwhile
+is held (up to 100 lines) and delivered in order afterwards; action bars and
+titles from anything else are dropped. A shot's own subtitles, title cards and
+sounds are untouched. It is independent of any one shot, so a cinematic made
+of several shots stays clean across the cuts. Leaving the server forgets it
+all. The tab list is not touched: it only shows while its key is held.
+
+### Holograms and NPCs in the shot (since 1.397.0)
+
+`Viewpoints.of(player)` is where a player sees from: the camera's current
+position while one films them, their body otherwise. The library's
+per-viewer range checks (holograms, packet NPCs, display audiences) read it,
+so a hologram 100 blocks from the viewer's body is drawn the moment the camera
+gets near it, with nobody else around, and taken back by the usual pass once
+the shot ends. Plugins with their own packet visibility should call it too.
+Real server entities are tracked by the body and nothing a packet does changes
+that: move the body along with a long shot (the viewer is frozen and looking
+through the camera, so the move is not seen).
+
 What it cannot film: the client draws only the chunks around the viewer's own
 body, which stays where it stood. A path that leaves the viewer's view
 distance films the edge of the loaded world. Keep a cinematic within about the
@@ -258,10 +339,13 @@ worth pretending about; without it, `isSupported()` is false, `play` returns
 ## Source and tests
 
 - `net.exylia.lib.camera` — `Cameras`, `PluginCameras`, `CameraShot`,
-  `CameraHandle`, `WorldShot` (1.391.0)
+  `CameraHandle`, `WorldShot` (1.391.0; cuts, dips, aim, titles and subtitle
+  layout 1.397.0), `Viewpoints`, `Hud` (1.397.0)
 - `net.exylia.lib.camera.internal` — the runtime, the path solver and the one
   class that names PacketEvents
 - `CameraShotTest`, `CameraPathTest` — the parser and the geometry, both without
   a server; `WorldShotTest` (keys, unwrapped yaw, the curve through keys, the
-  subtitle track and the fade) and `CameraOverlayTest` (panels seated before the
-  view moves in, sent only when due)
+  subtitle track and the fade), `WorldShotCutsTest` (cuts, dips, aim, title
+  cards, overlapping lines), `ViewpointTest`, `HudShadeTest` (boss bars followed
+  from their packets) and `CameraOverlayTest` (panels seated before the
+  view moves in, sent only when due, stacked lines)

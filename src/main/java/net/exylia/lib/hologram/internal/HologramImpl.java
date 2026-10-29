@@ -1,5 +1,6 @@
 package net.exylia.lib.hologram.internal;
 
+import net.exylia.lib.camera.Viewpoints;
 import net.exylia.lib.hologram.Hologram;
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.interaction.Click;
@@ -797,7 +798,8 @@ final class HologramImpl implements Hologram {
         double range = config.viewDistance();
         // Squared, so a player walking past does not pay for a square root.
         // Before the filter: it is the cheap check, and a caller's filter may not be.
-        if (player.getLocation().distanceSquared(at) > range * range) {
+        // From where they see: a camera filming this spot draws it for them.
+        if (Viewpoints.of(player).distanceSquared(at) > range * range) {
             return false;
         }
         Predicate<Player> current = filter;
@@ -1076,7 +1078,7 @@ final class HologramImpl implements Hologram {
         int[] pages = linePage;
         int page = page(viewer);
         boolean[] mask = new boolean[current.length];
-        double distance = viewer.getLocation().distanceSquared(anchor());
+        double distance = Viewpoints.of(viewer).distanceSquared(anchor());
         for (int i = 0; i < current.length; i++) {
             LineStyle style = current[i];
             boolean shown = (i >= pages.length || pages[i] == page)
@@ -1394,7 +1396,7 @@ final class HologramImpl implements Hologram {
         if (!scaling) {
             return false;
         }
-        double distance = Math.sqrt(viewer.getLocation().distanceSquared(anchor()));
+        double distance = Math.sqrt(Viewpoints.of(viewer).distanceSquared(anchor()));
         HologramConfig.DistanceScale whole = config.properties().distanceScale();
         boolean changed = false;
         if (whole.enabled()) {

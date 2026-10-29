@@ -50,8 +50,16 @@ final class CameraPath {
         throw new AssertionError("No instances.");
     }
 
-    /** One moment of the shot, in world terms. */
-    record Frame(double x, double y, double z, float yaw, float pitch) {
+    /**
+     * One moment of the shot, in world terms.
+     *
+     * @param cut whether this frame is jumped to rather than travelled to
+     */
+    record Frame(double x, double y, double z, float yaw, float pitch, boolean cut) {
+
+        Frame(double x, double y, double z, float yaw, float pitch) {
+            this(x, y, z, yaw, pitch, false);
+        }
     }
 
     /**
@@ -91,8 +99,10 @@ final class CameraPath {
         int count = (int) (duration / CameraShot.SAMPLE_MILLIS) + 1;
         List<Frame> frames = new ArrayList<>(count);
         for (int step = 0; step < count; step++) {
-            double[] where = shot.at(Math.min(duration, step * CameraShot.SAMPLE_MILLIS));
-            frames.add(new Frame(where[0], where[1], where[2], (float) where[3], (float) where[4]));
+            long millis = Math.min(duration, step * CameraShot.SAMPLE_MILLIS);
+            double[] where = shot.at(millis);
+            boolean cut = step > 0 && shot.cutBetween((step - 1) * CameraShot.SAMPLE_MILLIS, millis);
+            frames.add(new Frame(where[0], where[1], where[2], (float) where[3], (float) where[4], cut));
         }
         return frames;
     }

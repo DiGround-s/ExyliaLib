@@ -1,5 +1,6 @@
 package net.exylia.lib.npc.internal;
 
+import net.exylia.lib.camera.Viewpoints;
 import net.exylia.lib.interaction.Click;
 import net.exylia.lib.npc.NpcAnimation;
 import net.exylia.lib.npc.NpcAnimations;
@@ -305,7 +306,7 @@ final class PlacedNpcImpl implements PlacedNpc {
                 if (viewer.drawn
                         && (only == null || viewer.player.getUniqueId().equals(only.getUniqueId()))
                         && viewer.player.getWorld() == at.getWorld()
-                        && viewer.player.getLocation().distanceSquared(at) <= range * range) {
+                        && Viewpoints.of(viewer.player).distanceSquared(at) <= range * range) {
                     audience.add(viewer);
                 }
             }
@@ -524,7 +525,8 @@ final class PlacedNpcImpl implements PlacedNpc {
             return false;
         }
         double range = spec.viewDistance();
-        return player.getLocation().distanceSquared(at) <= range * range;
+        // From where they see: a camera filming this NPC draws it for them.
+        return Viewpoints.of(player).distanceSquared(at) <= range * range;
     }
 
     /**

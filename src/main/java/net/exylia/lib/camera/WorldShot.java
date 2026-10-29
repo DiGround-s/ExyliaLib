@@ -94,31 +94,65 @@ public final class WorldShot {
     private static final int YAW = 3;
     private static final int PITCH = 4;
 
+    /**
+     * The most subtitle lines on screen at once. Lines past it wait their turn:
+     * the newest four show, the oldest of the overlap is the one left out.
+     *
+     * @since 1.397.0
+     */
+    public static final int MAX_LINES = 4;
+
+    /**
+     * How much of the screen's height each letterbox bar covers by default, at
+     * the default 70&deg; field of view.
+     *
+     * @since 1.397.0
+     */
+    public static final double DEFAULT_BAR_SIZE = 0.093;
+
     private final World world;
     private final long[] times;
     private final double[][] keys;
     private final Ease[] eases;
+    private final boolean[] cuts;
     private final List<Subtitle> subtitles;
+    private final List<Title> titles;
+    private final List<long[]> dips;
+    private final List<double[]> looks;
     private final boolean letterbox;
+    private final double barSize;
+    private final TextStyle subtitleStyle;
+    private final TextStyle titleStyle;
     private final long fadeIn;
     private final long fadeOut;
     private final long duration;
 
-    private WorldShot(Builder builder, long[] times, double[][] keys, Ease[] eases) {
+    private WorldShot(Builder builder, long[] times, double[][] keys, Ease[] eases, boolean[] cuts) {
         this.world = builder.world;
         this.times = times;
         this.keys = keys;
         this.eases = eases;
-        long lastSubtitle = 0;
+        this.cuts = cuts;
+        long last = times.length == 0 ? 0 : times[times.length - 1];
         for (Subtitle line : builder.subtitles) {
-            lastSubtitle = Math.max(lastSubtitle, line.startMillis() + line.durationMillis());
+            last = Math.max(last, line.startMillis() + line.durationMillis());
         }
-        this.duration = Math.min(MAX_MILLIS, Math.max(times.length == 0 ? 0 : times[times.length - 1],
-                lastSubtitle));
+        for (Title card : builder.titles) {
+            last = Math.max(last, card.startMillis() + card.durationMillis());
+        }
+        this.duration = Math.min(MAX_MILLIS, last);
         List<Subtitle> lines = new ArrayList<>(builder.subtitles);
         lines.sort(Comparator.comparingLong(Subtitle::startMillis));
         this.subtitles = List.copyOf(lines);
+        List<Title> cards = new ArrayList<>(builder.titles);
+        cards.sort(Comparator.comparingLong(Title::startMillis));
+        this.titles = List.copyOf(cards);
+        this.dips = List.copyOf(builder.dips);
+        this.looks = List.copyOf(builder.looks);
         this.letterbox = builder.letterbox;
+        this.barSize = builder.barSize;
+        this.subtitleStyle = builder.subtitleStyle;
+        this.titleStyle = builder.titleStyle;
         this.fadeIn = Math.min(builder.fadeIn, duration / 2);
         this.fadeOut = Math.min(builder.fadeOut, duration / 2);
     }
@@ -133,21 +167,78 @@ public final class WorldShot {
     }
 
     /**
+     * Where on the screen a subtitle sits.
+     *
+     * @since 1.397.0
+     */
+    public enum Position {
+        /** Above the bottom bar, where films put them; lines that overlap stack upwards. */
+        BOTTOM,
+        /** In the middle of the view; lines that overlap stack downwards. */
+        CENTER,
+        /** Under the top bar; lines that overlap stack downwards. */
+        TOP
+    }
+
+    /**
+     * Which side of the screen a subtitle sits on, and how its text is aligned.
+     * Two people talking at once read best as one on the left and one on the
+     * right.
+     *
+     * @since 1.397.0
+     */
+    public enum Align {
+        LEFT,
+        CENTER,
+        RIGHT
+    }
+
+    /**
      * One line of the subtitle track.
+     *
+     * <p>Lines that overlap in time are all shown (up to {@link #MAX_LINES}),
+     * each on its own panel: lines with the same position and alignment stack
+     * without covering each other, ordered by {@code line} and then by when
+     * they started.
      *
      * @param startMillis    when it appears, from the start of the shot
      * @param durationMillis how long it stays
      * @param speaker        who says it, drawn on its own line above; {@code null} for narration
      * @param text           what is said, already formatted
+     * @param position       where on the screen (since 1.397.0)
+     * @param align          which side, and how its text is aligned (since 1.397.0)
+     * @param offset         how far it is moved up (negative: down), in fractions of the screen's
+     *                       height (since 1.397.0)
+     * @param line           the slot it takes in its stack, {@code 0} nearest the base; {@code -1}
+     *                       for the next free one by start time (since 1.397.0)
+     * @param style          how this line is drawn; {@code null} for the shot's subtitle style (since 1.397.0)
      */
     public record Subtitle(long startMillis, long durationMillis, @Nullable Component speaker,
-                           @NotNull Component text) {
+                           @NotNull Component text, @NotNull Position position, @NotNull Align align,
+                           double offset, int line, @Nullable TextStyle style) {
 
         /** Checks the values. */
         public Subtitle {
             Objects.requireNonNull(text, "text");
             startMillis = Math.max(0, startMillis);
             durationMillis = Math.max(0, durationMillis);
+            position = position == null ? Position.BOTTOM : position;
+            align = align == null ? Align.CENTER : align;
+            offset = Math.clamp(offset, -1.0, 1.0);
+            line = Math.max(-1, line);
+        }
+
+        /**
+         * A centred line at the bottom of the view, as before 1.397.0.
+         *
+         * @param startMillis    when it appears
+         * @param durationMillis how long it stays
+         * @param speaker        who says it; {@code null} for narration
+         * @param text           what is said
+         */
+        public Subtitle(long startMillis, long durationMillis, @Nullable Component speaker,
+                        @NotNull Component text) {
+            this(startMillis, durationMillis, speaker, text, Position.BOTTOM, Align.CENTER, 0, -1, null);
         }
 
         /** Whether this line is on screen at a moment of the shot. */
@@ -158,6 +249,57 @@ public final class WorldShot {
         /** The speaker above the line, as one component. */
         public @NotNull Component rendered() {
             return speaker == null ? text : speaker.append(Component.newline()).append(text);
+        }
+    }
+
+    /**
+     * How a text panel riding the camera is drawn: subtitles and title cards.
+     *
+     * @param background ARGB behind the text; alpha {@code 0} for no panel
+     * @param shadow     whether the text has a drop shadow
+     * @param lineWidth  where text wraps, in pixels (a side subtitle wraps at half)
+     * @param scale      how large, {@code 1} the default size (clamped to 0.3 - 4)
+     * @param seeThrough whether the text shows through blocks
+     * @param gap        space between two stacked lines, in fractions of the screen's height
+     * @since 1.397.0
+     */
+    public record TextStyle(int background, boolean shadow, int lineWidth, double scale, boolean seeThrough,
+                            double gap) {
+
+        /** How subtitles were always drawn: a translucent black panel, a shadow, 360 pixels wide. */
+        public static final TextStyle SUBTITLE = new TextStyle(0x70000000, true, 360, 1, false, 0.011);
+        /** Title cards: no panel, a shadow. */
+        public static final TextStyle TITLE = new TextStyle(0, true, 160, 1, false, 0.011);
+
+        /** Checks the values. */
+        public TextStyle {
+            lineWidth = Math.clamp(lineWidth, 40, 1000);
+            scale = Math.clamp(scale, 0.3, 4.0);
+            gap = Math.clamp(gap, 0.0, 0.2);
+        }
+    }
+
+    /**
+     * A title card: big text in the middle of the view, drawn in front of the
+     * fade so it reads over black.
+     *
+     * @param startMillis    when it appears, from the start of the shot
+     * @param durationMillis how long it stays
+     * @param text           what it says, already formatted; a new line for a subtitle under it
+     * @since 1.397.0
+     */
+    public record Title(long startMillis, long durationMillis, @NotNull Component text) {
+
+        /** Checks the values. */
+        public Title {
+            Objects.requireNonNull(text, "text");
+            startMillis = Math.max(0, startMillis);
+            durationMillis = Math.max(0, durationMillis);
+        }
+
+        /** Whether this card is on screen at a moment of the shot. */
+        public boolean showsAt(long millis) {
+            return millis >= startMillis && millis < startMillis + durationMillis;
         }
     }
 
@@ -191,9 +333,115 @@ public final class WorldShot {
         return letterbox;
     }
 
-    /** Whether anything at all rides the camera: subtitles, bars or a fade. */
+    /** Whether anything at all rides the camera: subtitles, title cards, bars or a fade. */
     public boolean hasOverlay() {
-        return letterbox || !subtitles.isEmpty() || fadeIn > 0 || fadeOut > 0;
+        return letterbox || !subtitles.isEmpty() || !titles.isEmpty() || fades();
+    }
+
+    /**
+     * How much of the screen's height each letterbox bar covers, at the
+     * default field of view.
+     *
+     * @since 1.397.0
+     */
+    public double barSize() {
+        return barSize;
+    }
+
+    /**
+     * How subtitles are drawn unless a line says otherwise.
+     *
+     * @since 1.397.0
+     */
+    public @NotNull TextStyle subtitleStyle() {
+        return subtitleStyle;
+    }
+
+    /**
+     * How title cards are drawn.
+     *
+     * @since 1.397.0
+     */
+    public @NotNull TextStyle titleStyle() {
+        return titleStyle;
+    }
+
+    /**
+     * The title cards, in the order they appear.
+     *
+     * @since 1.397.0
+     */
+    public @NotNull List<Title> titles() {
+        return titles;
+    }
+
+    /**
+     * The title card on screen at a moment, or {@code null}; the one that
+     * started last wins.
+     *
+     * @param millis how far into the shot
+     * @return the card, or {@code null}
+     * @since 1.397.0
+     */
+    public @Nullable Title titleAt(long millis) {
+        Title showing = null;
+        for (Title card : titles) {
+            if (card.startMillis() > millis) {
+                break;
+            }
+            if (card.showsAt(millis)) {
+                showing = card;
+            }
+        }
+        return showing;
+    }
+
+    /**
+     * Every subtitle on screen at a moment, in the order they started: at most
+     * {@link #MAX_LINES}, the newest kept when more overlap.
+     *
+     * @param millis how far into the shot
+     * @return the lines, possibly empty
+     * @since 1.397.0
+     */
+    public @NotNull List<Subtitle> subtitlesAt(long millis) {
+        List<Subtitle> showing = new ArrayList<>(MAX_LINES);
+        for (Subtitle line : subtitles) {
+            if (line.startMillis() > millis) {
+                break;
+            }
+            if (line.showsAt(millis)) {
+                showing.add(line);
+            }
+        }
+        return showing.size() <= MAX_LINES ? showing : List.copyOf(showing.subList(showing.size() - MAX_LINES, showing.size()));
+    }
+
+    /**
+     * The most subtitles ever on screen at once, capped at {@link #MAX_LINES}:
+     * how many panels the overlay needs.
+     */
+    @ApiStatus.Internal
+    public int maxConcurrentSubtitles() {
+        int most = 0;
+        for (Subtitle line : subtitles) {
+            most = Math.max(most, subtitlesAt(line.startMillis()).size());
+        }
+        return most;
+    }
+
+    /**
+     * Whether a cut falls after one moment and no later than another: the
+     * frame that reaches it jumps instead of being travelled to.
+     */
+    @ApiStatus.Internal
+    public boolean cutBetween(long after, long upTo) {
+        for (int index = 0; index < times.length; index++) {
+            if (cuts[index] && times[index] > after && times[index] <= upTo) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -237,12 +485,19 @@ public final class WorldShot {
         if (fadeOut > 0 && millis > duration - fadeOut) {
             alpha = Math.max(alpha, (double) Math.min(fadeOut, millis - (duration - fadeOut)) / fadeOut);
         }
+        for (long[] dip : dips) {
+            double half = dip[1] / 2.0;
+            double away = Math.abs(millis - dip[0]);
+            if (half > 0 && away < half) {
+                alpha = Math.max(alpha, 1.0 - away / half);
+            }
+        }
         return (int) Math.round(Math.clamp(alpha, 0.0, 1.0) * 255);
     }
 
-    /** Whether the shot fades at either end. */
+    /** Whether the shot fades at either end, or dips to black anywhere in it. */
     public boolean fades() {
-        return fadeIn > 0 || fadeOut > 0;
+        return fadeIn > 0 || fadeOut > 0 || !dips.isEmpty();
     }
 
     /**
@@ -254,6 +509,29 @@ public final class WorldShot {
      */
     @ApiStatus.Internal
     public double @NotNull [] at(long millis) {
+        double[] where = travelled(millis);
+        for (double[] look : looks) {
+            if (millis >= look[0] && millis <= look[1]) {
+                aim(where, look[2], look[3], look[4]);
+            }
+        }
+        return where;
+    }
+
+    /** Turns a position's view onto a point. Minecraft's yaw runs clockwise from south. */
+    static void aim(double[] where, double x, double y, double z) {
+        double dx = x - where[0];
+        double dy = y - where[1];
+        double dz = z - where[2];
+        double flat = Math.sqrt(dx * dx + dz * dz);
+        if (flat < 1.0E-6 && Math.abs(dy) < 1.0E-6) {
+            return;
+        }
+        where[YAW] = Math.toDegrees(Math.atan2(-dx, dz));
+        where[PITCH] = Math.clamp(-Math.toDegrees(Math.atan2(dy, flat)), -89.0, 89.0);
+    }
+
+    private double[] travelled(long millis) {
         int last = times.length - 1;
         if (last < 0) {
             return new double[CHANNELS];
@@ -269,6 +547,10 @@ public final class WorldShot {
             to++;
         }
         int from = to - 1;
+        if (cuts[to]) {
+            // A cut is not travelled to: the camera stays put, then is there.
+            return keys[from].clone();
+        }
         double span = times[to] - times[from];
         double progress = (millis - times[from]) / span;
         Ease ease = eases[to];
@@ -306,8 +588,9 @@ public final class WorldShot {
         }
         Ease into = eases[key];
         Ease out = eases[key + 1];
-        boolean flowsIn = into == Ease.SMOOTH || into == Ease.LINEAR;
-        boolean flowsOut = out == Ease.SMOOTH || out == Ease.LINEAR;
+        // Nothing flows across a cut: the camera does not travel through one.
+        boolean flowsIn = !cuts[key] && (into == Ease.SMOOTH || into == Ease.LINEAR);
+        boolean flowsOut = !cuts[key + 1] && (out == Ease.SMOOTH || out == Ease.LINEAR);
         if (!flowsIn || !flowsOut) {
             return 0;
         }
@@ -330,13 +613,19 @@ public final class WorldShot {
      */
     public static final class Builder {
 
-        private record Key(long millis, double[] where, Ease ease) {
+        private record Key(long millis, double[] where, Ease ease, boolean cut) {
         }
 
         private final List<Key> keys = new ArrayList<>();
         private final List<Subtitle> subtitles = new ArrayList<>();
+        private final List<Title> titles = new ArrayList<>();
+        private final List<long[]> dips = new ArrayList<>();
+        private final List<double[]> looks = new ArrayList<>();
         private World world;
         private boolean letterbox;
+        private double barSize = DEFAULT_BAR_SIZE;
+        private TextStyle subtitleStyle = TextStyle.SUBTITLE;
+        private TextStyle titleStyle = TextStyle.TITLE;
         private long fadeIn;
         private long fadeOut;
 
@@ -370,6 +659,28 @@ public final class WorldShot {
             if (named == null) {
                 throw new IllegalArgumentException("there is no ease called \"" + ease + "\"");
             }
+            return add(seconds, at, named, false);
+        }
+
+        /**
+         * Adds a cut: the camera holds the key before until this moment, then
+         * is here at once, with nothing travelled in between. Pair it with
+         * {@link #dip} to cut through black.
+         *
+         * <p>A cut stays inside the chunks the viewer's client has. To show
+         * something far away or in another world, end the shot there, move the
+         * viewer (teleport module) and play the next one.
+         *
+         * @param seconds when the camera jumps, from the start of the shot
+         * @param at      where it lands and which way it looks; same world as every key
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder cut(double seconds, @NotNull Location at) {
+            return add(seconds, at, Ease.LINEAR, true);
+        }
+
+        private Builder add(double seconds, Location at, Ease named, boolean cut) {
             if (at.getWorld() != null) {
                 if (world != null && !world.equals(at.getWorld())) {
                     throw new IllegalArgumentException("every key of a shot must be in one world");
@@ -377,7 +688,92 @@ public final class WorldShot {
                 world = at.getWorld();
             }
             keys.add(new Key(Math.max(0L, Math.round(seconds * 1000)),
-                    new double[]{at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch()}, named));
+                    new double[]{at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch()}, named, cut));
+            return this;
+        }
+
+        /**
+         * Dips the view to black around a moment: it darkens over the first
+         * half, is black at {@code seconds} and clears over the second half.
+         * What a cut wants so the jump is never seen.
+         *
+         * @param seconds when it is black, from the start of the shot
+         * @param length  how long the whole dip takes
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder dip(double seconds, double length) {
+            if (length > 0) {
+                dips.add(new long[]{Math.round(seconds * 1000), Math.round(length * 1000)});
+            }
+            return this;
+        }
+
+        /**
+         * Keeps the camera aimed at a point between two moments, wherever the
+         * keys move it: the keys' own yaw and pitch are ignored in between.
+         *
+         * @param fromSeconds when it starts aiming
+         * @param toSeconds   when it stops
+         * @param target      what it looks at; only the coordinates are read
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder lookAt(double fromSeconds, double toSeconds, @NotNull Location target) {
+            if (toSeconds > fromSeconds) {
+                looks.add(new double[]{Math.round(fromSeconds * 1000), Math.round(toSeconds * 1000),
+                        target.getX(), target.getY(), target.getZ()});
+            }
+            return this;
+        }
+
+        /**
+         * Adds a title card: big centred text, drawn over the fade.
+         *
+         * @param startSeconds when it appears
+         * @param seconds      how long it stays
+         * @param text         what it says
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder title(double startSeconds, double seconds, @NotNull Component text) {
+            titles.add(new Title(Math.round(startSeconds * 1000), Math.round(seconds * 1000), text));
+            return this;
+        }
+
+        /**
+         * Adds a fully described subtitle line: position, side, offset, slot.
+         *
+         * @param line the line
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder subtitle(@NotNull Subtitle line) {
+            subtitles.add(Objects.requireNonNull(line, "line"));
+            return this;
+        }
+
+        /**
+         * How subtitles are drawn unless a line carries its own style.
+         *
+         * @param style the style; {@link TextStyle#SUBTITLE} is the default
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder subtitleStyle(@NotNull TextStyle style) {
+            this.subtitleStyle = Objects.requireNonNull(style, "style");
+            return this;
+        }
+
+        /**
+         * How title cards are drawn.
+         *
+         * @param style the style; {@link TextStyle#TITLE} is the default
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder titleStyle(@NotNull TextStyle style) {
+            this.titleStyle = Objects.requireNonNull(style, "style");
             return this;
         }
 
@@ -421,6 +817,21 @@ public final class WorldShot {
         }
 
         /**
+         * Frames the view with two black bars of a given size.
+         *
+         * @param size how much of the screen's height each bar covers at the
+         *             default 70&deg; field of view ({@code 0.1} is a tenth);
+         *             clamped to 0.4, and {@code 0} or less draws none
+         * @return this builder
+         * @since 1.397.0
+         */
+        public @NotNull Builder letterbox(double size) {
+            this.letterbox = size > 0;
+            this.barSize = Math.clamp(size, 0.0, 0.4);
+            return this;
+        }
+
+        /**
          * Fades in from black at the start and out to black at the end.
          *
          * @param inSeconds  how long the fade-in takes; {@code 0} for none
@@ -460,16 +871,18 @@ public final class WorldShot {
             long[] times = new long[kept.size()];
             double[][] where = new double[kept.size()][];
             Ease[] eases = new Ease[kept.size()];
+            boolean[] cuts = new boolean[kept.size()];
             for (int index = 0; index < kept.size(); index++) {
                 Key key = kept.get(index);
                 times[index] = key.millis();
                 where[index] = key.where().clone();
                 eases[index] = key.ease();
+                cuts[index] = key.cut() && index > 0;
                 if (index > 0) {
                     where[index][YAW] = unwrap(where[index - 1][YAW], where[index][YAW]);
                 }
             }
-            return new WorldShot(this, times, where, eases);
+            return new WorldShot(this, times, where, eases, cuts);
         }
 
         /** The same heading as {@code yaw}, written as close to {@code previous} as it can be. */

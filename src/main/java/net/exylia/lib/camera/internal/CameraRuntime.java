@@ -87,6 +87,9 @@ public final class CameraRuntime {
             logger = plugin.getLogger();
             sink = CameraPackets.INSTANCE;
             available = CameraPackets.ready();
+            if (available) {
+                HudShade.install();
+            }
             if (driver != null) {
                 driver.cancel();
             }
@@ -210,6 +213,59 @@ public final class CameraRuntime {
         LiveCamera camera = FILMING.get(player.getUniqueId());
         if (camera != null) {
             stop(camera);
+        }
+    }
+
+    /**
+     * Where a player is looking from, {@code x, y, z, yaw, pitch}, or
+     * {@code null} when they are not looking through a camera.
+     */
+    public static double[] viewpoint(UUID player) {
+        LiveCamera camera = FILMING.get(player);
+        return camera == null ? null : camera.where();
+    }
+
+    /** Puts a camera in the filming map without a player. For tests. */
+    static void testFilm(UUID player, LiveCamera camera) {
+        if (camera == null) {
+            FILMING.remove(player);
+        } else {
+            FILMING.put(player, camera);
+        }
+    }
+
+    /** Hides parts of a player's HUD until {@link #showHud}; nothing without PacketEvents. */
+    public static void hideHud(Player player, java.util.Set<net.exylia.lib.camera.Hud> parts) {
+        if (available && HudShade.active()) {
+            HudShade.hide(player, parts);
+        }
+    }
+
+    /** Gives back whatever {@link #hideHud} took, as it is now. */
+    public static void showHud(Player player) {
+        if (HudShade.active()) {
+            HudShade.show(player);
+        }
+    }
+
+    /** Whether a player's HUD is hidden right now. */
+    public static boolean isHudHidden(Player player) {
+        return HudShade.active() && HudShade.hidden(player.getUniqueId());
+    }
+
+    /** Sends a chat line past a hidden HUD; plain chat when nothing is hidden. */
+    public static void say(Player player, net.kyori.adventure.text.Component line) {
+        if (HudShade.active() && HudShade.hidden(player.getUniqueId())) {
+            HudShade.say(player, line);
+        } else {
+            player.sendMessage(line);
+        }
+    }
+
+    /** A player left: forget what their HUD had. */
+    static void forgetHud(UUID player) {
+        if (HudShade.active()) {
+            HudShade.forget(player);
         }
     }
 

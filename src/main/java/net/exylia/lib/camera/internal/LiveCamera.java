@@ -46,6 +46,9 @@ final class LiveCamera implements CameraHandle {
 
     private volatile boolean gone;
 
+    /** The last position sent: where the viewer sees from, for everything that asks. */
+    private volatile int shown;
+
     LiveCamera(Plugin plugin, List<Player> viewers, int entityId,
                List<CameraPath.Frame> frames, boolean loop, long now) {
         this(plugin, viewers, entityId, frames, loop, now, null);
@@ -151,6 +154,7 @@ final class LiveCamera implements CameraHandle {
         long due = (now - startedAt) / CameraShot.SAMPLE_MILLIS;
         while (nextFrame < frames.size() && nextFrame <= due) {
             sink.move(viewers, entityId, frames.get(nextFrame));
+            shown = nextFrame;
             nextFrame++;
         }
         if (overlay != null) {
@@ -194,6 +198,15 @@ final class LiveCamera implements CameraHandle {
     /** How long the client has to reach each position, in ticks. */
     private static int holdTicks() {
         return (int) Math.max(1L, CameraShot.SAMPLE_MILLIS / 50L);
+    }
+
+    /** Where the camera is now, {@code x, y, z, yaw, pitch}; {@code null} once it has ended. */
+    double[] where() {
+        if (gone) {
+            return null;
+        }
+        CameraPath.Frame at = frames.get(Math.min(shown, frames.size() - 1));
+        return new double[]{at.x(), at.y(), at.z(), at.yaw(), at.pitch()};
     }
 
     @Override

@@ -101,4 +101,33 @@ class CameraOverlayTest {
         // What end() destroys with the camera (end itself needs a live packet module).
         assertArrayEquals(new int[]{11, 12, 13}, overlay.ids());
     }
+
+    @Test
+    @DisplayName("two people at once: lines on one side stack, lines on two sides sit apart, bars are symmetric")
+    void stacked() {
+        WorldShot.Subtitle a = new WorldShot.Subtitle(0, 4000, Component.text("Ann"), Component.text("hi"),
+                WorldShot.Position.BOTTOM, WorldShot.Align.CENTER, 0, -1, null);
+        WorldShot.Subtitle b = new WorldShot.Subtitle(500, 4000, Component.text("Bob"), Component.text("hey"),
+                WorldShot.Position.BOTTOM, WorldShot.Align.CENTER, 0, -1, null);
+        WorldShot.Subtitle left = new WorldShot.Subtitle(0, 4000, null, Component.text("l"),
+                WorldShot.Position.TOP, WorldShot.Align.LEFT, 0, -1, null);
+        WorldShot.Subtitle right = new WorldShot.Subtitle(0, 4000, null, Component.text("r"),
+                WorldShot.Position.TOP, WorldShot.Align.RIGHT, 0, -1, null);
+        WorldShot shot = WorldShot.builder().key(0, new Location(null, 0, 70, 0)).key(1, new Location(null, 1, 70, 0))
+                .subtitle(a).subtitle(b).subtitle(left).subtitle(right).letterbox(0.1).build();
+        CameraOverlay overlay = new CameraOverlay(shot, sink);
+        var layout = overlay.layout(shot.subtitlesAt(600));
+        assertEquals(4, layout.size());
+        CameraOverlay.Panel first = layout.get(a);
+        CameraOverlay.Panel second = layout.get(b);
+        // Ann started first, so she sits nearest the bar and Bob above her, clear of her two rows.
+        org.junit.jupiter.api.Assertions.assertTrue(second.y() >= first.y() + 2 * 0.25f * 0.2f);
+        org.junit.jupiter.api.Assertions.assertTrue(layout.get(left).x() < 0 && layout.get(right).x() > 0);
+        assertEquals(layout.get(left).y(), layout.get(right).y(), 1e-6);
+
+        sent.clear();
+        overlay.start(sink, List.of(), 99, CameraPath.of(shot).get(0));
+        // Four line panels, two bars, no fade, no title.
+        assertEquals(4 + 2, overlay.ids().length);
+    }
 }

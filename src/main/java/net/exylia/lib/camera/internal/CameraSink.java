@@ -51,6 +51,10 @@ interface CameraSink {
     default void spawnPanel(List<Player> viewers, int entityId, CameraPath.Frame at, CameraOverlay.Panel panel) {
     }
 
+    /** Moves, resizes, recolours and realigns a panel already spawned. */
+    default void restyle(List<Player> viewers, int entityId, CameraOverlay.Panel panel) {
+    }
+
     /** Seats passengers on the camera, which is what makes them move with it on the same frame. */
     default void mount(List<Player> viewers, int vehicleId, int[] passengers) {
     }

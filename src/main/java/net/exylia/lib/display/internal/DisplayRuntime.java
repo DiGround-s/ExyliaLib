@@ -1,5 +1,6 @@
 package net.exylia.lib.display.internal;
 
+import net.exylia.lib.camera.Viewpoints;
 import net.exylia.lib.display.DisplayHandle;
 import net.exylia.lib.display.DisplayKeyframe;
 import net.exylia.lib.display.DisplayModel;
@@ -88,7 +89,7 @@ public final class DisplayRuntime {
                 // The world first: distanceSquared throws across worlds, and the
                 // list can hold a player who has just changed world.
                 if (!online.isOnline() || !world.equals(online.getWorld())
-                        || online.getLocation().distanceSquared(where) > limit) {
+                        || Viewpoints.of(online).distanceSquared(where) > limit) {
                     continue;
                 }
                 if (filter != null && !filter.test(online)) {

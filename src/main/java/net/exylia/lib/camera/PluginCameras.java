@@ -113,6 +113,56 @@ public final class PluginCameras {
         return CameraRuntime.isFilming(player);
     }
 
+    /**
+     * Clears parts of a player's HUD, for them alone, until {@link #showHud}:
+     * boss bars and the sidebar come back exactly as they are by then, chat
+     * that arrived meanwhile is delivered in order, action bars and titles
+     * from anything else are dropped. Packets drawn by a shot (subtitles,
+     * title cards) and sounds are untouched. A second call adds to what is
+     * hidden; leaving the server forgets it all. Nothing without PacketEvents.
+     *
+     * @param player whose HUD
+     * @param parts  what to hide
+     * @since 1.397.0
+     */
+    public void hideHud(@NotNull Player player, @NotNull java.util.Set<Hud> parts) {
+        CameraRuntime.hideHud(player, parts);
+    }
+
+    /**
+     * Gives back whatever {@link #hideHud} took. Safe to call when nothing is
+     * hidden.
+     *
+     * @param player whose HUD
+     * @since 1.397.0
+     */
+    public void showHud(@NotNull Player player) {
+        CameraRuntime.showHud(player);
+    }
+
+    /**
+     * Whether a player's HUD is hidden right now.
+     *
+     * @param player the player
+     * @return {@code true} between {@link #hideHud} and {@link #showHud}
+     * @since 1.397.0
+     */
+    public boolean isHudHidden(@NotNull Player player) {
+        return CameraRuntime.isHudHidden(player);
+    }
+
+    /**
+     * Sends a chat line that belongs to what the player is watching, past a
+     * hidden chat (a "click to skip" line); plain chat otherwise.
+     *
+     * @param player who reads it
+     * @param line   the line
+     * @since 1.397.0
+     */
+    public void say(@NotNull Player player, @NotNull net.kyori.adventure.text.Component line) {
+        CameraRuntime.say(player, line);
+    }
+
     /** Whether a camera can be shown at all on this server. */
     public boolean isSupported() {
         return CameraRuntime.isSupported();
