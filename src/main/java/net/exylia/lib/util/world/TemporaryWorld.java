@@ -55,7 +55,9 @@ import java.util.stream.Stream;
  * <h2>Rules</h2>
  * Void, no structures, hard difficulty, PvP on, frozen at noon, no weather,
  * mobs, fire spread, mob griefing, random ticks, phantoms, advancement or death
- * announcements, and no autosave.
+ * announcements, and no spawn area kept loaded. It is saved like any world,
+ * because a world that never saves never unloads a chunk on Paper; what it
+ * writes is deleted with the folder.
  *
  * <h2>Threading</h2>
  * Every method is safe from any thread and none blocks. The futures complete on
@@ -264,7 +266,16 @@ public final class TemporaryWorld {
     }
 
     private static World applyRules(World world) {
-        world.setAutoSave(false);
+        // Saved like any world, though nothing in it is ever kept: on Paper's
+        // chunk system a world that does not save never unloads either, and
+        // every chunk a plot or a visitor ever touched stayed in memory until
+        // the server stopped (thousands an hour on a server staging replays).
+        // What it writes goes with the folder, deleted at every start and stop.
+        world.setAutoSave(true);
+        // Nobody spawns here: the spawn area would be ~800 chunks held for nothing.
+        @SuppressWarnings("unchecked")
+        GameRule<Integer> spawnRadius = (GameRule<Integer>) GameRule.getByName("spawnChunkRadius");
+        if (spawnRadius != null) world.setGameRule(spawnRadius, 0);
         world.setDifficulty(Difficulty.HARD);
         world.setPVP(true);
         world.setSpawnFlags(false, false);

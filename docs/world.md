@@ -120,7 +120,11 @@ TemporaryWorld.reserve(width, depth).thenAccept(plot -> {
   void, and there is nothing to release or clear.
 - **Rules.** Void, hard, PvP on, frozen at noon; no weather, mobs, fire spread,
   mob griefing, random ticks, phantoms, advancement or death announcements, or
-  autosave.
+  spawn area kept loaded (1.402.0).
+- **It saves.** Like any world, though nothing in it is kept: on Paper's chunk
+  system a world that never saves never unloads a chunk either, and until
+  1.402.0 every chunk a plot or a visitor touched stayed in memory until the
+  server stopped. What it writes goes with the folder.
 - **Shared.** Other plugins use the same world. A listener that scopes itself
   to "the temporary world" scopes itself to everybody's arenas; scope to your
   own plots instead.
