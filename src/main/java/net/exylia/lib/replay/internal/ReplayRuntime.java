@@ -147,6 +147,11 @@ public final class ReplayRuntime {
         return Staging.at(owner, replay, anchor);
     }
 
+    /** The place it happened, or {@code null} when a scene's world is not loaded here. */
+    public static @Nullable ReplayStage live(String owner, Replay replay) {
+        return Staging.live(owner, replay);
+    }
+
     static TaskScheduler scheduler() {
         return scheduler;
     }
@@ -450,6 +455,13 @@ public final class ReplayRuntime {
         public @NotNull CompletableFuture<Replay> capture(@NotNull UUID focus, int seconds, int afterSeconds) {
             BlackBox running = box;
             return running == null ? closed() : running.capture(focus, null, seconds, afterSeconds);
+        }
+
+        @Override
+        public @NotNull CompletableFuture<Replay> capture(@NotNull UUID focus, int seconds, int afterSeconds,
+                                                          boolean terrain) {
+            BlackBox running = box;
+            return running == null ? closed() : running.capture(focus, null, seconds, afterSeconds, terrain);
         }
 
         @Override

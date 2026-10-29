@@ -113,7 +113,9 @@ final class ReplayEvents implements Listener {
 
     /** Whether somebody is in spectator mode, without asking the server. */
     static boolean spectating(Player player) {
-        return SPECTATING.contains(player.getUniqueId());
+        // Somebody watching a replay where it happened is a camera over the
+        // fight, not in it.
+        return SPECTATING.contains(player.getUniqueId()) || LiveWatch.watching(player.getUniqueId());
     }
 
     static void register(Plugin plugin) {
@@ -121,6 +123,7 @@ final class ReplayEvents implements Listener {
             if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) SPECTATING.add(player.getUniqueId());
         }
         Bukkit.getPluginManager().registerEvents(new ReplayEvents(), plugin);
+        Bukkit.getPluginManager().registerEvents(new LiveWatch.Guard(), plugin);
         try {
             Bukkit.getPluginManager().registerEvents(new Recent(), plugin);
         } catch (NoClassDefFoundError older) {

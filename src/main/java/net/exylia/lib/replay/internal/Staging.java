@@ -5,6 +5,7 @@ import net.exylia.lib.replay.ReplayFrame;
 import net.exylia.lib.replay.ReplayPlayback;
 import net.exylia.lib.replay.ReplayScene;
 import net.exylia.lib.replay.ReplayStage;
+import net.exylia.lib.replay.ReplayWorld;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.world.TemporaryWorld;
 import org.bukkit.Bukkit;
@@ -49,17 +50,43 @@ final class Staging implements ReplayStage {
     private final String owner;
     private final Replay replay;
     private final Location[] anchors;
+    private final ReplayWorld world;
     private final List<ReplayPlayback> playbacks = new CopyOnWriteArrayList<>();
 
-    private Staging(String owner, Replay replay, Location[] anchors) {
+    private Staging(String owner, Replay replay, Location[] anchors, ReplayWorld world) {
         this.owner = owner;
         this.replay = replay;
         this.anchors = anchors;
+        this.world = world;
     }
 
     /** A stage on a place the caller owns: one anchor for every scene, nothing laid down. */
     static ReplayStage at(String owner, Replay replay, Location anchor) {
-        return new Staging(owner, replay, new Location[] {anchor.clone()});
+        return new Staging(owner, replay, new Location[] {anchor.clone()}, ReplayWorld.SOLID);
+    }
+
+    /**
+     * The very place it happened: every scene on its own anchor, in its own
+     * world, and nothing written. The ground is the real one; what changed
+     * during the clip is drawn for the viewers alone ({@link ReplayWorld#PACKET})
+     * and taken back off their screens when it stops.
+     *
+     * @return the stage, or {@code null} when a scene's world is not loaded here
+     */
+    static @Nullable ReplayStage live(String owner, Replay replay) {
+        List<ReplayScene> scenes = replay.scenes();
+        if (scenes.isEmpty()) return null;
+        Location[] anchors = new Location[scenes.size()];
+        for (int index = 0; index < anchors.length; index++) {
+            anchors[index] = scenes.get(index).origin();
+            if (anchors[index] == null) return null;
+        }
+        return new Staging(owner, replay, anchors, ReplayWorld.PACKET);
+    }
+
+    /** Whether this is the real place, watched where it happened. */
+    boolean isLive() {
+        return world == ReplayWorld.PACKET;
     }
 
     /** Reserves the plots and lays the ground down; completes once it is all there. */
@@ -120,7 +147,7 @@ final class Staging implements ReplayStage {
             });
         }
         return chain.thenCompose(done -> CompletableFuture.allOf(laying.toArray(CompletableFuture[]::new)))
-                .thenApply(done -> new Staging(owner, replay, anchors));
+                .thenApply(done -> new Staging(owner, replay, anchors, ReplayWorld.SOLID));
     }
 
     /** Places one scene's sections, a chunk at a time, on the chunk's own region. */
@@ -195,8 +222,7 @@ final class Staging implements ReplayStage {
 
     @Override
     public @Nullable ReplayPlayback play(@NotNull List<Player> viewers) {
-        ReplayPlayback playback = ReplayRuntime.play(owner, replay, List.of(anchors), viewers,
-                net.exylia.lib.replay.ReplayWorld.SOLID, true);
+        ReplayPlayback playback = ReplayRuntime.play(owner, replay, List.of(anchors), viewers, world, true);
         if (playback != null) playbacks.add(playback);
         return playback;
     }

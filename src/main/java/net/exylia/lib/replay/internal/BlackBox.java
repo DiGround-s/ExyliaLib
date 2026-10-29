@@ -642,10 +642,20 @@ public final class BlackBox {
      */
     CompletableFuture<Replay> capture(@Nullable UUID focus, @Nullable Location center, int seconds,
                                       int afterSeconds) {
-        if (afterSeconds <= 0) return cut(focus, center, seconds, ReplayClock.now(), 0);
+        return capture(focus, center, seconds, afterSeconds, true);
+    }
+
+    /**
+     * The same, saying whether this one capture keeps the ground: one that is
+     * only ever watched where it happened has no use for it, and reading it is
+     * most of what a capture costs.
+     */
+    CompletableFuture<Replay> capture(@Nullable UUID focus, @Nullable Location center, int seconds,
+                                      int afterSeconds, boolean terrain) {
+        if (afterSeconds <= 0) return cut(focus, center, seconds, ReplayClock.now(), 0, terrain);
         int event = ReplayClock.now();
         CompletableFuture<Replay> later = new CompletableFuture<>();
-        scheduler.runAsyncLater(afterSeconds * 20L, () -> cut(focus, center, seconds, event, afterSeconds)
+        scheduler.runAsyncLater(afterSeconds * 20L, () -> cut(focus, center, seconds, event, afterSeconds, terrain)
                 .whenComplete((replay, failure) -> {
                     if (failure != null) later.completeExceptionally(failure);
                     else later.complete(replay);
@@ -654,9 +664,9 @@ public final class BlackBox {
     }
 
     private CompletableFuture<Replay> cut(@Nullable UUID focus, @Nullable Location center, int seconds,
-                                          int event, int afterSeconds) {
+                                          int event, int afterSeconds, boolean terrain) {
         CompletableFuture<Replay> result = new CompletableFuture<>();
-        BlackBoxSettings current = settings;
+        BlackBoxSettings current = terrain ? settings : settings.terrain(false);
         int window = Math.clamp(seconds, 1, current.seconds()) * 20;
         int end = Math.max(event, ReplayClock.now());
         int start = event - window;

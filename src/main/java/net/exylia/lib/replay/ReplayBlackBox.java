@@ -83,6 +83,31 @@ public interface ReplayBlackBox {
     @NotNull CompletableFuture<Replay> capture(@NotNull UUID focus, int seconds, int afterSeconds);
 
     /**
+     * The same, saying whether this capture keeps the ground, whatever the box
+     * was opened with.
+     *
+     * <p>A recording watched where it happened, a few seconds later
+     * ({@link ReplayViewer#openLive}), is drawn on the real ground and has no
+     * use for its own copy of it. Reading that copy is most of what a capture
+     * costs, and most of what it weighs while it is kept: without it a capture
+     * reads only the chunks a block changed in, and still carries every change.
+     * It cannot be staged, so keep the ground for one that may be watched
+     * anywhere else, or after the place has changed.
+     *
+     * @param focus        who
+     * @param seconds      how far back from now
+     * @param afterSeconds how long to carry on; the future completes after it
+     * @param terrain      whether to keep the ground; {@code true} only when the
+     *                     box itself keeps it
+     * @return the recording
+     * @since 1.402.0
+     */
+    default @NotNull CompletableFuture<Replay> capture(@NotNull UUID focus, int seconds, int afterSeconds,
+                                                       boolean terrain) {
+        return capture(focus, seconds, afterSeconds);
+    }
+
+    /**
      * Cuts a window out around a place rather than a person.
      *
      * @param center  where

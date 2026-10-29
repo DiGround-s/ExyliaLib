@@ -457,7 +457,7 @@ ground, not a recording that cannot be played.
 
 A recording with terrain can be watched anywhere: `replays.stage(replay)` lays
 each scene's ground down on its own plot of the temporary world, at its real
-height, spread over ticks so no tick places more than twenty thousand blocks.
+height, spread over ticks so no tick places more than eight thousand blocks.
 The playback runs on it with the arena written for real, so a viewer can walk on
 what was built and the server agrees with every block they see.
 
@@ -483,8 +483,61 @@ ReplayViewer.open(plugin, viewer, stage, null);
 untouchable, a hotbar the plugin fills; `toggle`, `skip`, `frame`, `faster`,
 `slower`, `next(kinds)`, `cycleFollow`; the line above the hotbar fed every few
 ticks; and the viewer put back exactly as they were when they leave, quit or the
-plugin stops. A player who logs in on the temporary world after a crash is sent
-to the main world's spawn.
+plugin stops, through the teleport module (on the spot only when they quit or
+the server stops). A player who logs in on the temporary world after a crash is
+sent to the main world's spawn.
+
+A stage is the expensive way to watch: every block of the ground is placed on
+the server's thread, and a busy server staging a recording a second pays for it
+in ticks and in the chunks it keeps loaded. For a recording watched where it
+happened, see the next section.
+
+## Watching where it happened
+
+A recording watched seconds after it was made, on the server it was made on
+(a killcam), does not need its ground copied anywhere: the ground is still
+there. `ReplayViewer.openLive` (1.402.0) takes the viewer to the real place and
+plays it there, with nothing staged:
+
+```java
+box.capture(victim.getUniqueId(), 7, 2, false)            // no terrain: not needed here
+        .thenAccept(replay -> Tasks.at(viewer, () ->
+                ReplayViewer.openLive(plugin, viewer, replay, victim.getUniqueId())
+                        .thenAccept(watching -> watching.onLeave(() -> overlay.hide(viewer)))));
+```
+
+- **Drawn, never written.** The recorded bodies are packet bodies, as always;
+  every block that changed during the clip is drawn for the viewer alone
+  (`PACKET`), from what it was when the clip started, and taken off their
+  screen when it stops. Every scene plays on its own recorded anchor, and a cut
+  to another scene carries the viewer there.
+- **Alone with the recording.** Whatever the recording would draw that is really
+  there now (the killer walking off, a mob that came later, players, items) is
+  hidden from the viewer while it plays, swept every 12 ticks within 48
+  blocks; holograms, frames and the rest of the scenery stay.
+- **A ghost.** The viewer is hidden from every other player (and from anybody
+  who joins meanwhile, tab list included, as vanish does), pushes nothing, is
+  targeted and hurt by nothing, uses, breaks and places no block, clicks and
+  hits no entity, drops and picks up nothing, and is never sampled by the black
+  box. The guards run at `HIGHEST`, so a plugin's own hotbar listener still
+  hears its click.
+- **Put back.** Leaving sends them back through the teleport module, and only
+  once they have arrived are their game mode and flight restored and everybody
+  shown again on both sides. Quitting or the server stopping puts them back on
+  the spot.
+- **Controls.** The same `ReplayViewer`: follow, the line above the hotbar,
+  `onLeave`, speed, seek, `next(kinds)`.
+
+The trade-off is `PACKET`'s: the ground is the place as it is *now*, and a
+block the recording changed is there for the viewer's eyes but not for the
+server. A camera that flies and looks is right; one meant to land on the bridge
+somebody built is a stage. And it needs every scene's world loaded here: when
+one is not, `openLive` stages the recording instead, which needs one that
+carries its terrain, and completes exceptionally without it.
+
+`box.capture(focus, seconds, after, false)` (1.402.0) is the capture for it:
+no ground is read but the sections a block changed in, which is most of what a
+capture costs and most of what one weighs while it is kept.
 
 ## A note on the format
 
