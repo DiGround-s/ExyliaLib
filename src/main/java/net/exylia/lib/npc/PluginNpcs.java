@@ -8,6 +8,7 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -96,6 +97,28 @@ public final class PluginNpcs {
      */
     public @NotNull List<PlacedNpc> allPlaced() {
         return PlacedRuntime.all(pluginName);
+    }
+
+    /**
+     * Starts one performance on several placed NPCs at the same moment, on one clock, so
+     * they move in step: one tempo (a {@code tempo:} range is rolled once for all of them)
+     * and one start, so loops stay in phase.
+     *
+     * <pre>{@code
+     * npcs.perform(List.of(left, middle, right), NpcPerformance.parse("anim:dance"));
+     * }</pre>
+     *
+     * <p>Each NPC follows {@link PlacedNpc#perform(NpcPerformance)}: one already performing
+     * is skipped (a continuous idle is replaced), and so is one with nobody in range. NPCs
+     * in different regions start their bodies on their own region's thread, on the next tick of each.
+     *
+     * @param npcs        the NPCs, of this plugin or any other
+     * @param performance what they perform
+     * @return how many started
+     * @since 1.401.0
+     */
+    public int perform(@NotNull Collection<? extends PlacedNpc> npcs, @NotNull NpcPerformance performance) {
+        return PlacedRuntime.performTogether(npcs, performance);
     }
 
     /**

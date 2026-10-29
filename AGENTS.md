@@ -799,6 +799,14 @@ hand-built packet. See `docs/npcs.md`.
   `NpcAnimations.performRange`, never for a sitting NPC; ended on move, update and
   removal. A trigger value with a colon is a performance; `emote:<id>` goes
   through the plugin's `PluginNpcs.emotes` resolver, never an emote plugin.
+- **Motion** (1.401.0): `idle-continuous` loops an idle performance while anybody
+  is in `perform-range` (anything else replaces it, it resumes after; nobody near is
+  no body); `idle-group` puts idles on one clock (one tempo, starts on whole cycles).
+  `pause`/`resume` (runtime only) stop everything automatic and the head;
+  `stopPerformance` settles the body. `PluginNpcs.perform(collection, performance)`
+  starts several at one tempo. `anim:` also reads `.bbmodel` projects, compiled the
+  way Blockbench's own Bedrock export compiles them (`BlockbenchProject`), so a
+  project and its export play the same frames.
 - **PacketEvents is named in `NpcPackets` only.**
 
 ### Modded clients — always `Clients`, never branching

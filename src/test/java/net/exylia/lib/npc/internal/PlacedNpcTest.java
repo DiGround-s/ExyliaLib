@@ -138,14 +138,23 @@ class PlacedNpcTest {
 
     /** When the fake body stands in its last pose; -1 loops. */
     private long standsAt = 200L;
+    /** The tempo the fake stage rolls when it is handed none. */
+    private double rolled = 1.0;
+    /** How long one cycle of the fake body takes. */
+    private long cycle = 1_000L;
+    /** The tempo each start was handed; 0 asks the stage to roll. */
+    private final List<Double> tempos = new CopyOnWriteArrayList<>();
 
-    private final NpcStage stage = (owner, performance, at, audience, spec, texture) -> {
+    private final NpcStage stage = (owner, performance, at, audience, spec, texture, tempo) -> {
         List<String> names = new ArrayList<>();
         for (Player player : audience) {
             names.add(player.getName());
         }
         sent.add("stage:" + String.join("+", performance.lines()) + ":" + names + ":" + texture);
-        long stands = standsAt;
+        tempos.add(tempo);
+        long stands = String.join("", performance.lines()).contains("loop:true") ? -1L : standsAt;
+        double played = tempo > 0.0 ? tempo : rolled;
+        long cycle = this.cycle;
         return new NpcStage.Act() {
             @Override
             public long standsAtMillis() {
@@ -155,6 +164,16 @@ class PlacedNpcTest {
             @Override
             public void stop(long settleMillis) {
                 sent.add("stop:" + settleMillis);
+            }
+
+            @Override
+            public double tempo() {
+                return played;
+            }
+
+            @Override
+            public long cycleMillis() {
+                return cycle;
             }
         };
     };
@@ -734,5 +753,198 @@ class PlacedNpcTest {
         npc.update(npc.spec().toBuilder().sitting(true).build());
         show();
         assertFalse(npc.perform(NpcPerformance.parse("anim:wave")));
+    }
+
+    // ------------------------------------------------------------------
+    // Since 1.401.0: continuous idles, pauses and performances on one clock
+    // ------------------------------------------------------------------
+
+    private static final String IDLE = "loop:true;anim:idle";
+
+    private static NpcAnimations continuous(String rightClick, String greet, String group) {
+        return new NpcAnimations("", rightClick, IDLE, Duration.ofSeconds(20), greet, greet.isEmpty() ? 0 : 4.0,
+                Duration.ZERO, NpcAnimations.DEFAULT_PERFORM_RANGE, true, group);
+    }
+
+    @Test
+    @DisplayName("a continuous idle loops while somebody is in range, ends when nobody is, and comes back")
+    void continuousIdleLoopsWhileNear() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().animations(continuous("", "", "")).build(),
+                origin());
+        show();
+        assertEquals(1, sent("stage").size(), "started on the pass that drew it");
+        assertTrue(npc.isPerforming());
+        sent.clear();
+
+        FakeServer.tick(600);
+        assertEquals(List.of(), sent("stop"), "no loop limit: thirty seconds and still playing");
+        assertEquals(List.of(), sent("stage"));
+
+        near.at(new Location(world, 30, 64, 0));
+        PlacedRuntime.tick();
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS), sent("stop"), "nobody near: it stands up");
+        FakeServer.tick(10);
+        assertEquals(List.of("hide:Near:off"), sent("hide"));
+        assertFalse(npc.isPerforming());
+        PlacedRuntime.tick();
+        assertEquals(List.of(), sent("stage"), "nobody near, no body");
+
+        near.at(new Location(world, 3, 64, 0));
+        PlacedRuntime.tick();
+        assertEquals(1, sent("stage").size(), "back in range, back to idling");
+    }
+
+    @Test
+    @DisplayName("idle-every stays the default: an idle performance is cut at its loop limit")
+    void intervalIdleIsTheDefault() {
+        NpcAnimations animations = new NpcAnimations("", "", IDLE, Duration.ofSeconds(10), "", 0, Duration.ZERO);
+        assertFalse(animations.idleContinuous());
+        assertEquals("", animations.idleGroup());
+        assertTrue(animations.withIdleContinuous(true).withIdleGroup(" line ").idleContinuous());
+        assertEquals("line", animations.withIdleGroup(" line ").idleGroup());
+        npcs.place("guide", NpcSpec.builder().animations(animations).build(), origin());
+        show();
+        assertEquals(List.of(), sent("stage"), "nothing before the interval");
+    }
+
+    @Test
+    @DisplayName("a click replaces the continuous idle instead of being skipped, and the idle comes back after")
+    void clickReplacesTheIdle() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().animations(continuous("anim:bow", "", "")).build(),
+                origin());
+        show();
+        sent.clear();
+
+        PlacedRuntime.clicked(near.player(), 500, false);
+        FakeServer.tick(1);
+        List<String> stages = sent("stage");
+        assertEquals(1, stages.size());
+        assertTrue(stages.get(0).contains("anim:bow"), stages.get(0));
+        assertEquals(List.of("stop:0"), sent("stop"), "the idle's body goes at once");
+        assertFalse(npc.perform(NpcPerformance.parse("anim:wave")), "the bow is not an idle: one at a time");
+
+        sent.clear();
+        FakeServer.tick(10);
+        assertTrue(sent("stage").stream().anyMatch(line -> line.contains("anim:idle")),
+                "the bow ended and the idle resumed: " + sent);
+    }
+
+    @Test
+    @DisplayName("a greeting replaces the continuous idle too")
+    void greetingReplacesTheIdle() {
+        near.at(new Location(world, 10, 64, 0));
+        npcs.place("guide", NpcSpec.builder().animations(continuous("", "anim:hello", "")).build(), origin());
+        show();
+        sent.clear();
+        near.at(new Location(world, 2, 64, 0));
+        PlacedRuntime.tick();
+        List<String> stages = sent("stage");
+        assertEquals(1, stages.size(), sent.toString());
+        assertTrue(stages.get(0).contains("anim:hello"));
+    }
+
+    @Test
+    @DisplayName("paused: no idle, greeting, click animation or head turning; perform still works; resume restores")
+    void pauseAndResume() {
+        PlacedNpc npc = npcs.place("guide", NpcSpec.builder().look(NpcLook.EACH_VIEWER)
+                .animations(continuous("swing", "", "")).build(), origin());
+        show();
+        assertTrue(npc.isPerforming());
+        sent.clear();
+
+        npc.pause();
+        assertTrue(npc.isPaused());
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS), sent("stop"), "the idle stands up and ends");
+        FakeServer.tick(10);
+        assertFalse(npc.isPerforming());
+        sent.clear();
+
+        near.at(new Location(world, 3, 64, 3));
+        PlacedRuntime.tick();
+        PlacedRuntime.clicked(near.player(), 500, false);
+        FakeServer.tick(1);
+        assertEquals(List.of(), sent("stage"), "no idle while paused");
+        assertEquals(List.of(), sent("swing"), "no click animation while paused");
+        assertEquals(List.of(), sent("look"), "the head stays where it is");
+
+        assertTrue(npc.perform(NpcPerformance.parse("anim:wave")), "a manual performance still plays");
+        FakeServer.tick(6);
+        sent.clear();
+
+        npc.resume();
+        assertFalse(npc.isPaused());
+        PlacedRuntime.tick();
+        assertEquals(1, sent("stage").size(), "the idle is back");
+        assertFalse(sent("look").isEmpty(), "and the head follows again");
+    }
+
+    @Test
+    @DisplayName("stopPerformance stands the body up and brings the NPC back")
+    void stopPerformance() {
+        PlacedNpc npc = npcs.place("guide", spec(), origin());
+        show();
+        assertFalse(npc.stopPerformance(), "nothing playing");
+        assertTrue(npc.perform(NpcPerformance.parse("loop:true;anim:wave")));
+        sent.clear();
+        assertTrue(npc.stopPerformance());
+        assertTrue(npc.stopPerformance(), "still standing up");
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS), sent, "settled once");
+        FakeServer.tick(10);
+        assertEquals(List.of("stop:" + PlacedNpcImpl.SETTLE_MILLIS, "hide:Near:off"), sent);
+        assertFalse(npc.isPerforming());
+    }
+
+    @Test
+    @DisplayName("several NPCs perform at once at one rolled tempo")
+    void performTogether() {
+        rolled = 1.3;
+        PlacedNpc left = npcs.place("left", spec(), origin());
+        PlacedNpc right = npcs.place("right", spec(), new Location(world, 2, 64, 0));
+        PlacedNpc nobody = npcs.place("nobody", spec(), new Location(world, 200, 64, 200));
+        show();
+        sent.clear();
+        tempos.clear();
+
+        assertEquals(2, npcs.perform(List.of(left, right, nobody), NpcPerformance.parse("anim:dance")));
+        assertEquals(List.of(0.0, 1.3), tempos, "the first rolls, the rest are handed its tempo");
+        assertTrue(left.isPerforming() && right.isPerforming());
+        assertFalse(nobody.isPerforming(), "nobody in range of it");
+    }
+
+    @Test
+    @DisplayName("continuous idles in one group share a tempo and start on its beat")
+    void idleGroupsShareAClock() {
+        rolled = 1.25;
+        far.at(new Location(world, 500, 64, 500));
+        npcs.place("first", NpcSpec.builder().animations(continuous("", "", "line")).build(), origin());
+        show();
+        assertEquals(List.of(0.0), tempos, "the first of the group rolls");
+
+        clock.addAndGet(300);
+        npcs.place("second", NpcSpec.builder().animations(continuous("", "", "line")).build(),
+                new Location(world, 501, 64, 500));
+        show();
+        assertEquals(1, tempos.size(), "waits for the beat: 700 ms into a 1000 ms cycle");
+        FakeServer.tick(14);
+        assertEquals(1, tempos.size());
+        FakeServer.tick(1);
+        assertEquals(List.of(0.0, 1.25), tempos, "on the beat, at the group's tempo");
+    }
+
+    @Test
+    @DisplayName("somebody walking up to a continuous idle gets it at the end of the cycle, with everybody else")
+    void newcomerJoinsAtTheCycle() {
+        npcs.place("guide", NpcSpec.builder().animations(continuous("", "", "")).build(), origin());
+        show();
+        sent.clear();
+        clock.addAndGet(400);
+        far.at(new Location(world, 2, 64, 2));
+        show();
+        assertEquals(List.of(), sent("stage"), "not mid-cycle");
+        FakeServer.tick(13);
+        List<String> stages = sent("stage");
+        assertEquals(1, stages.size(), sent.toString());
+        assertTrue(stages.get(0).contains("Near") && stages.get(0).contains("Far"), stages.get(0));
+        assertEquals(List.of("stop:0"), sent("stop"));
     }
 }

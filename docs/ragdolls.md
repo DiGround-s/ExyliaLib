@@ -256,8 +256,9 @@ frames written on the line. Since 1.262.0.
 - '[RAGDOLL] {victim};intact:0;anim:wave;follow:1;breathe:1'
 ```
 
-Every `.json` file in `plugins/<Plugin>/animations/` is read the first time a
-line asks for one, and again whenever a file there changes. Two formats:
+Every `.json` file in `plugins/<Plugin>/animations/` (and, since 1.401.0, every
+`.bbmodel`) is read the first time a line asks for one, and again whenever a file
+there changes. Three formats:
 
 - **Blockbench**, exported as a Bedrock or GeckoLib animation. This is the
   format Emotecraft's player animation library reads, so its Blockbench
@@ -266,6 +267,8 @@ line asks for one, and again whenever a file there changes. Two formats:
   any of them but the head, whose `x` is the bend and whose `y` turns the
   hinge round the limb.
 - **Emotecraft's own JSON**, the `emote` object with `moves` keyed by tick.
+- **Blockbench projects** (`.bbmodel`), since 1.401.0: the project file itself, no
+  export step. Same bone names as the Bedrock export.
 
 Each is played the way the tool that made it plays it: every turn is the
 vanilla model's turn in the model's order, the head and arms hang off the
@@ -283,8 +286,70 @@ in its file loops here, from where the file says, unless the line says
 `loop:false`; `follow:`, `breathe:`, `tempo:` and `then:` work as they do on
 written frames.
 
+A `.bbmodel` called `wave.bbmodel` with one clip answers to `wave` and to the clip's
+own name; one of several clips is called by each clip's name, in full and by its last
+dotted part, as a Bedrock file is.
+
 Emotecraft animations are their authors' work and each carries its own
 licence. Check it before shipping one.
+
+#### Blockbench projects
+
+Since 1.401.0. A project plays **exactly the frames its own Bedrock export plays**: each
+clip is compiled the way Blockbench's export compiles it, then read by the Bedrock reader.
+That matters because the two do not keep the same numbers: a project stores what its
+viewport shows, and the export negates the `x` of a position and the `x` and `y` of a
+rotation. `BlockbenchProjectTest` asserts a hand-written project and its export give the
+same pose every 10 ms.
+
+- `loop` `loop` loops, `hold` and `once` do not; `length` is the clip's length.
+- `linear`, `step` and `catmullrom` keys, and keys with two data points, are written as
+  the export writes them, so they curve the same.
+- **Bezier** keys are approximated the way the export approximates them: Bedrock has no
+  bezier, so the span is baked into straight keys at the clip's snapping (24 a second
+  unless the project says otherwise), each solved from the keys' handles. Between two
+  baked keys the motion is straight; at 24 a second nobody sees the corners.
+- A bone is named by its group in the outliner, as the export names it. Sound, particle
+  and script keyframes are left out; Molang is reported with the file and the clip, and
+  that keyframe left out.
+
+#### What a folder offers
+
+Since 1.401.0, for a plugin that lists animations to its admins:
+
+```java
+Map<String, List<RagdollAnimations.Clip>> files = RagdollAnimations.files("ExyliaDisplays");
+// {"player_classic.bbmodel": [Clip[name=wave, answersTo=[wave, player_classic], loops=false,
+//   length=PT1.6S, loopFrom=PT0S]], ...}
+List<RagdollAnimations.Clip> clips = RagdollAnimations.clips(text, "dance.bbmodel", problems::add);
+```
+
+Each file, in name order, with its clips in the file's order: `name` (what `anim:` calls
+it), `answersTo` (every name `anim:` finds it by), `loops`, `length` and `loopFrom`. Read
+from the same cache `anim:` reads, so it is current after a file changes.
+
+#### Templates
+
+Since 1.401.0. `RagdollAnimations.writeTemplates(folder)` writes two Blockbench projects
+into a folder, each only when it is missing, and returns the files it wrote:
+
+| File | Rig |
+|---|---|
+| `player_classic.bbmodel` | 4-pixel arms, shoulders at 22 px |
+| `player_slim.bbmodel` | 3-pixel arms, shoulders at 21.5 px |
+
+Bedrock-format projects with box UV on a 64×64 skin (no texture is embedded: drag a skin
+onto the model to see it), bones named the way `anim:` reads them (`body` holding
+`torso`, `head`, `right_arm`, `left_arm`, `right_leg` and `left_leg`, each but the head
+cut at its hinge with the far half in a `<bone>_bend` group: elbows and knees at the middle,
+the chest above the middle of the back), pivoted where the vanilla model turns, and one
+example clip, `wave`: the right arm out to the side, waved twice, back down. Open one in
+Blockbench, add clips under Animate, save, and `anim:<clip>` plays them. In the preview
+the head and arms do not follow a bent back; in game they do.
+
+```java
+RagdollAnimations.writeTemplates(new File(getDataFolder(), "animations"));
+```
 
 ### Letting go of a dance
 

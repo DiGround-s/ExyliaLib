@@ -96,6 +96,16 @@ final class PlacedNpcImpl implements PlacedNpc {
     private final Map<UUID, Integer> glows = new ConcurrentHashMap<>();
     /** What ends {@link #act} when its body stands in its last pose. */
     private TaskHandle ending;
+    /** Whether {@link #act} is the continuous idle, which anything else replaces. Guarded by this. */
+    private boolean actIdle;
+    /** Whether {@link #act} is standing back up before it goes. Guarded by this. */
+    private boolean settling;
+    /** When {@link #act} started, by {@link PlacedRuntime#now()}. Guarded by this. */
+    private long actStarted;
+    /** The continuous idle's start waiting for its beat, or {@code null}. Guarded by this. */
+    private TaskHandle pendingIdle;
+    /** Paused: nothing on its own, no head turning. Runtime only. */
+    private volatile boolean paused;
 
     /** What one player has been sent. */
     /**
@@ -269,12 +279,12 @@ final class PlacedNpcImpl implements PlacedNpc {
 
     @Override
     public boolean perform(@NotNull NpcPerformance performance) {
-        return start(performance, null);
+        return start(performance, null, false, 0.0) != null;
     }
 
     @Override
     public boolean perform(@NotNull NpcPerformance performance, @NotNull Player viewer) {
-        return start(performance, viewer);
+        return start(performance, viewer, false, 0.0) != null;
     }
 
     @Override
@@ -282,23 +292,66 @@ final class PlacedNpcImpl implements PlacedNpc {
         return act != null;
     }
 
+    @Override
+    public boolean stopPerformance() {
+        NpcStage.Act which;
+        synchronized (this) {
+            which = act;
+            if (which == null) {
+                return false;
+            }
+        }
+        end(which, SETTLE_MILLIS);
+        return true;
+    }
+
+    @Override
+    public void pause() {
+        boolean idling;
+        synchronized (this) {
+            paused = true;
+            if (pendingIdle != null) {
+                pendingIdle.cancel();
+                pendingIdle = null;
+            }
+            idling = act != null && actIdle;
+        }
+        if (idling) {
+            stopPerformance();
+        }
+    }
+
+    @Override
+    public void resume() {
+        paused = false;
+    }
+
+    @Override
+    public boolean isPaused() {
+        return paused;
+    }
+
     /**
      * Hides the NPC from whoever is in range and puts a body in its place, unless one
-     * is playing already.
+     * is playing already; a continuous idle playing is replaced rather than waited for.
+     *
+     * @param idle  whether this is the continuous idle
+     * @param tempo the tempo to play at, or {@code 0} to roll one
+     * @return the act, or {@code null} when it did not start
      */
-    private boolean start(NpcPerformance asked, @Nullable Player only) {
+    @Nullable NpcStage.Act start(NpcPerformance asked, @Nullable Player only, boolean idle, double tempo) {
         if (removed) {
-            return false;
+            return null;
         }
         NpcPerformance performance = PlacedRuntime.resolve(owner.getName(), asked);
         if (performance == null || performance.isEmpty()) {
-            return false;
+            return null;
         }
         synchronized (this) {
             NpcSpec current = spec;
             Location at = location;
-            if (removed || act != null || current.sitting()) {
-                return false;
+            if (removed || act != null && (!actIdle || settling) || current.sitting()) {
+                return null;
             }
             double range = current.animations().performRange();
             List<Viewer> audience = new ArrayList<>();
@@ -311,8 +364,10 @@ final class PlacedNpcImpl implements PlacedNpc {
                 }
             }
             if (audience.isEmpty()) {
-                return false;
+                return null;
             }
+            // The idle steps aside: its body goes and this one takes the same place.
+            cut();
             // One body faces one way: the way this viewer sees the NPC facing, or the
             // way everybody does; with each viewer seeing it turned to themselves, the
             // way it stands when nobody is looking.
@@ -328,11 +383,13 @@ final class PlacedNpcImpl implements PlacedNpc {
                 players.add(viewer.player);
             }
             NpcStage.Act started = PlacedRuntime.stage().start(owner, performance, stage, players, current,
-                    skin == null ? null : skin[0]);
+                    skin == null ? null : skin[0], tempo);
             if (started == null) {
-                return false;
+                return null;
             }
             act = started;
+            actIdle = idle;
+            actStarted = PlacedRuntime.now();
             for (Viewer viewer : audience) {
                 hidden.add(viewer.player.getUniqueId());
                 sink().hide(viewer.player, entityId, current, true);
@@ -345,21 +402,32 @@ final class PlacedNpcImpl implements PlacedNpc {
             }
             long stands = started.standsAtMillis();
             boolean loops = stands < 0L;
+            if (loops && idle) {
+                // A continuous idle has no limit: nobody near, a pause or another
+                // performance is what ends it.
+                return started;
+            }
             long endsAt = loops ? performance.loopLimit().toMillis() : stands;
             // A tick past the last pose: putting the NPC back on that exact moment
             // swaps them a frame early.
             ending = PlacedRuntime.scheduler().runAsyncLater(endsAt / 50L + 1L,
                     () -> end(started, loops ? SETTLE_MILLIS : 0L));
-            return true;
+            return started;
         }
     }
 
     /** Ends a performance that ran its course: the NPC back first, then the body gone. */
     private void end(NpcStage.Act which, long settleMillis) {
         synchronized (this) {
-            if (act != which) {
+            if (act != which || settling) {
                 return;
             }
+            if (ending != null) {
+                ending.cancel();
+                ending = null;
+            }
+            // Standing back up is nothing to replace: what comes next waits for it.
+            settling = settleMillis > 0L;
         }
         if (settleMillis > 0L) {
             which.stop(settleMillis);
@@ -376,6 +444,8 @@ final class PlacedNpcImpl implements PlacedNpc {
             return;
         }
         act = null;
+        actIdle = false;
+        settling = false;
         ending = null;
         showHidden();
     }
@@ -387,6 +457,8 @@ final class PlacedNpcImpl implements PlacedNpc {
             return;
         }
         act = null;
+        actIdle = false;
+        settling = false;
         if (ending != null) {
             ending.cancel();
             ending = null;
@@ -573,6 +645,10 @@ final class PlacedNpcImpl implements PlacedNpc {
 
     /** Plays the idle animation when its time comes round, if anybody is there to see it. */
     private void idle(NpcSpec current, Triggers animations) {
+        if (current.animations().idleContinuous() && animations.idle.performance() != null) {
+            continuous(current, animations.idle.performance());
+            return;
+        }
         long every = current.animations().idleEvery().toMillis();
         if (animations.idle.isEmpty() || every <= 0L) {
             return;
@@ -582,9 +658,82 @@ final class PlacedNpcImpl implements PlacedNpc {
             nextIdle = now + every;
         } else if (now >= nextIdle) {
             nextIdle = now + every;
-            if (viewerCount() > 0) {
+            if (viewerCount() > 0 && !paused) {
                 fire(animations.idle, null);
             }
+        }
+    }
+
+    /**
+     * Keeps a continuous idle going while anybody is within the perform range: starts it
+     * (on its group's beat), ends it when nobody is left, and gives it again to everybody
+     * at the end of a cycle when somebody new walks up, since a body's audience is fixed
+     * when it starts. Waits while another performance plays. Called under the lock.
+     */
+    private void continuous(NpcSpec current, NpcPerformance idle) {
+        boolean anybody = false;
+        boolean newcomer = false;
+        Location at = location;
+        double range = current.animations().performRange();
+        for (Viewer viewer : viewers.values()) {
+            if (viewer.drawn && viewer.player.getWorld() == at.getWorld()
+                    && Viewpoints.of(viewer.player).distanceSquared(at) <= range * range) {
+                anybody = true;
+                newcomer |= !hidden.contains(viewer.player.getUniqueId());
+            }
+        }
+        NpcStage.Act playing = act;
+        if (playing != null) {
+            if (!actIdle || settling) {
+                return;
+            }
+            if (paused || !anybody || current.sitting()) {
+                end(playing, SETTLE_MILLIS);
+            } else if (newcomer && pendingIdle == null) {
+                long cycle = playing.cycleMillis();
+                long into = cycle > 0L ? (PlacedRuntime.now() - actStarted) % cycle : 0L;
+                startIdleIn(into == 0L ? 0L : cycle - into, playing);
+            }
+            return;
+        }
+        if (paused || !anybody || pendingIdle != null || current.sitting()) {
+            return;
+        }
+        String group = current.animations().idleGroup();
+        PlacedRuntime.Beat beat = group.isEmpty() ? null : PlacedRuntime.beat(owner.getName(), group);
+        startIdleIn(beat == null ? 0L : beat.untilNext(PlacedRuntime.now()), null);
+    }
+
+    /** Starts the continuous idle after {@code millis}, if {@link #act} is still {@code replacing}. */
+    private void startIdleIn(long millis, @Nullable NpcStage.Act replacing) {
+        long ticks = Math.round(millis / 50.0);
+        if (ticks <= 0L) {
+            startIdle();
+            return;
+        }
+        pendingIdle = PlacedRuntime.scheduler().runAsyncLater(ticks, () -> {
+            synchronized (this) {
+                pendingIdle = null;
+                if (act == replacing) {
+                    startIdle();
+                }
+            }
+        });
+    }
+
+    /** Starts the continuous idle now, on its group's clock, and starts that clock if it is the first. */
+    private synchronized void startIdle() {
+        NpcSpec current = spec;
+        Trigger idle = triggers(current).idle;
+        if (paused || removed || !current.animations().idleContinuous() || idle.performance() == null) {
+            return;
+        }
+        String group = current.animations().idleGroup();
+        PlacedRuntime.Beat beat = group.isEmpty() ? null : PlacedRuntime.beat(owner.getName(), group);
+        NpcStage.Act started = start(idle.performance(), null, true, beat == null ? 0.0 : beat.tempo());
+        if (started != null && beat == null && !group.isEmpty()) {
+            PlacedRuntime.beat(owner.getName(), group,
+                    new PlacedRuntime.Beat(actStarted, started.tempo(), started.cycleMillis()));
         }
     }
 
@@ -686,13 +835,14 @@ final class PlacedNpcImpl implements PlacedNpc {
                     ? viewer.player.getLocation().distanceSquared(at) : 0.0;
             if (greets) {
                 boolean inside = distance <= greetSquared;
-                if (inside && !viewer.inGreetRange) {
+                if (inside && !viewer.inGreetRange && !paused) {
                     greet(viewer, current, animations);
                 }
                 viewer.inGreetRange = inside;
             }
-            if (hidden.contains(viewer.player.getUniqueId())) {
+            if (paused || hidden.contains(viewer.player.getUniqueId())) {
                 // The body stands where it stood; the NPC comes back facing the same way.
+                // A paused NPC keeps its head where it is.
                 continue;
             }
             Player target = switch (look) {
@@ -760,7 +910,9 @@ final class PlacedNpcImpl implements PlacedNpc {
         }
         Triggers animations = triggers(spec);
         Trigger trigger = attack ? animations.left : animations.right;
-        if (trigger.performance() != null) {
+        if (paused) {
+            // Nothing on its own; the handler and the event below still run.
+        } else if (trigger.performance() != null) {
             // Off the network thread: the first play of a performance reads its files.
             PlacedRuntime.scheduler().runAsync(() -> fire(trigger, null));
         } else {
@@ -813,6 +965,12 @@ final class PlacedNpcImpl implements PlacedNpc {
     /** Stops it for good; the caller has taken it off every screen. */
     void markRemoved() {
         removed = true;
+        synchronized (this) {
+            if (pendingIdle != null) {
+                pendingIdle.cancel();
+                pendingIdle = null;
+            }
+        }
         cut();
     }
 

@@ -20,8 +20,12 @@ import java.util.function.Consumer;
 /**
  * Reads the player animations other tools make.
  *
- * <h2>Two formats</h2>
+ * <h2>Three formats</h2>
  * <ul>
+ *   <li><b>Blockbench projects</b> ({@code .bbmodel}, since 1.401.0): every clip
+ *       of the project, compiled exactly as Blockbench's own Bedrock export
+ *       compiles it ({@link BlockbenchProject}) and then read as that export,
+ *       so a project and its export play the same frames.</li>
  *   <li><b>Blockbench</b>, as its Bedrock or GeckoLib animation export: an
  *       {@code animations} object, each animation a set of {@code bones}
  *       keyed by time. This is what Emotecraft and its player animation
@@ -141,11 +145,20 @@ public final class RagdollImport {
             return read;
         }
         String base = file.toLowerCase(Locale.ROOT);
-        for (String suffix : new String[]{".animation.json", ".json"}) {
+        for (String suffix : new String[]{".animation.json", ".json", ".bbmodel"}) {
             if (base.endsWith(suffix)) {
                 base = base.substring(0, base.length() - suffix.length());
                 break;
             }
+        }
+        if (root.has("animations") && root.get("animations").isJsonArray()) {
+            // A Blockbench project: its clips, compiled the way its own Bedrock export
+            // writes them, then read as that export is.
+            return bedrock(BlockbenchProject.toBedrock(root, file, problems), file, base, problems);
+        }
+        if (root.has("meta") && root.get("meta").isJsonObject()) {
+            problems.accept(file + " is a Blockbench project with no animations");
+            return read;
         }
         if (root.has("emote")) {
             RagdollAnimation animation = emotecraft(root, file, problems);
@@ -161,7 +174,13 @@ public final class RagdollImport {
             problems.accept(file + " has neither \"animations\" (Blockbench) nor \"emote\" (Emotecraft)");
             return read;
         }
-        JsonObject animations = root.getAsJsonObject("animations");
+        return bedrock(root.getAsJsonObject("animations"), file, base, problems);
+    }
+
+    /** A Bedrock {@code animations} object, by every name each animation answers to. */
+    private static Map<String, RagdollAnimation> bedrock(JsonObject animations, String file, String base,
+                                                         Consumer<String> problems) {
+        Map<String, RagdollAnimation> read = new LinkedHashMap<>();
         for (Map.Entry<String, JsonElement> entry : animations.entrySet()) {
             if (!entry.getValue().isJsonObject()) {
                 continue;

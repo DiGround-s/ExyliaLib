@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Where a placed NPC's performance is played: a seam, so the NPC's own bookkeeping
@@ -37,19 +38,35 @@ interface NpcStage {
 
         /** Ends it: stands back up over {@code settleMillis}, or goes at once for 0. */
         void stop(long settleMillis);
+
+        /** The tempo it plays at, rolled or handed over; {@code 1} is as written. */
+        default double tempo() {
+            return 1.0;
+        }
+
+        /**
+         * How long one cycle takes at {@link #tempo()}: the loop's cycle when it loops,
+         * otherwise the moment it stands in its last pose. What NPCs on one clock line
+         * their starts up on; {@code 0} when it is not known.
+         */
+        default long cycleMillis() {
+            return Math.max(0L, standsAtMillis());
+        }
     }
 
     /**
      * Starts a body at {@code at} for {@code audience}.
      *
      * @param texture the skin's base64 value, or {@code null} for the default skin
+     * @param tempo   the tempo to play at, shared by NPCs on one clock; {@code 0} or less
+     *                rolls one from the lines' own range
      * @return the act, or {@code null} when it draws no body
      */
     @Nullable Act start(Plugin owner, NpcPerformance performance, Location at, List<Player> audience,
-                        NpcSpec spec, @Nullable String texture);
+                        NpcSpec spec, @Nullable String texture, double tempo);
 
     /** The real stage: the performance's lines as a sequence, every body wearing the NPC. */
-    NpcStage SEQUENCES = (owner, performance, at, audience, spec, texture) -> {
+    NpcStage SEQUENCES = (owner, performance, at, audience, spec, texture, tempo) -> {
         PluginSequences sequences = Sequences.of(owner);
         Sequence sequence = performance.compiled(owner.getName(),
                 lines -> sequences.compile(lines, "an NPC performance"));
@@ -71,10 +88,18 @@ interface NpcStage {
             allowed.add(viewer.getUniqueId());
             furthest = Math.max(furthest, viewer.getLocation().distance(at));
         }
+        double played = tempo > 0.0 ? tempo
+                : sequence.tempoTo() > sequence.tempoFrom()
+                        ? ThreadLocalRandom.current().nextDouble(sequence.tempoFrom(), sequence.tempoTo())
+                        : sequence.tempoFrom();
+        long cycle = Math.round(SequenceAccess.cycleMillis(sequence) / Math.max(0.1, played));
         SequenceRun run = sequences.play(sequence, SequenceTarget.at(at)
                 .wearing(model)
                 .within(furthest + 8.0)
                 .visibleTo((observer, source) -> allowed.contains(observer.getUniqueId())));
+        // Overrides the run's own roll before its first step reads it: the steps start
+        // on the location's thread on a later tick, never inside play().
+        run.tempo(played);
         return new Act() {
             @Override
             public long standsAtMillis() {
@@ -88,6 +113,16 @@ interface NpcStage {
                 } else {
                     run.cancel();
                 }
+            }
+
+            @Override
+            public double tempo() {
+                return played;
+            }
+
+            @Override
+            public long cycleMillis() {
+                return cycle;
             }
         };
     };

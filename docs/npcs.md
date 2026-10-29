@@ -307,6 +307,8 @@ record:
 | `greet-range` | blocks | `4.0` |
 | `greet-cooldown` | how long before the same player is greeted again | `30s` |
 | `perform-range` | since 1.302.0: how close a player has to be to be shown a [performance](#performances); an idle performance with nobody this close is skipped | `24.0` |
+| `idle-continuous` | since 1.401.0: an idle performance [loops for as long as anybody is in `perform-range`](#continuous-idle) instead of playing every `idle-every` | `false` |
+| `idle-group` | since 1.401.0: NPCs of one plugin with the same group keep their continuous idles [on one clock](#groups-on-one-clock) | `''` |
 
 Since 1.302.0 any of the four animation keys can hold a [performance](#performances)
 instead of vanilla moves: a value with a colon (`anim:wave`, `emote:bow`,
@@ -396,7 +398,8 @@ How it plays:
   then the NPC returns.
 - **One at a time.** While one plays, any other (a click, the idle, a greeting, a
   call) is **skipped** and `perform` returns `false`; nothing is queued, so a crowd
-  clicking does not stack dances.
+  clicking does not stack dances. The one exception, since 1.401.0, is a
+  [continuous idle](#continuous-idle): anything else replaces it.
 - **Ended at once** when the NPC is moved, `update`d, removed, unplaced, replaced
   under its id or released with its plugin: the NPC comes back (unless it is gone)
   and the body is removed.
@@ -415,6 +418,92 @@ for the whole performance. That is why there is at most one body per NPC, only
 viewers within `perform-range` get one, and an idle performance with nobody that
 close is not played at all. Keep `idle-every` long on NPCs in busy places, and
 prefer vanilla moves for anything that fires on every click of a crowd.
+
+### Continuous idle
+
+Since 1.401.0. `idle-every` plays the idle now and then, and a looping idle is cut at
+`loopLimit`. With `idle-continuous: true` an idle **performance** instead plays for as
+long as anybody is within `perform-range`: the NPC breathes, sways or dances the whole
+time somebody is near, and nobody near means no body and no cost.
+
+```yaml
+animations:
+  idle: anim:idle_sway          # a looping clip: loop:true, or one that loops in its file
+  idle-continuous: true
+  right-click: anim:wave
+  greet: anim:bow
+```
+
+```java
+NpcAnimations animations = new NpcAnimations("", "anim:wave", "anim:idle_sway", Duration.ZERO,
+        "anim:bow", 4.0, Duration.ofSeconds(30), 24.0, true, "");
+// or, from an existing record:
+animations.withIdleContinuous(true).withIdleGroup("stage");
+```
+
+- **No limit.** A looping idle is never cut at `loopLimit`. A clip that does not loop
+  plays to its end, the NPC is back for a moment, and it starts again on the next pass
+  (a quarter of a second): write the idle as a loop.
+- **Interrupted, not skipped.** A click, a greeting, `perform` and `PluginNpcs.perform`
+  replace the idle at once (its body goes, theirs takes the place, the NPC stays hidden
+  between them), and the idle starts again on the pass after they end. Anything other
+  than the idle keeps the one-at-a-time rule against everything else.
+- **Who sees it.** A body's audience is fixed when it starts. Somebody who walks up
+  while it plays sees the NPC until the end of the current cycle, when the idle is given
+  again to everybody in range, on the cycle's boundary, so the loop does not jump. A clip
+  with an entry (`loop_from:`) plays that entry again at that moment.
+- **Ended** with the 0.4 s stand-up when the last viewer leaves `perform-range`, when the
+  NPC is paused, or when it becomes sitting; the NPC comes back after.
+- Only for performances. Vanilla idle moves (`swing, 300ms, offhand`) keep `idle-every`.
+- Off by default: `idle-every` behaves exactly as it did.
+
+### Pause and resume
+
+Since 1.401.0. Runtime state, not saved:
+
+```java
+guide.pause();       // no idle, no greeting, no click animation, the head stays put
+guide.isPaused();
+guide.perform(NpcPerformance.parse("anim:bow"));   // still plays: a call is not automatic
+guide.resume();      // back to normal; a continuous idle starts again on the next pass
+```
+
+Paused, a playing continuous idle stands up and ends; any other performance finishes.
+Click handlers and `PlacedNpcClickEvent` still run; `perform`, `play` and
+`stopPerformance` still work. A new NPC, or one placed again under its id, starts
+unpaused.
+
+### Stopping a performance
+
+Since 1.401.0. `guide.stopPerformance()` ends whatever plays now the way a loop ends at
+its limit: the body stands back up over 0.4 s, then the NPC is back. It returns whether
+anything was playing. A continuous idle stopped this way comes back on the next pass if
+somebody is near; pause the NPC to keep it off.
+
+### Groups on one clock
+
+Since 1.401.0. Several NPCs that move together, a choir, a line of dancers:
+
+```java
+PluginNpcs npcs = Npcs.of(this);
+int started = npcs.perform(List.of(left, middle, right), NpcPerformance.parse("anim:dance"));
+```
+
+`perform(Collection<? extends PlacedNpc>, NpcPerformance)` starts it on every NPC in the
+same call: one tempo (a `tempo:1-1.4` range is rolled once, by the first NPC that starts,
+and handed to the rest) and one start, so their loops stay in phase. Each NPC follows its
+own `perform` rules (one already performing is skipped, a continuous idle is replaced,
+one with nobody in range is skipped); the return is how many started. NPCs in different
+Folia regions start their bodies on their own region's thread, on the next tick of each.
+`stopPerformance()` on each ends them.
+
+Continuous idles stay in step through **`idle-group`**: NPCs of one plugin naming the same
+group share one clock, started by the first of them to idle (its start time, its rolled
+tempo, its cycle length). Every later idle in the group, an NPC somebody walked up to or
+one coming back after a click, waits for the next whole cycle on that clock and plays at
+its tempo, so it starts in the pose the others are passing through. Give a group one idle
+clip: the cycle is the first member's. `accel:` changes the cycle as it plays and so
+drifts the group; leave it at `1`. The clock lives until the plugin is disabled.
 
 ## Contracts
 
@@ -454,4 +543,9 @@ prefer vanilla moves for anything that fires on every click of a crowd.
   `[RAGDOLL]` line and its defaults, `emote:` references, raw lines, loop limits and
   `NpcAnimations`' old constructor. `PlacedNpcTest` (since 1.302.0) asserts hide, play
   and reveal-before-removal, one at a time, the perform range, ending on move and
-  unplace, loops cut at their limit, the emote resolver, click triggers and sitting.
+  unplace, loops cut at their limit, the emote resolver, click triggers and sitting;
+  since 1.401.0 also the continuous idle (no limit, ends when nobody is near, comes
+  back, replaced by a click and a greeting and resumed after, a newcomer given it at the
+  cycle's end), `idle-every` staying the default, pause and resume, `stopPerformance`,
+  performances started together at one tempo, and idle groups sharing a tempo and a
+  beat.

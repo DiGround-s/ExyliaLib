@@ -125,7 +125,9 @@ public interface PlacedNpc {
      * facing the same way; the NPC comes back the moment the body stands in its last
      * pose. A mirrored skin is drawn as the default skin here, since one body is shared.
      *
-     * <p>One at a time: while one plays, another is skipped. Skipped too when nobody is
+     * <p>One at a time: while one plays, another is skipped, except a continuous idle
+     * ({@link NpcAnimations#idleContinuous()}), which this replaces; the idle comes back
+     * once this is over (since 1.401.0). Skipped too when nobody is
      * within {@link NpcAnimations#performRange()}, for a sitting NPC, without
      * PacketEvents, and for an {@code emote:} the plugin's resolver does not know.
      * Moving, changing, removing or replacing the NPC ends it at once.
@@ -159,6 +161,48 @@ public interface PlacedNpc {
      * @since 1.302.0
      */
     default boolean isPerforming() {
+        return false;
+    }
+
+    /**
+     * Ends the performance playing now: the body stands back up over 0.4 s, then the NPC
+     * comes back. A continuous idle stopped this way starts again on the next pass while
+     * anybody is near; {@link #pause()} is what keeps it off.
+     *
+     * @return whether one was playing
+     * @since 1.401.0
+     */
+    default boolean stopPerformance() {
+        return false;
+    }
+
+    /**
+     * Stops it doing anything on its own: no idle, no greeting, no click animation, and
+     * its head stays where it is. A continuous idle playing now stands back up and ends;
+     * any other performance finishes. Click handlers and {@link PlacedNpcClickEvent}
+     * still run, and {@link #perform} and {@link #play} still work.
+     *
+     * <p>Not saved: a new NPC, or one placed again under its id, starts unpaused.
+     *
+     * @since 1.401.0
+     */
+    default void pause() {
+    }
+
+    /**
+     * Lets it act on its own again after {@link #pause()}.
+     *
+     * @since 1.401.0
+     */
+    default void resume() {
+    }
+
+    /**
+     * Whether it is {@linkplain #pause() paused}.
+     *
+     * @since 1.401.0
+     */
+    default boolean isPaused() {
         return false;
     }
 

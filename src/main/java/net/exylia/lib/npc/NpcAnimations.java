@@ -31,11 +31,19 @@ import java.time.Duration;
  * greet-range: 4.0
  * greet-cooldown: 30s
  * perform-range: 24.0
+ * idle-continuous: false
+ * idle-group: ''
  * }</pre>
  *
  * <p>Who sees what: a click and an idle animation are played for everyone who sees the
  * NPC; a greeting only for the player it greets, so a crowd walking up one by one does
  * not make it wave at nobody for everyone else.
+ *
+ * <p>Since 1.401.0 an idle performance can be continuous ({@code idle-continuous: true}):
+ * it loops for as long as anybody is within {@code performRange}, a click, a greeting or
+ * a {@link PlacedNpc#perform} call replaces it, and it starts again once that is over.
+ * NPCs of one plugin with the same {@code idle-group} share one clock: one tempo, and
+ * idles started a whole number of cycles apart, so they move in step.
  *
  * @param leftClick     played when a viewer left-clicks it
  * @param rightClick    played when a viewer right-clicks it
@@ -46,6 +54,11 @@ import java.time.Duration;
  * @param greetCooldown how long before the same player is greeted again
  * @param performRange  how close a player has to be to be shown a performance, in blocks;
  *                      an idle performance with nobody this close is skipped (since 1.302.0)
+ * @param idleContinuous whether an idle performance loops without end while anybody is
+ *                      within {@code performRange}, instead of playing every
+ *                      {@code idleEvery} (since 1.401.0); vanilla idle moves keep the interval
+ * @param idleGroup     NPCs of one plugin with the same non-blank group keep their
+ *                      continuous idles on one clock (since 1.401.0); blank for none
  * @since 1.300.0
  */
 public record NpcAnimations(
@@ -68,7 +81,12 @@ public record NpcAnimations(
         Duration greetCooldown,
         @Comment("Performances (anim:, emote:, keys:) play only for players this close, in blocks;")
         @Comment("an idle performance with nobody this close is skipped.")
-        double performRange) {
+        double performRange,
+        @Comment("true: an idle performance loops for as long as anybody is within perform-range;")
+        @Comment("clicks and greetings interrupt it and it resumes after. false: idle-every.")
+        boolean idleContinuous,
+        @Comment("NPCs with the same group keep their continuous idles in step. Empty for none.")
+        String idleGroup) {
 
     /** How close a player has to be to be shown a performance, unless a file says otherwise. */
     public static final double DEFAULT_PERFORM_RANGE = 24.0;
@@ -87,6 +105,13 @@ public record NpcAnimations(
                 DEFAULT_PERFORM_RANGE);
     }
 
+    /** The triggers with an idle that plays every {@code idleEvery}, in no group. */
+    public NpcAnimations(String leftClick, String rightClick, String idle, Duration idleEvery,
+                         String greet, double greetRange, Duration greetCooldown, double performRange) {
+        this(leftClick, rightClick, idle, idleEvery, greet, greetRange, greetCooldown, performRange,
+                false, "");
+    }
+
     /** Reads what a file left out or got wrong as the default, never as a failure. */
     public NpcAnimations {
         if (leftClick == null) leftClick = "";
@@ -97,6 +122,31 @@ public record NpcAnimations(
         if (greetRange < 0) greetRange = 0;
         if (greetCooldown == null || greetCooldown.isNegative()) greetCooldown = Duration.ZERO;
         if (!(performRange > 0)) performRange = DEFAULT_PERFORM_RANGE;
+        idleGroup = idleGroup == null ? "" : idleGroup.trim();
+    }
+
+    /**
+     * The same triggers with a continuous idle or not.
+     *
+     * @param continuous whether an idle performance loops while anybody is in range
+     * @return a copy
+     * @since 1.401.0
+     */
+    public @NotNull NpcAnimations withIdleContinuous(boolean continuous) {
+        return new NpcAnimations(leftClick, rightClick, idle, idleEvery, greet, greetRange, greetCooldown,
+                performRange, continuous, idleGroup);
+    }
+
+    /**
+     * The same triggers in an idle group.
+     *
+     * @param group the clock's name, shared by the plugin's NPCs that name it; blank for none
+     * @return a copy
+     * @since 1.401.0
+     */
+    public @NotNull NpcAnimations withIdleGroup(@NotNull String group) {
+        return new NpcAnimations(leftClick, rightClick, idle, idleEvery, greet, greetRange, greetCooldown,
+                performRange, idleContinuous, group);
     }
 
     /** No animation on any trigger. */

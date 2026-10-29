@@ -16,6 +16,7 @@ import org.jetbrains.annotations.ApiStatus;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -61,6 +62,59 @@ public final class PlacedRuntime {
 
     /** Where performances are played; swapped by tests. */
     private static volatile NpcStage stage = NpcStage.SEQUENCES;
+
+    /** Each idle group's clock, by plugin and group. Kept until the plugin is released. */
+    private static final Map<String, Beat> BEATS = new ConcurrentHashMap<>();
+
+    /**
+     * One idle group's clock: when its first idle started, at what tempo, and how long a
+     * cycle takes. A member starts a whole number of cycles after {@code epoch}.
+     */
+    record Beat(long epoch, double tempo, long cycle) {
+
+        /** How long from {@code now} until the next start on this beat; 0 for now. */
+        long untilNext(long now) {
+            if (cycle <= 0L) {
+                return 0L;
+            }
+            long into = Math.floorMod(now - epoch, cycle);
+            return into == 0L ? 0L : cycle - into;
+        }
+    }
+
+    /** A group's clock, or {@code null} before its first idle. */
+    static Beat beat(String owner, String group) {
+        return BEATS.get(owner + '\0' + group);
+    }
+
+    /** Starts a group's clock, unless another member started it first. */
+    static void beat(String owner, String group, Beat beat) {
+        BEATS.putIfAbsent(owner + '\0' + group, beat);
+    }
+
+    /**
+     * Starts one performance on several NPCs at once, at one tempo.
+     *
+     * @return how many started
+     */
+    public static int performTogether(Collection<? extends PlacedNpc> npcs, NpcPerformance performance) {
+        double tempo = 0.0;
+        int started = 0;
+        for (PlacedNpc npc : npcs) {
+            if (npc instanceof PlacedNpcImpl placed) {
+                NpcStage.Act act = placed.start(performance, null, false, tempo);
+                if (act != null) {
+                    started++;
+                    if (tempo <= 0.0) {
+                        tempo = act.tempo();
+                    }
+                }
+            } else if (npc != null && npc.perform(performance)) {
+                started++;
+            }
+        }
+        return started;
+    }
 
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
@@ -266,6 +320,7 @@ public final class PlacedRuntime {
     public static int release(String pluginName) {
         synchronized (LOCK) {
             EMOTES.remove(pluginName);
+            BEATS.keySet().removeIf(key -> key.startsWith(pluginName + '\0'));
             Map<String, PlacedNpcImpl> owned = BY_OWNER.remove(pluginName);
             if (owned == null) {
                 return 0;
@@ -285,6 +340,7 @@ public final class PlacedRuntime {
             BY_OWNER.clear();
             BY_ENTITY.clear();
             EMOTES.clear();
+            BEATS.clear();
             stopIfIdle();
             if (clicks != null) {
                 NpcPackets.stopListening(clicks);

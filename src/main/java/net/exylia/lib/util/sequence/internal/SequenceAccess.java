@@ -86,4 +86,22 @@ public final class SequenceAccess {
         }
         return latest;
     }
+
+    /**
+     * How long one cycle of a sequence's body takes at tempo {@code 1}: what a loop
+     * plays again ({@code loop_from:} to its last frame), or {@link #bodyMillis} when
+     * nothing loops. Bodies started a whole number of cycles apart move in step.
+     *
+     * @param sequence the compiled sequence
+     * @return the cycle, in milliseconds; {@code 0} when it draws no body
+     */
+    public static long cycleMillis(@NotNull Sequence sequence) {
+        for (SequenceStep step : sequence.steps()) {
+            if (step instanceof Steps.Ragdoll body && body.burst().loop()) {
+                net.exylia.lib.ragdoll.RagdollMotion motion = body.burst();
+                return Math.max(0L, motion.animation().durationMillis() - motion.loopFromMillis());
+            }
+        }
+        return Math.max(0L, bodyMillis(sequence));
+    }
 }
