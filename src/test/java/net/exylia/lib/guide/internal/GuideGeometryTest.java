@@ -83,4 +83,26 @@ class GuideGeometryTest {
         assertFalse(GuideGeometry.isLongTeleport(0, 0, 50, 50, 10));
         assertTrue(GuideGeometry.isLongTeleport(0, 0, 81, 0, 10));
     }
+
+    @Test
+    @DisplayName("a view text seated above the eyes lands where it would on the eyes, at any pitch")
+    void viewTranslation() {
+        double seat = 0.23;
+        double distance = 0.95;
+        for (double pitch = -90; pitch <= 90; pitch += 15) {
+            float[] t = GuideGeometry.viewTranslation(0.25, pitch, seat, distance);
+            double p = Math.toRadians(pitch);
+            // Facing +z: up and back in the view, in world axes (y, z).
+            double upY = Math.cos(p), upZ = Math.sin(p);
+            double backY = Math.sin(p), backZ = -Math.cos(p);
+            double worldY = seat + t[1] * upY + t[2] * backY;
+            double worldZ = t[1] * upZ + t[2] * backZ;
+            double wantUp = -0.5 * GuideGeometry.VIEW_HALF_HEIGHT * distance;
+            double wantY = wantUp * upY + -distance * backY;
+            double wantZ = wantUp * upZ + -distance * backZ;
+            assertEquals(0, t[0], EPSILON);
+            assertEquals(wantY, worldY, 1e-6, "pitch " + pitch);
+            assertEquals(wantZ, worldZ, 1e-6, "pitch " + pitch);
+        }
+    }
 }

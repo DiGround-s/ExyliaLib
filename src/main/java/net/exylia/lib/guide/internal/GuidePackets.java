@@ -23,17 +23,20 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerWaypoint;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.guide.GuideTextStyle;
+import net.exylia.lib.guide.ViewTextStyle;
 import net.exylia.lib.packet.internal.Broadcast;
 import net.exylia.lib.packet.internal.PacketPeek;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -88,6 +91,9 @@ final class GuidePackets extends PacketListenerAbstract {
     /** viewer to entity id to how many pieces asked for it to glow. */
     private static final Map<UUID, Map<Integer, Integer>> GLOWING_FOR = new ConcurrentHashMap<>();
 
+    /** viewer to the view texts seated on their own body, kept through every passenger list the server sends them. */
+    private static final Map<UUID, Set<Integer>> RIDING_SELF = new ConcurrentHashMap<>();
+
     /** Teams already created on each viewer's client: creating one twice is an error there. */
     private static final Map<UUID, Set<String>> TEAMS = new ConcurrentHashMap<>();
 
@@ -123,6 +129,7 @@ final class GuidePackets extends PacketListenerAbstract {
         }
         GLOWING_FOR.clear();
         TEAMS.clear();
+        RIDING_SELF.clear();
     }
 
     /** Reserves an entity id that cannot collide with a real entity. */
@@ -226,6 +233,80 @@ final class GuidePackets extends PacketListenerAbstract {
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text))));
     }
 
+    /**
+     * Spawns a view text at the player's seat and mounts it on them.
+     *
+     * <p>The passenger list sent is the one the server knows plus every view
+     * text riding them, because a passenger packet replaces the whole list; the
+     * listener keeps them in every list the server sends afterwards.
+     */
+    static void spawnViewText(Player viewer, int id, Component text, ViewTextStyle style, float[] translation) {
+        org.bukkit.Location at = viewer.getLocation();
+        send(viewer, new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()),
+                EntityTypes.TEXT_DISPLAY, new Vector3d(at.getX(), at.getY() + viewer.getHeight(), at.getZ()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        List<EntityData<?>> data = new ArrayList<>(12);
+        data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
+        data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, 0));
+        data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
+                new Vector3f(translation[0], translation[1], translation[2])));
+        float scale = style.scale() * VIEW_DISTANCE;
+        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(scale, scale, scale)));
+        data.add(new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER));
+        data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
+        data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
+        data.add(new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, style.lineWidth()));
+        data.add(new EntityData<>(BACKGROUND, EntityDataTypes.INT, style.background()));
+        data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE, (byte) style.opacity()));
+        int flags = (style.shadow() ? 0x01 : 0) | (style.seeThrough() ? 0x02 : 0);
+        data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) flags));
+        send(viewer, new WrapperPlayServerEntityMetadata(id, data));
+        RIDING_SELF.computeIfAbsent(viewer.getUniqueId(), key -> ConcurrentHashMap.newKeySet()).add(id);
+        List<Entity> real = viewer.getPassengers();
+        Set<Integer> riding = RIDING_SELF.get(viewer.getUniqueId());
+        int[] ids = new int[real.size() + riding.size()];
+        int index = 0;
+        for (Entity passenger : real) {
+            ids[index++] = passenger.getEntityId();
+        }
+        for (int extra : riding) {
+            if (index < ids.length) {
+                ids[index++] = extra;
+            }
+        }
+        send(viewer, new WrapperPlayServerSetPassengers(viewer.getEntityId(),
+                index == ids.length ? ids : java.util.Arrays.copyOf(ids, index)));
+    }
+
+    /** How far ahead of the eyes a view text floats: the same depth as a cinematic subtitle. */
+    static final float VIEW_DISTANCE = 0.95f;
+
+    /** Moves a view text within the view, over {@code ticks}. */
+    static void viewTranslate(Player viewer, int id, float[] translation, int ticks) {
+        send(viewer, new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
+                        new Vector3f(translation[0], translation[1], translation[2])))));
+    }
+
+    /** Destroys a view text and stops keeping it in its player's passenger list. */
+    static void destroyViewText(Player viewer, int id) {
+        forgetViewText(viewer.getUniqueId(), id);
+        destroy(viewer, id);
+    }
+
+    /** Stops keeping a view text in its player's passenger list, without a packet: the client dropped it. */
+    static void forgetViewText(UUID viewer, int id) {
+        Set<Integer> riding = RIDING_SELF.get(viewer);
+        if (riding != null) {
+            riding.remove(id);
+            if (riding.isEmpty()) {
+                RIDING_SELF.remove(viewer, riding);
+            }
+        }
+    }
+
     /** Takes entities off one client. */
     static void destroy(Player viewer, int... ids) {
         if (ids.length > 0) {
@@ -300,10 +381,15 @@ final class GuidePackets extends PacketListenerAbstract {
     static void forget(UUID viewer) {
         GLOWING_FOR.remove(viewer);
         TEAMS.remove(viewer);
+        RIDING_SELF.remove(viewer);
     }
 
     @Override
     public void onPacketSend(PacketSendEvent event) {
+        if (event.getPacketType() == PacketType.Play.Server.SET_PASSENGERS) {
+            keepRiding(event);
+            return;
+        }
         if (event.getPacketType() != PacketType.Play.Server.ENTITY_METADATA
                 || !(event.getPlayer() instanceof Player viewer)) {
             return;
@@ -331,6 +417,41 @@ final class GuidePackets extends PacketListenerAbstract {
             }
             return;
         }
+    }
+
+    /**
+     * A passenger list for a player who has view texts riding them, sent to
+     * that player: the server knows nothing of the texts and would unseat them,
+     * so they are added back on the way out. Somebody mounting or leaving the
+     * player keeps the panel where it is.
+     */
+    private static void keepRiding(PacketSendEvent event) {
+        if (RIDING_SELF.isEmpty() || !(event.getPlayer() instanceof Player viewer)) {
+            return;
+        }
+        Set<Integer> riding = RIDING_SELF.get(viewer.getUniqueId());
+        if (riding == null || riding.isEmpty()) {
+            return;
+        }
+        WrapperPlayServerSetPassengers packet = new WrapperPlayServerSetPassengers(event);
+        if (packet.getEntityId() != viewer.getEntityId()) {
+            return;
+        }
+        int[] passengers = packet.getPassengers();
+        Set<Integer> missing = new java.util.LinkedHashSet<>(riding);
+        for (int passenger : passengers) {
+            missing.remove(passenger);
+        }
+        if (missing.isEmpty()) {
+            return;
+        }
+        int[] all = java.util.Arrays.copyOf(passengers, passengers.length + missing.size());
+        int index = passengers.length;
+        for (int id : missing) {
+            all[index++] = id;
+        }
+        packet.setPassengers(all);
+        event.markForReEncode(true);
     }
 
     // ------------------------------------------------------------ waypoints

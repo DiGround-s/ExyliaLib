@@ -105,7 +105,7 @@ handed the list as it stands, for lines that depend on the whole draw.
 | `COMMAND` | `command` — run by the console, with or without a leading `/` | 1.34.0 |
 | `ITEM` | `itemSnapshot` — a material, a head string, or `bytes:` | 1.34.0 |
 
-| `MESSAGE` | `message`, in Exylia text notation | 1.34.0 |
+| `MESSAGE` | `message`, in Exylia text notation; `%prefix%` (here and in a delivery message) is the giving plugin's prefix since 1.395.0 | 1.34.0 |
 | `ECONOMY` | `value` as written, plus an optional `currency` | 1.34.0 |
 | `EXPERIENCE` | `value`, in points | 1.34.0 |
 | `POTION` | `value`, one `util/Effects` line per effect: `SPEED\|2\|15` (the editor picks them on the effect screen since 1.210.0; the `SPEED:1:300` this row used to show never parsed) | 1.34.0 |

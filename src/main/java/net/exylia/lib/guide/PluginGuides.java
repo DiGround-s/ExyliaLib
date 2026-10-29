@@ -64,6 +64,44 @@ public final class PluginGuides {
     }
 
     /**
+     * A text riding the player's own view, in the subtitle style: small, on a
+     * translucent panel, centred, a quarter of the way up the screen.
+     *
+     * @param player who sees it
+     * @param text   what it says; update it with {@link GuideText#text(Component)}
+     * @return the handle
+     * @since 1.395.0
+     */
+    public @NotNull GuideText view(@NotNull Player player, @NotNull Component text) {
+        return view(player, text, ViewTextStyle.subtitle());
+    }
+
+    /**
+     * A text riding the player's own view.
+     *
+     * <p>It is seated on the player, visible to them alone, and the client
+     * keeps it at the same spot on the screen every frame, however fast they
+     * turn: a cinematic subtitle in normal play. It survives death, a change
+     * of world, a long teleport and mounting or leaving a vehicle (it is
+     * seated again each time), keeps whatever really rides the player, and
+     * steps aside while a camera shot plays to them, while dead and in
+     * spectator mode.
+     *
+     * <p>It is drawn for a first-person view. In third person the client still
+     * puts it a block ahead of the player's eyes, which is in the shot,
+     * smaller and lower.
+     *
+     * @param player who sees it
+     * @param text   what it says
+     * @param style  its look and where on the screen it sits
+     * @return the handle
+     * @since 1.395.0
+     */
+    public @NotNull GuideText view(@NotNull Player player, @NotNull Component text, @NotNull ViewTextStyle style) {
+        return GuideRuntime.view(plugin, player, text, style);
+    }
+
+    /**
      * A sign at a place, in the anchored style.
      *
      * @param player who sees it

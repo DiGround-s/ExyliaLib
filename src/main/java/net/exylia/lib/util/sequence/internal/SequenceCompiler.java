@@ -141,7 +141,7 @@ public final class SequenceCompiler {
             case "TITLE" -> title(args, rest, onArg);
             case "ACTION_BAR" -> text(rest, onArg, Steps.ActionBarStep::new);
             case "TOAST" -> toast(rest, line, onArg);
-            case "MESSAGE" -> text(rest, onArg, Steps.Message::new);
+            case "MESSAGE" -> text(rest, onArg, (text, who) -> new Steps.Message(text, who, owner));
             case "LID" -> lid(args, line, onArg);
             case "NPC" -> npc(args, line, onArg);
             case "RAGDOLL" -> ragdoll(args, line, onArg);

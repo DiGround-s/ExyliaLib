@@ -9,6 +9,7 @@ import net.exylia.lib.guide.GuideTrail;
 import net.exylia.lib.guide.GuideWaypoint;
 import net.exylia.lib.guide.Route;
 import net.exylia.lib.guide.TrailStyle;
+import net.exylia.lib.guide.ViewTextStyle;
 import net.exylia.lib.task.Tasks;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -110,6 +111,11 @@ public final class GuideRuntime {
                                  Location anchor) {
         ViewerSession session = session(plugin, player);
         return attach(session, new LiveText(session, text, style, anchor));
+    }
+
+    public static GuideText view(Plugin plugin, Player player, Component text, ViewTextStyle style) {
+        ViewerSession session = session(plugin, player);
+        return attach(session, new LiveViewText(session, text, style));
     }
 
     public static GuideBeacon beacon(Plugin plugin, Player player, Location target, BeaconStyle style,

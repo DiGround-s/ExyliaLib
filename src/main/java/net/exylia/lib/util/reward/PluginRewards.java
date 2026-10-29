@@ -853,7 +853,7 @@ public final class PluginRewards {
 
         int amount = Rolls.amount(entry, dice);
         RewardResult result = Providers.give(entry, player, amount,
-                (who, reward, remaining) -> leftOver(who, reward, remaining, policy), giver, tasks);
+                (who, reward, remaining) -> leftOver(who, reward, remaining, policy), giver, tasks, plugin);
         record(entry, result, player);
         return result;
     }
@@ -896,7 +896,8 @@ public final class PluginRewards {
             given.incrementAndGet();
             String message = entry.deliveryMessage();
             if (message != null && !message.isBlank()) {
-                Text.of(message).forPlayer(player).send(player);
+                // The plugin's own: %prefix% in a reward's message is its prefix.
+                Text.from(plugin, message).forPlayer(player).send(player);
             }
             return;
         }

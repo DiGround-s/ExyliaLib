@@ -46,6 +46,53 @@ not stop when somebody dies.
 Every method returns a handle, never `null`. Without PacketEvents the handle
 works and draws nothing, so a caller never branches on support.
 
+## View text
+
+```java
+GuideText step = guides.view(player, text);                                   // the subtitle defaults
+GuideText step = guides.view(player, text, ViewTextStyle.subtitle().screenY(0.3f).lineWidth(260));
+step.text(updated);   // in place, one metadata packet; an equal text sends nothing
+step.remove();
+```
+
+A cinematic subtitle in normal play (since 1.395.0): small, on a translucent
+panel, centred, its bottom edge a quarter of the way up the screen, so it
+clears the hotbar, hearts, hunger and experience bar. It grows upwards with
+more lines.
+
+- **It rides the view.** The text display is seated on the player, for their
+  client alone, with a camera-facing billboard and a translation in the view's
+  axes, the same trick as a [camera](cameras.md) subtitle. The client puts it
+  back in place every frame, so it never trails a turn and turning costs no
+  packet.
+- **The seat is above the eyes** (a player's height minus their eye height,
+  about 0.2 blocks in every pose). That offset is taken back off for the
+  current pitch and pose, re-sent when either moves a few degrees, so standing,
+  sneaking, swimming and riding all put it at the same spot.
+- **Real passengers are kept.** The mount sends the passengers the server
+  knows plus the panel, and every passenger list the server sends the player
+  afterwards gets the panel added back, so somebody climbing on (or off) the
+  player does not unseat it, and it does not unseat them.
+- **It steps aside** while a camera shot plays to the player (the shot's own
+  subtitle takes over), while they are dead and in spectator mode, and comes
+  back on the next draw.
+- **First person.** In third person the client still draws it a block ahead of
+  the player's eyes, which is in the shot: smaller and lower.
+
+| Field | Copy | Default |
+| --- | --- | --- |
+| `background` (ARGB, `0` none) | `background(argb)` | `0x70000000` |
+| `opacity` (0-255) | `opacity(alpha)` | 255 |
+| `shadow` | `shadow(on)` | true |
+| `lineWidth` (pixels) | `lineWidth(px)` | 300 |
+| `scale` | `scale(size)` | 0.2 (a camera subtitle) |
+| `screenY` (0 bottom, 1 top) | `screenY(share)` | 0.25 |
+| `seeThrough` | `seeThrough(on)` | true (it floats under a block ahead, so a wall that close would hide it) |
+
+Sizes and positions are for the default 70° field of view; a wider one draws
+it smaller and nearer the centre. A Bedrock client draws display entities
+poorly: use a boss bar or chat for those players (`Guides.isBedrock`).
+
 ## Companion text
 
 ```java
@@ -283,11 +330,12 @@ PacketEvents, for everything but a modded-client waypoint. Without it
 ## Source and tests
 
 - Public: `net.exylia.lib.guide` — `Guides`, `PluginGuides`, `GuideHandle`,
-  `GuideText`, `GuideTextStyle`, `GuideBeacon`, `BeaconStyle`, `GuideTrail`,
+  `GuideText`, `GuideTextStyle`, `ViewTextStyle`, `GuideBeacon`, `BeaconStyle`, `GuideTrail`,
   `TrailStyle`, `GuideWaypoint`, `Route`
 - Internal: `net.exylia.lib.guide.internal` — `GuideRuntime`, `ViewerSession`,
   the pieces, `GuideGeometry`, and `GuidePackets`, the only class naming
   PacketEvents
 - Tests: `RouteTest` (nearest point, window, heading, ground snap, thinning),
   `GuideGeometryTest` (the clamped stand-in, the companion's spot, distance
-  scaling, the cut-over, the long-teleport threshold)
+  scaling, the cut-over, the long-teleport threshold, the view text's seat
+  offset at every pitch)

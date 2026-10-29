@@ -71,10 +71,26 @@ public final class Providers {
                                              @NotNull Overflow overflow,
                                              @NotNull ItemGiver items,
                                              @NotNull TaskScheduler tasks) {
+        return give(entry, player, amount, overflow, items, tasks, null);
+    }
+
+    /**
+     * As above, for a reward belonging to a plugin, so a message's
+     * {@code %prefix%} is that plugin's.
+     *
+     * @param owner the plugin giving it; {@code null} leaves {@code %prefix%} alone
+     */
+    public static @NotNull RewardResult give(@NotNull RewardEntry entry,
+                                             @NotNull Player player,
+                                             int amount,
+                                             @NotNull Overflow overflow,
+                                             @NotNull ItemGiver items,
+                                             @NotNull TaskScheduler tasks,
+                                             @org.jetbrains.annotations.Nullable org.bukkit.plugin.Plugin owner) {
         try {
             return switch (entry.type()) {
                 case COMMAND -> command(entry, player, tasks);
-                case MESSAGE -> message(entry, player);
+                case MESSAGE -> message(entry, player, owner);
                 case ITEM -> item(entry, player, amount, overflow, items);
                 case ECONOMY -> economy(entry, player, amount);
                 case EXPERIENCE -> experience(entry, player, amount);
@@ -131,12 +147,12 @@ public final class Providers {
                 : RewardResult.failed(entry, "the console refused \"" + queued + "\"");
     }
 
-    private static RewardResult message(RewardEntry entry, Player player) {
+    private static RewardResult message(RewardEntry entry, Player player, org.bukkit.plugin.Plugin owner) {
         String message = entry.message();
         if (message == null) {
             return RewardResult.failed(entry, "names no message");
         }
-        Text.of(message).forPlayer(player).send(player);
+        (owner == null ? Text.of(message) : Text.from(owner, message)).forPlayer(player).send(player);
         return RewardResult.given(entry);
     }
 

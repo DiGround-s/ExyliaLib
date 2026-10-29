@@ -102,4 +102,29 @@ final class GuideGeometry {
         double dz = toZ - fromZ;
         return dx * dx + dz * dz > limit * limit;
     }
+
+    /** Half the view's height one block ahead, at the default 70 degree field of view. */
+    static final double VIEW_HALF_HEIGHT = Math.tan(Math.toRadians(35));
+
+    /**
+     * Where a view text sits, in the axes of a {@code CENTER} billboard seated on the player.
+     *
+     * <p>The seat is {@code seatAboveEye} blocks straight above the eyes (a
+     * player's height minus their eye height, about 0.2 in every pose), and the
+     * billboard turns the translation into the view's own axes. World up in
+     * those axes is {@code (0, cos pitch, sin pitch)}, so taking it back off
+     * puts the panel where it would be if it were seated on the eyes.
+     *
+     * @param screenY      where the bottom edge sits, as a share of the screen from the bottom
+     * @param pitch        the view's pitch, degrees, positive looking down
+     * @param seatAboveEye how far the seat is above the eyes
+     * @param distance     how far ahead of the eyes
+     * @return the translation {@code x, y, z}
+     */
+    static float[] viewTranslation(double screenY, double pitch, double seatAboveEye, double distance) {
+        double up = (screenY * 2 - 1) * VIEW_HALF_HEIGHT * distance;
+        double radians = Math.toRadians(pitch);
+        return new float[]{0f, (float) (up - seatAboveEye * Math.cos(radians)),
+                (float) (-distance - seatAboveEye * Math.sin(radians))};
+    }
 }

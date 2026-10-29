@@ -418,15 +418,26 @@ final class Steps {
      * could not. Centring is {@code Text}'s, through the same {@code <center>}
      * tag every other message in the ecosystem uses, so there is no flag here.
      */
-    record Message(String text, Readers who) implements SequenceStep {
+    record Message(String text, Readers who, @Nullable String owner) implements SequenceStep {
 
         Message(String text) {
-            this(text, Readers.SOURCE);
+            this(text, Readers.SOURCE, null);
+        }
+
+        Message(String text, Readers who) {
+            this(text, who, null);
         }
 
         @Override
         public void play(@NotNull SequenceTarget target, @NotNull SequenceRun run) {
             String line = target.fill(text);
+            // The prefix of the plugin whose file the line is in, as Text.from
+            // would give it: a journey's "[MESSAGE] %prefix% ..." is that plugin's.
+            String prefix = owner == null || !line.contains("%prefix%")
+                    ? null : net.exylia.lib.text.Prefixes.get(owner);
+            if (prefix != null) {
+                line = line.replace("%prefix%", prefix);
+            }
             for (Player reader : who.of(target)) {
                 reader.sendMessage(Text.of(line).forPlayer(reader).build());
             }

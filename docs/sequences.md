@@ -221,7 +221,7 @@ arguments — so a migrating plugin edits no configuration files.
 | `[ACTION_BAR] text` | `;who:` as a last segment |
 | `[TOAST] icon;frame;text` | an advancement toast, since 1.278.0: `icon` an item (`EMERALD`), `frame` `TASK`, `GOAL` or `CHALLENGE`, then the text (semicolons in it stay text); `;who:` as a last segment. See [toasts.md](toasts.md) |
 | `[COMMAND] give {player} ...` | `{player}` `{world}` `{x}` `{y}` `{z}` |
-| `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message; `;who:` as a last segment |
+| `[MESSAGE] text` | a chat line, since 1.57.0; centre it with `<center>` like any other message; `;who:` as a last segment; `%prefix%` is the prefix of the plugin whose file the line is in (since 1.395.0; before, it was shown as written) |
 | `[LID] open` / `[LID] close` | swings the lid of the chest, ender chest or shulker box at the anchor (a barrel is drawn open) for the observers only, as packets; `y:` shifts the block. Since 1.272.0; see `ChestLids` in [packets.md](packets.md) |
 | `[DISPLAY] NETHERITE_SWORD` | one display entity, since 1.85.0 — see [displays.md](displays.md) |
 | `[NPC] {victim}` | a body where it happened, since 1.88.2 — see [npcs.md](npcs.md) |
