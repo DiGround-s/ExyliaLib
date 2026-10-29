@@ -178,6 +178,7 @@ public final class GuideRuntime {
         for (String name : SESSIONS.keySet()) {
             release(name);
         }
+        GuidePaths.clear();
         if (listener != null) {
             listener.close();
             listener = null;

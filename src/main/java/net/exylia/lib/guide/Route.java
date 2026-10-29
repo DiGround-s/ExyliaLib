@@ -248,6 +248,34 @@ public final class Route {
     }
 
     /**
+     * Whether marker {@code station} would stand almost on top of the one
+     * before it: less than half a spacing away across the ground.
+     *
+     * <p>Where a route climbs steeply (a straight line up a wall, a recorded
+     * ladder) markers a spacing apart along the route are nearly the same
+     * spot on the ground, and each would be snapped to its own height: a
+     * column of footprints. A trail skips the stacked ones, so the climb
+     * shows one footprint at the foot and the next at the top, and a stair
+     * one per step.
+     *
+     * @param station the marker's index, as {@link #stations} gives it
+     * @param spacing the spacing the indexes were made with
+     * @return whether to leave it out
+     * @since 1.396.0
+     */
+    public boolean stacked(int station, double spacing) {
+        if (station <= 0) {
+            return false;
+        }
+        double step = Math.max(0.25, spacing);
+        Station here = at(station * step);
+        Station before = at((station - 1) * step);
+        double dx = here.x() - before.x();
+        double dz = here.z() - before.z();
+        return dx * dx + dz * dz < (step / 2) * (step / 2);
+    }
+
+    /**
      * A thinner copy: points that add nothing to its shape are dropped
      * (Ramer&ndash;Douglas&ndash;Peucker).
      *

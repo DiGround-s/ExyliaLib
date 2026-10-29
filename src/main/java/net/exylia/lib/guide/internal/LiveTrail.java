@@ -42,6 +42,8 @@ import java.util.Map;
 final class LiveTrail extends Piece implements GuideTrail {
 
     private static final int MAX_WAY_BACK = 8;
+    /** Markers kept behind the walker, so the trail does not vanish right under their feet. */
+    private static final int BEHIND = 2;
     private static final float WIDTH = 0.22f;
     private static final float THICKNESS = 0.03f;
     private static final float LENGTH = 0.48f;
@@ -106,7 +108,10 @@ final class LiveTrail extends Piece implements GuideTrail {
         off = nearest.distance() > style.offRoute();
 
         Route.Ground ground = ground(player);
-        int[] stations = route.stations(nearest.arc(), style.ahead(), style.spacing());
+        // A window that slides with the walker's nearest point: a couple of markers behind, the style's
+        // reach ahead, however long the route is.
+        double behind = BEHIND * style.spacing();
+        int[] stations = route.stations(nearest.arc() - behind, style.ahead() + behind, style.spacing());
         List<Integer> gone = new ArrayList<>();
         int lowest = stations.length == 0 ? Integer.MAX_VALUE : stations[0];
         int highest = stations.length == 0 ? Integer.MIN_VALUE : stations[stations.length - 1];
@@ -118,7 +123,7 @@ final class LiveTrail extends Piece implements GuideTrail {
             }
         }
         for (int station : stations) {
-            if (drawn.containsKey(station)) {
+            if (drawn.containsKey(station) || route.stacked(station, style.spacing())) {
                 continue;
             }
             Route.Station at = route.at(station * style.spacing());

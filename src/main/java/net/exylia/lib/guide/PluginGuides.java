@@ -242,6 +242,35 @@ public final class PluginGuides {
     }
 
     /**
+     * The way the player can walk from where they stand to a place, for an
+     * automatic trail.
+     *
+     * <p>A search over the blocks a player can stand in: through doors and
+     * gates, up one block at a time (slabs and stairs included), down drops of
+     * up to three, swimming at a cost, never into lava, fire, cactus, magma or
+     * powder snow, never through a wall's corner. It reads copies of the
+     * already loaded chunks along the way, made on the threads that own them,
+     * and searches on an async thread, so it is safe on Folia and never loads a
+     * chunk. It is bounded: targets past 128 blocks are not searched, detours
+     * past 20 blocks either side of the straight line are not found, and an
+     * answer is kept ten seconds per start and target block.
+     *
+     * <p>Read the result honestly: {@link GuidePath#reached()} is a path to
+     * the place; otherwise {@link GuidePath#route()} only goes as near as the
+     * search could walk, and {@link GuidePath#unreachable()} says the place
+     * cannot be walked to from here at all.
+     *
+     * @param player who walks; their position is read now, so call on their thread
+     * @param target where to
+     * @return the path; completes on an async thread, so take it back to the player's thread to draw
+     * @since 1.396.0
+     */
+    public @NotNull java.util.concurrent.CompletableFuture<GuidePath> path(@NotNull Player player,
+                                                                         @NotNull Location target) {
+        return net.exylia.lib.guide.internal.GuidePaths.find(plugin, player.getLocation(), target);
+    }
+
+    /**
      * Takes down everything this plugin shows one player.
      *
      * @param player the player

@@ -217,7 +217,9 @@ trail.isOffRoute();
 ```
 
 Small flat glowing panels on the ground, turned along the route, drawn only
-from the point of the route nearest the player to `ahead` blocks along it.
+from two markers behind the point of the route nearest the player to `ahead`
+blocks along it. The route itself has no length limit: the window slides with
+the player's nearest point every draw, all the way to the end.
 
 - **Cheap because the markers stay put.** They sit at fixed multiples of
   `spacing` along the route, so walking costs one marker spawned ahead and one
@@ -230,6 +232,42 @@ from the point of the route nearest the player to `ahead` blocks along it.
   marker is only nudged onto the surface below it (`Route.snap`), read once
   when it spawns, on the player's thread, from loaded chunks that thread owns.
   A block it may not read leaves the marker at the route's own height.
+- **No columns.** A marker less than half a spacing across the ground from the
+  one before it is left out (`Route.stacked`, since 1.396.0), so a route up a
+  steep climb shows a footprint at the foot and the next on the top, never a
+  stack of footprints one above another, and a stair one per step.
+
+### Walkable paths
+
+```java
+guides.path(player, npcLocation).thenAccept(found -> tasks.runAtEntity(player, () -> {
+    if (found.reached()) guides.trail(player, world, found.route(), style);
+    // otherwise: found.unreachable() means walled off; leave it to the beacon
+}));
+```
+
+Since 1.396.0. For a trail with no recorded route: the way a player can walk,
+not a straight line through walls. A* over the cells a player can stand in
+(feet and head open or water, a floor under them): eight directions, through
+doors, gates, trapdoors, carpets and snow layers, up one block at a time (a
+slab or a stair is a block stepped onto) with room for the head, down drops of
+up to three, swimming at a cost; never into lava, fire, magma, cactus, powder
+snow, berry bushes or cobwebs, never through fences, walls, panes or iron
+doors, and never across a wall's corner.
+
+- **Folia-safe and load-free.** The chunks within 20 blocks of the straight
+  line (at most 100) are copied as `ChunkSnapshot`s on the threads that own
+  them, and only if already loaded; the search runs async over the copies; the
+  future completes on an async thread, so hop back to the player to draw.
+- **Bounded.** Targets past 128 blocks are not searched (`GuidePath.NONE`), at
+  most 40 000 cells are expanded, the copies must arrive within two seconds,
+  and an answer is kept ten seconds per start and target block.
+- **Honest.** `reached()` is a path to the place (within 1.5 blocks).
+  Otherwise `route()` ends at the nearest cell the search could walk to, and
+  `unreachable()` says whether that is because the place cannot be walked to
+  from here (as opposed to the budget, the range or an unloaded chunk).
+- The route runs through cell centres at foot height, straight runs thinned
+  (0.3 blocks), so the trail spaces its markers along it like a recorded one.
 
 | `TrailStyle` | Default |
 | --- | --- |
@@ -252,6 +290,7 @@ records, stores or measures routes:
 | `at(arc)` | `Station(x, y, z, yaw)`, the heading in Minecraft degrees |
 | `stations(from, ahead, spacing)` | the marker indexes in a window; marker `k` sits at `k × spacing` |
 | `simplified(tolerance)` | a thinner copy (Ramer–Douglas–Peucker), ends kept |
+| `stacked(station, spacing)` | whether marker `station` is less than half a spacing across the ground from the one before (since 1.396.0) |
 | `snap(x, y, z, Ground)` | the surface height near `y`, from one block above to four below |
 
 `Route.Ground` answers the top of one block or `NaN`; the runtime answers it
@@ -330,12 +369,15 @@ PacketEvents, for everything but a modded-client waypoint. Without it
 ## Source and tests
 
 - Public: `net.exylia.lib.guide` — `Guides`, `PluginGuides`, `GuideHandle`,
-  `GuideText`, `GuideTextStyle`, `ViewTextStyle`, `GuideBeacon`, `BeaconStyle`, `GuideTrail`,
+  `GuideText`, `GuideTextStyle`, `ViewTextStyle`, `GuidePath`, `GuideBeacon`, `BeaconStyle`, `GuideTrail`,
   `TrailStyle`, `GuideWaypoint`, `Route`
 - Internal: `net.exylia.lib.guide.internal` — `GuideRuntime`, `ViewerSession`,
-  the pieces, `GuideGeometry`, and `GuidePackets`, the only class naming
+  the pieces, `GuideGeometry`, `PathSearch` and `GuidePaths` (the walkable path), and `GuidePackets`, the only class naming
   PacketEvents
-- Tests: `RouteTest` (nearest point, window, heading, ground snap, thinning),
+- Tests: `RouteTest` (nearest point, window, the window sliding to the end,
+  no stacked markers, heading, ground snap, thinning), `PathSearchTest` (a
+  wall with a door, stairs, a pit walked around, a walled-off target, lava,
+  the route and the chunk corridor),
   `GuideGeometryTest` (the clamped stand-in, the companion's spot, distance
   scaling, the cut-over, the long-teleport threshold, the view text's seat
   offset at every pitch)

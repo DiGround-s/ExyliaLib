@@ -116,4 +116,46 @@ class RouteTest {
         assertEquals(2, route.size());
         assertThrows(IllegalArgumentException.class, () -> Route.of(List.of()));
     }
+
+    @Test
+    @DisplayName("the window slides with the walker all the way to the end of a long route")
+    void windowSlides() {
+        Route route = Route.of(List.of(new Vector(0, 64, 0), new Vector(300, 64, 0)));
+        int lastSeen = -1;
+        for (double walked = 0; walked <= 300; walked += 7) {
+            Route.Nearest nearest = route.closest(walked, 64, 0.8);
+            assertEquals(walked, nearest.arc(), 1e-9);
+            int[] window = route.stations(nearest.arc(), 16, 1.5);
+            org.junit.jupiter.api.Assertions.assertTrue(window[0] >= walked / 1.5 - 1e-9, "window left behind at " + walked);
+            org.junit.jupiter.api.Assertions.assertTrue(window.length <= 12, "window grew at " + walked);
+            lastSeen = window[window.length - 1];
+        }
+        assertEquals(200, lastSeen, "the last marker is at the end of the route");
+    }
+
+    @Test
+    @DisplayName("a steep climb leaves no column of footprints: one at the foot, then on along the top")
+    void climbIsNotAColumn() {
+        Route route = Route.of(List.of(new Vector(0, 64, 0), new Vector(1, 74, 0), new Vector(20, 74, 0)));
+        double previousX = Double.NaN;
+        double previousY = Double.NaN;
+        for (int station : route.stations(0, route.length(), 1.5)) {
+            if (route.stacked(station, 1.5)) {
+                continue;
+            }
+            Route.Station at = route.at(station * 1.5);
+            if (!Double.isNaN(previousX)) {
+                boolean sameSpot = Math.abs(at.x() - previousX) < 0.75;
+                org.junit.jupiter.api.Assertions.assertFalse(sameSpot && Math.abs(at.y() - previousY) > 1.01,
+                        "two footprints stacked at x " + at.x());
+            }
+            previousX = at.x();
+            previousY = at.y();
+        }
+        // A flat route has nothing stacked.
+        Route flat = Route.of(List.of(new Vector(0, 64, 0), new Vector(20, 64, 0)));
+        for (int station : flat.stations(0, 20, 1.5)) {
+            org.junit.jupiter.api.Assertions.assertFalse(flat.stacked(station, 1.5));
+        }
+    }
 }
