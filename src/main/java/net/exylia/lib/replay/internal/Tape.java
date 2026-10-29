@@ -36,18 +36,36 @@ final class Tape {
     /** The last tick anybody sampled it on, written or not: a frame is read once a tick. */
     volatile int seen = Integer.MIN_VALUE;
 
+    /**
+     * Positions and rotations as the file keeps them rather than as Bukkit
+     * hands them over: a thousandth of a block, the same quantum the recording
+     * is written in, so nothing a capture writes out is lost; and the world as
+     * an index into {@link #PLACES} rather than a reference per frame. A frame
+     * is twenty-seven bytes instead of forty-eight, and the black box holds a
+     * minute of everybody.
+     */
     private int[] ticks = new int[32];
-    private UUID[] worlds = new UUID[32];
-    private double[] x = new double[32];
-    private double[] y = new double[32];
-    private double[] z = new double[32];
-    private float[] yaw = new float[32];
-    private float[] pitch = new float[32];
+    private char[] places = new char[32];
+    private int[] x = new int[32];
+    private int[] y = new int[32];
+    private int[] z = new int[32];
+    private short[] yaw = new short[32];
+    private short[] pitch = new short[32];
     private int[] flags = new int[32];
-    private float[] health = new float[32];
+    /** Half points, as the recording keeps them, up to the 127.5 it can show. */
+    private byte[] health = new byte[32];
     private int head;
     private int size;
     private long sampledAt;
+    /** The place of the last frame, so a body that stays put never looks it up. */
+    private int lastPlace = -1;
+
+    /**
+     * The slots that changed since they were last read, one bit each, set by
+     * the server's equipment event; and the tick everything was last read on.
+     */
+    volatile int dirty = (1 << Sampler.SLOTS.length) - 1;
+    int wornAt = Integer.MIN_VALUE;
 
     private final List<Worn> worn = new ArrayList<>();
     private final ItemStack[] wearing = new ItemStack[Sampler.SLOTS.length];
@@ -68,6 +86,13 @@ final class Tape {
                              float aYaw, float aPitch, int aFlags, float hp) {
         // Only Folia's wall clock needs it, and it is a system call per entity per tick.
         long now = ReplayClock.isWall() ? System.nanoTime() : 0L;
+        int place = place(world, px, pz);
+        int qx = offset(px);
+        int qy = (int) Math.round(py * MotionTrack.SCALE);
+        int qz = offset(pz);
+        short qYaw = angle(aYaw);
+        short qPitch = angle(aPitch);
+        byte qHealth = (byte) Math.clamp(Math.round(hp * 2.0), 0, 255);
         if (size > 0) {
             int last = index(size - 1);
             if (ticks[last] >= tick) {
@@ -81,14 +106,14 @@ final class Tape {
                     return true;
                 }
             }
-            if (tick - ticks[last] < HEARTBEAT && world.equals(worlds[last]) && x[last] == px
-                    && y[last] == py && z[last] == pz && yaw[last] == aYaw && pitch[last] == aPitch
-                    && flags[last] == aFlags && health[last] == hp) {
+            if (tick - ticks[last] < HEARTBEAT && places[last] == place && x[last] == qx
+                    && y[last] == qy && z[last] == qz && yaw[last] == qYaw && pitch[last] == qPitch
+                    && flags[last] == aFlags && health[last] == qHealth) {
                 return false;
             }
         }
         sampledAt = now;
-        append(tick, world, px, py, pz, aYaw, aPitch, aFlags, hp);
+        append(tick, (char) place, qx, qy, qz, qYaw, qPitch, aFlags, qHealth);
         return false;
     }
 
@@ -105,15 +130,15 @@ final class Tape {
             flags[last] = 0;
             return;
         }
-        append(tick, worlds[last], x[last], y[last], z[last], yaw[last], pitch[last], 0, 0f);
+        append(tick, places[last], x[last], y[last], z[last], yaw[last], pitch[last], 0, (byte) 0);
     }
 
-    private void append(int tick, UUID world, double px, double py, double pz,
-                        float aYaw, float aPitch, int aFlags, float hp) {
+    private void append(int tick, char place, int px, int py, int pz,
+                        short aYaw, short aPitch, int aFlags, byte hp) {
         if (size == ticks.length) grow();
         int at = index(size);
         ticks[at] = tick;
-        worlds[at] = world;
+        places[at] = place;
         x[at] = px;
         y[at] = py;
         z[at] = pz;
@@ -126,7 +151,16 @@ final class Tape {
 
     /** Writes a slot that changed since the last look. */
     synchronized void wear(int tick, int slot, ItemStack item) {
-        if (Sampler.sameLook(item, wearing[slot], tick)) return;
+        wear(tick, slot, item, tick % Sampler.FULL_LOOK_EVERY == 0);
+    }
+
+    /**
+     * Same, comparing the whole item when {@code full}: when the server says
+     * the slot changed, or on the read once a second that catches what it
+     * did not say.
+     */
+    synchronized void wear(int tick, int slot, ItemStack item, boolean full) {
+        if (Sampler.sameLook(item, wearing[slot], full)) return;
         wearing[slot] = item == null ? null : item.clone();
         worn.add(new Worn(tick, slot, wearing[slot]));
     }
@@ -167,8 +201,11 @@ final class Tape {
             // The frame before the window is kept: it is the state the window
             // starts in.
             if (!last && ticks[index(index + 1)] <= tick) continue;
-            frames.add(new Frame(ticks[at], worlds[at], x[at], y[at], z[at], yaw[at], pitch[at],
-                    flags[at], health[at]));
+            Place place = PLACES[places[at]];
+            frames.add(new Frame(ticks[at], place.world, place.x + x[at] / MotionTrack.SCALE,
+                    y[at] / MotionTrack.SCALE, place.z + z[at] / MotionTrack.SCALE,
+                    yaw[at] * 360f / 65536f, pitch[at] * 360f / 65536f, flags[at],
+                    (health[at] & 0xFF) / 2f));
         }
         return frames;
     }
@@ -184,41 +221,90 @@ final class Tape {
     }
 
     private void grow() {
-        int old = ticks.length;
-        int capacity = old * 2;
-        int[] order = new int[size];
-        for (int index = 0; index < size; index++) order[index] = (head + index) % old;
-        int[] newTicks = new int[capacity];
-        UUID[] newWorlds = new UUID[capacity];
-        double[] newX = new double[capacity];
-        double[] newY = new double[capacity];
-        double[] newZ = new double[capacity];
-        float[] newYaw = new float[capacity];
-        float[] newPitch = new float[capacity];
-        int[] newFlags = new int[capacity];
-        float[] newHealth = new float[capacity];
-        for (int index = 0; index < size; index++) {
-            int from = order[index];
-            newTicks[index] = ticks[from];
-            newWorlds[index] = worlds[from];
-            newX[index] = x[from];
-            newY[index] = y[from];
-            newZ[index] = z[from];
-            newYaw[index] = yaw[from];
-            newPitch[index] = pitch[from];
-            newFlags[index] = flags[from];
-            newHealth[index] = health[from];
-        }
-        ticks = newTicks;
-        worlds = newWorlds;
-        x = newX;
-        y = newY;
-        z = newZ;
-        yaw = newYaw;
-        pitch = newPitch;
-        flags = newFlags;
-        health = newHealth;
+        int capacity = ticks.length * 2;
+        ticks = unwrap(ticks, capacity);
+        places = unwrap(places, capacity);
+        x = unwrap(x, capacity);
+        y = unwrap(y, capacity);
+        z = unwrap(z, capacity);
+        yaw = unwrap(yaw, capacity);
+        pitch = unwrap(pitch, capacity);
+        flags = unwrap(flags, capacity);
+        health = unwrap(health, capacity);
         head = 0;
+    }
+
+    /** One column laid out from its oldest frame, in a larger array. */
+    private <A> A unwrap(A from, int capacity) {
+        int old = java.lang.reflect.Array.getLength(from);
+        @SuppressWarnings("unchecked")
+        A to = (A) java.lang.reflect.Array.newInstance(from.getClass().getComponentType(), capacity);
+        int first = Math.min(size, old - head);
+        System.arraycopy(from, head, to, 0, first);
+        System.arraycopy(from, 0, to, first, size - first);
+        return to;
+    }
+
+    /** How many frames it holds. */
+    synchronized int frames() {
+        return size;
+    }
+
+    /** Roughly what it takes on the heap: the columns at their capacity, and the items it remembers. */
+    synchronized long bytes() {
+        return 160L + ticks.length * 27L + worn.size() * 96L;
+    }
+
+    // ---------------------------------------------------------------- places
+
+    /** Side of the square a place covers, in blocks: a thousandth of it still fits an int. */
+    static final int SQUARE = 1 << 21;
+
+    /** A world and one square of it, shared by every tape: there are a handful on any server. */
+    record Place(UUID world, int squareX, int squareZ, double x, double z) {
+    }
+
+    private static final java.util.Map<Place, Integer> PLACE_INDEX = new java.util.concurrent.ConcurrentHashMap<>();
+    // ponytail: never shrinks and holds 65536 places; a server with more worlds
+    // times two-million-block squares than that would need an int column.
+    private static volatile Place[] PLACES = new Place[0];
+
+    /** The place a position is in, remembered per tape: a lookup only when it changes square or world. */
+    private int place(UUID world, double px, double pz) {
+        int squareX = (int) Math.floor(px / SQUARE);
+        int squareZ = (int) Math.floor(pz / SQUARE);
+        int known = lastPlace;
+        if (known >= 0) {
+            Place place = PLACES[known];
+            if (place.squareX == squareX && place.squareZ == squareZ && place.world.equals(world)) return known;
+        }
+        Place wanted = new Place(world, squareX, squareZ, (double) squareX * SQUARE, (double) squareZ * SQUARE);
+        Integer index = PLACE_INDEX.get(wanted);
+        if (index == null) index = register(wanted);
+        lastPlace = index;
+        return index;
+    }
+
+    private static synchronized int register(Place place) {
+        Integer known = PLACE_INDEX.get(place);
+        if (known != null) return known;
+        Place[] grown = java.util.Arrays.copyOf(PLACES, PLACES.length + 1);
+        int index = PLACES.length;
+        if (index > Character.MAX_VALUE) throw new IllegalStateException("Too many places for the black box");
+        grown[index] = place;
+        PLACES = grown;
+        PLACE_INDEX.put(place, index);
+        return index;
+    }
+
+    /** A coordinate in thousandths of a block from the edge of its square. */
+    private static int offset(double coordinate) {
+        return (int) Math.round((coordinate - Math.floor(coordinate / SQUARE) * SQUARE) * MotionTrack.SCALE);
+    }
+
+    /** An angle in 65536 steps a turn: finer than the 256 the recording writes. */
+    static short angle(float degrees) {
+        return (short) Math.round(degrees * 65536f / 360f);
     }
 
     /** One frame, copied out. */

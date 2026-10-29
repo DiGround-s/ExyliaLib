@@ -83,6 +83,47 @@ class TapeTest {
     }
 
     @Test
+    @DisplayName("positions, angles and health come back as the recording writes them, anywhere in any world")
+    void encodingIsLossless() {
+        UUID nether = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        Tape tape = tape();
+        tape.put(0, WORLD, -12.3456, -60.5, 8.0004, -170f, 45f, MotionTrack.PRESENT, 19.3f);
+        tape.put(1, nether, 29_999_983.75, 320, -29_999_983.125, 540f, -90f, MotionTrack.PRESENT, 300f);
+        tape.put(2, WORLD, 2_097_151.9999, 64, -2_097_152.0004, 0f, 0f, MotionTrack.PRESENT, 0f);
+        List<Tape.Frame> frames = tape.from(0);
+
+        Tape.Frame first = frames.get(0);
+        assertEquals(WORLD, first.world());
+        assertEquals(-12.346, first.x(), 1e-9);
+        assertEquals(-60.5, first.y(), 1e-9);
+        assertEquals(8.0, first.z(), 1e-9);
+        assertEquals(MotionTrack.angle(-170f), MotionTrack.angle(first.yaw()));
+        assertEquals(MotionTrack.angle(45f), MotionTrack.angle(first.pitch()));
+        assertEquals(19.5f, first.health(), "half points, as written");
+
+        Tape.Frame far = frames.get(1);
+        assertEquals(nether, far.world());
+        assertEquals(29_999_983.75, far.x(), 1e-6);
+        assertEquals(-29_999_983.125, far.z(), 1e-6);
+        assertEquals(MotionTrack.angle(180f), MotionTrack.angle(far.yaw()), "a turn and a half is half a turn");
+        assertEquals(127.5f, far.health(), "the most a recording can show");
+
+        Tape.Frame edge = frames.get(2);
+        assertEquals(2_097_152.0, edge.x(), 1e-6, "the edge of a square rounds into the next thousandth");
+        assertEquals(-2_097_152.0, edge.z(), 1e-6);
+    }
+
+    @Test
+    @DisplayName("a move smaller than a thousandth of a block is standing still")
+    void belowAThousandthIsStill() {
+        Tape tape = tape();
+        tape.put(0, WORLD, 5, 64, 5, 0f, 0f, 0, 20f);
+        tape.put(1, WORLD, 5.0001, 64, 5, 0f, 0f, 0, 20f);
+        tape.put(2, WORLD, 5.002, 64, 5, 0f, 0f, 0, 20f);
+        assertEquals(2, tape.from(0).size());
+    }
+
+    @Test
     @DisplayName("the same stamp a whole tick later is the next tick")
     void aRepeatedStampLaterIsTheNextTick() throws InterruptedException {
         ReplayClock.useWall(true);
