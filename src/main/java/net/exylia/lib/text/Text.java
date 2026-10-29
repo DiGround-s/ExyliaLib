@@ -88,6 +88,9 @@ public final class Text {
 
     private static final PlainTextComponentSerializer PLAIN = PlainTextComponentSerializer.plainText();
     private static final LegacyComponentSerializer SECTION = LegacyComponentSerializer.legacySection();
+    private static final LegacyComponentSerializer SECTION_RGB = LegacyComponentSerializer.builder()
+            .character(LegacyComponentSerializer.SECTION_CHAR).hexColors()
+            .useUnusualXRepeatedCharacterHexFormat().build();
 
     private final String raw;
 
@@ -204,6 +207,41 @@ public final class Text {
      */
     public static @NotNull Component verbatim(@NotNull String text) {
         return TextEngine.parseExact(text);
+    }
+
+    /**
+     * Parses text somebody wrote with only its colours honoured, in the letters
+     * it was written in.
+     *
+     * <p>The parse {@link #withColored} gives a value, as a component of its
+     * own: palette tokens, legacy codes, colours, gradients and decorations
+     * work; click, hover, insertion, fonts, translations, selectors, NBT, heads
+     * and line breaks stay text. For checking what a player's styled name reads
+     * as before it is stored, and for drawing it where no template is involved.
+     *
+     * @param text what was written
+     * @return the parsed component
+     * @since 1.399.0
+     */
+    public static @NotNull Component colored(@NotNull String text) {
+        return TextEngine.parseRestricted(text, true);
+    }
+
+    /**
+     * Serializes a component to section-sign legacy text that keeps full RGB.
+     *
+     * <p>{@link #legacy()} rounds every hex colour to the nearest of the
+     * sixteen named ones. This writes hex as {@code \u00a7x\u00a7r\u00a7r\u00a7g\u00a7g\u00a7b\u00a7b},
+     * the form Bukkit, TAB and scoreboard plugins read, so a gradient handed
+     * to PlaceholderAPI arrives as a gradient. Click and hover are lost, as in
+     * any legacy string.
+     *
+     * @param component what to serialize
+     * @return the legacy string
+     * @since 1.399.0
+     */
+    public static @NotNull String legacyRgb(@NotNull Component component) {
+        return SECTION_RGB.serialize(component);
     }
 
     /**
@@ -627,7 +665,10 @@ public final class Text {
                     : value.verbatim() ? TextEngine.parseExact(value.value())
                     : TextEngine.parseValue(value.value());
             if (clickable) {
-                commands.put(value.marker(), value.value());
+                // A command runs the words, never the formatting around them:
+                // a styled clan name in /clan join is the name.
+                commands.put(value.marker(), value.formatted()
+                        ? PLAIN.serialize(TextEngine.parseExact(value.value())) : value.value());
             }
         }
         component = substituteMarkers(component, replacements);

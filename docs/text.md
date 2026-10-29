@@ -29,6 +29,9 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
 | `component(String)` | straight to a `Component` |
 | `with(placeholder, value)` | substitute on the parsed component, as literal text; values that change per player go here, never concatenated |
 | `withFormatted(placeholder, value)` | substitute a value that carries its own formatting — a display name from a config; never for text a player typed |
+| `withColored(placeholder, value)` | substitute a value a player styled (a clan name, a nickname): colours, gradients and decorations only; in a click's command it is its plain words. *Since 1.236.0.* |
+| `colored(String)` | the same restricted parse as a component, in the letters written; for checking a styled name before storing it. *Since 1.399.0.* |
+| `legacyRgb(Component)` | section-sign legacy that keeps hex (`§x§r§r§g§g§b§b`), for PlaceholderAPI values TAB and scoreboards read. *Since 1.399.0.* |
 | `forPlayerFormatted(player)` | like `forPlayer`, but resolver values that carry formatting (a display name) are honoured instead of shown raw |
 | `forPlayer(player)` | resolve `%placeholders%` for that viewer when building |
 | `build()` | the final `Component` |

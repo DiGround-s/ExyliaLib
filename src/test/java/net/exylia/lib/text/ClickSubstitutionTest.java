@@ -4,6 +4,7 @@ import net.exylia.lib.FakeServer;
 import net.exylia.lib.placeholder.internal.Registry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,29 @@ class ClickSubstitutionTest {
                 .build();
 
         assertEquals("/duel", commandOf(built));
+    }
+
+    @Test
+    @DisplayName("a styled value reaches the command as its words, and the text in colour")
+    void runsTheWordsOfAStyledValue() {
+        Component built = Text.from(plugin,
+                        "%clan_name% <click:run_command:'/clan join %clan_name%'>Join</click>")
+                .withColored("%clan_name%", "<gradient:#ff0000:#0000ff>Dragons</gradient>")
+                .build();
+
+        assertEquals("/clan join Dragons", commandOf(built));
+        assertEquals("Dragons Join", PlainTextComponentSerializer.plainText().serialize(built));
+    }
+
+    @Test
+    @DisplayName("colored refuses everything but colour, and legacyRgb keeps hex")
+    void coloredAndLegacyRgb() {
+        Component styled = Text.colored("<#ff0000>Red<click:run_command:/op>X</click>");
+
+        assertEquals("Red<click:run_command:/op>X</click>",
+                PlainTextComponentSerializer.plainText().serialize(styled));
+        assertEquals("\u00a7x\u00a7f\u00a7f\u00a70\u00a70\u00a70\u00a70Red",
+                Text.legacyRgb(Text.colored("<#ff0000>Red")));
     }
 
     /** Reads the click of the first child that has one. */
