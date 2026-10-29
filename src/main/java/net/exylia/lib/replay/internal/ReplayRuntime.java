@@ -277,6 +277,11 @@ public final class ReplayRuntime {
         return box;
     }
 
+    public static net.exylia.lib.replay.BlackBoxStats stats() {
+        BlackBox running = box;
+        return running == null ? net.exylia.lib.replay.BlackBoxStats.idle() : running.stats();
+    }
+
     public static ReplayBlackBox openBox(String owner, BlackBoxSettings settings) {
         synchronized (LOCK) {
             BOX_USERS.put(owner, settings);

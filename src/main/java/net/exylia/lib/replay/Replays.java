@@ -100,6 +100,16 @@ public final class Replays {
         return ReplayRuntime.playing();
     }
 
+    /**
+     * What the black box holds and what it costs, or {@link BlackBoxStats#idle()}
+     * when no plugin opened one. Cheap enough for a command, not for every tick.
+     *
+     * @since 1.400.0
+     */
+    public static @NotNull BlackBoxStats stats() {
+        return ReplayRuntime.stats();
+    }
+
     /** Whether a recording can be played back on this server. */
     public static boolean isSupported() {
         return ReplayRuntime.isSupported();
