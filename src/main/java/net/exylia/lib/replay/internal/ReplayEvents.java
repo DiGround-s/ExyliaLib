@@ -127,6 +127,16 @@ final class ReplayEvents implements Listener {
             // A server without the newer events: no cracks while mining, no
             // shield knocked out. The rest is recorded.
         }
+        try {
+            // Asked first: a listener whose event is missing is only logged
+            // by the server, not refused, and the box would wait for it.
+            Class.forName("io.papermc.paper.event.entity.EntityEquipmentChangedEvent");
+            Bukkit.getPluginManager().registerEvents(new Equipment(), plugin);
+            BlackBox.equipmentEvents = true;
+        } catch (ClassNotFoundException | NoClassDefFoundError older) {
+            // A server that does not say when equipment changes: the black
+            // box reads it every few ticks instead.
+        }
     }
 
     // ------------------------------------------------------------ dispatching
@@ -525,6 +535,27 @@ final class ReplayEvents implements Listener {
                         ? BlockFace.DOWN : BlockFace.UP);
                 block(other);
             }
+        }
+    }
+
+    /**
+     * The server compares everybody's equipment every tick to tell the
+     * clients; this is that comparison's answer, so the black box reads a slot
+     * when it changed rather than every other tick in case it did. Kept apart
+     * from {@link Recent}: a server without it still has those.
+     */
+    static final class Equipment implements Listener {
+
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onEquipment(io.papermc.paper.event.entity.EntityEquipmentChangedEvent event) {
+            BlackBox box = ReplayRuntime.box();
+            if (box == null) return;
+            int slots = 0;
+            for (org.bukkit.inventory.EquipmentSlot slot : event.getEquipmentChanges().keySet()) {
+                int index = Sampler.slotIndex(slot);
+                if (index >= 0) slots |= 1 << index;
+            }
+            if (slots != 0) box.equipped(event.getEntity().getUniqueId(), slots);
         }
     }
 

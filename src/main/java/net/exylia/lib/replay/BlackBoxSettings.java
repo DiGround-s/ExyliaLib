@@ -24,11 +24,19 @@ import java.util.function.Predicate;
  *                       this the oldest part of a long chase is left out
  * @param hidden         players who must never appear in a recording, such as
  *                       staff in vanish; read on every sample, so keep it cheap
+ * @param entitySampleEvery how often something that is not a player is read, in
+ *                       ticks; between 1 and 5. A capture fills the ticks in
+ *                       between by moving it in a straight line, so a mob or an
+ *                       arrow still moves smoothly; players are read every tick
+ *                       (since 1.400.0)
  * @since 1.241.0
  */
 public record BlackBoxSettings(int seconds, double radius, int maxEntities, boolean terrain,
                                int verticalMargin, int maxChunks,
-                               @NotNull Predicate<Player> hidden) {
+                               @NotNull Predicate<Player> hidden, int entitySampleEvery) {
+
+    /** How often a non-player is read unless asked otherwise: every other tick. */
+    public static final int DEFAULT_ENTITY_SAMPLE_EVERY = 2;
 
     public BlackBoxSettings {
         seconds = Math.clamp(seconds, 10, 300);
@@ -36,6 +44,13 @@ public record BlackBoxSettings(int seconds, double radius, int maxEntities, bool
         maxEntities = Math.clamp(maxEntities, 0, 20_000);
         verticalMargin = Math.clamp(verticalMargin, 4, 128);
         maxChunks = Math.clamp(maxChunks, 1, 4096);
+        entitySampleEvery = Math.clamp(entitySampleEvery, 1, 5);
+    }
+
+    /** Without {@code entitySampleEvery}: every other tick, as {@link #defaults()} does. */
+    public BlackBoxSettings(int seconds, double radius, int maxEntities, boolean terrain,
+                            int verticalMargin, int maxChunks, @NotNull Predicate<Player> hidden) {
+        this(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, DEFAULT_ENTITY_SAMPLE_EVERY);
     }
 
     /**
@@ -47,22 +62,32 @@ public record BlackBoxSettings(int seconds, double radius, int maxEntities, bool
     }
 
     public @NotNull BlackBoxSettings seconds(int seconds) {
-        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden);
+        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, entitySampleEvery);
     }
 
     public @NotNull BlackBoxSettings radius(double radius) {
-        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden);
+        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, entitySampleEvery);
     }
 
     public @NotNull BlackBoxSettings hidden(@NotNull Predicate<Player> hidden) {
-        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden);
+        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, entitySampleEvery);
     }
 
     public @NotNull BlackBoxSettings terrain(boolean terrain) {
-        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden);
+        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, entitySampleEvery);
     }
 
-    /** The larger of two, field by field; either one's hidden players stay hidden. */
+    /**
+     * How often something that is not a player is read, in ticks. One reads
+     * it every tick, as before 1.400.0.
+     *
+     * @since 1.400.0
+     */
+    public @NotNull BlackBoxSettings entitySampleEvery(int ticks) {
+        return new BlackBoxSettings(seconds, radius, maxEntities, terrain, verticalMargin, maxChunks, hidden, ticks);
+    }
+
+    /** The larger of two, field by field (the finer of two sampling rates); either one's hidden players stay hidden. */
     @org.jetbrains.annotations.ApiStatus.Internal
     public @NotNull BlackBoxSettings merge(@NotNull BlackBoxSettings other) {
         Predicate<Player> mine = hidden;
@@ -70,6 +95,7 @@ public record BlackBoxSettings(int seconds, double radius, int maxEntities, bool
         return new BlackBoxSettings(Math.max(seconds, other.seconds), Math.max(radius, other.radius),
                 Math.max(maxEntities, other.maxEntities), terrain || other.terrain,
                 Math.max(verticalMargin, other.verticalMargin), Math.max(maxChunks, other.maxChunks),
-                player -> mine.test(player) || theirs.test(player));
+                player -> mine.test(player) || theirs.test(player),
+                Math.min(entitySampleEvery, other.entitySampleEvery));
     }
 }

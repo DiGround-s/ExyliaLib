@@ -52,16 +52,86 @@ class BlackBoxTest {
         AtomicInteger reads = new AtomicInteger();
         Entity arrow = counting(id, reads);
 
-        assertSame(tape, box.sampleNear(arrow, null, new Location(null, 0, 64, 0), 1600, 100, new Location(null, 0, 0, 0)));
+        assertSame(tape, box.sampleNear(arrow, null, new Location(null, 0, 64, 0), 1600, 100, 1, new Location(null, 0, 0, 0)));
         assertEquals(0, reads.get(), "seen this tick: nothing is read");
 
         box.tapes.clear();
-        assertSame(tape, box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 100, new Location(null, 0, 0, 0)),
+        assertSame(tape, box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 100, 1, new Location(null, 0, 0, 0)),
                 "a remembered tape is used without looking it up");
         assertEquals(0, reads.get());
 
-        box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101, new Location(null, 0, 0, 0));
+        box.sampleNear(arrow, tape, new Location(null, 0, 64, 0), 1600, 101, 1, new Location(null, 0, 0, 0));
         assertEquals(1, reads.get(), "a new tick: it is read");
+    }
+
+    @Test
+    @DisplayName("something read every other tick is skipped in between, by every timer")
+    void readEveryOtherTick() {
+        BlackBox box = new BlackBox(null, BlackBoxSettings.defaults());
+        UUID id = UUID.randomUUID();
+        Tape tape = new Tape(id, new ReplayActor(id, "Zombie", null, null, null), false, true);
+        tape.seen = 100;
+        AtomicInteger reads = new AtomicInteger();
+        Entity zombie = counting(id, reads);
+        Location here = new Location(null, 0, 64, 0);
+
+        box.sampleNear(zombie, tape, here, 1600, 101, 2, new Location(null, 0, 0, 0));
+        assertEquals(0, reads.get(), "read a tick ago: not due yet");
+        box.sampleNear(zombie, tape, here, 1600, 102, 2, new Location(null, 0, 0, 0));
+        assertEquals(1, reads.get(), "two ticks on: due");
+    }
+
+    @Test
+    @DisplayName("past the cap, something without a tape is not even looked up")
+    void fullBoxReadsNothing() {
+        BlackBox box = new BlackBox(null, BlackBoxSettings.defaults().radius(16)
+                .entitySampleEvery(1).seconds(10));
+        BlackBox empty = new BlackBox(null, new BlackBoxSettings(60, 32, 0, true, 6, 400, player -> false));
+        AtomicInteger reads = new AtomicInteger();
+        AtomicInteger ids = new AtomicInteger();
+        UUID id = UUID.randomUUID();
+        Entity mob = (Entity) Proxy.newProxyInstance(Entity.class.getClassLoader(), new Class<?>[]{Entity.class},
+                (proxy, method, args) -> {
+                    if (method.getName().equals("getUniqueId")) {
+                        ids.incrementAndGet();
+                        return id;
+                    }
+                    reads.incrementAndGet();
+                    return method.getReturnType() == boolean.class ? false : null;
+                });
+        Location here = new Location(null, 0, 64, 0);
+        assertEquals(null, empty.sampleNear(mob, null, here, 1600, 5, 1, new Location(null, 0, 0, 0)));
+        assertEquals(0, reads.get());
+        assertEquals(0, ids.get(), "a box with room for nothing does not look for its tape");
+
+        box.sampleNear(mob, null, here, 1600, 5, 1, new Location(null, 0, 0, 0));
+        assertEquals(1, ids.get(), "with room, it is looked up");
+    }
+
+    @Test
+    @DisplayName("ticks a mob was not read on move it in a straight line, and a teleport still jumps")
+    void fillsTheTicksBetweenReads() {
+        BlackBox.Draft scene = new BlackBox.Draft(0, WORLD, 0, 64, 0);
+        scene.chunks.put(BlackBox.key(0, 0), new int[] {64, 64});
+        UUID id = UUID.randomUUID();
+        Tape tape = new Tape(id, new ReplayActor(id, "Zombie", null, null, null), false, true);
+        tape.put(100, WORLD, 1, 64, 1, 0f, 0f, MotionTrack.PRESENT, 20f);
+        tape.put(102, WORLD, 3, 64, 1, 90f, 0f, MotionTrack.PRESENT, 20f);
+        // Stood still from 102 (a read on 104 found it there), then walked.
+        tape.put(106, WORLD, 5, 64, 1, 90f, 0f, MotionTrack.PRESENT, 20f);
+        // Teleported.
+        tape.put(108, WORLD, 14, 64, 1, 90f, 0f, MotionTrack.PRESENT, 20f);
+
+        MotionTrack track = BlackBox.trackOf(tape, List.of(scene), 100, 110, 2);
+        assertEquals(2.0, track.x(1), 1e-9, "halfway between two reads");
+        assertEquals(45f, track.yaw(1), 1e-3, "turning halfway too");
+        assertEquals(3.0, track.x(3), 1e-9, "standing until the last read that found it still");
+        assertEquals(4.0, track.x(5), 1e-9);
+        assertEquals(5.0, track.x(7), 1e-9, "too far to have walked: held, then a jump");
+        assertEquals(14.0, track.x(8), 1e-9);
+
+        MotionTrack held = BlackBox.trackOf(tape, List.of(scene), 100, 110);
+        assertEquals(1.0, held.x(1), 1e-9, "read every tick: nothing is made up");
     }
 
     @Test

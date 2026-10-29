@@ -21,6 +21,14 @@ final class Sampler {
             EquipmentSlot.HAND, EquipmentSlot.OFF_HAND, EquipmentSlot.HEAD,
             EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 
+    /** Where a slot is in {@link #SLOTS}, or -1 for one the client does not draw. */
+    static int slotIndex(EquipmentSlot slot) {
+        for (int index = 0; index < SLOTS.length; index++) {
+            if (SLOTS[index] == slot) return index;
+        }
+        return -1;
+    }
+
     /** Two samples this close together belong to the same server tick. */
     static final long SAME_TICK_NANOS = 30_000_000L;
 
@@ -31,9 +39,14 @@ final class Sampler {
     private Sampler() {
     }
 
+    /** What a body that is not alive always stands in: only living things change pose. */
+    private static final int STANDING = POSES[org.bukkit.entity.Pose.STANDING.ordinal()];
+
     /** The flag word for this tick; see {@link MotionTrack}. */
     static int flagsOf(Entity entity) {
-        int pose = POSES[entity.getPose().ordinal()];
+        // Asking for the pose copies the server's whole list of poses each
+        // time, and an arrow, an item or a block of TNT never has another one.
+        int pose = entity instanceof LivingEntity ? POSES[entity.getPose().ordinal()] : STANDING;
         boolean onGround = entity.isOnGround();
         boolean fire = entity.getFireTicks() > 0 || entity.isVisualFire();
         boolean glowing = entity.isGlowing();
@@ -86,10 +99,15 @@ final class Sampler {
      * equality first only cost a whole extra comparison on every hit taken.
      */
     static boolean sameLook(ItemStack now, ItemStack recorded, int tick) {
+        return sameLook(now, recorded, tick % FULL_LOOK_EVERY == 0);
+    }
+
+    /** Same, comparing past the material only when {@code full}. */
+    static boolean sameLook(ItemStack now, ItemStack recorded, boolean full) {
         if (now == recorded) return true;
         if (now == null || recorded == null) return false;
         if (now.getType() != recorded.getType()) return false;
-        return tick % FULL_LOOK_EVERY != 0 || looksAlike(now, recorded);
+        return !full || looksAlike(now, recorded);
     }
 
     /** Whether data components can be compared one by one; false on a server older than them. */

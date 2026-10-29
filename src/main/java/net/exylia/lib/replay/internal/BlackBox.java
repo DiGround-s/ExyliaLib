@@ -51,6 +51,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * the players around it the moment it appears, rather than waiting for the next
  * look around: an arrow covers fifteen blocks before then.
  *
+ * <h2>Reading each thing once</h2>
+ * A crowd is a hundred players with the same two thousand mobs around them,
+ * and anything read by one timer is skipped by every other one until it is
+ * due again: every tick for a player, every
+ * {@link BlackBoxSettings#entitySampleEvery()} ticks for anything else, the
+ * ticks in between filled in when a capture is cut. Past
+ * {@link BlackBoxSettings#maxEntities()} a look leaves out whatever has no tape,
+ * so what the box cannot keep is never read at all.
+ *
  * <h2>What is kept</h2>
  * A {@link Tape} per entity, the module's marks with where they happened, and a
  * log of every block change on the server with what the block was before. All
@@ -104,6 +113,19 @@ public final class BlackBox {
     private final ConcurrentLinkedDeque<Change> changes = new ConcurrentLinkedDeque<>();
     private final AtomicInteger changeCount = new AtomicInteger();
     private final AtomicInteger nonPlayers = new AtomicInteger();
+
+    /** Things a look left out because the box was full, this second and the last. */
+    private final AtomicInteger capped = new AtomicInteger();
+    private volatile int cappedLastSecond;
+    /** Time spent in the players' timers, this second and the last, summed over every thread. */
+    private final java.util.concurrent.atomic.LongAdder sampling = new java.util.concurrent.atomic.LongAdder();
+    private volatile long samplingLastSecond;
+
+    /**
+     * Whether the server tells when equipment changes. With it a slot is read
+     * when it changed and once a second besides; without it, every few ticks.
+     */
+    static volatile boolean equipmentEvents;
     private volatile TaskHandle trimmer;
 
     /** Whether the server's figures are per region (Folia) rather than global. */
@@ -147,6 +169,10 @@ public final class BlackBox {
         changes.clear();
         changeCount.set(0);
         nonPlayers.set(0);
+        capped.set(0);
+        cappedLastSecond = 0;
+        sampling.reset();
+        samplingLastSecond = 0;
     }
 
     // --------------------------------------------------------------- sampling
@@ -215,22 +241,37 @@ public final class BlackBox {
         if (entity instanceof Player player && settings.hidden().test(player)) return;
         double radius = settings.radius();
         Location at = entity.getLocation();
-        boolean written = false;
+        Tape tape = null;
         for (Watcher watcher : watchers.values()) {
             Location there = watcher.last;
             if (there == null || there.getWorld() != at.getWorld()) continue;
             if (there.distanceSquared(at) > radius * radius) continue;
-            watcher.noticed.add(entity);
             // Its first frame now: a crystal is often placed and blown up
             // before the next sample, and was never there at all.
-            if (!written) {
-                written = true;
-                write(entity, ReplayClock.now());
+            if (tape == null) {
+                tape = write(entity, tapes.get(entity.getUniqueId()), at, ReplayClock.now());
+                if (tape == null) {
+                    // The box is full: nobody will read it.
+                    capped.incrementAndGet();
+                    return;
+                }
             }
+            // A volley in a crowd waits for the next look rather than growing
+            // every timer's list without end.
+            if (watcher.noticed.size() < NEARBY_PER_PLAYER) watcher.noticed.put(entity, tape);
         }
     }
 
     private void sample(Watcher watcher) {
+        long began = System.nanoTime();
+        try {
+            sampleTimed(watcher);
+        } finally {
+            sampling.add(System.nanoTime() - began);
+        }
+    }
+
+    private void sampleTimed(Watcher watcher) {
         Player player = watcher.player;
         if (!running || !player.isOnline()) return;
         BlackBoxSettings current = settings;
@@ -255,23 +296,37 @@ public final class BlackBox {
             look(watcher, here, radius, current);
         }
         double reach = (radius + 8) * (radius + 8);
+        int every = current.entitySampleEvery();
         List<Entity> nearby = watcher.nearby;
         Tape[] known = watcher.nearbyTapes;
         Location scratch = watcher.scratch;
         for (int i = 0; i < nearby.size(); i++) {
-            Tape tape = sampleNear(nearby.get(i), known[i], here, reach, tick, scratch);
+            Tape tape = sampleNear(nearby.get(i), known[i], here, reach, tick, every, scratch);
             if (tape != null) known[i] = tape;
         }
         if (!watcher.noticed.isEmpty()) {
-            for (Iterator<Entity> it = watcher.noticed.iterator(); it.hasNext(); ) {
-                Entity entity = it.next();
+            for (Iterator<Map.Entry<Entity, Tape>> it = watcher.noticed.entrySet().iterator(); it.hasNext(); ) {
+                Map.Entry<Entity, Tape> noticed = it.next();
+                Entity entity = noticed.getKey();
+                if (!due(noticed.getValue(), entity, tick, every)) continue;
                 if (!entity.isValid()) {
                     it.remove();
                     continue;
                 }
-                sampleNear(entity, null, here, reach, tick, scratch);
+                sampleNear(entity, noticed.getValue(), here, reach, tick, every, scratch);
             }
         }
+    }
+
+    /**
+     * Whether something with a tape is to be read on this tick: a player
+     * always, anything else once its last read is {@code every} ticks old,
+     * whichever timer read it. A stamp from ahead of this one is read anyway,
+     * the way it always was: on Folia it is another region's clock.
+     */
+    private static boolean due(Tape tape, Entity entity, int tick, int every) {
+        int since = tick - tape.seen;
+        return since < 0 || since >= every || entity instanceof Player;
     }
 
     /**
@@ -285,13 +340,20 @@ public final class BlackBox {
      * @return its tape, when it has one
      */
     @Nullable Tape sampleNear(Entity entity, @Nullable Tape known, Location here, double reach, int tick,
-                              Location scratch) {
-        // Already written by somebody else's timer this tick: everything below
-        // would be read only for write() to throw it away. The id is final, so
-        // asking for it is safe whichever region the entity is in now. Players
-        // are not skipped, the same as in write().
-        Tape tape = known != null ? known : tapes.get(entity.getUniqueId());
-        if (tape != null && tape.seen == tick && !(entity instanceof Player)) return tape;
+                              int every, Location scratch) {
+        // Already read by somebody else's timer since it was last due:
+        // everything below would be read only for write() to throw it away.
+        // The id is final, so asking for it is safe whichever region the
+        // entity is in now. Players are not skipped, the same as in write().
+        Tape tape = known;
+        if (tape == null) {
+            // Nothing without a tape gets one while the box is full: not even
+            // looking it up, which with two thousand mobs around a crowd was
+            // the most expensive line of the box.
+            if (!(entity instanceof Player) && nonPlayers.get() >= settings.maxEntities()) return null;
+            tape = tapes.get(entity.getUniqueId());
+        }
+        if (tape != null && !due(tape, entity, tick, every)) return tape;
         try {
             if (!entity.isValid() || entity.getWorld() != here.getWorld()) return tape;
             // Folia: something that has crossed into another region is that
@@ -317,18 +379,50 @@ public final class BlackBox {
         // Players are left to their own timers: every one of them is sampled
         // by itself already, and reading each of them again for everybody
         // around is three hundred players read ninety thousand times a tick.
+        // Tapes are looked up here, once a second, rather than every tick.
+        boolean full = nonPlayers.get() >= current.maxEntities();
         List<Entity> others = new ArrayList<>();
+        List<Tape> found = new ArrayList<>();
+        int left = 0;
         for (Entity entity : around) {
-            if (!(entity instanceof Player) && Tracking.worthRecording(entity)) others.add(entity);
+            if (entity instanceof Player || !Tracking.worthRecording(entity)) continue;
+            Tape tape = tapes.get(entity.getUniqueId());
+            if (tape == null && full) {
+                left++;
+                continue;
+            }
+            others.add(entity);
+            found.add(tape);
         }
+        if (left > 0) capped.addAndGet(left);
         if (others.size() > NEARBY_PER_PLAYER) {
-            others.sort(Comparator.comparingDouble(entity -> entity.getLocation().distanceSquared(here)));
-            others = others.subList(0, NEARBY_PER_PLAYER);
+            // The nearest ones, each distance worked out once: sorting by a
+            // distance read inside the comparison was two new locations a
+            // comparison, gigabytes a minute in a crowd. A non-negative float
+            // sorts the same as its bits, so distance and index share a long.
+            Location scratch = watcher.scratch;
+            long[] order = new long[others.size()];
+            for (int index = 0; index < order.length; index++) {
+                float distance = (float) others.get(index).getLocation(scratch).distanceSquared(here);
+                order[index] = ((long) Float.floatToRawIntBits(distance) << 32) | index;
+            }
+            java.util.Arrays.sort(order);
+            List<Entity> nearest = new ArrayList<>(NEARBY_PER_PLAYER);
+            List<Tape> theirs = new ArrayList<>(NEARBY_PER_PLAYER);
+            for (int rank = 0; rank < NEARBY_PER_PLAYER; rank++) {
+                int index = (int) order[rank];
+                nearest.add(others.get(index));
+                theirs.add(found.get(index));
+            }
+            others = nearest;
+            found = theirs;
         }
-        watcher.nearbyTapes = new Tape[others.size()];
+        watcher.nearbyTapes = found.toArray(new Tape[0]);
         watcher.nearby = others;
         watcher.lookedAt = here;
-        watcher.noticed.removeIf(others::contains);
+        // Whatever was noticed since the last look is in what it found, or
+        // too far down the list to be kept.
+        watcher.noticed.clear();
     }
 
     /** Writes one entity's frame for this tick, once however many timers see it. */
@@ -356,12 +450,49 @@ public final class BlackBox {
         boolean already = tape.put(tick, entity.getWorld().getUID(), at.getX(), at.getY(), at.getZ(),
                 at.getYaw(), at.getPitch(), Sampler.flagsOf(entity), (float) Sampler.healthOf(entity));
         if (already || !(entity instanceof LivingEntity living)) return tape;
-        if (!player && tick % MOB_EQUIPMENT_EVERY != 0) return tape;
+        wear(living, tape, player, tick);
+        return tape;
+    }
+
+    /**
+     * Reads what somebody wears, when it may have changed.
+     *
+     * <p>With the server's equipment event, a slot is read on the tick it
+     * changed and everything once a second, which catches whatever changed
+     * without one. Without it, a player's hands every other tick and their
+     * armour every five, a mob's everything every half second. Each read is
+     * a copy of the item, and a hundred players' hands every other tick were
+     * most of what the box did for a player.
+     */
+    private static void wear(LivingEntity living, Tape tape, boolean player, int tick) {
+        long since = (long) tick - tape.wornAt;
+        boolean all = since < 0 || since >= (equipmentEvents ? Sampler.FULL_LOOK_EVERY : MOB_EQUIPMENT_EVERY);
+        if (equipmentEvents) {
+            int dirty = tape.dirty;
+            if (dirty == 0 && !all) return;
+            if (dirty != 0) tape.dirty = 0;
+            if (all) tape.wornAt = tick;
+            for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
+                if (all || (dirty & (1 << slot)) != 0) {
+                    tape.wear(tick, slot, Sampler.worn(living, Sampler.SLOTS[slot]), true);
+                }
+            }
+            return;
+        }
+        if (!player) {
+            if (!all) return;
+            tape.wornAt = tick;
+        }
         for (int slot = 0; slot < Sampler.SLOTS.length; slot++) {
             if (player && !Sampler.due(slot, tick)) continue;
             tape.wear(tick, slot, Sampler.worn(living, Sampler.SLOTS[slot]));
         }
-        return tape;
+    }
+
+    /** The server says somebody's equipment changed: those slots are read on their next sample. */
+    void equipped(UUID entity, int slots) {
+        Tape tape = tapes.get(entity);
+        if (tape != null) tape.dirty |= slots;
     }
 
     // ------------------------------------------------------------------ marks
@@ -394,6 +525,8 @@ public final class BlackBox {
 
     /** Drops everything older than the window. */
     private void trim() {
+        cappedLastSecond = capped.getAndSet(0);
+        samplingLastSecond = sampling.sumThenReset();
         server();
         for (Player player : Bukkit.getOnlinePlayers()) ensure(player);
         int oldest = ReplayClock.now() - settings.seconds() * 20 - SLACK;
@@ -458,6 +591,33 @@ public final class BlackBox {
     private void stats(String text) {
         happenings.add(new Happening(ReplayClock.now(), ReplayMark.SERVER, null,
                 text.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, 0, 0, 0, null, 0f));
+    }
+
+    /** What it holds and costs; walks every tape and every mark, so not for every tick. */
+    net.exylia.lib.replay.BlackBoxStats stats() {
+        if (!running) return net.exylia.lib.replay.BlackBoxStats.idle();
+        int players = 0;
+        int entities = 0;
+        long frames = 0;
+        long tapeBytes = 0;
+        for (Tape tape : tapes.values()) {
+            if (tape.player) players++;
+            else entities++;
+            frames += tape.frames();
+            tapeBytes += tape.bytes();
+        }
+        int marks = 0;
+        long markBytes = 0;
+        for (Happening happening : happenings) {
+            marks++;
+            // The record and its node in the queue, and what it carries.
+            markBytes += 104 + (happening.data == null ? 0 : 16 + happening.data.length)
+                    + (happening.text == null ? 0 : 40 + happening.text.length());
+        }
+        int changed = changeCount.get();
+        // The record and its node; block data is shared between changes.
+        return new net.exylia.lib.replay.BlackBoxStats(true, players, entities, frames, tapeBytes,
+                marks, markBytes, changed, changed * 64L, cappedLastSecond, samplingLastSecond);
     }
 
     // --------------------------------------------------------------- captures
@@ -719,7 +879,7 @@ public final class BlackBox {
         Set<UUID> included = new HashSet<>();
         Map<UUID, Tape> byId = new HashMap<>();
         for (Tape tape : ordered) {
-            MotionTrack track = trackOf(tape, scenes, start, end);
+            MotionTrack track = trackOf(tape, scenes, start, end, tape.player ? 1 : current.entitySampleEvery());
             if (track == null) continue;
             actors.add(tape.actor);
             tracks.add(track);
@@ -784,6 +944,17 @@ public final class BlackBox {
      * inside the corridor of the scene those ticks belong to.
      */
     static @Nullable MotionTrack trackOf(Tape tape, List<Draft> scenes, int start, int end) {
+        return trackOf(tape, scenes, start, end, 1);
+    }
+
+    /**
+     * Same, for something read only every {@code every} ticks: the last
+     * {@code every} ticks before each frame move it there in a straight line
+     * instead of holding it still and jumping, which is what it would have
+     * done had it been read on each of them. A frame further on than that was
+     * a read that found it standing still, so it stands until then.
+     */
+    static @Nullable MotionTrack trackOf(Tape tape, List<Draft> scenes, int start, int end, int every) {
         // Every tape in the box is asked, and most are not in this window at
         // all: a mob that despawned twenty seconds ago would be copied whole
         // and walked tick by tick to find that out.
@@ -820,8 +991,26 @@ public final class BlackBox {
             if (band == null) continue;
             int relative = tick - start;
             if (any && lastPut != tick - 1) builder.absentUntil(relative);
-            builder.put(relative, frame.x() - scene.x, frame.y() - scene.y, frame.z() - scene.z,
-                    frame.yaw(), frame.pitch(), frame.yaw(), frame.health(), frame.flags());
+            double px = frame.x();
+            double py = frame.y();
+            double pz = frame.z();
+            float yaw = frame.yaw();
+            float pitch = frame.pitch();
+            Tape.Frame next = every > 1 && cursor + 1 < frames.size() ? frames.get(cursor + 1) : null;
+            if (next != null) {
+                int from = next.tick() - Math.min(every, next.tick() - frame.tick());
+                if (tick > from && (next.flags() & MotionTrack.PRESENT) != 0 && next.world().equals(frame.world())
+                        && distance(frame, next) <= MAX_FILL * (next.tick() - from)) {
+                    double fraction = (tick - from) / (double) (next.tick() - from);
+                    px += (next.x() - px) * fraction;
+                    py += (next.y() - py) * fraction;
+                    pz += (next.z() - pz) * fraction;
+                    yaw = lerpAngle(yaw, next.yaw(), fraction);
+                    pitch = lerpAngle(pitch, next.pitch(), fraction);
+                }
+            }
+            builder.put(relative, px - scene.x, py - scene.y, pz - scene.z,
+                    yaw, pitch, yaw, frame.health(), frame.flags());
             lastPut = tick;
             any = true;
         }
@@ -946,6 +1135,18 @@ public final class BlackBox {
         return found;
     }
 
+    /**
+     * Blocks a tick, at most, that a filled-in tick moves something: further
+     * than an arrow flies is a teleport, which jumps. The same as a playback
+     * is willing to smooth between two frames.
+     */
+    private static final double MAX_FILL = 4.0;
+
+    private static float lerpAngle(float from, float to, double fraction) {
+        float delta = ((to - from) % 360f + 540f) % 360f - 180f;
+        return (float) (from + delta * fraction);
+    }
+
     private static double distance(Tape.Frame a, Tape.Frame b) {
         double dx = a.x() - b.x();
         double dy = a.y() - b.y();
@@ -968,7 +1169,8 @@ public final class BlackBox {
     private static final class Watcher {
 
         final Player player;
-        final Set<Entity> noticed = ConcurrentHashMap.newKeySet();
+        /** Spawned near them since the last look, with their tapes; emptied by every look. */
+        final Map<Entity, Tape> noticed = new ConcurrentHashMap<>();
         volatile List<Entity> nearby = List.of();
         /** The tapes of {@link #nearby}, by index, filled as they are found; forgotten on every look. */
         Tape[] nearbyTapes = new Tape[0];
