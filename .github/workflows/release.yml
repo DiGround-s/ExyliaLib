@@ -232,3 +232,30 @@ jobs:
 
           gh release view "$TAG" --json body --jq .body > modrinth-changelog.md
           ./publish-modrinth.sh "$VERSION" "build/libs/ExyliaLib-${VERSION}.jar" modrinth-changelog.md
+
+      # BuiltByBit mirrors the release the same way, after the manifest. Version
+      # file only, no public update post: ExyliaLib releases several times a day.
+      - name: Check out the BuiltByBit publish script
+        if: steps.release_guard.outputs.release_needed == 'true' && vars.BBB_RESOURCE_ID != ''
+        uses: actions/checkout@v4
+        with:
+          repository: Exylia-Plugins/.github
+          ref: main
+          path: .exylia-shared
+
+      - name: Publish to BuiltByBit
+        if: steps.release_guard.outputs.release_needed == 'true' && vars.BBB_RESOURCE_ID != ''
+        env:
+          BUILTBYBIT_TOKEN: ${{ secrets.BUILTBYBIT_TOKEN }}
+          BBB_RESOURCE: ${{ vars.BBB_RESOURCE_ID }}
+          POST_UPDATE: 'false'
+          VERSION: ${{ steps.release_guard.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${BUILTBYBIT_TOKEN:-}" ]]; then
+            echo "BUILTBYBIT_TOKEN is not configured; skipping BuiltByBit."
+            exit 0
+          fi
+
+          ./.exylia-shared/publish-builtbybit.sh ExyliaLib "$VERSION" "build/libs/ExyliaLib-${VERSION}.jar"
