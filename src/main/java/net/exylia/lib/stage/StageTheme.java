@@ -36,8 +36,9 @@ import java.util.List;
  * @param verdictDraw  on a draw
  * @param rainItem     the item that rains on a win; blank for none
  * @param rainCount    how many of them
- * @param fireworks    whether a win sets off fireworks only the viewer sees
- * @param winColours   the fireworks' colours
+ * @param fireworks    whether a win opens bursts of stars only the viewer sees (displays, never real
+ *                     fireworks; the name is kept for configs already written)
+ * @param winColours   the stars' colours
  * @param zoom         how many times nearer, and so larger, every board is drawn; 1 draws it where placed
  * @param maxWide      the widest a zoomed board may span, in degrees of the view
  * @param maxTall      the tallest, in degrees
@@ -64,7 +65,7 @@ public record StageTheme(
         @Comment("A win rains this item over the board, this many of them. Empty or 0 for none.")
         String rainItem,
         int rainCount,
-        @Comment("A win sets off fireworks only the winner sees, in these colours.")
+        @Comment("A win opens bursts of stars only the winner sees, in these colours (no fireworks).")
         boolean fireworks,
         List<String> winColours,
         @Comment("How many times nearer, and so larger, every board is drawn than its own distance says. 1 draws")

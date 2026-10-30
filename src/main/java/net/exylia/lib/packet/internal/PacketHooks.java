@@ -19,6 +19,8 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
+import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChunkData;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import net.exylia.lib.packet.ItemPlace;
 import net.exylia.lib.packet.RevealStyle;
@@ -214,6 +216,15 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             event.setCancelled(true);
             return;
         }
+        if (type == PacketType.Play.Server.BLOCK_CHANGE || type == PacketType.Play.Server.MULTI_BLOCK_CHANGE
+                || type == PacketType.Play.Server.CHUNK_DATA) {
+            Map<Long, BlockData> kept = PacketRuntime.keptOf(viewer);
+            if (kept != null) keepBlocks(event, type, kept);
+        } else if (type == PacketType.Play.Server.SPAWN_ENTITY && PacketRuntime.sealedOf(viewer) != null
+                && sealedOut(event, PacketRuntime.sealedOf(viewer))) {
+            event.setCancelled(true);
+            return;
+        }
         if (PacketRuntime.hidesAnything(viewer)) {
             if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
                 stripTabEntries(event, viewer);
@@ -239,6 +250,81 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
 
     /** The player's own inventory window. */
     private static final int PLAYER_WINDOW = 0;
+
+    // ------------------------------------------------------------------
+    // Outbound: kept fake blocks and sealed boxes
+    // ------------------------------------------------------------------
+
+    /**
+     * Rewrites the server's own blocks at kept positions to the kept ones; a whole chunk is let through
+     * and the kept blocks in it sent again right after it.
+     */
+    private static void keepBlocks(PacketSendEvent event, PacketTypeCommon type, Map<Long, BlockData> kept) {
+        if (type == PacketType.Play.Server.BLOCK_CHANGE) {
+            WrapperPlayServerBlockChange change = new WrapperPlayServerBlockChange(event);
+            Vector3i at = change.getBlockPosition();
+            BlockData mine = kept.get(PacketRuntime.pack(at.getX(), at.getY(), at.getZ()));
+            if (mine != null && change.getBlockId() != globalId(mine)) {
+                change.setBlockID(globalId(mine));
+                event.markForReEncode(true);
+            }
+            return;
+        }
+        if (type == PacketType.Play.Server.MULTI_BLOCK_CHANGE) {
+            WrapperPlayServerMultiBlockChange change = new WrapperPlayServerMultiBlockChange(event);
+            Vector3i section = change.getChunkPosition();
+            boolean changed = false;
+            for (WrapperPlayServerMultiBlockChange.EncodedBlock block : change.getBlocks()) {
+                int x = (section.getX() << 4) | (block.getX() & 15);
+                int y = (section.getY() << 4) | (block.getY() & 15);
+                int z = (section.getZ() << 4) | (block.getZ() & 15);
+                BlockData mine = kept.get(PacketRuntime.pack(x, y, z));
+                if (mine != null && block.getBlockId() != globalId(mine)) {
+                    block.setBlockId(globalId(mine));
+                    changed = true;
+                }
+            }
+            if (changed) event.markForReEncode(true);
+            return;
+        }
+        if (!(event.getPlayer() instanceof Player viewer)) return;
+        int chunkX;
+        int chunkZ;
+        if (event.getLastUsedWrapper() != null) {
+            var column = new WrapperPlayServerChunkData(event).getColumn();
+            chunkX = column.getX();
+            chunkZ = column.getZ();
+        } else {
+            // The chunk's two coordinates lead the packet as plain ints: read without decoding the chunk.
+            Object buffer = event.getByteBuf();
+            int index = ByteBufHelper.readerIndex(buffer);
+            try {
+                chunkX = ByteBufHelper.readInt(buffer);
+                chunkZ = ByteBufHelper.readInt(buffer);
+            } finally {
+                ByteBufHelper.readerIndex(buffer, index);
+            }
+        }
+        event.getTasksAfterSend().add(() -> PacketRuntime.rekeep(viewer, chunkX, chunkZ));
+    }
+
+    /** Whether an entity spawned in packets lands in the viewer's sealed box and is not a display or a hitbox. */
+    private static boolean sealedOut(PacketSendEvent event, PacketRuntime.Sealed sealed) {
+        if (!(event.getPlayer() instanceof Player viewer) || !viewer.getWorld().getUID().equals(sealed.world())) {
+            return false;
+        }
+        WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(event);
+        var type = spawn.getEntityType();
+        if (type == EntityTypes.BLOCK_DISPLAY || type == EntityTypes.ITEM_DISPLAY || type == EntityTypes.TEXT_DISPLAY
+                || type == EntityTypes.INTERACTION) {
+            return false;
+        }
+        Vector3d at = spawn.getPosition();
+        // A real entity spawned here is also hidden through the server by whoever sealed the box, within a
+        // few ticks, and shown again (spawned anew) once it leaves.
+        // ponytail: one spawned inside that leaves before that look is not drawn until it is tracked again.
+        return sealed.box().holds(at.getX(), at.getY() + 0.1, at.getZ());
+    }
 
     // ------------------------------------------------------------------
     // Outbound: item lines
@@ -623,9 +709,12 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 || locked && type == PacketType.Play.Client.PLAYER_ROTATION) {
             WrapperPlayClientPlayerFlying packet = new WrapperPlayClientPlayerFlying(event);
             var at = packet.getLocation();
-            if (pen != null && packet.hasPositionChanged() && pen.holds(at.getX(), at.getZ())) {
-                PacketRuntime.settle(player, at.getX(), at.getY(), at.getZ());
-                return;
+            if (pen != null && packet.hasPositionChanged()) {
+                if (pen.holds(at.getX(), at.getY(), at.getZ())) {
+                    PacketRuntime.settle(player, at.getX(), at.getY(), at.getZ());
+                    return;
+                }
+                if (pen.strays(at.getX(), at.getY(), at.getZ())) anchor = PacketRuntime.recentre(player, pen);
             }
             boolean turned = locked && packet.hasRotationChanged() && turned(anchor, at.getYaw(), at.getPitch());
             if (!turned && (!packet.hasPositionChanged() || !moved(anchor, at.getX(), at.getY(), at.getZ()))) {
@@ -644,10 +733,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         } else if (type == PacketType.Play.Client.VEHICLE_MOVE) {
             WrapperPlayClientVehicleMove packet = new WrapperPlayClientVehicleMove(event);
             var at = packet.getPosition();
-            if (pen != null && pen.holds(at.getX(), at.getZ())) {
+            if (pen != null && pen.holds(at.getX(), at.getY(), at.getZ())) {
                 PacketRuntime.settle(player, at.getX(), at.getY(), at.getZ());
                 return;
             }
+            if (pen != null && pen.strays(at.getX(), at.getY(), at.getZ())) anchor = PacketRuntime.recentre(player, pen);
             if (!moved(anchor, at.getX(), at.getY(), at.getZ())) {
                 return;
             }

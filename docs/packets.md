@@ -38,7 +38,16 @@ Visibility visibility();
 void rule(VisibilityRule rule);              // one per plugin; all plugins' rules must agree
 void refresh(Player target);                 // re-evaluate for every online viewer
 boolean canSee(Player viewer, Player target);
+void seal(Player viewer, Volume box);        // 1.420.0+; null lifts it
 ```
+
+`seal(viewer, box)` keeps a box empty of entities drawn in packets alone for one
+viewer: a spawn landing inside it (another plugin's packet hologram or NPC) is
+dropped on its way to them, unless it is a block, item or text display or an
+interaction hitbox, so screens drawn there stay. Real entities are the caller's
+to hide with `Player#hideEntity`; an `Enclosure` does both. `Volume` is the
+shared maths: a square turned by a yaw between two heights (`holds`,
+`holdsColumn`, `touches(box)`).
 
 `refresh` despawns the target for viewers who lost sight — `hidePlayer` plus
 an explicit destroy and tab-list removal — and respawns them for viewers who
@@ -87,6 +96,7 @@ FakeBlocks fakeBlocks();
 void show(Player viewer, Map<Location, BlockData> blocks);
 void clear(Player viewer);
 void clear(Player viewer, Collection<Location> positions);
+void keep(Player viewer, Map<Location, BlockData> blocks);   // 1.420.0+
 ```
 
 Sent as one multi-block-change per chunk section (a single block change when
@@ -94,8 +104,14 @@ a section has one). The module remembers what each viewer was shown so
 `clear` can send the real blocks back, and forgets it when they leave or
 change world. Positions in another world are ignored.
 
-Limits: a fake wall stops nobody, and a chunk the server resends shows the
-truth again.
+`keep` shows them and keeps them shown: a block change, a multi-block change
+or a whole chunk the server sends later for one of those positions (anybody
+placing, breaking or updating a block, the chunk sent again) reaches the viewer
+as the kept block. Keep a position as air to keep it empty whatever is put
+there. `clear` lets it go.
+
+Limits: a fake wall stops nobody, and with `show` a chunk the server resends
+shows the truth again.
 
 ## Movement
 
@@ -126,6 +142,19 @@ its packets are kept from the server, the arm swing is not. It is sent again
 every two seconds while the player plays (1.378.0), so a client that dropped
 it (a chunk or a room redrawn round it) has it back at once. `unfreeze` ends
 it, and a `freeze` replaces it.
+
+Since 1.420.0 the square has a floor and a ceiling: from 0.55 under the lower
+of the centre and the feet (a dropped half slab) to 2.6 over the higher (a
+jump). A player under it or over it (a fall, a flight, an elytra), or more than
+a block past an edge (knockback, lag), is put back on the centre, not where
+they last stood, which may itself be over nothing. Before, only the square was
+checked and the anchor followed the player down: a confined player stepping
+off a ledge, or one whose floor a room had cleared, fell through.
+
+While a player is frozen or confined, the library also cancels their fall
+damage, a kick for flying (they may stand on blocks only their client has; with
+five seconds' grace after they are let go), a teleport by ender pearl, chorus
+fruit or portal, and the start of an elytra glide.
 
 `freeze(player, true)` locks the camera as well: every rotation off the
 anchor's is dropped and answered with the anchor's yaw and pitch, absolute

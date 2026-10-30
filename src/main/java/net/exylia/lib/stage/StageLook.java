@@ -186,7 +186,7 @@ public final class StageLook {
         return width;
     }
 
-    /** A palette token or #rrggbb as a firework colour, {@code #rrggbb}. */
+    /** A palette token or #rrggbb as a colour, {@code #rrggbb}. */
     public static String hex(String value) {
         return String.format("#%06X", rgb(value, 0xFFD700) & 0xFFFFFF);
     }

@@ -20,7 +20,8 @@ import java.util.Map;
  * <h2>Limits</h2>
  * The server still treats the position as whatever is really there: a fake
  * wall stops nobody. A chunk the server resends — on a block update nearby,
- * or when the player walks far enough away and back — shows the truth again.
+ * or when the player walks far enough away and back — shows the truth again,
+ * unless the blocks were shown with {@link #keep}.
  *
  * @since 1.75.0
  */
@@ -34,6 +35,20 @@ public interface FakeBlocks {
      *               world the viewer is not in are ignored
      */
     void show(@NotNull Player viewer, @NotNull Map<Location, BlockData> blocks);
+
+    /**
+     * Shows blocks to one player and keeps them shown: a block the server sends at one of these
+     * positions later (placed, broken or updated by anyone, or a whole chunk sent again) reaches this
+     * viewer as the block given here instead, until {@link #clear}. A position may be kept as air to
+     * keep it empty whatever is put there.
+     *
+     * @param viewer the player
+     * @param blocks the block data to show and keep at each position
+     * @since 1.420.0
+     */
+    default void keep(@NotNull Player viewer, @NotNull Map<Location, BlockData> blocks) {
+        show(viewer, blocks);
+    }
 
     /**
      * Puts every fake block shown to this viewer back to the truth.

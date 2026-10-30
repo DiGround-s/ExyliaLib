@@ -52,4 +52,17 @@ public interface Visibility {
      * @return {@code false} while the target is hidden from this viewer
      */
     boolean canSee(@NotNull Player viewer, @NotNull Player target);
+
+    /**
+     * Keeps a box empty of entities drawn only in packets, for one viewer: an entity another plugin
+     * spawns there in packets alone (a hologram, an NPC) is not drawn to them, while block, item and
+     * text displays and interaction hitboxes still are, so screens drawn there stay. Real entities are
+     * the caller's to hide ({@link Player#hideEntity}). {@code null} lifts it. Forgotten on quit.
+     *
+     * @param viewer the player
+     * @param box    the box, in the viewer's world, or {@code null}
+     * @since 1.420.0
+     */
+    default void seal(@NotNull Player viewer, @org.jetbrains.annotations.Nullable Volume box) {
+    }
 }

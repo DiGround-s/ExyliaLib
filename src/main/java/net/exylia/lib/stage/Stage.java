@@ -154,8 +154,8 @@ public class Stage implements CardSprite.Canvas {
     /**
      * A public stage: one board standing in the world for everyone within {@code radius} blocks of it,
      * drawn once, whoever comes and goes (every piece is a display shown by radius, so a crowd costs
-     * what one viewer costs). Nobody owns it: it has no clicks, hovers or buttons, its sounds, smoke and
-     * fireworks go to whoever is near, and {@link #viewer()} is {@code null}. Everything a player's
+     * what one viewer costs). Nobody owns it: it has no clicks, hovers or buttons, its sounds and
+     * smoke go to whoever is near, and {@link #viewer()} is {@code null}. Everything a player's
      * stage draws, a public one draws the same way, so a game's screen can be shown to a whole room.
      *
      * <p>{@code magnify} draws everything that many times larger about the plane's middle, poses and
@@ -190,7 +190,7 @@ public class Stage implements CardSprite.Canvas {
     /**
      * Who sees it now: its viewer and their watchers, or for a public stage whoever is within its
      * radius (read from the world: call it on the thread that owns where it stands). What sounds,
-     * particles and fireworks are shown to.
+     * particles are shown to.
      *
      * @since 1.377.0
      */
@@ -559,7 +559,8 @@ public class Stage implements CardSprite.Canvas {
     }
 
     /**
-     * A win: the theme's item rains over the board and fireworks go off that only this player sees.
+     * A win: the theme's item rains over the board and two bursts of stars (displays, never fireworks)
+     * open over it for this player alone, with a short chime.
      *
      * @param up how high over the board's centre the rain starts
      */
@@ -580,17 +581,27 @@ public class Stage implements CardSprite.Canvas {
                 show(DisplayModel.item(drop).light(15), fall, plane.point(across, up, 0.2));
             }
         }
-        if (theme.fireworks()) {
+        // No fireworks (heavy on particles and seen by everyone near): a burst of stars drawn as displays,
+        // for this stage's viewer alone, and one short sound. A public stage has nobody it belongs to.
+        if (theme.fireworks() && viewer != null) {
             List<String> colours = theme.winColours().isEmpty() ? List.of("{highlight}") : theme.winColours();
-            for (int i = 0; i < 2; i++) {
-                var firework = Effects.firework().at(plane.point(i == 0 ? -0.9 : 0.9, up + 0.6, -0.6))
-                        .shape(i == 0 ? "BALL_LARGE" : "BURST").instant();
-                for (String colour : colours) firework.colour(StageLook.hex(colour));
-                firework.fade(StageLook.hex(colours.getFirst()));
-                // The winner's alone: whoever watches sees the coins fall on the board, not fireworks in their face.
-                if (viewer != null) firework.launchAt(viewer);
-                else spectators().forEach(firework::launchAt);
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            for (int side = -1; side <= 1; side += 2) {
+                for (int i = 0; i < 9; i++) {
+                    double turn = Math.PI * 2 * i / 9 + random.nextDouble(-0.2, 0.2);
+                    double far = random.nextDouble(0.45, 0.75);
+                    double scale = random.nextDouble(0.35, 0.55);
+                    DisplayModel star = DisplayModel.text(StageHud.line(colours.get(i % colours.size()) + "✦", null))
+                            .billboard("FIXED").light(15).background(0).textShadow(false);
+                    DisplayMotion fly = DisplayMotion.builder().life(random.nextLong(650, 900))
+                            .from(0, 0, 0).to(Math.cos(turn) * far, Math.sin(turn) * far, 0.05)
+                            .gravity(0.6).rotation(facing).scale(scale, 0)
+                            .easePosition(DisplayMotion.Easing.OUT)
+                            .build();
+                    show(star, fly, plane.point(side * 0.9, up + 0.5, -0.05));
+                }
             }
+            StageLook.play(viewer, "ENTITY_EXPERIENCE_ORB_PICKUP|0.5|1.3");
         }
     }
 

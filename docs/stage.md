@@ -47,7 +47,8 @@ a stage with a table, a heading and a few buttons.
 | `Stage` | What one player sees. Primitives: `show(model, motion, at)`, `block`, `item`, `text`, `remove`, `close`; poses: `still`, `pop`, `pose(millis, across, up, forward, x, y, z)`; screen parts: `table`, `header`/`status`, `heading`/`figures`, `verdict(text, Outcome, delay)`, `button`, `pulse`, `celebrate`, `deflate`. Static `feet(player)` and `retire(player[, keep])` |
 | `StageButton` | A plate with a fitted label: `contains(hit)`, `under(player)`, `hover(on)`, `press()`, `label(text)`, `remove()` |
 | `StageTheme` | The look a plugin passes in: table, frame, buttons, verdict, win effects, button sounds, zoom. A record with `@Comment`s and a no-argument default, so it embeds in the plugin's config |
-| `Enclosure` / `EnclosureTheme` | The room: six inward-facing slabs and faint stars, the blocks inside sent as air, the player hidden from everyone and everyone from them |
+| `Enclosure` / `EnclosureTheme` | The room: six inward-facing slabs and faint stars, the blocks inside sent as air and kept so, the entities inside hidden, the player hidden from everyone and everyone from them (see [The room](#the-room-1420)) |
+| `PlaySpot` | Where an admin set a plugin's rooms up, and the way back for each player sent there (1.420.0) |
 | `StageHud` | One deadline and one boss bar per seat: `clock`, `expired`, `secondsLeft`, `ticked`, `bar`, `stop`, `stopAll`; static `line(text, values)`, `lines`, `row` |
 | `StageGuide` | Two panels at a seated player's sides, a quarter turn away from the board: a title over lines on each, rows optionally with an item. `new StageGuide(viewer, seat, displays, theme, look, leftTitle, leftRows, rightTitle, rightRows)`, `rows(lines, values)`, `close()`; `Look(distance, lift, scale)` embeds in a plugin's config (since 1.362.0) |
 | `StageLook` | Helpers: `rgb(token, fallback)`, `block(name, fallback)`, `item`, `play(player, "NAME\|vol\|pitch"[, factor])`, `pitch`, `facing(plane)`, `still`, `pop` (staggered entrances), `pulse`, `fit`, `width`, `hex` |
@@ -88,7 +89,7 @@ from the viewer's thread. An empty list gives the screens back to the viewer alo
 call it when their game ends. A bystander near several players shown this way (a table of eight) watches only the
 nearest one's screens (1.374.0), so they see one board, not every board crossed over the
 table, and a crowded table costs its crowd once rather than once per seat. Only the viewer's clicks, hovers and sounds count; a
-win's fireworks and a loss's smoke are the viewer's alone (1.371.0). Built on
+win's burst of stars and a loss's smoke are the viewer's alone (1.371.0). Built on
 `DisplayHandle#viewers(list)`, which changes who sees one display mid-motion.
 
 `PlacedTables` keeps the places an admin set down for a game: a spot where the player
@@ -131,8 +132,8 @@ A board that belongs to a place rather than a player (a live roulette everybody 
 public stage: `new Stage(plane, displays, life, theme, radius, magnify)` (a subclass passes the same to
 `super`). Every piece is a display shown by radius, so it is drawn once whoever comes and goes, and a
 crowd costs the server what one viewer costs. It has no viewer (`viewer()` is `null`, `isPublic()` is
-`true`): no clicks, hovers or buttons; sounds, smoke, fireworks and `StageFx.burst` go to
-`spectators()`, whoever is within the radius now (read from the world: call it on the region thread of
+`true`): no clicks, hovers or buttons; sounds, smoke and `StageFx.burst` go to
+`spectators()` (a win draws no burst of stars: nobody owns the moment), whoever is within the radius now (read from the world: call it on the region thread of
 where it stands). A screen written for a player (a game's view) is drawn publicly unchanged once it
 takes this constructor.
 
@@ -171,6 +172,57 @@ seats on stairs or slabs. Sneaking stands an unlocked player up and runs `stoodU
 `lock(player, true)` keeps them seated (while a match is played); `stand(player)` is
 the plugin standing them up. Quitting, dying and the plugin's disable take the seat
 away; it is never saved.
+
+## The room (1.420.0)
+
+Everything here is the viewer's alone; everyone else sees the real world.
+
+- **Blocks.** Every block that reaches into the room (its square grown by the
+  block's half diagonal, from the floor layer to the ceiling) is sent as air and
+  kept so with `FakeBlocks#keep`: walls, plants tall or short, doors and beds
+  (each half on its own), signs, banners, fences, walls, leaves. A block placed,
+  broken or updated there by anyone while it is open, or the chunk sent again,
+  stays air to them.
+- **The floor.** The player keeps standing on the real block under their feet:
+  the floor layer is read half a block down (`floor(feetY - 0.5)`), and a block
+  whose collision tops out at or under the feet is the floor and stays real (a
+  slab, a carpet, farmland, soul sand, a bed). Where the floor layer has nothing
+  to stand on (the void, the edge of a one-block platform, water) or pokes up past
+  the feet, it is a barrier only this player has, under the walkable square only.
+  The drawn floor sits on top. Under the floor layer the world stays as it is.
+  The server's half is `Movement#confine`: back to the centre on a fall or a
+  flight, no fall damage, no flying kick.
+- **Entities.** Every few ticks, on the player's thread, whatever stands in the
+  room (mobs, items, item frames, paintings, armour stands, projectiles, display
+  entities, other plugins' entity holograms and NPCs) is hidden from the player
+  with `Player#hideEntity` and shown again once it leaves or the room closes.
+  Entities other plugins draw in packets alone are kept out with
+  `Visibility#seal` when they spawn inside; displays and hitboxes are not, so this
+  plugin's screens stay. Players: with the walls drawn every other player is hidden
+  (their names would show through the walls); with `enabled: false` only those
+  inside the room are, and they come back when they step out.
+- **Limits.** A packet-only entity another plugin had already drawn in the room
+  before it opened stays until that plugin draws it again, and one that walks in
+  by relative moves is not caught.
+
+### A play spot
+
+```java
+spot = new PlaySpot(plugin, "play-spot.yml", uuid -> games.isPlaying(uuid));
+spot.set(admin.getLocation());            // <plugin>admin spot set; spot.clear()
+spot.send(player).thenAccept(at -> ...);  // to the spot (Teleports, no warmup), or where they stand when none
+spot.giveBack(player);                    // the game ended or they left
+spot.close();                             // onDisable
+```
+
+Every player goes to the same spot: a room is drawn for its player alone and
+every other player is hidden from them, so any number play there at once, each
+in their own room, with no offsets to fit into the terrain. Where each came from
+is written to the plugin's file before the move and taken out once they are back:
+one who quit or was there when the server stopped hard is sent back on their next
+join (unless `playing` says the plugin still has them), one who died respawns
+there, and `close()` moves everyone still away synchronously at shutdown (on
+Folia they go back on their next join).
 
 ## Building on it
 
@@ -230,7 +282,10 @@ top without forking the module:
   `PlayingCard`, `CardSprite`, `DieSprite`, `StageFx`.
 - Lifecycle: `Stage.release(plugin)` in `ExyliaLib.onPluginDisable` (before
   `Displays.release`), `Stage.releaseAll()` in `onDisable`.
-- Tests: `stage/StagePlaneTest` (ray-to-cell picking on every seat facing, the
+- Tests: `stage/EnclosureTest` (the floor layer and what each block is sent as),
+  `packet/VolumeTest` (the turned square, heights, boxes touching it),
+  `packet/internal/PenTest` (falls, flights and far strays go back to the centre),
+  `stage/StagePlaneTest` (ray-to-cell picking on every seat facing, the
   gap, columns, zoom limits, fit only before use), `stage/StageHudTest` (the
   countdown on a fake clock, sound pitch, text width), `stage/kit/KitTest`
   (decks, a throw landing square to the seat, bounces).

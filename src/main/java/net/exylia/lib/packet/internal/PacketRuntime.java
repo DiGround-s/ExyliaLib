@@ -15,6 +15,7 @@ import net.exylia.lib.packet.RevealStyle;
 import net.exylia.lib.packet.SilentContainer;
 import net.exylia.lib.packet.Visibility;
 import net.exylia.lib.packet.VisibilityRule;
+import net.exylia.lib.packet.Volume;
 import net.exylia.lib.packet.WorldBorders;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
@@ -31,7 +32,11 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerGameModeChangeEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityToggleGlideEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -437,19 +442,82 @@ public final class PacketRuntime {
     }
 
     /**
-     * The square a confined player may walk in, {@code reach} to each side of {@code centre} turned
-     * with its yaw, and the client-side hitbox that fills it.
+     * The box a confined player may walk in, {@code reach} to each side of {@code centre} turned with its
+     * yaw, from a little under their feet to a jump over their head, and the client-side hitbox that fills it.
      */
-    record Pen(Location centre, double reach, int hitbox) {
+    record Pen(Location centre, Volume box, int hitbox) {
 
-        boolean holds(double x, double z) {
-            double dx = x - centre.getX();
-            double dz = z - centre.getZ();
-            double yaw = Math.toRadians(centre.getYaw());
-            double cos = Math.cos(yaw);
-            double sin = Math.sin(yaw);
-            return Math.abs(dx * cos + dz * sin) <= reach && Math.abs(dz * cos - dx * sin) <= reach;
+        boolean holds(double x, double y, double z) {
+            return box.holds(x, y, z);
         }
+
+        /**
+         * Gone, not stepping out: under the floor or over the ceiling (a fall, a flight, an elytra), or more
+         * than a block past an edge (lag, a pearl, knockback). Such a player goes back to the centre rather
+         * than to where they last stood, which may itself be over nothing.
+         */
+        boolean strays(double x, double y, double z) {
+            return y < box.bottom() || y > box.top() || !box.holdsColumn(x, z, 1.0);
+        }
+    }
+
+    /** How far under the pen's floor a player may be before they are put back: a dropped half slab, no more. */
+    static final double PEN_BELOW = 0.55;
+    /** How far over it: a jump and a bit, never a flight out of a room. */
+    static final double PEN_ABOVE = 2.6;
+
+    /** The anchor put back on a pen's centre, for a player who strayed from it. */
+    static Location recentre(UUID player, Pen pen) {
+        Location anchor = ANCHORS.get(player);
+        Location back = pen.centre().clone();
+        if (anchor != null) {
+            back.setYaw(anchor.getYaw());
+            back.setPitch(anchor.getPitch());
+        }
+        ANCHORS.put(player, back);
+        return back;
+    }
+
+    /** When each player was last let go, for the flying kick's grace. */
+    private static final Map<UUID, Long> LET_GO = new ConcurrentHashMap<>();
+    private static final long LET_GO_GRACE_MILLIS = 5000L;
+
+    /** Fake blocks a viewer keeps through the server's own updates: packed position to what they see. */
+    private static final Map<UUID, Map<Long, BlockData>> KEPT = new ConcurrentHashMap<>();
+    /** Viewers who see no entity spawned inside a box but displays and hitboxes. */
+    private static final Map<UUID, Sealed> SEALED = new ConcurrentHashMap<>();
+
+    /** A box no entity is drawn in for one viewer, in one world. */
+    record Sealed(UUID world, Volume box) {
+    }
+
+    static long pack(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
+    }
+
+    static @Nullable Map<Long, BlockData> keptOf(UUID viewer) {
+        Map<Long, BlockData> kept = KEPT.get(viewer);
+        return kept == null || kept.isEmpty() ? null : kept;
+    }
+
+    static @Nullable Sealed sealedOf(UUID viewer) {
+        return SEALED.get(viewer);
+    }
+
+    /** Sends a viewer the blocks they keep in one chunk again, after the server sent the chunk's real ones. */
+    static void rekeep(Player viewer, int chunkX, int chunkZ) {
+        Map<Long, BlockData> kept = KEPT.get(viewer.getUniqueId());
+        PacketSink out = sink;
+        if (kept == null || out == null) return;
+        Map<Location, BlockData> here = new HashMap<>();
+        kept.forEach((packed, data) -> {
+            int x = (int) (packed >> 38);
+            int z = (int) (packed << 26 >> 38);
+            int y = (int) (packed << 52 >> 52);
+            if (x >> 4 == chunkX && z >> 4 == chunkZ) here.put(new Location(viewer.getWorld(), x, y, z), data);
+        });
+        if (!here.isEmpty()) SectionGroups.group(here.keySet()).forEach((section, positions) ->
+                out.blocks(viewer, section, positions, here));
     }
 
     static @Nullable Pen penOf(UUID player) {
@@ -476,7 +544,7 @@ public final class PacketRuntime {
         PEN_SENT.put(player.getUniqueId(), now);
         PacketSink out = sink;
         if (out != null) {
-            out.hitbox(player, pen.hitbox(), pen.centre().clone().subtract(0, 2, 0), penWidth(pen.reach()), 10f);
+            out.hitbox(player, pen.hitbox(), pen.centre().clone().subtract(0, 2, 0), penWidth(pen.box().reach()), 10f);
         }
     }
 
@@ -521,7 +589,10 @@ public final class PacketRuntime {
         FROZEN_BY.remove(id);
         ROTATION_LOCKED.remove(id);
         PENS.remove(id);
+        LET_GO.remove(id);
         FAKED.remove(id);
+        KEPT.remove(id);
+        SEALED.remove(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
         REVEALING.remove(id);
@@ -608,6 +679,7 @@ public final class PacketRuntime {
         public void onWorldChange(PlayerChangedWorldEvent event) {
             // The client dropped every chunk of the old world; so do we.
             FAKED.remove(event.getPlayer().getUniqueId());
+            KEPT.remove(event.getPlayer().getUniqueId());
             // Its entities went with them: forget without sending a despawn.
             OUTLINED.remove(event.getPlayer().getUniqueId());
             Borders.resend(event.getPlayer());
@@ -663,19 +735,73 @@ public final class PacketRuntime {
             }
             UUID id = event.getPlayer().getUniqueId();
             Pen pen = PENS.get(id);
-            if (pen != null && pen.holds(to.getX(), to.getZ())) {
+            if (pen != null && pen.holds(to.getX(), to.getY(), to.getZ())) {
                 settle(id, to.getX(), to.getY(), to.getZ());
                 return;
+            }
+            if (pen != null && pen.strays(to.getX(), to.getY(), to.getZ())) {
+                anchor = recentre(id, pen);
             }
             boolean locked = ROTATION_LOCKED.contains(id);
             if (anchor.distanceSquared(to) > 1e-6
                     || locked && PacketHooks.turned(anchor, to.getYaw(), to.getPitch())) {
+                // A bounce-back inside a move listener: an allowed exception to the Teleports rule.
                 Location back = anchor.clone();
                 if (!locked) {
                     back.setYaw(to.getYaw());
                     back.setPitch(to.getPitch());
                 }
                 event.setTo(back);
+            }
+        }
+
+        /** Nothing a held player does in their box hurts them on landing. */
+        @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+        public void onFall(EntityDamageEvent event) {
+            if (event.getCause() == EntityDamageEvent.DamageCause.FALL && event.getEntity() instanceof Player player
+                    && ANCHORS.containsKey(player.getUniqueId())) {
+                event.setCancelled(true);
+                player.setFallDistance(0);
+            }
+        }
+
+        /**
+         * A held player stands on what the server may not have (a room's floor over nothing), and the
+         * server, seeing them float, would kick them for flying.
+         */
+        @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+        public void onKick(PlayerKickEvent event) {
+            UUID id = event.getPlayer().getUniqueId();
+            Long let = LET_GO.get(id);
+            // The server counts the floating up while they are held and kicks the moment they are let go,
+            // before the barriers under them are gone from their client: a few seconds' grace after.
+            if (event.getCause() == PlayerKickEvent.Cause.FLYING_PLAYER
+                    && (ANCHORS.containsKey(id) || let != null && System.currentTimeMillis() - let < LET_GO_GRACE_MILLIS)) {
+                event.setCancelled(true);
+            }
+        }
+
+        private static final Set<String> LEAVING_CAUSES = Set.of("ENDER_PEARL", "CHORUS_FRUIT", "CONSUMABLE_EFFECT",
+                "NETHER_PORTAL", "END_PORTAL", "END_GATEWAY");
+
+        /** A pearl, a chorus fruit or a portal would take a held player out of their box: refused. */
+        @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+        public void onTeleport(PlayerTeleportEvent event) {
+            if (!ANCHORS.containsKey(event.getPlayer().getUniqueId())) {
+                return;
+            }
+            // By name: the chorus fruit's cause was renamed CONSUMABLE_EFFECT in 1.21.2.
+            if (LEAVING_CAUSES.contains(event.getCause().name())) {
+                event.setCancelled(true);
+            }
+        }
+
+        /** Gliding needs a fall; a held player has none to start. */
+        @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+        public void onGlide(EntityToggleGlideEvent event) {
+            if (event.isGliding() && event.getEntity() instanceof Player player
+                    && ANCHORS.containsKey(player.getUniqueId())) {
+                event.setCancelled(true);
             }
         }
     }
@@ -861,7 +987,30 @@ public final class PacketRuntime {
         }
 
         @Override
+        public void keep(@NotNull Player viewer, @NotNull Map<Location, BlockData> blocks) {
+            Map<Long, BlockData> kept = KEPT.computeIfAbsent(viewer.getUniqueId(), ignored -> new ConcurrentHashMap<>());
+            for (Map.Entry<Location, BlockData> entry : blocks.entrySet()) {
+                Location at = entry.getKey();
+                if (at.getWorld() != null && at.getWorld().equals(viewer.getWorld())) {
+                    kept.put(pack(at.getBlockX(), at.getBlockY(), at.getBlockZ()), entry.getValue());
+                }
+            }
+            show(viewer, blocks);
+        }
+
+        @Override
+        public void seal(@NotNull Player viewer, @Nullable Volume box) {
+            if (box == null) {
+                SEALED.remove(viewer.getUniqueId());
+            } else {
+                SEALED.put(viewer.getUniqueId(), new Sealed(viewer.getWorld().getUID(), box));
+                sink();
+            }
+        }
+
+        @Override
         public void clear(@NotNull Player viewer) {
+            KEPT.remove(viewer.getUniqueId());
             Set<Location> shown = FAKED.remove(viewer.getUniqueId());
             if (shown != null) {
                 restore(viewer, shown);
@@ -870,6 +1019,12 @@ public final class PacketRuntime {
 
         @Override
         public void clear(@NotNull Player viewer, @NotNull Collection<Location> positions) {
+            Map<Long, BlockData> kept = KEPT.get(viewer.getUniqueId());
+            if (kept != null) {
+                for (Location at : positions) {
+                    kept.remove(pack(at.getBlockX(), at.getBlockY(), at.getBlockZ()));
+                }
+            }
             Set<Location> shown = FAKED.get(viewer.getUniqueId());
             if (shown == null) {
                 return;
@@ -927,7 +1082,11 @@ public final class PacketRuntime {
             double inside = Math.max(0, reach - 0.35);
             PacketSink out = sink();
             int hitbox = out == null ? -1 : out.newEntityId();
-            PENS.put(player.getUniqueId(), new Pen(centre.clone(), inside, hitbox));
+            // From a dropped half slab under the lower of the centre and the feet to a jump over the higher.
+            double feet = player.getLocation().getY();
+            Volume box = new Volume(centre.getX(), centre.getZ(), centre.getYaw(), inside,
+                    Math.min(centre.getY(), feet) - PEN_BELOW, Math.max(centre.getY(), feet) + PEN_ABOVE);
+            PENS.put(player.getUniqueId(), new Pen(centre.clone(), box, hitbox));
             if (out != null) {
                 // Wide enough to hold the eyes from any corner, from below the feet to well over the head.
                 out.hitbox(player, hitbox, centre.clone().subtract(0, 2, 0), penWidth(inside), 10f);
@@ -938,6 +1097,7 @@ public final class PacketRuntime {
         @Override
         public void unfreeze(@NotNull Player player) {
             if (name.equals(FROZEN_BY.get(player.getUniqueId()))) {
+                LET_GO.put(player.getUniqueId(), System.currentTimeMillis());
                 FROZEN_BY.remove(player.getUniqueId());
                 ANCHORS.remove(player.getUniqueId());
                 ROTATION_LOCKED.remove(player.getUniqueId());
