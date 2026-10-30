@@ -288,15 +288,78 @@ pointer.detach();                                  // the round is over
   is detached the one under it gets it back.
 - `Hotspot.rect(plane, across, up, width, height)`, `Hotspot.cells(plane)`
   (`StagePlane.pick`), `Hotspot.of(stageButton)` (lights and squashes by itself,
-  plays its own sounds). Each takes `onHover(boolean)`, `onCell(int)`,
-  `onPress(SpatialClick)`, `onScroll(int)`, `priority`, `enabled`, `silent`.
-  Overlapping: higher priority, then nearer the eyes. Several planes per pointer.
+  plays its own sounds), `Hotspot.custom(plane, hit -> index)` (since 1.410.0).
+  Each takes `onHover(boolean)`, `onCell(int)`, `onPress(SpatialClick)`,
+  `onScroll(int)`, `priority`, `enabled`, `silent`. Overlapping: higher priority,
+  then nearer the eyes. Several planes per pointer.
 - The pointer plays its hover sound once per change (entering a hotspot or a new
   cell) and its press sound on a press, unless the hotspot is silent.
 - `SpatialClick(kind, sneaking, cell)`: LEFT is a swing (air, block or entity);
   RIGHT a use on a block or entity, or a right-click with the hotbar's leave item.
   A swing and the interaction it causes are one click (120 ms). A click on no
-  hotspot goes to `onClick`.
+  hotspot goes to `onClick`; `onAnyClick` (since 1.410.0) hears every click first,
+  on a hotspot or not, a refused press included: an idle clock, stopping AUTO.
+
+### Shapes, state and threads (since 1.410.0)
+
+```java
+// A game's own shapes, answered from its state on every poll: -1 is a miss.
+pointer.add(Hotspot.custom(plane, hit -> view.target(hit))
+        .accepts(cell -> board.isEmpty(cell))   // a refused cell neither hovers nor sounds
+        .hoverable(seat == turn)                // waiting: the press arrives ("not your turn"), nothing lights
+        .onCell(view::hover)
+        .onPress(click -> play(seat, click.cell())));
+
+pointer.add(Hotspot.of(rollButton).squash(false)          // the press redraws the button anyway
+        .pressWhen(() -> state == State.READY)            // refused: no sound, no squash, no onPress
+        .onPress(click -> roll()));
+
+pointer.onAnyClick(click -> session.touched());           // every click, before routing
+pointer.deliverOn(match.spot(0));                         // the round's region: everything runs there
+```
+
+- `Hotspot.custom(plane, picker)`: `picker` turns a `StagePlane.Hit` into a cell
+  index or `-1`; it runs on every poll and every click, so it may read the game's
+  state (edges in reach, the card on top of a fanned hand, round arrows, nothing
+  while the dice roll). The index arrives like a cell picker's.
+- `accepts(IntPredicate)`: which cells answer, asked on every poll. A refused cell
+  is a miss: no hover, no sound, and its click goes to the hotspot behind or to
+  `onClick`. A rectangle and a button are cell 0.
+- `hoverable(false)`: the hotspot still takes the crosshair and its presses, with
+  no hover callback, glow, squash or sound. Flipping it back under the crosshair
+  lights it on the next poll.
+- `squash(false)` on `Hotspot.of(button)`: the button lights but is not squashed
+  on a press. `pressWhen(BooleanSupplier)`: a press refused by it does nothing
+  visible (it still hovers); `onAnyClick` still hears it.
+- `deliverOn(location)`: the pointer moves onto the thread that owns `location`
+  (on Folia, its region): it polls there, and pickers, `accepts`, button visuals
+  and every callback run there, so a round that lives on one region needs no hop
+  of its own. Clicks are heard on the player's thread and handed over; the hotbar
+  slot is put back on the player's. `deliverOn(null)` brings it back; the same
+  place again does nothing. Hotspots may be added and removed from any thread.
+
+### Observing pointers (since 1.410.0)
+
+A public board (a live station passers-by bet at, each with their own hover)
+uses `SpatialInput.of(plugin).observe(player)` instead of `attach`:
+
+```java
+SpatialPointer pointer = input.observe(player).sounds("", "");
+pointer.add(Hotspot.custom(board.plane(), board::buttonAt).onCell(cell -> hovers.put(id, cell))
+        .onPress(click -> press(player, click.cell())));
+pointer.detach();                             // they walked off
+```
+
+- Only clicks that land on one of its hotspots are consumed (the interaction,
+  break, place or hit is cancelled); every other click passes to the world. The
+  click on nothing still reaches `onClick`.
+- No hotbar takeover: the slot is never moved back, the wheel reaches only a
+  hovered hotspot that scrolls. Nothing is frozen.
+- A player may have several, one per board near; they never replace or take input
+  from an attached pointer: while one is attached (a game, a menu) or a tuner
+  session runs, observers lose the hover and hear nothing.
+- Callable from any thread; it polls on the player's. Ends on `detach()`, quit,
+  death, world change and the plugin's disable.
 - The wheel: `onScroll` of the hotspot under the crosshair, else the pointer's;
   -1 / +1 a notch. The slot follows the wheel (no notch lost at any ping) and is
   put back 450 ms after the last notch.
@@ -314,7 +377,8 @@ pointer.detach();                                  // the round is over
 ## Contracts
 
 - **Threads.** A pointer, its hotspots and a menu are used from the player's thread
-  (their region on Folia); every callback runs there. `SpatialMenus`' public
+  (their region on Folia), or from the region a pointer was moved to with
+  `deliverOn`; every callback runs there. `onEnd` runs on the thread that ended it. `SpatialMenus`' public
   methods hop to it from anywhere.
 - **Lifetime.** Every piece lives at most 30 minutes; closing takes everything down.
   Quit, death and world change close at once; the plugin's disable closes its
@@ -351,7 +415,8 @@ admin alone.
 - Tests: `spatial/internal/GeometryTest` (turned panels facing the eyes, hits on a
   turned panel, the carousel's symmetry, gap and curve, pagination, diffs, glass
   sizing), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
-  cell picking and the gap, hover reported once, wheel wrap),
+  cell picking and the gap, hover reported once, wheel wrap, custom pickers from
+  state, refused cells falling through, hotspots that do not hover, press guards),
   `spatial/SpatialLayoutTest` (the default round-trips, a shipped layout keeps its
   values and gains the missing keys), `spatial/DefaultLayoutOverlapTest` (the
   default layout seen front-on from the eyes: no two pieces' outlines overlap,

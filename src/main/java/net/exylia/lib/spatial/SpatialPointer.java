@@ -2,15 +2,16 @@ package net.exylia.lib.spatial;
 
 import net.exylia.lib.stage.StageLook;
 import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.tuner.Tuner;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
@@ -31,10 +32,15 @@ import java.util.function.IntConsumer;
  * pointer.detach();                                      // the round is over
  * }</pre>
  *
- * <p>Clicks on nothing go to {@link #onClick}; the wheel goes to the hovered hotspot when it scrolls,
- * else to {@link #onScroll}. The newest pointer a player has takes their input; when it is detached
- * the one under it (a game they left the menu of) gets it back. Used from the player's thread; every
- * callback runs there.
+ * <p>Clicks on nothing go to {@link #onClick}; {@link #onAnyClick} hears every click first. The wheel
+ * goes to the hovered hotspot when it scrolls, else to {@link #onScroll}. The newest pointer a player
+ * has takes their input; when it is detached the one under it (a game they left the menu of) gets it
+ * back. It lives on the player's thread, or on a region's after {@link #deliverOn}: polls, pickers and
+ * every callback run there. Hotspots may be added and removed from any thread.
+ *
+ * <p>An {@linkplain SpatialInput#observe observing} pointer is for a public board passers-by aim at:
+ * it consumes (cancels) only the clicks that land on one of its hotspots, leaves the hotbar alone, and
+ * hears nothing while the player has an attached pointer.
  *
  * @since 1.406.0
  */
@@ -61,9 +67,13 @@ public final class SpatialPointer {
 
     final SpatialInput input;
     final Player viewer;
-    private final List<Hotspot> hotspots = new ArrayList<>();
-    private @Nullable Hotspot hovered;
-    private boolean enabled = true;
+    final boolean observing;
+    private final List<Hotspot> hotspots = new CopyOnWriteArrayList<>();
+    private volatile @Nullable Hotspot hovered;
+    private volatile boolean enabled = true;
+    /** Where it lives once {@link #deliverOn} moved it; {@code null} on the player's thread. */
+    private volatile @Nullable Location region;
+    private @Nullable Consumer<SpatialClick> onAnyClick;
     private String hoverSound;
     private String pressSound;
     private @Nullable Consumer<SpatialClick> onClick;
@@ -73,20 +83,65 @@ public final class SpatialPointer {
     private @Nullable Runnable onTick;
     private @Nullable Consumer<End> onEnd;
     private long lastClick;
-    private long mutedUntil;
-    private long lastNotch;
+    private volatile long mutedUntil;
+    private volatile long lastNotch;
     private final int originSlot;
-    private boolean slotMoved;
-    @Nullable TaskHandle timer;
-    private boolean ended;
+    private volatile boolean slotMoved;
+    private volatile @Nullable TaskHandle timer;
+    private volatile boolean ended;
 
-    SpatialPointer(SpatialInput input, Player viewer) {
+    SpatialPointer(SpatialInput input, Player viewer, boolean observing) {
         this.input = input;
         this.viewer = viewer;
+        this.observing = observing;
         SpatialTheme theme = SpatialTheme.defaults();
         this.hoverSound = theme.hoverSound();
         this.pressSound = theme.selectSound();
-        this.originSlot = viewer.getInventory().getHeldItemSlot();
+        // An observer never moves the hotbar, so it never reads it (it may be made on another thread).
+        this.originSlot = observing ? 0 : viewer.getInventory().getHeldItemSlot();
+    }
+
+    /** Starts polling where it lives. */
+    void start() {
+        Location at = region;
+        timer = at == null ? input.tasks.runAtEntityTimer(viewer, 1L, 2L, this::poll)
+                : input.tasks.runAtLocationTimer(at, 1L, 2L, this::poll);
+    }
+
+    /**
+     * Moves it onto the thread that owns {@code region} (a match's first seat, a station): polls,
+     * pickers, hover visuals ({@link Hotspot#of} buttons included) and every callback run there from
+     * now on, so a round living on one region needs no hop of its own. Clicks are still heard on the
+     * player's thread and handed over. {@code null} brings it back to the player's thread. Calling it
+     * again with the same place does nothing.
+     *
+     * @since 1.410.0
+     */
+    public @NotNull SpatialPointer deliverOn(@Nullable Location region) {
+        if (ended || Objects.equals(this.region, region)) return this;
+        this.region = region == null ? null : region.clone();
+        TaskHandle old = timer;
+        if (old != null) old.cancel();
+        start();
+        return this;
+    }
+
+    /** Where it lives, or {@code null} on the player's thread. @since 1.410.0 */
+    public @Nullable Location region() {
+        Location at = region;
+        return at == null ? null : at.clone();
+    }
+
+    /** Whether it is an {@linkplain SpatialInput#observe observer}. @since 1.410.0 */
+    public boolean observing() {
+        return observing;
+    }
+
+    /** Runs {@code work} where the pointer lives: at once when already there. */
+    private void deliver(Runnable work) {
+        Location at = region;
+        if (at == null || !input.plugin().isEnabled() || input.tasks.isOwnedBy(at)) work.run();
+        else input.tasks.runAtLocation(at, work);
     }
 
     public @NotNull Player viewer() {
@@ -105,7 +160,7 @@ public final class SpatialPointer {
         hotspots.remove(hotspot);
         if (hovered == hotspot) {
             hovered = null;
-            hotspot.hover(-1);
+            deliver(() -> hotspot.hover(-1));
         }
     }
 
@@ -126,7 +181,7 @@ public final class SpatialPointer {
     /** Whether it answers at all: a game waiting on a dealer turns it off and the hover goes. */
     public @NotNull SpatialPointer enabled(boolean enabled) {
         this.enabled = enabled;
-        if (!enabled) setHovered(null, -1);
+        if (!enabled) unhover();
         return this;
     }
 
@@ -143,6 +198,17 @@ public final class SpatialPointer {
     public @NotNull SpatialPointer sounds(@Nullable String hover, @Nullable String press) {
         this.hoverSound = hover == null ? "" : hover;
         this.pressSound = press == null ? "" : press;
+        return this;
+    }
+
+    /**
+     * Every click, on a hotspot or not, heard before it is routed (a refused press included): an idle
+     * clock, a way to stop autoplay. Not heard while disabled or muted.
+     *
+     * @since 1.410.0
+     */
+    public @NotNull SpatialPointer onAnyClick(@Nullable Consumer<SpatialClick> onAnyClick) {
+        this.onAnyClick = onAnyClick;
         return this;
     }
 
@@ -176,7 +242,10 @@ public final class SpatialPointer {
         return this;
     }
 
-    /** Runs once when it stops, whatever stopped it. Not run for {@link End#DETACHED}. */
+    /**
+     * Runs once when it stops, whatever stopped it, on the thread that stopped it. Not run for
+     * {@link End#DETACHED}.
+     */
     public @NotNull SpatialPointer onEnd(@Nullable Consumer<End> onEnd) {
         this.onEnd = onEnd;
         return this;
@@ -194,10 +263,11 @@ public final class SpatialPointer {
     void end(End reason) {
         if (ended) return;
         ended = true;
-        if (timer != null) timer.cancel();
-        setHovered(null, -1);
+        TaskHandle running = timer;
+        if (running != null) running.cancel();
+        unhover();
         hotspots.clear();
-        if (slotMoved && viewer.isOnline()) viewer.getInventory().setHeldItemSlot(originSlot);
+        if (slotMoved && viewer.isOnline()) restoreSlot();
         input.forget(this);
         if (onEnd != null && reason != End.DETACHED) onEnd.accept(reason);
     }
@@ -207,9 +277,12 @@ public final class SpatialPointer {
         if (ended) return;
         if (slotMoved && System.currentTimeMillis() - lastNotch > SLOT_REST_MS) {
             slotMoved = false;
-            viewer.getInventory().setHeldItemSlot(originSlot);
+            restoreSlot();
         }
-        if (enabled) {
+        if (observing && (SpatialInput.active(viewer).isPresent() || Tuner.active(viewer).isPresent())) {
+            // An attached pointer (a game, a menu) or the tuner has the player: the board is not theirs now.
+            setHovered(null, -1);
+        } else if (enabled) {
             Location eyes = viewer.getEyeLocation();
             var direction = eyes.getDirection();
             Target target = target(hotspots, eyes.getX(), eyes.getY(), eyes.getZ(),
@@ -222,47 +295,85 @@ public final class SpatialPointer {
 
     private void setHovered(@Nullable Hotspot next, int cell) {
         Hotspot before = hovered;
-        if (before == next && (next == null || next.current == cell)) return;
         if (before != null && before != next) before.hover(-1);
         hovered = next;
-        if (next != null) {
-            next.hover(cell);
-            if (!next.silent()) StageLook.play(viewer, hoverSound);
-        }
+        // Asked on every poll: a hotspot made hoverable again under the crosshair lights now.
+        if (next != null && next.hover(cell) && !next.silent()) StageLook.play(viewer, hoverSound);
     }
 
+    /** The hover goes, drawn where the pointer lives. */
+    private void unhover() {
+        Hotspot before = hovered;
+        hovered = null;
+        if (before != null) deliver(() -> before.hover(-1));
+    }
+
+    private void restoreSlot() {
+        if (input.tasks.isOwnedBy(viewer)) viewer.getInventory().setHeldItemSlot(originSlot);
+        else input.tasks.runAtEntity(viewer, () -> viewer.getInventory().setHeldItemSlot(originSlot));
+    }
+
+    /** A click, heard on the player's thread; answered where the pointer lives. */
     void click(SpatialClick.Kind kind) {
         if (ended || !enabled) return;
         long now = System.currentTimeMillis();
         if (now < mutedUntil || now - lastClick < CLICK_GAP_MS) return;
         lastClick = now;
+        boolean sneaking = viewer.isSneaking();
+        deliver(() -> route(kind, sneaking));
+    }
+
+    private void route(SpatialClick.Kind kind, boolean sneaking) {
+        if (ended || !enabled) return;
         // The crosshair moved since the last poll: answer what is under it now, not two ticks ago.
         poll();
         Hotspot target = hovered;
-        SpatialClick click = new SpatialClick(kind, viewer.isSneaking(), target == null ? -1 : target.current);
+        SpatialClick click = new SpatialClick(kind, sneaking, target == null ? -1 : target.current);
+        if (onAnyClick != null) onAnyClick.accept(click);
         if (target != null) {
-            if (!target.silent()) StageLook.play(viewer, pressSound);
+            if (!target.pressable()) return;
+            if (!target.silent() && target.hoverable()) StageLook.play(viewer, pressSound);
             target.press(click);
         } else if (onClick != null) {
             onClick.accept(click);
         }
     }
 
+    /**
+     * Whether the crosshair is on one of its hotspots now: what an observer's click on the world is
+     * cancelled for. Read on the player's thread; a pointer moved elsewhere answers from its last poll.
+     */
+    boolean aimed() {
+        if (ended || !enabled) return false;
+        if (region == null) poll();
+        return hovered != null;
+    }
+
     void scroll(int notch) {
         if (ended || !enabled || notch == 0) return;
-        lastNotch = System.currentTimeMillis();
-        slotMoved = true;
-        Hotspot target = hovered;
-        if (target != null && target.scrolls()) target.scroll(notch);
-        else if (onScroll != null) onScroll.accept(notch);
+        if (!observing) {
+            lastNotch = System.currentTimeMillis();
+            slotMoved = true;
+        }
+        deliver(() -> {
+            Hotspot target = hovered;
+            if (target != null && target.scrolls()) target.scroll(notch);
+            else if (onScroll != null && !observing) onScroll.accept(notch);
+        });
     }
 
     void sneak() {
-        if (!ended && onSneak != null) onSneak.run();
+        Runnable run = onSneak;
+        if (!ended && run != null) deliver(() -> {
+            if (!ended) run.run();
+        });
     }
 
     void leave() {
-        if (!ended && onLeave != null) onLeave.run();
+        Runnable run = onLeave;
+        if (!ended && run != null) deliver(() -> {
+            if (!ended) run.run();
+        });
     }
 
     /** A hotspot and the cell a ray lands on. */

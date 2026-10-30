@@ -70,10 +70,12 @@ public final class SpatialInput {
     private static final Map<String, SpatialInput> BY_PLUGIN = new ConcurrentHashMap<>();
     /** Every player's pointers, newest last: the newest takes the input. */
     private static final Map<UUID, Deque<SpatialPointer>> STACKS = new ConcurrentHashMap<>();
+    /** Every player's observing pointers, which never take input from an attached one. */
+    private static final Map<UUID, List<SpatialPointer>> OBSERVERS = new ConcurrentHashMap<>();
     static final String HOTBAR_ID = "spatial";
 
     private final Plugin plugin;
-    private final TaskScheduler tasks;
+    final TaskScheduler tasks;
     private final PluginActions actions;
 
     private SpatialInput(Plugin plugin) {
@@ -112,12 +114,31 @@ public final class SpatialInput {
     public @NotNull SpatialPointer attach(@NotNull Player player) {
         Objects.requireNonNull(player, "player");
         pointer(player).ifPresent(old -> old.end(SpatialPointer.End.REPLACED));
-        SpatialPointer pointer = new SpatialPointer(this, player);
+        SpatialPointer pointer = new SpatialPointer(this, player, false);
         Deque<SpatialPointer> stack = STACKS.computeIfAbsent(player.getUniqueId(), id -> new ArrayDeque<>());
         synchronized (stack) {
             stack.addLast(pointer);
         }
-        pointer.timer = tasks.runAtEntityTimer(player, 1L, 2L, pointer::poll);
+        pointer.start();
+        return pointer;
+    }
+
+    /**
+     * Gives a player an observing pointer at a public board (a station passers-by bet at, each with
+     * their own hover): only clicks that land on one of its hotspots are consumed, every other click,
+     * swing, break and use passes through to the world; the hotbar and the wheel are left alone (a
+     * hotspot that scrolls still hears the wheel); nothing is frozen. It hears nothing while the player
+     * has an {@linkplain #attach attached} pointer or a tuner session. A player may have several (one
+     * per board near); each is ended by {@link SpatialPointer#detach()}, quitting, dying, changing worlds
+     * or the plugin's disable. Callable from any thread; it polls on the player's.
+     *
+     * @since 1.410.0
+     */
+    public @NotNull SpatialPointer observe(@NotNull Player player) {
+        Objects.requireNonNull(player, "player");
+        SpatialPointer pointer = new SpatialPointer(this, player, true);
+        OBSERVERS.computeIfAbsent(player.getUniqueId(), id -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(pointer);
+        pointer.start();
         return pointer;
     }
 
@@ -166,6 +187,14 @@ public final class SpatialInput {
     }
 
     void forget(SpatialPointer pointer) {
+        if (pointer.observing) {
+            List<SpatialPointer> observers = OBSERVERS.get(pointer.viewer.getUniqueId());
+            if (observers != null) {
+                observers.remove(pointer);
+                if (observers.isEmpty()) OBSERVERS.remove(pointer.viewer.getUniqueId(), observers);
+            }
+            return;
+        }
         Deque<SpatialPointer> stack = STACKS.get(pointer.viewer.getUniqueId());
         if (stack == null) return;
         synchronized (stack) {
@@ -175,6 +204,8 @@ public final class SpatialInput {
     }
 
     private static void endAll(UUID player, SpatialPointer.End reason) {
+        List<SpatialPointer> observers = OBSERVERS.get(player);
+        if (observers != null) List.copyOf(observers).forEach(pointer -> pointer.end(reason));
         Deque<SpatialPointer> stack = STACKS.get(player);
         if (stack == null) return;
         List<SpatialPointer> pointers;
@@ -195,12 +226,17 @@ public final class SpatialInput {
             }
             pointers.forEach(pointer -> pointer.end(SpatialPointer.End.DISABLED));
         }
+        for (List<SpatialPointer> observers : List.copyOf(OBSERVERS.values())) {
+            observers.stream().filter(pointer -> pointer.input == input).toList()
+                    .forEach(pointer -> pointer.end(SpatialPointer.End.DISABLED));
+        }
     }
 
     /** Forgets everything, for shutdown. Called by the library. */
     public static void releaseAll() {
         BY_PLUGIN.clear();
         STACKS.clear();
+        OBSERVERS.clear();
     }
 
     /**
@@ -214,8 +250,23 @@ public final class SpatialInput {
             return active(player).orElse(null);
         }
 
+        /** The player's observers, when no attached pointer or tuner has them; empty otherwise. */
+        private static List<SpatialPointer> observers(Player player) {
+            List<SpatialPointer> observers = OBSERVERS.get(player.getUniqueId());
+            if (observers == null || observers.isEmpty() || active(player).isPresent()
+                    || Tuner.active(player).isPresent()) return List.of();
+            return observers;
+        }
+
+        /** Whether one of the player's observers has a hotspot under their crosshair. */
+        private static boolean aimed(List<SpatialPointer> observers) {
+            boolean aimed = false;
+            for (SpatialPointer pointer : observers) aimed |= pointer.aimed();
+            return aimed;
+        }
+
         private static void refuse(Player player, Cancellable event) {
-            if (active(player).isPresent()) event.setCancelled(true);
+            if (active(player).isPresent() || aimed(observers(player))) event.setCancelled(true);
         }
 
         @EventHandler(priority = EventPriority.LOW)
@@ -223,26 +274,39 @@ public final class SpatialInput {
             if (event.getAnimationType() != PlayerAnimationType.ARM_SWING) return;
             SpatialPointer pointer = top(event.getPlayer());
             if (pointer != null) pointer.click(SpatialClick.Kind.LEFT);
+            else observers(event.getPlayer()).forEach(observer -> observer.click(SpatialClick.Kind.LEFT));
         }
 
         @EventHandler(priority = EventPriority.LOW)
         public void onInteract(PlayerInteractEvent event) {
             Player player = event.getPlayer();
-            if (active(player).isEmpty()) return;
+            Action action = event.getAction();
+            boolean right = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
+            boolean click = right || action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK;
+            SpatialClick.Kind kind = right ? SpatialClick.Kind.RIGHT : SpatialClick.Kind.LEFT;
+            if (active(player).isEmpty()) {
+                List<SpatialPointer> observers = observers(player);
+                if (observers.isEmpty() || !aimed(observers)) return;
+                event.setCancelled(true);
+                if (click && event.getHand() == EquipmentSlot.HAND) observers.forEach(observer -> observer.click(kind));
+                return;
+            }
             event.setCancelled(true);
             SpatialPointer pointer = top(player);
             if (pointer == null || event.getHand() != EquipmentSlot.HAND) return;
-            Action action = event.getAction();
-            boolean right = action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK;
-            if (right || action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
-                pointer.click(right ? SpatialClick.Kind.RIGHT : SpatialClick.Kind.LEFT);
-            }
+            if (click) pointer.click(kind);
         }
 
         @EventHandler(priority = EventPriority.LOW)
         public void onInteractEntity(PlayerInteractEntityEvent event) {
             Player player = event.getPlayer();
-            if (active(player).isEmpty()) return;
+            if (active(player).isEmpty()) {
+                List<SpatialPointer> observers = observers(player);
+                if (observers.isEmpty() || !aimed(observers)) return;
+                event.setCancelled(true);
+                if (event.getHand() == EquipmentSlot.HAND) observers.forEach(observer -> observer.click(SpatialClick.Kind.RIGHT));
+                return;
+            }
             event.setCancelled(true);
             SpatialPointer pointer = top(player);
             if (pointer != null && event.getHand() == EquipmentSlot.HAND) pointer.click(SpatialClick.Kind.RIGHT);
@@ -265,10 +329,13 @@ public final class SpatialInput {
 
         @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
         public void onWheel(PlayerItemHeldEvent event) {
-            SpatialPointer pointer = top(event.getPlayer());
+            Player player = event.getPlayer();
+            int notch = SpatialPointer.notch(event.getPreviousSlot(), event.getNewSlot());
+            SpatialPointer pointer = top(player);
             // Let the slot follow the wheel: a cancelled change loses the notches sent before the client
             // hears of it. The pointer puts the slot back once the wheel rests.
-            if (pointer != null) pointer.scroll(SpatialPointer.notch(event.getPreviousSlot(), event.getNewSlot()));
+            if (pointer != null) pointer.scroll(notch);
+            else observers(player).forEach(observer -> observer.scroll(notch));
         }
 
         @EventHandler(priority = EventPriority.LOW)
@@ -276,6 +343,7 @@ public final class SpatialInput {
             if (!event.isSneaking()) return;
             SpatialPointer pointer = top(event.getPlayer());
             if (pointer != null) pointer.sneak();
+            else observers(event.getPlayer()).forEach(SpatialPointer::sneak);
         }
 
         @EventHandler(priority = EventPriority.MONITOR)
