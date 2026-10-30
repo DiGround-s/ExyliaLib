@@ -32,11 +32,8 @@ import java.util.List;
  *     fade-out: 0.5
  *   sound:
  *     name: ENTITY_PLAYER_LEVELUP
- *     volume: 0.8
+ *     volume: 0.7
  *     pitch: 1.2
- *   firework:
- *     colours: ['#8a51c4', '#ff6b9d']
- *     shape: BALL_LARGE
  * </pre>
  *
  * <p>Every part is optional. A section that is left out simply does not play, so

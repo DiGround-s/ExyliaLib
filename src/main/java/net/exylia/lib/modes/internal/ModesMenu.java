@@ -173,7 +173,7 @@ public final class ModesMenu {
     private static void play(Player player, Mode mode) {
         // Asked again: the card may have been drawn a second before the mode closed or went away.
         if (!Modes.modes().contains(mode) || !mode.allowed(player) || !mode.isOpen()) {
-            Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|1.0|1.0]{error}✘ {letters}That mode is not open right now."))
+            Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1.0]{error}✘ {letters}That mode is not open right now."))
                     .send(player);
             return;
         }

@@ -304,6 +304,10 @@ Everything a player sees or hears goes through `net.exylia.lib.effect`. Never
   The same string twice in a row doesn't redraw.
 - **Fireworks are the exception**: they are spawned and detonated in the same
   tick. Everything else is a packet.
+- **No fireworks or loud sounds in shipped defaults.** Fireworks stay a feature
+  for owners' own cosmetics; the lib's and plugins' defaults, celebrations and
+  examples use a title, a short sound (0.6-0.8 volume) or a small burst shown
+  only to the player it is for.
 
 ### Actions — compile once, adapt at the edge
 Actions is the core shared by menus, items and other triggers, but it doesn't

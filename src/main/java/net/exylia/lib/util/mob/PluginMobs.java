@@ -718,7 +718,7 @@ public final class PluginMobs {
         FormKey<BigDecimal> every = FormKey.decimal("every");
         EditorForm form = EditorForm.of(plugin, viewer, Phrases.tr("{primary}&lSOUNDS"))
                 .field(ambient, optionalText(ambient, Phrases.tr("Now and then"), sounds.ambient()))
-                .hint(Phrases.tr("Each is sound|volume|pitch, such as minecraft:entity.iron_golem.step|1|0.7. Blank is silent."))
+                .hint(Phrases.tr("Each is sound|volume|pitch, such as minecraft:entity.iron_golem.step|0.7|0.7. Blank is silent."))
                 .decimal(every, Phrases.tr("Now and then, every seconds"), MobSkillDescriptor.decimal(sounds.every()))
                 .field(step, optionalText(step, Phrases.tr("Each step"), sounds.step()))
                 .field(hurt, optionalText(hurt, Phrases.tr("Hurt"), sounds.hurt()))

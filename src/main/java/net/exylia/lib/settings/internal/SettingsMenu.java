@@ -269,7 +269,7 @@ public final class SettingsMenu {
         Setting setting = store == null ? null : store.setting(entry.key());
         if (setting == null || !setting.allowed(player) || !setting.available()) return;
         if (!Settings.step(player, store.plugin(), setting.key(), direction)) {
-            Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|1.0|1.0]{error}✘ {letters}Your settings are still loading. Try again in a moment."))
+            Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1.0]{error}✘ {letters}Your settings are still loading. Try again in a moment."))
                     .send(player);
             return;
         }

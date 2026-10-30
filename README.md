@@ -618,10 +618,7 @@ on-win:
     stay: 3.0
   sound:
     name: ENTITY_PLAYER_LEVELUP
-    volume: 0.8
-  firework:
-    colours: ['#8a51c4', '#ff6b9d']
-    shape: BALL_LARGE
+    volume: 0.7
 ```
 
 `EffectConfig` nests inside a plugin's own config record like any other section,

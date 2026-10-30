@@ -5,6 +5,12 @@ config, played by one call. Since 1.4.0.
 
 Entry point: `net.exylia.lib.effect.Effects`.
 
+**House rule for shipped defaults:** no fireworks, and only short, clean sounds
+at a moderate volume (0.6-0.8), played to the player they are for. Fireworks
+stay supported for what an owner writes into their own cosmetics; a plugin's
+own defaults, celebrations and examples never use them. Celebrate with a title,
+a short sound or a small particle or display burst shown only to that player.
+
 ## Declared in config, not in Java
 
 The plugin says *what happened*; the owner decides what that looks like.

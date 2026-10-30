@@ -252,7 +252,7 @@ sequences.play(reveal, SequenceTarget.at(crate.getLocation())
 - '[MESSAGE] <center>{letters}%player% {letters_black}won %reward%;who:all'
 - '[DISPLAY] {item:reward};from:0,0.5,0;to:0,1.6,0;life:3;ease:back_out;glow:%tier_color%'
 - '[DISPLAY] %reward%;as:text;from:0,2.2,0;life:3;background:none;text_shadow:true'
-- '[FIREWORK] color:%tier_color%;fade:#ffffff;type:star'
+- '[SOUND] ENTITY_PLAYER_LEVELUP;0.6;1.4'
 ```
 
 `%name%` is filled in, before the line is parsed, in the text of `[TITLE]`,

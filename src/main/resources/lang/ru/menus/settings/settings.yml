@@ -2,11 +2,11 @@ title: '{primary}&lНАСТРОЙКИ'
 size: 27
 type: SIMPLE
 open_sounds:
-  - "minecraft:block.ender_chest.open|1.0|1.4"
+  - "minecraft:block.ender_chest.open|0.6|1.4"
 click_sounds:
-  - "minecraft:block.note_block.hat|1.0|1.0"
+  - "minecraft:block.note_block.hat|0.7|1.0"
 close_sounds:
-  - "minecraft:block.barrel.close|1.0|0.7"
+  - "minecraft:block.barrel.close|0.6|0.7"
 filler:
   global:
     material: GRAY_STAINED_GLASS_PANE

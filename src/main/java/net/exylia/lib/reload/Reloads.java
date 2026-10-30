@@ -184,14 +184,14 @@ public final class Reloads {
     private String chatLine(Report report) {
         String prefix = Prefixes.get(plugin) == null ? "" : "%prefix% ";
         if (report.ok()) {
-            return "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.0]" + prefix
+            return "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|0.7|1.0]" + prefix
                     + (report.steps() == 1
                             ? Phrases.tr("{success}Reloaded {highlight}{0} {success}step in {info}{1}ms",
                                     report.steps(), report.millis())
                             : Phrases.tr("{success}Reloaded {highlight}{0} {success}steps in {info}{1}ms",
                                     report.steps(), report.millis()));
         }
-        return "[sound:ENTITY_VILLAGER_NO|1.0|1.0]" + prefix
+        return "[sound:ENTITY_VILLAGER_NO|0.7|1.0]" + prefix
                 + Phrases.tr("{warning}Reloaded {highlight}{0}/{1} {warning}steps in {info}{2}ms {letters_black}» {error}{3}",
                         report.steps() - report.failed().size(), report.steps(), report.millis(),
                         String.join(", ", report.failed()));

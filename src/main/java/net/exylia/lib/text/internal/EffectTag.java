@@ -10,7 +10,7 @@ import java.util.List;
  * keep working:
  *
  * <pre>
- * [sound:ENTITY_PLAYER_LEVELUP|1.0|1.2;particle:FLAME|20;center]{success}Well done
+ * [sound:ENTITY_PLAYER_LEVELUP|0.6|1.2;particle:FLAME|20;center]{success}Well done
  * </pre>
  *
  * <p>One bracketed block, only at the very start of the line. Inside it,
@@ -134,7 +134,7 @@ public final class EffectTag {
     /**
      * Splits an entry into its arguments.
      *
-     * @param entry an entry such as {@code ENTITY_PLAYER_LEVELUP|1.0|1.2}
+     * @param entry an entry such as {@code ENTITY_PLAYER_LEVELUP|0.6|1.2}
      * @return the arguments, trimmed
      */
     public static String[] arguments(String entry) {

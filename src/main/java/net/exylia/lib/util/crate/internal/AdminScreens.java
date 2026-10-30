@@ -108,7 +108,7 @@ public final class AdminScreens<T> {
     /** Arm's length plus a step, as the bind commands use. */
     private static final int REACH = 6;
     private static final int MAX_KEYS = 100_000;
-    private static final String REFUSED = "[sound:ENTITY_VILLAGER_NO|1|1]";
+    private static final String REFUSED = "[sound:ENTITY_VILLAGER_NO|0.7|1]";
 
     private static final Map<String, AdminScreens<?>> BY_PLUGIN = new ConcurrentHashMap<>();
     private static volatile PluginMenus menus;

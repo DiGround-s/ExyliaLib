@@ -499,12 +499,12 @@ public record LibraryMessages(
 
         /** Nobody answers to that name. */
         public static final String DEFAULT_NOT_FOUND =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}No player named "
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}No player named "
                         + "{highlight}%player% {letters}was found.";
 
         /** They are not on this server. */
         public static final String DEFAULT_NOT_HERE =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%player% "
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {highlight}%player% "
                         + "{letters}is not on this server.";
 
         /** The Exylia defaults. */
@@ -585,17 +585,17 @@ public record LibraryMessages(
 
         /** Bought and granted. */
         public static final String DEFAULT_SUCCESS =
-                "[sound:ENTITY_PLAYER_LEVELUP|1|1.4]{success}✔ {letters}You unlocked {highlight}%item% "
+                "[sound:ENTITY_PLAYER_LEVELUP|0.6|1.4]{success}✔ {letters}You unlocked {highlight}%item% "
                         + "{letters}for {info}%price%{letters}.";
 
         /** Not enough money. */
         public static final String DEFAULT_INSUFFICIENT =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}You need {info}%price% {letters}to buy "
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}You need {info}%price% {letters}to buy "
                         + "{highlight}%item% {letters_black}» {letters}you have {info}%balance%{letters}.";
 
         /** No economy serves the currency. */
         public static final String DEFAULT_UNAVAILABLE =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}cannot be bought right now.";
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {highlight}%item% {letters}cannot be bought right now.";
 
         /** A purchase is in flight. */
         public static final String DEFAULT_BUSY =
@@ -607,12 +607,12 @@ public record LibraryMessages(
 
         /** Not granted, refunded. */
         public static final String DEFAULT_FAILED =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}could not be unlocked. "
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {highlight}%item% {letters}could not be unlocked. "
                         + "{info}%price% {letters}was refunded.";
 
         /** Not granted, refund refused. */
         public static final String DEFAULT_REFUND_FAILED =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {highlight}%item% {letters}could not be unlocked "
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {highlight}%item% {letters}could not be unlocked "
                         + "and the refund of {info}%price% {letters}failed. {warning}Please contact staff.";
 
         /** The Exylia defaults. */
@@ -680,7 +680,7 @@ public record LibraryMessages(
     ) {
 
         public static final String DEFAULT_UNAVAILABLE =
-                "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}The logs could not be read. Try again in a moment.";
+                "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}The logs could not be read. Try again in a moment.";
         public static final String DEFAULT_EMPTY =
                 "{letters_black}▎ {muted}Nothing logged for {highlight}%subject% {muted}in {info}%plugin% {letters_black}» {info}%action%{muted}.";
         public static final String DEFAULT_HEADER =
@@ -799,13 +799,13 @@ public record LibraryMessages(
             cancelTool = orDefault(cancelTool, "{error}&lCANCEL");
             cancelToolLore = cancelToolLore != null ? List.copyOf(cancelToolLore) : List.of("",
                     "{letters}Leaves without changing anything.", "", "{error}➥ Click to cancel", "");
-            started = orDefault(started, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.4]{secondary}Table {highlight}%table% "
+            started = orDefault(started, "[sound:BLOCK_NOTE_BLOCK_PLING|0.7|1.4]{secondary}Table {highlight}%table% "
                     + "{letters_black}» {letters}left-click each chair, right-click where the board goes, then {success}DONE{letters}.");
-            seatAdded = orDefault(seatAdded, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.6]{success}● {letters}Seat {info}%seat% {letters}marked.");
-            seatRemoved = orDefault(seatRemoved, "[sound:BLOCK_NOTE_BLOCK_BASS|1|0.8]{error}● {letters}Seat taken back "
+            seatAdded = orDefault(seatAdded, "[sound:BLOCK_NOTE_BLOCK_PLING|0.7|1.6]{success}● {letters}Seat {info}%seat% {letters}marked.");
+            seatRemoved = orDefault(seatRemoved, "[sound:BLOCK_NOTE_BLOCK_BASS|0.7|0.8]{error}● {letters}Seat taken back "
                     + "{letters_black}» {info}%seats% {letters}left.");
-            boardSet = orDefault(boardSet, "[sound:BLOCK_NOTE_BLOCK_PLING|1|1.2]{info}● {letters}The board goes there.");
-            noSeats = orDefault(noSeats, "[sound:ENTITY_VILLAGER_NO|1|1]{error}✖ {letters}Left-click at least one chair first.");
+            boardSet = orDefault(boardSet, "[sound:BLOCK_NOTE_BLOCK_PLING|0.7|1.2]{info}● {letters}The board goes there.");
+            noSeats = orDefault(noSeats, "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Left-click at least one chair first.");
             cancelled = orDefault(cancelled, "{muted}Setting the table down was cancelled. Nothing changed.");
             seatMarker = orDefault(seatMarker, "{success}&l%seat%");
             boardMarker = orDefault(boardMarker, "{info}&l✦");

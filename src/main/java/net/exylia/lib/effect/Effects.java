@@ -182,7 +182,7 @@ public final class Effects {
      * so the caller should not have to split it:
      *
      * <pre>{@code
-     * Effects.soundFrom("BLOCK_ANVIL_PLACE|1|1").show(player);
+     * Effects.soundFrom("BLOCK_NOTE_BLOCK_PLING|0.7|1.2").show(player);
      * }</pre>
      *
      * <p>The notation is {@code NAME|volume|pitch}, pipe-separated the way

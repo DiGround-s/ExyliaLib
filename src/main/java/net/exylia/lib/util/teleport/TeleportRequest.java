@@ -315,7 +315,7 @@ public final class TeleportRequest {
      * change: {@code 3, 2, 1}. It runs alongside {@link #onTick}, not instead.
      *
      * <pre>{@code
-     * request.warmup(3).tickSound(config.tickSound());  // "BLOCK_NOTE_BLOCK_HAT|1|1.5"
+     * request.warmup(3).tickSound(config.tickSound());  // "BLOCK_NOTE_BLOCK_HAT|0.7|1.5"
      * }</pre>
      *
      * @param line the sound as {@code NAME|volume|pitch}; {@code null} or blank plays nothing

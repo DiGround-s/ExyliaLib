@@ -14,7 +14,7 @@ import java.util.Map;
  * {@code sounds: {open: ""}}.
  *
  * <p>Every value is an inline effect string, the same one {@code Effects}
- * already understands: {@code BLOCK_NOTE_BLOCK_PLING|1|1.6}.
+ * already understands: {@code BLOCK_NOTE_BLOCK_PLING|0.7|1.6}.
  *
  * @since 1.22.0
  */
@@ -23,9 +23,9 @@ public record UiSounds(@Nullable String open, @Nullable String close, @Nullable 
 
     /** What menus sound like unless somebody says otherwise. */
     public static final UiSounds DEFAULTS = new UiSounds(
-            "minecraft:block.ender_chest.open|1.0|1.4",
-            "minecraft:block.barrel.close|1.0|0.7",
-            "minecraft:block.note_block.hat|1.0|1.0",
+            "minecraft:block.ender_chest.open|0.6|1.4",
+            "minecraft:block.barrel.close|0.6|0.7",
+            "minecraft:block.note_block.hat|0.7|1.0",
             "BLOCK_NOTE_BLOCK_BASS|0.6|0.8",
             "ENTITY_VILLAGER_NO|0.6|1");
 

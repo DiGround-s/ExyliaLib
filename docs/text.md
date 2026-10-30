@@ -111,7 +111,7 @@ A message can ask for a sound, particles or a firework, in the notation
 ExyliaCommons used — existing message files work unchanged:
 
 ```yaml
-level-up: "[sound:ENTITY_PLAYER_LEVELUP|1.0|1.2;particle:FLAME|20;center]{success}Well done"
+level-up: "[sound:ENTITY_PLAYER_LEVELUP|0.6|1.2;particle:HAPPY_VILLAGER|8;center]{success}Well done"
 ```
 
 One bracketed block, only at the very start of the line. Inside it, `;`

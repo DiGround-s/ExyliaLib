@@ -54,7 +54,7 @@ public final class TradeSession {
     private static final int INFO = 49;
     private static final int STATUS = 51;
     private static final long TIMER_TICKS = 5L;
-    private static final String SUCCESS_SOUND = "ENTITY_EXPERIENCE_ORB_PICKUP|1|1";
+    private static final String SUCCESS_SOUND = "ENTITY_EXPERIENCE_ORB_PICKUP|0.7|1";
 
     /** What a click on one's own half may do; everything else in the window is refused. */
     private static final Set<InventoryAction> EDITS = EnumSet.of(

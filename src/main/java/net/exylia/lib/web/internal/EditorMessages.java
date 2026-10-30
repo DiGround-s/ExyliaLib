@@ -43,7 +43,7 @@ final class EditorMessages {
      * block in the ecosystem is: a blank line, a centred title, one line of context, the button.
      */
     static String opened(String url, String code, int subjects) {
-        return "[center; sound:ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2]{letters}"
+        return "[center; sound:ENTITY_EXPERIENCE_ORB_PICKUP|0.7|1.2]{letters}"
                 + "\n[center]" + Phrases.tr("{primary}&lWEB EDITOR&r")
                 + "\n[center]" + Phrases.tr("{letters}{highlight}{0} {letters}subjects, ready to edit in your browser.", subjects)
                 + "\n[center]{letters}"

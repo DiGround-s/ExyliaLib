@@ -502,7 +502,7 @@ public final class MenuLoader {
      *
      * <pre>
      * open_sounds:
-     *   - "ENTITY_EXPERIENCE_ORB_PICKUP|1.0|1.2"
+     *   - "ENTITY_EXPERIENCE_ORB_PICKUP|0.7|1.2"
      * click_sounds:
      *   - "UI_BUTTON_CLICK|1.0|1.5"
      * </pre>

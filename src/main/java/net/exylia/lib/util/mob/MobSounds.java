@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
  * <pre>{@code
  * MobSounds golem = MobSounds.NONE
  *         .withAmbient("minecraft:entity.iron_golem.repair|0.8|0.6")
- *         .withStep("minecraft:entity.iron_golem.step|1|0.7")
+ *         .withStep("minecraft:entity.iron_golem.step|0.7|0.7")
  *         .withHurt("minecraft:entity.iron_golem.hurt|1|0.6")
  *         .withDeath("minecraft:entity.iron_golem.death|1|0.6")
  *         .withAttack("minecraft:entity.iron_golem.attack|1|0.6");

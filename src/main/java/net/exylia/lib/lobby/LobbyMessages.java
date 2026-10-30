@@ -66,8 +66,8 @@ public record LobbyMessages(
         String inviteExpired,
         String inviteExpiredTarget) {
 
-    private static final String NO = "[sound:ENTITY_VILLAGER_NO|1|1]%prefix% ";
-    private static final String YES = "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|1|1]%prefix% ";
+    private static final String NO = "[sound:ENTITY_VILLAGER_NO|0.7|1]%prefix% ";
+    private static final String YES = "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|0.7|1]%prefix% ";
 
     /** The library's English lines. */
     public LobbyMessages() {
@@ -79,7 +79,7 @@ public record LobbyMessages(
                 NO + "{error}You cannot invite yourself.",
                 NO + "{highlight}%player% {error}is busy right now.",
                 YES + "{letters}Invitation sent to {highlight}%player%{letters}.",
-                List.of("[center; sound:BLOCK_NOTE_BLOCK_PLING|1.0|1.6]&f",
+                List.of("[center; sound:BLOCK_NOTE_BLOCK_PLING|0.7|1.6]&f",
                         "[center]{primary}&lINVITATION",
                         "[center]{highlight}%player% {letters}invites you to their table.",
                         "[center]{muted}It waits {info}%time% ⌚",

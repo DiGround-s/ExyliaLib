@@ -164,7 +164,7 @@ public record CrateSettings(
     /** One sound and nothing else, which is what most of these moments are. */
     private static EffectConfig sound(String name, double pitch) {
         return new EffectConfig(new EffectConfig.Title(), new EffectConfig.ActionBar(), new EffectConfig.BossBar(),
-                new EffectConfig.Sound(name, 1.0, pitch, "PLAYERS"), new EffectConfig.Particle(),
+                new EffectConfig.Sound(name, 0.7, pitch, "PLAYERS"), new EffectConfig.Particle(),
                 new EffectConfig.Firework());
     }
 }
