@@ -16,6 +16,7 @@ import net.exylia.lib.spatial.internal.Confirm;
 import net.exylia.lib.spatial.internal.Drafts;
 import net.exylia.lib.spatial.internal.Flights;
 import net.exylia.lib.spatial.internal.Geometry;
+import net.exylia.lib.spatial.internal.UndoHistory;
 import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
 import net.exylia.lib.stage.StagePlane;
@@ -81,6 +82,8 @@ final class MenuSession implements SpatialContext {
     private final Map<String, String> hovers = new HashMap<>();
     /** Drafted values of keys that name no source; a source's draft is its selection. */
     private final Drafts drafts = new Drafts();
+    /** What UNDO steps back to: the drafts before each click that changed them (since 1.423.0). */
+    private final UndoHistory<DraftState> history = new UndoHistory<>(UNDO_STEPS);
     /**
      * The plugin's values read once for a whole redraw (every label of it fills from the same reading),
      * {@code null} between redraws.
@@ -232,6 +235,44 @@ final class MenuSession implements SpatialContext {
         return !changed().isEmpty();
     }
 
+    /** The drafts as UNDO keeps them: every plain key's draft, and the selection of every source that is saved. */
+    private record DraftState(Map<String, Object> drafts, Map<String, String> selections) {
+    }
+
+    private DraftState draftState() {
+        Map<String, String> selections = new HashMap<>();
+        for (String key : savedState().keySet()) {
+            if (definition.sources.containsKey(key)) selections.put(key, selected.get(key));
+        }
+        return new DraftState(drafts.snapshot(), selections);
+    }
+
+    /** Runs a click, and remembers the drafts before it as an UNDO step when it changed them. */
+    private void undoable(Runnable click) {
+        DraftState before = draftState();
+        click.run();
+        if (!closed) history.record(before, draftState());
+    }
+
+    @Override
+    public boolean canUndo() {
+        return !history.isEmpty();
+    }
+
+    @Override
+    public void undo() {
+        if (closed) return;
+        DraftState back = history.pop();
+        if (back == null) {
+            StageLook.play(viewer, theme.errorSound());
+            return;
+        }
+        confirm.disarm();
+        drafts.restore(back.drafts());
+        back.selections().forEach(this::select);
+        refresh();
+    }
+
     @Override
     public boolean confirm(@NotNull String key) {
         return confirm.confirm(key, System.currentTimeMillis());
@@ -271,6 +312,8 @@ final class MenuSession implements SpatialContext {
             if (!refusal.isBlank()) viewer.sendMessage(Text.component(refusal));
         }
         drafts.prune(savedState());
+        // What is saved now is where UNDO starts from: stepping back past it would draft the old design again.
+        history.clear();
         refresh();
     }
 
@@ -610,20 +653,38 @@ final class MenuSession implements SpatialContext {
         // Another button: whatever waited for a second click is no longer what they are doing.
         if (!confirm.confirming(action, System.currentTimeMillis())) confirm.disarm();
         var run = definition.actions.get(action);
-        if (run != null) {
-            run.accept(this);
+        if (run == null && UNDO.equals(action)) {
+            undo();
             return;
         }
-        switch (action) {
-            case SAVE -> save();
-            case REVERT -> revert();
-            default -> StageLook.play(viewer, theme.errorSound());
-        }
+        Runnable click = () -> {
+            if (run != null) {
+                run.accept(this);
+                return;
+            }
+            switch (action) {
+                case SAVE -> save();
+                case REVERT -> revert();
+                default -> StageLook.play(viewer, theme.errorSound());
+            }
+        };
+        // SAVE is where the history starts again, and UNDO walks it (a plugin's own undo calling ctx.undo()):
+        // neither is a step of it.
+        if (SAVE.equals(action) || UNDO.equals(action)) click.run();
+        else undoable(click);
     }
 
     /** The layout actions every menu answers when the plugin gives them nothing of its own. */
     static final String SAVE = "save";
     static final String REVERT = "revert";
+    /** Since 1.423.0. */
+    static final String UNDO = "undo";
+
+    /** The gap between footers side by side. */
+    private static final double FOOTER_GAP = 0.06;
+
+    /** How many clicks UNDO can walk back. */
+    private static final int UNDO_STEPS = 64;
 
     /** How an icon moves: resting, under the crosshair, or chosen. */
     private enum Pose { IDLE, HOVER, CHOSEN }
@@ -749,7 +810,8 @@ final class MenuSession implements SpatialContext {
                 }
             }
             double band = titled ? (hinted ? 0.4 : 0.3) : hinted ? 0.24 : 0.08;
-            double[] area = Geometry.content(h, band, panel.footer().present());
+            List<SpatialLayout.Footer> bottom = panel.bottomRow();
+            double[] area = Geometry.content(h, band, !bottom.isEmpty());
             switch (content.type()) {
                 case TEXT -> {
                     int count = content.lines().size();
@@ -768,9 +830,13 @@ final class MenuSession implements SpatialContext {
                 case BUTTONS -> column = new Column(this, content.buttons(), area, inner);
                 case NONE -> { }
             }
-            if (panel.footer().present()) {
-                buttons.add(new Button(plane, rotation, 0, -h / 2 + 0.16, w - 0.2, 0.2, panel.footer().label(),
-                        panel.footer().action(), inner < 0 ? -1 : inner + 120));
+            // The bottom row: one footer the panel's width, several side by side.
+            double[] across = Geometry.row(w - 0.2, bottom.size(), FOOTER_GAP);
+            double each = Geometry.rowWidth(w - 0.2, bottom.size(), FOOTER_GAP);
+            for (int i = 0; i < bottom.size(); i++) {
+                SpatialLayout.Footer button = bottom.get(i);
+                buttons.add(new Button(plane, rotation, across[i], -h / 2 + 0.16, each, 0.2, button.label(),
+                        button.action(), inner < 0 ? -1 : inner + 120 + i * 50L));
             }
         }
 
@@ -1357,9 +1423,11 @@ final class MenuSession implements SpatialContext {
             SpatialEntry entry = at(slot);
             if (entry == null) return;
             confirm.disarm();
-            selected.put(source, entry.id());
             var select = definition.selects.get(source);
-            if (select != null) select.accept(MenuSession.this, entry);
+            undoable(() -> {
+                selected.put(source, entry.id());
+                if (select != null) select.accept(MenuSession.this, entry);
+            });
             // The whole menu: the panels read the new choice and the preview plays it at once.
             MenuSession.this.refresh();
         }

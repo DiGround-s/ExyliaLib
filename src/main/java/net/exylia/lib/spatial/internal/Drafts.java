@@ -55,4 +55,15 @@ public final class Drafts {
     public void clear() {
         values.clear();
     }
+
+    /** A copy of every plain key's draft, for {@link #restore}: what UNDO steps back to. */
+    public Map<String, Object> snapshot() {
+        return new HashMap<>(values);
+    }
+
+    /** Puts the drafts back to a {@link #snapshot}. */
+    public void restore(Map<String, Object> snapshot) {
+        values.clear();
+        values.putAll(snapshot);
+    }
 }

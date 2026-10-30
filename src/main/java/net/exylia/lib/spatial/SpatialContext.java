@@ -129,6 +129,30 @@ public interface SpatialContext {
     default void save() {
     }
 
+    // ── Undo (since 1.423.0) ──────────────────────────────────────────────
+
+    /**
+     * Whether UNDO has a step to take back: a click (an entry chosen, a button pressed) that changed the
+     * drafts since the menu opened or was last saved. What an UNDO label reads by.
+     *
+     * @since 1.423.0
+     */
+    default boolean canUndo() {
+        return false;
+    }
+
+    /**
+     * Takes the newest step back: the drafts (and the selections of saved sources) go back to what they
+     * were before the last click that changed them, and the menu redraws. The layout action {@code undo}
+     * runs it when the plugin registers no action of that name. Every click is one step, however many
+     * drafts it changed; REVERT is a step too, so UNDO brings back what it dropped. SAVE starts the history
+     * again. Nothing to undo plays the theme's error sound.
+     *
+     * @since 1.423.0
+     */
+    default void undo() {
+    }
+
     // ── Confirm in place (since 1.416.0) ──────────────────────────────────
 
     /**

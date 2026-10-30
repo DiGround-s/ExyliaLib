@@ -105,4 +105,39 @@ class SpatialLayoutTest {
         assertEquals("go", layout.panel("old").content().action(), "a single BUTTON is read as before");
         assertTrue(layout.panel("old").content().buttons().isEmpty());
     }
+
+    @Test
+    void footersSideBySideReadAndAPanelWithOneStillDoes() throws Exception {
+        Path file = folder.resolve("spatial/designer.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+                title: '{primary}&lDESIGNER'
+                panels:
+                  layers:
+                    at: [-2.15, 0.3, 0.45]
+                    size: [1.55, 1.55]
+                    content: {type: LIST, source: layers, rows: 5}
+                    footers:
+                      - {label: '%undo%', action: undo}
+                      - {label: '%clear%', action: clear}
+                  dyes:
+                    at: [2.15, 0.3, 0.45]
+                    size: [1.55, 1.55]
+                    content: {type: GRID, source: dyes, columns: 4, rows: 4}
+                    footer: {label: 'SET AS BASE', action: base}
+                """);
+        SpatialLayout layout = Configs.define(plugin, "spatial/designer", SpatialLayout.class).load().get();
+        SpatialLayout.Panel layers = layout.panel("layers");
+        assertEquals(List.of(new SpatialLayout.Footer("%undo%", "undo"), new SpatialLayout.Footer("%clear%", "clear")),
+                layers.bottomRow());
+        assertTrue(!layers.footer().present(), "no single footer was written");
+        SpatialLayout.Panel dyes = layout.panel("dyes");
+        assertEquals(List.of(new SpatialLayout.Footer("SET AS BASE", "base")), dyes.bottomRow(), "one footer is a row of one");
+        assertTrue(dyes.footers().isEmpty());
+        SpatialLayout.Panel both = new SpatialLayout.Panel(List.of(0.0, 0.0, 0.0), 0, List.of(1.0, 1.0), "", "",
+                new SpatialLayout.Content(), new SpatialLayout.Footer("A", "a"), List.of(new SpatialLayout.Footer("B", "b")));
+        assertEquals(List.of(new SpatialLayout.Footer("A", "a"), new SpatialLayout.Footer("B", "b")), both.bottomRow(),
+                "footer first, then footers");
+        assertTrue(new SpatialLayout.Panel().bottomRow().isEmpty());
+    }
 }

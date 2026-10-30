@@ -27,6 +27,7 @@ menus.register("trims", menu -> menu
 
 menus.open(player, "trims");                 // in front of the player
 menus.open(player, "trims", "trims-1");      // at a spot an admin placed
+menus.open(player, "editor", Map.of("slot", 2)); // its state holding what it is about (since 1.423.0)
 menus.edit(admin, "trims");                  // move its pieces with the mouse wheel
 menus.close(player);
 ```
@@ -74,6 +75,9 @@ every redraw: read memory, never a database. Equal entries are not redrawn.
 `%key%` placeholder in TEXT lines), `page(source)` / `page(source, n)`,
 `selected(source)` / `select(source, id)`, `refresh()`, `replay()` (since
 1.408.0: plays the preview again from the start, now) and `close()`.
+`open(player, id, state)` (since 1.423.0) opens it with `state` already set,
+so `onOpen` and every source read what the menu is about (`ctx.get("slot")`); a
+placed spot opens without it, so a menu reading it keeps its own default.
 `menus.context(player)` finds the open one from outside (a purchase that
 finished). `menus.refresh(player)` redraws it from any thread, and
 `menus.refreshAll()` every open menu of the plugin (call it from the plugin's
@@ -126,6 +130,7 @@ Since 1.408.0; a layout written before keeps its own values.
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
 | `BUTTONS` | A column of `buttons` (`{label, action}` each), stacked in the content area; one whose label reads blank once filled is left out and the rest close up (since 1.416.0) |
 | `footer` | A button along any panel's bottom |
+| `footers` | Several buttons side by side along a panel's bottom, `{label, action}` each, equal widths with a small gap; after `footer` when both are given (since 1.423.0) |
 | `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line under and in front of it, bare like a hologram; `← PAGE x / y →` under the middle |
 | `preview` | A plinth in the middle, and what `preview(ctx)` returns on it, turning `turn-speed` degrees a second |
 
@@ -307,6 +312,35 @@ menus.register("effects", menu -> menu
   it (falling back to the selection) to describe what the player is looking at
   before they click. A hover redraws the panels' words at once; leaving an entry
   waits one poll, so a sweep along the plinths does not flash back in between.
+
+## Undo (since 1.423.0)
+
+An editor (a design built layer by layer) wants one click back, not REVERT's
+everything. Every menu with drafts keeps the steps itself:
+
+```yaml
+  layers:
+    content: {type: LIST, source: layers, rows: 5}
+    footers:
+      - {label: '%undo_label%', action: undo}
+      - {label: '%clear_label%', action: clear}
+```
+
+```java
+.values(ctx -> Values.of().put("undo_label", ctx.canUndo() ? lines.undo() : lines.undoNone()))
+```
+
+- Each click that changes the drafts (an entry chosen, a button pressed) is one
+  step, however many `ctx.draft(...)` calls it made; a click that changed nothing
+  is none. A step is every plain key's draft and the selection of every source the
+  `saved` map names. What the plugin drafts in `onOpen` is where the history starts.
+- The layout action `undo` (or `ctx.undo()`) puts the newest step back and
+  redraws; with nothing to undo it plays the theme's `error-sound`. Answered only
+  when the plugin registers no action of that name.
+- REVERT is a step too, so UNDO brings back what it dropped. SAVE clears the
+  history: what is saved now is where it starts again.
+- `ctx.canUndo()` says whether there is a step, for the label. At most 64 steps
+  are kept, the oldest going first.
 
 ## Confirm in place (since 1.416.0)
 
@@ -717,20 +751,23 @@ admin alone.
   diffs, glass sizing, colour mixing, the readability floor and ellipsis cuts),
   `spatial/internal/Drafts` (drafts against the saved state),
   `spatial/internal/Confirm` (confirm in place), `spatial/internal/Catalogs`
-  (basket totals, owned-first order, the filter cycle).
+  (basket totals, owned-first order, the filter cycle), `spatial/internal/UndoHistory`
+  (the undo steps).
 - Lifecycle: `SpatialMenus.init` in `ExyliaLib.onEnable` (the input listener and the
   hiding rule), `SpatialMenus.release(plugin)` first in `onPluginDisable`,
   `releaseAll` in `onDisable`.
 - Tests: `spatial/internal/GeometryTest` (turned panels facing the eyes, hits on a
   turned panel, the carousel's symmetry, gap and curve, pagination, diffs, glass
-  sizing), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
+  sizing, footers side by side), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
   cell picking and the gap, hover reported once, wheel wrap, custom pickers from
   state, refused cells falling through, hotspots that do not hover, press guards),
   `spatial/internal/ReadabilityTest` (the floor's angle, the default theme readable
   at 3.6 blocks, ellipsis cuts keeping markup, drafts against the saved state),
   `spatial/SpatialLayoutTest` (the default round-trips, a shipped layout keeps its
   values and gains the missing keys, a `BUTTONS` column reads and a single `BUTTON`
-  still does), `spatial/internal/CatalogTest` (totals in one currency only, owned
+  still does; `footers` read as a row, `footer` first), `spatial/internal/UndoHistoryTest`
+  (no step for a click that changed nothing, newest first, the cap, draft snapshots),
+  `spatial/internal/CatalogTest` (totals in one currency only, owned
   first, the filter cycle, confirm arming, re-arming on a new subject, running out
   and disarming, button columns centred), `spatial/DefaultLayoutOverlapTest` (the
   default layout seen front-on from the eyes: no two pieces' outlines overlap,

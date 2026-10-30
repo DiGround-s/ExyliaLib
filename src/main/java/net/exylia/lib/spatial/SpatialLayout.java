@@ -36,7 +36,8 @@ public record SpatialLayout(
         @Comment("The panels, by a name of your choosing. type: NONE, TEXT (lines), LIST (icon, name and")
         @Comment("subtitle rows), GRID (columns x rows of icons), BUTTON (label and action) or BUTTONS (a column of")
         @Comment("buttons, each a label and an action; one whose label reads blank is left out). source: the list")
-        @Comment("the plugin fills it from. footer: an optional button along the bottom.")
+        @Comment("the plugin fills it from. footer: an optional button along the bottom. footers: several buttons")
+        @Comment("side by side along the bottom, each a label and an action (after footer, when both are given).")
         Map<String, Panel> panels,
         @Comment("The piece in the middle, on a slowly turning pedestal. turn-speed in degrees a second.")
         @Comment("vanish-on-play: an effect's mannequin disappears while the effect plays, so a kill reads as a death.")
@@ -105,12 +106,22 @@ public record SpatialLayout(
         }
     }
 
-    /** One panel: a sheet of glass with a title, what it shows, and an optional footer button. */
+    /**
+     * One panel: a sheet of glass with a title, what it shows, and an optional footer button. {@code footers}
+     * (since 1.423.0) puts several buttons side by side along the bottom (UNDO and CLEAR under a list), after
+     * {@code footer} when both are given.
+     */
     public record Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
-                        Content content, Footer footer) {
+                        Content content, Footer footer, List<Footer> footers) {
 
         public Panel() {
-            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer());
+            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer(), List.of());
+        }
+
+        /** A panel with one footer at most: the shape layouts had before 1.423.0. */
+        public Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
+                     Content content, Footer footer) {
+            this(at, turn, size, title, hint, content, footer, List.of());
         }
 
         public Panel {
@@ -120,6 +131,21 @@ public record SpatialLayout(
             hint = hint == null ? "" : hint;
             content = content == null ? new Content() : content;
             footer = footer == null ? new Footer() : footer;
+            footers = footers == null ? List.of() : List.copyOf(footers);
+        }
+
+        /**
+         * Every button along the bottom, left to right: {@code footer} first when it has a label, then
+         * {@code footers}. Empty for a panel with none.
+         *
+         * @since 1.423.0
+         */
+        public List<Footer> bottomRow() {
+            if (footers.isEmpty()) return footer.present() ? List.of(footer) : List.of();
+            List<Footer> row = new java.util.ArrayList<>(footers.size() + 1);
+            if (footer.present()) row.add(footer);
+            row.addAll(footers);
+            return row;
         }
 
         public double across() {
@@ -143,7 +169,8 @@ public record SpatialLayout(
         }
 
         public Panel moved(double across, double up, double forward, double turn, double width, double height) {
-            return new Panel(List.of(across, up, forward), turn, List.of(width, height), title, hint, content, footer);
+            return new Panel(List.of(across, up, forward), turn, List.of(width, height), title, hint, content, footer,
+                    footers);
         }
     }
 

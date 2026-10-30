@@ -214,6 +214,23 @@ public final class Geometry {
         return ups;
     }
 
+    /**
+     * The middles, across, of {@code count} buttons side by side filling {@code width} centred on 0,
+     * {@code gap} between each two: a panel's bottom row of footers.
+     */
+    public static double[] row(double width, int count, double gap) {
+        double each = rowWidth(width, count, gap);
+        double[] across = new double[Math.max(0, count)];
+        for (int i = 0; i < count; i++) across[i] = -width / 2 + each / 2 + i * (each + gap);
+        return across;
+    }
+
+    /** How wide each of {@link #row}'s buttons is. */
+    public static double rowWidth(double width, int count, double gap) {
+        if (count <= 1) return width;
+        return Math.max(0.05, (width - gap * (count - 1)) / count);
+    }
+
     /** How tall each of {@link #stack}'s buttons is: its pitch less a gap, never under 0.1. */
     public static double stackHeight(double height, int count) {
         double pitch = Math.min(height / Math.max(1, count), 0.24);

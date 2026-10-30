@@ -129,4 +129,21 @@ class GeometryTest {
         assertEquals(0xFFFFFF, Geometry.mix(0x000000, 0xFFFFFF, 1));
         assertEquals(0xD0123456, Geometry.argb(0xD0, 0x123456));
     }
+
+    @Test
+    void footersSideBySideFillTheRowWithEqualGaps() {
+        double[] one = Geometry.row(1.35, 1, 0.06);
+        assertEquals(0.0, one[0], 1e-9, "one footer is centred");
+        assertEquals(1.35, Geometry.rowWidth(1.35, 1, 0.06), 1e-9, "and as wide as the row");
+        double each = Geometry.rowWidth(1.35, 2, 0.06);
+        double[] two = Geometry.row(1.35, 2, 0.06);
+        assertEquals(0.645, each, 1e-9);
+        assertEquals(-two[1], two[0], 1e-9, "two are symmetric");
+        assertEquals(-1.35 / 2, two[0] - each / 2, 1e-9, "the first starts at the left edge");
+        assertEquals(1.35 / 2, two[1] + each / 2, 1e-9, "the last ends at the right edge");
+        assertEquals(0.06, (two[1] - each / 2) - (two[0] + each / 2), 1e-9, "the gap between them");
+        double[] three = Geometry.row(1.35, 3, 0.06);
+        assertEquals(0.0, three[1], 1e-9, "the middle of three is centred");
+        assertEquals(0, Geometry.row(1.35, 0, 0.06).length);
+    }
 }

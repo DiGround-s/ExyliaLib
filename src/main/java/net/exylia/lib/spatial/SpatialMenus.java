@@ -227,12 +227,24 @@ public final class SpatialMenus {
 
     /** Opens a menu in front of the player (or at its nearest spot, for a PLACED layout). {@code false}: no such menu. */
     public boolean open(@NotNull Player player, @NotNull String id) {
-        return open(player, id, null, false);
+        return open(player, id, null, false, Map.of());
+    }
+
+    /**
+     * Opens a menu in front of the player with its state already holding {@code state}: what it is about
+     * (the slot an editor edits, the item a detail page shows), read with {@link SpatialContext#get} from
+     * {@code onOpen} on. A placed spot opens without it, so a menu reading it falls back to its own default.
+     * {@code false}: no such menu.
+     *
+     * @since 1.423.0
+     */
+    public boolean open(@NotNull Player player, @NotNull String id, @NotNull Map<String, ?> state) {
+        return open(player, id, null, false, Map.copyOf(Objects.requireNonNull(state, "state")));
     }
 
     /** Opens a menu at a spot: the player is walked onto it first. {@code false}: no such menu. */
     public boolean open(@NotNull Player player, @NotNull String id, @Nullable String spot) {
-        return open(player, id, spot, false);
+        return open(player, id, spot, false, Map.of());
     }
 
     /**
@@ -241,7 +253,7 @@ public final class SpatialMenus {
      * changes the step, and a click saves it to the layout file and redraws. Sneak to leave.
      */
     public boolean edit(@NotNull Player admin, @NotNull String id) {
-        return open(admin, id, null, true);
+        return open(admin, id, null, true, Map.of());
     }
 
     /** Closes the player's menu, if this plugin opened it. */
@@ -309,11 +321,11 @@ public final class SpatialMenus {
         return OPEN.containsKey(player.getUniqueId());
     }
 
-    private boolean open(Player player, String id, @Nullable String spotId, boolean editing) {
+    private boolean open(Player player, String id, @Nullable String spotId, boolean editing, Map<String, ?> state) {
         SpatialMenu definition = menus.get(id);
         ConfigFile<SpatialLayout> file = layouts.get(id);
         if (definition == null || file == null) return false;
-        run(player, () -> start(player, definition, file, spotId, editing));
+        run(player, () -> start(player, definition, file, spotId, editing, state));
         return true;
     }
 
@@ -323,7 +335,7 @@ public final class SpatialMenus {
     }
 
     private void start(Player player, SpatialMenu definition, ConfigFile<SpatialLayout> file, @Nullable String spotId,
-                       boolean editing) {
+                       boolean editing, Map<String, ?> state) {
         if (!player.isOnline()) return;
         SpatialLayout layout = file.get();
         if (!editing && !allowed(player, definition, layout.theme())) return;
@@ -344,8 +356,8 @@ public final class SpatialMenus {
             boolean there = at.getWorld() == feet.getWorld() && at.distanceSquared(feet) < 0.09
                     && Math.abs(wrap(at.getYaw() - feet.getYaw())) < 2;
             double distance = layout.anchor().distance();
-            if (there) build(player, definition, file, at, distance, editing);
-            else walk(player, at, () -> build(player, definition, file, at, distance, editing));
+            if (there) build(player, definition, file, at, distance, editing, state);
+            else walk(player, at, () -> build(player, definition, file, at, distance, editing, state));
             return;
         }
         // In front: the board square to the world (45° steps), standing on the ground, nearer when a wall is close.
@@ -355,12 +367,12 @@ public final class SpatialMenus {
         at.setPitch(0);
         double distance = clearance(at, layout.anchor().distance());
         if (Math.abs(wrap(yaw - feet.getYaw())) < 2) {
-            build(player, definition, file, at, distance, editing);
+            build(player, definition, file, at, distance, editing, state);
         } else {
             // Turned square to the board, so it opens in the middle of their view.
             Location facing = feet.clone();
             facing.setYaw(yaw);
-            walk(player, facing, () -> build(player, definition, file, at, distance, editing));
+            walk(player, facing, () -> build(player, definition, file, at, distance, editing, state));
         }
     }
 
@@ -400,7 +412,7 @@ public final class SpatialMenus {
     }
 
     private void build(Player player, SpatialMenu definition, ConfigFile<SpatialLayout> file, Location anchor,
-                       double distance, boolean editing) {
+                       double distance, boolean editing, Map<String, ?> state) {
         if (!player.isOnline()) return;
         MenuSession open = OPEN.get(player.getUniqueId());
         if (open != null) open.menus.close(open, false);
@@ -418,6 +430,7 @@ public final class SpatialMenus {
         Overlays.of(plugin).show(player, input.hotbar(Item.of(theme.leaveMaterial()).name(session.fill(theme.leaveName()))
                 .lore(theme.leaveLore().stream().map(session::fill).toList()).build()));
         if (layout.hideOthers()) hide(player);
+        state.forEach(session::set);
         session.open();
     }
 
