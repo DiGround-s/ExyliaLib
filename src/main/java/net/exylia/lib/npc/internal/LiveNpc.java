@@ -256,7 +256,7 @@ final class LiveNpc implements NpcHandle {
         gone = true;
         // Even one that was never drawn: the identity went out on its own, and
         // an announced entry nobody withdraws is a name the client keeps.
-        sink.destroy(viewers, entityId, model.id());
+        sink.destroy(viewers, entityId, model);
     }
 
     @Override

@@ -44,7 +44,11 @@ showcase:
   pause-seconds: 3.0   # the rest between one turn ending and the next starting
   radius: 24.0         # how close a player has to be for it to play and to see it
   only: []             # the ids it picks from; empty picks from every one
+  effect-scale: 1.0    # how large each effect plays, about the showcase (since 1.413.0)
 ```
+
+`effect-scale` hands `stage.audience()` a [scaled target](sequences.md#played-as-a-miniature-since-1413),
+so a showcase on a table can play full-size effects as miniatures.
 
 ## What is shared and what is not
 

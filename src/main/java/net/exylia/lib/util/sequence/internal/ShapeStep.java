@@ -171,15 +171,17 @@ final class ShapeStep implements SequenceStep {
         if (observers.isEmpty()) {
             return;
         }
+        // A scaled play draws the shape round the same anchor, every offset shrunk or grown with it.
+        double scale = target.scale();
         for (Vector point : frame.points()) {
-            double x = point.getX();
-            double z = point.getZ();
+            double x = point.getX() * scale;
+            double z = point.getZ() * scale;
             if (cos != 1.0 || sin != 0.0) {
                 double rotatedX = x * cos - z * sin;
                 z = x * sin + z * cos;
                 x = rotatedX;
             }
-            paint.drawAt(observers, anchor, x, point.getY(), z);
+            paint.drawAt(observers, anchor, x, point.getY() * scale, z);
         }
     }
 

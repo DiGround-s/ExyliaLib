@@ -47,6 +47,17 @@ is then installed and kept up to date through [BundledFiles](config.md), the
 way `Languages` reads lang files: written when missing, new keys added, changed
 defaults offered in `/exylialib updates`.
 
+Since 1.413.0 the anchored `register` looks for the jar's layout through
+`getResourceAsStream`, the only call Lukittu's in-memory loader answers.
+1.408.0 to 1.412.0 asked `getResource`, got nothing under Lukittu, and wrote the
+library's wardrobe (`WARDROBE`, `CATEGORIES`, `OPTIONS`, empty lists, the focus
+lines' raw `%choice%` / `%detail%`) to the plugin's layout path, where it then
+counted as the server's own. A server file that is still that generic wardrobe
+(the default's panel names reading `categories`, `options` and carousel `items`,
+none of which the menu fills; positions are not compared) is set aside as
+`spatial/<id>.yml.library-default` and replaced by the jar's on the next start,
+with a line in the log. Nothing else is ever replaced.
+
 `permission(node)` and `canOpen(player -> refusal)` guard every open but edit
 mode, from a command or a placed spot alike, before the player is walked
 anywhere. A refusal plays the theme's `error-sound`; `canOpen`'s line (unless
@@ -86,7 +97,7 @@ panels:
               footer: {label: '{highlight}&lAPPLY TO SET', action: apply-set}}
   focus:     {at: [0, 1.05, 0.2], size: [1.6, 0.42],
               content: {type: TEXT, lines: ['{letters}&l%pattern%', '{info}Editing %piece%']}}
-preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true}
+preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true, effect-scale: 0.35}
 carousel: {source: patterns, at: [0, -1.05, 0.8], slots: 6, spacing: 0.62, centre-gap: 1.3, curve: 0.15}
 ```
 
@@ -171,6 +182,24 @@ an endless or very long one), as the previews' `vanish-on-hit`, so a kill reads
 as a death; it stands again at least a second before the next play. Set it to
 false for hit effects. `ctx.replay()` plays it again at once.
 An NPC lives two minutes at most; the menu brings a fresh one before that.
+
+The effect plays at the pedestal's top, where the mannequin's feet are, as a
+real kill plays at the victim's feet, and as a miniature of itself:
+`preview.effect-scale` (since 1.413.0, default 0.35) is handed to
+[`SequenceTarget.scale`](sequences.md#played-as-a-miniature-since-1413), so
+every offset, movement, body, display and particle spread is that many times its
+written size, about the pedestal's top, and nothing it drops falls below it. The
+mannequin stands at the same scale, so the body that dies is the one that stood
+there (`scale` sizes `npc(...)` and `item(...)` previews). 0.35 keeps a typical
+kill effect (a burst body, a 2-block ring, debris thrown 3 blocks) between the
+side panels and under the header; an effect that flies 20 blocks up does not
+fit at any readable size. Before 1.413.0 the effect played full size from 0.8
+above the pedestal, so a body towered over the header and floor rings drew at
+eye height, edge-on, as a thin bar across the middle.
+
+Preview NPCs (`npc(...)` and the mannequin) are [nameless](npcs.md): announced
+under a generated name in a team that hides the tag, so no name, and no
+scoreboard-team prefix of the viewer's (a rank), hangs over them.
 
 ## Opening and closing
 

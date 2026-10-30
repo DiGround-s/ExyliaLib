@@ -235,26 +235,38 @@ public record PreviewSettings(
             @Key("vanish-on-hit")
             @Comment("Whether a struck mannequin disappears for that player while the")
             @Comment("effect plays, so a kill effect reads as a death.")
-            boolean vanishOnHit) {
+            boolean vanishOnHit,
+
+            @Key("effect-scale")
+            @Comment("How large the effect plays on a mannequin: every offset, movement, body and")
+            @Comment("particle spread that many times its written size. 1 is as written.")
+            double effectScale) {
 
         public Mannequin() {
-            this(List.of(), 30, 12.0, false);
+            this(List.of(), 30, 12.0, false, 1.0);
+        }
+
+        /** @deprecated since 1.413.0; use the constructor with {@code effectScale}. */
+        @Deprecated
+        public Mannequin(List<String> locations, int trialSeconds, double radius, boolean vanishOnHit) {
+            this(locations, trialSeconds, radius, vanishOnHit, 1.0);
         }
 
         public Mannequin {
             locations = locations == null ? List.of() : List.copyOf(locations);
             trialSeconds = Math.max(1, trialSeconds);
             radius = Math.max(2, radius);
+            effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : 1.0;
         }
 
         /** The same settings with the mannequins standing somewhere else. */
         public @NotNull Mannequin withLocations(@NotNull List<String> locations) {
-            return new Mannequin(locations, trialSeconds, radius, vanishOnHit);
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale);
         }
 
         /** The same settings with a struck mannequin vanishing, or not. */
         public @NotNull Mannequin withVanishOnHit(boolean vanishOnHit) {
-            return new Mannequin(locations, trialSeconds, radius, vanishOnHit);
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale);
         }
     }
 

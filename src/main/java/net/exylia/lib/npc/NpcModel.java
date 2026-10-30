@@ -45,9 +45,19 @@ public final class NpcModel {
     /** Whose connection the skin is read from, when no texture was written down. */
     private final Player skinFrom;
 
+    /** Whether no name tag is drawn over it. */
+    private final boolean nameless;
+
     private NpcModel(UUID id, String name, String texture, String signature, NpcPose pose,
                      int glowArgb, Player wearing, ItemStack held, ItemStack offHand,
                      double scale, Player skinFrom) {
+        this(id, name, texture, signature, pose, glowArgb, wearing, held, offHand, scale, skinFrom, false);
+    }
+
+    private NpcModel(UUID id, String name, String texture, String signature, NpcPose pose,
+                     int glowArgb, Player wearing, ItemStack held, ItemStack offHand,
+                     double scale, Player skinFrom, boolean nameless) {
+        this.nameless = nameless;
         this.id = id;
         this.name = name;
         this.texture = texture;
@@ -109,7 +119,7 @@ public final class NpcModel {
     /** How it holds itself. */
     public @NotNull NpcModel pose(@NotNull NpcPose pose) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, held, offHand,
-                scale, skinFrom);
+                scale, skinFrom, nameless);
     }
 
     /**
@@ -120,7 +130,7 @@ public final class NpcModel {
      */
     public @NotNull NpcModel glow(int rgb) {
         return new NpcModel(id, name, texture, signature, pose, rgb, wearing, held, offHand,
-                scale, skinFrom);
+                scale, skinFrom, nameless);
     }
 
     /**
@@ -135,7 +145,7 @@ public final class NpcModel {
      */
     public @NotNull NpcModel wearing(@Nullable Player player) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, player, held, offHand,
-                scale, skinFrom);
+                scale, skinFrom, nameless);
     }
 
     /**
@@ -146,7 +156,7 @@ public final class NpcModel {
      */
     public @NotNull NpcModel holding(@Nullable ItemStack item) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, item, offHand,
-                scale, skinFrom);
+                scale, skinFrom, nameless);
     }
 
     /**
@@ -157,7 +167,7 @@ public final class NpcModel {
      */
     public @NotNull NpcModel offHand(@Nullable ItemStack item) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, held, item,
-                scale, skinFrom);
+                scale, skinFrom, nameless);
     }
 
     /**
@@ -172,7 +182,34 @@ public final class NpcModel {
      */
     public @NotNull NpcModel scale(double scale) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, held, offHand,
-                Math.clamp(scale, 0.0625, 16.0), skinFrom);
+                Math.clamp(scale, 0.0625, 16.0), skinFrom, nameless);
+    }
+
+    /**
+     * The same body with no name tag over it, for a preview or a mannequin. It is announced under a
+     * generated name in a team of its own that hides the tag, so it can never be taken for a real
+     * player, nor pick up a real player's scoreboard team (their rank prefix and colour), which a name
+     * borrowed from {@link #of(Player)} otherwise would. The skin is kept.
+     *
+     * @return a new model
+     * @since 1.413.0
+     */
+    public @NotNull NpcModel nameless() {
+        if (nameless) {
+            return this;
+        }
+        String hidden = "npc" + id.toString().replace("-", "").substring(0, 13);
+        return new NpcModel(id, hidden, texture, signature, pose, glowArgb, wearing, held, offHand, scale,
+                skinFrom, true);
+    }
+
+    /**
+     * Whether it is drawn with no name tag ({@link #nameless()}).
+     *
+     * @since 1.413.0
+     */
+    public boolean isNameless() {
+        return nameless;
     }
 
     /** The identity this NPC is announced under. Never a real player's. */

@@ -175,7 +175,7 @@ final class Steps {
             }
             Location where = yShift == 0.0
                     ? target.location()
-                    : target.location().clone().add(0, yShift, 0);
+                    : target.location().clone().add(0, yShift * target.scale(), 0);
             paint.forPlay(target).draw(observers, where);
         }
     }
@@ -226,7 +226,8 @@ final class Steps {
                 return;
             }
             Location at = target.location();
-            Location above = at.clone().add(0, 1.5, 0);
+            double scale = target.scale();
+            Location above = at.clone().add(0, 1.5 * scale, 0);
             // Newer servers made the flash colourable and refuse it without one.
             Object flash = ParticlePaint.FLASH == null ? null
                     : ParticlePaint.dataFor(ParticlePaint.FLASH, Color.WHITE, 1f, null);
@@ -235,7 +236,8 @@ final class Steps {
                     observer.spawnParticle(ParticlePaint.FLASH, at, 1, 0, 0, 0, 0, flash);
                 }
                 if (ParticlePaint.SPARK != null) {
-                    observer.spawnParticle(ParticlePaint.SPARK, above, 60, 0.3, 1.5, 0.3, 0.3);
+                    observer.spawnParticle(ParticlePaint.SPARK, above, 60, 0.3 * scale, 1.5 * scale, 0.3 * scale,
+                            0.3 * scale);
                 }
                 observer.playSound(at, "entity.lightning_bolt.thunder", volume, pitch);
             }
@@ -490,14 +492,21 @@ final class Steps {
             }
             Location where = yShift == 0.0
                     ? target.location().clone()
-                    : target.location().clone().add(0, yShift, 0);
+                    : target.location().clone().add(0, yShift * target.scale(), 0);
             if (pitch != 0f) {
                 where.setPitch(pitch);
             }
             if (facesSource) {
                 faceSource(where, target.source());
             }
-            NpcHandle handle = NpcRuntime.show(owner, model, motion, where, lifeMillis, observers);
+            NpcMotion moving = motion;
+            if (target.isScaled()) {
+                // A miniature: the body and everything it does that much smaller, and no full-size name
+                // tag over it (whose name is a real player's, which their scoreboard team would decorate).
+                model = model.scale(model.scale() * target.scale()).nameless();
+                moving = motion.magnified(target.scale());
+            }
+            NpcHandle handle = NpcRuntime.show(owner, model, moving, where, lifeMillis, observers);
             if (handle == null) {
                 return;
             }
@@ -667,7 +676,7 @@ final class Steps {
             }
             Location where = yShift == 0.0
                     ? target.location().clone()
-                    : target.location().clone().add(0, yShift, 0);
+                    : target.location().clone().add(0, yShift * target.scale(), 0);
             if (facesSource) {
                 faceSource(where, target.source());
             }
@@ -685,8 +694,10 @@ final class Steps {
                             offhand != null ? offhand : base.offHand(),
                             hat != null ? hat : base.hat())
                     .rigs(rigs);
+            // Scaled as a whole: solved at its own size, then every piece's path and size magnified about
+            // where it stands, so its flight, its landing and its pieces shrink together.
             RagdollHandle handle = new RagdollHandle(
-                    RagdollBuilder.show(owner, model, burst, where, observers, run.tempo()));
+                    RagdollBuilder.show(owner, model, burst, where, observers, run.tempo(), target.scale()));
             // Owned by the run as well as by the display module, so a preview
             // the player closed does not leave an arm spinning in the arena.
             run.owns(new Body(handle));

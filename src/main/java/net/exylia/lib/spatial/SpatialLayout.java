@@ -39,6 +39,9 @@ public record SpatialLayout(
         Map<String, Panel> panels,
         @Comment("The piece in the middle, on a slowly turning pedestal. turn-speed in degrees a second.")
         @Comment("vanish-on-play: an effect's mannequin disappears while the effect plays, so a kill reads as a death.")
+        @Comment("effect-scale: how large an effect plays, as a miniature on the pedestal: its mannequin, every offset,")
+        @Comment("movement, body and particle spread that many times its written size. 0.35 fits a typical kill effect")
+        @Comment("between the carousel and the header.")
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
@@ -184,26 +187,42 @@ public record SpatialLayout(
      * @param vanishOnPlay whether an effect preview's mannequin disappears while the effect plays (its
      *                     length, or 3 s for an endless or very long one), so a kill effect reads as a
      *                     death; it is back before the effect plays again. Since 1.408.0.
+     * @param effectScale  how large an effect preview plays, its mannequin included: the whole effect
+     *                     as a miniature standing on the pedestal, every offset, movement, body and
+     *                     spread that many times its written size ({@link
+     *                     net.exylia.lib.util.sequence.SequenceTarget#scale}). Since 1.413.0.
      */
-    public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay) {
+    public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
+                          double effectScale) {
+
+        /** What an effect preview plays at when the file does not say: a kill fits between the carousel and the header. */
+        public static final double EFFECT_SCALE = 0.35;
+
         public Preview() {
             // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
-            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true);
+            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE);
         }
 
-        /** @deprecated since 1.408.0; use the constructor with {@code vanishOnPlay}. */
+        /** @deprecated since 1.408.0; use the constructor with {@code vanishOnPlay} and {@code effectScale}. */
         @Deprecated
         public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale) {
-            this(at, turnSpeed, pedestal, scale, true);
+            this(at, turnSpeed, pedestal, scale, true, EFFECT_SCALE);
+        }
+
+        /** @deprecated since 1.413.0; use the constructor with {@code effectScale}. */
+        @Deprecated
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay) {
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, EFFECT_SCALE);
         }
 
         public Preview {
             at = point(at);
             scale = scale <= 0 ? 1 : scale;
+            effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : EFFECT_SCALE;
         }
 
         public Preview moved(double across, double up, double forward) {
-            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay);
+            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale);
         }
     }
 

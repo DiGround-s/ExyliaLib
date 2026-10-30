@@ -70,6 +70,9 @@ config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
 - **`vanish-on-hit`** hides the struck mannequin from that player while the
   effect plays (its length, or 3 s for an endless or very long one), so a kill
   effect reads as a death.
+- **`effect-scale`** (since 1.413.0, default 1) plays the lent effect that many
+  times its written size on the mannequin, every offset, movement, body and
+  spread with it ([`SequenceTarget.scale`](sequences.md#played-as-a-miniature-since-1413)).
 - `available()` is true once a mannequin stands in a loaded world.
 
 ## Why a configured stage, and not an emptied room
@@ -148,6 +151,7 @@ preview:
     trial-seconds: 30
     radius: 12.0      # walking further from every mannequin ends the loan
     vanish-on-hit: false
+    effect-scale: 1.0 # how large the effect plays on a mannequin (since 1.413.0)
   # Every one of these is ticks, and every one also reads 1s, 30s or 1m30s.
 ```
 

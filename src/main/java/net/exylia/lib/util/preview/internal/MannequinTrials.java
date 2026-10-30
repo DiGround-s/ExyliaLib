@@ -158,7 +158,8 @@ public final class MannequinTrials {
         // No target: a [POTION] or a victim's title would land on the striker,
         // and a lent effect must never hand out anything usable.
         Sequences.of(plugin).play(trial.sequence,
-                SequenceTarget.at(at.clone().add(0, 1, 0)).by(player).onlyTo(player));
+                SequenceTarget.at(at.clone().add(0, 1, 0)).by(player).onlyTo(player)
+                        .scale(settings.get().mannequin().effectScale()));
         if (settings.get().mannequin().vanishOnHit()) {
             long length = trial.sequence.durationMillis();
             long millis = length <= 0 || length > VANISH_MAX_MILLIS ? VANISH_FALLBACK_MILLIS : length;

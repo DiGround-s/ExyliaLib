@@ -295,6 +295,34 @@ also new), which is what reads its location safely on Folia. If the entity is go
 run ends; a dead player is still followed. Steps before the first hold, and the frames
 of an animated shape already drawing, keep the position they started with.
 
+### Played as a miniature (since 1.413.0)
+
+`SequenceTarget.scale(factor)` draws the whole sequence `factor` times its
+written size about its location, for a preview on a pedestal or a showcase:
+
+```java
+sequences.play(effect, SequenceTarget.at(pedestalTop).by(viewer).onlyTo(viewer).scale(0.35));
+```
+
+| Scaled | How |
+| --- | --- |
+| Shapes | Every point (radius, height, `y:`, the compiled `scale:`), rotation kept |
+| Displays | Every pose's offsets and size (`DisplayMotion.magnified`): `from:`, `to:`, `rise:`, gravity, `size:`/`size_to:`; `pull:` and `orbit:` follow the scaled point |
+| `[RAGDOLL]` | Solved at its own size, then every piece's path and size magnified: flight, landing and pieces together |
+| `[NPC]` | Body (`scale` attribute), `y:`, `from:`/`to:`, gravity and hover (`NpcMotion.magnified`); and no name tag |
+| `[PARTICLE]`, `[LIGHTNING]` | `y:`, offsets (spreads) and speed; a `count:0` particle keeps its offsets, which are then a direction or a colour |
+| Not scaled | Timing, sounds, fireworks, cameras, shakes, lids, potions, text |
+
+A scaled play has no ground of its own, so no display pose goes below the
+location's height (`DisplayMotion.above`): debris lands on it instead of
+falling through the table. Pieces of a body rest by their centre, as on real
+ground, so a tumbled corner may dip a little into it. `scale()` and
+`isScaled()` read it back; `by`, `on`, `within`, `movedTo` and the rest keep it.
+`[NPC]` bodies of a scaled play are `NpcModel.nameless()`. Used by the
+[spatial menu](spatial.md) preview (`preview.effect-scale`), the previews'
+mannequin mode (`mannequin.effect-scale`, [previews.md](previews.md)) and
+showcases (`effect-scale`, [showcases.md](showcases.md)).
+
 ### Shapes
 
 `CIRCLE` `SPHERE` `BEAM` `SPIRAL` `DOUBLE_HELIX` `TORNADO` `STAR` `CAGE` `DISC`

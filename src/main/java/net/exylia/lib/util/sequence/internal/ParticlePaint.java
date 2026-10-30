@@ -87,14 +87,19 @@ final class ParticlePaint implements Paint {
 
     @Override
     public @NotNull ParticlePaint forPlay(@NotNull net.exylia.lib.util.sequence.SequenceTarget target) {
+        // A scaled play spreads and throws its particles that much less (or more). With a count of 0
+        // the offsets are a direction or a colour, not a spread, so they are left as written.
+        double scale = target.isScaled() && count > 0 ? target.scale() : 1.0;
         if (tint == null) {
-            return this;
+            return scale == 1.0 ? this : new ParticlePaint(particle, data, count, spreadX * scale,
+                    spreadY * scale, spreadZ * scale, speed * scale);
         }
         Object filled = dataFor(particle,
                 Args.colourFor(target, tint.colourRaw(), tint.colour()),
                 Args.colourFor(target, tint.fadeRaw(), tint.fade()),
                 tint.size(), tint.material());
-        return new ParticlePaint(particle, filled, count, spreadX, spreadY, spreadZ, speed);
+        return new ParticlePaint(particle, filled, count, spreadX * scale, spreadY * scale, spreadZ * scale,
+                speed * scale);
     }
 
     /**

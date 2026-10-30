@@ -752,6 +752,34 @@ public final class DisplayMotion {
     }
 
     /**
+     * The same motion with no pose lower than {@code lowest}: what would sink below that height stops on
+     * it, its timing, rotation and size kept. For something drawn over a floor that is not really there,
+     * such as a miniature on a pedestal, whose debris has to land instead of falling through.
+     *
+     * @param lowest the lowest offset up a pose may have, in blocks
+     * @return the motion, itself when no pose goes that low
+     * @since 1.413.0
+     */
+    public @NotNull DisplayMotion above(double lowest) {
+        boolean below = false;
+        for (DisplayKeyframe pose : poses) {
+            if (pose.y() < lowest) {
+                below = true;
+                break;
+            }
+        }
+        if (!below) {
+            return this;
+        }
+        List<DisplayKeyframe> held = new ArrayList<>(poses.size());
+        for (DisplayKeyframe pose : poses) {
+            held.add(pose.y() >= lowest ? pose : pose.movedBy(0.0, lowest - pose.y(), 0.0));
+        }
+        return new DisplayMotion(held, lifeMillis, loopFromMillis, cycleMillis, accel,
+                maxSpeed, startSpeed);
+    }
+
+    /**
      * The same motion starting somewhere else.
      *
      * @param dx east

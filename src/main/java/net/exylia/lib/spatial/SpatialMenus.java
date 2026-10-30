@@ -121,20 +121,88 @@ public final class SpatialMenus {
     public @NotNull SpatialMenus register(@NotNull String id, @NotNull Class<?> anchor,
                                           @NotNull Consumer<SpatialMenu> definition) {
         Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(anchor, "anchor");
         String path = "spatial/" + id + ".yml";
-        if (anchor.getClassLoader().getResource(path) != null) BundledFiles.refresh(plugin, anchor, path);
-        return define(id, definition);
+        // Asked through getResourceAsStream (BundledResources.open), never getResource: Lukittu's loader
+        // keeps the jar in memory and answers only the stream, so getResource said "no layout" there and
+        // the library's wardrobe was written in the plugin's place.
+        boolean packaged = packaged(anchor, path);
+        if (packaged) BundledFiles.refresh(plugin, anchor, path);
+        return define(id, definition, packaged ? anchor : null);
+    }
+
+    /** Whether the jar {@code anchor} came from holds {@code path}. */
+    static boolean packaged(Class<?> anchor, String path) {
+        try (java.io.InputStream in = net.exylia.lib.config.internal.BundledResources.open(anchor.getClassLoader(), path)) {
+            return in != null;
+        } catch (java.io.IOException unreadable) {
+            return false;
+        }
     }
 
     private SpatialMenus define(String id, Consumer<SpatialMenu> definition) {
+        return define(id, definition, null);
+    }
+
+    /**
+     * @param shipped the class whose jar ships this menu's layout, or {@code null}: a server file that is
+     *                still the library's generic wardrobe is then replaced by the jar's
+     */
+    private SpatialMenus define(String id, Consumer<SpatialMenu> definition, @Nullable Class<?> shipped) {
         SpatialMenu menu = new SpatialMenu(id);
         definition.accept(menu);
-        layouts.put(id, Configs.define(plugin, "spatial/" + id, SpatialLayout.class).load());
+        ConfigFile<SpatialLayout> file = Configs.define(plugin, "spatial/" + id, SpatialLayout.class).load();
+        if (shipped != null && isLibraryDefault(file.get(), menu)) {
+            replaceLibraryDefault(id, shipped);
+            file.reload();
+        }
+        layouts.put(id, file);
         menus.put(id, menu);
         SpatialSpots placed = spots;
         if (placed != null) placed.refresh();
         else if (new File(plugin.getDataFolder(), "spatial/spots.yml").isFile()) spots();
         return this;
+    }
+
+    /**
+     * Whether a server's layout is the library's generic wardrobe rather than one of the plugin's: the
+     * same panels reading the same lists ({@code categories}, {@code options}, carousel {@code items}),
+     * none of which the menu fills. What 1.406.0 to 1.411.0 wrote in the plugin's place when the jar's
+     * layout could not be seen (a Lukittu loader): every value was the server's from then on, so it was
+     * never replaced. Positions are not compared, since those defaults moved between versions.
+     */
+    static boolean isLibraryDefault(SpatialLayout layout, SpatialMenu menu) {
+        SpatialLayout generic = new SpatialLayout();
+        if (!layout.panels().keySet().equals(generic.panels().keySet())) return false;
+        if (!layout.carousel().source().equals(generic.carousel().source())) return false;
+        java.util.Set<String> read = new java.util.HashSet<>();
+        read.add(layout.carousel().source());
+        for (Map.Entry<String, SpatialLayout.Panel> panel : generic.panels().entrySet()) {
+            String source = layout.panels().get(panel.getKey()).content().source();
+            if (!source.equals(panel.getValue().content().source())) return false;
+            if (!source.isBlank()) read.add(source);
+        }
+        for (String source : read) {
+            if (menu.sources.containsKey(source)) return false;
+        }
+        return true;
+    }
+
+    /** Sets a stale generic layout aside as {@code <id>.yml.library-default} and installs the jar's. */
+    private void replaceLibraryDefault(String id, Class<?> anchor) {
+        String path = "spatial/" + id + ".yml";
+        java.nio.file.Path file = plugin.getDataFolder().toPath().resolve(path);
+        try {
+            java.nio.file.Files.move(file, file.resolveSibling(id + ".yml.library-default"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.io.IOException failure) {
+            net.exylia.lib.debug.Debug.of(plugin).warn("Could not replace " + path + ", which still holds the"
+                    + " library's default layout instead of " + plugin.getName() + "'s: " + failure.getMessage());
+            return;
+        }
+        BundledFiles.refresh(plugin, anchor, path);
+        net.exylia.lib.debug.Debug.of(plugin).log(path + " held the library's default layout instead of "
+                + plugin.getName() + "'s, so it was replaced; the old file was kept as " + id + ".yml.library-default.");
     }
 
     /** A menu's layout file, for a plugin that edits it or reads it; {@code null} when not registered. */

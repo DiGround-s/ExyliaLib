@@ -80,4 +80,9 @@ public interface NpcSink {
 
     /** Removes the body and the identity behind it. */
     void destroy(List<Player> viewers, int entityId, UUID profile);
+
+    /** Removes the body and the identity behind it, and anything announced with that identity. */
+    default void destroy(List<Player> viewers, int entityId, NpcModel model) {
+        destroy(viewers, entityId, model.id());
+    }
 }

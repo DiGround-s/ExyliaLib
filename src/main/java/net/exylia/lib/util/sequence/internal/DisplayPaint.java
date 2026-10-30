@@ -91,6 +91,8 @@ final class DisplayPaint implements Paint {
     private final double vary;
     private final Follow follow;
     private final org.bukkit.entity.Entity carrier;
+    /** Whether no pose may sink below the anchor's height: a scaled play has no ground under it. */
+    private final boolean floored;
 
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
@@ -101,13 +103,14 @@ final class DisplayPaint implements Paint {
     DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
                  double orbit, double vary, @NotNull Follow follow, @NotNull Late late) {
-        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, null, late);
+        this(owner, model, motion, face, faceOut, turnRadians, pull, orbit, vary, follow, null, late, false);
     }
 
     private DisplayPaint(@NotNull String owner, @NotNull DisplayModel model, @NotNull DisplayMotion motion,
                  @NotNull Face face, boolean faceOut, double turnRadians, double pull,
                  double orbit, double vary, @NotNull Follow follow,
-                 @Nullable org.bukkit.entity.Entity carrier, @NotNull Late late) {
+                 @Nullable org.bukkit.entity.Entity carrier, @NotNull Late late, boolean floored) {
+        this.floored = floored;
         this.late = late;
         this.follow = follow;
         this.carrier = carrier;
@@ -163,11 +166,14 @@ final class DisplayPaint implements Paint {
             case VICTIM -> target.target();
             case NONE -> null;
         };
-        if (drawn == model && mount == null) {
+        // A scaled play: every pose's offsets and sizes with it. Pull and orbit follow by themselves,
+        // since they work from the point, which the shape has already scaled.
+        boolean scaled = target.isScaled();
+        if (drawn == model && mount == null && !scaled) {
             return this;
         }
-        return new DisplayPaint(owner, drawn, motion, Face.FIXED, faceOut, turnRadians,
-                pull, orbit, vary, follow, mount, Late.NONE);
+        return new DisplayPaint(owner, drawn, scaled ? motion.magnified(target.scale()) : motion, Face.FIXED,
+                faceOut, turnRadians, pull, orbit, vary, follow, mount, Late.NONE, scaled);
     }
 
     @Override
@@ -236,6 +242,10 @@ final class DisplayPaint implements Paint {
             // file already made with to: or gravity:, and folding the two
             // together would make one of them silently override the other.
             built = built.drifting(-x * pull, 0.0, -z * pull);
+        }
+        if (floored) {
+            // Drawn at the anchor plus this point, so the anchor's floor is -y below it.
+            built = built.above(-y);
         }
         return built;
     }

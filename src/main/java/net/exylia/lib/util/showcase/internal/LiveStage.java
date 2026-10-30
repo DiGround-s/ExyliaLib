@@ -138,6 +138,7 @@ public final class LiveStage {
         public @NotNull SequenceTarget audience() {
             Set<Player> cast = Set.copyOf(watching);
             return SequenceTarget.at(where.clone())
+                    .scale(config.effectScale())
                     .within(config.radius())
                     .visibleTo((observer, source) -> cast.contains(observer));
         }

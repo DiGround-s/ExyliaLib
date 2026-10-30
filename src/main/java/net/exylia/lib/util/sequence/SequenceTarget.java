@@ -68,6 +68,9 @@ public final class SequenceTarget {
     /** The entity the steps after a hold move with, or {@code null} to stay put. */
     private final Entity follows;
 
+    /** How large everything is drawn about the location; 1 is as written. */
+    private final double scale;
+
     /**
      * The last answer {@link #observers()} gave, and when.
      *
@@ -90,13 +93,14 @@ public final class SequenceTarget {
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
-        this(location, source, target, visibility, radius, Map.of(), Map.of(), null, null);
+        this(location, source, target, visibility, radius, Map.of(), Map.of(), null, null, 1.0);
     }
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius,
                            Map<String, String> values, Map<String, ItemStack> items,
-                           net.exylia.lib.ragdoll.RagdollModel wearing, Entity follows) {
+                           net.exylia.lib.ragdoll.RagdollModel wearing, Entity follows, double scale) {
+        this.scale = scale;
         this.wearing = wearing;
         this.follows = follows;
         this.location = location;
@@ -141,7 +145,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget by(@Nullable Player player) {
-        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing, follows);
+        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing, follows, scale);
     }
 
     /**
@@ -153,7 +157,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget on(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing, follows);
+        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing, follows, scale);
     }
 
     /**
@@ -168,7 +172,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget visibleTo(@Nullable BiPredicate<Player, Player> predicate) {
-        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing, follows);
+        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing, follows, scale);
     }
 
     /**
@@ -191,7 +195,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget within(double blocks) {
-        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing, follows);
+        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing, follows, scale);
     }
 
     /**
@@ -204,7 +208,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget movedTo(@NotNull Location destination) {
-        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing, follows);
+        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing, follows, scale);
     }
 
     /**
@@ -235,7 +239,7 @@ public final class SequenceTarget {
             merged.put(value.getKey(), String.valueOf(value.getValue()));
         }
         return new SequenceTarget(location, source, target, visibility, radius,
-                Map.copyOf(merged), items, wearing, follows);
+                Map.copyOf(merged), items, wearing, follows, scale);
     }
 
     /**
@@ -253,7 +257,7 @@ public final class SequenceTarget {
         Map<String, ItemStack> merged = new LinkedHashMap<>(items);
         merged.put(name.toLowerCase(Locale.ROOT), item);
         return new SequenceTarget(location, source, target, visibility, radius, values,
-                Map.copyOf(merged), wearing, follows);
+                Map.copyOf(merged), wearing, follows, scale);
     }
 
     /**
@@ -317,7 +321,7 @@ public final class SequenceTarget {
      * @since 1.302.0
      */
     public @NotNull SequenceTarget wearing(@Nullable net.exylia.lib.ragdoll.RagdollModel model) {
-        return new SequenceTarget(location, source, target, visibility, radius, values, items, model, follows);
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, model, follows, scale);
     }
 
     /**
@@ -349,7 +353,7 @@ public final class SequenceTarget {
      * @since 1.364.0
      */
     public @NotNull SequenceTarget follow(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, entity);
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, entity, scale);
     }
 
     /**
@@ -359,6 +363,54 @@ public final class SequenceTarget {
      */
     public @Nullable Entity follows() {
         return follows;
+    }
+
+    /**
+     * Plays the whole sequence as a miniature (or a giant) about its location.
+     *
+     * <pre>{@code
+     * sequences.play(effect, SequenceTarget.at(pedestalTop).by(viewer).onlyTo(viewer).scale(0.35));
+     * }</pre>
+     *
+     * <p>Everything is drawn {@code factor} times its written size, round the location: every offset
+     * and movement (shape radii and heights, {@code from:}/{@code to:}, {@code y:}, gravity, pull and
+     * orbit), display sizes, {@code [RAGDOLL]} and {@code [NPC]} bodies and their flights, and particle
+     * spreads and speeds (a {@code count:0} particle keeps its offsets, which are then a direction or a
+     * colour). Timing is untouched. Sounds, fireworks, cameras, shakes and lids are drawn as written.
+     *
+     * <p>A scaled play is a model on a table, with no ground of its own under it: nothing it draws as a
+     * display falls below the location's height (debris lands on it instead of falling through), and a
+     * scaled {@code [NPC]} body carries no name tag.
+     *
+     * @param factor how large, above zero; 1 is as written
+     * @return a new target
+     * @throws IllegalArgumentException if {@code factor} is not above zero
+     * @since 1.413.0
+     */
+    public @NotNull SequenceTarget scale(double factor) {
+        if (!(factor > 0) || Double.isInfinite(factor)) {
+            throw new IllegalArgumentException("A sequence's scale must be above zero, not " + factor);
+        }
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, follows,
+                factor);
+    }
+
+    /**
+     * How large this play is drawn; 1 is as written.
+     *
+     * @since 1.413.0
+     */
+    public double scale() {
+        return scale;
+    }
+
+    /**
+     * Whether this play is drawn at another size than written.
+     *
+     * @since 1.413.0
+     */
+    public boolean isScaled() {
+        return scale != 1.0;
     }
 
     /** Where this happens. */

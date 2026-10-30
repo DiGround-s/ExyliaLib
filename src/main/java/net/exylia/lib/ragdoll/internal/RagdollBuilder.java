@@ -100,6 +100,20 @@ public final class RagdollBuilder {
      */
     public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollMotion motion,
                                            Location at, List<Player> viewers, double tempo) {
+        return show(owner, model, motion, at, viewers, tempo, 1.0);
+    }
+
+    /**
+     * The same, the whole body and its flight {@code magnify} times as large about {@code at}: solved
+     * at the model's own size, then every piece's offsets and size multiplied, so where it flies, lands
+     * and comes apart shrinks with it. What a sequence played as a miniature draws.
+     *
+     * @param magnify how many times larger; 1 is as solved
+     * @return the displays it put on screen
+     * @since 1.413.0
+     */
+    public static List<DisplayHandle> show(String owner, RagdollModel model, RagdollMotion motion,
+                                           Location at, List<Player> viewers, double tempo, double magnify) {
         List<DisplayHandle> shown = new ArrayList<>();
         if (viewers.isEmpty()) {
             return shown;
@@ -143,7 +157,7 @@ public final class RagdollBuilder {
             // choreography rather than the last pose any one piece happens to
             // have kept: thinning leaves each piece a different last pose, and
             // pieces that came round on their own beats would drift apart.
-            DisplayMotion drawnMotion = DisplayMotion.of(piece.poses(), motion.lifeMillis());
+            DisplayMotion drawnMotion = DisplayMotion.of(piece.poses(), motion.lifeMillis()).magnified(magnify);
             if (motion.loop()) {
                 drawnMotion = drawnMotion.looping(
                         motion.intactMillis() + motion.loopFromMillis(), motion.finishAt(),

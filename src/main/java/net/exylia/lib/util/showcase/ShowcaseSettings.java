@@ -1,6 +1,7 @@
 package net.exylia.lib.util.showcase;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.util.sequence.SequenceTarget;
 import net.exylia.lib.config.Key;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.Location;
@@ -31,6 +32,8 @@ import java.util.List;
  * @param pauseSeconds the rest between one turn ending and the next starting
  * @param radius       how close a player has to be for a showcase to play, in blocks
  * @param only         the ids a showcase picks from; empty picks from all of them
+ * @param effectScale  how large a turn plays its effect ({@link SequenceTarget#scale}); 1 is as written.
+ *                     Since 1.413.0.
  * @since 1.188.0
  */
 @Comment("Places that show this plugin's cosmetics off on a loop.")
@@ -54,10 +57,21 @@ public record ShowcaseSettings(
         double radius,
 
         @Comment("The ids a showcase picks from. Empty picks from every one.")
-        List<String> only) {
+        List<String> only,
+
+        @Key("effect-scale")
+        @Comment("How large a showcase plays each effect: every offset, movement, body and")
+        @Comment("particle spread that many times its written size. 1 is as written.")
+        double effectScale) {
 
     public ShowcaseSettings() {
-        this(List.of(), 3.0, 24.0, List.of());
+        this(List.of(), 3.0, 24.0, List.of(), 1.0);
+    }
+
+    /** @deprecated since 1.413.0; use the constructor with {@code effectScale}. */
+    @Deprecated
+    public ShowcaseSettings(List<String> locations, double pauseSeconds, double radius, List<String> only) {
+        this(locations, pauseSeconds, radius, only, 1.0);
     }
 
     public ShowcaseSettings {
@@ -65,11 +79,12 @@ public record ShowcaseSettings(
         pauseSeconds = Math.max(0, pauseSeconds);
         radius = Math.max(1, radius);
         only = only == null ? List.of() : List.copyOf(only);
+        effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : 1.0;
     }
 
     /** The same settings with showcases standing somewhere else, for a command that moves them. */
     public @NotNull ShowcaseSettings withLocations(@NotNull List<String> locations) {
-        return new ShowcaseSettings(locations, pauseSeconds, radius, only);
+        return new ShowcaseSettings(locations, pauseSeconds, radius, only, effectScale);
     }
 
     /** The rest between turns, in milliseconds. */

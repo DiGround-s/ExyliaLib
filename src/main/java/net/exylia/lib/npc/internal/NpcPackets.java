@@ -143,6 +143,11 @@ final class NpcPackets implements NpcSink, PlacedSink {
                 new WrapperPlayServerPlayerInfoUpdate.PlayerInfo(
                         profile, false, 0, GameMode.SURVIVAL, Component.empty(), null));
         send(viewers, announce);
+        if (model.isNameless()) {
+            // As a placed NPC: a team of its own, named after its generated name, hides the tag.
+            send(viewers, new WrapperPlayServerTeams(model.name(),
+                    WrapperPlayServerTeams.TeamMode.CREATE, teamInfo(model.glowArgb()), model.name()));
+        }
     }
 
     @Override
@@ -324,6 +329,15 @@ final class NpcPackets implements NpcSink, PlacedSink {
         PacketWrapper<?> identity = new WrapperPlayServerPlayerInfoRemove(profile);
         send(viewers, body);
         send(viewers, identity);
+    }
+
+    @Override
+    public void destroy(List<Player> viewers, int entityId, NpcModel model) {
+        destroy(viewers, entityId, model.id());
+        if (model.isNameless()) {
+            send(viewers, new WrapperPlayServerTeams(model.name(), WrapperPlayServerTeams.TeamMode.REMOVE,
+                    Optional.<WrapperPlayServerTeams.ScoreBoardTeamInfo>empty(), List.of()));
+        }
     }
 
     // ------------------------------------------------------------------

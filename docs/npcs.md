@@ -69,6 +69,13 @@ It is announced **unlisted**: the player-list entry is what carries the skin,
 being in the tab list is a separate flag, and an NPC that appears in the tab
 beside real players is a bug report about ghost players.
 
+`NpcModel.of(player)` keeps the player's name, so the client draws it over the
+body, decorated by whatever scoreboard team that name is in for the viewer (a
+rank prefix, a colour). `model.nameless()` (since 1.413.0) is the same body with
+no name tag: announced under a generated name (`npc` and 13 hex digits) in a
+team of its own that hides the tag, withdrawn with the NPC. Previews and
+mannequins use it, and so does an `[NPC]` line of a scaled sequence.
+
 ## The skin costs nothing
 
 `NpcModel.of(player)` reads the texture from the connection this server already

@@ -119,6 +119,42 @@ public final class NpcMotion {
         this.swingEveryMillis = builder.swingEveryMillis;
     }
 
+    /** The same motion, its offsets and fall {@code factor} times as large; timing and turns as they were. */
+    private NpcMotion(NpcMotion source, double factor) {
+        this.fromX = source.fromX * factor;
+        this.fromY = source.fromY * factor;
+        this.fromZ = source.fromZ * factor;
+        this.toX = source.toX * factor;
+        this.toY = source.toY * factor;
+        this.toZ = source.toZ * factor;
+        this.gravity = source.gravity * factor;
+        this.overMillis = source.overMillis;
+        this.startAfterMillis = source.startAfterMillis;
+        this.easing = source.easing;
+        this.turnDegrees = source.turnDegrees;
+        this.pose = source.pose;
+        this.poseThen = source.poseThen;
+        this.poseAfterMillis = source.poseAfterMillis;
+        this.hurt = source.hurt;
+        this.spinPerSecond = source.spinPerSecond;
+        this.bob = source.bob * factor;
+        this.bobPeriodMillis = source.bobPeriodMillis;
+        this.swingEveryMillis = source.swingEveryMillis;
+    }
+
+    /**
+     * The same motion for a body {@code factor} times as large: every offset ({@code from}, {@code to},
+     * the hover) and the fall that much larger, so a miniature moves as the full-size body would, on its
+     * own scale. Timing, turns and poses are kept.
+     *
+     * @param factor how many times larger, above zero
+     * @return the motion; itself for 1
+     * @since 1.413.0
+     */
+    public @NotNull NpcMotion magnified(double factor) {
+        return factor == 1.0 ? this : new NpcMotion(this, factor);
+    }
+
     /** A body that stays exactly where it was put. */
     public static @NotNull NpcMotion still() {
         return STILL;

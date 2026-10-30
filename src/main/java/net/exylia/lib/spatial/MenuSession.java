@@ -941,7 +941,9 @@ final class MenuSession implements SpatialContext {
             stand.setYaw(board.yaw() + 180);
             switch (current) {
                 case SpatialPreview.Npc body -> {
-                    NpcModel model = NpcModel.of(body.skin()).scale(look.scale());
+                    // Nameless: under the viewer's own name the client would hang their scoreboard team's
+                    // prefix (a rank) over it.
+                    NpcModel model = NpcModel.of(body.skin()).scale(look.scale()).nameless();
                     if (body.equipment() == null) model = model.wearing(body.skin());
                     spawn(model, stand, look);
                     dress(body);
@@ -971,7 +973,8 @@ final class MenuSession implements SpatialContext {
             Location stand = base.clone();
             stand.setYaw(board.yaw() + 180);
             NpcModel model = effect.skin() == null ? NpcModel.of("Mannequin") : NpcModel.of(effect.skin());
-            spawn(model.scale(layout.preview().scale()), stand, layout.preview());
+            // The size the effect plays at, so the body that dies is the one that stood there.
+            spawn(model.scale(layout.preview().effectScale()).nameless(), stand, layout.preview());
         }
 
         private void spawn(NpcModel model, Location stand, SpatialLayout.Preview look) {
@@ -1004,14 +1007,18 @@ final class MenuSession implements SpatialContext {
             }
             if (current instanceof SpatialPreview.Effect effect && npc != null && now >= nextPlay) {
                 if (run != null) run.cancel();
-                Location at = base.clone().add(0, 1.0 * layout.preview().scale(), 0);
+                // Where the mannequin's feet were, the pedestal's top: a kill effect is written round the
+                // victim's feet. It plays as a miniature of itself (effect-scale) so all of it stays
+                // between the carousel and the header.
+                Location at = base.clone();
                 // The viewer sets it off and, with nobody else there, is who it happens to as well: an
                 // [NPC] {victim} line has a body. [RAGDOLL] lines wear the mannequin's skin. No target,
                 // as in the previews' mannequin mode: a [POTION] or a victim's title never lands on them.
                 RagdollModel body = effect.skin() == null ? RagdollModel.of(SkinCache.fallback(), null)
                         : RagdollModel.of(effect.skin());
                 run = Sequences.of(menus.plugin()).play(effect.sequence(),
-                        SequenceTarget.at(at).by(viewer).onlyTo(viewer).wearing(body));
+                        SequenceTarget.at(at).by(viewer).onlyTo(viewer).wearing(body)
+                                .scale(layout.preview().effectScale()));
                 long length = effect.sequence().isEndless() ? Long.MAX_VALUE / 4 : effect.sequence().durationMillis();
                 nextPlay = now + Math.max(2500L, length + 1500L);
                 if (layout.preview().vanishOnPlay()) {
