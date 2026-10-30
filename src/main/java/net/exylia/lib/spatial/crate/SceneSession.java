@@ -682,7 +682,8 @@ final class SceneSession {
 
         void show(SpatialPreview preview, boolean vanishes) {
             remove();
-            current = preview;
+            // A crate prize stands still on its plinth: a flight shows the projectile itself.
+            current = preview instanceof SpatialPreview.Flight flight ? SpatialPreview.item(flight.projectile()) : preview;
             vanish = vanishes;
             draw();
         }
@@ -719,6 +720,7 @@ final class SceneSession {
                     mannequin(effect);
                     nextPlay = now() + 1200L;
                 }
+                case SpatialPreview.Flight flight -> { }
                 case SpatialPreview.None none -> { }
             }
         }

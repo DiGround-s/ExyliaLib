@@ -214,6 +214,21 @@ Previews: `SpatialPreview.npc(player)` (their skin, wearing what they wear),
 `item(stack)`, `sequence(sequence, skin)` (a mannequin with the effect played on
 it again and again, for the viewer alone: a kill effect seen for real), `none()`.
 
+`flight(projectile, launch, trail, trailEveryTicks, impact)` (since 1.422.0) is a
+projectile seen in flight, for the viewer alone: the item (an arrow, a snowball,
+a trident; a display, never an entity) sets off low over the left of the stage,
+rises a little and comes down in a gentle arc into a small target block standing
+on the pedestal, pointing the way it flies, stuck there a moment, and again every
+2.6 s (longer when the impact is). `launch` plays where it sets off, `trail`
+where it is every `trailEveryTicks` ticks (at most one step every two ticks, the
+menu's poll), `impact` where it lands, facing along the stage; any may be
+`null`. Each plays at `preview.effect-scale`, about where it plays, and the arc
+is sized by `preview.scale`, so at the defaults the whole flight stays between
+the side panels and under the focus text. A crate scene shows a flight's
+projectile as an `item` prize. Plays its personal lines (`[MESSAGE]`,
+`[TITLE]`, `[COMMAND]`...) on the viewer, who sets it off: hand it sequences
+without them.
+
 An effect is played `by(viewer)` with no target, as the previews'
 [mannequin mode](previews.md) does, so a `[POTION]` or a victim's title never
 lands on anyone. The mannequin, every `[RAGDOLL]` line and every
@@ -404,8 +419,9 @@ and skins (re-dressed in place as the draft changes); `sequence(sequence, null)`
 for a kill or hit effect on a mannequin (`preview.vanish-on-play: false` for a
 hit effect, which must not read as a death); an emote is
 `sequence(emote, viewer)`, the viewer's own skin performing it (the mannequin
-stands aside while it plays); a trail or a projectile effect is a `sequence`
-too; `item(stack)` for a shield, a banner or anything held.
+stands aside while it plays); a trail or a projectile effect is a
+`flight(projectile, launch, trail, every, impact)` (since 1.422.0; a `sequence`
+before); `item(stack)` for a shield, a banner or anything held.
 
 **A layout for it.** The KillEffect selector (`spatial/effects.yml` in
 ExyliaKillEffect) is the reference: info on the left (`footer: filter`), the

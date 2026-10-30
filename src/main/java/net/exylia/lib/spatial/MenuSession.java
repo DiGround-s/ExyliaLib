@@ -14,6 +14,7 @@ import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.spatial.internal.Confirm;
 import net.exylia.lib.spatial.internal.Drafts;
+import net.exylia.lib.spatial.internal.Flights;
 import net.exylia.lib.spatial.internal.Geometry;
 import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
@@ -30,6 +31,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -571,6 +573,17 @@ final class MenuSession implements SpatialContext {
 
     private static Rotation facing(StagePlane plane) {
         return StageLook.facing(plane);
+    }
+
+    /**
+     * Turns an item to point along a direction: an item is drawn tip up and to the east, so it is laid
+     * flat along east, raised to the slope, then swung round to the heading.
+     */
+    private static Rotation pointing(Vector velocity) {
+        double horizontal = Math.hypot(velocity.getX(), velocity.getZ());
+        return Rotation.around(Rotation.Axis.Z, -Math.PI / 4)
+                .then(Rotation.around(Rotation.Axis.Z, Math.atan2(velocity.getY(), horizontal)))
+                .then(Rotation.around(Rotation.Axis.Y, Math.atan2(-velocity.getZ(), velocity.getX())));
     }
 
     private static Rotation flat(Rotation facing) {
@@ -1436,9 +1449,10 @@ final class MenuSession implements SpatialContext {
 
     // ── Preview ───────────────────────────────────────────────────────────
 
-    /** The piece in the middle on its pedestal: an NPC, an item, or an effect on a mannequin. */
+    /** The piece in the middle on its pedestal: an NPC, an item, an effect on a mannequin, or a flight. */
     private final class PreviewPart {
 
+        private final StagePlane plane;
         private final Location base;
         private final Rotation rotation;
         private SpatialPreview current = SpatialPreview.none();
@@ -1453,10 +1467,18 @@ final class MenuSession implements SpatialContext {
         private @Nullable net.exylia.lib.npc.PreviewSkins.Body body;
         /** When that body stood; its first play waits up to {@link #SKIN_WAIT_MILLIS} for its skin to be read. */
         private long stoodAt;
+        /** A flight's target and the projectile in the air (or stuck in it), with what they set off. */
+        private @Nullable DisplayHandle target;
+        private @Nullable DisplayHandle projectile;
+        private final List<SequenceRun> flightRuns = new ArrayList<>();
+        /** When the projectile last set off, 0 before the first; the trail steps drawn since; whether it landed. */
+        private long launchedAt;
+        private int trailSteps;
+        private boolean landed;
 
         PreviewPart(long delay) {
             SpatialLayout.Preview look = layout.preview();
-            StagePlane plane = Geometry.panel(anchor.getWorld(), board, look.at().get(0), look.at().get(1), look.at().get(2), 0);
+            this.plane = Geometry.panel(anchor.getWorld(), board, look.at().get(0), look.at().get(1), look.at().get(2), 0);
             this.rotation = facing(plane);
             this.base = plane.point(0, 0, 0);
             if (look.pedestal()) {
@@ -1514,8 +1536,78 @@ final class MenuSession implements SpatialContext {
                     mannequin(effect);
                     nextPlay = 0;
                 }
+                case SpatialPreview.Flight flight -> {
+                    double size = Flights.TARGET * look.scale();
+                    target = show(DisplayModel.block(Material.TARGET.createBlockData()).light(15),
+                            motion(rotation, size, size, size, -1), plane.point(0, size / 2, 0));
+                    nextPlay = 0;
+                }
                 case SpatialPreview.None none -> { }
             }
+        }
+
+        /** A flight, every poll: sets off again when due, draws its trail where it is, its impact once it lands. */
+        private void fly(SpatialPreview.Flight flight, long now) {
+            if (now >= nextPlay) launch(flight, now);
+            long flown = now - launchedAt;
+            if (flight.trail() != null && flown < Flights.FLIGHT_MILLIS) {
+                // At most one step a poll, where the projectile is now: a step missed between two polls is
+                // not drawn late, behind it.
+                int step = (int) (flown / (flight.trailEveryTicks() * 50L));
+                if (step > trailSteps) {
+                    trailSteps = step;
+                    play(flight.trail(), (double) flown / Flights.FLIGHT_MILLIS);
+                }
+            }
+            if (!landed && flown >= Flights.FLIGHT_MILLIS) {
+                landed = true;
+                if (flight.impact() != null) play(flight.impact(), 1);
+            }
+        }
+
+        private void launch(SpatialPreview.Flight flight, long now) {
+            drop(projectile);
+            flightRuns.removeIf(SequenceRun::isFinished);
+            launchedAt = now;
+            trailSteps = 0;
+            landed = false;
+            long impact = flight.impact() == null || flight.impact().isEndless() ? 0
+                    : Math.min(3000L, flight.impact().durationMillis());
+            long cycle = Math.max(Flights.CYCLE_MILLIS, Flights.FLIGHT_MILLIS + impact + 700L);
+            nextPlay = now + cycle;
+            double scale = layout.preview().scale();
+            double size = 0.5 * scale;
+            double[] start = Flights.at(0, scale);
+            List<DisplayKeyframe> poses = new ArrayList<>();
+            for (long at = 0; at <= Flights.FLIGHT_MILLIS; at += 100) {
+                double progress = (double) at / Flights.FLIGHT_MILLIS;
+                double[] here = Flights.at(progress, scale);
+                double[] moved = offset(plane, here[0] - start[0], here[1] - start[1], 0);
+                poses.add(new DisplayKeyframe(at, (float) moved[0], (float) moved[1], (float) moved[2],
+                        pointing(headingAt(progress)), (float) size, (float) size, (float) size));
+            }
+            // Stuck in the target until it sets off again.
+            poses.add(poses.get(poses.size() - 1).at(cycle));
+            projectile = show(DisplayModel.item(flight.projectile()).light(15), DisplayMotion.of(poses, cycle + 200L),
+                    plane.point(start[0], start[1], 0));
+            if (flight.launch() != null) play(flight.launch(), 0);
+        }
+
+        /** Plays a moment of the flight where the projectile is at {@code progress}, facing the way it flies. */
+        private void play(net.exylia.lib.util.sequence.Sequence sequence, double progress) {
+            double[] here = Flights.at(progress, layout.preview().scale());
+            Location at = plane.point(here[0], here[1], 0);
+            // An impact faces along the stage, level, as a real hit faces the way the shot came.
+            at.setDirection(progress >= 1 ? headingAt(-1) : headingAt(progress));
+            flightRuns.add(Sequences.of(menus.plugin()).play(sequence, SequenceTarget.at(at).by(viewer).onlyTo(viewer)
+                    .scale(layout.preview().effectScale())));
+        }
+
+        /** The projectile's heading in the world; a negative progress is level, to the viewer's right. */
+        private Vector headingAt(double progress) {
+            double[] heading = progress < 0 ? new double[]{1, 0} : Flights.heading(progress, 1);
+            double[] world = offset(plane, heading[0], heading[1], 0);
+            return new Vector(world[0], world[1], world[2]);
         }
 
         private void mannequin(SpatialPreview.Effect effect) {
@@ -1545,6 +1637,10 @@ final class MenuSession implements SpatialContext {
         /** Every poll: an NPC lives two minutes at most, so a long look gets a fresh one; an effect plays again. */
         void keep() {
             long now = System.currentTimeMillis();
+            if (current instanceof SpatialPreview.Flight flight) {
+                fly(flight, now);
+                return;
+            }
             if (current instanceof SpatialPreview.Effect effect && npc == null && hiddenUntil > 0 && now >= hiddenUntil) {
                 hiddenUntil = 0;
                 mannequin(effect);
@@ -1601,6 +1697,13 @@ final class MenuSession implements SpatialContext {
             item = null;
             if (run != null) run.cancel();
             run = null;
+            drop(target);
+            drop(projectile);
+            target = null;
+            projectile = null;
+            flightRuns.forEach(SequenceRun::cancel);
+            flightRuns.clear();
+            launchedAt = 0;
             hiddenUntil = 0;
             current = SpatialPreview.none();
         }

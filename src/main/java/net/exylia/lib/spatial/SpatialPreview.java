@@ -12,7 +12,8 @@ import java.util.Map;
 
 /**
  * What stands in the middle of a spatial menu, on its pedestal, slowly turning: the player wearing
- * what they are choosing, an item, an effect playing for real on a mannequin, or nothing. Returned by
+ * what they are choosing, an item, an effect playing for real on a mannequin, a projectile flying
+ * with its trail, or nothing. Returned by
  * the menu's {@code preview}, read again on every redraw: an equal preview is left as it is, an NPC
  * whose equipment alone changed is re-dressed rather than redrawn.
  *
@@ -53,6 +54,21 @@ public sealed interface SpatialPreview {
         return new Effect(sequence, skin);
     }
 
+    /**
+     * A projectile flying across the stage in a gentle arc into a small target on the pedestal, for the
+     * viewer alone, again every couple of seconds: an arrow trail or a projectile effect seen for real.
+     * {@code launch} plays where it sets off, {@code trail} wherever it is every {@code trailEveryTicks}
+     * ticks, {@code impact} where it lands; each may be {@code null}. Every sequence plays at the
+     * layout's {@code preview.effect-scale}, and the projectile is a display, never an entity.
+     *
+     * @since 1.422.0
+     */
+    static @NotNull SpatialPreview flight(@NotNull ItemStack projectile, @Nullable Sequence launch,
+                                          @Nullable Sequence trail, int trailEveryTicks,
+                                          @Nullable Sequence impact) {
+        return new Flight(projectile.clone(), launch, trail, Math.max(1, trailEveryTicks), impact);
+    }
+
     /** No preview. */
     enum None implements SpatialPreview { NONE }
 
@@ -70,6 +86,11 @@ public sealed interface SpatialPreview {
     }
 
     record Item(@NotNull ItemStack item) implements SpatialPreview {
+    }
+
+    /** @since 1.422.0 */
+    record Flight(@NotNull ItemStack projectile, @Nullable Sequence launch, @Nullable Sequence trail,
+                  int trailEveryTicks, @Nullable Sequence impact) implements SpatialPreview {
     }
 
     record Effect(@NotNull Sequence sequence, @Nullable Player skin) implements SpatialPreview {
