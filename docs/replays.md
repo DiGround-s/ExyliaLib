@@ -36,7 +36,7 @@ followed, the server's own answer to where they were:
 | | |
 | --- | --- |
 | Position | to a thousandth of a block |
-| Yaw, pitch and head | to about a degree and a half, which is the protocol's own resolution |
+| Yaw, pitch and head | in 65536 steps a turn (format 4, 1.403.0; format 3 kept the protocol's 256) |
 | Pose | every pose the protocol has: standing, sneaking, crawling, sleeping, gliding with an elytra, riptide, dying, and the mobs' own |
 | Sprinting, on the ground | as the client reported them, which is what the server used |
 | On fire, invisible, glowing | as the server had them |
@@ -95,14 +95,16 @@ guessed would disagree with the crater everybody remembers.
 
 ## What it cannot give back
 
-What a player *saw*. A client predicts its own movement and is corrected
-afterwards, so somebody on a bad connection watched their hit land while the
-server was deciding it had not. The recording shows the server's answer.
+Everything a player's own client made up. A client predicts its own movement
+and is corrected afterwards, so somebody on a bad connection watched their hit
+land while the server was deciding it had not. The recording shows the
+server's answer, and since 1.403.0 the black box also keeps how late each
+player's screen was, which is enough to show what an attacker had in front of
+them (*The attacker's view*, below).
 
-That is the right answer and it is not always the popular one. Nothing in here
-reproduces client-side prediction, FOV, view bobbing or the tilt on taking
-damage, and nothing ever will: none of it existed on this side of the
-connection.
+Nothing in here reproduces client-side prediction, FOV, view bobbing or the
+tilt on taking damage, and nothing ever will: none of it existed on this side
+of the connection.
 
 ## The anchor
 
@@ -258,6 +260,96 @@ told to look out of its eyes, and follows it with its own smoothing rather than
 being teleported every tick. `follow(null)` gives them their own eyes back.
 `playback.locationOf(actor)` and `Replay#at(tick, actor)` still say where
 somebody was, for a plugin that wants its own camera.
+
+`follow(actor)` shows everybody where the server had them. To judge a hit, use
+`follow(actor, ReplayPlayback.View.ATTACKER)` (also on `ReplayViewer`):
+
+## The attacker's view
+
+In Minecraft the attacker's client picks the target on its own screen and
+sends "attack entity X"; the server only checks reach with its own positions.
+On that screen everybody else is late: by the connection, and by the client's
+own interpolation of about three ticks. Watched by the server's positions, a
+hit on a strafing target lands on nothing, and in first person it is worse:
+the viewer's client smooths the camera body over the same three ticks, so the
+crosshair trails the swing.
+
+```java
+ReplayViewer.openLive(plugin, viewer, replay, victim)
+        .thenAccept(watching -> watching.follow(killer, ReplayPlayback.View.ATTACKER));
+```
+
+`ATTACKER` draws every other body at *tick − seen lag* of the followed player
+on that tick, and the followed body three ticks ahead, which cancels the
+viewer's smoothing of the camera. The viewer's client then interpolates the
+other bodies exactly as the attacker's did. Swings, hits and their sounds keep
+their own tick. `SERVER`, and plain `follow(actor)`, is everybody on the same
+tick, as before.
+
+What it reproduces: where everybody else was on the attacker's screen when
+they clicked, to the tick, and where the attacker was looking. What it cannot:
+the attacker's prediction of their own movement (the camera is the server's
+answer for it, which is a tick or two behind what they felt), their FOV, and
+the camera turning in the protocol's own steps of 1.4°: the file keeps the
+look to a hundredth of a degree, but a body on a screen can only be turned in
+256 steps.
+
+### Seen lag
+
+How late a player's screen is, tick by tick, measured rather than guessed.
+While somebody is in combat (dealt or took entity damage in the last fifteen
+seconds) their client gets a protocol ping every tick, after the entity updates
+of the tick before, and the pong says it has drawn everything up to that tick.
+Seen lag is *now − the newest tick answered*, 0 to 254. Outside combat it is
+the ping's estimate (*ping / 50 + 1*) and says so. A bot on the same host
+measures 1 to 3 ticks.
+
+The ping ids are **`0x4558xxxx`** ("EX" and a counter). Grim and the other
+anticheats that ping use negative shorts, which an id this large is never
+confused with; a pong outside the range is left alone. A recording made
+before 1.403.0 has no seen lag, and the attacker view falls back to the ping
+written once a second (`ReplayMark.PING`), or to `SERVER` without one. A client
+older than 1.17 behind ViaVersion may never answer an id outside a short: it
+gets the estimate.
+
+### Every attack as sent
+
+Each attack the client sends is kept with the look it was aimed with. That is
+the look sent *right after* the attack, in the same client tick: the client
+picks its target and sends the attack early in its tick and its rotation at
+the end. The turns of the three ticks before it are kept too. It is merged with
+the server's own mark of the hit (same attacker and target, a tick either
+side), so nothing is counted twice; one the server never counted (out of reach,
+invulnerable, cancelled) is an `ATTACK` mark of its own that draws nothing.
+
+### `replay.hits()`
+
+Every attack, with the numbers staff judge it by, as `ReplayHit` records:
+
+| | |
+| --- | --- |
+| `reachServer` | eyes (by pose) to the target's hitbox (0.6 × 1.8, sneaking 1.5, by pose), by the server's positions: what the server checked |
+| `reachSeen` | the same, with the target where the attacker's screen had it |
+| `angleOff` | degrees between the look and that hitbox; 0 when the look goes through it |
+| `flick` | the largest turn in the three ticks before, in degrees |
+| `seenLag`, `estimated` | as above, -1 unknown |
+| `damage`, `confirmed` | what it did after armour, `NaN` unknown; whether the server counted it |
+
+A black box capture carries them worked out, once, when it is cut, off the
+server thread. An older recording or a recorder's is worked out when asked,
+with the sampled look and the ping's estimate, which is coarser and says so. A
+number that cannot be worked out is `NaN`, never a guess; anything that is not
+a player gets no hitbox numbers. A bot looking straight at its target measures
+`angleOff` 0 and a reach under 3.
+
+### What it costs
+
+Measured below, under *What the black box costs*. The server thread reads two
+fields per player per tick and writes one more column of the frame. Pings go
+out from the replay driver's thread, only to players in combat; pongs, looks
+and attacks are read on the connection's own thread into small rings written
+in place, and an attack is handed over through a lock-free queue the box
+drains once a tick. The analysis runs only when a capture is cut.
 
 ## Marks
 
@@ -421,7 +513,7 @@ work is laid out to read each thing once and nothing it cannot keep:
 - **Equipment is read when it changes.** Paper's `EntityEquipmentChangedEvent`
   marks the slot, and everything is read once a second besides. On a server
   without that event, hands every other tick and armour every five.
-- **A frame is twenty-seven bytes.** Positions in thousandths of a block (what
+- **A frame is twenty-nine bytes**, the seen lag included. Positions in thousandths of a block (what
   the file holds, so nothing a capture writes is lost), the world as an index
   into a table shared by every tape, angles in 65536 steps a turn and health in
   half points.
@@ -540,6 +632,11 @@ no ground is read but the sections a block changed in, which is most of what a
 capture costs and most of what one weighs while it is kept.
 
 ## A note on the format
+
+Format 4 (1.403.0) keeps angles in 65536 steps a turn, written as the turn
+since the tick before, and every player's seen lag; the three minute duel above
+went from 29 kB to 31 kB. `Replay.from` still reads formats 3 and 2, a format 3
+recording's angles widened and with no seen lag.
 
 Format 3 (1.241.0) adds scenes, head yaw, the wider flag word, what non-player
 actors look like and the terrain. `Replay.from` still reads format 2 — a duel

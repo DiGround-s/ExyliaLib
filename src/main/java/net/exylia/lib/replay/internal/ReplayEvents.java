@@ -237,6 +237,7 @@ final class ReplayEvents implements Listener {
     public void onDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof LivingEntity victim)) return;
         Entity source = event instanceof EntityDamageByEntityEvent byEntity ? byEntity.getDamager() : null;
+        if (source != null) combat(victim, source);
         boolean blocked = victim instanceof HumanEntity human && human.isBlocking()
                 && event.getFinalDamage() <= 0 && source != null;
         if (!blocked) {
@@ -263,7 +264,21 @@ final class ReplayEvents implements Listener {
         if (strong) how |= MarkData.STRONG;
         if (blocked) how |= MarkData.BLOCKED;
         else if (event.getFinalDamage() <= 0) how |= MarkData.NO_DAMAGE;
-        actor(ReplayMark.ATTACK, attacker, MarkData.attack(victim.getUniqueId(), how));
+        actor(ReplayMark.ATTACK, attacker, MarkData.attack(victim.getUniqueId(), how, (float) event.getFinalDamage()));
+    }
+
+    /**
+     * Both sides of entity damage are in combat: their clients are pinged
+     * every tick for a while, which is what measures how late their screens
+     * are. A projectile's is whoever shot it.
+     */
+    private static void combat(LivingEntity victim, Entity source) {
+        if (ReplayRuntime.box() == null) return;
+        int now = ReplayClock.now();
+        if (victim instanceof Player hurt) ClientView.combat(hurt.getUniqueId(), now);
+        Entity dealer = source instanceof org.bukkit.entity.Projectile projectile
+                && projectile.getShooter() instanceof Entity shooter ? shooter : source;
+        if (dealer instanceof Player player) ClientView.combat(player.getUniqueId(), now);
     }
 
     /**

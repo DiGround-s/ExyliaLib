@@ -148,6 +148,46 @@ public interface ReplayPlayback {
     @Nullable UUID following();
 
     /**
+     * Looks out of somebody's eyes, showing everybody else either where the
+     * server had them or where that player's own screen had them.
+     *
+     * <p>{@link View#ATTACKER} is the one for judging a hit: the crosshair and
+     * the swing line up with the body the player was really aiming at. See
+     * {@link View}.
+     *
+     * @param actor who, or {@code null} to look out of their own eyes again
+     * @param view  which screen to reproduce
+     * @since 1.403.0
+     */
+    default void follow(@Nullable UUID actor, @NotNull View view) {
+        follow(actor);
+    }
+
+    /** Which screen a first-person view reproduces now. @since 1.403.0 */
+    default @NotNull View view() {
+        return View.SERVER;
+    }
+
+    /**
+     * Which screen a first-person view reproduces.
+     *
+     * @since 1.403.0
+     */
+    enum View {
+        /** Everybody where the server had them on the same tick: what the server decided on. */
+        SERVER,
+        /**
+         * What the followed player's own screen had: everybody else as late as
+         * their connection showed them, tick by tick from the seen lag the
+         * black box measured (or the ping's estimate in a recording without
+         * it), and their own body ahead by the viewer's client smoothing, so
+         * the camera is where they were when they clicked. Swings, hits and
+         * sounds keep their own tick.
+         */
+        ATTACKER
+    }
+
+    /**
      * Whether it starts again when it reaches the end.
      *
      * @param loop whether to loop

@@ -111,6 +111,8 @@ public final class BlackBox {
     private final Map<UUID, Watcher> watchers = new ConcurrentHashMap<>();
     private final ConcurrentLinkedDeque<Happening> happenings = new ConcurrentLinkedDeque<>();
     private final ConcurrentLinkedDeque<Change> changes = new ConcurrentLinkedDeque<>();
+    /** Attacks as the clients sent them, with their victims worked out; trimmed with the rest. */
+    private final ConcurrentLinkedDeque<ClientView.Sent> attacks = new ConcurrentLinkedDeque<>();
     private final AtomicInteger changeCount = new AtomicInteger();
     private final AtomicInteger nonPlayers = new AtomicInteger();
 
@@ -167,6 +169,8 @@ public final class BlackBox {
         tapes.clear();
         happenings.clear();
         changes.clear();
+        attacks.clear();
+        ClientView.closeAll();
         changeCount.set(0);
         nonPlayers.set(0);
         capped.set(0);
@@ -183,6 +187,7 @@ public final class BlackBox {
         Watcher watcher = new Watcher(player);
         watcher.sampledAt = ReplayClock.now();
         if (watchers.putIfAbsent(player.getUniqueId(), watcher) != null) return;
+        ClientView.open(player);
         watcher.task = scheduler.runAtEntityTimer(player, 1L, 1L, () -> sample(watcher));
     }
 
@@ -219,6 +224,7 @@ public final class BlackBox {
                 ? watchers.putIfAbsent(player.getUniqueId(), fresh) == null
                 : watchers.replace(player.getUniqueId(), current, fresh);
         if (!replaced) return;
+        ClientView.open(player);
         if (running != null) running.cancel();
         fresh.task = scheduler.runAtEntityTimer(player, 1L, 1L, () -> sample(fresh));
     }
@@ -227,6 +233,7 @@ public final class BlackBox {
     void unwatch(UUID player) {
         Watcher watcher = watchers.remove(player);
         if (watcher != null) watcher.task.cancel();
+        ClientView.close(player);
     }
 
     /** Something left the world: its tape says so from this tick. */
@@ -280,8 +287,16 @@ public final class BlackBox {
         Location here = player.getLocation();
         watcher.last = here;
         boolean hidden = current.hidden().test(player);
+        if (!ClientView.SENT.isEmpty()) drain();
+        ClientView view = watcher.view;
+        if (view == null) view = watcher.view = ClientView.of(player.getUniqueId());
+        int seen = MotionTrack.LAG_UNKNOWN;
+        if (view != null) {
+            seen = view.lag(tick, player);
+            view.settleStale(tick);
+        }
         if (!hidden && player.isValid() && !ReplayEvents.spectating(player)) {
-            write(player, tick);
+            write(player, tapes.get(player.getUniqueId()), here, tick, seen);
             if (watcher.age % 20 == 0) {
                 happenings.add(new Happening(tick, ReplayMark.PING, player.getUniqueId(),
                         String.valueOf(player.getPing()).getBytes(java.nio.charset.StandardCharsets.UTF_8),
@@ -425,13 +440,13 @@ public final class BlackBox {
         watcher.noticed.clear();
     }
 
-    /** Writes one entity's frame for this tick, once however many timers see it. */
-    private void write(Entity entity, int tick) {
-        write(entity, tapes.get(entity.getUniqueId()), entity.getLocation(), tick);
+    /** Writes one entity's frame for this tick, with its tape already looked up, or {@code null} for none yet, and where it is now. */
+    private @Nullable Tape write(Entity entity, @Nullable Tape tape, Location at, int tick) {
+        return write(entity, tape, at, tick, MotionTrack.LAG_UNKNOWN);
     }
 
-    /** Same, with its tape already looked up, or {@code null} for none yet, and where it is now. */
-    private @Nullable Tape write(Entity entity, @Nullable Tape tape, Location at, int tick) {
+    /** Same, with a player's seen lag on this tick. */
+    private @Nullable Tape write(Entity entity, @Nullable Tape tape, Location at, int tick, int seen) {
         UUID id = entity.getUniqueId();
         boolean player = entity instanceof Player;
         // Seen by somebody else's timer this tick already: an arrow between
@@ -448,7 +463,7 @@ public final class BlackBox {
         }
         tape.seen = tick;
         boolean already = tape.put(tick, entity.getWorld().getUID(), at.getX(), at.getY(), at.getZ(),
-                at.getYaw(), at.getPitch(), Sampler.flagsOf(entity), (float) Sampler.healthOf(entity));
+                at.getYaw(), at.getPitch(), Sampler.flagsOf(entity), (float) Sampler.healthOf(entity), seen);
         if (already || !(entity instanceof LivingEntity living)) return tape;
         wear(living, tape, player, tick);
         return tape;
@@ -493,6 +508,39 @@ public final class BlackBox {
     void equipped(UUID entity, int slots) {
         Tape tape = tapes.get(entity);
         if (tape != null) tape.dirty |= slots;
+    }
+
+    /**
+     * Takes the attacks the clients sent since the last drain, each with its
+     * victim worked out: a player by the entity id every view keeps, anything
+     * else among what is around the attacker. An entity id is a final field,
+     * so this reads nothing of the world, whichever thread drains. Whoever
+     * samples first in a tick drains; the queue is empty for everybody after.
+     */
+    private void drain() {
+        ClientView.Sent attack;
+        while ((attack = ClientView.SENT.poll()) != null) {
+            UUID victim = ClientView.playerWithId(attack.target);
+            if (victim == null) victim = around(attack.attacker, attack.target);
+            // ponytail: an attack on something nobody's look found is dropped;
+            // the damage mark still has it when the server counted it.
+            if (victim == null) continue;
+            attack.victim = victim;
+            attacks.add(attack);
+        }
+    }
+
+    /** Something near a player by its entity id, from what their last look found. */
+    private @Nullable UUID around(UUID player, int entityId) {
+        Watcher watcher = watchers.get(player);
+        if (watcher == null) return null;
+        for (Entity entity : watcher.nearby) {
+            if (entity.getEntityId() == entityId) return entity.getUniqueId();
+        }
+        for (Entity entity : watcher.noticed.keySet()) {
+            if (entity.getEntityId() == entityId) return entity.getUniqueId();
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------ marks
@@ -542,6 +590,11 @@ public final class BlackBox {
             Happening first = happenings.peekFirst();
             if (first == null || first.tick >= oldest) break;
             happenings.pollFirst();
+        }
+        while (true) {
+            ClientView.Sent first = attacks.peekFirst();
+            if (first == null || first.tick >= oldest) break;
+            attacks.pollFirst();
         }
         while (true) {
             Change first = changes.peekFirst();
@@ -941,12 +994,62 @@ public final class BlackBox {
             marks.add(new ReplayMark(tick, happening.kind, actor, data));
         }
 
+        sent(marks, included, start, end);
+
         List<TerrainSection> terrain = current.terrain() ? new ArrayList<>() : null;
         ground(plan, shots, anchors, marks, terrain);
 
         marks.sort(Comparator.comparingInt(ReplayMark::tick));
-        return new Replay(UUID.randomUUID(), System.currentTimeMillis(), end - start + 1,
+        Replay draft = new Replay(UUID.randomUUID(), System.currentTimeMillis(), end - start + 1,
                 actors, tracks, marks, sceneList, terrain);
+        // The hits worked out here, once, off the server thread: the
+        // recording carries the answers, not only what they were made from.
+        return new Replay(draft.id(), draft.createdAt(), draft.frames(), actors, tracks,
+                HitAnalysis.analysed(draft), sceneList, terrain);
+    }
+
+    /**
+     * Puts the attacks the clients sent into the marks: each one into the
+     * server's own mark of it (same attacker and victim, a tick either side),
+     * so nothing is counted twice, and one the server never counted as a mark
+     * of its own, {@link MarkData#UNCONFIRMED}.
+     */
+    private void sent(List<ReplayMark> marks, Set<UUID> included, int start, int end) {
+        Set<Integer> merged = new HashSet<>();
+        for (ClientView.Sent attack : attacks) {
+            if (attack.tick < start || attack.tick > end || attack.victim == null
+                    || !included.contains(attack.attacker) || !included.contains(attack.victim)) {
+                continue;
+            }
+            int tick = attack.tick - start;
+            int lag = (attack.lag & 0xFF) == MotionTrack.LAG_UNKNOWN ? -1 : attack.lag & 0xFF;
+            boolean estimated = (attack.lag & MotionTrack.LAG_ESTIMATED) != 0;
+            int match = -1;
+            for (int index = 0; index < marks.size(); index++) {
+                ReplayMark mark = marks.get(index);
+                if (!ReplayMark.ATTACK.equals(mark.kind()) || !attack.attacker.equals(mark.actor())
+                        || Math.abs(mark.tick() - tick) > 1 || merged.contains(index)
+                        || !attack.victim.equals(MarkData.attackVictim(mark.data()))) {
+                    continue;
+                }
+                match = index;
+                break;
+            }
+            if (match < 0) {
+                marks.add(new ReplayMark(tick, ReplayMark.ATTACK, attack.attacker,
+                        new MarkData.Hit(attack.victim, MarkData.UNCONFIRMED, Float.NaN, attack.sent,
+                                attack.yaw, attack.pitch, lag, estimated, Float.NaN, Float.NaN, Float.NaN,
+                                attack.flick).write()));
+                merged.add(marks.size() - 1);
+                continue;
+            }
+            ReplayMark mark = marks.get(match);
+            MarkData.Hit server = MarkData.Hit.read(mark.data());
+            marks.set(match, new ReplayMark(mark.tick(), mark.kind(), mark.actor(),
+                    new MarkData.Hit(attack.victim, server.how(), server.damage(), attack.sent, attack.yaw,
+                            attack.pitch, lag, estimated, Float.NaN, Float.NaN, Float.NaN, attack.flick).write()));
+            merged.add(match);
+        }
     }
 
     /**
@@ -1020,7 +1123,7 @@ public final class BlackBox {
                 }
             }
             builder.put(relative, px - scene.x, py - scene.y, pz - scene.z,
-                    yaw, pitch, yaw, frame.health(), frame.flags());
+                    yaw, pitch, yaw, frame.health(), frame.flags(), frame.lag());
             lastPut = tick;
             any = true;
         }
@@ -1191,6 +1294,8 @@ public final class BlackBox {
         volatile int sampledAt;
         volatile TaskHandle task;
         int age;
+        /** Their client's view, looked up once rather than every tick. */
+        ClientView view;
 
         Watcher(Player player) {
             this.player = player;

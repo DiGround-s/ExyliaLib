@@ -16,10 +16,11 @@ import java.util.Locale;
  *
  * <h2>What a frame carries</h2>
  * Position to a thousandth of a block, relative to the anchor of the scene the
- * tick belongs to. Body yaw, pitch and head yaw at the protocol's own
- * resolution. A flag word with the pose, sprinting, on the ground, present,
- * which hand is raised, on fire, invisible and glowing. Health to the nearest
- * half point.
+ * tick belongs to. Body yaw, pitch and head yaw in 65536 steps a turn (format 4;
+ * format 3 kept 256, the protocol's own). A flag word with the pose, sprinting,
+ * on the ground, present, which hand is raised, on fire, invisible and glowing.
+ * Health to the nearest half point. For a player of the black box, the seen lag
+ * of every tick: how many ticks behind the server their screen was.
  */
 @ApiStatus.Internal
 public final class MotionTrack {
@@ -51,14 +52,30 @@ public final class MotionTrack {
     final int[] x;
     final int[] y;
     final int[] z;
-    final byte[] yaw;
-    final byte[] pitch;
-    final byte[] head;
+    final short[] yaw;
+    final short[] pitch;
+    final short[] head;
     final int[] flags;
     final byte[] health;
+    /**
+     * Seen lag per tick, {@link #LAG_UNKNOWN} where nobody measured it, with
+     * {@link #LAG_ESTIMATED} set where it came from the ping rather than from
+     * the client's own answer; {@code null} for a track with none at all.
+     */
+    final short @org.jetbrains.annotations.Nullable [] lag;
 
-    MotionTrack(int firstTick, int[] x, int[] y, int[] z, byte[] yaw, byte[] pitch, byte[] head,
+    /** No seen lag on this tick. */
+    static final int LAG_UNKNOWN = 0xFF;
+    /** The seen lag is the ping's estimate, not a measurement. */
+    static final int LAG_ESTIMATED = 0x100;
+
+    MotionTrack(int firstTick, int[] x, int[] y, int[] z, short[] yaw, short[] pitch, short[] head,
                 int[] flags, byte[] health) {
+        this(firstTick, x, y, z, yaw, pitch, head, flags, health, null);
+    }
+
+    MotionTrack(int firstTick, int[] x, int[] y, int[] z, short[] yaw, short[] pitch, short[] head,
+                int[] flags, byte[] health, short @org.jetbrains.annotations.Nullable [] lag) {
         this.firstTick = firstTick;
         this.x = x;
         this.y = y;
@@ -68,6 +85,7 @@ public final class MotionTrack {
         this.head = head;
         this.flags = flags;
         this.health = health;
+        this.lag = lag;
     }
 
     /** The first tick this track has a frame for. */
@@ -103,15 +121,29 @@ public final class MotionTrack {
     }
 
     public float yaw(int tick) {
-        return yaw[tick - firstTick] * 360f / 256f;
+        return yaw[tick - firstTick] * 360f / 65536f;
     }
 
     public float pitch(int tick) {
-        return pitch[tick - firstTick] * 360f / 256f;
+        return pitch[tick - firstTick] * 360f / 65536f;
     }
 
     public float headYaw(int tick) {
-        return head[tick - firstTick] * 360f / 256f;
+        return head[tick - firstTick] * 360f / 65536f;
+    }
+
+    /** How many ticks behind the server this player's screen was, or -1 when unknown. */
+    public int seenLag(int tick) {
+        int at = tick - firstTick;
+        if (lag == null || at < 0 || at >= lag.length) return -1;
+        int value = lag[at] & 0xFF;
+        return value == LAG_UNKNOWN ? -1 : value;
+    }
+
+    /** Whether {@link #seenLag} on this tick is the ping's estimate rather than a measurement. */
+    public boolean lagEstimated(int tick) {
+        int at = tick - firstTick;
+        return lag != null && at >= 0 && at < lag.length && (lag[at] & LAG_ESTIMATED) != 0;
     }
 
     public int flags(int tick) {
@@ -182,8 +214,14 @@ public final class MotionTrack {
         return packed;
     }
 
+    /** An angle in the protocol's 256 steps a turn. */
     static byte angle(float degrees) {
         return (byte) Math.round(degrees * 256f / 360f);
+    }
+
+    /** An angle in 65536 steps a turn, which is what a track holds since format 4. */
+    static short fine(float degrees) {
+        return (short) Math.round(degrees * 65536f / 360f);
     }
 
     /**
@@ -197,11 +235,14 @@ public final class MotionTrack {
         private int[] x = new int[64];
         private int[] y = new int[64];
         private int[] z = new int[64];
-        private byte[] yaw = new byte[64];
-        private byte[] pitch = new byte[64];
-        private byte[] head = new byte[64];
+        private short[] yaw = new short[64];
+        private short[] pitch = new short[64];
+        private short[] head = new short[64];
         private int[] flags = new int[64];
         private byte[] health = new byte[64];
+        private short[] lag = new short[64];
+        /** Whether any tick had a seen lag: a track without one keeps no column. */
+        private boolean lagged;
 
         private int firstTick = -1;
         private int length;
@@ -213,6 +254,12 @@ public final class MotionTrack {
          */
         void put(int tick, double px, double py, double pz, float aYaw, float aPitch,
                  float aHead, double hearts, int packed) {
+            put(tick, px, py, pz, aYaw, aPitch, aHead, hearts, packed, LAG_UNKNOWN);
+        }
+
+        /** Same, with the seen lag of the tick: {@link #LAG_UNKNOWN}, or ticks and maybe {@link #LAG_ESTIMATED}. */
+        void put(int tick, double px, double py, double pz, float aYaw, float aPitch,
+                 float aHead, double hearts, int packed, int seen) {
             if (firstTick < 0) {
                 firstTick = tick;
             }
@@ -225,11 +272,13 @@ public final class MotionTrack {
             x[at] = (int) Math.round(px * SCALE);
             y[at] = (int) Math.round(py * SCALE);
             z[at] = (int) Math.round(pz * SCALE);
-            yaw[at] = angle(aYaw);
-            pitch[at] = angle(aPitch);
-            head[at] = angle(aHead);
+            yaw[at] = fine(aYaw);
+            pitch[at] = fine(aPitch);
+            head[at] = fine(aHead);
             flags[at] = packed;
             health[at] = (byte) Math.clamp(Math.round(hearts * 2), 0, 255);
+            lag[at] = (short) seen;
+            if ((seen & 0xFF) != LAG_UNKNOWN) lagged = true;
             length = Math.max(length, at + 1);
         }
 
@@ -252,6 +301,7 @@ public final class MotionTrack {
                 head[gap] = 0;
                 flags[gap] = 0;
                 health[gap] = 0;
+                lag[gap] = LAG_UNKNOWN;
             }
             length = at;
         }
@@ -269,6 +319,7 @@ public final class MotionTrack {
                 head[gap] = head[gap - 1];
                 flags[gap] = flags[gap - 1];
                 health[gap] = health[gap - 1];
+                lag[gap] = lag[gap - 1];
             }
             length = Math.max(length, at);
         }
@@ -286,6 +337,9 @@ public final class MotionTrack {
             head = Arrays.copyOf(head, grown);
             flags = Arrays.copyOf(flags, grown);
             health = Arrays.copyOf(health, grown);
+            int old = lag.length;
+            lag = Arrays.copyOf(lag, grown);
+            Arrays.fill(lag, old, grown, (short) LAG_UNKNOWN);
         }
 
         boolean isEmpty() {
@@ -306,7 +360,7 @@ public final class MotionTrack {
             return new MotionTrack(start, Arrays.copyOf(x, end), Arrays.copyOf(y, end),
                     Arrays.copyOf(z, end), Arrays.copyOf(yaw, end), Arrays.copyOf(pitch, end),
                     Arrays.copyOf(head, end), Arrays.copyOf(flags, end),
-                    Arrays.copyOf(health, end));
+                    Arrays.copyOf(health, end), lagged ? Arrays.copyOf(lag, end) : null);
         }
     }
 }

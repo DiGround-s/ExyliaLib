@@ -394,6 +394,9 @@ public final class ReplayRuntime {
     }
 
     private static void tick() {
+        // The black box's pings to whoever is in combat go from here, off the
+        // server thread: one driver, already running every tick.
+        if (box != null) ClientView.pingAll(ReplayClock.now());
         if (PLAYBACKS.isEmpty()) return;
         for (Iterator<Playback> playbacks = PLAYBACKS.iterator(); playbacks.hasNext(); ) {
             Playback playback = playbacks.next();

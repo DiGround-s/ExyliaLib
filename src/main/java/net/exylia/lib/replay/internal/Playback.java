@@ -138,6 +138,9 @@ public final class Playback implements ReplayPlayback {
     private volatile boolean looping;
     private volatile boolean audible = true;
     private volatile boolean revealing;
+    private volatile View view = View.SERVER;
+    /** How late the followed player's screen was on the frame being drawn, in the attacker view. */
+    private int shownLag;
     private volatile int highlighted = -1;
     private volatile boolean stopped;
     private volatile boolean carryViewers;
@@ -394,6 +397,8 @@ public final class Playback implements ReplayPlayback {
                 snap = true;
             }
         }
+        int following = pov;
+        shownLag = view == View.ATTACKER && following >= 0 ? seenLag(following, tick) : 0;
         for (int index = 0; index < bodies.length; index++) {
             drawActor(index, tick, fraction, snap);
         }
@@ -546,7 +551,7 @@ public final class Playback implements ReplayPlayback {
             spawn(index, tick);
             return;
         }
-        place(body, track, tick, fraction, snap || jumped(index, tick));
+        place(body, track, shown(index, track, tick), fraction, snap || jumped(index, tick));
         state(index, body, track, tick);
         // A seek skips the equipment marks in between: what they wore on the
         // tick landed on is read again.
@@ -765,6 +770,34 @@ public final class Playback implements ReplayPlayback {
             }
         }
         return died;
+    }
+
+    /**
+     * The tick a body is drawn at. The server's view draws everybody on the
+     * frame's own tick. The attacker view draws everybody else as late as the
+     * followed player's screen had them, and the followed body ahead by the
+     * viewer's own client smoothing, which would otherwise put the camera
+     * three ticks behind the click. Never across a scene, and never off the
+     * end of a track: the nearest frame it has towards the real tick.
+     */
+    private int shown(int index, MotionTrack track, int tick) {
+        int following = pov;
+        if (view != View.ATTACKER || following < 0) return tick;
+        int wanted = index == following ? tick + HitAnalysis.INTERPOLATION : tick - shownLag;
+        int scene = replay.sceneAt(tick);
+        int step = wanted > tick ? -1 : 1;
+        for (int at = wanted; at != tick; at += step) {
+            if (at >= 0 && at < replay.frames() && track.present(at) && replay.sceneAt(at) == scene) return at;
+        }
+        return tick;
+    }
+
+    /** How late one player's screen was on a tick: measured, or the ping's estimate, or not at all. */
+    private int seenLag(int actor, int tick) {
+        int measured = replay.tracks().get(actor).seenLag(tick);
+        if (measured >= 0) return measured;
+        int estimated = HitAnalysis.pingLag(replay, replay.actors().get(actor).id(), tick);
+        return Math.max(0, estimated);
     }
 
     private Location place(MotionTrack track, int tick) {
@@ -1012,6 +1045,8 @@ public final class Playback implements ReplayPlayback {
     /** The sounds and particles of one hit, as the game makes them. */
     private void attack(@Nullable Body attacker, ReplayMark mark) {
         int how = MarkData.attackHow(mark.data());
+        // Sent by the client and never counted: its swing is its own mark.
+        if ((how & MarkData.UNCONFIRMED) != 0) return;
         UUID victimId = MarkData.attackVictim(mark.data());
         int victim = victimId == null ? -1 : indexOf(victimId);
         Body target = victim < 0 ? null : bodies[victim];
@@ -1034,7 +1069,8 @@ public final class Playback implements ReplayPlayback {
 
     /** The sweep the server shows as a particle, which is not one of the sounds kept. */
     private void sweep(@Nullable Body attacker, ReplayMark mark) {
-        if (attacker != null && (MarkData.attackHow(mark.data()) & MarkData.SWEEP) != 0) {
+        if (attacker != null && (MarkData.attackHow(mark.data()) & (MarkData.SWEEP | MarkData.UNCONFIRMED))
+                == MarkData.SWEEP) {
             double yaw = Math.toRadians(attacker.yaw * 360f / 256f);
             ReplayPackets.particle(viewers, ParticleTypes.SWEEP_ATTACK,
                     attacker.x - Math.sin(yaw), attacker.y + 0.9, attacker.z + Math.cos(yaw), 0f, 0f, 1);
@@ -1375,7 +1411,18 @@ public final class Playback implements ReplayPlayback {
 
     @Override
     public void follow(@Nullable UUID actor) {
+        follow(actor, View.SERVER);
+    }
+
+    @Override
+    public void follow(@Nullable UUID actor, @NotNull View view) {
+        this.view = view;
         pov = actor == null ? -1 : indexOf(actor);
+    }
+
+    @Override
+    public @NotNull View view() {
+        return view;
     }
 
     @Override

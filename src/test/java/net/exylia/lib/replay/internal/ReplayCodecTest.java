@@ -449,6 +449,113 @@ class ReplayCodecTest {
         assertEquals(0, absent & MotionTrack.PRESENT);
     }
 
+    @Test
+    @DisplayName("format 4 keeps a look to the hundredth of a degree and the seen lag of every tick")
+    void formatFourKeepsLooksAndLag() {
+        MotionTrack.Builder track = new MotionTrack.Builder();
+        track.put(0, 1, 64, 1, 123.4567f, -45.678f, 10.01f, 20, standing(), 3);
+        track.put(1, 1, 64, 1, 123.4567f, -45.678f, 10.01f, 20, standing(),
+                MotionTrack.LAG_ESTIMATED | 5);
+        track.put(2, 1, 64, 1, 0f, 0f, 0f, 20, standing(), MotionTrack.LAG_UNKNOWN);
+        Replay read = Replay.from(one(track.build()).toBytes());
+        MotionTrack back = read.tracks().getFirst();
+
+        assertEquals(123.4567f, back.yaw(0), 360f / 65536f);
+        assertEquals(-45.678f, back.pitch(0), 360f / 65536f);
+        assertEquals(10.01f, back.headYaw(0), 360f / 65536f);
+        assertEquals(3, back.seenLag(0));
+        assertFalse(back.lagEstimated(0));
+        assertEquals(5, back.seenLag(1));
+        assertTrue(back.lagEstimated(1));
+        assertEquals(-1, back.seenLag(2));
+    }
+
+    @Test
+    @DisplayName("a track nobody measured the lag of keeps no lag column")
+    void noLagNoColumn() {
+        MotionTrack.Builder track = new MotionTrack.Builder();
+        put(track, 0, 1, 64, 1, 0f, 0f, 20, standing());
+        assertNull(Replay.from(one(track.build()).toBytes()).tracks().getFirst().lag);
+    }
+
+    @Test
+    @DisplayName("a format 3 recording still reads, its angles widened and no seen lag")
+    void formatThreeStillReads() throws java.io.IOException {
+        java.io.ByteArrayOutputStream raw = new java.io.ByteArrayOutputStream();
+        UUID id = UUID.randomUUID();
+        try (java.io.DataOutputStream out = new java.io.DataOutputStream(new java.util.zip.GZIPOutputStream(raw))) {
+            out.writeInt(0x45585250);
+            out.writeByte(3);
+            out.writeLong(id.getMostSignificantBits());
+            out.writeLong(id.getLeastSignificantBits());
+            out.writeLong(7L);
+            out.writeByte(2);                       // frames
+            out.writeByte(1);                       // one scene
+            out.writeByte(0);
+            out.writeBoolean(true);
+            out.writeUTF("world");
+            out.writeDouble(1);
+            out.writeDouble(2);
+            out.writeDouble(3);
+            out.writeByte(1);                       // one actor
+            out.writeLong(RED.getMostSignificantBits());
+            out.writeLong(RED.getLeastSignificantBits());
+            out.writeUTF("Red");
+            out.writeBoolean(false);
+            out.writeBoolean(false);
+            out.writeBoolean(false);
+            out.writeByte(0);                       // no appearance
+            out.writeByte(0);                       // first tick
+            out.writeByte(2);                       // two frames
+            for (int tick = 0; tick < 2; tick++) {
+                out.writeByte(tick == 0 ? 2000 * 2 % 128 | 0x80 : 0);
+                if (tick == 0) out.writeByte(2000 * 2 >>> 7);
+                out.writeByte(0);
+                out.writeByte(0);
+                out.writeByte(64);                  // yaw 90
+                out.writeByte(-32);                 // pitch -45
+                out.writeByte(64);
+                out.writeByte(MotionTrack.PRESENT | 0x80);
+                out.writeByte(MotionTrack.PRESENT >>> 7);
+                out.writeByte(40);
+            }
+            out.writeByte(1);                       // one mark
+            out.writeByte(1);
+            out.writeUTF(ReplayMark.ATTACK);
+            out.writeByte(1);
+            byte[] data = MarkData.attack(BLUE, MarkData.CRIT);
+            out.writeByte(data.length + 1);
+            out.write(data);
+            out.writeByte(0);                       // no terrain
+        }
+        Replay read = Replay.from(raw.toByteArray());
+        assertEquals(id, read.id());
+        MotionTrack track = read.tracks().getFirst();
+        assertEquals(2.0, track.x(0), 0.0);
+        assertEquals(90f, track.yaw(1), 0f);
+        assertEquals(-45f, track.pitch(1), 0f);
+        assertEquals(-1, track.seenLag(0));
+        assertEquals(MarkData.CRIT, MarkData.attackHow(read.marks().getFirst().data()));
+        assertEquals(1, read.hits().size(), "an old attack is still a hit, worked out from the tracks");
+
+        Replay again = Replay.from(read.toBytes());
+        assertEquals(90f, again.tracks().getFirst().yaw(1), 0f, "and written as format 4 from then on");
+    }
+
+    @Test
+    @DisplayName("a hit's analysis survives being written down")
+    void hitsRoundTrip() {
+        MarkData.Hit hit = new MarkData.Hit(BLUE, MarkData.CRIT, 4.5f, true, 12.5f, -3f, 2, true,
+                2.9f, 3.4f, 0f, 41f);
+        MarkData.Hit back = MarkData.Hit.read(hit.write());
+        assertEquals(hit, back);
+        assertEquals(BLUE, MarkData.attackVictim(hit.write()), "the old reader still finds the victim");
+        assertEquals(MarkData.CRIT, MarkData.attackHow(hit.write()));
+        MarkData.Hit old = MarkData.Hit.read(MarkData.attack(BLUE, MarkData.STRONG));
+        assertFalse(old.analysed());
+        assertEquals(-1, old.seenLag());
+    }
+
     /** One player, one track. */
     private static Replay one(MotionTrack track) {
         return replay(UUID.randomUUID(), 1L, track.lastTick(),

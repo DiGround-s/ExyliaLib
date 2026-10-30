@@ -36,7 +36,9 @@ import java.util.zip.GZIPOutputStream;
  * then an array index. Keyframes would buy nothing.
  *
  * <h2>Formats</h2>
- * Format 3 (1.241.0) adds scenes, head yaw, a wider flag word, what non-player
+ * Format 4 (1.403.0) keeps angles in 65536 steps a turn instead of 256, and a
+ * player's seen lag per tick: what the attacker view and the hit analysis read.
+ * Format 3 is still read, its angles widened and no seen lag. Format 3 (1.241.0) adds scenes, head yaw, a wider flag word, what non-player
  * actors look like, and the terrain. Format 2 (1.176.0) is still read: a duel
  * recorded before the upgrade plays back as it did, with the head following the
  * body and one scene.
@@ -46,7 +48,9 @@ public final class ReplayCodec {
 
     /** "EXRP". */
     private static final int MAGIC = 0x45585250;
-    private static final byte VERSION = 3;
+    private static final byte VERSION = 4;
+    /** Format 3: angles in 256 steps a turn, no seen lag. */
+    private static final byte PREVIOUS = 3;
     private static final byte LEGACY = 2;
 
     /** How a piece of terrain is carried. */
@@ -137,11 +141,12 @@ public final class ReplayCodec {
                 throw new IllegalArgumentException("Not a recording");
             }
             byte version = in.readByte();
-            if (version != VERSION && version != LEGACY) {
+            if (version != VERSION && version != PREVIOUS && version != LEGACY) {
                 throw new IllegalArgumentException("This recording is in format " + version
-                        + " and this ExyliaLib reads formats " + LEGACY + " and " + VERSION);
+                        + " and this ExyliaLib reads formats " + LEGACY + " to " + VERSION);
             }
             boolean legacy = version == LEGACY;
+            boolean coarse = version == PREVIOUS;
             UUID id = new UUID(in.readLong(), in.readLong());
             long createdAt = in.readLong();
             int frames = readVarInt(in);
@@ -168,7 +173,7 @@ public final class ReplayCodec {
             }
             List<MotionTrack> tracks = new ArrayList<>(actorCount);
             for (int index = 0; index < actorCount; index++) {
-                tracks.add(legacy ? readLegacyTrack(in) : readTrack(in));
+                tracks.add(legacy ? readLegacyTrack(in) : coarse ? readCoarseTrack(in) : readTrack(in));
             }
 
             int markCount = readVarInt(in);
@@ -218,6 +223,12 @@ public final class ReplayCodec {
         int lastX = 0;
         int lastY = 0;
         int lastZ = 0;
+        // Angles too as the turn since the tick before, wrapped to a short:
+        // a body turning steadily is the same small number every tick, which
+        // the gzip then takes away, where the raw angle never repeats.
+        short lastYaw = 0;
+        short lastPitch = 0;
+        short lastHead = 0;
         for (int tick = 0; tick < track.length(); tick++) {
             writeVarInt(out, zigzag(track.x[tick] - lastX));
             writeVarInt(out, zigzag(track.y[tick] - lastY));
@@ -225,11 +236,20 @@ public final class ReplayCodec {
             lastX = track.x[tick];
             lastY = track.y[tick];
             lastZ = track.z[tick];
-            out.writeByte(track.yaw[tick]);
-            out.writeByte(track.pitch[tick]);
-            out.writeByte(track.head[tick]);
+            writeVarInt(out, zigzag((short) (track.yaw[tick] - lastYaw)));
+            writeVarInt(out, zigzag((short) (track.pitch[tick] - lastPitch)));
+            writeVarInt(out, zigzag((short) (track.head[tick] - lastHead)));
+            lastYaw = track.yaw[tick];
+            lastPitch = track.pitch[tick];
+            lastHead = track.head[tick];
             writeVarInt(out, track.flags[tick]);
             out.writeByte(track.health[tick]);
+        }
+        // The seen lag after the frames, whole, so a track without one is one byte.
+        short[] lag = track.lag;
+        out.writeBoolean(lag != null);
+        if (lag != null) {
+            for (short seen : lag) writeVarInt(out, seen & 0x1FF);
         }
     }
 
@@ -239,9 +259,9 @@ public final class ReplayCodec {
         int[] x = new int[frames];
         int[] y = new int[frames];
         int[] z = new int[frames];
-        byte[] yaw = new byte[frames];
-        byte[] pitch = new byte[frames];
-        byte[] head = new byte[frames];
+        short[] yaw = new short[frames];
+        short[] pitch = new short[frames];
+        short[] head = new short[frames];
         int[] flags = new int[frames];
         byte[] health = new byte[frames];
         int lastX = 0;
@@ -254,9 +274,50 @@ public final class ReplayCodec {
             x[tick] = lastX;
             y[tick] = lastY;
             z[tick] = lastZ;
-            yaw[tick] = in.readByte();
-            pitch[tick] = in.readByte();
-            head[tick] = in.readByte();
+            yaw[tick] = (short) ((tick == 0 ? 0 : yaw[tick - 1]) + unzigzag(readVarInt(in)));
+            pitch[tick] = (short) ((tick == 0 ? 0 : pitch[tick - 1]) + unzigzag(readVarInt(in)));
+            head[tick] = (short) ((tick == 0 ? 0 : head[tick - 1]) + unzigzag(readVarInt(in)));
+            flags[tick] = readVarInt(in);
+            health[tick] = in.readByte();
+        }
+        short[] lag = null;
+        if (in.readBoolean()) {
+            lag = new short[frames];
+            for (int tick = 0; tick < frames; tick++) lag[tick] = (short) readVarInt(in);
+        }
+        return new MotionTrack(firstTick, x, y, z, yaw, pitch, head, flags, health, lag);
+    }
+
+    /** An angle of format 3 or 2, in 256 steps a turn, as format 4 holds it. */
+    private static short widen(byte coarse) {
+        return (short) (coarse << 8);
+    }
+
+    /** Format 3's track: angles in 256 steps a turn, and no seen lag. */
+    private static MotionTrack readCoarseTrack(DataInputStream in) throws IOException {
+        int firstTick = readVarInt(in);
+        int frames = readVarInt(in);
+        int[] x = new int[frames];
+        int[] y = new int[frames];
+        int[] z = new int[frames];
+        short[] yaw = new short[frames];
+        short[] pitch = new short[frames];
+        short[] head = new short[frames];
+        int[] flags = new int[frames];
+        byte[] health = new byte[frames];
+        int lastX = 0;
+        int lastY = 0;
+        int lastZ = 0;
+        for (int tick = 0; tick < frames; tick++) {
+            lastX += unzigzag(readVarInt(in));
+            lastY += unzigzag(readVarInt(in));
+            lastZ += unzigzag(readVarInt(in));
+            x[tick] = lastX;
+            y[tick] = lastY;
+            z[tick] = lastZ;
+            yaw[tick] = widen(in.readByte());
+            pitch[tick] = widen(in.readByte());
+            head[tick] = widen(in.readByte());
             flags[tick] = readVarInt(in);
             health[tick] = in.readByte();
         }
@@ -273,8 +334,8 @@ public final class ReplayCodec {
         int[] x = new int[frames];
         int[] y = new int[frames];
         int[] z = new int[frames];
-        byte[] yaw = new byte[frames];
-        byte[] pitch = new byte[frames];
+        short[] yaw = new short[frames];
+        short[] pitch = new short[frames];
         int[] flags = new int[frames];
         byte[] health = new byte[frames];
         int lastX = 0;
@@ -287,8 +348,8 @@ public final class ReplayCodec {
             x[tick] = lastX;
             y[tick] = lastY;
             z[tick] = lastZ;
-            yaw[tick] = in.readByte();
-            pitch[tick] = in.readByte();
+            yaw[tick] = widen(in.readByte());
+            pitch[tick] = widen(in.readByte());
             flags[tick] = legacyFlags(in.readByte());
             health[tick] = in.readByte();
         }

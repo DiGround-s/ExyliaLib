@@ -254,6 +254,23 @@ public final class Replay {
         return null;
     }
 
+    /**
+     * Every attack in it, in order, with what it looked like from both ends:
+     * reach by the server's positions and by the attacker's own screen, how far
+     * off the look was, the turn just before it, the seen lag.
+     *
+     * <p>A black box capture carries these worked out, with the look the
+     * client sent with each attack. Anything else (an older recording, a
+     * recorder's) is worked out here from its tracks, with the sampled look
+     * and the ping's estimate of the lag, which is coarser and says so.
+     *
+     * @return the hits, attacks the server never counted included
+     * @since 1.403.0
+     */
+    public @NotNull List<ReplayHit> hits() {
+        return net.exylia.lib.replay.internal.HitAnalysis.hits(this);
+    }
+
     /** The tracks, in the same order as {@link #actors()}. */
     @ApiStatus.Internal
     public @NotNull List<MotionTrack> tracks() {

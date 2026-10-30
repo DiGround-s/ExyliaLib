@@ -42,7 +42,7 @@ final class Tape {
      * is written in, so nothing a capture writes out is lost; and the world as
      * an index into {@link #PLACES} rather than a reference per frame. A frame
      * is twenty-seven bytes instead of forty-eight, and the black box holds a
-     * minute of everybody.
+     * minute of everybody. Twenty-nine with the seen lag.
      */
     private int[] ticks = new int[32];
     private char[] places = new char[32];
@@ -54,6 +54,8 @@ final class Tape {
     private int[] flags = new int[32];
     /** Half points, as the recording keeps them, up to the 127.5 it can show. */
     private byte[] health = new byte[32];
+    /** Seen lag, as {@link MotionTrack#lag} keeps it: only ever measured for a player. */
+    private short[] lag = new short[32];
     private int head;
     private int size;
     private long sampledAt;
@@ -84,6 +86,12 @@ final class Tape {
      */
     synchronized boolean put(int tick, UUID world, double px, double py, double pz,
                              float aYaw, float aPitch, int aFlags, float hp) {
+        return put(tick, world, px, py, pz, aYaw, aPitch, aFlags, hp, MotionTrack.LAG_UNKNOWN);
+    }
+
+    /** Same, with the seen lag of the tick, as {@link MotionTrack#lag} keeps it. */
+    synchronized boolean put(int tick, UUID world, double px, double py, double pz,
+                             float aYaw, float aPitch, int aFlags, float hp, int seen) {
         // Only Folia's wall clock needs it, and it is a system call per entity per tick.
         long now = ReplayClock.isWall() ? System.nanoTime() : 0L;
         int place = place(world, px, pz);
@@ -108,12 +116,12 @@ final class Tape {
             }
             if (tick - ticks[last] < HEARTBEAT && places[last] == place && x[last] == qx
                     && y[last] == qy && z[last] == qz && yaw[last] == qYaw && pitch[last] == qPitch
-                    && flags[last] == aFlags && health[last] == qHealth) {
+                    && flags[last] == aFlags && health[last] == qHealth && lag[last] == (short) seen) {
                 return false;
             }
         }
         sampledAt = now;
-        append(tick, (char) place, qx, qy, qz, qYaw, qPitch, aFlags, qHealth);
+        append(tick, (char) place, qx, qy, qz, qYaw, qPitch, aFlags, qHealth, (short) seen);
         return false;
     }
 
@@ -130,11 +138,11 @@ final class Tape {
             flags[last] = 0;
             return;
         }
-        append(tick, places[last], x[last], y[last], z[last], yaw[last], pitch[last], 0, (byte) 0);
+        append(tick, places[last], x[last], y[last], z[last], yaw[last], pitch[last], 0, (byte) 0, lag[last]);
     }
 
     private void append(int tick, char place, int px, int py, int pz,
-                        short aYaw, short aPitch, int aFlags, byte hp) {
+                        short aYaw, short aPitch, int aFlags, byte hp, short seen) {
         if (size == ticks.length) grow();
         int at = index(size);
         ticks[at] = tick;
@@ -146,6 +154,7 @@ final class Tape {
         pitch[at] = aPitch;
         flags[at] = aFlags;
         health[at] = hp;
+        lag[at] = seen;
         size++;
     }
 
@@ -205,7 +214,7 @@ final class Tape {
             frames.add(new Frame(ticks[at], place.world, place.x + x[at] / MotionTrack.SCALE,
                     y[at] / MotionTrack.SCALE, place.z + z[at] / MotionTrack.SCALE,
                     yaw[at] * 360f / 65536f, pitch[at] * 360f / 65536f, flags[at],
-                    (health[at] & 0xFF) / 2f));
+                    (health[at] & 0xFF) / 2f, lag[at]));
         }
         return frames;
     }
@@ -231,6 +240,7 @@ final class Tape {
         pitch = unwrap(pitch, capacity);
         flags = unwrap(flags, capacity);
         health = unwrap(health, capacity);
+        lag = unwrap(lag, capacity);
         head = 0;
     }
 
@@ -252,7 +262,7 @@ final class Tape {
 
     /** Roughly what it takes on the heap: the columns at their capacity, and the items it remembers. */
     synchronized long bytes() {
-        return 160L + ticks.length * 27L + worn.size() * 96L;
+        return 160L + ticks.length * 29L + worn.size() * 96L;
     }
 
     // ---------------------------------------------------------------- places
@@ -305,12 +315,17 @@ final class Tape {
 
     /** An angle in 65536 steps a turn: finer than the 256 the recording writes. */
     static short angle(float degrees) {
-        return (short) Math.round(degrees * 65536f / 360f);
+        return MotionTrack.fine(degrees);
     }
 
     /** One frame, copied out. */
     record Frame(int tick, UUID world, double x, double y, double z, float yaw, float pitch,
-                 int flags, float health) {
+                 int flags, float health, int lag) {
+
+        Frame(int tick, UUID world, double x, double y, double z, float yaw, float pitch,
+              int flags, float health) {
+            this(tick, world, x, y, z, yaw, pitch, flags, health, MotionTrack.LAG_UNKNOWN);
+        }
     }
 
     /** One equipment change. */

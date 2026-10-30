@@ -3,7 +3,14 @@ package net.exylia.lib.replay.internal;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
+import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
+import com.github.retrooper.packetevents.protocol.player.User;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPong;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPing;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.particle.Particle;
 import com.github.retrooper.packetevents.protocol.sound.Sound;
@@ -23,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,6 +46,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link SoundCategory#MASTER} or {@link SoundCategory#UI}, which a fight
  * never made. Nothing sent to somebody on the temporary world either, which is
  * a replay being watched, not one being made.
+ *
+ * <p>And, from the other direction, what each client sent that the server's
+ * own state does not keep: pongs, looks and attacks, handed to its
+ * {@link ClientView}.
  */
 @ApiStatus.Internal
 final class ReplayCapture extends PacketListenerAbstract {
@@ -63,6 +75,70 @@ final class ReplayCapture extends PacketListenerAbstract {
             PacketEvents.getAPI().getEventManager().registerListener(new ReplayCapture());
         } catch (Throwable missing) {
             // No PacketEvents: replays fall back to the sounds they work out.
+        }
+    }
+
+    @Override
+    public void onPacketReceive(PacketReceiveEvent event) {
+        PacketTypeCommon type = event.getPacketType();
+        if (!reads(type)) return;
+        User user = event.getUser();
+        UUID player = user == null ? null : user.getUUID();
+        ClientView view = player == null ? null : ClientView.of(player);
+        if (view == null) return;
+        try {
+            if (type == PacketType.Play.Client.PONG) {
+                view.pong(new WrapperPlayClientPong(event).getId());
+            } else if (type == PacketType.Play.Client.PLAYER_ROTATION
+                    || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION) {
+                com.github.retrooper.packetevents.protocol.world.Location at =
+                        new WrapperPlayClientPlayerFlying(event).getLocation();
+                view.look(ReplayClock.now(), at.getYaw(), at.getPitch());
+            } else if (type == PacketType.Play.Client.INTERACT_ENTITY) {
+                WrapperPlayClientInteractEntity interact = new WrapperPlayClientInteractEntity(event);
+                if (interact.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
+                    view.attack(ReplayClock.now(), interact.getEntityId());
+                }
+            } else if (view.waiting()) {
+                // A position, a bare flying packet or the end of the client's
+                // tick: the look did not change, so the last one is the one the
+                // attack was aimed with.
+                view.settle();
+            }
+        } catch (RuntimeException unreadable) {
+            // A layout this version of PacketEvents cannot read: that one is missed.
+        }
+    }
+
+    /** Whether a packet from a client is one a {@link ClientView} reads; checked first, for every packet. */
+    static boolean reads(PacketTypeCommon type) {
+        return type == PacketType.Play.Client.PLAYER_ROTATION
+                || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION
+                || type == PacketType.Play.Client.PLAYER_POSITION
+                || type == PacketType.Play.Client.PLAYER_FLYING
+                || type == PacketType.Play.Client.CLIENT_TICK_END
+                || type == PacketType.Play.Client.INTERACT_ENTITY
+                || type == PacketType.Play.Client.PONG;
+    }
+
+    /** A player's connection, to ping; {@code null} when PacketEvents has none for them. */
+    static @Nullable Object connectionOf(Player player) {
+        try {
+            return PacketEvents.getAPI().getPlayerManager().getUser(player);
+        } catch (Throwable missing) {
+            return null;
+        }
+    }
+
+    /**
+     * One ping, silently: no listener of ours or anybody else's sees it go.
+     * The client answers it after everything sent before it.
+     */
+    static void ping(Object connection, int id) {
+        try {
+            ((User) connection).sendPacketSilently(new WrapperPlayServerPing(id));
+        } catch (Throwable gone) {
+            // Disconnected meanwhile; the quit takes the view away.
         }
     }
 

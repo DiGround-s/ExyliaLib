@@ -376,6 +376,18 @@ public final class ReplayViewer {
         playback.follow(actor);
     }
 
+    /**
+     * Looks out of one player's eyes, with everybody else where the server
+     * had them or where that player's own screen had them.
+     *
+     * @param actor who, or {@code null} for the viewer's own
+     * @param view  which screen to reproduce; {@link ReplayPlayback.View#ATTACKER} to judge a hit
+     * @since 1.403.0
+     */
+    public void follow(@Nullable UUID actor, @NotNull ReplayPlayback.View view) {
+        playback.follow(actor, view);
+    }
+
     /** Stops following anybody. */
     public void unfollow() {
         playback.follow(null);
