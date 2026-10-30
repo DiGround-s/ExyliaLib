@@ -403,6 +403,30 @@ final class ReplayPackets {
         Broadcast.send(List.of(viewer), new WrapperPlayServerCamera(entityId));
     }
 
+    /** Display metadata, from the vanilla protocol: see the camera module, which rides the same body. */
+    private static final int DISPLAY_INTERPOLATION_DELAY = 8;
+    private static final int DISPLAY_POS_ROT_DURATION = 10;
+
+    /**
+     * Spawns the body a behind or orbit camera rides, for one viewer: an item
+     * display, which has no eye height and draws nothing, told to glide a tick
+     * to each new place so the camera moves at the client's frame rate rather
+     * than the server's tick.
+     */
+    static void spawnRig(Player viewer, int entityId, double x, double y, double z, float yaw, float pitch) {
+        List<Player> to = List.of(viewer);
+        send(to, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY,
+                new Vector3d(x, y, z), pitch, yaw, yaw, 0, Optional.empty()));
+        send(to, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(DISPLAY_INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(DISPLAY_POS_ROT_DURATION, EntityDataTypes.INT, 1))));
+    }
+
+    /** Moves a camera's body. A display glides there on its own; no position sync follows. */
+    static void moveRig(Player viewer, int entityId, double x, double y, double z, float yaw, float pitch) {
+        send(List.of(viewer), new WrapperPlayServerEntityTeleport(entityId, new Vector3d(x, y, z), yaw, pitch, false));
+    }
+
     /** The protocol's type for a Bukkit entity type name, or {@code null}. */
     static @Nullable EntityType typeOf(@Nullable String bukkitName) {
         if (bukkitName == null) return EntityTypes.PLAYER;

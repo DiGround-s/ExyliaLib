@@ -351,6 +351,64 @@ and attacks are read on the connection's own thread into small rings written
 in place, and an attack is handed over through a lock-free queue the box
 drains once a tick. The analysis runs only when a capture is cut.
 
+## Cameras
+
+Every viewer has a camera of their own, also when several watch the same
+playback (since 1.405.0):
+
+```java
+watching.camera(ReplayPlayback.Camera.BEHIND);          // on whoever they follow, or the first on screen
+watching.camera(ReplayPlayback.Camera.ORBIT, red.getUniqueId());
+watching.camera();                                      // which one now
+```
+
+| Camera | What the viewer sees |
+| --- | --- |
+| `FREE` | their own eyes: they fly about as they like |
+| `FIRST_PERSON` | out of the body's eyes, with its hand and hearts on their screen (what `follow` does) |
+| `BEHIND` | four blocks behind and a little above the body, turning with it slowly so a fight's flicks do not spin the camera |
+| `ORBIT` | circling the body five blocks out, a turn every twelve seconds, paused or not |
+
+`BEHIND` and `ORBIT` ride an item display spawned for that viewer alone (no
+eye height, draws nothing, told to glide a tick to each place, as the camera
+module does), moved every tick only while they use it; a viewer in `FREE` or
+`FIRST_PERSON` costs nothing more than before. When the body is gone for a
+moment the camera stays where it was. Neither looks for walls, so in a tunnel
+it can sit in the rock.
+
+On the playback itself: `playback.camera(viewer, camera, actor)`,
+`playback.camera(viewer)` and `playback.following(viewer)`.
+`playback.follow(actor)` still puts **every** viewer's camera in first person
+on that body. The attacker view moves the bodies, so it is one for the whole
+playback: `playback.view(View.ATTACKER)` reproduces the screen of whoever was
+last looked out of, and `ReplayViewer#follow(actor, view)` sets both for that
+viewer. `cycleFollow()` keeps a behind or orbit camera on the next player.
+
+## Rooms
+
+```java
+// on the guest's thread, once they said yes
+host.join(plugin, guest).thenAccept(watching -> watching.hud(status -> lang.bar(status)));
+
+host.room();   // everybody in it, the host included
+```
+
+`join` puts somebody else into a viewer's playback at the moment it is on:
+whatever they were watching is left first, they are moved to just behind the
+player the host follows (or the person it is about), and they are put back as
+they were when they leave, exactly as with `open`. From then on the time is
+shared: a pause, a seek or a speed by anybody is everybody's. Cameras, the
+hotbar line and `onMark` stay each viewer's own; marks are handed to every
+member. The stage and the playback last until the last member leaves, the
+host included.
+
+Underneath it is `playback.addViewer(player)` / `removeViewer(player)`. A
+newcomer gets everything drawn again on the next tick (one flicker for the
+others, rather than a second way of spawning every body); somebody leaving
+gets only their own screen cleaned. On a stage the members are hidden from
+each other, so nobody floats over the fight; watched live they are ghosts
+already. Asking the guest first, and saying who paused, is the plugin's.
+
 ## Marks
 
 `SWING`, `HURT`, `EQUIP`, `BLOCK`, `EXPLOSION`, `MOUNT`, `DISMOUNT`, `PICKUP`,
@@ -602,6 +660,23 @@ dependency; what a flag says is read through method handles looked up once:
 
 An anticheat whose API is not the one expected is logged once and left out.
 Any other anticheat is one `Replays.flag` call from its own flag event.
+
+### Acting on a flag as it happens
+
+```java
+@EventHandler
+public void onFlag(ReplayFlagEvent event) {
+    // event.getPlayer() is a UUID; event.getCheck(), event.getDetail()
+}
+```
+
+`ReplayFlagEvent` (since 1.405.0) is fired for every `Replays.flag` call and
+every flag of the four anticheats above, before the box folds a second of them
+into one entry, and whether or not the box is open: a plugin counting flags
+counts what really happened. It is fired on the thread the anticheat flagged
+on and says so through `isAsynchronous()`, so a listener hands anything that
+touches the player to the player's own thread. While nobody listens nothing
+is built.
 
 ## Stages
 

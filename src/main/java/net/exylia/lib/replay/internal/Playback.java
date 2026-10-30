@@ -31,6 +31,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -152,17 +155,22 @@ public final class Playback implements ReplayPlayback {
     private int scene = -1;
     private int redrawIn;
 
-    /** Whose eyes the viewers are looking out of, or -1. */
+    /**
+     * Whose screen the attacker view reproduces, or -1: whoever was last
+     * looked out of. Every viewer has a camera of their own ({@link #eyes});
+     * the view is one for all of them, because it moves the bodies.
+     */
     private volatile int pov = -1;
-    private int povSent = -1;
 
-    /** Whose hand and hearts the viewers' own screens show, or -1. */
-    private int handOf = -1;
-    private final Map<UUID, Integer> heldShown = new HashMap<>();
-    private ItemStack mainShown;
-    private ItemStack offShown;
-    private float healthShown = -1f;
-    private int povAge;
+    /** Each viewer's own camera, by who they are. */
+    private final Map<UUID, Eye> eyes = new ConcurrentHashMap<>();
+
+    /** Viewers added since the last frame, drawn everything on the next one. */
+    private final ConcurrentLinkedQueue<Player> joining = new ConcurrentLinkedQueue<>();
+
+    /** Viewers taken off since the last frame, whose screens are cleaned on the next one. */
+    private final ConcurrentLinkedQueue<Eye> leaving = new ConcurrentLinkedQueue<>();
+
     private int soundsThisTick;
 
     @SuppressWarnings("unchecked")
@@ -175,7 +183,10 @@ public final class Playback implements ReplayPlayback {
             Location given = index < anchors.size() ? anchors.get(index) : null;
             this.anchors[index] = given != null ? given.clone() : derived(replay, anchors, index);
         }
-        this.viewers = viewers;
+        this.viewers = new CopyOnWriteArrayList<>(viewers);
+        for (Player viewer : viewers) {
+            if (viewer != null) eyes.put(viewer.getUniqueId(), new Eye(viewer));
+        }
         this.scheduler = scheduler;
         this.marks = replay.marks();
         int actors = replay.actors().size();
@@ -310,6 +321,15 @@ public final class Playback implements ReplayPlayback {
             // put bodies back on screens that were just cleaned.
             if (stopped) return;
             soundsThisTick = 0;
+            for (Eye gone = leaving.poll(); gone != null; gone = leaving.poll()) release(gone, true);
+            if (!joining.isEmpty()) {
+                for (Player joined = joining.poll(); joined != null; joined = joining.poll()) welcome(joined);
+                // Everybody drawn afresh rather than the newcomer alone: one
+                // flicker on the others' screens for a join is cheaper than a
+                // second way of spawning every body.
+                redraw();
+                return;
+            }
             int wanted = pendingSeek;
             if (wanted != NO_SEEK) {
                 pendingSeek = NO_SEEK;
@@ -407,44 +427,85 @@ public final class Playback implements ReplayPlayback {
     }
 
     /**
-     * Keeps the viewers' camera on the body they are following.
+     * Keeps every viewer's camera where they put it.
      *
-     * <p>The client is told to look out of the body's eyes, which follows it
-     * with the client's own smoothing: nothing is teleported every tick. The
-     * viewer's real position is brought along now and then, because the client
-     * only has the chunks around where it really is.
+     * <p>First person tells the client to look out of the body's eyes, which
+     * follows it with the client's own smoothing: nothing is teleported every
+     * tick. Behind and orbit ride a body of their own, drawn for that viewer
+     * alone, which is the only thing moved every tick and only while somebody
+     * uses it. The viewer's real position is brought along now and then,
+     * because the client only has the chunks around where it really is.
      */
     private void camera() {
-        int wanted = pov;
-        Body body = wanted < 0 ? null : bodies[wanted];
-        int id = body == null ? -1 : body.id;
-        if (id != povSent) {
-            povSent = id;
-            for (Player viewer : viewers) {
-                if (viewer != null && viewer.isOnline()) {
-                    ReplayPackets.camera(viewer, id < 0 ? viewer.getEntityId() : id);
-                }
-            }
+        for (Eye eye : eyes.values()) {
+            if (eye.viewer.isOnline()) aim(eye);
         }
-        if (body == null) {
-            if (handOf >= 0) giveBack();
-            return;
+    }
+
+    private void aim(Eye eye) {
+        Player viewer = eye.viewer;
+        Camera mode = eye.mode;
+        int actor = eye.actor;
+        Body body = mode == Camera.FREE || actor < 0 ? null : bodies[actor];
+        boolean rigged = mode == Camera.BEHIND || mode == Camera.ORBIT;
+        int id = -1;
+        if (mode == Camera.FIRST_PERSON) {
+            id = body == null ? -1 : body.id;
+        } else if (rigged) {
+            // Somebody gone for a moment leaves the camera where it was.
+            if (body != null) rig(eye, mode, body);
+            id = eye.rigShown ? eye.rig : -1;
         }
-        firstPerson(wanted, body);
-        if (++povAge % 20 != 0) return;
+        if (id != eye.sent) {
+            eye.sent = id;
+            ReplayPackets.camera(viewer, id < 0 ? viewer.getEntityId() : id);
+        }
+        // Taken away only once the client looks elsewhere: it is never left
+        // looking out of an entity it no longer has.
+        if (!rigged && eye.rigShown) dropRig(eye);
+        if (mode == Camera.FIRST_PERSON && body != null) firstPerson(eye, actor, body);
+        else if (eye.handOf >= 0) giveBack(eye);
+        if (body == null || ++eye.age % 20 != 0) return;
         Location near = new Location(anchors[Math.max(0, scene)].getWorld(), body.x, body.y + 1.5, body.z);
-        for (Player viewer : viewers) {
-            if (viewer == null || !viewer.isOnline()) continue;
-            scheduler.runAtEntity(viewer, () -> {
-                Location here = viewer.getLocation();
-                if (here.getWorld() != near.getWorld() || here.distanceSquared(near) > 16 * 16) {
-                    Location to = near.clone();
-                    to.setYaw(here.getYaw());
-                    to.setPitch(here.getPitch());
-                    net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin()).to(viewer, to).warmup(0).start();
-                }
-            });
+        scheduler.runAtEntity(viewer, () -> {
+            Location here = viewer.getLocation();
+            if (here.getWorld() != near.getWorld() || here.distanceSquared(near) > 16 * 16) {
+                Location to = near.clone();
+                to.setYaw(here.getYaw());
+                to.setPitch(here.getPitch());
+                net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin()).to(viewer, to).warmup(0).start();
+            }
+        });
+    }
+
+    /** Puts a behind or orbit camera's body where it belongs on this tick. */
+    private void rig(Eye eye, Camera mode, Body body) {
+        if (eye.rigMode != mode) {
+            eye.rigMode = mode;
+            eye.facing = Double.NaN;
         }
+        double[] at;
+        if (mode == Camera.BEHIND) {
+            double facing = body.yaw * 360.0 / 256.0;
+            eye.facing = Double.isNaN(eye.facing) ? facing : CameraMath.ease(eye.facing, facing, CameraMath.BEHIND_EASE);
+            at = CameraMath.behind(body.x, body.y, body.z, eye.facing);
+        } else {
+            eye.angle = (eye.angle + CameraMath.ORBIT_STEP) % 360.0;
+            at = CameraMath.orbit(body.x, body.y, body.z, eye.angle);
+        }
+        if (!eye.rigShown) {
+            if (eye.rig < 0) eye.rig = ReplayPackets.newEntityId();
+            ReplayPackets.spawnRig(eye.viewer, eye.rig, at[0], at[1], at[2], (float) at[3], (float) at[4]);
+            eye.rigShown = true;
+        } else {
+            ReplayPackets.moveRig(eye.viewer, eye.rig, at[0], at[1], at[2], (float) at[3], (float) at[4]);
+        }
+    }
+
+    private void dropRig(Eye eye) {
+        eye.rigShown = false;
+        eye.rigMode = null;
+        ReplayPackets.destroy(List.of(eye.viewer), eye.rig, null);
     }
 
     /**
@@ -453,56 +514,88 @@ public final class Playback implements ReplayPlayback {
      * their totem going off, as the game shows a player all of it. Painted
      * on the viewer's screen only; the hotbar under it is untouched.
      */
-    private void firstPerson(int actor, Body body) {
-        if (handOf != actor) {
-            handOf = actor;
-            heldShown.clear();
-            mainShown = null;
-            offShown = null;
-            healthShown = -1f;
+    private void firstPerson(Eye eye, int actor, Body body) {
+        Player viewer = eye.viewer;
+        if (eye.handOf != actor) {
+            eye.handOf = actor;
+            eye.held = -1;
+            eye.mainShown = null;
+            eye.offShown = null;
+            eye.healthShown = -1f;
         }
         ItemStack main = body.worn[0];
         ItemStack off = body.worn[1];
-        boolean mainChanged = !Objects.equals(main, mainShown);
-        boolean offChanged = !Objects.equals(off, offShown) || heldShown.isEmpty();
-        mainShown = main;
-        offShown = off;
-        for (Player viewer : viewers) {
-            if (viewer == null || !viewer.isOnline()) continue;
-            int held = viewer.getInventory().getHeldItemSlot();
-            Integer was = heldShown.put(viewer.getUniqueId(), held);
-            if (mainChanged || was == null || was != held) ReplayPackets.hand(viewer, held, main);
-            if (offChanged) ReplayPackets.hand(viewer, OFF_HAND_SLOT, off);
-        }
+        boolean mainChanged = !Objects.equals(main, eye.mainShown);
+        boolean offChanged = !Objects.equals(off, eye.offShown) || eye.held < 0;
+        eye.mainShown = main;
+        eye.offShown = off;
+        int held = viewer.getInventory().getHeldItemSlot();
+        if (mainChanged || held != eye.held) ReplayPackets.hand(viewer, held, main);
+        eye.held = held;
+        if (offChanged) ReplayPackets.hand(viewer, OFF_HAND_SLOT, off);
         MotionTrack track = replay.tracks().get(actor);
         int tick = Math.max(0, rendered);
         if (!track.present(tick)) return;
         float health = (float) Math.max(0.5, track.health(tick));
-        if (health != healthShown) {
-            healthShown = health;
-            ReplayPackets.health(viewers, health);
+        if (health != eye.healthShown) {
+            eye.healthShown = health;
+            ReplayPackets.health(List.of(viewer), health);
         }
     }
 
-    /** Puts the viewers' own hand, hotbar and hearts back. */
-    private void giveBack() {
-        handOf = -1;
-        heldShown.clear();
-        for (Player viewer : viewers) {
-            if (viewer == null || !viewer.isOnline()) continue;
-            scheduler.runAtEntity(viewer, () -> {
-                viewer.updateInventory();
-                viewer.sendHealthUpdate();
-            });
-        }
+    /** Puts one viewer's own hand, hotbar and hearts back. */
+    private void giveBack(Eye eye) {
+        eye.handOf = -1;
+        eye.held = -1;
+        Player viewer = eye.viewer;
+        if (!viewer.isOnline()) return;
+        scheduler.runAtEntity(viewer, () -> {
+            viewer.updateInventory();
+            viewer.sendHealthUpdate();
+        });
     }
 
-    /** One of the followed body's own moments, played on the viewers' screens as theirs. */
+    /** One of the followed body's own moments, played on its first-person viewers' screens as theirs. */
     private void asViewer(int actor, java.util.function.BiConsumer<List<Player>, Integer> send) {
-        if (actor < 0 || actor != handOf) return;
-        for (Player viewer : viewers) {
-            if (viewer != null && viewer.isOnline()) send.accept(List.of(viewer), viewer.getEntityId());
+        if (actor < 0) return;
+        for (Eye eye : eyes.values()) {
+            if (eye.handOf == actor && eye.viewer.isOnline()) send.accept(List.of(eye.viewer), eye.viewer.getEntityId());
         }
+    }
+
+    /** Somebody new: the blocks drawn so far, when they are packets; the bodies follow with the redraw. */
+    private void welcome(Player joined) {
+        if (solid || shown.isEmpty() || !joined.isOnline()) return;
+        Map<Location, BlockData> blocks = new LinkedHashMap<>(shown);
+        scheduler.run(() -> {
+            if (joined.isOnline()) ReplayRuntime.fakeBlocks().show(joined, blocks);
+        });
+    }
+
+    /**
+     * Takes everything this playback drew off one viewer's screen and gives
+     * them their own camera, hand and hearts back. Holds the frame lock.
+     *
+     * @param bodies whether to take the bodies too; not when they are being
+     *               taken off everybody's screens anyway
+     */
+    private void release(Eye eye, boolean bodies) {
+        Player viewer = eye.viewer;
+        if (!viewer.isOnline()) return;
+        if (eye.sent >= 0) ReplayPackets.camera(viewer, viewer.getEntityId());
+        eye.sent = -1;
+        if (eye.rigShown) dropRig(eye);
+        if (eye.handOf >= 0) giveBack(eye);
+        if (!bodies) return;
+        List<Player> to = List.of(viewer);
+        for (Body body : this.bodies) {
+            if (body != null) ReplayPackets.destroy(to, body.id, body.profile);
+        }
+        if (solid || shown.isEmpty()) return;
+        List<Location> touched = new ArrayList<>(shown.keySet());
+        scheduler.run(() -> {
+            if (viewer.isOnline()) ReplayRuntime.fakeBlocks().clear(viewer, touched);
+        });
     }
 
     private void drawActor(int index, int tick, double fraction, boolean snap) {
@@ -1417,7 +1510,68 @@ public final class Playback implements ReplayPlayback {
     @Override
     public void follow(@Nullable UUID actor, @NotNull View view) {
         this.view = view;
-        pov = actor == null ? -1 : indexOf(actor);
+        int index = actor == null ? -1 : indexOf(actor);
+        pov = index;
+        for (Eye eye : eyes.values()) {
+            eye.actor = index;
+            eye.mode = index < 0 ? Camera.FREE : Camera.FIRST_PERSON;
+        }
+    }
+
+    @Override
+    public void view(@NotNull View view) {
+        this.view = view;
+    }
+
+    @Override
+    public void camera(@NotNull Player viewer, @NotNull Camera camera, @Nullable UUID actor) {
+        Eye eye = eyes.get(viewer.getUniqueId());
+        if (eye == null) return;
+        int index = actor == null || camera == Camera.FREE ? -1 : indexOf(actor);
+        eye.actor = index;
+        eye.mode = index < 0 ? Camera.FREE : camera;
+        if (eye.mode == Camera.FIRST_PERSON) {
+            pov = index;
+            return;
+        }
+        // Nobody looks out of their eyes any more: no screen left to reproduce.
+        int screen = pov;
+        for (Eye other : eyes.values()) {
+            if (other.mode == Camera.FIRST_PERSON && other.actor == screen) return;
+        }
+        pov = -1;
+    }
+
+    @Override
+    public @NotNull Camera camera(@NotNull Player viewer) {
+        Eye eye = eyes.get(viewer.getUniqueId());
+        return eye == null ? Camera.FREE : eye.mode;
+    }
+
+    @Override
+    public @Nullable UUID following(@NotNull Player viewer) {
+        Eye eye = eyes.get(viewer.getUniqueId());
+        if (eye == null || eye.mode == Camera.FREE) return null;
+        int index = eye.actor;
+        return index < 0 ? null : replay.actors().get(index).id();
+    }
+
+    @Override
+    public boolean addViewer(@NotNull Player viewer) {
+        if (stopped || eyes.putIfAbsent(viewer.getUniqueId(), new Eye(viewer)) != null) return false;
+        viewers.add(viewer);
+        joining.add(viewer);
+        return true;
+    }
+
+    @Override
+    public boolean removeViewer(@NotNull Player viewer) {
+        Eye eye = eyes.remove(viewer.getUniqueId());
+        if (eye == null) return false;
+        viewers.remove(viewer);
+        joining.remove(viewer);
+        leaving.add(eye);
+        return true;
     }
 
     @Override
@@ -1483,13 +1637,9 @@ public final class Playback implements ReplayPlayback {
     /** Takes everything this playback drew away again. Holds the frame lock. */
     private void clean() {
         cleanupOwed = false;
+        for (Eye gone = leaving.poll(); gone != null; gone = leaving.poll()) release(gone, true);
         for (int index = 0; index < bodies.length; index++) remove(index);
-        if (povSent >= 0) {
-            for (Player viewer : viewers) {
-                if (viewer != null && viewer.isOnline()) ReplayPackets.camera(viewer, viewer.getEntityId());
-            }
-        }
-        if (handOf >= 0) giveBack();
+        for (Eye eye : eyes.values()) release(eye, false);
         clearWorld();
         ReplayRuntime.forget(this);
     }
@@ -1521,6 +1671,41 @@ public final class Playback implements ReplayPlayback {
 
     /** Getting on something, or off it when the vehicle is -1. */
     private record Riding(int tick, int vehicle) {
+    }
+
+    /**
+     * One viewer's camera: whose body it is on and how, and what their own
+     * screen was given for it. The mode and the actor are set from the
+     * viewer's thread; the rest is touched only while drawing.
+     */
+    private static final class Eye {
+
+        final Player viewer;
+        volatile Camera mode = Camera.FREE;
+        volatile int actor = -1;
+        /** The entity the client was last told to look out of, or -1 for their own. */
+        int sent = -1;
+
+        /** The body a behind or orbit camera rides, or -1 before the first. */
+        int rig = -1;
+        boolean rigShown;
+        Camera rigMode;
+        /** Where the behind camera faces, eased towards the body's facing. */
+        double facing = Double.NaN;
+        /** How far round the orbit is, in degrees. */
+        double angle;
+        int age;
+
+        /** Whose hand and hearts their screen shows, or -1. */
+        int handOf = -1;
+        int held = -1;
+        ItemStack mainShown;
+        ItemStack offShown;
+        float healthShown = -1f;
+
+        Eye(Player viewer) {
+            this.viewer = viewer;
+        }
     }
 
     /** What one body is on the viewers' screens right now. */

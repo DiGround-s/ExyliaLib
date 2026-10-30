@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -49,6 +50,17 @@ import java.util.function.Function;
  * before &mdash; where, which game mode, whether they could fly &mdash; is put
  * back exactly when they leave, quit or the plugin stops.
  *
+ * <h2>Cameras</h2>
+ * {@link #camera(ReplayPlayback.Camera)}: their own eyes, out of a player's
+ * eyes, behind a player, or circling one. Each viewer's own, even when several
+ * watch the same playback.
+ *
+ * <h2>Rooms</h2>
+ * {@link #join} puts somebody else into the same playback: one time for all of
+ * them, so a pause, a seek or a new speed by anybody is everybody's, and a
+ * camera for each. The playback and its stage last until the last of them
+ * leaves.
+ *
  * @since 1.241.0
  */
 public final class ReplayViewer {
@@ -69,21 +81,24 @@ public final class ReplayViewer {
     private final TaskScheduler scheduler;
     private final ReplayStage stage;
     private final ReplayPlayback playback;
+    private final Room room;
     private final Saved saved;
     private final @Nullable LiveWatch live;
     private final AtomicBoolean restored = new AtomicBoolean();
     private volatile TaskHandle hudTask;
     private volatile Function<Status, Component> hud;
     private volatile Runnable onLeave;
+    private volatile Consumer<ReplayMark> onMark;
     private volatile boolean left;
 
-    private ReplayViewer(String owner, Player viewer, TaskScheduler scheduler, ReplayStage stage,
-                         ReplayPlayback playback, Saved saved, @Nullable LiveWatch live) {
+    private ReplayViewer(String owner, Player viewer, TaskScheduler scheduler, Room room, Saved saved,
+                         @Nullable LiveWatch live) {
         this.owner = owner;
         this.viewer = viewer;
         this.scheduler = scheduler;
-        this.stage = stage;
-        this.playback = playback;
+        this.room = room;
+        this.stage = room.stage;
+        this.playback = room.playback;
         this.saved = saved;
         this.live = live;
     }
@@ -208,7 +223,9 @@ public final class ReplayViewer {
                 return;
             }
             playback.reveal(true);
-            ReplayViewer watching = new ReplayViewer(plugin.getName(), viewer, scheduler, stage, playback, saved, live);
+            Room room = new Room(stage, playback, who);
+            ReplayViewer watching = new ReplayViewer(plugin.getName(), viewer, scheduler, room, saved, live);
+            room.members.add(watching);
             WATCHING.put(viewer.getUniqueId(), watching);
             watching.hudTask = scheduler.runAtEntityTimer(viewer, 1L, HUD_TICKS, watching::refresh);
             opened.complete(watching);
@@ -249,6 +266,105 @@ public final class ReplayViewer {
         if (watching != null) watching.leave(true, true);
         ReplayViewer returning = RETURNING.get(viewer.getUniqueId());
         if (returning != null) returning.backNow();
+    }
+
+    // ------------------------------------------------------------------ rooms
+
+    /**
+     * Puts somebody else into this playback, beside this viewer: the same
+     * recording at the same moment, with its pause, seek and speed shared from
+     * then on, and a camera of their own. Whatever they were watching is left
+     * first, and they are put back exactly as they were when they leave, as
+     * with {@link #open}.
+     *
+     * <p>Call it on the guest's own thread. Asking them first is the plugin's
+     * business; this is the part after they said yes.
+     *
+     * @param plugin the plugin the guest belongs to
+     * @param guest  who joins
+     * @return the guest's own viewer once they have arrived; completed
+     *         exceptionally when this playback has ended or they could not be
+     *         moved
+     * @since 1.405.0
+     */
+    public @NotNull CompletableFuture<ReplayViewer> join(@NotNull Plugin plugin, @NotNull Player guest) {
+        if (room.members.isEmpty() || !playback.isPlaying()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("The replay has ended"));
+        }
+        ReplayViewer previous = WATCHING.get(guest.getUniqueId());
+        if (previous != null && previous.room == room) return CompletableFuture.completedFuture(previous);
+        ReplayViewer returning = RETURNING.remove(guest.getUniqueId());
+        Saved before = previous != null ? previous.saved : returning != null ? returning.saved : null;
+        if (previous != null) previous.leave(false, false);
+        if (returning != null && returning.restored.compareAndSet(false, true) && returning.live != null) {
+            returning.live.end();
+        }
+        Saved saved = before != null ? before : Saved.of(guest);
+        UUID near = playback.following(viewer);
+        if (near == null) near = room.focus;
+        Location there = near == null ? null : playback.locationOf(near);
+        Location seat = there != null ? behind(there) : stage.anchor(playback.scene()).add(0, 2, 0);
+        TaskScheduler guestScheduler = Tasks.of(plugin);
+        CompletableFuture<ReplayViewer> joined = new CompletableFuture<>();
+        LiveWatch ghost = live != null ? LiveWatch.begin(guest) : null;
+        Runnable sendBack = () -> {
+            if (ghost != null) ghost.end();
+            if (!guest.isOnline()) return;
+            saved.restore(guest, false);
+            Teleports.of(ReplayRuntime.plugin()).to(guest, saved.location()).warmup(0).start();
+        };
+        Teleports.of(plugin).to(guest, seat).warmup(0).start().future()
+                .thenAccept(arrived -> guestScheduler.runAtEntity(guest, () -> {
+                    if (!arrived.isSuccess() || !guest.isOnline() || room.members.isEmpty() || !playback.isPlaying()) {
+                        sendBack.run();
+                        joined.completeExceptionally(new IllegalStateException("The guest could not join"));
+                        return;
+                    }
+                    camera(guest);
+                    if (ghost != null) ghost.sweepNow();
+                    if (!playback.addViewer(guest)) {
+                        sendBack.run();
+                        joined.completeExceptionally(new IllegalStateException("The replay has ended"));
+                        return;
+                    }
+                    ReplayViewer watching = new ReplayViewer(plugin.getName(), guest, guestScheduler, room, saved, ghost);
+                    // A ghost already sees nobody real; on a stage the others
+                    // would be people floating over the fight.
+                    if (ghost == null) room.members.forEach(member -> apart(member, watching, true));
+                    room.members.add(watching);
+                    WATCHING.put(guest.getUniqueId(), watching);
+                    watching.hudTask = guestScheduler.runAtEntityTimer(guest, 1L, HUD_TICKS, watching::refresh);
+                    joined.complete(watching);
+                }, () -> {
+                    if (ghost != null) ghost.end();
+                    joined.completeExceptionally(new IllegalStateException("The guest left"));
+                }));
+        return joined;
+    }
+
+    /**
+     * Everybody watching this playback, this viewer included, in the order
+     * they came: who a shared pause or seek is announced to.
+     *
+     * @since 1.405.0
+     */
+    public @NotNull List<ReplayViewer> room() {
+        return List.copyOf(room.members);
+    }
+
+    /** Hides two members of a room from each other, or shows them again, each on their own thread. */
+    private static void apart(ReplayViewer one, ReplayViewer other, boolean hide) {
+        Plugin library = ReplayRuntime.plugin();
+        one.onViewerThread(() -> {
+            if (!other.viewer.isOnline()) return;
+            if (hide) one.viewer.hidePlayer(library, other.viewer);
+            else one.viewer.showPlayer(library, other.viewer);
+        });
+        other.onViewerThread(() -> {
+            if (!one.viewer.isOnline()) return;
+            if (hide) other.viewer.hidePlayer(library, one.viewer);
+            else other.viewer.showPlayer(library, one.viewer);
+        });
     }
 
     // --------------------------------------------------------------- controls
@@ -341,14 +457,59 @@ public final class ReplayViewer {
      */
     public @Nullable ReplayActor cycleFollow() {
         List<ReplayActor> players = present();
-        UUID current = playback.following();
+        UUID current = playback.following(viewer);
         int at = -1;
         for (int index = 0; index < players.size(); index++) {
             if (players.get(index).id().equals(current)) at = index;
         }
         ReplayActor next = at + 1 < players.size() ? players.get(at + 1) : null;
-        playback.follow(next == null ? null : next.id());
+        // Behind or circling somebody stays behind or circling the next one.
+        ReplayPlayback.Camera mode = playback.camera(viewer);
+        if (mode == ReplayPlayback.Camera.FREE) mode = ReplayPlayback.Camera.FIRST_PERSON;
+        if (mode == ReplayPlayback.Camera.FIRST_PERSON) playback.view(ReplayPlayback.View.SERVER);
+        playback.camera(viewer, next == null ? ReplayPlayback.Camera.FREE : mode, next == null ? null : next.id());
         return next;
+    }
+
+    /**
+     * Changes how this viewer watches, keeping who they watch: the player
+     * their camera is on, or else the first one on screen.
+     *
+     * @param camera how
+     * @return who the camera is on now, or {@code null} for their own eyes,
+     *         and when nobody is on screen to put it on (it is left as it was)
+     * @since 1.405.0
+     */
+    public @Nullable ReplayActor camera(@NotNull ReplayPlayback.Camera camera) {
+        if (camera == ReplayPlayback.Camera.FREE) {
+            playback.camera(viewer, camera, null);
+            return null;
+        }
+        UUID actor = playback.following(viewer);
+        if (actor == null) {
+            List<ReplayActor> players = present();
+            if (players.isEmpty()) return null;
+            actor = players.stream().map(ReplayActor::id).filter(id -> id.equals(room.focus)).findFirst()
+                    .orElse(players.getFirst().id());
+        }
+        playback.camera(viewer, camera, actor);
+        return playback.replay().actor(actor);
+    }
+
+    /**
+     * Puts this viewer's camera on somebody, in one of the ways to watch them.
+     *
+     * @param camera how
+     * @param actor  who; {@code null} is their own eyes
+     * @since 1.405.0
+     */
+    public void camera(@NotNull ReplayPlayback.Camera camera, @Nullable UUID actor) {
+        playback.camera(viewer, camera, actor);
+    }
+
+    /** How this viewer is watching now. @since 1.405.0 */
+    public @NotNull ReplayPlayback.Camera camera() {
+        return playback.camera(viewer);
     }
 
     /**
@@ -373,7 +534,7 @@ public final class ReplayViewer {
      * @since 1.244.0
      */
     public void follow(@Nullable UUID actor) {
-        playback.follow(actor);
+        follow(actor, ReplayPlayback.View.SERVER);
     }
 
     /**
@@ -381,16 +542,21 @@ public final class ReplayViewer {
      * had them or where that player's own screen had them.
      *
      * @param actor who, or {@code null} for the viewer's own
+     * <p>Only this viewer's camera moves. The view is the playback's: in a
+     * {@linkplain #join room}, everybody sees the bodies where this player's
+     * screen had them.
+     *
      * @param view  which screen to reproduce; {@link ReplayPlayback.View#ATTACKER} to judge a hit
      * @since 1.403.0
      */
     public void follow(@Nullable UUID actor, @NotNull ReplayPlayback.View view) {
-        playback.follow(actor, view);
+        playback.camera(viewer, actor == null ? ReplayPlayback.Camera.FREE : ReplayPlayback.Camera.FIRST_PERSON, actor);
+        playback.view(view);
     }
 
-    /** Stops following anybody. */
+    /** Stops following anybody: their own eyes again. */
     public void unfollow() {
-        playback.follow(null);
+        playback.camera(viewer, ReplayPlayback.Camera.FREE, null);
     }
 
     /** Flies over to where somebody is right now. */
@@ -425,8 +591,15 @@ public final class ReplayViewer {
         WATCHING.remove(viewer.getUniqueId(), this);
         TaskHandle task = hudTask;
         if (task != null) task.cancel();
-        playback.stop();
-        stage.close();
+        room.members.remove(this);
+        if (room.members.isEmpty()) {
+            playback.stop();
+            stage.close();
+        } else {
+            // The others carry on watching; only this screen is cleaned.
+            playback.removeViewer(viewer);
+            if (live == null) room.members.forEach(member -> apart(member, this, false));
+        }
         if (!restore || !viewer.isOnline()) {
             restored.set(true);
             // Gone already: no thread of theirs will ever run it.
@@ -505,7 +678,7 @@ public final class ReplayViewer {
 
     /** Called for the marks a plugin wants to show, such as chat and deaths. */
     public void onMark(@NotNull Consumer<ReplayMark> listener) {
-        playback.onMark(listener);
+        this.onMark = listener;
     }
 
     public @NotNull ReplayPlayback playback() {
@@ -517,7 +690,7 @@ public final class ReplayViewer {
     }
 
     public @NotNull Status status() {
-        UUID following = playback.following();
+        UUID following = playback.following(viewer);
         ReplayActor followed = following == null ? null : playback.replay().actor(following);
         return new Status(playback.tick(), playback.frames(), playback.speed(), playback.isPaused(),
                 playback.scene(), playback.replay().scenes().size(),
@@ -548,7 +721,8 @@ public final class ReplayViewer {
      * @param paused    whether it is held
      * @param scene     which scene, from zero
      * @param scenes    how many scenes there are
-     * @param following whose eyes the viewer is looking out of, or {@code null}
+     * @param following who the viewer's camera is on, in any camera but their
+     *                  own eyes, or {@code null}
      */
     public record Status(int tick, int frames, double speed, boolean paused, int scene, int scenes,
                          @Nullable String following) {
@@ -613,6 +787,31 @@ public final class ReplayViewer {
         viewer.setFlying(true);
         viewer.setInvulnerable(true);
         viewer.setFallDistance(0f);
+    }
+
+    /**
+     * The people watching one playback, and the playback they share. Marks are
+     * handed to each of them: the playback has one listener, the room is it.
+     */
+    private static final class Room {
+
+        final ReplayStage stage;
+        final ReplayPlayback playback;
+        /** Who it is about, where a newcomer is put when nobody is followed. */
+        final @Nullable UUID focus;
+        final List<ReplayViewer> members = new CopyOnWriteArrayList<>();
+
+        Room(ReplayStage stage, ReplayPlayback playback, @Nullable UUID focus) {
+            this.stage = stage;
+            this.playback = playback;
+            this.focus = focus;
+            playback.onMark(mark -> {
+                for (ReplayViewer member : members) {
+                    Consumer<ReplayMark> listener = member.onMark;
+                    if (listener != null) listener.accept(mark);
+                }
+            });
+        }
     }
 
     /** Everything changed about a viewer, to put back. */

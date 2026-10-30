@@ -1,6 +1,7 @@
 package net.exylia.lib.replay;
 
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -166,6 +167,90 @@ public interface ReplayPlayback {
     /** Which screen a first-person view reproduces now. @since 1.403.0 */
     default @NotNull View view() {
         return View.SERVER;
+    }
+
+    /**
+     * Sets which screen first-person cameras reproduce, without moving anybody's
+     * camera: the view is the playback's, shared by everybody watching it, and
+     * {@link View#ATTACKER} reproduces the screen of whoever was last looked
+     * out of with {@link #camera(Player, Camera, UUID)}.
+     *
+     * @param view which screen
+     * @since 1.405.0
+     */
+    default void view(@NotNull View view) {
+    }
+
+    /**
+     * Puts one viewer's camera somewhere of its own, leaving everybody else's
+     * where it is: the way people watching the same playback each look at what
+     * they want while the time is shared.
+     *
+     * <p>{@link Camera#BEHIND} and {@link Camera#ORBIT} ride a body drawn for
+     * that viewer alone and moved every tick while they use it; nothing is sent
+     * for a viewer in {@link Camera#FREE} or {@link Camera#FIRST_PERSON}.
+     *
+     * @param viewer one of the people watching it
+     * @param camera how they watch
+     * @param actor  who the camera is on; ignored for {@link Camera#FREE}, and
+     *               {@code null} or somebody not in the recording is
+     *               {@link Camera#FREE}
+     * @since 1.405.0
+     */
+    default void camera(@NotNull Player viewer, @NotNull Camera camera, @Nullable UUID actor) {
+        follow(camera == Camera.FIRST_PERSON ? actor : null);
+    }
+
+    /** How one viewer is watching. @since 1.405.0 */
+    default @NotNull Camera camera(@NotNull Player viewer) {
+        return following() == null ? Camera.FREE : Camera.FIRST_PERSON;
+    }
+
+    /** Who one viewer's camera is on, or {@code null} in {@link Camera#FREE}. @since 1.405.0 */
+    default @Nullable UUID following(@NotNull Player viewer) {
+        return following();
+    }
+
+    /**
+     * Shows it to one more person, from where it is now: everything on screen
+     * is drawn again for everybody on the next tick, and they share its pause,
+     * seek and speed from then on. They must already be standing where it is
+     * shown.
+     *
+     * @param viewer who joins
+     * @return whether they were added; not when it has stopped or they are
+     *         already watching it
+     * @since 1.405.0
+     */
+    default boolean addViewer(@NotNull Player viewer) {
+        return false;
+    }
+
+    /**
+     * Takes it off one person's screen and leaves it running for the rest.
+     *
+     * @param viewer who leaves
+     * @return whether they were watching it
+     * @since 1.405.0
+     */
+    default boolean removeViewer(@NotNull Player viewer) {
+        return false;
+    }
+
+    /**
+     * How one viewer watches.
+     *
+     * @since 1.405.0
+     */
+    enum Camera {
+        /** Their own eyes: they fly about as they like. */
+        FREE,
+        /** Out of a body's eyes, with its hand and hearts on their screen. */
+        FIRST_PERSON,
+        /** A few blocks behind and above a body, turning with it slowly. */
+        BEHIND,
+        /** Circling a body slowly, looking at it. */
+        ORBIT
     }
 
     /**

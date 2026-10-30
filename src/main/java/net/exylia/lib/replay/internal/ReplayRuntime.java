@@ -285,9 +285,14 @@ public final class ReplayRuntime {
 
     /** An anticheat flag, from any thread: into the box when the box has the player. */
     public static void flag(UUID player, String check, @Nullable String detail) {
+        String named = cut(check, 64);
+        String said = detail == null ? null : cut(detail, 256);
+        if (net.exylia.lib.replay.ReplayFlagEvent.getHandlerList().getRegisteredListeners().length > 0) {
+            org.bukkit.Bukkit.getPluginManager().callEvent(new net.exylia.lib.replay.ReplayFlagEvent(player, named, said));
+        }
         BlackBox running = box;
         if (running == null || !running.knows(player)) return;
-        running.flag(player, cut(check, 64), detail == null ? null : cut(detail, 256));
+        running.flag(player, named, said);
     }
 
     private static String cut(String text, int most) {

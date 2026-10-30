@@ -125,6 +125,8 @@ public final class Replays {
      * for every flag: a map lookup, and a queue offer for the first of each
      * second. Nothing happens when no plugin opened the box or the player is
      * not in it. Grim, Vulcan, Spartan and Matrix are listened to already.
+     * Every call is also a {@link ReplayFlagEvent}, for a plugin that acts
+     * on flags as they happen.
      *
      * @param player who was flagged
      * @param check  the check, as the anticheat names it; cut at 64 characters
