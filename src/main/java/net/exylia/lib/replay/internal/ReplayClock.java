@@ -58,7 +58,11 @@ public final class ReplayClock {
             wall = true;
         }
         long[] cached = CACHED.get();
-        if (nanos - cached[0] < SAME_TICK_NANOS) return (int) cached[1];
+        // A thread that never read the clock has nothing cached: nanos minus
+        // Long.MIN_VALUE overflows to a negative number, which is "less than
+        // twenty milliseconds ago" forever, and every stamp after the switch
+        // to wall time was zero on every thread.
+        if (cached[0] != Long.MIN_VALUE && nanos - cached[0] < SAME_TICK_NANOS) return (int) cached[1];
         cached[0] = nanos;
         cached[1] = (nanos - EPOCH) / NANOS_PER_TICK;
         return (int) cached[1];
