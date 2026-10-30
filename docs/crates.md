@@ -470,6 +470,15 @@ items:
       - ""
 ```
 
+## The opening in the world (since 1.418.0)
+
+`opening: SPATIAL` in the crate's settings plays the opening as a [crate scene](crate-scene.md) in
+front of the player instead of `crate_open`: a reel slowing onto the prize, the reveal and the prize
+tried on, then OPEN ANOTHER and DONE; sneaking skips and hands everything over. The roll, the keys, the
+payout, duplicates and the quit path are the ones described here, unchanged. The catalogue says how a
+prize is tried on with `preview(reward, viewer)` and `previewVanishes()`. `CrateSettings` gained the
+component `opening` (INVENTORY by default); the 13-argument constructor plugins already call stays.
+
 ## The admin menu
 
 Since 1.342.0 every crate comes with an admin menu, the same in every plugin,

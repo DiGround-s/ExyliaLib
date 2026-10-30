@@ -1414,3 +1414,15 @@ x, y or z: x, y ou z
 'Cooldown, or a formula of level in seconds': 'Cooldown, ou uma fórmula de level em segundos'
 'Its damage may set off other abilities': 'Seu dano pode ativar outras habilidades'
 'One per line, such as  target: player': 'Uma por linha, como  target: player'
+
+# The in-world crate opening (spatial/crate.yml)
+'{primary}&lCRATE OPENING': '{primary}&lABRINDO CAIXA'
+'{muted}Crate {letters}%current% {letters_black}/ {letters}%total%': '{muted}Caixa {letters}%current% {letters_black}/ {letters}%total%'
+'{muted}Sneak to skip': '{muted}Agache para pular'
+'{success}✔ New to your collection': '{success}✔ Novo na sua coleção'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Você já tinha {letters_black}» {highlight}+%refund% {letters}chaves devolvidas'
+'{success}&lOPEN ANOTHER': '{success}&lABRIR OUTRA'
+'{highlight}&lDONE': '{highlight}&lPRONTO'
+'{warning}&lSKIP': '{warning}&lPULAR'
+' {letters_black}▎ {letters}Hands every prize over now.': ' {letters_black}▎ {letters}Entrega todos os prêmios agora.'
+'{warning}➥ Right-click or sneak to skip': '{warning}➥ Clique direito ou agache para pular'

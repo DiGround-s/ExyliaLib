@@ -1414,3 +1414,15 @@ x, y or z: x, y veya z
 'Cooldown, or a formula of level in seconds': 'Bekleme süresi veya saniye cinsinden level formülü'
 'Its damage may set off other abilities': 'Hasarı başka yetenekleri tetikleyebilir'
 'One per line, such as  target: player': 'Her satıra bir tane, örneğin  target: player'
+
+# The in-world crate opening (spatial/crate.yml)
+'{primary}&lCRATE OPENING': '{primary}&lSANDIK AÇILIYOR'
+'{muted}Crate {letters}%current% {letters_black}/ {letters}%total%': '{muted}Sandık {letters}%current% {letters_black}/ {letters}%total%'
+'{muted}Sneak to skip': '{muted}Geçmek için eğil'
+'{success}✔ New to your collection': '{success}✔ Koleksiyonunda yeni'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Zaten sende vardı {letters_black}» {highlight}+%refund% {letters}anahtar iade'
+'{success}&lOPEN ANOTHER': '{success}&lBİR TANE DAHA AÇ'
+'{highlight}&lDONE': '{highlight}&lTAMAM'
+'{warning}&lSKIP': '{warning}&lGEÇ'
+' {letters_black}▎ {letters}Hands every prize over now.': ' {letters_black}▎ {letters}Tüm ödülleri hemen verir.'
+'{warning}➥ Right-click or sneak to skip': '{warning}➥ Geçmek için sağ tıkla ya da eğil'

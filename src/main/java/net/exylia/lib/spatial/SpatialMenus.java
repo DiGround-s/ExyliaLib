@@ -408,6 +408,18 @@ public final class SpatialMenus {
         return !HIDDEN.contains(viewer.getUniqueId()) && !HIDDEN.contains(target.getUniqueId());
     }
 
+    /**
+     * Hides everyone from a player and the player from everyone, or ends it, under the library's rule:
+     * for an in-world screen built outside {@code SpatialMenus} (the crate opening) that follows the
+     * menus' {@code hide-others}. Every {@code true} needs its {@code false}.
+     *
+     * @since 1.416.0
+     */
+    public static void hideOthers(@NotNull Player player, boolean hidden) {
+        if (hidden) hide(player);
+        else unhide(player);
+    }
+
     private static void hide(Player player) {
         if (HIDDEN.add(player.getUniqueId())) refreshAround(player);
     }

@@ -181,6 +181,8 @@ public final class PluginCrates {
         adminScreens.register();
         running = new Running<>(settings, messages, store, prizes, screens, blocks, actions, rewards, adminScreens);
         blocks.rebuild();
+        // Written now, so an owner who turned the 3D opening on finds its file without opening a crate first.
+        if (settings.get().opening() == CrateOpening.SPATIAL) net.exylia.lib.spatial.crate.CrateScene.of(plugin).layout();
         for (Player online : plugin.getServer().getOnlinePlayers()) {
             store.open(online.getUniqueId());
         }

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.crate;
 
+import net.exylia.lib.spatial.SpatialPreview;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -100,6 +101,31 @@ public interface CrateCatalogue<T> {
      */
     default @Nullable String placeholderPrefix() {
         return null;
+    }
+
+    /**
+     * What the in-world opening ({@link CrateOpening#SPATIAL}) shows the prize as once it is revealed:
+     * the player wearing it, an effect played as a miniature on a mannequin, an item turning. Asked once,
+     * when the reel lands, on the viewer's thread; read memory only.
+     *
+     * @param reward what was won
+     * @param viewer who opened it
+     * @return the preview, or {@code null} for the reward's icon alone
+     * @since 1.416.0
+     */
+    default @Nullable SpatialPreview preview(@NotNull T reward, @NotNull Player viewer) {
+        return null;
+    }
+
+    /**
+     * Whether the mannequin of an effect {@link #preview} is taken down while the effect plays: right
+     * for a kill effect or an emote, whose own body takes the mannequin's place; wrong for a hit effect,
+     * which lands on a body that stays.
+     *
+     * @since 1.416.0
+     */
+    default boolean previewVanishes() {
+        return true;
     }
 
     /** One line about it, formatting included, or an empty string. */

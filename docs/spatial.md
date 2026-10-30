@@ -368,6 +368,13 @@ preview), the boss bar reads `PIECE » axis » value`, and a click saves it to t
 layout file (comments kept: the file is written from the record) and redraws.
 Every notch redraws the menu as it would look. Sneak to leave.
 
+## Crate openings (since 1.418.0)
+
+A crate opening in the world, built on these pieces (the pointer, the hiding rule, the theme, the
+previews): see [crate-scene.md](crate-scene.md). `SpatialMenus.hideOthers(player, hidden)` applies the
+menus' `hide-others` rule to a screen built outside `SpatialMenus`; opening a spatial menu ends a crate
+scene, handing its prizes over.
+
 ## Input for games
 
 A game view that keeps its own `hovered` index, its own button list and its own

@@ -40,6 +40,7 @@ import java.util.Map;
  * @param onDuplicate     played as a reel lands on something already owned
  * @param keyItem         how a key that can be held is drawn
  * @param tiers           the rarities, by id
+ * @param opening         how an opening is shown: the inventory reels, or the in-world scene (since 1.416.0)
  * @since 1.189.0
  */
 @Comment("The crate: one key in, one random reward out.")
@@ -104,14 +105,30 @@ public record CrateSettings(
 
         @Comment("The rarities rewards are sorted into, and how often each one comes out.")
         @Comment("Add, rename or delete any of them: the key is the rarity id rewards name.")
-        Map<String, CrateTier> tiers) {
+        Map<String, CrateTier> tiers,
+
+        @Comment("How an opening is shown.")
+        @Comment("INVENTORY - the reels fall down the crate_open menu.")
+        @Comment("SPATIAL   - a crate in the world in front of the player: a reel of rewards")
+        @Comment("            slowing onto the prize, the reveal and a preview of it, from")
+        @Comment("            plugins/<Plugin>/spatial/crate.yml. Sneak skips and hands it over.")
+        @Comment("Either way the prize is decided and the key spent before anything is drawn.")
+        CrateOpening opening) {
 
     public CrateSettings() {
         this(true, 0, 1, CrateReward.UNLOCK, List.of(), 4, 34, 2.0,
                 sound("BLOCK_NOTE_BLOCK_HAT", 1.6),
                 sound("ENTITY_PLAYER_LEVELUP", 1.2),
                 sound("BLOCK_NOTE_BLOCK_BASS", 0.8),
-                new KeyItem(), CrateTier.defaults());
+                new KeyItem(), CrateTier.defaults(), CrateOpening.INVENTORY);
+    }
+
+    /** The settings before {@link #opening()} existed: opened in the inventory. */
+    public CrateSettings(boolean enabled, int startKeys, int duplicateRefund, CrateReward reward, List<String> blocks,
+                         int maxAtOnce, int spinFrames, double staggerSeconds, EffectConfig onSpin, EffectConfig onWin,
+                         EffectConfig onDuplicate, KeyItem keyItem, Map<String, CrateTier> tiers) {
+        this(enabled, startKeys, duplicateRefund, reward, blocks, maxAtOnce, spinFrames, staggerSeconds, onSpin, onWin,
+                onDuplicate, keyItem, tiers, CrateOpening.INVENTORY);
     }
 
     public CrateSettings {
@@ -122,12 +139,19 @@ public record CrateSettings(
         onDuplicate = onDuplicate == null ? new EffectConfig() : onDuplicate;
         keyItem = keyItem == null ? new KeyItem() : keyItem;
         tiers = tiers == null ? CrateTier.defaults() : Collections.unmodifiableMap(new LinkedHashMap<>(tiers));
+        opening = opening == null ? CrateOpening.INVENTORY : opening;
     }
 
     /** The same crate opened by a different set of blocks, for the command that binds them. */
     public @NotNull CrateSettings withBlocks(@NotNull List<String> blocks) {
         return new CrateSettings(enabled, startKeys, duplicateRefund, reward, blocks, maxAtOnce,
-                spinFrames, staggerSeconds, onSpin, onWin, onDuplicate, keyItem, tiers);
+                spinFrames, staggerSeconds, onSpin, onWin, onDuplicate, keyItem, tiers, opening);
+    }
+
+    /** The same crate shown another way. @since 1.416.0 */
+    public @NotNull CrateSettings withOpening(@NotNull CrateOpening opening) {
+        return new CrateSettings(enabled, startKeys, duplicateRefund, reward, blocks, maxAtOnce,
+                spinFrames, staggerSeconds, onSpin, onWin, onDuplicate, keyItem, tiers, opening);
     }
 
     /**

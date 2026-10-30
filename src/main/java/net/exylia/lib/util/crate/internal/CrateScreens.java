@@ -17,7 +17,15 @@ import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiSession;
 import net.exylia.lib.util.crate.CrateCatalogue;
+import net.exylia.lib.item.Item;
+import net.exylia.lib.item.Items;
+import net.exylia.lib.spatial.SpatialPreview;
+import net.exylia.lib.spatial.crate.CrateFace;
+import net.exylia.lib.spatial.crate.CrateReveal;
+import net.exylia.lib.spatial.crate.CrateScene;
+import net.exylia.lib.spatial.crate.CrateShow;
 import net.exylia.lib.util.crate.CrateMessages;
+import net.exylia.lib.util.crate.CrateOpening;
 import net.exylia.lib.util.crate.CrateSettings;
 import net.exylia.lib.util.crate.CrateTier;
 import org.bukkit.entity.Player;
@@ -298,6 +306,22 @@ public final class CrateScreens<T> implements Listener {
             return;
         }
 
+        if (settings.get().opening() == CrateOpening.SPATIAL && CrateScene.of(plugin).available()) {
+            // Held from now, so a quit in the tick before the scene opens still pays them out.
+            List<Reel<T>> reels = new ArrayList<>(bought.size());
+            for (T prize : bought) reels.add(Reel.of(0, prize, 1, () -> null));
+            Spin<T> spin = new Spin<>(player, reels);
+            running.put(uuid, spin);
+            // A tick later, out of the click on the button that asked for it.
+            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin));
+            return;
+        }
+        inventory(player, bought);
+    }
+
+    /** The reels in the opening menu, or the prizes at once when that menu is not loaded. */
+    private void inventory(Player player, List<T> bought) {
+        UUID uuid = player.getUniqueId();
         menus.definition(openingId).ifPresentOrElse(
                 // A tick later, because this runs inside the click on the button:
                 // a window opened while the one clicked is still being handled is
@@ -309,6 +333,95 @@ public final class CrateScreens<T> implements Listener {
                     // No screen to land on, so the keys pay out at once.
                     bought.forEach(prize -> announce(player, prizes.award(player, prize)));
                 });
+    }
+
+    /**
+     * The opening in the world ({@link CrateScene}). The prizes are already drawn and paid for: each reel
+     * is only the guard that hands its prize over once, when the scene reveals it or when it ends early.
+     * A quit is paid by {@link #onQuit}, as with the inventory reels.
+     */
+    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin) {
+        UUID uuid = player.getUniqueId();
+        if (!player.isOnline() || running.get(uuid) != spin) return;
+        List<Reel<T>> reels = spin.reels;
+
+        CrateCatalogue<T> catalogue = prizes.catalogue();
+        Map<T, CrateFace> drawn = new HashMap<>();
+        Function<T, CrateFace> face = reward -> drawn.computeIfAbsent(reward, r -> face(r, player));
+        List<CrateFace> faces = catalogue.all().stream().map(face).toList();
+        List<CrateFace> shown = bought.stream().map(face).toList();
+
+        CrateShow show = new CrateShow() {
+            @Override
+            public @NotNull List<CrateFace> faces() {
+                return faces;
+            }
+
+            @Override
+            public @NotNull List<CrateFace> prizes() {
+                return shown;
+            }
+
+            @Override
+            public @NotNull CrateReveal reveal(int index) {
+                Reel<T> reel = reels.get(index);
+                Prizes.Outcome<T> outcome = reel.settle(prize -> prizes.award(player, prize));
+                if (outcome != null) {
+                    effects.play(landing(outcome), player);
+                    announce(player, outcome);
+                }
+                Prizes.Outcome<T> known = reel.outcome();
+                return known == null || known.status() != Prizes.Status.DUPLICATE ? CrateReveal.NEW
+                        : new CrateReveal(true, known.refunded());
+            }
+
+            @Override
+            public @Nullable SpatialPreview preview(int index) {
+                return catalogue.preview(bought.get(index), player);
+            }
+
+            @Override
+            public boolean previewVanishes() {
+                return catalogue.previewVanishes();
+            }
+
+            @Override
+            public boolean canOpenAnother() {
+                return prizes.enabled() && (held ? heldKeys(player) : keysOf(player)) >= 1;
+            }
+
+            @Override
+            public void openAnother() {
+                tasks.runAtEntityLater(player, 1, () -> whenLoaded(player, () -> spin(player, 1, held)));
+            }
+
+            @Override
+            public void ended(boolean quit) {
+                if (quit) return;
+                running.remove(uuid, spin);
+                spinning.invalidate(uuid);
+            }
+        };
+        if (!CrateScene.of(plugin).play(player, show)) {
+            // Nothing could be drawn there (another plugin's 3D menu, no displays): the reels instead.
+            running.remove(uuid, spin);
+            inventory(player, bought);
+        }
+    }
+
+    /** A reward as the 3D opening draws it: its real item, name and rarity. */
+    private CrateFace face(T reward, Player viewer) {
+        CrateCatalogue<T> catalogue = prizes.catalogue();
+        ItemStack icon = catalogue.icon(reward, viewer);
+        if (icon == null) {
+            icon = Items.of(plugin).render(Item.of(catalogue.icon(reward)).build(), viewer);
+        }
+        TierTable tiers = prizes.tiers();
+        String tierId = prizes.tierOf(reward);
+        CrateTier tier = tiers.get(tierId);
+        int rank = tiers.ids().indexOf(tiers.resolveId(tierId)) + 1;
+        return new CrateFace(prizes.idOf(reward), icon, catalogue.name(reward), tier.color() + tier.name(),
+                tier.color(), rank, tiers.ids().size());
     }
 
     private int heldKeys(Player player) {
