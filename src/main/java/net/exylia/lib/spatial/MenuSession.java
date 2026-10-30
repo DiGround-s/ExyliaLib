@@ -12,6 +12,7 @@ import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.ragdoll.RagdollModel;
+import net.exylia.lib.spatial.internal.Confirm;
 import net.exylia.lib.spatial.internal.Drafts;
 import net.exylia.lib.spatial.internal.Geometry;
 import net.exylia.lib.stage.Stage;
@@ -78,6 +79,13 @@ final class MenuSession implements SpatialContext {
     private final Map<String, String> hovers = new HashMap<>();
     /** Drafted values of keys that name no source; a source's draft is its selection. */
     private final Drafts drafts = new Drafts();
+    /**
+     * The plugin's values read once for a whole redraw (every label of it fills from the same reading),
+     * {@code null} between redraws.
+     */
+    private @Nullable Values pass;
+    /** A click waiting for its second, confirming one. */
+    private final Confirm confirm = new Confirm();
     /** The crosshair left an entry: the panels' words go back to the chosen one on the next poll. */
     private boolean wordsStale;
     private @Nullable PreviewPart preview;
@@ -155,8 +163,24 @@ final class MenuSession implements SpatialContext {
     @Override
     public void refresh() {
         if (closed) return;
-        for (Part part : parts) part.refresh();
+        inPass(() -> {
+            for (Part part : parts) part.refresh();
+        });
         if (preview != null) preview.update(definition.preview == null ? SpatialPreview.none() : definition.preview.apply(this));
+    }
+
+    /** Runs a redraw with the plugin's values read once for it. */
+    private void inPass(Runnable redraw) {
+        if (pass != null || definition.values == null) {
+            redraw.run();
+            return;
+        }
+        pass = definition.values.apply(this);
+        try {
+            redraw.run();
+        } finally {
+            pass = null;
+        }
     }
 
     @Override
@@ -207,8 +231,24 @@ final class MenuSession implements SpatialContext {
     }
 
     @Override
+    public boolean confirm(@NotNull String key) {
+        return confirm.confirm(key, System.currentTimeMillis());
+    }
+
+    @Override
+    public boolean confirming(@NotNull String key) {
+        return confirm.confirming(key, System.currentTimeMillis());
+    }
+
+    @Override
+    public void disarm() {
+        confirm.disarm();
+    }
+
+    @Override
     public void revert() {
         if (closed) return;
+        confirm.disarm();
         drafts.clear();
         savedState().forEach((key, value) -> {
             if (definition.sources.containsKey(key)) select(key, value == null ? null : value.toString());
@@ -235,9 +275,11 @@ final class MenuSession implements SpatialContext {
     /** The panels' words again, and nothing else: what the crosshair moving over a list changes. */
     private void refreshWords() {
         if (closed) return;
-        for (Part part : parts) {
-            if (part instanceof PanelPart panel) panel.refreshWords();
-        }
+        inPass(() -> {
+            for (Part part : parts) {
+                if (part instanceof PanelPart panel) panel.refreshWords();
+            }
+        });
     }
 
     boolean isClosed() {
@@ -321,6 +363,8 @@ final class MenuSession implements SpatialContext {
     }
 
     void tick() {
+        // A confirmation nobody gave: the button reads its own words again.
+        if (confirm.expired(System.currentTimeMillis())) wordsStale = true;
         if (wordsStale) {
             wordsStale = false;
             refreshWords();
@@ -464,7 +508,7 @@ final class MenuSession implements SpatialContext {
 
     /** A line with the plugin's values and then the menu's state filled in. */
     String fill(String raw) {
-        Values own = definition.values == null ? null : definition.values.apply(this);
+        Values own = pass != null ? pass : definition.values == null ? null : definition.values.apply(this);
         String filled = own == null ? raw : own.apply(raw);
         Values values = Values.of();
         state.forEach(values::put);
@@ -541,6 +585,7 @@ final class MenuSession implements SpatialContext {
 
     private void turnPage(Slots slots, int notch) {
         if (slots == null) return;
+        confirm.disarm();
         StageLook.play(viewer, theme.pageSound());
         pages.put(slots.source, page(slots.source) + notch);
         slots.step = notch;
@@ -549,6 +594,8 @@ final class MenuSession implements SpatialContext {
     }
 
     private void act(String action) {
+        // Another button: whatever waited for a second click is no longer what they are doing.
+        if (!confirm.confirming(action, System.currentTimeMillis())) confirm.disarm();
         var run = definition.actions.get(action);
         if (run != null) {
             run.accept(this);
@@ -646,6 +693,7 @@ final class MenuSession implements SpatialContext {
         private final List<Label> labels = new ArrayList<>();
         private final List<Button> buttons = new ArrayList<>();
         private @Nullable Slots slots;
+        private @Nullable Column column;
 
         PanelPart(String name, SpatialLayout.Panel panel, long delay) {
             this.name = name;
@@ -704,6 +752,7 @@ final class MenuSession implements SpatialContext {
                 case GRID -> slots = new Slots(Kind.CELL, content.source(), this, area, inner);
                 case BUTTON -> buttons.add(new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
                         content.label(), content.action(), inner));
+                case BUTTONS -> column = new Column(this, content.buttons(), area, inner);
                 case NONE -> { }
             }
             if (panel.footer().present()) {
@@ -715,6 +764,7 @@ final class MenuSession implements SpatialContext {
         void refreshWords() {
             labels.forEach(Label::refresh);
             buttons.forEach(Button::refresh);
+            if (column != null) column.refresh();
         }
 
         @Override
@@ -768,6 +818,7 @@ final class MenuSession implements SpatialContext {
         final @Nullable DisplayHandle plate;
         final Label label;
         final String action;
+        private @Nullable Hotspot hotspot;
         private boolean lit;
         private boolean hot;
 
@@ -779,7 +830,7 @@ final class MenuSession implements SpatialContext {
             this.label = new Label(label, (text, at) -> write(text, false, plane, rotation, across, up, 0.016,
                     width * 0.86, theme.textScale(), true, at), delay < 0 ? -1 : delay + 60);
             if (edit != null) return;
-            pointer.add(Hotspot.rect(plane, across, up, width, height).priority(2)
+            hotspot = pointer.add(Hotspot.rect(plane, across, up, width, height).priority(2)
                     .onHover(on -> {
                         lit = on;
                         restyle();
@@ -787,8 +838,16 @@ final class MenuSession implements SpatialContext {
                     .onPress(click -> act(action)));
         }
 
+        /** Warm while there is something to save, or while its action waits for a confirming click. */
         private boolean hot() {
-            return SAVE.equals(action) && dirty();
+            return SAVE.equals(action) && dirty() || confirm.confirming(action, System.currentTimeMillis());
+        }
+
+        /** Takes the button down: a column closing up round a button that has no words now. */
+        void remove() {
+            drop(plate);
+            drop(label.handle);
+            pointer.remove(hotspot);
         }
 
         private int colour() {
@@ -806,6 +865,58 @@ final class MenuSession implements SpatialContext {
             if (now == hot) return;
             hot = now;
             restyle();
+        }
+    }
+
+    /**
+     * A {@code BUTTONS} content: its buttons stacked top to bottom. A button whose label reads blank is
+     * left out, and when which ones read something changes the column is drawn again, closed up.
+     */
+    private final class Column {
+        private final PanelPart panel;
+        private final List<SpatialLayout.Footer> all;
+        private final double[] area;
+        private final List<Button> drawn = new ArrayList<>();
+        private List<Integer> shown = List.of();
+
+        Column(PanelPart panel, List<SpatialLayout.Footer> all, double[] area, long delay) {
+            this.panel = panel;
+            this.all = all;
+            this.area = area;
+            draw(visible(), delay);
+        }
+
+        private List<Integer> visible() {
+            List<Integer> visible = new ArrayList<>();
+            for (int i = 0; i < all.size(); i++) {
+                if (!plain(Text.component(fill(all.get(i).label()))).isBlank()) visible.add(i);
+            }
+            return visible;
+        }
+
+        private void draw(List<Integer> visible, long delay) {
+            shown = visible;
+            int count = visible.size();
+            if (count == 0) return;
+            double width = panel.panel.width() - 0.24;
+            double[] ups = Geometry.stack(area[0], area[1], count);
+            double height = Geometry.stackHeight(area[1], count);
+            for (int i = 0; i < count; i++) {
+                SpatialLayout.Footer button = all.get(visible.get(i));
+                drawn.add(new Button(panel.plane, panel.rotation, 0, ups[i], width, height, button.label(),
+                        button.action(), delay < 0 ? delay : delay + i * 50L));
+            }
+        }
+
+        void refresh() {
+            List<Integer> visible = visible();
+            if (visible.equals(shown)) {
+                drawn.forEach(Button::refresh);
+                return;
+            }
+            drawn.forEach(Button::remove);
+            drawn.clear();
+            draw(visible, REPOP);
         }
     }
 
@@ -1232,6 +1343,7 @@ final class MenuSession implements SpatialContext {
         private void choose(int slot) {
             SpatialEntry entry = at(slot);
             if (entry == null) return;
+            confirm.disarm();
             selected.put(source, entry.id());
             var select = definition.selects.get(source);
             if (select != null) select.accept(MenuSession.this, entry);

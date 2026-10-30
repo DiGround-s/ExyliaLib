@@ -128,4 +128,41 @@ public interface SpatialContext {
      */
     default void save() {
     }
+
+    // ── Confirm in place (since 1.416.0) ──────────────────────────────────
+
+    /**
+     * A click that asks before it acts, without leaving the menu: the first call with {@code key} arms
+     * it and answers {@code false} (the plugin's words then read CONFIRM, its button warms like a dirty
+     * SAVE), a second call with the same key within six seconds answers {@code true}. Choosing an entry,
+     * turning a page, any other button, reverting or waiting disarms it.
+     *
+     * <pre>{@code
+     * .action("buy", ctx -> {
+     *     if (!ctx.confirm("buy:" + id)) { ctx.refresh(); return; }   // first click: the label reads CONFIRM
+     *     pay(ctx);                                                   // second click
+     * })
+     * }</pre>
+     *
+     * @param key {@code "<action>"} or {@code "<action>:<subject>"}: the button whose action is the part
+     *            before the colon is the one lit; a new subject re-arms rather than confirms
+     * @since 1.416.0
+     */
+    default boolean confirm(@NotNull String key) {
+        return true;
+    }
+
+    /**
+     * Whether {@code key} (or a subject under it, {@code key:...}) waits for its second click: what a
+     * label reads CONFIRM by.
+     *
+     * @since 1.416.0
+     */
+    default boolean confirming(@NotNull String key) {
+        return false;
+    }
+
+    /** Drops a waiting confirmation. @since 1.416.0 */
+    default void disarm() {
+    }
 }

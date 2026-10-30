@@ -75,7 +75,9 @@ every redraw: read memory, never a database. Equal entries are not redrawn.
 `selected(source)` / `select(source, id)`, `refresh()`, `replay()` (since
 1.408.0: plays the preview again from the start, now) and `close()`.
 `menus.context(player)` finds the open one from outside (a purchase that
-finished).
+finished). `menus.refresh(player)` redraws it from any thread, and
+`menus.refreshAll()` every open menu of the plugin (call it from the plugin's
+reload step, so an open menu shows the new catalogue at once; since 1.416.0).
 
 ## The layout
 
@@ -122,6 +124,7 @@ Since 1.408.0; a layout written before keeps its own values.
 | `LIST` | `rows` rows of icon, name and state line; the row under the crosshair lights with a bar, the chosen one carries a `{highlight}` marker that glides between rows |
 | `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid, followed by its price or `locked-line` when it is `LOCKED` |
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
+| `BUTTONS` | A column of `buttons` (`{label, action}` each), stacked in the content area; one whose label reads blank once filled is left out and the rest close up (since 1.416.0) |
 | `footer` | A button along any panel's bottom |
 | `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line under and in front of it, bare like a hologram; `← PAGE x / y →` under the middle |
 | `preview` | A plinth in the middle, and what `preview(ctx)` returns on it, turning `turn-speed` degrees a second |
@@ -289,6 +292,163 @@ menus.register("effects", menu -> menu
   it (falling back to the selection) to describe what the player is looking at
   before they click. A hover redraws the panels' words at once; leaving an entry
   waits one poll, so a sweep along the plinths does not flash back in between.
+
+## Confirm in place (since 1.416.0)
+
+An inventory confirmation opened over a menu standing in the world would hide
+it, so a click that must be asked twice asks in place:
+
+```java
+.action("buy", ctx -> {
+    if (!ctx.confirm("buy:" + id)) { ctx.refresh(); return; }   // first click: arms it
+    pay(ctx);                                                   // second click, within 6 s
+})
+```
+
+- `ctx.confirm(key)` arms `key` and answers `false`; the same key again within six
+  seconds answers `true` and disarms. A different subject under the same action
+  (`buy:a` then `buy:b`) asks again, so a price that changed is never paid blind.
+- `ctx.confirming(key)` reads it for the label (`CONFIRM` while armed); `key` is
+  `"<action>"` or `"<action>:<subject>"`, and the button whose action is the part
+  before the colon is warmed like a dirty SAVE while armed.
+- Choosing an entry, turning a page, pressing another button, reverting, or six
+  seconds passing disarms it (the words are drawn again on their own).
+
+## Cosmetic catalogues (since 1.416.0)
+
+`SpatialCatalog` is a cosmetic shop and wardrobe in one menu, on top of drafts:
+the plugin says what it sells and how it previews; the catalogue answers the
+layout's actions, draws every state, buys in place and saves.
+
+```java
+SpatialMenus.of(plugin).registerCatalog("effects", Main.class, catalog -> catalog
+        .offers("effects", this::offers)                         // List<Offer>, every redraw, memory only
+        .ownedFirst()
+        .equips(this::worn, (player, id) -> { wear(player, id); return null; })
+        .unequip(player -> { takeOff(player); return null; })
+        .preview((ctx, id) -> SpatialPreview.sequence(sequenceOf(id), null))
+        .categories(ctx -> categories(), true)                    // true: "every offer" is a step
+        .favourites(this::starred, this::toggleStar)
+        .crate(() -> crates)
+        .words(ctx -> lines.catalog())                            // SpatialCatalog.Words, from the lang files
+        .values(this::values)                                     // the plugin's own %placeholders%
+        .menu(menu -> menu
+                .canOpen(this::refusal)
+                .onDiscard(ctx -> lines.discarded().send(ctx.viewer()))
+                .action("replay", SpatialContext::replay)));
+
+List<SpatialCatalog.Offer> offers(SpatialContext ctx) {
+    Player player = ctx.viewer();
+    return catalogue.stream().map(item -> {
+        SpatialEntry entry = SpatialEntry.of(item.id(), icon(item), item.name()).withSubtitle(item.rarity());
+        SpatialCatalog.Offer offer = owns(player, item)
+                ? SpatialCatalog.Offer.owned(entry).withEquipped(item.id().equals(worn(player)))
+                : SpatialCatalog.Offer.locked(entry, price(item)
+                        .map(p -> SpatialCatalog.Purchase.crate(crates, player, item.id(), item.name(), p))
+                        .orElse(null));                         // null: not for sale, drawn locked
+        return offer.withCategory(item.category());
+    }).toList();
+}
+```
+
+**What the plugin declares.**
+
+| Call | What it is |
+| --- | --- |
+| `offers(source, ctx -> List<Offer>)` | A list the layout panel or carousel with that `source` draws. The first is the main list: filtered, favoured, equipped and previewed. More than one for a look made of parts (a pattern carousel, a material grid) |
+| `Offer` | `entry` (how it is drawn), `owned`, `equipped`, `category`, `purchase`. `Offer.owned(entry)`, `Offer.locked(entry, purchase)`, `withEquipped`, `withCategory` |
+| `Purchase(id, name, price, owned, grant)` | How a part is bought, as `CosmeticPurchases.purchase` takes it; `Purchase.crate(crates, player, id, name, price)` for a crate reward |
+| `equips(worn, equip)` | One worn at a time: the saved state is `worn(player)`, the menu opens on it (on its page; nothing chosen when nothing is worn), SAVE calls `equip(player, id)` for an owned offer (a refusal line, `""` silent, `null` done) |
+| `unequip(player -> line)` / `unequip(wearing, ctx -> line)` | UNEQUIP: shown while something is worn, takes it off at once |
+| `preview((ctx, id) -> SpatialPreview)` | The try-on of the main list's chosen offer (see below) |
+| `categories(ctx -> List<Category>, all)` | The `filter` action's steps, each offer under its `category`; `all` puts every offer first, else the first category opens |
+| `favourites(starred, toggle)` | The `favourite` action stars the offer looked at (else the chosen one); the filter gains a favourites step, in catalogue order, which shows starred offers even where a plugin hides locked ones (read `SpatialCatalog.filter(ctx)`) |
+| `basket(ctx -> List<Offer>)` | The parts the draft needs and the player lacks. Default: each list whose selection is drafted, its chosen offer when not owned. A look of several parts gives its own (each part once) |
+| `crate(() -> crates)` | The `crate` button: closes the menu, opens the crate |
+| `words(ctx -> Words)` | Every word below; `new Words()` is the English. A record a lang file can nest (`@Key("catalog") SpatialCatalog.Words catalog`) |
+| `values(ctx -> Values)` | The plugin's placeholders (use this, not `menu.values`); filled first, so one may read `%catalog_save%` (an old layout's name for it) |
+| `alias(legacy, action)` | An action name an older layout wrote: `alias("primary", SpatialCatalog.SAVE)` |
+| `menu(m -> ...)` / `menu()` | The `SpatialMenu` for anything else: extra sources, `saved`/`onSave` for a multi-part draft, guards, actions |
+
+**SAVE.** The draft needs nothing bought: saved at once (`onSave`). It needs
+parts the player lacks, all for sale: SAVE reads `buy` with the total
+(`%catalog_total%`; prices in different currencies are listed `$500 + 3 gems`),
+the first click checks the player can pay (`CosmeticPurchases.check`, which
+says why not in the shop's words: no money, no economy, already owned) and arms
+CONFIRM, the second buys every part one after another through
+`CosmeticPurchases.purchase` (each charged, granted, refunded on a failed grant
+and told, as the inventory shop does) and then saves. A part that fails stops
+the rest and redraws with what the player owns now. A part nobody sells (no
+`purchase`) blocks SAVE: it reads `locked` and the status line names it.
+
+**Layout actions** it answers, unless the plugin registers the same name:
+`save`, `unequip`, `favourite`, `filter`, `crate`; `revert` is the library's.
+
+**Words**, filled in every TEXT line, title, hint and button:
+
+| Placeholder | Reads |
+| --- | --- |
+| `%catalog_save%` | `saved` / `save` / `buy` / `confirm` / `locked` |
+| `%catalog_status%` | `status-saved` / `status-unsaved` / `status-buy` / `status-confirm` / `status-locked`, with `%name%` (the offer tried), `%price%` (the total), `%count%` (parts to buy), `%part%` (the part not for sale) |
+| `%catalog_revert%`, `%catalog_unequip%` | Their label while there is something to undo or take off; blank otherwise, so a `BUTTONS` column closes up |
+| `%catalog_favourite%` | `favourite` / `unfavourite` for the offer looked at; blank when none |
+| `%catalog_filter%` | `filter` with `%category%` (`filter-all`, `filter-favourites` or the category's name) |
+| `%catalog_crate%` | `crate` with `%keys%`; blank without crates |
+| `%catalog_total%`, `%catalog_name%` | The basket's total; the chosen offer's name |
+
+An entry for sale reads `price` under it (`%price%`), and the theme's
+`locked-line` when nothing sells it.
+
+**Try-on previews.** `SpatialPreview.npc(viewer, equipment)` for armour, trims
+and skins (re-dressed in place as the draft changes); `sequence(sequence, null)`
+for a kill or hit effect on a mannequin (`preview.vanish-on-play: false` for a
+hit effect, which must not read as a death); an emote is
+`sequence(emote, viewer)`, the viewer's own skin performing it (the mannequin
+stands aside while it plays); a trail or a projectile effect is a `sequence`
+too; `item(stack)` for a shield, a banner or anything held.
+
+**A layout for it.** The KillEffect selector (`spatial/effects.yml` in
+ExyliaKillEffect) is the reference: info on the left (`footer: filter`), the
+actions on the right as one column, the preview in the middle, the offers on
+the carousel.
+
+```yaml
+  actions:
+    at: [2.15, 0.3, 0.45]
+    turn: -24
+    size: [1.55, 1.55]
+    title: '%actions_title%'
+    hint: '%catalog_status%'
+    content:
+      type: BUTTONS
+      buttons:
+        - {label: '%catalog_save%', action: save}
+        - {label: '%catalog_revert%', action: revert}
+        - {label: '%catalog_unequip%', action: unequip}
+        - {label: '%catalog_favourite%', action: favourite}
+        - {label: '%catalog_crate%', action: crate}
+    footer: {label: '%replay_label%', action: replay}
+```
+
+A look of several parts (ExyliaArmorTrims' wardrobe: pieces, a pattern carousel
+that filters to presets, a material grid) declares two `offers` lists, a
+`basket` of the halves each changed piece lacks, its own `saved`/`onSave` on
+`menu()`, and `unequip(wearing, ...)`.
+
+### Adopting it
+
+1. Ship `src/main/resources/spatial/<id>.yml` (copy KillEffect's) and call
+   `registerCatalog(id, Main.class, ...)` on enable.
+2. `offers`: one `Offer` per thing sold, built from memory (cache icons).
+   Owned ones `Offer.owned(...)`, the worn one `.withEquipped(true)`, the rest
+   `Offer.locked(entry, purchase-or-null)` with the plugin's own shop price.
+3. `equips` + `unequip` for one worn at a time; `preview` for the try-on.
+4. `categories`, `favourites`, `crate` where the classic menu has them.
+5. `words` from the lang files (en plus every translation), `values` for the
+   info panel; `menu(m -> m.canOpen(...))` with the same checks the command
+   makes (a placed spot opens straight from the library).
+6. Call `menus.refresh(player)` when ownership changes outside the menu (crate
+   `onChange`, the store's listener) and `menus.refreshAll()` in the reload step.
 
 ## Opening and closing
 
@@ -525,20 +685,23 @@ A default wardrobe is about 120 displays for one viewer, sent once. A poll is a
 ray against each hotspot (a few dozen dot products) every 2 ticks. A `refresh()`
 re-reads the sources and sends only the slots whose entries changed; a hover
 sends a few poses and restyles, and redraws only the panel lines that now read
-something else. Idle icons are client-interpolated loops: a carousel icon sends
+something else. The plugin's `values` are read once per redraw, every label filling
+from that one reading (since 1.416.0; before, once per label). Idle icons are client-interpolated loops: a carousel icon sends
 a pose every 0.6 s, a panel icon one every 2 s (about 10 + 10 packets a second
 for a default wardrobe's 6 plinths and 20 panel icons). Edit mode redraws the whole menu per notch, for the
 admin alone.
 
 ## Source and tests
 
-- Public: `spatial/` — `SpatialMenus`, `SpatialMenu`, `SpatialContext`,
+- Public: `spatial/` — `SpatialMenus`, `SpatialMenu`, `SpatialContext`, `SpatialCatalog`,
   `SpatialEntry`, `SpatialPreview`, `SpatialLayout`, `SpatialTheme`,
   `SpatialSpots`, `SpatialInput`, `SpatialPointer`, `Hotspot`, `SpatialClick`.
 - Package-private: `MenuSession` (drawing, diffing, preview), `EditMode`.
 - Internal: `spatial/internal/Geometry` (turned panels, carousel slots, pages,
   diffs, glass sizing, colour mixing, the readability floor and ellipsis cuts),
-  `spatial/internal/Drafts` (drafts against the saved state).
+  `spatial/internal/Drafts` (drafts against the saved state),
+  `spatial/internal/Confirm` (confirm in place), `spatial/internal/Catalogs`
+  (basket totals, owned-first order, the filter cycle).
 - Lifecycle: `SpatialMenus.init` in `ExyliaLib.onEnable` (the input listener and the
   hiding rule), `SpatialMenus.release(plugin)` first in `onPluginDisable`,
   `releaseAll` in `onDisable`.
@@ -550,6 +713,9 @@ admin alone.
   `spatial/internal/ReadabilityTest` (the floor's angle, the default theme readable
   at 3.6 blocks, ellipsis cuts keeping markup, drafts against the saved state),
   `spatial/SpatialLayoutTest` (the default round-trips, a shipped layout keeps its
-  values and gains the missing keys), `spatial/DefaultLayoutOverlapTest` (the
+  values and gains the missing keys, a `BUTTONS` column reads and a single `BUTTON`
+  still does), `spatial/internal/CatalogTest` (totals in one currency only, owned
+  first, the filter cycle, confirm arming, re-arming on a new subject, running out
+  and disarming, button columns centred), `spatial/DefaultLayoutOverlapTest` (the
   default layout seen front-on from the eyes: no two pieces' outlines overlap,
   all inside a 70° vertical view).

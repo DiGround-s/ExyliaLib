@@ -262,6 +262,48 @@ public final class SpatialMenus {
         return session != null && session.menus == this ? Optional.of(session) : Optional.empty();
     }
 
+    /**
+     * Redraws the player's menu, if this plugin's is open: a purchase or an unlock that finished, a
+     * change made from a command. Safe from any thread.
+     *
+     * @since 1.416.0
+     */
+    public void refresh(@NotNull Player player) {
+        MenuSession session = OPEN.get(player.getUniqueId());
+        if (session != null && session.menus == this) run(player, () -> {
+            if (!session.isClosed()) session.refresh();
+        });
+    }
+
+    /**
+     * Redraws every menu of this plugin's that is open: after a reload, so a catalogue, a price or a
+     * word that changed shows at once rather than on the next click. Safe from any thread.
+     *
+     * @since 1.416.0
+     */
+    public void refreshAll() {
+        for (MenuSession session : OPEN.values()) {
+            if (session.menus == this) refresh(session.viewer);
+        }
+    }
+
+    /**
+     * Registers a cosmetic catalogue: a {@link SpatialCatalog} declared on a new menu, its layout
+     * {@code spatial/<id>.yml} shipped next to {@code anchor} as {@link #register(String, Class, Consumer)}
+     * reads it.
+     *
+     * @since 1.416.0
+     */
+    public @NotNull SpatialMenus registerCatalog(@NotNull String id, @NotNull Class<?> anchor,
+                                                 @NotNull Consumer<SpatialCatalog> catalog) {
+        Objects.requireNonNull(catalog, "catalog");
+        return register(id, anchor, menu -> {
+            SpatialCatalog declared = new SpatialCatalog(this, menu);
+            catalog.accept(declared);
+            declared.install();
+        });
+    }
+
     /** Whether a player has any spatial menu open, whichever plugin opened it. */
     public static boolean inMenu(@NotNull Player player) {
         return OPEN.containsKey(player.getUniqueId());

@@ -34,7 +34,8 @@ public record SpatialLayout(
         @Comment("The look. Every key has the library's default; change only what you want different.")
         SpatialTheme theme,
         @Comment("The panels, by a name of your choosing. type: NONE, TEXT (lines), LIST (icon, name and")
-        @Comment("subtitle rows), GRID (columns x rows of icons) or BUTTON (label and action). source: the list")
+        @Comment("subtitle rows), GRID (columns x rows of icons), BUTTON (label and action) or BUTTONS (a column of")
+        @Comment("buttons, each a label and an action; one whose label reads blank is left out). source: the list")
         @Comment("the plugin fills it from. footer: an optional button along the bottom.")
         Map<String, Panel> panels,
         @Comment("The piece in the middle, on a slowly turning pedestal. turn-speed in degrees a second.")
@@ -146,14 +147,24 @@ public record SpatialLayout(
         }
     }
 
-    /** What a panel shows. */
+    /**
+     * What a panel shows. {@code BUTTONS} (since 1.416.0) stacks {@code buttons} top to bottom in the
+     * panel's content area; a button whose label reads blank once filled is left out and the rest close
+     * up, so a plugin hides one (REVERT with nothing to revert) by giving its placeholder no words.
+     */
     public record Content(Type type, String source, int columns, int rows, List<String> lines, String label,
-                          String action) {
+                          String action, List<Footer> buttons) {
 
-        public enum Type { NONE, TEXT, LIST, GRID, BUTTON }
+        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS }
 
         public Content() {
-            this(Type.NONE, "", 1, 1, List.of(), "", "");
+            this(Type.NONE, "", 1, 1, List.of(), "", "", List.of());
+        }
+
+        /** Every content type but {@code BUTTONS}: the shape layouts had before 1.416.0. */
+        public Content(Type type, String source, int columns, int rows, List<String> lines, String label,
+                       String action) {
+            this(type, source, columns, rows, lines, label, action, List.of());
         }
 
         public Content {
@@ -164,10 +175,10 @@ public record SpatialLayout(
             lines = lines == null ? List.of() : List.copyOf(lines);
             label = label == null ? "" : label;
             action = action == null ? "" : action;
+            buttons = buttons == null ? List.of() : List.copyOf(buttons);
         }
     }
 
-    /** A button along a panel's bottom; an empty label for none. */
     public record Footer(String label, String action) {
         public Footer() {
             this("", "");

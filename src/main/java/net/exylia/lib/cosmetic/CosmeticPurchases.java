@@ -11,6 +11,7 @@ import net.exylia.lib.util.crate.PluginCrates;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -240,6 +241,19 @@ public final class CosmeticPurchases {
                 refund.run();
             }
         });
+    }
+
+    /**
+     * What would stop a purchase before any money moves, told to the player as a purchase would tell
+     * it: already owned, no economy for the currency, or not enough money. {@code null} when it may go
+     * on. For a menu that asks in place (a basket's total, before its CONFIRM is armed); call it on the
+     * player's thread.
+     *
+     * @since 1.416.0
+     */
+    public static @Nullable Result check(@NotNull Player player, @NotNull String itemName, @NotNull Price price,
+                                         @NotNull BooleanSupplier owned) {
+        return precheck(player, itemName, price, owned);
     }
 
     /** What stops a purchase before any money moves, already told to the player; {@code null} to go on. */

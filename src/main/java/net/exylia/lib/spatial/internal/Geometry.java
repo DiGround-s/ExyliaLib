@@ -202,6 +202,24 @@ public final class Geometry {
         return new double[]{(top + bottom) / 2, Math.max(0.05, top - bottom)};
     }
 
+    /**
+     * The middles of {@code count} buttons stacked top to bottom in a content area centred on
+     * {@code middle} and {@code height} tall: evenly pitched, the pitch never above 0.24 so a short
+     * column sits in the middle rather than spread to the edges.
+     */
+    public static double[] stack(double middle, double height, int count) {
+        double pitch = Math.min(height / Math.max(1, count), 0.24);
+        double[] ups = new double[Math.max(0, count)];
+        for (int i = 0; i < count; i++) ups[i] = middle + ((count - 1) / 2.0 - i) * pitch;
+        return ups;
+    }
+
+    /** How tall each of {@link #stack}'s buttons is: its pitch less a gap, never under 0.1. */
+    public static double stackHeight(double height, int count) {
+        double pitch = Math.min(height / Math.max(1, count), 0.24);
+        return Math.max(0.1, pitch * 0.82);
+    }
+
     /** The centre of cell {@code index} of a grid {@code columns} wide filling {@code width} by {@code height}. */
     public static double[] cell(int index, int columns, int rows, double width, double height) {
         int column = index % columns;

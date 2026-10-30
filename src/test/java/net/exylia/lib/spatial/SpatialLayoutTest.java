@@ -79,4 +79,30 @@ class SpatialLayoutTest {
         assertEquals("{error}🔒", layout.theme().lockedMarker(), "a locked grid cell is marked by default");
         assertTrue(yaml.contains("locked-marker"), "a layout written before 1.415.0 gains the locked marker: " + yaml);
     }
+
+    @Test
+    void aColumnOfButtonsReadsAndALayoutBeforeItStillReads() throws Exception {
+        Path file = folder.resolve("spatial/shop.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+                title: '{primary}&lSHOP'
+                panels:
+                  actions:
+                    at: [2.15, 0.3, 0.45]
+                    size: [1.55, 1.55]
+                    content:
+                      type: BUTTONS
+                      buttons:
+                        - {label: '%catalog_save%', action: save}
+                        - {label: '%catalog_revert%', action: revert}
+                  old: {at: [0, 0, 0], size: [1, 1], content: {type: BUTTON, label: 'GO', action: go}}
+                """);
+        SpatialLayout layout = Configs.define(plugin, "spatial/shop", SpatialLayout.class).load().get();
+        SpatialLayout.Content content = layout.panel("actions").content();
+        assertEquals(SpatialLayout.Content.Type.BUTTONS, content.type());
+        assertEquals(List.of(new SpatialLayout.Footer("%catalog_save%", "save"),
+                new SpatialLayout.Footer("%catalog_revert%", "revert")), content.buttons());
+        assertEquals("go", layout.panel("old").content().action(), "a single BUTTON is read as before");
+        assertTrue(layout.panel("old").content().buttons().isEmpty());
+    }
 }
