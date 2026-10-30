@@ -2,6 +2,8 @@ package net.exylia.lib.placeholder.internal;
 
 import com.sun.management.OperatingSystemMXBean;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.session.Claim;
+import net.exylia.lib.session.Sessions;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -93,6 +95,12 @@ public final class BuiltIn {
                 .add("x", request -> request.hasViewer() ? request.viewer().getLocation().getBlockX() : null)
                 .add("y", request -> request.hasViewer() ? request.viewer().getLocation().getBlockY() : null)
                 .add("z", request -> request.hasViewer() ? request.viewer().getLocation().getBlockZ() : null)
+                // What the reader is doing, in the words of the plugin holding
+                // them ("Event", "duel", "FFA"), or nothing while they are free.
+                .add("activity", request -> request.hasViewer()
+                        ? Sessions.holder(request.viewer()).map(Claim::kind).orElse("")
+                        : null)
+                .add("busy", request -> request.hasViewer() ? !Sessions.isFree(request.viewer()) : null)
                 .register();
 
         Placeholders.group(plugin, "target")
@@ -105,6 +113,10 @@ public final class BuiltIn {
                 .describe("Information about the server")
                 .add("online", request -> Bukkit.getOnlinePlayers().size())
                 .add("max", request -> Bukkit.getMaxPlayers())
+                // %server_playing% counts every player some plugin holds;
+                // %server_playing_<name>% only the ones held by that plugin or
+                // in that activity: %server_playing_exyliaduels%, %server_playing_ffa%.
+                .add("playing", request -> playing(String.join(" ", request.args())))
                 .add("tps", request -> round(tps()))
                 .add("mspt", request -> millis(Bukkit.getAverageTickTime()))
                 .add("cpu_system", request -> {
@@ -122,6 +134,24 @@ public final class BuiltIn {
                     return max <= 0 ? 0 : (int) Math.round(100.0 * used() / max);
                 })
                 .register();
+    }
+
+    /**
+     * How many players are held, by anyone when {@code name} is blank.
+     *
+     * <p>A name matches a claim's plugin or its activity, ignoring case, with
+     * underscores and spaces the same: a placeholder name has no spaces, so
+     * {@code ffa_kit_editor} has to reach the activity "FFA kit editor". The
+     * name arrives split on underscores and rejoined with spaces.
+     */
+    private static long playing(String name) {
+        if (name.isBlank()) {
+            return Sessions.all().size();
+        }
+        return Sessions.all().stream()
+                .filter(claim -> claim.plugin().equalsIgnoreCase(name)
+                        || claim.kind().replace('_', ' ').equalsIgnoreCase(name))
+                .count();
     }
 
     /**

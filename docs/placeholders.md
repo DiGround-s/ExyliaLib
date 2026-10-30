@@ -169,10 +169,16 @@ Placeholders.apply(raw, player, Map.of("class", "Warrior", "time", "3"));
 Registered by the library itself:
 
 - `player_*`: `name`, `displayname`, `uuid`, `world`, `health`, `level`,
-  `food`, `gamemode`, `ping`, `x`, `y`, `z`.
+  `food`, `gamemode`, `ping`, `x`, `y`, `z`, `activity`, `busy`. `activity` is
+  the session (`net.exylia.lib.session`) the player is in, as its plugin names it
+  (`Event`, `duel`, `FFA`), or empty while they are free; `busy` is whether
+  any plugin holds them.
 - `target_*`: `name`, `uuid`.
-- `server_*`: `online`, `max`, `tps`, `mspt`, `cpu_system`, `cpu_process`,
-  `ram_used`, `ram_max`, `ram_percent`. `mspt` is the average tick time in
+- `server_*`: `online`, `max`, `playing`, `playing_<name>`, `tps`, `mspt`, `cpu_system`, `cpu_process`,
+  `ram_used`, `ram_max`, `ram_percent`. `playing` counts the players some
+  plugin holds in a session; `playing_<name>` only those held by that plugin
+  or in that activity, ignoring case, with `_` for a space
+  (`%server_playing_exyliaduels%`, `%server_playing_ffa_kit_editor%`). `mspt` is the average tick time in
   milliseconds, out of the fifty a tick has. The two loads are whole
   percentages, and both read `0` on a JVM without the extended operating
   system bean and on the first call, which is taken before there are two
