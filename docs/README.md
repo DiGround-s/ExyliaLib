@@ -60,6 +60,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
 | [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders, lines under items, chest lids and maps held only on screen — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0, `ChestLids` 1.272.0, `HeldMaps` 1.352.0) |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
+| [Hooks](hooks.md) | Other plugins' mechanics turned off for a player in a minigame: skill experience, abilities and combat stats of AuraSkills and mcMMO, with nothing they store touched | 1.409.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server; and wiping tables (1.76.0) | 1.36.0 |

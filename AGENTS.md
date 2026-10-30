@@ -1671,6 +1671,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
 | interaction | `interaction/Interactions`, `Interaction`, `InteractionToken`, `Click` | — | [docs/interactions.md](docs/interactions.md) | 1.291.0 |
 | client | `client/Clients`, `PluginClients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (teams 1.36.0, ownership 1.48.0) |
+| hook | `hook/skill/SkillHooks` | `hook/skill/internal/` (`SkillHookRuntime`) | [docs/hooks.md](docs/hooks.md) | 1.409.0 |
 | clan | `clan/Clans`, `Clan`, `ClanBridge` | `clan/internal/` | [docs/clan.md](docs/clan.md) | 1.8.0 |
 | util (potions) | `util/Effects`, `util/EffectSnapshot` (1.140.0) | — | [docs/util.md](docs/util.md) | 1.9.0 |
 | util (cooldowns) | `util/Cooldowns`, `CooldownScope`, `PluginCooldowns`, `ItemCooldowns` | `util/internal/CooldownStore` | [docs/cooldowns.md](docs/cooldowns.md) | 1.10.0 |
