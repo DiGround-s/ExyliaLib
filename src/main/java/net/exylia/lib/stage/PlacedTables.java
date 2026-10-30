@@ -176,6 +176,8 @@ public final class PlacedTables {
     private final File file;
     private final double ahead;
     private final Hooks hooks;
+    /** What every hologram id of these tables starts with, so two sets in one plugin never share one. */
+    private final String hologramPrefix;
     private final Map<String, Placed> tables = new ConcurrentHashMap<>();
     private TableSetup setup;
     /** Who sits in each seat of a table someone sits at; a free seat is {@code null}. */
@@ -188,10 +190,23 @@ public final class PlacedTables {
      * @param ahead    how far in front of the spot the hologram stands, in blocks
      */
     public PlacedTables(@NotNull Plugin plugin, @NotNull String fileName, double ahead, @NotNull Hooks hooks) {
+        this(plugin, fileName, ahead, hooks, "table");
+    }
+
+    /**
+     * Loads the tables and puts their holograms up, their hologram ids under {@code namespace}
+     * ({@code <namespace>:<id>}) rather than {@code table:}, for a second set of places in a plugin that
+     * already has tables.
+     *
+     * @since 1.408.0
+     */
+    public PlacedTables(@NotNull Plugin plugin, @NotNull String fileName, double ahead, @NotNull Hooks hooks,
+                        @NotNull String namespace) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.file = new File(plugin.getDataFolder(), fileName);
         this.ahead = ahead;
         this.hooks = Objects.requireNonNull(hooks, "hooks");
+        this.hologramPrefix = Objects.requireNonNull(namespace, "namespace") + ":";
         load();
         refresh();
     }
@@ -543,12 +558,12 @@ public final class PlacedTables {
         }
     }
 
-    private static String hologramId(String id) {
-        return "table:" + id;
+    private String hologramId(String id) {
+        return hologramPrefix + id;
     }
 
-    private static String seatHologramId(String id, int seat) {
-        return "table:" + id + ":seat:" + seat;
+    private String seatHologramId(String id, int seat) {
+        return hologramPrefix + id + ":seat:" + seat;
     }
 
     /** Takes a table's seat holograms down, before its seats change or it goes. */

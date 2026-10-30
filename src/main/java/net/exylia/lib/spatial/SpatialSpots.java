@@ -38,10 +38,15 @@ public final class SpatialSpots {
     private final PlacedTables places;
 
     SpatialSpots(SpatialMenus menus) {
+        // Its own hologram namespace: a plugin with tables of its own may give one the same id as a spot.
         this.places = new PlacedTables(menus.plugin(), "spatial/spots.yml", AHEAD, new PlacedTables.Hooks() {
             @Override
             public @NotNull HologramConfig look(@NotNull PlacedTables.Placed table) {
-                return PlacedTables.look(1.2);
+                // Every viewer their own copy: placeholders in the lines resolve per viewer.
+                HologramConfig c = PlacedTables.look(1.2);
+                return new HologramConfig(c.enabled(), c.type(), c.lines(), c.item(), c.block(), true, c.viewDistance(),
+                        c.offsetX(), c.offsetY(), c.offsetZ(), c.properties(), c.config(), c.click(), c.pages(),
+                        c.pageInterval());
             }
 
             @Override
@@ -54,7 +59,7 @@ public final class SpatialSpots {
             public void clicked(@NotNull Player player, @NotNull PlacedTables.Placed table) {
                 menus.open(player, table.game(), table.id());
             }
-        });
+        }, "spatial-spot");
     }
 
     private static Spot spot(PlacedTables.Placed placed) {

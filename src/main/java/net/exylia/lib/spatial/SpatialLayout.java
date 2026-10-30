@@ -38,6 +38,7 @@ public record SpatialLayout(
         @Comment("the plugin fills it from. footer: an optional button along the bottom.")
         Map<String, Panel> panels,
         @Comment("The piece in the middle, on a slowly turning pedestal. turn-speed in degrees a second.")
+        @Comment("vanish-on-play: an effect's mannequin disappears while the effect plays, so a kill reads as a death.")
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
@@ -56,14 +57,14 @@ public record SpatialLayout(
 
     private static Map<String, Panel> defaultPanels() {
         Map<String, Panel> panels = new LinkedHashMap<>();
-        panels.put("header", new Panel(List.of(0.0, 1.55, 0.0), 0, List.of(4.6, 0.34), "{primary}&lWARDROBE",
+        panels.put("header", new Panel(List.of(0.0, 1.7, 0.0), 0, List.of(4.6, 0.34), "{primary}&lWARDROBE",
                 "{muted}Sneak to leave", new Content(), new Footer()));
-        panels.put("left", new Panel(List.of(-2.05, 0.45, 0.45), 24, List.of(1.35, 1.55), "{secondary}&lCATEGORIES", "",
+        panels.put("left", new Panel(List.of(-2.05, 0.3, 0.45), 24, List.of(1.35, 1.55), "{secondary}&lCATEGORIES", "",
                 new Content(Content.Type.LIST, "categories", 1, 4, List.of(), "", ""), new Footer()));
-        panels.put("right", new Panel(List.of(2.05, 0.45, 0.45), -24, List.of(1.35, 1.55), "{secondary}&lOPTIONS", "",
+        panels.put("right", new Panel(List.of(2.05, 0.3, 0.45), -24, List.of(1.35, 1.55), "{secondary}&lOPTIONS", "",
                 new Content(Content.Type.GRID, "options", 3, 4, List.of(), "", ""),
                 new Footer("{highlight}&lAPPLY", "apply")));
-        panels.put("focus", new Panel(List.of(0.0, 0.95, 0.2), 0, List.of(1.6, 0.5), "", "",
+        panels.put("focus", new Panel(List.of(0.0, 1.05, 0.2), 0, List.of(1.6, 0.42), "", "",
                 new Content(Content.Type.TEXT, "", 1, 1, List.of("{letters}&l%choice%", "{info}%detail%"), "", ""),
                 new Footer()));
         return panels;
@@ -177,10 +178,23 @@ public record SpatialLayout(
         }
     }
 
-    /** The piece in the middle. */
-    public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale) {
+    /**
+     * The piece in the middle.
+     *
+     * @param vanishOnPlay whether an effect preview's mannequin disappears while the effect plays (its
+     *                     length, or 3 s for an endless or very long one), so a kill effect reads as a
+     *                     death; it is back before the effect plays again. Since 1.408.0.
+     */
+    public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay) {
         public Preview() {
-            this(List.of(0.0, -0.55, 0.6), 12, true, 1.0);
+            // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
+            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true);
+        }
+
+        /** @deprecated since 1.408.0; use the constructor with {@code vanishOnPlay}. */
+        @Deprecated
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale) {
+            this(at, turnSpeed, pedestal, scale, true);
         }
 
         public Preview {
@@ -189,7 +203,7 @@ public record SpatialLayout(
         }
 
         public Preview moved(double across, double up, double forward) {
-            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale);
+            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay);
         }
     }
 

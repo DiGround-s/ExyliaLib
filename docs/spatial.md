@@ -21,7 +21,9 @@ menus.register("trims", menu -> menu
         .preview(ctx -> SpatialPreview.npc(ctx.viewer(), trying(ctx))) // the player wearing what they try
         .onSelect("patterns", (ctx, entry) -> ctx.set("pattern", entry.name()))
         .action("apply-set", ctx -> { apply(ctx); ctx.refresh(); })
-        .action("clear", ctx -> { clear(ctx); ctx.refresh(); }));
+        .action("clear", ctx -> { clear(ctx); ctx.refresh(); })
+        .permission("trims.wardrobe")                                   // since 1.408.0
+        .canOpen(player -> inCombat(player) ? lines.notNow() : null));  // null opens; a line refuses
 
 menus.open(player, "trims");                 // in front of the player
 menus.open(player, "trims", "trims-1");      // at a spot an admin placed
@@ -37,6 +39,20 @@ the file by itself. A plugin that ships no file gets the library's wardrobe.
 `Configs.reloadAll(plugin)` reloads layouts with the rest; the next open uses
 them.
 
+`register(id, definition)` reads the jar through `plugin.getResource`, which
+sees nothing under the Lukittu loader. A plugin loaded that way (or any plugin,
+it costs nothing) passes a class packaged with the layout:
+`menus.register("trims", MyPlugin.class, menu -> ...)` (since 1.408.0). The file
+is then installed and kept up to date through [BundledFiles](config.md), the
+way `Languages` reads lang files: written when missing, new keys added, changed
+defaults offered in `/exylialib updates`.
+
+`permission(node)` and `canOpen(player -> refusal)` guard every open but edit
+mode, from a command or a placed spot alike, before the player is walked
+anywhere. A refusal plays the theme's `error-sound`; `canOpen`'s line (unless
+blank) is sent to them, so it comes from the plugin's lang files. `null` lets
+them in.
+
 `SpatialEntry` is an immutable record: `id`, `icon` (an `ItemStack`) or `model`
 (any `DisplayModel`), `name`, `subtitle`, `state` and an optional `price`, with
 `of(id, icon, name)` and `with*` withers. Sources run on the viewer's thread on
@@ -45,7 +61,8 @@ every redraw: read memory, never a database. Equal entries are not redrawn.
 `SpatialContext` is what every callback is handed: `viewer()`, `menu()`,
 `get/set(key)` (the menu's own state, gone when it closes; every key is also a
 `%key%` placeholder in TEXT lines), `page(source)` / `page(source, n)`,
-`selected(source)` / `select(source, id)`, `refresh()` and `close()`.
+`selected(source)` / `select(source, id)`, `refresh()`, `replay()` (since
+1.408.0: plays the preview again from the start, now) and `close()`.
 `menus.context(player)` finds the open one from outside (a purchase that
 finished).
 
@@ -61,15 +78,15 @@ hide-others: true
 freeze: true
 theme: {}                 # SpatialTheme; every key defaults to the library's look
 panels:
-  header:    {at: [0, 1.55, 0], size: [4.6, 0.34], title: '{primary}&lARMOR TRIMS', hint: '{muted}Sneak to leave'}
-  pieces:    {at: [-2.05, 0.45, 0.45], turn: 24, size: [1.35, 1.55], title: '{secondary}&lPIECES',
+  header:    {at: [0, 1.7, 0], size: [4.6, 0.34], title: '{primary}&lARMOR TRIMS', hint: '{muted}Sneak to leave'}
+  pieces:    {at: [-2.05, 0.3, 0.45], turn: 24, size: [1.35, 1.55], title: '{secondary}&lPIECES',
               content: {type: LIST, source: pieces, rows: 4}, footer: {label: '{error}✘ CLEAR', action: clear}}
-  materials: {at: [2.05, 0.45, 0.45], turn: -24, size: [1.35, 1.55], title: '{secondary}&lMATERIAL',
+  materials: {at: [2.05, 0.3, 0.45], turn: -24, size: [1.35, 1.55], title: '{secondary}&lMATERIAL',
               content: {type: GRID, source: materials, columns: 3, rows: 4},
               footer: {label: '{highlight}&lAPPLY TO SET', action: apply-set}}
-  focus:     {at: [0, 0.95, 0.2], size: [1.6, 0.5],
+  focus:     {at: [0, 1.05, 0.2], size: [1.6, 0.42],
               content: {type: TEXT, lines: ['{letters}&l%pattern%', '{info}Editing %piece%']}}
-preview:  {at: [0, -0.55, 0.6], turn-speed: 12, pedestal: true, scale: 1.0}
+preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true}
 carousel: {source: patterns, at: [0, -1.05, 0.8], slots: 6, spacing: 0.62, centre-gap: 1.3, curve: 0.15}
 ```
 
@@ -78,14 +95,18 @@ Coordinates are blocks on the board, a plane `distance` ahead of the eyes:
 `[across, up, forward]`, sizes `[width, height]`. `turn` is how many degrees a
 panel is turned towards the viewer round its own vertical axis: positive on the
 left, negative on the right. The defaults keep everything inside a 70° vertical
-view at 3.4 blocks.
+view at 3.4 blocks, and nothing in front of anything else as the eyes see it
+(nearer pieces look larger): the side panels' outer corners stay under the
+header, the body on the preview (0.8 scale, level with the focus text, not
+nearer) keeps its head under the focus, and the pedestal clears the plinths.
+Since 1.408.0; a layout written before keeps its own values.
 
 ## Components
 
 | Where | What it draws |
 | --- | --- |
 | Panel | Glass, a darker backing sheet, the accent bar along its top, its `title` (bold, shadowed, fitted) and `hint`. A panel with `type: NONE` is a header: title in the middle, hint at its right end |
-| `TEXT` | `lines`, centred; `%key%` from the menu's state and `values(...)`; rewritten in place when they read something else |
+| `TEXT` | `lines`, centred; `%key%` from the menu's state and `values(...)`; drawn again, fitted, when they read something else |
 | `LIST` | `rows` rows of icon, name and state line; the row under the crosshair lights with a bar, the chosen one carries a `{highlight}` marker that glides between rows |
 | `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid |
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
@@ -100,6 +121,38 @@ Hovering grows an item ×`hover-grow` with a 120 ms glide and outlines it in
 cell gets `equipped-marker`; `OWNED` reads its subtitle or `owned-line`.
 `SELECTED` marks the entry chosen when the menu opens.
 
+Every word the menu draws is live: TEXT lines, panel titles and hints, BUTTON
+and footer labels are filled again on every `refresh()`, and only a label that
+now reads something else is drawn again (since 1.408.0; before, all but TEXT
+lines kept what they read when drawn).
+
+## Words and translation
+
+Since 1.408.0 every theme line is filled like a title: the plugin's `values`,
+then the menu's state as `%key%`. That covers `locked-line`, `owned-line`,
+`equipped-line` and `equipped-marker` (which also read the entry's `%name%`,
+`%subtitle%` and `%price%`), `page-line`, the arrows, `empty-line`, and the leave
+item's `leave-name` and `leave-lore`. To translate them per viewer, write a
+placeholder in the layout and give it from the plugin's lang files:
+
+```yaml
+theme:
+  locked-line: '%wardrobe_locked%'
+  leave-name: '%wardrobe_leave%'
+```
+
+```java
+.values(ctx -> Values.of().put("wardrobe_locked", lines.locked()).put("wardrobe_leave", lines.leave()))
+```
+
+No second hook: `values` already runs per viewer on every redraw. An entry's
+own `price` still wins over `locked-line`.
+
+A placed spot's hologram (`spot-lines`, `%title%` the layout's `title`) has no
+open menu to read `values` from: each viewer gets their own copy, so a
+placeholder registered with [Placeholders](placeholders.md)
+(`%myplugin_wardrobe_title%`) resolves for whoever looks at it.
+
 The mouse wheel pages the list or grid under the crosshair, or the carousel
 anywhere else; the carousel's arrows page it too. Pages wrap round.
 
@@ -107,6 +160,16 @@ Previews: `SpatialPreview.npc(player)` (their skin, wearing what they wear),
 `npc(player, equipment)` (re-dressed in place when only the equipment changes),
 `item(stack)`, `sequence(sequence, skin)` (a mannequin with the effect played on
 it again and again, for the viewer alone: a kill effect seen for real), `none()`.
+
+An effect is played `by(viewer)` with no target, as the previews'
+[mannequin mode](previews.md) does: `{victim}` falls back to the viewer, so an
+`[NPC] {victim}` line has a body, and every `[RAGDOLL]` line wears the
+mannequin's skin (`skin`, or the default skin for `null`); a `[POTION]` or a
+victim's title never lands on anyone. With `preview.vanish-on-play` (default
+true) the mannequin is taken down while the effect plays (its length, or 3 s for
+an endless or very long one), as the previews' `vanish-on-hit`, so a kill reads
+as a death; it stands again at least a second before the next play. Set it to
+false for hit effects. `ctx.replay()` plays it again at once.
 An NPC lives two minutes at most; the menu brings a fresh one before that.
 
 ## Opening and closing
@@ -166,9 +229,11 @@ menus.spots().all(); menus.spots().get(id); menus.spots().nextId("trims");
 ```
 
 Spots live in `plugins/<Plugin>/spatial/spots.yml` (built on
-`PlacedTables`). Each shows a small clickable hologram 1.6 blocks ahead of it
+`PlacedTables`). Their holograms are `spatial-spot:<id>` (since 1.408.0; before,
+`table:<id>`, which a plugin's own table of the same id took over). Each shows a small clickable hologram 1.6 blocks ahead of it
 (`spot-lines`); clicking it walks the player onto the spot (no countdown) and
-opens the menu there, facing the way the spot faces. They stay where they are
+opens the menu there, facing the way the spot faces, once the menu's
+`permission` and `canOpen` let them. They stay where they are
 when it closes. The holograms go up when a menu is registered and a spots file
 exists, or on the first `spots()` call.
 
@@ -288,4 +353,6 @@ admin alone.
   sizing), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
   cell picking and the gap, hover reported once, wheel wrap),
   `spatial/SpatialLayoutTest` (the default round-trips, a shipped layout keeps its
-  values and gains the missing keys).
+  values and gains the missing keys), `spatial/DefaultLayoutOverlapTest` (the
+  default layout seen front-on from the eyes: no two pieces' outlines overlap,
+  all inside a 70° vertical view).

@@ -104,6 +104,10 @@ tables.release(id, player.getUniqueId());
 tables.remove(id); tables.all(); tables.of(player); tables.refresh(); tables.close();
 ```
 
+Its holograms are `table:<id>`. A second set of places in the same plugin passes
+its own namespace, `new PlacedTables(plugin, file, ahead, hooks, "spot")`, so ids
+never collide (since 1.408.0; spatial menus' spots use `spatial-spot`).
+
 A table game skips the `Enclosure` (the point is to be seen) and confines the player
 to a small square at the spot with `Movement#confine`.
 

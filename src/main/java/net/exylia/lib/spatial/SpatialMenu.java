@@ -1,6 +1,7 @@
 package net.exylia.lib.spatial;
 
 import net.exylia.lib.text.Values;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,6 +41,8 @@ public final class SpatialMenu {
     @Nullable Function<SpatialContext, Values> values;
     @Nullable Consumer<SpatialContext> onOpen;
     @Nullable Consumer<SpatialContext> onClose;
+    @Nullable String permission;
+    @Nullable Function<Player, String> guard;
 
     SpatialMenu(String id) {
         this.id = id;
@@ -73,9 +76,39 @@ public final class SpatialMenu {
         return this;
     }
 
-    /** Placeholders for TEXT lines and titles, on top of the menu's state; read on every redraw. */
+    /**
+     * Placeholders for every word the menu draws, on top of the menu's state; read on every redraw:
+     * TEXT lines, titles, hints, button and footer labels, and the theme's lines (locked, owned,
+     * equipped, page, empty, arrows, the leave item's name and lore). Writing {@code %key%} in the
+     * layout and giving {@code key} here is how a plugin translates them per viewer.
+     */
     public @NotNull SpatialMenu values(@Nullable Function<SpatialContext, Values> values) {
         this.values = values;
+        return this;
+    }
+
+    /**
+     * The permission a player needs to open it, from a command or a placed spot alike; {@code null} for
+     * none. Without it they hear the theme's {@code error-sound} and nothing opens. Edit mode is not
+     * checked: it is the plugin's admin command that decides who edits.
+     *
+     * @since 1.408.0
+     */
+    public @NotNull SpatialMenu permission(@Nullable String permission) {
+        this.permission = permission == null || permission.isBlank() ? null : permission;
+        return this;
+    }
+
+    /**
+     * Asked on the player's thread before it opens, after the permission: {@code null} lets them in;
+     * anything else refuses, with the theme's {@code error-sound}, and is sent to them as a message
+     * (colours and palette tokens allowed) unless it is blank. Their own reason, from the plugin's lang
+     * files: {@code player -> busy(player) ? lines.busy() : null}.
+     *
+     * @since 1.408.0
+     */
+    public @NotNull SpatialMenu canOpen(@Nullable Function<Player, String> guard) {
+        this.guard = guard;
         return this;
     }
 

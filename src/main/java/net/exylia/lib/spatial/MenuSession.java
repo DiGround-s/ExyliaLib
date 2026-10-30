@@ -11,6 +11,8 @@ import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.Npcs;
+import net.exylia.lib.ragdoll.RagdollModel;
+import net.exylia.lib.ragdoll.internal.SkinCache;
 import net.exylia.lib.spatial.internal.Geometry;
 import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
@@ -49,6 +51,9 @@ final class MenuSession implements SpatialContext {
     private static final double EYES = 1.62;
     private static final long HOVER_MILLIS = 120L;
     private static final long GLIDE_MILLIS = 180L;
+    /** How long a mannequin is gone for an effect with no length, an endless one or a very long one. */
+    private static final long VANISH_FALLBACK_MILLIS = 3000L;
+    private static final long VANISH_MAX_MILLIS = 10_000L;
 
     final SpatialMenus menus;
     final SpatialMenu definition;
@@ -142,6 +147,11 @@ final class MenuSession implements SpatialContext {
         if (closed) return;
         for (Part part : parts) part.refresh();
         if (preview != null) preview.update(definition.preview == null ? SpatialPreview.none() : definition.preview.apply(this));
+    }
+
+    @Override
+    public void replay() {
+        if (!closed && preview != null) preview.replay();
     }
 
     @Override
@@ -269,8 +279,7 @@ final class MenuSession implements SpatialContext {
     /** Text whose left edge is {@code left}, from its estimated width. */
     private @Nullable DisplayHandle textFrom(Component content, StagePlane plane, Rotation rotation, double left, double up,
                                              double forward, double scale, long delay) {
-        double width = StageLook.width(Text.of(net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-                .plainText().serialize(content)).plain()) * scale;
+        double width = StageLook.width(Text.of(plain(content)).plain()) * scale;
         return text(content, plane, rotation, left + width / 2, up, forward, scale, false, delay);
     }
 
@@ -279,12 +288,18 @@ final class MenuSession implements SpatialContext {
     }
 
     /** A line with the plugin's values and then the menu's state filled in. */
-    private String fill(String raw) {
+    String fill(String raw) {
         Values own = definition.values == null ? null : definition.values.apply(this);
         String filled = own == null ? raw : own.apply(raw);
         Values values = Values.of();
         state.forEach(values::put);
         return values.apply(filled);
+    }
+
+    /** A theme line about one entry: its {@code %name%}, {@code %subtitle%} and {@code %price%}, then {@link #fill}. */
+    private String fill(String raw, SpatialEntry entry) {
+        return fill(raw.replace("%name%", entry.name()).replace("%subtitle%", entry.subtitle())
+                .replace("%price%", entry.price() == null ? "" : entry.price()));
     }
 
     /** Takes one piece down before the rest. */
@@ -345,7 +360,7 @@ final class MenuSession implements SpatialContext {
         final SpatialLayout.Panel panel;
         final StagePlane plane;
         final Rotation rotation;
-        private final List<TextLine> lines = new ArrayList<>();
+        private final List<Label> labels = new ArrayList<>();
         private @Nullable Slots slots;
 
         PanelPart(String name, SpatialLayout.Panel panel, long delay) {
@@ -369,25 +384,24 @@ final class MenuSession implements SpatialContext {
             if (bare) {
                 // A header: its title in the middle, its hint at the right end.
                 if (!panel.title().isBlank()) {
-                    Component title = line(panel.title());
-                    text(title, plane, rotation, 0, 0, 0.012, StageLook.fit(title, w * 0.6, theme.titleScale()), true, inner);
+                    labels.add(new Label(panel.title(), (title, at) -> text(title, plane, rotation, 0, 0, 0.012,
+                            StageLook.fit(title, w * 0.6, theme.titleScale()), true, at), inner));
                 }
                 if (!panel.hint().isBlank()) {
-                    Component hint = line(panel.hint());
-                    double scale = StageLook.fit(hint, w * 0.25, theme.smallScale());
-                    double width = StageLook.width(Text.of(panel.hint()).plain()) * scale;
-                    text(hint, plane, rotation, w / 2 - 0.12 - width / 2, 0, 0.012, scale, false, inner);
+                    labels.add(new Label(panel.hint(), (hint, at) -> {
+                        double scale = StageLook.fit(hint, w * 0.25, theme.smallScale());
+                        double width = StageLook.width(plain(hint)) * scale;
+                        return text(hint, plane, rotation, w / 2 - 0.12 - width / 2, 0, 0.012, scale, false, at);
+                    }, inner));
                 }
             } else {
                 if (!panel.title().isBlank()) {
-                    Component title = line(panel.title());
-                    text(title, plane, rotation, 0, h / 2 - 0.16, 0.012,
-                            StageLook.fit(title, w * 0.86, theme.titleScale() * 0.8), true, inner);
+                    labels.add(new Label(panel.title(), (title, at) -> text(title, plane, rotation, 0, h / 2 - 0.16, 0.012,
+                            StageLook.fit(title, w * 0.86, theme.titleScale() * 0.8), true, at), inner));
                 }
                 if (!panel.hint().isBlank()) {
-                    Component hint = line(panel.hint());
-                    text(hint, plane, rotation, 0, h / 2 - 0.27, 0.012,
-                            StageLook.fit(hint, w * 0.86, theme.smallScale() * 0.85), false, inner);
+                    labels.add(new Label(panel.hint(), (hint, at) -> text(hint, plane, rotation, 0, h / 2 - 0.27, 0.012,
+                            StageLook.fit(hint, w * 0.86, theme.smallScale() * 0.85), false, at), inner));
                 }
             }
             double[] area = Geometry.content(h, !panel.title().isBlank() && !bare, panel.footer().present());
@@ -397,53 +411,69 @@ final class MenuSession implements SpatialContext {
                     double pitch = Math.min(area[1] / Math.max(1, count), 0.16);
                     for (int i = 0; i < count; i++) {
                         double up = area[0] + ((count - 1) / 2.0 - i) * pitch;
-                        lines.add(new TextLine(content.lines().get(i), plane, rotation, up, w * 0.9,
-                                i == 0 ? theme.textScale() * 1.15 : theme.textScale(), inner < 0 ? -1 : inner + i * 40L));
+                        double scale = i == 0 ? theme.textScale() * 1.15 : theme.textScale();
+                        labels.add(new Label(content.lines().get(i), (line, at) -> text(line, plane, rotation, 0, up, 0.012,
+                                StageLook.fit(line, w * 0.9, scale), true, at), inner < 0 ? -1 : inner + i * 40L));
                     }
                 }
                 case LIST -> slots = new Slots(Kind.ROW, content.source(), this, area, inner);
                 case GRID -> slots = new Slots(Kind.CELL, content.source(), this, area, inner);
-                case BUTTON -> new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
-                        content.label(), content.action(), inner);
+                case BUTTON -> labels.add(new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
+                        content.label(), content.action(), inner).label);
                 case NONE -> { }
             }
             if (panel.footer().present()) {
-                new Button(plane, rotation, 0, -h / 2 + 0.16, w - 0.2, 0.2, panel.footer().label(),
-                        panel.footer().action(), inner < 0 ? -1 : inner + 120);
+                labels.add(new Button(plane, rotation, 0, -h / 2 + 0.16, w - 0.2, 0.2, panel.footer().label(),
+                        panel.footer().action(), inner < 0 ? -1 : inner + 120).label);
             }
         }
 
         @Override
         public void refresh() {
-            lines.forEach(TextLine::refresh);
+            labels.forEach(Label::refresh);
             if (slots != null) slots.refresh();
         }
     }
 
-    /** One line of a TEXT panel, rewritten when its placeholders read something else. */
-    private final class TextLine {
+    /** Draws a label's text, popping it in after {@code delay} (still at once when negative). */
+    private interface Drawer {
+        @Nullable DisplayHandle draw(Component text, long delay);
+    }
+
+    /**
+     * A TEXT line, a title, a hint or a button's label: drawn again, fitted to its room, only when its
+     * placeholders read something else.
+     */
+    private final class Label {
         final String raw;
-        final @Nullable DisplayHandle handle;
+        final Drawer drawer;
+        @Nullable DisplayHandle handle;
         String shown;
 
-        TextLine(String raw, StagePlane plane, Rotation rotation, double up, double width, double scale, long delay) {
+        Label(String raw, Drawer drawer, long delay) {
             this.raw = raw;
+            this.drawer = drawer;
             this.shown = fill(raw);
-            Component component = Text.component(shown);
-            this.handle = text(component, plane, rotation, 0, up, 0.012, StageLook.fit(component, width, scale), true, delay);
+            this.handle = drawer.draw(Text.component(shown), delay);
         }
 
         void refresh() {
             String now = fill(raw);
-            if (now.equals(shown) || handle == null) return;
+            if (now.equals(shown)) return;
             shown = now;
-            handle.text(Text.component(now));
+            drop(handle);
+            handle = drawer.draw(Text.component(now), -1);
         }
+    }
+
+    private static String plain(Component text) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(text);
     }
 
     /** A button: an opaque plate with its label, lighting up under the crosshair. */
     private final class Button {
         final @Nullable DisplayHandle plate;
+        final Label label;
         final double width;
         final double height;
 
@@ -454,9 +484,8 @@ final class MenuSession implements SpatialContext {
             int rest = Geometry.mix(glassColour(), colour(theme.plateHover(), 0xAA76DE), 0.2);
             int lit = Geometry.mix(glassColour(), colour(theme.plateHover(), 0xAA76DE), 0.5);
             plate = sheet(plane.point(across, up, 0.008), rotation, width, height, Geometry.argb(255, rest), delay);
-            Component text = line(label);
-            text(text, plane, rotation, across, up, 0.016, StageLook.fit(text, width * 0.86, theme.textScale()), true,
-                    delay < 0 ? -1 : delay + 60);
+            this.label = new Label(label, (text, at) -> text(text, plane, rotation, across, up, 0.016,
+                    StageLook.fit(text, width * 0.86, theme.textScale()), true, at), delay < 0 ? -1 : delay + 60);
             if (edit != null) return;
             pointer.add(Hotspot.rect(plane, across, up, width, height).priority(2)
                     .onHover(on -> {
@@ -570,7 +599,7 @@ final class MenuSession implements SpatialContext {
         }
 
         private void arrow(double across, int step, String label) {
-            Component text = Text.component(label);
+            Component text = line(label);
             text(text, plane, rotation, across, pageUp, 0.01, theme.textScale() * 1.2, true, delay < 0 ? -1 : delay + 200);
             if (edit != null) return;
             pointer.add(Hotspot.rect(plane, across, pageUp, 0.26, 0.22).priority(2).silent(true)
@@ -622,7 +651,7 @@ final class MenuSession implements SpatialContext {
             first = false;
             // Empty: one line that says so, in the middle.
             if (now.isEmpty() && empty == null) {
-                Component text = Text.component(theme.emptyLine());
+                Component text = line(theme.emptyLine());
                 empty = text(text, plane, rotation, 0, emptyUp, 0.012, theme.smallScale(), false, -1);
             } else if (!now.isEmpty() && empty != null) {
                 drop(empty);
@@ -689,7 +718,7 @@ final class MenuSession implements SpatialContext {
                     keep(slot, icon);
                     icons.set(slot, icon);
                     if (entry.state() == SpatialEntry.State.EQUIPPED) {
-                        Component mark = Text.component(theme.equippedMarker());
+                        Component mark = line(theme.equippedMarker());
                         keep(slot, text(mark, place.plane(), place.rotation(), place.across() + iconScale * 0.5,
                                 place.up() + iconScale * 0.45, 0.04, theme.smallScale() * 0.8, true, at < 0 ? -1 : at + 60));
                     }
@@ -724,9 +753,9 @@ final class MenuSession implements SpatialContext {
         private String status(SpatialEntry entry) {
             return switch (entry.state()) {
                 case LOCKED -> entry.price() != null && !entry.price().isBlank()
-                        ? entry.price() : theme.lockedLine().replace("%price%", "");
-                case EQUIPPED -> theme.equippedLine();
-                case OWNED -> entry.subtitle().isBlank() ? theme.ownedLine() : entry.subtitle();
+                        ? entry.price() : fill(theme.lockedLine(), entry);
+                case EQUIPPED -> fill(theme.equippedLine(), entry);
+                case OWNED -> entry.subtitle().isBlank() ? fill(theme.ownedLine(), entry) : entry.subtitle();
                 default -> entry.subtitle();
             };
         }
@@ -776,7 +805,6 @@ final class MenuSession implements SpatialContext {
             var select = definition.selects.get(source);
             if (select != null) select.accept(MenuSession.this, entry);
             refresh();
-            if (preview != null) preview.update(definition.preview == null ? SpatialPreview.none() : definition.preview.apply(MenuSession.this));
         }
 
         /** Moves the selection marker to the chosen entry's slot, gliding; hides it when it is on another page. */
@@ -830,8 +858,8 @@ final class MenuSession implements SpatialContext {
 
         private void pageLine(int page, int pageCount) {
             boolean show = kind == Kind.PEDESTAL || pageCount > 1;
-            String raw = theme.pageLine().replace("%page%", String.valueOf(page + 1))
-                    .replace("%pages%", String.valueOf(pageCount));
+            String raw = fill(theme.pageLine().replace("%page%", String.valueOf(page + 1))
+                    .replace("%pages%", String.valueOf(pageCount)));
             if (!show) {
                 drop(pageLine);
                 pageLine = null;
@@ -874,6 +902,8 @@ final class MenuSession implements SpatialContext {
         private @Nullable SequenceRun run;
         private long nextPlay;
         private long npcUntil;
+        /** When a mannequin taken down while its effect plays comes back; 0 when it stands. */
+        private long hiddenUntil;
 
         PreviewPart(long delay) {
             SpatialLayout.Preview look = layout.preview();
@@ -930,12 +960,18 @@ final class MenuSession implements SpatialContext {
                     item = show(DisplayModel.item(shown.item()).light(15), spin, base.clone().add(0, 0.42 * look.scale(), 0));
                 }
                 case SpatialPreview.Effect effect -> {
-                    NpcModel model = effect.skin() == null ? NpcModel.of("Mannequin") : NpcModel.of(effect.skin());
-                    spawn(model.scale(look.scale()), stand, look);
+                    mannequin(effect);
                     nextPlay = 0;
                 }
                 case SpatialPreview.None none -> { }
             }
+        }
+
+        private void mannequin(SpatialPreview.Effect effect) {
+            Location stand = base.clone();
+            stand.setYaw(board.yaw() + 180);
+            NpcModel model = effect.skin() == null ? NpcModel.of("Mannequin") : NpcModel.of(effect.skin());
+            spawn(model.scale(layout.preview().scale()), stand, layout.preview());
         }
 
         private void spawn(NpcModel model, Location stand, SpatialLayout.Preview look) {
@@ -955,6 +991,10 @@ final class MenuSession implements SpatialContext {
         /** Every poll: an NPC lives two minutes at most, so a long look gets a fresh one; an effect plays again. */
         void keep() {
             long now = System.currentTimeMillis();
+            if (current instanceof SpatialPreview.Effect effect && npc == null && hiddenUntil > 0 && now >= hiddenUntil) {
+                hiddenUntil = 0;
+                mannequin(effect);
+            }
             if (npc != null && (now > npcUntil || !npc.isShowing())) {
                 SpatialPreview again = current;
                 remove();
@@ -965,10 +1005,34 @@ final class MenuSession implements SpatialContext {
             if (current instanceof SpatialPreview.Effect effect && npc != null && now >= nextPlay) {
                 if (run != null) run.cancel();
                 Location at = base.clone().add(0, 1.0 * layout.preview().scale(), 0);
-                run = Sequences.of(menus.plugin()).play(effect.sequence(), SequenceTarget.at(at).onlyTo(viewer));
+                // The viewer sets it off and, with nobody else there, is who it happens to as well: an
+                // [NPC] {victim} line has a body. [RAGDOLL] lines wear the mannequin's skin. No target,
+                // as in the previews' mannequin mode: a [POTION] or a victim's title never lands on them.
+                RagdollModel body = effect.skin() == null ? RagdollModel.of(SkinCache.fallback(), null)
+                        : RagdollModel.of(effect.skin());
+                run = Sequences.of(menus.plugin()).play(effect.sequence(),
+                        SequenceTarget.at(at).by(viewer).onlyTo(viewer).wearing(body));
                 long length = effect.sequence().isEndless() ? Long.MAX_VALUE / 4 : effect.sequence().durationMillis();
                 nextPlay = now + Math.max(2500L, length + 1500L);
+                if (layout.preview().vanishOnPlay()) {
+                    // As the previews' vanish-on-hit: the mannequin is gone while it plays, so a kill reads
+                    // as a death, and stands again a second before the next play.
+                    long gone = length <= 0 || length > VANISH_MAX_MILLIS ? VANISH_FALLBACK_MILLIS : length;
+                    npc.remove();
+                    npc = null;
+                    hiddenUntil = now + gone;
+                    nextPlay = Math.max(nextPlay, hiddenUntil + 1000L);
+                }
             }
+        }
+
+        /** Plays the preview again from the start: an effect at once, its mannequin back if it was gone. */
+        void replay() {
+            SpatialPreview again = current;
+            remove();
+            current = again;
+            draw();
+            keep();
         }
 
         void remove() {
@@ -978,6 +1042,7 @@ final class MenuSession implements SpatialContext {
             item = null;
             if (run != null) run.cancel();
             run = null;
+            hiddenUntil = 0;
             current = SpatialPreview.none();
         }
     }

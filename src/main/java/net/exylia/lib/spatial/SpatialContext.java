@@ -48,6 +48,14 @@ public interface SpatialContext {
      */
     void refresh();
 
+    /**
+     * Plays the preview again from the start, now: an effect from its first step (its mannequin back
+     * if it had vanished), an NPC or an item drawn afresh.
+     *
+     * @since 1.408.0
+     */
+    void replay();
+
     /** Closes the menu, deflating it. */
     void close();
 }

@@ -1,5 +1,6 @@
 package net.exylia.lib.spatial;
 
+import net.exylia.lib.config.BundledFiles;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
 import net.exylia.lib.item.Item;
@@ -101,12 +102,33 @@ public final class SpatialMenus {
      */
     public @NotNull SpatialMenus register(@NotNull String id, @NotNull Consumer<SpatialMenu> definition) {
         Objects.requireNonNull(id, "id");
-        SpatialMenu menu = new SpatialMenu(id);
-        definition.accept(menu);
         String path = "spatial/" + id + ".yml";
         if (!new File(plugin.getDataFolder(), path).exists() && plugin.getResource(path) != null) {
             plugin.saveResource(path, false);
         }
+        return define(id, definition);
+    }
+
+    /**
+     * Registers a menu whose layout ships next to {@code anchor}: the jar's {@code spatial/<id>.yml} is
+     * read through that class, as {@link BundledFiles} and {@code Languages} read theirs, so it is found
+     * under a loader whose plugin cannot see its own jar (Lukittu). The file is installed when missing
+     * and gains the keys a newer jar adds, as every bundled file does; call it on enable.
+     *
+     * @param anchor a class packaged with the layout, usually the plugin's main class
+     * @since 1.408.0
+     */
+    public @NotNull SpatialMenus register(@NotNull String id, @NotNull Class<?> anchor,
+                                          @NotNull Consumer<SpatialMenu> definition) {
+        Objects.requireNonNull(id, "id");
+        String path = "spatial/" + id + ".yml";
+        if (anchor.getClassLoader().getResource(path) != null) BundledFiles.refresh(plugin, anchor, path);
+        return define(id, definition);
+    }
+
+    private SpatialMenus define(String id, Consumer<SpatialMenu> definition) {
+        SpatialMenu menu = new SpatialMenu(id);
+        definition.accept(menu);
         layouts.put(id, Configs.define(plugin, "spatial/" + id, SpatialLayout.class).load());
         menus.put(id, menu);
         SpatialSpots placed = spots;
@@ -193,9 +215,10 @@ public final class SpatialMenus {
     private void start(Player player, SpatialMenu definition, ConfigFile<SpatialLayout> file, @Nullable String spotId,
                        boolean editing) {
         if (!player.isOnline()) return;
+        SpatialLayout layout = file.get();
+        if (!editing && !allowed(player, definition, layout.theme())) return;
         MenuSession open = OPEN.get(player.getUniqueId());
         if (open != null) open.menus.close(open, false);
-        SpatialLayout layout = file.get();
         Optional<SpatialSpots.Spot> spot = Optional.empty();
         if (spotId != null) spot = spots().get(spotId);
         else if (layout.anchor().mode() == SpatialLayout.Anchor.Mode.PLACED && spots != null) {
@@ -229,6 +252,17 @@ public final class SpatialMenus {
             facing.setYaw(yaw);
             walk(player, facing, () -> build(player, definition, file, at, distance, editing));
         }
+    }
+
+    /** The menu's permission and guard; a refusal is a sound and, when the guard gives one, a message. */
+    private static boolean allowed(Player player, SpatialMenu definition, SpatialTheme theme) {
+        String refusal = null;
+        if (definition.permission != null && !player.hasPermission(definition.permission)) refusal = "";
+        else if (definition.guard != null) refusal = definition.guard.apply(player);
+        if (refusal == null) return true;
+        net.exylia.lib.stage.StageLook.play(player, theme.errorSound());
+        if (!refusal.isBlank()) player.sendMessage(net.exylia.lib.text.Text.component(refusal));
+        return false;
     }
 
     private void walk(Player player, Location to, Runnable then) {
@@ -271,8 +305,8 @@ public final class SpatialMenus {
                 .onTick(session::tick)
                 .onEnd(end -> close(session, false));
         if (layout.freeze()) Packets.of(plugin).movement().freeze(player);
-        Overlays.of(plugin).show(player, input.hotbar(Item.of(theme.leaveMaterial()).name(theme.leaveName())
-                .lore(theme.leaveLore()).build()));
+        Overlays.of(plugin).show(player, input.hotbar(Item.of(theme.leaveMaterial()).name(session.fill(theme.leaveName()))
+                .lore(theme.leaveLore().stream().map(session::fill).toList()).build()));
         if (layout.hideOthers()) hide(player);
         session.open();
     }
