@@ -1357,7 +1357,8 @@ final class Session implements UiSession {
             return;
         }
         lastTitle = filled;
-        Titles.retitle(viewer, definition.size(), titleText(written, context, page, pages).forPlayer(viewer).build());
+        Titles.retitle(viewer, definition.size(), titleText(written, context, page, pages).forPlayer(viewer).build(),
+                runtime.plugin());
     }
 
     /** Returns whether a title asks for a page number at all. */

@@ -45,10 +45,11 @@ final class Titles {
      * @param player who is looking
      * @param size   how many slots the window has
      * @param title  what it should now say
-     * @return whether it changed
+     * @param plugin whose scheduler a retitle waiting for its window runs on
+     * @return whether it changed, or will once the window is on screen
      */
-    static boolean retitle(Player player, int size, Component title) {
-        return supported && TitlePackets.retitle(player, size, title);
+    static boolean retitle(Player player, int size, Component title, Plugin plugin) {
+        return supported && TitlePackets.retitle(player, size, title, plugin);
     }
 
     /** Forgets a player who left. */
