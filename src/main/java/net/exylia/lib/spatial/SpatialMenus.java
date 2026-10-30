@@ -1,0 +1,369 @@
+package net.exylia.lib.spatial;
+
+import net.exylia.lib.config.ConfigFile;
+import net.exylia.lib.config.Configs;
+import net.exylia.lib.item.Item;
+import net.exylia.lib.overlay.Overlays;
+import net.exylia.lib.overlay.PluginOverlays;
+import net.exylia.lib.packet.Packets;
+import net.exylia.lib.packet.Visibility;
+import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.teleport.Teleports;
+import org.bukkit.Bukkit;
+import org.bukkit.FluidCollisionMode;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.File;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+
+/**
+ * In-world 3D menus: panels of tinted glass standing round the player, lists and grids of icons on
+ * them, a carousel of plinths along the bottom and a live preview turning in the middle. Looked at to
+ * aim, clicked to choose, scrolled to page, sneaked out of. Packets only, nothing placed in the world,
+ * no resource pack.
+ *
+ * <pre>{@code
+ * SpatialMenus menus = SpatialMenus.of(this);
+ * menus.register("trims", menu -> menu
+ *         .source("pieces", ctx -> pieces(ctx.viewer()))
+ *         .source("patterns", ctx -> patterns(ctx))
+ *         .preview(ctx -> SpatialPreview.npc(ctx.viewer(), trying(ctx)))
+ *         .action("apply-set", ctx -> apply(ctx)));
+ *
+ * menus.open(player, "trims");                 // in front of the player
+ * menus.open(player, "trims", "trims-1");      // at a spot an admin placed
+ * menus.edit(admin, "trims");                  // move its pieces with the mouse wheel
+ * }</pre>
+ *
+ * <p>Each menu's layout is {@code plugins/<Plugin>/spatial/<menu>.yml} ({@link SpatialLayout}),
+ * written from the jar's {@code spatial/<menu>.yml} the first time and from the library's wardrobe
+ * when the jar has none. While a menu is open the player is held still (optional per layout), wears
+ * a hotbar with only a leave item, and may be hidden from everyone and everyone from them. A player
+ * has one spatial menu open at a time, whichever plugin opened it: opening another closes the first.
+ *
+ * <p>Every method is safe from any thread; the menu itself is drawn and run on the player's.
+ *
+ * @since 1.406.0
+ */
+public final class SpatialMenus {
+
+    private static final Map<String, SpatialMenus> BY_PLUGIN = new ConcurrentHashMap<>();
+    private static final Map<UUID, MenuSession> OPEN = new ConcurrentHashMap<>();
+    /** Players in a menu that hides everyone else. */
+    private static final Set<UUID> HIDDEN = ConcurrentHashMap.newKeySet();
+    private static volatile @Nullable Plugin library;
+
+    private final Plugin plugin;
+    private final TaskScheduler tasks;
+    private final SpatialInput input;
+    private final Map<String, SpatialMenu> menus = new ConcurrentHashMap<>();
+    private final Map<String, ConfigFile<SpatialLayout>> layouts = new ConcurrentHashMap<>();
+    private volatile @Nullable SpatialSpots spots;
+
+    private SpatialMenus(Plugin plugin) {
+        this.plugin = plugin;
+        this.tasks = Tasks.of(plugin);
+        this.input = SpatialInput.of(plugin);
+    }
+
+    /** The plugin's menus, made on first use. */
+    public static @NotNull SpatialMenus of(@NotNull Plugin plugin) {
+        Objects.requireNonNull(plugin, "plugin");
+        return BY_PLUGIN.computeIfAbsent(plugin.getName(), name -> new SpatialMenus(plugin));
+    }
+
+    public @NotNull Plugin plugin() {
+        return plugin;
+    }
+
+    TaskScheduler tasks() {
+        return tasks;
+    }
+
+    /**
+     * Registers a menu, or replaces it. Writes its layout file from the jar's {@code spatial/<id>.yml}
+     * when the server has none, and adds keys the server's copy is missing. Call it on enable.
+     */
+    public @NotNull SpatialMenus register(@NotNull String id, @NotNull Consumer<SpatialMenu> definition) {
+        Objects.requireNonNull(id, "id");
+        SpatialMenu menu = new SpatialMenu(id);
+        definition.accept(menu);
+        String path = "spatial/" + id + ".yml";
+        if (!new File(plugin.getDataFolder(), path).exists() && plugin.getResource(path) != null) {
+            plugin.saveResource(path, false);
+        }
+        layouts.put(id, Configs.define(plugin, "spatial/" + id, SpatialLayout.class).load());
+        menus.put(id, menu);
+        SpatialSpots placed = spots;
+        if (placed != null) placed.refresh();
+        else if (new File(plugin.getDataFolder(), "spatial/spots.yml").isFile()) spots();
+        return this;
+    }
+
+    /** A menu's layout file, for a plugin that edits it or reads it; {@code null} when not registered. */
+    public @Nullable ConfigFile<SpatialLayout> layout(@NotNull String id) {
+        return layouts.get(id);
+    }
+
+    SpatialLayout layoutOrDefault(String id) {
+        ConfigFile<SpatialLayout> file = layouts.get(id);
+        return file == null ? new SpatialLayout() : file.get();
+    }
+
+    /** The spots menus open at, made on first use (their holograms go up then). */
+    public @NotNull SpatialSpots spots() {
+        SpatialSpots placed = spots;
+        if (placed != null) return placed;
+        synchronized (this) {
+            if (spots == null) spots = new SpatialSpots(this);
+            return spots;
+        }
+    }
+
+    /** Opens a menu in front of the player (or at its nearest spot, for a PLACED layout). {@code false}: no such menu. */
+    public boolean open(@NotNull Player player, @NotNull String id) {
+        return open(player, id, null, false);
+    }
+
+    /** Opens a menu at a spot: the player is walked onto it first. {@code false}: no such menu. */
+    public boolean open(@NotNull Player player, @NotNull String id, @Nullable String spot) {
+        return open(player, id, spot, false);
+    }
+
+    /**
+     * Opens a menu for an admin to move its pieces: look at one (it is outlined) and click it, then the
+     * mouse wheel moves it, F changes the axis (across, up, forward, turn, width, height), sneak + wheel
+     * changes the step, and a click saves it to the layout file and redraws. Sneak to leave.
+     */
+    public boolean edit(@NotNull Player admin, @NotNull String id) {
+        return open(admin, id, null, true);
+    }
+
+    /** Closes the player's menu, if this plugin opened it. */
+    public void close(@NotNull Player player) {
+        MenuSession session = OPEN.get(player.getUniqueId());
+        if (session != null && session.menus == this) run(player, () -> close(session, true));
+    }
+
+    /** Whether the player has a menu of this plugin's open. */
+    public boolean isOpen(@NotNull Player player) {
+        MenuSession session = OPEN.get(player.getUniqueId());
+        return session != null && session.menus == this;
+    }
+
+    /** The menu of this plugin's the player has open. */
+    public @NotNull Optional<SpatialContext> context(@NotNull Player player) {
+        MenuSession session = OPEN.get(player.getUniqueId());
+        return session != null && session.menus == this ? Optional.of(session) : Optional.empty();
+    }
+
+    /** Whether a player has any spatial menu open, whichever plugin opened it. */
+    public static boolean inMenu(@NotNull Player player) {
+        return OPEN.containsKey(player.getUniqueId());
+    }
+
+    private boolean open(Player player, String id, @Nullable String spotId, boolean editing) {
+        SpatialMenu definition = menus.get(id);
+        ConfigFile<SpatialLayout> file = layouts.get(id);
+        if (definition == null || file == null) return false;
+        run(player, () -> start(player, definition, file, spotId, editing));
+        return true;
+    }
+
+    private void run(Player player, Runnable task) {
+        if (tasks.isOwnedBy(player)) task.run();
+        else tasks.runAtEntity(player, task);
+    }
+
+    private void start(Player player, SpatialMenu definition, ConfigFile<SpatialLayout> file, @Nullable String spotId,
+                       boolean editing) {
+        if (!player.isOnline()) return;
+        MenuSession open = OPEN.get(player.getUniqueId());
+        if (open != null) open.menus.close(open, false);
+        SpatialLayout layout = file.get();
+        Optional<SpatialSpots.Spot> spot = Optional.empty();
+        if (spotId != null) spot = spots().get(spotId);
+        else if (layout.anchor().mode() == SpatialLayout.Anchor.Mode.PLACED && spots != null) {
+            spot = spots().all().stream().filter(s -> s.menu().equals(definition.id()) && s.location() != null
+                            && s.location().getWorld() == player.getWorld()
+                            && s.location().distanceSquared(player.getLocation()) <= 64)
+                    .min(java.util.Comparator.comparingDouble(s -> s.location().distanceSquared(player.getLocation())));
+        }
+        Location feet = player.getLocation();
+        if (spot.isPresent() && spot.get().location() != null) {
+            Location at = spot.get().location().clone();
+            at.setPitch(0);
+            boolean there = at.getWorld() == feet.getWorld() && at.distanceSquared(feet) < 0.09
+                    && Math.abs(wrap(at.getYaw() - feet.getYaw())) < 2;
+            double distance = layout.anchor().distance();
+            if (there) build(player, definition, file, at, distance, editing);
+            else walk(player, at, () -> build(player, definition, file, at, distance, editing));
+            return;
+        }
+        // In front: the board square to the world (45° steps), standing on the ground, nearer when a wall is close.
+        float yaw = Math.round(feet.getYaw() / 45f) * 45f;
+        Location at = feet.clone();
+        at.setYaw(yaw);
+        at.setPitch(0);
+        double distance = clearance(at, layout.anchor().distance());
+        if (Math.abs(wrap(yaw - feet.getYaw())) < 2) {
+            build(player, definition, file, at, distance, editing);
+        } else {
+            // Turned square to the board, so it opens in the middle of their view.
+            Location facing = feet.clone();
+            facing.setYaw(yaw);
+            walk(player, facing, () -> build(player, definition, file, at, distance, editing));
+        }
+    }
+
+    private void walk(Player player, Location to, Runnable then) {
+        Teleports.of(plugin).to(player, to).warmup(0).start().future().thenAccept(result -> {
+            if (result.isSuccess()) tasks.runAtEntity(player, then);
+        });
+    }
+
+    private static float wrap(float degrees) {
+        float wrapped = degrees % 360;
+        if (wrapped > 180) wrapped -= 360;
+        if (wrapped < -180) wrapped += 360;
+        return wrapped;
+    }
+
+    /** How far ahead the board may stand: nearer than {@code wanted} when a block is in the way, never under 2. */
+    private static double clearance(Location feet, double wanted) {
+        World world = feet.getWorld();
+        if (world == null) return wanted;
+        Location eyes = feet.clone().add(0, 1.62, 0);
+        Vector ahead = feet.getDirection().setY(0).normalize();
+        RayTraceResult hit = world.rayTraceBlocks(eyes, ahead, wanted + 0.4, FluidCollisionMode.NEVER, true);
+        if (hit == null) return wanted;
+        return Math.clamp(hit.getHitPosition().distance(eyes.toVector()) - 0.4, Math.min(2.0, wanted), wanted);
+    }
+
+    private void build(Player player, SpatialMenu definition, ConfigFile<SpatialLayout> file, Location anchor,
+                       double distance, boolean editing) {
+        if (!player.isOnline()) return;
+        MenuSession open = OPEN.get(player.getUniqueId());
+        if (open != null) open.menus.close(open, false);
+        SpatialLayout layout = file.get();
+        SpatialTheme theme = layout.theme();
+        SpatialPointer pointer = input.attach(player).sounds(theme.hoverSound(), theme.selectSound());
+        MenuSession session = new MenuSession(this, definition, layout, player, anchor, distance, pointer);
+        if (editing) session.edit = new EditMode(session, file);
+        OPEN.put(player.getUniqueId(), session);
+        pointer.onSneak(() -> close(session, true))
+                .onLeave(() -> close(session, true))
+                .onTick(session::tick)
+                .onEnd(end -> close(session, false));
+        if (layout.freeze()) Packets.of(plugin).movement().freeze(player);
+        Overlays.of(plugin).show(player, input.hotbar(Item.of(theme.leaveMaterial()).name(theme.leaveName())
+                .lore(theme.leaveLore()).build()));
+        if (layout.hideOthers()) hide(player);
+        session.open();
+    }
+
+    /** Ends a session: deflating it, or at once when the player is leaving. */
+    void close(MenuSession session, boolean animated) {
+        if (session.isClosed()) return;
+        Player player = session.viewer;
+        OPEN.remove(player.getUniqueId(), session);
+        session.end();
+        if (session.edit != null) session.edit.close();
+        session.pointer.detach();
+        boolean online = player.isOnline();
+        session.takeDown(animated && online);
+        if (animated && online) net.exylia.lib.stage.StageLook.play(player, session.theme.closeSound());
+        if (online) {
+            if (session.layout.freeze()) Packets.of(plugin).movement().unfreeze(player);
+            PluginOverlays overlays = Overlays.of(plugin);
+            if (overlays.showing(player).filter(shown -> shown.id().equals(SpatialInput.HOTBAR_ID)).isPresent()) {
+                overlays.hide(player);
+            }
+        }
+        unhide(player);
+    }
+
+    // ── Hiding ────────────────────────────────────────────────────────────
+
+    /** The library's visibility rule: a player in a menu that hides others sees nobody and is seen by nobody. */
+    static boolean allows(Player viewer, Player target) {
+        if (viewer.getUniqueId().equals(target.getUniqueId())) return true;
+        return !HIDDEN.contains(viewer.getUniqueId()) && !HIDDEN.contains(target.getUniqueId());
+    }
+
+    private static void hide(Player player) {
+        if (HIDDEN.add(player.getUniqueId())) refreshAround(player);
+    }
+
+    private static void unhide(Player player) {
+        if (HIDDEN.remove(player.getUniqueId())) refreshAround(player);
+    }
+
+    private static void refreshAround(Player player) {
+        Plugin owner = library;
+        if (owner == null) return;
+        Visibility visibility = Packets.of(owner).visibility();
+        visibility.refresh(player);
+        // Whom they see is everyone else's visibility, so everyone else is looked at again too.
+        for (Player other : List.copyOf(Bukkit.getOnlinePlayers())) {
+            if (!other.getUniqueId().equals(player.getUniqueId())) visibility.refresh(other);
+        }
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────────────────────
+
+    /**
+     * Installs the input listener and the hiding rule, under the library's own name so no plugin's
+     * own visibility rule is replaced. Called by the library on enable; consumers never call it.
+     */
+    public static void init(@NotNull Plugin plugin) {
+        library = plugin;
+        plugin.getServer().getPluginManager().registerEvents(new SpatialInput.Listen(), plugin);
+        Packets.of(plugin).visibility().rule(SpatialMenus::allows);
+    }
+
+    /** Closes a disabled plugin's menus and ends its pointers. Called by the library. */
+    public static void release(@NotNull Plugin plugin) {
+        SpatialMenus menus = BY_PLUGIN.remove(plugin.getName());
+        if (menus != null) {
+            for (MenuSession session : List.copyOf(OPEN.values())) {
+                if (session.menus == menus) {
+                    try {
+                        menus.close(session, false);
+                    } catch (RuntimeException ignored) {
+                        // Off the player's region on Folia: its displays and NPCs are released next anyway.
+                        OPEN.remove(session.viewer.getUniqueId(), session);
+                        HIDDEN.remove(session.viewer.getUniqueId());
+                    }
+                }
+            }
+            SpatialSpots placed = menus.spots;
+            if (placed != null) placed.close();
+        }
+        SpatialInput.release(plugin);
+    }
+
+    /** Forgets everything, for shutdown. Called by the library. */
+    public static void releaseAll() {
+        BY_PLUGIN.clear();
+        OPEN.clear();
+        HIDDEN.clear();
+        SpatialInput.releaseAll();
+        library = null;
+    }
+}

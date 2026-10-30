@@ -170,6 +170,13 @@ away; it is never saved.
 
 ## Building on it
 
+Hover, clicks, the wheel and sneaking are not a stage's: attach a
+[`SpatialPointer`](spatial.md#input-for-games) and register the board's cells and
+buttons as `Hotspot`s (`Hotspot.cells(plane)`, `Hotspot.of(button)`) instead of
+keeping a hovered index, polling `plane.hit` and listening for swings. A menu
+made of panels, lists and a carousel is a [spatial menu](spatial.md).
+`StageButton.plane()` (1.406.0) is the plane a button measures hits on.
+
 Everything a richer screen needs is public, so a plugin draws its own pieces on
 top without forking the module:
 

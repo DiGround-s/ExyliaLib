@@ -295,6 +295,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Mouse-wheel tuning: one listener reads every plugin's sessions.
         net.exylia.lib.tuner.Tuner.init(this);
         getServer().getPluginManager().registerEvents(new net.exylia.lib.tuner.internal.TunerListener(), this);
+        // In-world menus and the pointer every in-world screen shares: one listener for every plugin's
+        // pointers, and the rule that hides players in a menu, under the library's own name.
+        net.exylia.lib.spatial.SpatialMenus.init(this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         // Who set off a crystal, anchor or bed: one cache write per crystal hit
@@ -668,6 +671,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Teleports.releaseAll();
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
+        net.exylia.lib.spatial.SpatialMenus.releaseAll();
         Displays.releaseAll();
         net.exylia.lib.stage.Stage.releaseAll();
         net.exylia.lib.ragdoll.Ragdolls.releaseAll();
@@ -983,6 +987,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPluginDisable(PluginDisableEvent event) {
         String pluginName = event.getPlugin().getName();
+        // Before the tuner, the displays and the NPCs: a spatial menu put the player's hotbar, freeze and
+        // hiding on, and takes them off while the modules that did it are still up.
+        net.exylia.lib.spatial.SpatialMenus.release(event.getPlugin());
         // First: ending a tuning session stops its boss bars and lets the
         // plugin save, which needs the effects and tasks below still up.
         net.exylia.lib.tuner.Tuner.release(pluginName);

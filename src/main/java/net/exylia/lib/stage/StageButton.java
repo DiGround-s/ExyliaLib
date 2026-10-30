@@ -74,6 +74,11 @@ public final class StageButton {
         return !removed && hit != null && hit.inside(across, up, width, height);
     }
 
+    /** The plane it stands on, which {@link #contains} measures hits against. @since 1.406.0 */
+    public StagePlane plane() {
+        return stage.plane;
+    }
+
     /** Whether a player's crosshair is on it. Reads the player's eyes: call it on their thread. */
     public boolean under(Player player) {
         return contains(stage.plane.hit(player.getEyeLocation()));
