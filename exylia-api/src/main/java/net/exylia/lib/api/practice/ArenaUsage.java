@@ -20,5 +20,15 @@ public enum ArenaUsage {
     /** Party FFA and party team fights. */
     PARTY,
     /** Fights against bots. */
-    BOT
+    BOT,
+    /**
+     * Another plugin's event (a tournament, an FFA, a sandbox round) running in
+     * an arena it took through {@link PracticeService#acquireArena}.
+     *
+     * <p>Practice never starts a match of its own for this usage; it is there so
+     * those plugins can offer only the arenas an admin has set aside for them.
+     *
+     * @since 3.5.0
+     */
+    EVENT
 }

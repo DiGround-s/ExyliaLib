@@ -70,6 +70,52 @@ public interface PracticeService {
     @Unmodifiable
     List<Arena> arenas();
 
+    /**
+     * Where things are in an arena's original copy.
+     *
+     * @param arenaId the arena id
+     * @return its layout, or empty when no arena has that id or it is not
+     *         enabled and fully set up
+     * @since 3.5.0
+     */
+    @NotNull
+    default Optional<ArenaLayout> arenaLayout(@NotNull String arenaId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Reserves a free copy of an arena for another plugin's use.
+     *
+     * <p>Takes a free copy when there is one and builds a new one otherwise,
+     * which is why it is a future: building pastes the arena into the world.
+     * The arena's {@link Arena#usages()} are not checked, so filter on
+     * {@link ArenaUsage#EVENT} (or whatever fits) yourself. The future may
+     * complete on any thread.
+     *
+     * <p>Hand the lease back with {@link #releaseArena} when you are done.
+     *
+     * @param arenaId the arena id
+     * @return the lease, or empty when no arena has that id, it is not enabled
+     *         and fully set up, or no copy could be had
+     * @since 3.5.0
+     */
+    @NotNull
+    default CompletableFuture<Optional<ArenaLease>> acquireArena(@NotNull String arenaId) {
+        return CompletableFuture.completedFuture(Optional.empty());
+    }
+
+    /**
+     * Hands a reserved arena copy back to practice, which regenerates it.
+     *
+     * <p>Releasing the same lease twice does nothing the second time. Move
+     * your players out first: the copy is reset right away.
+     *
+     * @param lease what {@link #acquireArena} gave you
+     * @since 3.5.0
+     */
+    default void releaseArena(@NotNull ArenaLease lease) {
+    }
+
     // ── Kits ───────────────────────────────────────────────────────────────
 
     /**
@@ -127,18 +173,66 @@ public interface PracticeService {
     List<KitLoadout> loadouts(@NotNull UUID player, @NotNull String kitId);
 
     /**
-     * Gives a player a kit, as a match would.
+     * Gives a player a kit's items.
      *
-     * <p>Clears what they were holding and applies the kit's own effects and
-     * rules. Their own loadout is used when they have saved one; a player with
-     * several is never asked which, because an integration calling this has
-     * already decided the player is being equipped now.
+     * <p>Clears what they were holding and sets the items, and nothing else:
+     * no potion effects, health, food or rules. Their own loadout is used when
+     * they have saved one; a player with several is never asked which, because
+     * an integration calling this has already decided the player is being
+     * equipped now. {@link #applyKitEffects} adds the effects and start values,
+     * {@link #kitRules} says what else the kit expects, and {@link #kitItems}
+     * gives the kit's own layout without any player's loadout.
      *
      * @param player the player
      * @param kitId  the kit id
      * @return {@code false} when no kit has that id
      */
     boolean applyKit(@NotNull Player player, @NotNull String kitId);
+
+    /**
+     * The items a kit hands out, as the kit defines them.
+     *
+     * <p>Never a player's saved loadout. Copies made for this call.
+     *
+     * @param kitId the kit id
+     * @return the kit's items, or empty when no kit has that id
+     * @since 3.5.0
+     */
+    @NotNull
+    default Optional<KitItems> kitItems(@NotNull String kitId) {
+        return Optional.empty();
+    }
+
+    /**
+     * The rules a kit was configured with.
+     *
+     * @param kitId the kit id
+     * @return its rules, or empty when no kit has that id
+     * @since 3.5.0
+     */
+    @NotNull
+    default Optional<KitRules> kitRules(@NotNull String kitId) {
+        return Optional.empty();
+    }
+
+    /**
+     * Prepares a player's body for a kit, as a match does when the fight starts.
+     *
+     * <p>Clears their potion effects, then sets the kit's attributes (max
+     * health, attack damage, speed, knockback resistance), start health, food
+     * and saturation, hit delay, and grants the kit's potion effects. The
+     * counterpart to {@link #applyKit}, which only sets items. Does nothing for
+     * an unknown kit.
+     *
+     * <p>Call it on the thread that owns the player (on Folia, the player's
+     * region thread; on Paper, the main thread).
+     *
+     * @param player the player
+     * @param kitId  the kit id
+     * @since 3.5.0
+     */
+    default void applyKitEffects(@NotNull Player player, @NotNull String kitId) {
+    }
 
     // ── Player state ───────────────────────────────────────────────────────
 

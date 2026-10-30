@@ -124,6 +124,16 @@ journeys as `JourneyProgress`; `state`; `trigger(player, key, amount)` for
 (cancellable), `JourneyStepCompleteEvent`, `JourneyCompleteEvent` and
 `JourneySkipEvent`.
 
+`exylia-api` 3.5.0 (ExyliaLib 1.412.0) opened ExyliaPracticeCore's kits and
+arenas to other modes (events, FFA, sandbox, bots). `PracticeService` gained
+`kitItems` (`KitItems`: the kit's own items, never a loadout), `kitRules`
+(`KitRules`), `applyKitEffects` (attributes, start values and potion effects;
+`applyKit` sets items only), `arenaLayout` (`ArenaLayout`) and
+`acquireArena`/`releaseArena` (`ArenaLease`, a reserved arena copy regenerated
+on release). `ArenaUsage.EVENT` lets admins set arenas aside for those modes;
+`acquireArena` does not check usages, so filter on it yourself. All of them are
+`default` methods, so nothing that compiled before breaks.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
