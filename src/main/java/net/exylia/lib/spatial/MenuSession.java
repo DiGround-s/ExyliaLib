@@ -345,7 +345,6 @@ final class MenuSession implements SpatialContext {
      */
     private static final double LABEL_TOP = -0.25;
     private static final double LABEL_FORWARD = 0.31;
-    private static final int LABEL_ALPHA = 0xB4;
 
     private Location eyes() {
         return anchor.clone().add(0, EYES, 0);
@@ -522,14 +521,6 @@ final class MenuSession implements SpatialContext {
         if (chosen) return Geometry.mix(idlePlate(), colour(theme.plateSelected(), 0xFFD700), 0.32);
         if (hovered) return Geometry.mix(idlePlate(), colour(theme.plateHover(), 0xAA76DE), 0.35);
         return idlePlate();
-    }
-
-    /** A plinth label's backing: the glass darkened, warmed like its plate. */
-    private int labelBacking(boolean hovered, boolean chosen) {
-        int base = Geometry.mix(0x000000, glassColour(), 0.7);
-        if (chosen) return Geometry.argb(0xEA, Geometry.mix(base, colour(theme.plateSelected(), 0xFFD700), 0.24));
-        if (hovered) return Geometry.argb(0xDC, Geometry.mix(base, colour(theme.plateHover(), 0xAA76DE), 0.28));
-        return Geometry.argb(LABEL_ALPHA, base);
     }
 
     private static Rotation facing(StagePlane plane) {
@@ -1095,9 +1086,16 @@ final class MenuSession implements SpatialContext {
                             place.plane().point(place.across(), place.up() + 0.01, 0.03));
                     keep(slot, icon);
                     icons.set(slot, icon);
-                    if (entry.state() == SpatialEntry.State.EQUIPPED) {
-                        keep(slot, write(fill(theme.equippedMarker()), true, place.plane(), place.rotation(),
-                                place.across() + iconScale * 0.55, place.up() + iconScale * 0.4, 0.04, 0.12,
+                    // A cell has no line of its own: its state is a marker in the icon's corner.
+                    String marker = switch (entry.state()) {
+                        case EQUIPPED -> theme.equippedMarker();
+                        case LOCKED -> theme.lockedMarker();
+                        default -> "";
+                    };
+                    if (marker != null && !marker.isBlank()) {
+                        // One glyph: room enough that the readable size never cuts it to an ellipsis.
+                        keep(slot, write(fill(marker, entry), true, place.plane(), place.rotation(),
+                                place.across() + iconScale * 0.55, place.up() + iconScale * 0.4, 0.04, 0.3,
                                 theme.smallScale(), true, at < 0 ? -1 : at + 60));
                     }
                 }
@@ -1125,8 +1123,9 @@ final class MenuSession implements SpatialContext {
         }
 
         /**
-         * A plinth's name and state in one display, on a backing of its own, under and in front of the
-         * plinth: both lines at one size, fitted to the slot or cut, never below the readable size.
+         * A plinth's name and state in one display, bare like the library's holograms (no backing, its
+         * shadow for contrast), under and in front of the plinth: both lines at one size, fitted to the
+         * slot or cut, never below the readable size.
          */
         private @Nullable DisplayHandle plinthLabel(int slot, SpatialEntry entry, String status, StagePlane own, Rotation turn,
                                                     long at) {
@@ -1143,13 +1142,8 @@ final class MenuSession implements SpatialContext {
             double height = Stage.TEXT_HEIGHT * scale * lines;
             float s = (float) scale;
             labelRest.set(slot, new DisplayKeyframe(0L, 0f, 0f, 0f, turn, s, s, s));
-            DisplayModel model = Stage.textModel(words).background(labelBacking(false, false)).seeThrough(false)
-                    .textShadow(true).lineWidth(1000);
-            // Drawn beside the stage, which bares text: the backing is the point.
-            DisplayHandle handle = displays.show(model, motion(turn, scale, scale, scale, at),
-                    own.point(0, LABEL_TOP - height, LABEL_FORWARD), List.of(viewer));
-            if (handle != null) pieces.add(handle);
-            return handle;
+            DisplayModel model = Stage.textModel(words).background(0).seeThrough(false).textShadow(true).lineWidth(1000);
+            return show(model, motion(turn, scale, scale, scale, at), own.point(0, LABEL_TOP - height, LABEL_FORWARD));
         }
 
         /** The line under an entry's name: its state's, or its own subtitle. */
@@ -1207,8 +1201,6 @@ final class MenuSession implements SpatialContext {
             DisplayHandle label = labels.get(slot);
             DisplayKeyframe rest = labelRest.get(slot);
             if (label != null && rest != null) {
-                DisplayModel model = label.model();
-                if (model != null) label.restyle(model.background(labelBacking(on, picked)));
                 // Under the crosshair it grows and comes forward, its top kept under the plinth.
                 double grow = on ? 1.1 : 1.0;
                 double drop = on ? -Stage.TEXT_HEIGHT * rest.scaleY() * 2 * (grow - 1) : 0;
@@ -1318,7 +1310,8 @@ final class MenuSession implements SpatialContext {
             if (kind != Kind.CELL) return;
             int slot = hovered >= 0 ? hovered : chosen;
             SpatialEntry entry = slot >= 0 && slot < now.size() ? now.get(slot) : null;
-            String text = entry == null ? "" : entry.name();
+            // A locked cell's caption says why: its price, or the locked line.
+            String text = entry == null ? "" : entry.locked() ? entry.name() + " {letters_black}» " + status(entry) : entry.name();
             if (text.equals(captionShown) && (caption != null || text.isBlank())) return;
             captionShown = text;
             drop(caption);

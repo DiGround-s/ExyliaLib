@@ -42,11 +42,13 @@ public record SpatialTheme(
         double hoverGrow,
         @Comment("The outline of the piece an admin is moving in edit mode.")
         String editOutline,
-        @Comment("Lines shown for an entry's state. %price% is the entry's price.")
+        @Comment("Lines shown for an entry's state. %price% is the entry's price. A grid cell gets a marker")
+        @Comment("in its icon's corner instead: equipped-marker when worn, locked-marker when not theirs.")
         String lockedLine,
         String ownedLine,
         String equippedLine,
         String equippedMarker,
+        String lockedMarker,
         @Comment("The carousel's page line, its arrows, and what an empty list says.")
         String pageLine,
         String previousArrow,
@@ -79,7 +81,7 @@ public record SpatialTheme(
                 0.6, 0.42, 0.35,
                 "POLISHED_BLACKSTONE", "{primary}", "{secondary}", "{highlight}",
                 "{highlight}", 1.12, "{info}",
-                "{error}✘ Locked", "{muted}Owned", "{success}✔ Equipped", "{success}✔",
+                "{error}✘ Locked", "{muted}Owned", "{success}✔ Equipped", "{success}✔", "{error}🔒",
                 "{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%",
                 "{secondary_light}&l←", "{secondary_light}&l→", "{muted}Nothing here yet",
                 List.of("%title%", "{warning}➥ Click to open"),

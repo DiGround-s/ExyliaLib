@@ -119,10 +119,10 @@ Since 1.408.0; a layout written before keeps its own values.
 | Panel | Glass, a darker backing sheet, the accent bar along its top, its `title` (bold, shadowed, fitted) and `hint`. A panel with `type: NONE` is a header: title in the middle, hint at its right end |
 | `TEXT` | `lines`, centred; `%key%` from the menu's state and `values(...)`; drawn again, fitted, when they read something else |
 | `LIST` | `rows` rows of icon, name and state line; the row under the crosshair lights with a bar, the chosen one carries a `{highlight}` marker that glides between rows |
-| `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid |
+| `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid, followed by its price or `locked-line` when it is `LOCKED` |
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
 | `footer` | A button along any panel's bottom |
-| `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line on a backing under and in front of it; `← PAGE x / y →` under the middle |
+| `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line under and in front of it, bare like a hologram; `← PAGE x / y →` under the middle |
 | `preview` | A plinth in the middle, and what `preview(ctx)` returns on it, turning `turn-speed` degrees a second |
 
 Hovering grows an item ×`hover-grow` with a 120 ms glide and outlines it in
@@ -133,21 +133,32 @@ context, so a trident, a cake or a totem look like their inventory icon: one
 size (0.32), centred 0.2 over its plinth's top, swaying ±16° and bobbing
 ±0.012 on a 3.6 s cycle, each slot out of step. The chosen plinth is outlined in
 `plate-selected` (a glow ring), its item lifted 0.07, grown ×1.1 and turning a
-full circle every 2.4 s, its label's backing warmed towards the same colour, and
-a thin `plate-selected` bar glides (180 ms) to the gap between its plinth and its
+full circle every 2.4 s, and a thin `plate-selected` bar glides (180 ms) to the gap between its plinth and its
 label. Hover is the lighter version: a `plate-hover` ring, the item lifted 0.035
 and grown ×`hover-grow`, its label grown ×1.1 and brought 0.03 nearer, its top
 kept where it was. No plate is ever drawn as a flat bright sheet. The label is
-one text display (name, then state line) with a backing of its own, its top
+one text display (name, then state line) with no backing at all since 1.415.0
+(`#00000000`, like the library's holograms; its text shadow keeps it readable
+over anything; 1.414.0 drew it on a dark solid backing), its top
 0.04 under the plinth's bottom and its face 0.09 nearer the eyes than the
 plinth's front face, so seen from the eyes no part of any plinth is before it.
 A page turn slides the old page off sideways (200 ms, shrinking) and brings the
 new one in from the side the wheel turned to, slot by slot.
 
 **The panels' icons** are GUI-context too, bobbing 0.008 on a 4 s cycle. `LOCKED` entries are drawn dimmer and read the theme's
-`locked-line` (or their `price`); `EQUIPPED` reads `equipped-line` and a grid
-cell gets `equipped-marker`; `OWNED` reads its subtitle or `owned-line`.
-`SELECTED` marks the entry chosen when the menu opens.
+`locked-line` (or their `price`); `EQUIPPED` reads `equipped-line`; `OWNED` reads
+its subtitle or `owned-line`. `SELECTED` marks the entry chosen when the menu opens.
+A grid cell has no line of its own, so its state is a marker in its icon's
+corner: `equipped-marker` when worn, and since 1.415.0 `locked-marker` (`🔒`) and
+the dimmed icon when locked; the caption under the grid then names it with its
+price or `locked-line` (`Iron » $500.00`). Before 1.415.0 a locked cell looked
+like an owned one but for a slightly darker icon.
+
+**Every text display is explicit (since 1.415.0).** Text the menu draws has a
+transparent background, sent explicitly; only the glass, plates and bars (empty
+sheets) are coloured. `DisplayModel#background()` never answers `null`, so no
+display anywhere falls back to the client's grey panel; before, a
+`background(0xFFFFFFFF)` (opaque white) was mistaken for "unset" and drawn grey.
 
 Every word the menu draws is live: TEXT lines, panel titles and hints, BUTTON
 and footer labels are filled again on every `refresh()`, and only a label that
@@ -168,7 +179,7 @@ empty line, captions) are drawn as written unless `small-caps-body: true`.
 
 Since 1.408.0 every theme line is filled like a title: the plugin's `values`,
 then the menu's state as `%key%`. That covers `locked-line`, `owned-line`,
-`equipped-line` and `equipped-marker` (which also read the entry's `%name%`,
+`equipped-line`, `equipped-marker` and `locked-marker` (which also read the entry's `%name%`,
 `%subtitle%` and `%price%`), `page-line`, the arrows, `empty-line`, and the leave
 item's `leave-name` and `leave-lore`. To translate them per viewer, write a
 placeholder in the layout and give it from the plugin's lang files:
@@ -296,7 +307,7 @@ library's look:
 | `min-glyph-degrees`, `small-caps-body` | 0.95, false (since 1.414.0; see *Readable everywhere*) |
 | `pedestal-block`, `plate-idle`/`-hover`/`-selected` | `POLISHED_BLACKSTONE`; `{primary}` darkened, `{secondary}` (hover ring), `{highlight}` (chosen ring, label tint, lit SAVE) |
 | `hover-glow`, `hover-grow`, `edit-outline` | `{highlight}`, 1.12, `{info}` |
-| `locked-line`, `owned-line`, `equipped-line`, `equipped-marker` | `{error}✘ Locked`, `{muted}Owned`, `{success}✔ Equipped`, `{success}✔` |
+| `locked-line`, `owned-line`, `equipped-line`, `equipped-marker`, `locked-marker` | `{error}✘ Locked`, `{muted}Owned`, `{success}✔ Equipped`, `{success}✔`, `{error}🔒` (since 1.415.0) |
 | `page-line`, `previous-arrow`, `next-arrow`, `empty-line` | `{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%`, `←`, `→`, `{muted}Nothing here yet` |
 | `spot-lines` | `%title%`, `{warning}➥ Click to open` |
 | `leave-material`, `leave-name`, `leave-lore` | `BARRIER`, `{error}&lLEAVE`, the Exylia lore pattern |

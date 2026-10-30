@@ -76,5 +76,7 @@ class SpatialLayoutTest {
         assertEquals(new SpatialTheme(), layout.theme(), "the look nobody wrote is the library's");
         String yaml = Files.readString(file);
         assertTrue(yaml.contains("glass-alpha"), "missing keys are added: " + yaml);
+        assertEquals("{error}🔒", layout.theme().lockedMarker(), "a locked grid cell is marked by default");
+        assertTrue(yaml.contains("locked-marker"), "a layout written before 1.415.0 gains the locked marker: " + yaml);
     }
 }

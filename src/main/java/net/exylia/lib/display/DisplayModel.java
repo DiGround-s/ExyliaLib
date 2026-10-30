@@ -456,13 +456,15 @@ public final class DisplayModel {
     }
 
     /**
-     * The panel colour; {@code 0}, no panel, unless one was set. {@code null}
-     * (the client's default panel) is no longer produced since 1.311.0.
+     * The panel colour; {@code 0}, no panel, unless one was set. Always
+     * explicit: {@code null} (the client's default grey panel) is never
+     * produced, not even for opaque white ({@code 0xFFFFFFFF}), which until
+     * 1.415.0 was mistaken for "unset" and drawn grey.
      *
      * @since 1.272.0
      */
     public @Nullable Integer background() {
-        return background == UNSET ? null : background;
+        return background;
     }
 
     /**
