@@ -80,6 +80,7 @@ public final class ReplayRuntime {
             driver = scheduler.runAsyncTimer(1L, 1L, ReplayRuntime::tick);
         }
         ReplayEvents.register(plugin);
+        AnticheatFlags.register(plugin);
         if (isSupported()) ReplayCapture.register();
     }
 
@@ -280,6 +281,17 @@ public final class ReplayRuntime {
     /** The black box, if anybody asked for it. */
     static @Nullable BlackBox box() {
         return box;
+    }
+
+    /** An anticheat flag, from any thread: into the box when the box has the player. */
+    public static void flag(UUID player, String check, @Nullable String detail) {
+        BlackBox running = box;
+        if (running == null || !running.knows(player)) return;
+        running.flag(player, cut(check, 64), detail == null ? null : cut(detail, 256));
+    }
+
+    private static String cut(String text, int most) {
+        return text.length() <= most ? text : text.substring(0, most);
     }
 
     public static net.exylia.lib.replay.BlackBoxStats stats() {

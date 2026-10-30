@@ -230,6 +230,17 @@ public record ReplayMark(int tick, @NotNull String kind, @Nullable UUID actor,
     public static final String WORLD_EVENT = "world_event";
 
     /**
+     * An anticheat flagged somebody. Written into the black box by
+     * {@link Replays#flag}, folded so the same check on the same player within
+     * a second is one mark with a count; read it with {@link ReplayFlag#of} or
+     * all at once with {@link Replay#flags()}. Drawn by nobody, handed to the
+     * plugin.
+     *
+     * @since 1.404.0
+     */
+    public static final String FLAG = "flag";
+
+    /**
      * One with a line of text behind it, for a plugin's own kinds.
      *
      * @param tick  which frame

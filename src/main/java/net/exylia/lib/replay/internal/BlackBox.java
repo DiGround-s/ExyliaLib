@@ -95,6 +95,12 @@ public final class BlackBox {
      */
     private static final int SLACK = 300;
 
+    /** Ticks within which flags of the same player and check are one entry. */
+    static final int FOLD_TICKS = 20;
+
+    /** Players and checks being folded at once before the folding starts over. */
+    private static final int MAX_FOLDING = 4096;
+
     /**
      * Chunk snapshots a capture asks for per tick. Each one is taken on the
      * chunk's own thread; four hundred at once is a tick of tens of
@@ -114,6 +120,11 @@ public final class BlackBox {
     /** Attacks as the clients sent them, with their victims worked out; trimmed with the rest. */
     private final ConcurrentLinkedDeque<ClientView.Sent> attacks = new ConcurrentLinkedDeque<>();
     private final AtomicInteger changeCount = new AtomicInteger();
+    /**
+     * The newest flag of each player and check, while it can still be folded
+     * into: a second. Emptied by the trim, and outright past {@link #MAX_FOLDING}.
+     */
+    private final Map<Folding, Flag> folding = new ConcurrentHashMap<>();
     private final AtomicInteger nonPlayers = new AtomicInteger();
 
     /** Things a look left out because the box was full, this second and the last. */
@@ -170,6 +181,7 @@ public final class BlackBox {
         happenings.clear();
         changes.clear();
         attacks.clear();
+        folding.clear();
         ClientView.closeAll();
         changeCount.set(0);
         nonPlayers.set(0);
@@ -561,6 +573,28 @@ public final class BlackBox {
                 at.getX(), at.getY(), at.getZ(), text, power));
     }
 
+    /**
+     * An anticheat flagged somebody. Any thread: one map lookup, and a queue
+     * offer only for the first of a second.
+     */
+    void flag(UUID player, String check, @Nullable String detail) {
+        if (!running) return;
+        int now = ReplayClock.now();
+        if (folding.size() > MAX_FOLDING) folding.clear();
+        Flag[] started = new Flag[1];
+        folding.compute(new Folding(player, check), (key, last) -> {
+            if (last != null && now - last.tick >= 0 && now - last.tick < FOLD_TICKS) {
+                last.count.incrementAndGet();
+                return last;
+            }
+            started[0] = new Flag(now, check, detail);
+            return started[0];
+        });
+        if (started[0] != null) {
+            happenings.add(new Happening(now, ReplayMark.FLAG, player, null, null, 0, 0, 0, null, 0f, started[0]));
+        }
+    }
+
     /** A block is about to change, or just has: what it was before. */
     void changed(World world, int x, int y, int z, BlockData was) {
         if (!running) return;
@@ -586,6 +620,8 @@ public final class BlackBox {
                 if (!tape.player) nonPlayers.decrementAndGet();
             }
         }
+        int now = ReplayClock.now();
+        folding.values().removeIf(flag -> now - flag.tick >= FOLD_TICKS || now < flag.tick);
         while (true) {
             Happening first = happenings.peekFirst();
             if (first == null || first.tick >= oldest) break;
@@ -665,7 +701,8 @@ public final class BlackBox {
             marks++;
             // The record and its node in the queue, and what it carries.
             markBytes += 104 + (happening.data == null ? 0 : 16 + happening.data.length)
-                    + (happening.text == null ? 0 : 40 + happening.text.length());
+                    + (happening.text == null ? 0 : 40 + happening.text.length())
+                    + (happening.flag == null ? 0 : 80);
         }
         int changed = changeCount.get();
         // The record and its node; block data is shared between changes.
@@ -975,7 +1012,8 @@ public final class BlackBox {
             int tick = happening.tick - start;
             if (happening.world == null) {
                 if (happening.actor == null || included.contains(happening.actor)) {
-                    marks.add(new ReplayMark(tick, happening.kind, happening.actor, happening.data));
+                    marks.add(new ReplayMark(tick, happening.kind, happening.actor,
+                            happening.flag != null ? happening.flag.write() : happening.data));
                 }
                 continue;
             }
@@ -1305,7 +1343,38 @@ public final class BlackBox {
     /** Something the module marks, kept with where it happened when that matters. */
     private record Happening(int tick, String kind, @Nullable UUID actor, byte @Nullable [] data,
                              @Nullable UUID world, double x, double y, double z,
-                             @Nullable String text, float power) {
+                             @Nullable String text, float power, @Nullable Flag flag) {
+
+        Happening(int tick, String kind, @Nullable UUID actor, byte @Nullable [] data,
+                  @Nullable UUID world, double x, double y, double z, @Nullable String text, float power) {
+            this(tick, kind, actor, data, world, x, y, z, text, power, null);
+        }
+    }
+
+    /** Which flags fold into one another: the same player, the same check. */
+    private record Folding(UUID player, String check) {
+    }
+
+    /**
+     * A flag still counting: its data is written when a capture reads it, so
+     * a capture cut halfway through its second carries the count so far.
+     */
+    static final class Flag {
+
+        final int tick;
+        final String check;
+        final @Nullable String detail;
+        final AtomicInteger count = new AtomicInteger(1);
+
+        Flag(int tick, String check, @Nullable String detail) {
+            this.tick = tick;
+            this.check = check;
+            this.detail = detail;
+        }
+
+        byte[] write() {
+            return MarkData.flag(check, detail, count.get());
+        }
     }
 
     /** One block change: where, when, and what the block was before it. */

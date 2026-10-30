@@ -52,6 +52,8 @@ public final class Replay {
     private final List<ReplayMark> marks;
     private final List<ReplayScene> scenes;
     private final @Nullable List<TerrainSection> terrain;
+    /** {@link #hits()}, worked out the first time they are asked for: the recording never changes. */
+    private volatile @Nullable List<ReplayHit> hits;
 
     /** Built by the recorder and by the codec, never by a caller. */
     @ApiStatus.Internal
@@ -268,7 +270,92 @@ public final class Replay {
      * @since 1.403.0
      */
     public @NotNull List<ReplayHit> hits() {
-        return net.exylia.lib.replay.internal.HitAnalysis.hits(this);
+        List<ReplayHit> known = hits;
+        if (known == null) {
+            known = List.copyOf(net.exylia.lib.replay.internal.HitAnalysis.hits(this));
+            hits = known;
+        }
+        return known;
+    }
+
+    /**
+     * The hit one {@link ReplayMark#ATTACK} mark of this recording is: what a
+     * playback listener reads when it wants to say something about the attack
+     * it was just handed.
+     *
+     * @param attack the mark
+     * @return its hit, or {@code null} for a mark that is not an attack of this
+     *         recording
+     * @since 1.404.0
+     */
+    public @Nullable ReplayHit hit(@NotNull ReplayMark attack) {
+        if (!ReplayMark.ATTACK.equals(attack.kind()) || attack.actor() == null) return null;
+        UUID victim = attack.other();
+        if (victim == null) return null;
+        // The hits are the attack marks in order, one each: the mark's place
+        // among them is its hit, and two on the same tick stay apart.
+        // A mark that is not this recording's own instance is the first of its tick.
+        int nth = 0;
+        int before = 0;
+        for (ReplayMark mark : marks) {
+            if (mark.tick() > attack.tick()) break;
+            if (mark == attack) {
+                nth = before;
+                break;
+            }
+            if (mark.tick() == attack.tick() && mark.kind().equals(ReplayMark.ATTACK)
+                    && attack.actor().equals(mark.actor()) && victim.equals(mark.other())) before++;
+        }
+        for (ReplayHit hit : hits()) {
+            if (hit.tick() > attack.tick()) break;
+            if (hit.tick() == attack.tick() && hit.attacker().equals(attack.actor()) && hit.target().equals(victim)
+                    && nth-- == 0) return hit;
+        }
+        return null;
+    }
+
+    /**
+     * How many hits the server counted from one attacker on one target up to
+     * and including this one, and the damage they did.
+     *
+     * <p>Worked out from the recording rather than kept by whoever asks, so it
+     * is right after any seek, backwards or forwards. An attack the server
+     * never counted adds nothing, and is told the tally before it.
+     *
+     * @param hit one of {@link #hits()}
+     * @return the tally
+     * @since 1.404.0
+     */
+    public @NotNull ReplayHit.Tally tally(@NotNull ReplayHit hit) {
+        int number = 0;
+        double damage = 0;
+        for (ReplayHit other : hits()) {
+            if (other.tick() > hit.tick()) break;
+            boolean counted = other.confirmed() && other.attacker().equals(hit.attacker())
+                    && other.target().equals(hit.target());
+            if (counted) {
+                number++;
+                if (!Double.isNaN(other.damage())) damage += other.damage();
+            }
+            if (other == hit) break;
+        }
+        return new ReplayHit.Tally(number, damage);
+    }
+
+    /**
+     * Every anticheat flag in it, in order: who, when, which check, what it
+     * said and how many times in that second.
+     *
+     * @return the flags; empty for a recording made without any
+     * @since 1.404.0
+     */
+    public @NotNull List<ReplayFlag> flags() {
+        List<ReplayFlag> flags = new java.util.ArrayList<>();
+        for (ReplayMark mark : marks) {
+            ReplayFlag flag = ReplayFlag.of(mark);
+            if (flag != null) flags.add(flag);
+        }
+        return flags;
     }
 
     /** The tracks, in the same order as {@link #actors()}. */

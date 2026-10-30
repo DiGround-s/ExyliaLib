@@ -1,8 +1,10 @@
 package net.exylia.lib.replay;
 
 import net.exylia.lib.replay.internal.ReplayRuntime;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -108,6 +110,29 @@ public final class Replays {
      */
     public static @NotNull BlackBoxStats stats() {
         return ReplayRuntime.stats();
+    }
+
+    /**
+     * Tells the black box an anticheat flagged somebody.
+     *
+     * <p>One entry in the box's log of what happened to that player, and
+     * nothing captured: a capture that later covers this moment carries it as
+     * a {@link ReplayMark#FLAG}, read back with {@link Replay#flags()}. Flags of
+     * the same check on the same player within a second are one entry with a
+     * count, so an anticheat that flags every tick costs one entry a second.
+     *
+     * <p>Safe from any thread, the anticheat's own included, and cheap enough
+     * for every flag: a map lookup, and a queue offer for the first of each
+     * second. Nothing happens when no plugin opened the box or the player is
+     * not in it. Grim, Vulcan, Spartan and Matrix are listened to already.
+     *
+     * @param player who was flagged
+     * @param check  the check, as the anticheat names it; cut at 64 characters
+     * @param detail what it said beside it, or {@code null}; cut at 256
+     * @since 1.404.0
+     */
+    public static void flag(@NotNull Player player, @NotNull String check, @Nullable String detail) {
+        ReplayRuntime.flag(player.getUniqueId(), check, detail);
     }
 
     /** Whether a recording can be played back on this server. */

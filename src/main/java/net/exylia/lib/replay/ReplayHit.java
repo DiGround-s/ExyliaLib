@@ -38,4 +38,17 @@ import java.util.UUID;
 public record ReplayHit(@NotNull UUID attacker, @NotNull UUID target, int tick, double reachServer,
                         double reachSeen, double angleOff, double flick, int seenLag,
                         boolean estimated, double damage, boolean confirmed) {
+
+    /**
+     * Where one hit stands in a fight: which hit of that attacker on that
+     * target it was, counting only the ones the server counted, and how much
+     * damage they had done by then, after armour.
+     *
+     * @param number the hit's number, from one; for an attack the server never
+     *               counted, how many came before it
+     * @param damage the damage of those hits together, in health points
+     * @since 1.404.0
+     */
+    public record Tally(int number, double damage) {
+    }
 }

@@ -353,11 +353,12 @@ drains once a tick. The analysis runs only when a capture is cut.
 
 ## Marks
 
-`SWING`, `HURT`, `ATTACK`, `EQUIP`, `BLOCK`, `EXPLOSION`, `MOUNT`, `DISMOUNT`,
-`PICKUP`, `BREAKING` and `SHIELD_DISABLED` are drawn by the module and never
-reach a plugin. `DEATH`, `RESPAWN`, `TOTEM`, `TELEPORT` and `CHAT` are drawn by
-it too and still reach the plugin's `onMark`, so it can put a line on the screen
-for them. Everything else is a plugin's own:
+`SWING`, `HURT`, `EQUIP`, `BLOCK`, `EXPLOSION`, `MOUNT`, `DISMOUNT`, `PICKUP`,
+`BREAKING` and `SHIELD_DISABLED` are drawn by the module and never reach a
+plugin. `ATTACK` (since 1.404.0), `DEATH`, `RESPAWN`, `TOTEM`, `TELEPORT`,
+`CHAT` and `QUIT` are drawn by it too and still reach the plugin's `onMark`, so
+it can put a line on the screen for them. `FLAG` is drawn by nobody and reaches
+it (see *Anticheat flags*). Everything else is a plugin's own:
 
 ```java
 recorder.mark("round", null, "2");
@@ -371,6 +372,28 @@ playback.onMark(mark -> {
 ```
 
 Marks a plugin wrote arrive on the main thread, in the order they happened.
+
+### Saying what an attack was
+
+`replay.hit(mark)` is the `ReplayHit` of an `ATTACK` mark the playback handed
+on, and `replay.tally(hit)` which hit of that attacker on that target it was
+and the damage they had done by then, counting only the hits the server
+counted:
+
+```java
+playback.onMark(mark -> {
+    ReplayHit hit = replay.hit(mark);
+    if (hit == null || !hit.confirmed()) return;
+    ReplayHit.Tally tally = replay.tally(hit);
+    viewer.sendMessage(name(hit.attacker()) + " hit #" + tally.number()
+            + " for " + hit.damage() / 2 + " hearts, " + tally.damage() / 2 + " in all");
+});
+```
+
+Both are worked out from the recording, not counted by whoever listens, so
+they stay right after a seek in either direction. The hits are worked out once
+per `Replay` and kept; each call walks them, which is nothing next to a chat
+line.
 
 ## A recorder has to be stopped
 
@@ -544,6 +567,41 @@ under the SHA-1 of its content and writes only the keys into the blob;
 `Replay.from(blob, chunks)` reads them back. The same unchanged spawn recorded a
 hundred times is stored once. A section the store has lost is a hole in the
 ground, not a recording that cannot be played.
+
+### Anticheat flags
+
+```java
+Replays.flag(player, "Reach", "3.41 blocks");
+```
+
+One entry in the black box's log of what happened to that player, and nothing
+captured. A capture that later covers that moment carries it as a `FLAG` mark,
+so staff watching the replay see the flag on the tick it went off. Read them
+all with `replay.flags()` (`ReplayFlag`: player, tick, check, detail, count),
+or one mark at a time with `ReplayFlag.of(mark)` in `onMark`.
+
+Flags of the same player and check within a second fold into one entry with a
+count; the first detail is kept. A check that fires every tick for a second is
+one line saying 20, not twenty lines.
+
+Callable from any thread, the anticheat's own included. The cost is one map
+lookup per call and one queue offer for the first flag of each second; the
+folding map holds only the last second and starts over past 4096 entries.
+Nothing happens when no plugin opened the box or the player is not in it.
+
+The library already listens to these four, registered only when the plugin is
+enabled (also later than the library), by class name, with no compile
+dependency; what a flag says is read through method handles looked up once:
+
+| Plugin | Event | Check | Detail |
+| --- | --- | --- | --- |
+| GrimAC | `ac.grim.grimac.api.events.FlagEvent` | `getCheck().getCheckName()` | `getVerbose()` |
+| Vulcan | `me.frep.vulcan.api.event.VulcanFlagEvent` | `getCheck().getDisplayName()` and `getDisplayType()` | `getInfo()` |
+| Spartan | `me.vagdedes.spartan.api.PlayerViolationEvent` | `getHackType()` | `getMessage()` |
+| Matrix | `me.rerere.matrix.api.events.PlayerViolationEvent` | `getHackType()` | `getMessage()` |
+
+An anticheat whose API is not the one expected is logged once and left out.
+Any other anticheat is one `Replays.flag` call from its own flag event.
 
 ## Stages
 

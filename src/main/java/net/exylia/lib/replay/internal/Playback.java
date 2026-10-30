@@ -894,7 +894,7 @@ public final class Playback implements ReplayPlayback {
     private static boolean handedOn(String kind) {
         return switch (kind) {
             case ReplayMark.DEATH, ReplayMark.RESPAWN, ReplayMark.TOTEM, ReplayMark.TELEPORT,
-                 ReplayMark.CHAT, ReplayMark.QUIT -> true;
+                 ReplayMark.CHAT, ReplayMark.QUIT, ReplayMark.ATTACK -> true;
             default -> false;
         };
     }

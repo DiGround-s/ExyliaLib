@@ -228,10 +228,12 @@ public interface ReplayPlayback {
     /**
      * Called for every mark the playback passes that a plugin may want to act on.
      *
-     * <p>Swings, hits, attacks, equipment, blocks and blasts are drawn by the
-     * module and never arrive here. Deaths, respawns, totems, teleports and
-     * chat are drawn by the module too and still arrive, so a plugin can put a
-     * line on the screen for them. Everything a plugin wrote arrives.
+     * <p>Swings, hurts, equipment, blocks and blasts are drawn by the module
+     * and never arrive here. Attacks (since 1.404.0), deaths, respawns, totems,
+     * teleports and chat are drawn by the module too and still arrive, so a
+     * plugin can put a line on the screen for them: {@link Replay#hit} and
+     * {@link Replay#tally} say what an attack was. Anticheat
+     * {@link ReplayMark#FLAG flags} and everything a plugin wrote arrive.
      *
      * @param listener what to call, on the server's main thread
      */

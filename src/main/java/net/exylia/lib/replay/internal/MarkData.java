@@ -113,6 +113,46 @@ public final class MarkData {
         }
     }
 
+    /**
+     * An anticheat flag: how many times it went off in the second it covers,
+     * then the check and the detail, each as a length and its UTF-8 bytes. A
+     * detail of length -1 is none.
+     */
+    public static byte[] flag(String check, @Nullable String detail, int count) {
+        byte[] name = check.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] more = detail == null ? null : detail.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        ByteBuffer out = ByteBuffer.allocate(4 + 2 + name.length + 2 + (more == null ? 0 : more.length));
+        out.putInt(count).putShort((short) name.length).put(name);
+        out.putShort((short) (more == null ? -1 : more.length));
+        if (more != null) out.put(more);
+        return out.array();
+    }
+
+    /**
+     * What {@link #flag} wrote: {@code {check, detail, count}} with the count as
+     * text, or {@code null} for anything else.
+     */
+    public static String @Nullable [] flag(byte @Nullable [] data) {
+        if (data == null || data.length < 8) return null;
+        try {
+            ByteBuffer in = ByteBuffer.wrap(data);
+            int count = in.getInt();
+            byte[] name = new byte[in.getShort()];
+            in.get(name);
+            int length = in.getShort();
+            String detail = null;
+            if (length >= 0) {
+                byte[] more = new byte[length];
+                in.get(more);
+                detail = new String(more, java.nio.charset.StandardCharsets.UTF_8);
+            }
+            return new String[] {new String(name, java.nio.charset.StandardCharsets.UTF_8), detail,
+                    Integer.toString(count)};
+        } catch (RuntimeException malformed) {
+            return null;
+        }
+    }
+
     /** Which way a hit came from, relative to the body, as the game measures it. */
     public static byte[] hurt(float direction) {
         return new byte[] {MotionTrack.angle(direction)};
