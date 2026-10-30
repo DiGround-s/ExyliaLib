@@ -43,6 +43,10 @@ While a player is suspended:
 - **Threads:** any. The events are answered on whatever thread fires them.
 - **Reload:** not applicable, the module keeps nothing derived from the palette.
 
+A plugin that keeps players through [Stays](stays.md) gets this for every
+stay with `Stays.of(plugin).holdSkillsBack()` (since 1.411.0), without calling
+`suspend` and `resume` itself.
+
 Code: `hook/skill/SkillHooks` (API), `hook/skill/internal/SkillHookRuntime`
 (suspensions and the listened events). Adding a skill plugin is one line in
 `SkillHookRuntime.SOURCES`.

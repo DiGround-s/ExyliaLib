@@ -2,6 +2,7 @@ package net.exylia.lib.session;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.escrow.Escrow;
+import net.exylia.lib.hook.skill.SkillHooks;
 import net.exylia.lib.session.internal.Recovering;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.snapshot.PluginSnapshots;
@@ -54,6 +55,7 @@ public final class PluginStays {
     private final Map<UUID, String> contexts = new ConcurrentHashMap<>();
     /** Command labels a player may still run while this plugin recovers them. */
     private volatile Set<String> allowedWhileRecovering = Set.of();
+    private volatile boolean holdsSkillsBack;
 
     PluginStays(@NotNull Plugin plugin) {
         this(plugin, Sessions.of(plugin), new LiveBackend(plugin));
@@ -173,6 +175,7 @@ public final class PluginStays {
         }
         CompletableFuture<Void> saved = backend.save(player, context);
         saves.put(uuid, saved);
+        if (holdsSkillsBack && plugin != null) SkillHooks.suspend(plugin, player);
         return new Stay(claim, saved);
     }
 
@@ -280,6 +283,8 @@ public final class PluginStays {
                                           @Nullable Function<Location, CompletableFuture<Void>> goHome,
                                           Set<SnapshotPart> parts) {
         UUID uuid = player.getUniqueId();
+        // On the way home, not once there: whatever they do from now on is outside the stay.
+        if (plugin != null) SkillHooks.resume(plugin, player);
         Optional<Claim> claim = sessions.mine(uuid);
         CompletableFuture<Void> saved = saves.remove(uuid);
         if (claim.isEmpty() && saved == null) {
@@ -452,6 +457,23 @@ public final class PluginStays {
             allowed.add(clean.toLowerCase(Locale.ROOT));
         }
         allowedWhileRecovering = Set.copyOf(allowed);
+        return this;
+    }
+
+    /**
+     * Holds skill plugins back for every player in a stay, from {@code enter} to
+     * {@code leave}: no skill experience, abilities or combat stats while they
+     * play (see {@link net.exylia.lib.hook.skill.SkillHooks}). Off by default.
+     *
+     * <pre>{@code
+     * stays = Stays.of(this).holdSkillsBack();
+     * }</pre>
+     *
+     * @return this
+     * @since 1.411.0
+     */
+    public @NotNull PluginStays holdSkillsBack() {
+        holdsSkillsBack = true;
         return this;
     }
 

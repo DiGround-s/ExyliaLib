@@ -1,5 +1,6 @@
 package net.exylia.lib.session;
 
+import net.exylia.lib.hook.skill.SkillHooks;
 import net.exylia.lib.session.internal.Recovering;
 import net.exylia.lib.util.snapshot.SnapshotPart;
 import org.bukkit.GameMode;
@@ -44,6 +45,25 @@ class PluginStaysTest {
         assertTrue(stays.enter(player, "match", null).isPresent());
         assertTrue(stays.isHeld(player.getUniqueId()));
         assertEquals(List.of("save"), backend.calls);
+    }
+
+    @Test
+    void skillsAreHeldBackFromEnterToLeaveWhenAsked() {
+        PluginStays holding = new PluginStays(FakePlugin.named("ExyliaDuels"),
+                new PluginSessions("ExyliaDuels"), backend).holdSkillsBack();
+        holding.enter(player, "duel", null);
+        assertTrue(SkillHooks.isSuspended(player.getUniqueId()));
+
+        holding.leave(player).join();
+        assertFalse(SkillHooks.isSuspended(player.getUniqueId()));
+    }
+
+    @Test
+    void skillsAreLeftAloneByDefault() {
+        PluginStays plain = new PluginStays(FakePlugin.named("ExyliaDuels"),
+                new PluginSessions("ExyliaDuels"), backend);
+        plain.enter(player, "duel", null);
+        assertFalse(SkillHooks.isSuspended(player.getUniqueId()));
     }
 
     @Test

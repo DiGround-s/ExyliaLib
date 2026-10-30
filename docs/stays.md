@@ -51,6 +51,17 @@ stays.isHeld(player.getUniqueId());
 Stays.isRecovering(player.getUniqueId());           // any plugin, 1.350.0
 ```
 
+## Holding skills back (since 1.411.0)
+
+```java
+stays = Stays.of(this).holdSkillsBack();
+```
+
+Every player in a stay is then suspended through [skill hooks](hooks.md) from
+`enter` to the first `leave`: no AuraSkills or mcMMO experience, abilities or
+combat stats while they play. Off by default. The suspension is in memory
+only, so a crash leaves nothing to recover.
+
 ## Recovering on join
 
 `recover` reads the database, sends the player home and restores them there;
