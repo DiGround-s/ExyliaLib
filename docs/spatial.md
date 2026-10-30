@@ -122,12 +122,29 @@ Since 1.408.0; a layout written before keeps its own values.
 | `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid |
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
 | `footer` | A button along any panel's bottom |
-| `carousel` | `slots` plinths (a block display and a flat lit plate) each turned to the eyes, the item over it, its name and state line under it; `← PAGE x / y →` under the middle |
+| `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line on a backing under and in front of it; `← PAGE x / y →` under the middle |
 | `preview` | A plinth in the middle, and what `preview(ctx)` returns on it, turning `turn-speed` degrees a second |
 
 Hovering grows an item ×`hover-grow` with a 120 ms glide and outlines it in
-`hover-glow`; a plinth's plate lights in `plate-hover`, the chosen one's in
-`plate-selected`. `LOCKED` entries are drawn dimmer and read the theme's
+`hover-glow` (panels).
+
+**The carousel, since 1.414.0.** Every icon is drawn in the GUI display
+context, so a trident, a cake or a totem look like their inventory icon: one
+size (0.32), centred 0.2 over its plinth's top, swaying ±16° and bobbing
+±0.012 on a 3.6 s cycle, each slot out of step. The chosen plinth is outlined in
+`plate-selected` (a glow ring), its item lifted 0.07, grown ×1.1 and turning a
+full circle every 2.4 s, its label's backing warmed towards the same colour, and
+a thin `plate-selected` bar glides (180 ms) to the gap between its plinth and its
+label. Hover is the lighter version: a `plate-hover` ring, the item lifted 0.035
+and grown ×`hover-grow`, its label grown ×1.1 and brought 0.03 nearer, its top
+kept where it was. No plate is ever drawn as a flat bright sheet. The label is
+one text display (name, then state line) with a backing of its own, its top
+0.04 under the plinth's bottom and its face 0.09 nearer the eyes than the
+plinth's front face, so seen from the eyes no part of any plinth is before it.
+A page turn slides the old page off sideways (200 ms, shrinking) and brings the
+new one in from the side the wheel turned to, slot by slot.
+
+**The panels' icons** are GUI-context too, bobbing 0.008 on a 4 s cycle. `LOCKED` entries are drawn dimmer and read the theme's
 `locked-line` (or their `price`); `EQUIPPED` reads `equipped-line` and a grid
 cell gets `equipped-marker`; `OWNED` reads its subtitle or `owned-line`.
 `SELECTED` marks the entry chosen when the menu opens.
@@ -135,7 +152,17 @@ cell gets `equipped-marker`; `OWNED` reads its subtitle or `owned-line`.
 Every word the menu draws is live: TEXT lines, panel titles and hints, BUTTON
 and footer labels are filled again on every `refresh()`, and only a label that
 now reads something else is drawn again (since 1.408.0; before, all but TEXT
-lines kept what they read when drawn).
+lines kept what they read when drawn), popping back from nine tenths of its size
+in 170 ms (since 1.414.0) rather than appearing at once.
+
+**Readable everywhere (since 1.414.0).** Every line is drawn at least as large
+as the theme's `min-glyph-degrees` (0.95°) reads from the eyes where it stands:
+a vanilla capital is 7 px, a small capital 5 px, a pixel 1/40 block at scale 1,
+so a line 3.6 blocks away is never under scale 0.34, or 0.48 in small capitals.
+A line too long for its room at that size is cut with an ellipsis, its colours
+kept, rather than shrunk. Titles and buttons follow the server's `small-text`;
+body lines (TEXT lines, hints, entry names and state lines, the page line, the
+empty line, captions) are drawn as written unless `small-caps-body: true`.
 
 ## Words and translation
 
@@ -201,6 +228,40 @@ Preview NPCs (`npc(...)` and the mannequin) are [nameless](npcs.md): announced
 under a generated name in a team that hides the tag, so no name, and no
 scoreboard-team prefix of the viewer's (a rank), hangs over them.
 
+## Drafts and SAVE (since 1.414.0)
+
+What a player picks in a cosmetic menu is a draft: shown at once (the preview
+wears or plays it, owned or not), stored only when they press SAVE, dropped when
+they leave.
+
+```java
+menus.register("effects", menu -> menu
+        .source("effects", this::effects)
+        .preview(ctx -> SpatialPreview.sequence(sequenceOf(ctx.selected("effects")), null))
+        .saved(ctx -> Collections.singletonMap("effects", worn(ctx.viewer())))  // what is stored now
+        .onSave(ctx -> equip(ctx))       // null: done; a line: refused, told with the error sound; "" refuses silently
+        .onDiscard(ctx -> lines.discarded().send(ctx.viewer())));
+```
+
+- `saved(ctx -> Map)` is what a draft is compared with, read from memory on every
+  redraw. A key that names a source is that source's selection; any other key holds
+  what `ctx.draft(key, value)` was given (compared with `equals`; drafting the saved
+  value, or `null`, is no draft).
+- `ctx.draft(key)` reads the draft, else the saved value; `ctx.changed()` lists the
+  keys that differ, `ctx.dirty()` says whether any does.
+- A BUTTON or footer with `action: save` runs `onSave` (also `ctx.save()`); with
+  `action: revert`, `ctx.revert()` drops every draft and re-selects what is saved.
+  Both are answered only when the plugin registers no action of that name itself.
+- The SAVE plate is warmed towards `plate-selected` while `dirty()`, calm otherwise;
+  the label is the plugin's (`SAVE` / `Saved ✔` from its lang files, picked with
+  `ctx.dirty()` in `values`).
+- Closing with `dirty()` runs `onDiscard` (after which drafts are gone); nothing was
+  ever applied, so there is nothing to undo.
+- `ctx.hovered(source)` is the entry under the crosshair: an information panel reads
+  it (falling back to the selection) to describe what the player is looking at
+  before they click. A hover redraws the panels' words at once; leaving an entry
+  waits one poll, so a sweep along the plinths does not flash back in between.
+
 ## Opening and closing
 
 Panels pop in first, staggered by 70 ms, their content 180 ms after, the
@@ -231,8 +292,9 @@ library's look:
 | `glass-tint`, `glass-tint-strength`, `glass-alpha` | `{primary}` mixed into black by 0.16, alpha 208 |
 | `backing-reach`, `backing-alpha` | 0.035 blocks larger each side, half as bright, alpha 236 |
 | `accent`, `accent-height` | `{primary}`, 0.022 |
-| `title-scale`, `text-scale`, `small-scale` | 0.5, 0.36, 0.27 (about 21-26 px at 3.4 blocks, 1080p) |
-| `pedestal-block`, `plate-idle`/`-hover`/`-selected` | `POLISHED_BLACKSTONE`; `{primary}` darkened, `{secondary}`, `{highlight}` |
+| `title-scale`, `text-scale`, `small-scale` | 0.6, 0.42, 0.35 (0.5, 0.36, 0.27 before 1.414.0) |
+| `min-glyph-degrees`, `small-caps-body` | 0.95, false (since 1.414.0; see *Readable everywhere*) |
+| `pedestal-block`, `plate-idle`/`-hover`/`-selected` | `POLISHED_BLACKSTONE`; `{primary}` darkened, `{secondary}` (hover ring), `{highlight}` (chosen ring, label tint, lit SAVE) |
 | `hover-glow`, `hover-grow`, `edit-outline` | `{highlight}`, 1.12, `{info}` |
 | `locked-line`, `owned-line`, `equipped-line`, `equipped-marker` | `{error}✘ Locked`, `{muted}Owned`, `{success}✔ Equipped`, `{success}✔` |
 | `page-line`, `previous-arrow`, `next-arrow`, `empty-line` | `{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%`, `←`, `→`, `{muted}Nothing here yet` |
@@ -427,7 +489,10 @@ pointer.detach();                             // they walked off
 A default wardrobe is about 120 displays for one viewer, sent once. A poll is a
 ray against each hotspot (a few dozen dot products) every 2 ticks. A `refresh()`
 re-reads the sources and sends only the slots whose entries changed; a hover
-sends one pose and one glow. Edit mode redraws the whole menu per notch, for the
+sends a few poses and restyles, and redraws only the panel lines that now read
+something else. Idle icons are client-interpolated loops: a carousel icon sends
+a pose every 0.6 s, a panel icon one every 2 s (about 10 + 10 packets a second
+for a default wardrobe's 6 plinths and 20 panel icons). Edit mode redraws the whole menu per notch, for the
 admin alone.
 
 ## Source and tests
@@ -437,7 +502,8 @@ admin alone.
   `SpatialSpots`, `SpatialInput`, `SpatialPointer`, `Hotspot`, `SpatialClick`.
 - Package-private: `MenuSession` (drawing, diffing, preview), `EditMode`.
 - Internal: `spatial/internal/Geometry` (turned panels, carousel slots, pages,
-  diffs, glass sizing, colour mixing).
+  diffs, glass sizing, colour mixing, the readability floor and ellipsis cuts),
+  `spatial/internal/Drafts` (drafts against the saved state).
 - Lifecycle: `SpatialMenus.init` in `ExyliaLib.onEnable` (the input listener and the
   hiding rule), `SpatialMenus.release(plugin)` first in `onPluginDisable`,
   `releaseAll` in `onDisable`.
@@ -446,6 +512,8 @@ admin alone.
   sizing), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
   cell picking and the gap, hover reported once, wheel wrap, custom pickers from
   state, refused cells falling through, hotspots that do not hover, press guards),
+  `spatial/internal/ReadabilityTest` (the floor's angle, the default theme readable
+  at 3.6 blocks, ellipsis cuts keeping markup, drafts against the saved state),
   `spatial/SpatialLayoutTest` (the default round-trips, a shipped layout keeps its
   values and gains the missing keys), `spatial/DefaultLayoutOverlapTest` (the
   default layout seen front-on from the eyes: no two pieces' outlines overlap,

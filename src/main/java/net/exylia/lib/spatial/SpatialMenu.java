@@ -43,6 +43,9 @@ public final class SpatialMenu {
     @Nullable Consumer<SpatialContext> onClose;
     @Nullable String permission;
     @Nullable Function<Player, String> guard;
+    @Nullable Function<SpatialContext, Map<String, ?>> saved;
+    @Nullable Function<SpatialContext, String> save;
+    @Nullable Consumer<SpatialContext> discard;
 
     SpatialMenu(String id) {
         this.id = id;
@@ -109,6 +112,49 @@ public final class SpatialMenu {
      */
     public @NotNull SpatialMenu canOpen(@Nullable Function<Player, String> guard) {
         this.guard = guard;
+        return this;
+    }
+
+    /**
+     * What is saved now, by key: what a draft is compared with. Read on the viewer's thread whenever the
+     * menu asks (every redraw), so read memory. A key that names a source is that source's selection:
+     * {@code Map.of("effects", worn)} makes the chosen effect the draft, and SAVE is lit while it is not
+     * the worn one. Other keys hold whatever {@link SpatialContext#draft(String, Object)} is given;
+     * values are compared with {@code equals}. A {@code null} value is allowed.
+     *
+     * <pre>{@code
+     * menu.saved(ctx -> Collections.singletonMap("effects", worn(ctx.viewer())))
+     *     .onSave(ctx -> equip(ctx.viewer(), ctx.selected("effects")))   // null: saved; a line: refused
+     *     .onDiscard(ctx -> lines.discarded().send(ctx.viewer()));
+     * }</pre>
+     *
+     * @since 1.414.0
+     */
+    public @NotNull SpatialMenu saved(@Nullable Function<SpatialContext, Map<String, ?>> saved) {
+        this.saved = saved;
+        return this;
+    }
+
+    /**
+     * What SAVE does (a BUTTON or footer with the action {@code save}, or {@link SpatialContext#save}):
+     * commit the drafts through the plugin's own services and return {@code null}, or return why not
+     * (colours and palette tokens allowed), which the player is told with the theme's error sound; a
+     * blank line refuses silently. Drafts the saved state now equals are dropped; the menu redraws.
+     *
+     * @since 1.414.0
+     */
+    public @NotNull SpatialMenu onSave(@Nullable Function<SpatialContext, String> save) {
+        this.save = save;
+        return this;
+    }
+
+    /**
+     * Runs when the menu closes with unsaved drafts, which are dropped: where to say so.
+     *
+     * @since 1.414.0
+     */
+    public @NotNull SpatialMenu onDiscard(@Nullable Consumer<SpatialContext> discard) {
+        this.discard = discard;
         return this;
     }
 

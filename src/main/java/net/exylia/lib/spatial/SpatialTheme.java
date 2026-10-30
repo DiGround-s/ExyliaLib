@@ -26,13 +26,14 @@ public record SpatialTheme(
         @Comment("The thin bar along each panel's top edge: its colour and height in blocks.")
         String accent,
         double accentHeight,
-        @Comment("Text sizes: panel titles, body lines, and small lines (subtitles, hints).")
+        @Comment("Text sizes: panel titles, body lines, and small lines (subtitles, hints). Never drawn below min-glyph-degrees.")
         double titleScale,
         double textScale,
         double smallScale,
         @Comment("The block the carousel's and the preview's plinths are made of.")
         String pedestalBlock,
-        @Comment("The plate on a plinth: at rest (darkened like the glass), under the crosshair, and on the chosen entry.")
+        @Comment("The plate on a plinth at rest (darkened like the glass); the ring round a plinth under the crosshair,")
+        @Comment("and round the chosen one (also its label's tint and the SAVE button while there is something to save).")
         String plateIdle,
         String plateHover,
         String plateSelected,
@@ -63,12 +64,19 @@ public record SpatialTheme(
         String pageSound,
         String openSound,
         String closeSound,
-        String errorSound) {
+        String errorSound,
+        @Comment("The smallest a letter may look from the viewer's eyes, in degrees: every line is drawn at least")
+        @Comment("this tall wherever it stands (a vanilla capital is 7 px, a small capital 5 px), and a line too")
+        @Comment("long for its room at that size is cut with an ellipsis rather than shrunk.")
+        double minGlyphDegrees,
+        @Comment("Whether body lines (descriptions, hints, subtitles, the page line) follow the server's small-text")
+        @Comment("setting like titles and buttons do. Small capitals are hard to read at body sizes.")
+        boolean smallCapsBody) {
 
     /** The library's look. */
     public SpatialTheme() {
         this("{primary}", 0.16, 208, 0.035, 236, "{primary}", 0.022,
-                0.5, 0.36, 0.27,
+                0.6, 0.42, 0.35,
                 "POLISHED_BLACKSTONE", "{primary}", "{secondary}", "{highlight}",
                 "{highlight}", 1.12, "{info}",
                 "{error}✘ Locked", "{muted}Owned", "{success}✔ Equipped", "{success}✔",
@@ -80,7 +88,8 @@ public record SpatialTheme(
                         "{warning}➥ Right-click to leave", ""),
                 "minecraft:block.note_block.hat|0.35|1.8", "minecraft:block.note_block.hat|1.0|1.0",
                 "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|1.0|1.4",
-                "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0");
+                "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0",
+                0.95, false);
     }
 
     public SpatialTheme {

@@ -13,6 +13,7 @@ import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.internal.SkinCache;
+import net.exylia.lib.spatial.internal.Drafts;
 import net.exylia.lib.spatial.internal.Geometry;
 import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
@@ -72,8 +73,15 @@ final class MenuSession implements SpatialContext {
     private final Map<String, Object> state = new HashMap<>();
     private final Map<String, Integer> pages = new HashMap<>();
     private final Map<String, String> selected = new HashMap<>();
+    private final Map<String, String> hovers = new HashMap<>();
+    /** Drafted values of keys that name no source; a source's draft is its selection. */
+    private final Drafts drafts = new Drafts();
+    /** The crosshair left an entry: the panels' words go back to the chosen one on the next poll. */
+    private boolean wordsStale;
     private @Nullable PreviewPart preview;
     private @Nullable Slots carousel;
+    /** Where pieces drawn during a carousel page turn come in from, in the world's axes; {@code null} otherwise. */
+    private double @Nullable [] slideFrom;
     @Nullable EditMode edit;
     private boolean closed;
 
@@ -159,6 +167,77 @@ final class MenuSession implements SpatialContext {
         menus.close(this, true);
     }
 
+    // ── Drafts ────────────────────────────────────────────────────────────
+
+    @Override
+    public @Nullable String hovered(@NotNull String source) {
+        return hovers.get(source);
+    }
+
+    private Map<String, ?> savedState() {
+        Map<String, ?> saved = definition.saved == null ? null : definition.saved.apply(this);
+        return saved == null ? Map.of() : saved;
+    }
+
+    @Override
+    public @Nullable Object draft(@NotNull String key) {
+        if (definition.sources.containsKey(key)) return selected(key);
+        return drafts.get(key, savedState());
+    }
+
+    @Override
+    public void draft(@NotNull String key, @Nullable Object value) {
+        if (definition.sources.containsKey(key)) {
+            select(key, value == null ? null : value.toString());
+            return;
+        }
+        drafts.put(key, value, savedState());
+    }
+
+    @Override
+    public @NotNull java.util.Set<String> changed() {
+        return drafts.changed(savedState(), definition.sources::containsKey, selected::get);
+    }
+
+    @Override
+    public boolean dirty() {
+        return !changed().isEmpty();
+    }
+
+    @Override
+    public void revert() {
+        if (closed) return;
+        drafts.clear();
+        savedState().forEach((key, value) -> {
+            if (definition.sources.containsKey(key)) select(key, value == null ? null : value.toString());
+        });
+        refresh();
+    }
+
+    @Override
+    public void save() {
+        if (closed) return;
+        if (definition.save == null) {
+            StageLook.play(viewer, theme.errorSound());
+            return;
+        }
+        String refusal = definition.save.apply(this);
+        if (refusal != null) {
+            StageLook.play(viewer, theme.errorSound());
+            if (!refusal.isBlank()) viewer.sendMessage(Text.component(refusal));
+        }
+        drafts.prune(savedState());
+        refresh();
+    }
+
+    /** The panels' words again, and nothing else: what the crosshair moving over a list changes. */
+    private void refreshWords() {
+        if (closed) return;
+        for (Part part : parts) {
+            if (part instanceof PanelPart panel) panel.refreshWords();
+        }
+    }
+
     boolean isClosed() {
         return closed;
     }
@@ -231,19 +310,79 @@ final class MenuSession implements SpatialContext {
     }
 
     void end() {
+        // Nothing drafted was ever applied: leaving drops it, and the plugin may say so.
+        boolean unsaved = definition.discard != null && dirty();
         closed = true;
+        if (unsaved) definition.discard.accept(this);
+        drafts.clear();
         if (definition.onClose != null) definition.onClose.accept(this);
     }
 
     void tick() {
+        if (wordsStale) {
+            wordsStale = false;
+            refreshWords();
+        }
         if (preview != null) preview.keep();
     }
 
     // ── Pieces ────────────────────────────────────────────────────────────
 
-    /** A pose: popping in after {@code delay}, or standing still at once when the delay is negative. */
+    /** A delay meaning "drawn again because its words changed": a soft re-pop instead of the entry pop. */
+    private static final long REPOP = -2L;
+    /** The display context an icon is drawn in: the GUI's, so every item looks like its inventory icon. */
+    private static final int GUI_CONTEXT = 6;
+    /** A plinth, in its slot's own terms: its centre's height, its size, and its top. */
+    private static final double PLINTH_UP = -0.17;
+    private static final double PLINTH_SIZE = 0.44;
+    private static final double PLINTH_HEIGHT = 0.08;
+    /** The icon's centre over the plinth. */
+    private static final double ICON_UP = 0.07;
+    private static final double CAROUSEL_ICON = 0.32;
+    /**
+     * A plinth's label: its top under the plinth's bottom (-0.21), and its face in front of the plinth's
+     * front face (0.22), so seen from the eyes no part of the plinth is ever before it.
+     */
+    private static final double LABEL_TOP = -0.25;
+    private static final double LABEL_FORWARD = 0.31;
+    private static final int LABEL_ALPHA = 0xB4;
+
+    private Location eyes() {
+        return anchor.clone().add(0, EYES, 0);
+    }
+
+    /**
+     * A pose: popping in after {@code delay}, standing still at once when it is {@code -1}, or popping
+     * softly when it is {@link #REPOP}. During a page turn it comes in from {@link #slideFrom}.
+     */
     private DisplayMotion motion(Rotation rotation, double x, double y, double z, long delay) {
-        return delay < 0 ? StageLook.still(rotation, x, y, z, LIFE) : StageLook.pop(rotation, x, y, z, delay, LIFE);
+        if (delay == REPOP) return soft(rotation, x, y, z);
+        if (delay < 0 && slideFrom == null) return StageLook.still(rotation, x, y, z, LIFE);
+        return pop(rotation, x, y, z, Math.max(0, delay), slideFrom);
+    }
+
+    /** Waits unseen, then pops in to its size, gliding in from {@code from} (world axes) when given. */
+    private static DisplayMotion pop(Rotation rotation, double x, double y, double z, long delay, double @Nullable [] from) {
+        float tiny = 0.01f;
+        float dx = from == null ? 0f : (float) from[0];
+        float dy = from == null ? 0f : (float) from[1];
+        float dz = from == null ? 0f : (float) from[2];
+        float sx = (float) x;
+        float sy = (float) y;
+        float sz = (float) z;
+        return DisplayMotion.of(List.of(
+                new DisplayKeyframe(0L, dx, dy, dz, rotation, tiny, tiny, tiny),
+                new DisplayKeyframe(delay, dx, dy, dz, rotation, tiny, tiny, tiny),
+                new DisplayKeyframe(delay + 150L, dx * 0.2f, dy * 0.2f, dz * 0.2f, rotation, sx * 1.08f, sy * 1.08f, sz * 1.08f),
+                new DisplayKeyframe(delay + 280L, 0f, 0f, 0f, rotation, sx, sy, sz)), LIFE);
+    }
+
+    /** A line whose words changed: back from nine tenths of its size, quickly, so it reads as a refresh. */
+    private static DisplayMotion soft(Rotation rotation, double x, double y, double z) {
+        float k = 0.9f;
+        return DisplayMotion.of(List.of(
+                new DisplayKeyframe(0L, 0f, 0f, 0f, rotation, (float) x * k, (float) y * k, (float) z * k),
+                new DisplayKeyframe(170L, 0f, 0f, 0f, rotation, (float) x, (float) y, (float) z)), LIFE);
     }
 
     private @Nullable DisplayHandle show(DisplayModel model, DisplayMotion motion, Location at) {
@@ -254,9 +393,9 @@ final class MenuSession implements SpatialContext {
 
     /** A sheet of glass, a plate or a bar: a text display's background, centred on {@code at}. */
     private @Nullable DisplayHandle sheet(Location at, Rotation rotation, double width, double height, int argb, long delay) {
-        DisplayMotion motion = delay < 0
+        DisplayMotion motion = delay == REPOP || (delay < 0 && slideFrom == null)
                 ? DisplayMotion.of(List.of(Geometry.glass(0, rotation, width, height, 1, 0, 0, 0)), LIFE)
-                : DisplayMotion.of(Geometry.glassPop(rotation, width, height, delay), LIFE);
+                : DisplayMotion.of(Geometry.glassPop(rotation, width, height, Math.max(0, delay), slideFrom), LIFE);
         // Not drawn through the stage, which bares every text display: this one is its background.
         DisplayHandle handle = displays.show(sheetModel(argb), motion, at, List.of(viewer));
         if (handle != null) pieces.add(handle);
@@ -268,23 +407,58 @@ final class MenuSession implements SpatialContext {
                 .background(argb).seeThrough(false).textShadow(false).lineWidth(1000);
     }
 
-    /** Text centred on a point of a plane. */
-    private @Nullable DisplayHandle text(Component content, StagePlane plane, Rotation rotation, double across, double up,
-                                         double forward, double scale, boolean shadow, long delay) {
-        Location at = plane.point(across, up - Stage.TEXT_HEIGHT * scale / 2, forward);
-        return show(Stage.textModel(content).background(0).textShadow(shadow).lineWidth(1000),
-                motion(rotation, scale, scale, scale, delay), at);
+    /** A line fitted to its room: its words and its scale. */
+    private record Fitted(Component text, String raw, double scale) {
+        double width() {
+            return Geometry.visibleWidth(raw) * scale;
+        }
     }
 
-    /** Text whose left edge is {@code left}, from its estimated width. */
-    private @Nullable DisplayHandle textFrom(Component content, StagePlane plane, Rotation rotation, double left, double up,
-                                             double forward, double scale, long delay) {
-        double width = StageLook.width(Text.of(plain(content)).plain()) * scale;
-        return text(content, plane, rotation, left + width / 2, up, forward, scale, false, delay);
+    /**
+     * Fits a line ({@link #fill filled} already) into {@code room} blocks at up to {@code max}, never
+     * below the size the theme's {@code min-glyph-degrees} reads from the eyes at {@code at}; a line
+     * too long at that size is cut with an ellipsis. Titles and buttons ({@code body} false) follow the
+     * server's small-text setting; body lines are drawn as written unless the theme says otherwise.
+     */
+    private Fitted fit(String filled, boolean body, double room, double max, Location at) {
+        boolean asWritten = body && !theme.smallCapsBody();
+        boolean small = !asWritten && net.exylia.lib.text.internal.SmallText.enabled();
+        double floor = Geometry.readableScale(at.distance(eyes()), theme.minGlyphDegrees(),
+                small ? Geometry.SMALL_CAPITAL_PIXELS : Geometry.CAPITAL_PIXELS);
+        double width = Math.max(0.18, Geometry.visibleWidth(filled));
+        double scale = Math.max(floor, Math.min(max, room / width));
+        String shown = width * scale > room + 1e-6 ? Geometry.truncate(filled, room / scale) : filled;
+        return new Fitted(asWritten ? Text.verbatim(shown) : Text.component(shown), shown, scale);
     }
 
-    private Component line(String raw) {
-        return Text.component(fill(raw));
+    /** A fitted line centred on a point of a plane. */
+    private @Nullable DisplayHandle text(Fitted line, StagePlane plane, Rotation rotation, double across, double up,
+                                         double forward, boolean shadow, long delay) {
+        if (line.raw().isBlank()) return null;
+        Location at = plane.point(across, up - Stage.TEXT_HEIGHT * line.scale() / 2, forward);
+        return show(Stage.textModel(line.text()).background(0).textShadow(shadow).lineWidth(1000),
+                motion(rotation, line.scale(), line.scale(), line.scale(), delay), at);
+    }
+
+    /** A line fitted into {@code room} and centred on a point of a plane. */
+    private @Nullable DisplayHandle write(String filled, boolean body, StagePlane plane, Rotation rotation, double across,
+                                          double up, double forward, double room, double max, boolean shadow, long delay) {
+        return text(fit(filled, body, room, max, plane.point(across, up, forward)), plane, rotation, across, up, forward,
+                shadow, delay);
+    }
+
+    /** A line fitted into {@code room} whose left edge is {@code left}. */
+    private @Nullable DisplayHandle writeFrom(String filled, boolean body, StagePlane plane, Rotation rotation, double left,
+                                              double up, double forward, double room, double max, long delay) {
+        Fitted line = fit(filled, body, room, max, plane.point(left + room / 2, up, forward));
+        return text(line, plane, rotation, left + line.width() / 2, up, forward, false, delay);
+    }
+
+    /** A line fitted into {@code room} whose right edge is {@code right}. */
+    private @Nullable DisplayHandle writeTo(String filled, boolean body, StagePlane plane, Rotation rotation, double right,
+                                            double up, double forward, double room, double max, long delay) {
+        Fitted line = fit(filled, body, room, max, plane.point(right - room / 2, up, forward));
+        return text(line, plane, rotation, right - line.width() / 2, up, forward, false, delay);
     }
 
     /** A line with the plugin's values and then the menu's state filled in. */
@@ -309,6 +483,28 @@ final class MenuSession implements SpatialContext {
         pieces.remove(handle);
     }
 
+    /** Sends pieces off sideways, shrinking, and takes them down once they are gone: a page turning. */
+    private void slideOut(List<DisplayHandle> leaving, double[] towards) {
+        List<DisplayHandle> going = new ArrayList<>();
+        for (DisplayHandle piece : leaving) {
+            DisplayKeyframe here = piece.pose();
+            pieces.remove(piece);
+            if (here == null) {
+                stage.remove(piece);
+                continue;
+            }
+            float tiny = 0.01f;
+            piece.then(DisplayMotion.of(List.of(here.at(0), new DisplayKeyframe(200L, here.x() + (float) towards[0],
+                    here.y() + (float) towards[1], here.z() + (float) towards[2], here.rotation(),
+                    here.scaleX() * tiny, here.scaleY() * tiny, here.scaleZ() * tiny)), 400L));
+            going.add(piece);
+        }
+        if (going.isEmpty()) return;
+        Stage drawnOn = stage;
+        menus.tasks().runAtEntityLater(viewer, 5L, () -> going.forEach(drawnOn::remove),
+                () -> going.forEach(DisplayHandle::remove));
+    }
+
     private int colour(String token, int fallback) {
         return StageLook.rgb(token, fallback);
     }
@@ -317,10 +513,23 @@ final class MenuSession implements SpatialContext {
         return Geometry.mix(0x000000, colour(theme.glassTint(), 0x8A51C4), theme.glassTintStrength());
     }
 
-    private int plateColour(boolean hovered, boolean chosen) {
-        if (chosen) return colour(theme.plateSelected(), 0xFFD700);
-        if (hovered) return colour(theme.plateHover(), 0xAA76DE);
+    private int idlePlate() {
         return Geometry.mix(0x000000, colour(theme.plateIdle(), 0x8A51C4), theme.glassTintStrength() * 1.6);
+    }
+
+    /** A plinth's plate: dark at rest, warmed towards the hover or the chosen colour, never a flat bright sheet. */
+    private int plateColour(boolean hovered, boolean chosen) {
+        if (chosen) return Geometry.mix(idlePlate(), colour(theme.plateSelected(), 0xFFD700), 0.32);
+        if (hovered) return Geometry.mix(idlePlate(), colour(theme.plateHover(), 0xAA76DE), 0.35);
+        return idlePlate();
+    }
+
+    /** A plinth label's backing: the glass darkened, warmed like its plate. */
+    private int labelBacking(boolean hovered, boolean chosen) {
+        int base = Geometry.mix(0x000000, glassColour(), 0.7);
+        if (chosen) return Geometry.argb(0xEA, Geometry.mix(base, colour(theme.plateSelected(), 0xFFD700), 0.24));
+        if (hovered) return Geometry.argb(0xDC, Geometry.mix(base, colour(theme.plateHover(), 0xAA76DE), 0.28));
+        return Geometry.argb(LABEL_ALPHA, base);
     }
 
     private static Rotation facing(StagePlane plane) {
@@ -331,20 +540,101 @@ final class MenuSession implements SpatialContext {
         return Rotation.around(Rotation.Axis.X, -Math.PI / 2).then(facing);
     }
 
+    private static double[] offset(StagePlane plane, double across, double up, double forward) {
+        Location from = plane.point(0, 0, 0);
+        Location to = plane.point(across, up, forward);
+        return new double[]{to.getX() - from.getX(), to.getY() - from.getY(), to.getZ() - from.getZ()};
+    }
+
     private void turnPage(Slots slots, int notch) {
         if (slots == null) return;
         StageLook.play(viewer, theme.pageSound());
         pages.put(slots.source, page(slots.source) + notch);
+        slots.step = notch;
         refresh();
+        slots.step = 0;
     }
 
     private void act(String action) {
         var run = definition.actions.get(action);
-        if (run == null) {
-            StageLook.play(viewer, theme.errorSound());
+        if (run != null) {
+            run.accept(this);
             return;
         }
-        run.accept(this);
+        switch (action) {
+            case SAVE -> save();
+            case REVERT -> revert();
+            default -> StageLook.play(viewer, theme.errorSound());
+        }
+    }
+
+    /** The layout actions every menu answers when the plugin gives them nothing of its own. */
+    static final String SAVE = "save";
+    static final String REVERT = "revert";
+
+    /** How an icon moves: resting, under the crosshair, or chosen. */
+    private enum Pose { IDLE, HOVER, CHOSEN }
+
+    /**
+     * An icon's motion: a gentle sway and bob on a plinth (a full, quicker turn once chosen), a slow
+     * bob in a panel, lifted and grown under the crosshair. It pops in after {@code delay}, or glides
+     * from wherever it is when {@code delay} is {@link #REPOP} (handed to {@code then}).
+     */
+    private DisplayMotion iconMotion(boolean plinth, int slot, Rotation turn, double size, double depth, Pose pose,
+                                     double[] towards, long delay) {
+        double grow = pose == Pose.IDLE ? 1.0 : pose == Pose.HOVER ? theme.hoverGrow() : 1.1;
+        double lift = !plinth ? 0 : pose == Pose.CHOSEN ? 0.07 : pose == Pose.HOVER ? 0.035 : 0;
+        double ahead = plinth || pose == Pose.IDLE ? 0 : 0.02;
+        float sx = (float) (size * grow);
+        float sz = (float) (depth * grow);
+        // Every slot a little out of step, so a row does not move as one.
+        double phase = slot * 0.37;
+        List<DisplayKeyframe> loop = new ArrayList<>();
+        long cycle;
+        if (plinth && pose == Pose.CHOSEN) {
+            cycle = 2400L;
+            for (int i = 0; i <= 8; i++) {
+                loop.add(frame(cycle * i / 8, towards, ahead, lift, Rotation.around(Rotation.Axis.Y, Math.PI * 2 * i / 8).then(turn), sx, sz));
+            }
+        } else if (plinth) {
+            cycle = 3600L;
+            for (int i = 0; i <= 6; i++) {
+                double wave = Math.sin(Math.PI * 2 * (i / 6.0 + phase));
+                loop.add(frame(cycle * i / 6, towards, ahead, lift + 0.012 * wave,
+                        Rotation.around(Rotation.Axis.Y, Math.toRadians(16) * wave).then(turn), sx, sz));
+            }
+        } else {
+            cycle = 4000L;
+            for (int i = 0; i <= 2; i++) {
+                double wave = i == 1 ? 1 : 0;
+                loop.add(frame(cycle * i / 2, towards, ahead, 0.008 * wave, turn, sx, sz));
+            }
+        }
+        List<DisplayKeyframe> frames = new ArrayList<>();
+        long lead;
+        if (delay == REPOP) {
+            lead = 160L;
+            frames.add(loop.getFirst().at(0));
+        } else if (delay < 0 && slideFrom == null) {
+            lead = 0L;
+        } else {
+            long wait = Math.max(0, delay);
+            float tiny = 0.01f;
+            float dx = slideFrom == null ? 0f : (float) slideFrom[0];
+            float dy = slideFrom == null ? 0f : (float) slideFrom[1];
+            float dz = slideFrom == null ? 0f : (float) slideFrom[2];
+            DisplayKeyframe first = loop.getFirst();
+            frames.add(new DisplayKeyframe(0L, first.x() + dx, first.y() + dy, first.z() + dz, first.rotation(), tiny, tiny, tiny));
+            frames.add(new DisplayKeyframe(wait, first.x() + dx, first.y() + dy, first.z() + dz, first.rotation(), tiny, tiny, tiny));
+            lead = wait + 280L;
+        }
+        for (DisplayKeyframe key : loop) frames.add(key.at(lead + key.atMillis()));
+        return DisplayMotion.of(frames, LIFE).looping(lead, lead + cycle, 1, 1);
+    }
+
+    private static DisplayKeyframe frame(long at, double[] towards, double ahead, double lift, Rotation rotation, float size, float depth) {
+        return new DisplayKeyframe(at, (float) (towards[0] * ahead), (float) (towards[1] * ahead + lift),
+                (float) (towards[2] * ahead), rotation, size, size, depth);
     }
 
     // ── Parts ─────────────────────────────────────────────────────────────
@@ -361,6 +651,7 @@ final class MenuSession implements SpatialContext {
         final StagePlane plane;
         final Rotation rotation;
         private final List<Label> labels = new ArrayList<>();
+        private final List<Button> buttons = new ArrayList<>();
         private @Nullable Slots slots;
 
         PanelPart(String name, SpatialLayout.Panel panel, long delay) {
@@ -381,30 +672,30 @@ final class MenuSession implements SpatialContext {
                     Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), delay < 0 ? -1 : delay + 90);
             SpatialLayout.Content content = panel.content();
             boolean bare = content.type() == SpatialLayout.Content.Type.NONE;
+            boolean titled = !panel.title().isBlank() && !bare;
+            boolean hinted = !panel.hint().isBlank() && !bare;
             if (bare) {
                 // A header: its title in the middle, its hint at the right end.
                 if (!panel.title().isBlank()) {
-                    labels.add(new Label(panel.title(), (title, at) -> text(title, plane, rotation, 0, 0, 0.012,
-                            StageLook.fit(title, w * 0.6, theme.titleScale()), true, at), inner));
+                    labels.add(new Label(panel.title(), (title, at) -> write(title, false, plane, rotation, 0, 0, 0.012,
+                            w * 0.6, theme.titleScale(), true, at), inner));
                 }
                 if (!panel.hint().isBlank()) {
-                    labels.add(new Label(panel.hint(), (hint, at) -> {
-                        double scale = StageLook.fit(hint, w * 0.25, theme.smallScale());
-                        double width = StageLook.width(plain(hint)) * scale;
-                        return text(hint, plane, rotation, w / 2 - 0.12 - width / 2, 0, 0.012, scale, false, at);
-                    }, inner));
+                    labels.add(new Label(panel.hint(), (hint, at) -> writeTo(hint, true, plane, rotation, w / 2 - 0.12, 0,
+                            0.012, w * 0.2, theme.smallScale(), at), inner));
                 }
             } else {
-                if (!panel.title().isBlank()) {
-                    labels.add(new Label(panel.title(), (title, at) -> text(title, plane, rotation, 0, h / 2 - 0.16, 0.012,
-                            StageLook.fit(title, w * 0.86, theme.titleScale() * 0.8), true, at), inner));
+                if (titled) {
+                    labels.add(new Label(panel.title(), (title, at) -> write(title, false, plane, rotation, 0, h / 2 - 0.16,
+                            0.012, w * 0.86, theme.titleScale() * 0.8, true, at), inner));
                 }
-                if (!panel.hint().isBlank()) {
-                    labels.add(new Label(panel.hint(), (hint, at) -> text(hint, plane, rotation, 0, h / 2 - 0.27, 0.012,
-                            StageLook.fit(hint, w * 0.86, theme.smallScale() * 0.85), false, at), inner));
+                if (hinted) {
+                    labels.add(new Label(panel.hint(), (hint, at) -> write(hint, true, plane, rotation, 0,
+                            h / 2 - (titled ? 0.3 : 0.14), 0.012, w * 0.86, theme.smallScale(), false, at), inner));
                 }
             }
-            double[] area = Geometry.content(h, !panel.title().isBlank() && !bare, panel.footer().present());
+            double band = titled ? (hinted ? 0.4 : 0.3) : hinted ? 0.24 : 0.08;
+            double[] area = Geometry.content(h, band, panel.footer().present());
             switch (content.type()) {
                 case TEXT -> {
                     int count = content.lines().size();
@@ -412,37 +703,42 @@ final class MenuSession implements SpatialContext {
                     for (int i = 0; i < count; i++) {
                         double up = area[0] + ((count - 1) / 2.0 - i) * pitch;
                         double scale = i == 0 ? theme.textScale() * 1.15 : theme.textScale();
-                        labels.add(new Label(content.lines().get(i), (line, at) -> text(line, plane, rotation, 0, up, 0.012,
-                                StageLook.fit(line, w * 0.9, scale), true, at), inner < 0 ? -1 : inner + i * 40L));
+                        labels.add(new Label(content.lines().get(i), (line, at) -> write(line, true, plane, rotation, 0, up,
+                                0.012, w * 0.9, scale, true, at), inner < 0 ? -1 : inner + i * 40L));
                     }
                 }
                 case LIST -> slots = new Slots(Kind.ROW, content.source(), this, area, inner);
                 case GRID -> slots = new Slots(Kind.CELL, content.source(), this, area, inner);
-                case BUTTON -> labels.add(new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
-                        content.label(), content.action(), inner).label);
+                case BUTTON -> buttons.add(new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
+                        content.label(), content.action(), inner));
                 case NONE -> { }
             }
             if (panel.footer().present()) {
-                labels.add(new Button(plane, rotation, 0, -h / 2 + 0.16, w - 0.2, 0.2, panel.footer().label(),
-                        panel.footer().action(), inner < 0 ? -1 : inner + 120).label);
+                buttons.add(new Button(plane, rotation, 0, -h / 2 + 0.16, w - 0.2, 0.2, panel.footer().label(),
+                        panel.footer().action(), inner < 0 ? -1 : inner + 120));
             }
+        }
+
+        void refreshWords() {
+            labels.forEach(Label::refresh);
+            buttons.forEach(Button::refresh);
         }
 
         @Override
         public void refresh() {
-            labels.forEach(Label::refresh);
+            refreshWords();
             if (slots != null) slots.refresh();
         }
     }
 
-    /** Draws a label's text, popping it in after {@code delay} (still at once when negative). */
+    /** Draws a label's words ({@link #fill filled}), popping in after {@code delay} (see {@link #motion}). */
     private interface Drawer {
-        @Nullable DisplayHandle draw(Component text, long delay);
+        @Nullable DisplayHandle draw(String filled, long delay);
     }
 
     /**
-     * A TEXT line, a title, a hint or a button's label: drawn again, fitted to its room, only when its
-     * placeholders read something else.
+     * A TEXT line, a title, a hint or a button's label: drawn again, fitted to its room and softly
+     * re-popped, only when its placeholders read something else.
      */
     private final class Label {
         final String raw;
@@ -454,7 +750,7 @@ final class MenuSession implements SpatialContext {
             this.raw = raw;
             this.drawer = drawer;
             this.shown = fill(raw);
-            this.handle = drawer.draw(Text.component(shown), delay);
+            this.handle = drawer.draw(shown, delay);
         }
 
         void refresh() {
@@ -462,7 +758,7 @@ final class MenuSession implements SpatialContext {
             if (now.equals(shown)) return;
             shown = now;
             drop(handle);
-            handle = drawer.draw(Text.component(now), -1);
+            handle = drawer.draw(now, REPOP);
         }
     }
 
@@ -470,28 +766,53 @@ final class MenuSession implements SpatialContext {
         return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(text);
     }
 
-    /** A button: an opaque plate with its label, lighting up under the crosshair. */
+    /**
+     * A button: an opaque plate with its label, lighting up under the crosshair. A SAVE button (the
+     * action {@code save}) is warmed towards the chosen colour while there is something to save, and
+     * calm otherwise.
+     */
     private final class Button {
         final @Nullable DisplayHandle plate;
         final Label label;
-        final double width;
-        final double height;
+        final String action;
+        private boolean lit;
+        private boolean hot;
 
         Button(StagePlane plane, Rotation rotation, double across, double up, double width, double height, String label,
                String action, long delay) {
-            this.width = width;
-            this.height = height;
-            int rest = Geometry.mix(glassColour(), colour(theme.plateHover(), 0xAA76DE), 0.2);
-            int lit = Geometry.mix(glassColour(), colour(theme.plateHover(), 0xAA76DE), 0.5);
-            plate = sheet(plane.point(across, up, 0.008), rotation, width, height, Geometry.argb(255, rest), delay);
-            this.label = new Label(label, (text, at) -> text(text, plane, rotation, across, up, 0.016,
-                    StageLook.fit(text, width * 0.86, theme.textScale()), true, at), delay < 0 ? -1 : delay + 60);
+            this.action = action;
+            this.hot = hot();
+            plate = sheet(plane.point(across, up, 0.008), rotation, width, height, Geometry.argb(255, colour()), delay);
+            this.label = new Label(label, (text, at) -> write(text, false, plane, rotation, across, up, 0.016,
+                    width * 0.86, theme.textScale(), true, at), delay < 0 ? -1 : delay + 60);
             if (edit != null) return;
             pointer.add(Hotspot.rect(plane, across, up, width, height).priority(2)
                     .onHover(on -> {
-                        if (plate != null) plate.restyle(sheetModel(Geometry.argb(255, on ? lit : rest)));
+                        lit = on;
+                        restyle();
                     })
                     .onPress(click -> act(action)));
+        }
+
+        private boolean hot() {
+            return SAVE.equals(action) && dirty();
+        }
+
+        private int colour() {
+            if (hot) return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateSelected(), 0xFFD700), lit ? 0.5 : 0.36);
+            return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateHover(), 0xAA76DE), lit ? 0.5 : 0.2);
+        }
+
+        private void restyle() {
+            if (plate != null) plate.restyle(sheetModel(Geometry.argb(255, colour())));
+        }
+
+        void refresh() {
+            label.refresh();
+            boolean now = hot();
+            if (now == hot) return;
+            hot = now;
+            restyle();
         }
     }
 
@@ -513,6 +834,10 @@ final class MenuSession implements SpatialContext {
         final List<List<DisplayHandle>> drawn = new ArrayList<>();
         final List<DisplayHandle> icons = new ArrayList<>();
         final List<DisplayHandle> plates = new ArrayList<>();
+        final List<DisplayHandle> plinths = new ArrayList<>();
+        final List<DisplayHandle> labels = new ArrayList<>();
+        final List<DisplayKeyframe> labelRest = new ArrayList<>();
+        final List<Pose> poses = new ArrayList<>();
         final List<Hotspot> spots = new ArrayList<>();
         final double slotWidth;
         final double slotHeight;
@@ -523,6 +848,7 @@ final class MenuSession implements SpatialContext {
         private @Nullable DisplayHandle empty;
         private @Nullable DisplayHandle pageLine;
         private @Nullable DisplayHandle caption;
+        private String captionShown = "";
         private int chosen = -1;
         private int hovered = -1;
         private final double emptyUp;
@@ -530,6 +856,9 @@ final class MenuSession implements SpatialContext {
         private final double captionUp;
         private final long delay;
         private boolean first = true;
+        private int lastPage;
+        /** The notch a page turn came from, for the side the next page slides in from; 0 otherwise. */
+        int step;
 
         /** A LIST or GRID inside a panel's content area {centre up, height}. */
         Slots(Kind kind, String source, PanelPart panel, double[] area, long delay) {
@@ -559,7 +888,7 @@ final class MenuSession implements SpatialContext {
                 double gridUp = area[0] + 0.08;
                 slotWidth = width / columns;
                 slotHeight = gridHeight / rows;
-                iconScale = Math.min(0.28, Math.min(slotWidth, slotHeight) * 0.66);
+                iconScale = Math.min(0.28, Math.min(slotWidth, slotHeight) * 0.7);
                 for (int i = 0; i < perPage; i++) {
                     double[] cell = Geometry.cell(i, columns, rows, width, gridHeight);
                     places.add(new Place(plane, rotation, cell[0], gridUp + cell[1], plane.point(cell[0], gridUp + cell[1], 0.01)));
@@ -579,9 +908,9 @@ final class MenuSession implements SpatialContext {
             this.perPage = row.slots();
             this.plane = Geometry.panel(anchor.getWorld(), board, row.at().get(0), row.at().get(1), row.at().get(2), 0);
             this.rotation = facing(plane);
-            this.slotWidth = Math.min(row.spacing() * 0.92, 0.6);
+            this.slotWidth = Math.min(row.spacing() * 0.94, 0.7);
             this.slotHeight = 0.7;
-            this.iconScale = 0.36;
+            this.iconScale = CAROUSEL_ICON;
             for (int i = 0; i < perPage; i++) {
                 double[] slot = Geometry.carousel(i, perPage, row.spacing(), row.centreGap(), row.curve());
                 double depth = distance - row.at().get(2) - slot[1];
@@ -599,8 +928,8 @@ final class MenuSession implements SpatialContext {
         }
 
         private void arrow(double across, int step, String label) {
-            Component text = line(label);
-            text(text, plane, rotation, across, pageUp, 0.01, theme.textScale() * 1.2, true, delay < 0 ? -1 : delay + 200);
+            write(fill(label), false, plane, rotation, across, pageUp, 0.01, 0.3, theme.textScale() * 1.2, true,
+                    delay < 0 ? -1 : delay + 200);
             if (edit != null) return;
             pointer.add(Hotspot.rect(plane, across, pageUp, 0.26, 0.22).priority(2).silent(true)
                     .onPress(click -> turnPage(this, step)));
@@ -616,10 +945,11 @@ final class MenuSession implements SpatialContext {
             for (int i = 0; i < perPage; i++) {
                 int slot = i;
                 Place place = places.get(i);
-                // A plinth answers from its item down to its labels.
-                double up = kind == Kind.PEDESTAL ? -0.12 : place.up();
-                Hotspot spot = Hotspot.rect(plane, place.across(), up, slotWidth, kind == Kind.ROW ? slotHeight * 0.96 : slotHeight)
-                        .priority(1)
+                // A plinth answers from its item down to its label, on its own turned plane.
+                Hotspot spot = kind == Kind.PEDESTAL
+                        ? Hotspot.rect(place.plane(), 0, -0.13, slotWidth, 0.62)
+                        : Hotspot.rect(plane, place.across(), place.up(), slotWidth, kind == Kind.ROW ? slotHeight * 0.96 : slotHeight);
+                spot.priority(1)
                         .onHover(on -> hover(slot, on))
                         .onPress(click -> choose(slot))
                         .onScroll(kind == Kind.PEDESTAL ? null : scroll)
@@ -637,29 +967,59 @@ final class MenuSession implements SpatialContext {
             pages.put(source, page);
             List<SpatialEntry> now = Geometry.page(all, page, perPage);
             List<Integer> changed = Geometry.changed(shown, now, perPage);
+            // A page turn on the carousel: the old page slides off one side, the new comes in from the other.
+            boolean turning = kind == Kind.PEDESTAL && !first && page != lastPage;
+            int side = step != 0 ? Integer.signum(step) : Integer.signum(page - lastPage);
+            double[] across = offset(plane, 1, 0, 0);
+            lastPage = page;
+            if (turning) {
+                List<Integer> order = new ArrayList<>(changed);
+                if (side > 0) java.util.Collections.reverse(order);
+                changed = order;
+            }
+            String id = selected.get(source);
             int wave = 0;
             for (int slot : changed) {
-                clear(slot);
+                if (turning) {
+                    grow(slot);
+                    slideOut(new ArrayList<>(drawn.get(slot)), scaled(across, -side * 0.55));
+                    drawn.get(slot).clear();
+                    icons.set(slot, null);
+                    plates.set(slot, null);
+                    plinths.set(slot, null);
+                    labels.set(slot, null);
+                    poses.set(slot, null);
+                } else {
+                    clear(slot);
+                }
                 SpatialEntry entry = slot < now.size() ? now.get(slot) : null;
                 set(slot, entry);
                 if (entry != null) {
                     long at = first ? (delay < 0 ? -1 : delay + slot * 45L) : wave++ * 35L;
-                    draw(slot, entry, at);
+                    slideFrom = turning ? scaled(across, side * 0.55) : null;
+                    boolean isChosen = id != null ? entry.id().equals(id) : entry.state() == SpatialEntry.State.SELECTED;
+                    draw(slot, entry, at, isChosen ? Pose.CHOSEN : slot == hovered ? Pose.HOVER : Pose.IDLE);
+                    slideFrom = null;
                 }
                 if (slot < spots.size()) spots.get(slot).enabled(entry != null);
             }
             first = false;
             // Empty: one line that says so, in the middle.
             if (now.isEmpty() && empty == null) {
-                Component text = line(theme.emptyLine());
-                empty = text(text, plane, rotation, 0, emptyUp, 0.012, theme.smallScale(), false, -1);
+                empty = write(fill(theme.emptyLine()), true, plane, rotation, 0, emptyUp, 0.012,
+                        kind == Kind.PEDESTAL ? 2.4 : slotWidth * 0.9, theme.smallScale(), false, -1);
             } else if (!now.isEmpty() && empty != null) {
                 drop(empty);
                 empty = null;
             }
             pageLine(page, pageCount);
             chosen(now);
+            for (int slot : changed) style(slot);
             caption(now);
+        }
+
+        private double[] scaled(double[] v, double k) {
+            return new double[]{v[0] * k, v[1] * k, v[2] * k};
         }
 
         private void set(int slot, @Nullable SpatialEntry entry) {
@@ -672,81 +1032,124 @@ final class MenuSession implements SpatialContext {
             return slot < shown.size() ? shown.get(slot) : null;
         }
 
-        private void clear(int slot) {
+        private void grow(int slot) {
             while (drawn.size() <= slot) {
                 drawn.add(new ArrayList<>());
                 icons.add(null);
                 plates.add(null);
+                plinths.add(null);
+                labels.add(null);
+                labelRest.add(null);
+                poses.add(null);
             }
+        }
+
+        private void clear(int slot) {
+            grow(slot);
             drawn.get(slot).forEach(MenuSession.this::drop);
             drawn.get(slot).clear();
             icons.set(slot, null);
             plates.set(slot, null);
+            plinths.set(slot, null);
+            labels.set(slot, null);
+            poses.set(slot, null);
         }
 
         private void keep(int slot, @Nullable DisplayHandle handle) {
             if (handle != null) drawn.get(slot).add(handle);
         }
 
-        private void draw(int slot, SpatialEntry entry, long at) {
+        private DisplayModel iconModel(SpatialEntry entry) {
+            if (entry.model() != null) return entry.model();
+            ItemStack item = entry.icon() == null ? new ItemStack(Material.BARRIER) : entry.icon();
+            // The GUI's display context: a trident, a cake or a totem each look like their inventory
+            // icon, at one size, centred, instead of a held model standing beside the plinth.
+            return DisplayModel.item(item).held(GUI_CONTEXT).light(entry.locked() ? 7 : 15);
+        }
+
+        private void draw(int slot, SpatialEntry entry, long at, Pose pose) {
             Place place = places.get(slot);
-            DisplayModel iconModel = entry.model() != null ? entry.model()
-                    : DisplayModel.item(entry.icon() == null ? new ItemStack(Material.BARRIER) : entry.icon())
-                    .light(entry.locked() ? 6 : 15);
+            DisplayModel iconModel = iconModel(entry);
             String status = status(entry);
+            double[] towards = offset(place.plane(), 0, 0, 1);
             switch (kind) {
                 case ROW -> {
                     double left = -slotWidth / 2;
                     Location iconAt = place.plane().point(left + 0.05 + iconScale / 2, place.up(), 0.03);
-                    DisplayHandle icon = show(iconModel, motion(place.rotation(), iconScale, iconScale, iconScale * 0.3, at), iconAt);
+                    DisplayHandle icon = show(iconModel, iconMotion(false, slot, place.rotation(), iconScale, iconScale * 0.3,
+                            pose == Pose.CHOSEN ? Pose.IDLE : pose, towards, at), iconAt);
                     keep(slot, icon);
                     icons.set(slot, icon);
                     double textLeft = left + 0.1 + iconScale;
                     double room = slotWidth - (textLeft - left) - 0.04;
-                    Component name = Text.component(entry.name());
-                    keep(slot, textFrom(name, place.plane(), place.rotation(), textLeft, place.up() + slotHeight * 0.16, 0.02,
-                            StageLook.fit(name, room, theme.textScale() * 0.85), at < 0 ? -1 : at + 40));
+                    keep(slot, writeFrom(entry.name(), true, place.plane(), place.rotation(), textLeft,
+                            place.up() + slotHeight * 0.2, 0.02, room, theme.textScale() * 0.85, at < 0 ? -1 : at + 40));
                     if (!status.isBlank()) {
-                        Component sub = Text.component(status);
-                        keep(slot, textFrom(sub, place.plane(), place.rotation(), textLeft, place.up() - slotHeight * 0.2, 0.02,
-                                StageLook.fit(sub, room, theme.smallScale() * 0.85), at < 0 ? -1 : at + 70));
+                        keep(slot, writeFrom(status, true, place.plane(), place.rotation(), textLeft,
+                                place.up() - slotHeight * 0.22, 0.02, room, theme.smallScale(), at < 0 ? -1 : at + 70));
                     }
                 }
                 case CELL -> {
-                    DisplayHandle icon = show(iconModel, motion(place.rotation(), iconScale, iconScale, iconScale * 0.3, at),
+                    DisplayHandle icon = show(iconModel, iconMotion(false, slot, place.rotation(), iconScale, iconScale * 0.3,
+                                    pose == Pose.CHOSEN ? Pose.IDLE : pose, towards, at),
                             place.plane().point(place.across(), place.up() + 0.01, 0.03));
                     keep(slot, icon);
                     icons.set(slot, icon);
                     if (entry.state() == SpatialEntry.State.EQUIPPED) {
-                        Component mark = line(theme.equippedMarker());
-                        keep(slot, text(mark, place.plane(), place.rotation(), place.across() + iconScale * 0.5,
-                                place.up() + iconScale * 0.45, 0.04, theme.smallScale() * 0.8, true, at < 0 ? -1 : at + 60));
+                        keep(slot, write(fill(theme.equippedMarker()), true, place.plane(), place.rotation(),
+                                place.across() + iconScale * 0.55, place.up() + iconScale * 0.4, 0.04, 0.12,
+                                theme.smallScale(), true, at < 0 ? -1 : at + 60));
                     }
                 }
                 case PEDESTAL -> {
                     StagePlane own = place.plane();
                     Rotation turn = place.rotation();
-                    keep(slot, show(DisplayModel.block(StageLook.block(theme.pedestalBlock(), Material.POLISHED_BLACKSTONE)).light(15),
-                            motion(turn, 0.44, 0.08, 0.44, at), own.point(0, -0.17, 0)));
-                    DisplayHandle plate = sheet(own.point(0, -0.128, 0), flat(turn), 0.36, 0.36,
+                    DisplayHandle plinth = show(DisplayModel.block(StageLook.block(theme.pedestalBlock(), Material.POLISHED_BLACKSTONE)).light(15),
+                            motion(turn, PLINTH_SIZE, PLINTH_HEIGHT, PLINTH_SIZE, at), own.point(0, PLINTH_UP, 0));
+                    keep(slot, plinth);
+                    plinths.set(slot, plinth);
+                    DisplayHandle plate = sheet(own.point(0, PLINTH_UP + PLINTH_HEIGHT / 2 + 0.002, 0), flat(turn), 0.36, 0.36,
                             Geometry.argb(255, plateColour(false, false)), at < 0 ? -1 : at + 40);
                     keep(slot, plate);
                     plates.set(slot, plate);
-                    DisplayHandle icon = show(iconModel, motion(turn, iconScale, iconScale, iconScale, at < 0 ? -1 : at + 80),
-                            own.point(0, 0.06, 0));
+                    DisplayHandle icon = show(iconModel, iconMotion(true, slot, turn, iconScale, iconScale, pose, towards,
+                            at < 0 ? -1 : at + 80), own.point(0, ICON_UP, 0));
                     keep(slot, icon);
                     icons.set(slot, icon);
-                    Component name = Text.component(entry.name());
-                    keep(slot, text(name, own, turn, 0, -0.29, 0.02, StageLook.fit(name, slotWidth, theme.smallScale() * 1.05),
-                            true, at < 0 ? -1 : at + 100));
-                    if (!status.isBlank()) {
-                        Component sub = Text.component(status);
-                        keep(slot, text(sub, own, turn, 0, -0.38, 0.02, StageLook.fit(sub, slotWidth, theme.smallScale() * 0.85),
-                                false, at < 0 ? -1 : at + 120));
-                    }
+                    DisplayHandle label = plinthLabel(slot, entry, status, own, turn, at < 0 ? -1 : at + 100);
+                    keep(slot, label);
+                    labels.set(slot, label);
                 }
             }
-            if (slot == hovered) styleHover(slot, true);
+            poses.set(slot, pose);
+        }
+
+        /**
+         * A plinth's name and state in one display, on a backing of its own, under and in front of the
+         * plinth: both lines at one size, fitted to the slot or cut, never below the readable size.
+         */
+        private @Nullable DisplayHandle plinthLabel(int slot, SpatialEntry entry, String status, StagePlane own, Rotation turn,
+                                                    long at) {
+            double room = slotWidth - 0.04;
+            Location where = own.point(0, LABEL_TOP - 0.06, LABEL_FORWARD);
+            Fitted name = fit(entry.name(), true, room, theme.smallScale(), where);
+            Fitted state = status.isBlank() ? null : fit(status, true, room, theme.smallScale(), where);
+            double scale = state == null ? name.scale() : Math.max(name.scale(), state.scale());
+            if (state != null && name.scale() < scale) name = fit(entry.name(), true, room, scale, where);
+            String raw = Geometry.truncate(name.raw(), room / scale)
+                    + (state == null ? "" : "\n" + Geometry.truncate(state.raw(), room / scale));
+            Component words = theme.smallCapsBody() ? Text.component(raw) : Text.verbatim(raw);
+            int lines = state == null ? 1 : 2;
+            double height = Stage.TEXT_HEIGHT * scale * lines;
+            float s = (float) scale;
+            labelRest.set(slot, new DisplayKeyframe(0L, 0f, 0f, 0f, turn, s, s, s));
+            DisplayModel model = Stage.textModel(words).background(labelBacking(false, false)).seeThrough(false)
+                    .textShadow(true).lineWidth(1000);
+            // Drawn beside the stage, which bares text: the backing is the point.
+            DisplayHandle handle = displays.show(model, motion(turn, scale, scale, scale, at),
+                    own.point(0, LABEL_TOP - height, LABEL_FORWARD), List.of(viewer));
+            if (handle != null) pieces.add(handle);
+            return handle;
         }
 
         /** The line under an entry's name: its state's, or its own subtitle. */
@@ -761,25 +1164,59 @@ final class MenuSession implements SpatialContext {
         }
 
         private void hover(int slot, boolean on) {
+            int before = hovered;
             hovered = on ? slot : (hovered == slot ? -1 : hovered);
-            styleHover(slot, on);
+            if (before >= 0 && before != hovered) style(before);
+            style(slot);
             caption(shown);
+            // The information panel follows the crosshair at once; when it leaves, on the next poll, so a
+            // sweep from one plinth to the next does not flash the chosen entry between them.
+            SpatialEntry entry = at(slot);
+            if (on && entry != null) {
+                hovers.put(source, entry.id());
+                wordsStale = false;
+                refreshWords();
+            } else if (entry != null && entry.id().equals(hovers.get(source))) {
+                hovers.remove(source);
+                wordsStale = true;
+            }
         }
 
-        private void styleHover(int slot, boolean on) {
-            DisplayHandle icon = slot < icons.size() ? icons.get(slot) : null;
-            if (icon != null) {
-                icon.glow(on ? colour(theme.hoverGlow(), 0xFFD700) : -1);
-                DisplayKeyframe here = icon.pose();
-                if (here != null) {
-                    double size = iconScale * (on ? theme.hoverGrow() : 1.0);
-                    double depth = kind == Kind.PEDESTAL ? size : size * 0.3;
-                    icon.moveTo(new DisplayKeyframe(0L, here.x(), here.y(), here.z(), here.rotation(),
-                            (float) size, (float) size, (float) depth), HOVER_MILLIS, DisplayMotion.Easing.QUAD_OUT);
-                }
+        /** Dresses a slot for its state: resting, under the crosshair, or chosen. */
+        private void style(int slot) {
+            if (slot < 0 || slot >= drawn.size()) return;
+            boolean on = slot == hovered;
+            boolean picked = slot == chosen;
+            Pose pose = kind == Kind.PEDESTAL && picked ? Pose.CHOSEN : on ? Pose.HOVER : Pose.IDLE;
+            DisplayHandle icon = icons.get(slot);
+            Place place = places.get(slot);
+            if (icon != null && poses.get(slot) != pose) {
+                poses.set(slot, pose);
+                boolean plinth = kind == Kind.PEDESTAL;
+                icon.then(iconMotion(plinth, slot, place.rotation(), iconScale, plinth ? iconScale : iconScale * 0.3, pose,
+                        offset(place.plane(), 0, 0, 1), REPOP));
             }
-            DisplayHandle plate = slot < plates.size() ? plates.get(slot) : null;
-            if (plate != null) plate.restyle(sheetModel(Geometry.argb(255, plateColour(on, slot == chosen))));
+            if (icon != null && kind != Kind.PEDESTAL) icon.glow(on ? colour(theme.hoverGlow(), 0xFFD700) : -1);
+            DisplayHandle plinth = plinths.get(slot);
+            if (plinth != null) {
+                // The ring round a plinth: its outline, in the chosen colour or, lighter, the hover's.
+                plinth.glow(picked ? colour(theme.plateSelected(), 0xFFD700) : on ? colour(theme.plateHover(), 0xAA76DE) : -1);
+            }
+            DisplayHandle plate = plates.get(slot);
+            if (plate != null) plate.restyle(sheetModel(Geometry.argb(255, plateColour(on, picked))));
+            DisplayHandle label = labels.get(slot);
+            DisplayKeyframe rest = labelRest.get(slot);
+            if (label != null && rest != null) {
+                DisplayModel model = label.model();
+                if (model != null) label.restyle(model.background(labelBacking(on, picked)));
+                // Under the crosshair it grows and comes forward, its top kept under the plinth.
+                double grow = on ? 1.1 : 1.0;
+                double drop = on ? -Stage.TEXT_HEIGHT * rest.scaleY() * 2 * (grow - 1) : 0;
+                double[] ahead = offset(place.plane(), 0, 0, on ? 0.03 : 0);
+                label.moveTo(new DisplayKeyframe(0L, (float) ahead[0], (float) (ahead[1] + drop), (float) ahead[2],
+                        rest.rotation(), (float) (rest.scaleX() * grow), (float) (rest.scaleY() * grow),
+                        (float) (rest.scaleZ() * grow)), HOVER_MILLIS, DisplayMotion.Easing.QUAD_OUT);
+            }
             if (kind == Kind.ROW) rowBar(slot, on);
         }
 
@@ -804,7 +1241,8 @@ final class MenuSession implements SpatialContext {
             selected.put(source, entry.id());
             var select = definition.selects.get(source);
             if (select != null) select.accept(MenuSession.this, entry);
-            refresh();
+            // The whole menu: the panels read the new choice and the preview plays it at once.
+            MenuSession.this.refresh();
         }
 
         /** Moves the selection marker to the chosen entry's slot, gliding; hides it when it is on another page. */
@@ -821,24 +1259,19 @@ final class MenuSession implements SpatialContext {
             if (id == null && slot >= 0) selected.put(source, now.get(slot).id());
             int before = chosen;
             chosen = slot;
-            if (kind == Kind.PEDESTAL) {
-                for (int i = 0; i < plates.size(); i++) {
-                    DisplayHandle plate = plates.get(i);
-                    if (plate != null && (i == before || i == slot)) {
-                        plate.restyle(sheetModel(Geometry.argb(255, plateColour(i == hovered, i == slot))));
-                    }
-                }
-                return;
+            if (before != slot) {
+                style(before);
+                style(slot);
             }
             glide(slot);
         }
 
         private void glide(int slot) {
-            double width = kind == Kind.ROW ? 0.025 : slotWidth * 0.5;
-            double height = kind == Kind.ROW ? slotHeight * 0.66 : 0.022;
+            double width = kind == Kind.ROW ? 0.025 : kind == Kind.PEDESTAL ? 0.3 : slotWidth * 0.5;
+            double height = kind == Kind.ROW ? slotHeight * 0.66 : kind == Kind.PEDESTAL ? 0.014 : 0.022;
             if (selector == null) {
                 if (slot < 0) return;
-                selector = sheet(selectorAt(0), rotation, width, height,
+                selector = sheet(selectorAt(0), turnAt(0), width, height,
                         Geometry.argb(255, colour(theme.plateSelected(), 0xFFD700)), delay < 0 ? -1 : delay + 200);
                 if (selector == null) return;
                 if (slot == 0) return;
@@ -846,12 +1279,18 @@ final class MenuSession implements SpatialContext {
             Location origin = selectorAt(0);
             Location target = selectorAt(Math.max(0, slot));
             double grow = slot < 0 ? 0.01 : 1.0;
-            selector.moveTo(Geometry.glass(0, rotation, width, height, grow, target.getX() - origin.getX(),
+            selector.moveTo(Geometry.glass(0, turnAt(Math.max(0, slot)), width, height, grow, target.getX() - origin.getX(),
                     target.getY() - origin.getY(), target.getZ() - origin.getZ()), GLIDE_MILLIS, DisplayMotion.Easing.QUAD_OUT);
+        }
+
+        private Rotation turnAt(int slot) {
+            return kind == Kind.PEDESTAL ? places.get(Math.min(slot, places.size() - 1)).rotation() : rotation;
         }
 
         private Location selectorAt(int slot) {
             Place place = places.get(Math.min(slot, places.size() - 1));
+            // The carousel's marker is a thin bar between a plinth and its label, in front of the plinth.
+            if (kind == Kind.PEDESTAL) return place.plane().point(0, (LABEL_TOP + PLINTH_UP - PLINTH_HEIGHT / 2) / 2, LABEL_FORWARD);
             if (kind == Kind.ROW) return plane.point(-slotWidth / 2 + 0.012, place.up(), 0.014);
             return plane.point(place.across(), place.up() - iconScale * 0.62, 0.014);
         }
@@ -865,13 +1304,12 @@ final class MenuSession implements SpatialContext {
                 pageLine = null;
                 return;
             }
-            Component text = Text.component(raw);
             if (pageLine != null) {
-                pageLine.text(text);
+                pageLine.text(theme.smallCapsBody() ? Text.component(raw) : Text.verbatim(raw));
                 return;
             }
-            double scale = theme.smallScale() * (kind == Kind.PEDESTAL ? 1.0 : 0.8);
-            pageLine = text(text, plane, rotation, 0, pageUp, 0.012, scale, false,
+            double room = kind == Kind.PEDESTAL ? 0.62 : slotWidth * 0.9;
+            pageLine = write(raw, true, plane, rotation, 0, pageUp, 0.012, room, theme.smallScale(), false,
                     delay < 0 ? -1 : delay + 220);
         }
 
@@ -880,12 +1318,12 @@ final class MenuSession implements SpatialContext {
             if (kind != Kind.CELL) return;
             int slot = hovered >= 0 ? hovered : chosen;
             SpatialEntry entry = slot >= 0 && slot < now.size() ? now.get(slot) : null;
-            Component text = Text.component(entry == null ? "" : entry.name());
-            if (caption == null) {
-                caption = text(text, plane, rotation, 0, captionUp, 0.012, theme.smallScale(), true, -1);
-            } else {
-                caption.text(text);
-            }
+            String text = entry == null ? "" : entry.name();
+            if (text.equals(captionShown) && (caption != null || text.isBlank())) return;
+            captionShown = text;
+            drop(caption);
+            caption = write(text, true, plane, rotation, 0, captionUp, 0.012, slotWidth * 2.8, theme.smallScale(), true,
+                    caption == null && first ? -1 : REPOP);
         }
     }
 

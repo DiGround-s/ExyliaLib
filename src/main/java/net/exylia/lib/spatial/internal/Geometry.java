@@ -111,13 +111,93 @@ public final class Geometry {
         return changed;
     }
 
+    /** A pixel of vanilla text at scale 1: a line is ten of them, {@link #GLASS_HEIGHT} tall. */
+    public static final double PIXEL = 0.025;
+    /** How tall a capital of the vanilla font is, in pixels, and a small capital (the unicode glyphs, drawn at half size). */
+    public static final int CAPITAL_PIXELS = 7;
+    public static final int SMALL_CAPITAL_PIXELS = 5;
+
+    /**
+     * The smallest text scale whose glyphs, {@code pixels} tall, look at least {@code degrees} tall from
+     * {@code distance} blocks away: the readability floor every line of a spatial menu is drawn above.
+     */
+    public static double readableScale(double distance, double degrees, int pixels) {
+        if (degrees <= 0 || pixels <= 0) return 0;
+        double height = 2 * Math.max(0.1, distance) * Math.tan(Math.toRadians(degrees) / 2);
+        return height / (pixels * PIXEL);
+    }
+
+    /** How tall a glyph {@code pixels} tall at {@code scale} looks from {@code distance} blocks away, in degrees. */
+    public static double glyphDegrees(double scale, int pixels, double distance) {
+        return Math.toDegrees(2 * Math.atan(pixels * PIXEL * scale / 2 / Math.max(0.1, distance)));
+    }
+
+    /**
+     * A line cut so its visible letters fit {@code width} blocks at scale 1, ending in an ellipsis; the
+     * line itself when it fits. Markup takes no room and is kept: palette tokens ({@code {primary}}),
+     * tags ({@code <#8a51c4>}) and {@code &}/{@code §} codes.
+     */
+    public static String truncate(String raw, double width) {
+        if (raw == null || raw.isEmpty() || visibleWidth(raw) <= width) return raw;
+        double room = width - net.exylia.lib.stage.StageLook.width("…");
+        StringBuilder out = new StringBuilder();
+        double used = 0;
+        for (int i = 0; i < raw.length(); i++) {
+            int markup = markup(raw, i);
+            if (markup > 0) {
+                out.append(raw, i, i + markup);
+                i += markup - 1;
+                continue;
+            }
+            double glyph = net.exylia.lib.stage.StageLook.width(String.valueOf(raw.charAt(i)));
+            if (used + glyph > room) break;
+            used += glyph;
+            out.append(raw.charAt(i));
+        }
+        while (out.length() > 0 && out.charAt(out.length() - 1) == ' ') out.setLength(out.length() - 1);
+        return out.append('…').toString();
+    }
+
+    /** How wide a line's visible letters are at scale 1, its markup left out. */
+    public static double visibleWidth(String raw) {
+        StringBuilder plain = new StringBuilder();
+        for (int i = 0; i < raw.length(); i++) {
+            int markup = markup(raw, i);
+            if (markup > 0) {
+                i += markup - 1;
+                continue;
+            }
+            plain.append(raw.charAt(i));
+        }
+        return net.exylia.lib.stage.StageLook.width(plain.toString());
+    }
+
+    /** How long the markup starting at {@code i} is, or 0 when a visible letter stands there. */
+    private static int markup(String raw, int i) {
+        char c = raw.charAt(i);
+        if ((c == '&' || c == '§') && i + 1 < raw.length()
+                && "0123456789abcdefklmnorxABCDEFKLMNORX".indexOf(raw.charAt(i + 1)) >= 0) {
+            return 2;
+        }
+        if (c == '{' || c == '<') {
+            int end = raw.indexOf(c == '{' ? '}' : '>', i);
+            if (end > i && end - i <= 40 && raw.substring(i + 1, end).matches("[#/!a-zA-Z0-9_:.\\-]+")) return end - i + 1;
+        }
+        return 0;
+    }
+
     /**
      * The centre and height of a panel's content, below its title band and above its footer band.
      *
      * @return {centre up, height}, in the panel's own terms
      */
     public static double[] content(double height, boolean title, boolean footer) {
-        double top = height / 2 - (title ? 0.3 : 0.08);
+        return content(height, title ? 0.3 : 0.08, footer);
+    }
+
+    /** The same, below a title band {@code band} blocks tall: a title with a hint under it needs more. */
+    public static double[] content(double height, double band, boolean footer) {
+        double top = height / 2 - band;
         double bottom = -height / 2 + (footer ? 0.3 : 0.08);
         return new double[]{(top + bottom) / 2, Math.max(0.05, top - bottom)};
     }
@@ -144,9 +224,17 @@ public final class Geometry {
 
     /** Glass that waits {@code delay} unseen, then grows past its size and settles: a staggered pop-in. */
     public static List<DisplayKeyframe> glassPop(Rotation rotation, double width, double height, long delay) {
-        return List.of(glass(0, rotation, width, height, 0.01, 0, 0, 0),
-                glass(delay, rotation, width, height, 0.01, 0, 0, 0),
-                glass(delay + 160, rotation, width, height, 1.04, 0, 0, 0),
+        return glassPop(rotation, width, height, delay, null);
+    }
+
+    /** The same pop gliding in from {@code from} (world axes), or in place when it is {@code null}. */
+    public static List<DisplayKeyframe> glassPop(Rotation rotation, double width, double height, long delay, double[] from) {
+        double dx = from == null ? 0 : from[0];
+        double dy = from == null ? 0 : from[1];
+        double dz = from == null ? 0 : from[2];
+        return List.of(glass(0, rotation, width, height, 0.01, dx, dy, dz),
+                glass(delay, rotation, width, height, 0.01, dx, dy, dz),
+                glass(delay + 160, rotation, width, height, 1.04, dx * 0.2, dy * 0.2, dz * 0.2),
                 glass(delay + 300, rotation, width, height, 1.0, 0, 0, 0));
     }
 

@@ -58,4 +58,74 @@ public interface SpatialContext {
 
     /** Closes the menu, deflating it. */
     void close();
+
+    // ── Drafts (since 1.414.0) ────────────────────────────────────────────
+
+    /**
+     * The id of the entry under the crosshair in a source, or {@code null}: what an information panel
+     * shows while the player browses, before they click. A change redraws the TEXT lines and titles.
+     *
+     * @since 1.414.0
+     */
+    default @Nullable String hovered(@NotNull String source) {
+        return null;
+    }
+
+    /**
+     * What the player has drafted for {@code key}, or the saved value when they have not: what the
+     * preview and the panels show. A key that names a source is that source's selection. See
+     * {@link SpatialMenu#saved}.
+     *
+     * @since 1.414.0
+     */
+    default @Nullable Object draft(@NotNull String key) {
+        return get(key);
+    }
+
+    /**
+     * Drafts a value for {@code key}: shown at once, stored only by SAVE. {@code null} or the saved
+     * value itself is no draft. For a key that names a source it selects that entry. Redraws nothing
+     * by itself.
+     *
+     * @since 1.414.0
+     */
+    default void draft(@NotNull String key, @Nullable Object value) {
+        set(key, value);
+    }
+
+    /**
+     * Whether any draft differs from what is saved: the SAVE button is lit, and leaving discards it.
+     *
+     * @since 1.414.0
+     */
+    default boolean dirty() {
+        return false;
+    }
+
+    /**
+     * The keys whose draft differs from what is saved, in the order the saved map gives them.
+     *
+     * @since 1.414.0
+     */
+    default @NotNull java.util.Set<String> changed() {
+        return java.util.Set.of();
+    }
+
+    /**
+     * Drops every draft, back to what is saved (a source's selection too), and redraws: the REVERT
+     * button, or the layout action {@code revert}.
+     *
+     * @since 1.414.0
+     */
+    default void revert() {
+    }
+
+    /**
+     * Runs the menu's {@link SpatialMenu#onSave save} and redraws: the SAVE button, or the layout
+     * action {@code save}.
+     *
+     * @since 1.414.0
+     */
+    default void save() {
+    }
 }
