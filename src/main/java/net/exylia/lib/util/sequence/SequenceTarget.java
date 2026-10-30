@@ -71,6 +71,9 @@ public final class SequenceTarget {
     /** How large everything is drawn about the location; 1 is as written. */
     private final double scale;
 
+    /** The body {@code [NPC] {victim}} wears when nothing died, or {@code null}. */
+    private final java.util.function.Supplier<net.exylia.lib.npc.NpcModel> stand;
+
     /**
      * The last answer {@link #observers()} gave, and when.
      *
@@ -93,13 +96,15 @@ public final class SequenceTarget {
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius) {
-        this(location, source, target, visibility, radius, Map.of(), Map.of(), null, null, 1.0);
+        this(location, source, target, visibility, radius, Map.of(), Map.of(), null, null, 1.0, null);
     }
 
     private SequenceTarget(Location location, Player source, Entity target,
                            BiPredicate<Player, Player> visibility, double radius,
                            Map<String, String> values, Map<String, ItemStack> items,
-                           net.exylia.lib.ragdoll.RagdollModel wearing, Entity follows, double scale) {
+                           net.exylia.lib.ragdoll.RagdollModel wearing, Entity follows, double scale,
+                           java.util.function.Supplier<net.exylia.lib.npc.NpcModel> stand) {
+        this.stand = stand;
         this.scale = scale;
         this.wearing = wearing;
         this.follows = follows;
@@ -145,7 +150,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget by(@Nullable Player player) {
-        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing, follows, scale);
+        return new SequenceTarget(location, player, target, visibility, radius, values, items, wearing, follows, scale, stand);
     }
 
     /**
@@ -157,7 +162,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget on(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing, follows, scale);
+        return new SequenceTarget(location, source, entity, visibility, radius, values, items, wearing, follows, scale, stand);
     }
 
     /**
@@ -172,7 +177,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget visibleTo(@Nullable BiPredicate<Player, Player> predicate) {
-        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing, follows, scale);
+        return new SequenceTarget(location, source, target, predicate, radius, values, items, wearing, follows, scale, stand);
     }
 
     /**
@@ -195,7 +200,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget within(double blocks) {
-        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing, follows, scale);
+        return new SequenceTarget(location, source, target, visibility, Math.max(0.0, blocks), values, items, wearing, follows, scale, stand);
     }
 
     /**
@@ -208,7 +213,7 @@ public final class SequenceTarget {
      * @return a new target
      */
     public @NotNull SequenceTarget movedTo(@NotNull Location destination) {
-        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing, follows, scale);
+        return new SequenceTarget(destination.clone(), source, target, visibility, radius, values, items, wearing, follows, scale, stand);
     }
 
     /**
@@ -239,7 +244,7 @@ public final class SequenceTarget {
             merged.put(value.getKey(), String.valueOf(value.getValue()));
         }
         return new SequenceTarget(location, source, target, visibility, radius,
-                Map.copyOf(merged), items, wearing, follows, scale);
+                Map.copyOf(merged), items, wearing, follows, scale, stand);
     }
 
     /**
@@ -257,7 +262,7 @@ public final class SequenceTarget {
         Map<String, ItemStack> merged = new LinkedHashMap<>(items);
         merged.put(name.toLowerCase(Locale.ROOT), item);
         return new SequenceTarget(location, source, target, visibility, radius, values,
-                Map.copyOf(merged), wearing, follows, scale);
+                Map.copyOf(merged), wearing, follows, scale, stand);
     }
 
     /**
@@ -321,7 +326,30 @@ public final class SequenceTarget {
      * @since 1.302.0
      */
     public @NotNull SequenceTarget wearing(@Nullable net.exylia.lib.ragdoll.RagdollModel model) {
-        return new SequenceTarget(location, source, target, visibility, radius, values, items, model, follows, scale);
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, model, follows, scale, stand);
+    }
+
+    /**
+     * The body an {@code [NPC] {victim}} line wears when this play has no victim: a preview's mannequin,
+     * so the body lying there is the one that stood there. A real victim still wears their own.
+     *
+     * <pre>{@code
+     * SequenceTarget.at(at).by(viewer).onlyTo(viewer).wearing(body.ragdoll()).standing(body::npc);
+     * }</pre>
+     *
+     * @param model builds the body, asked once per line so no two NPCs share a profile; {@code null}
+     *              to fall back to the killer as before
+     * @return a new target
+     * @since 1.416.0
+     */
+    public @NotNull SequenceTarget standing(@Nullable java.util.function.Supplier<net.exylia.lib.npc.NpcModel> model) {
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, follows,
+                scale, model);
+    }
+
+    /** Builds the body {@code [NPC] {victim}} wears when nothing died, or {@code null}. @since 1.416.0 */
+    public @Nullable java.util.function.Supplier<net.exylia.lib.npc.NpcModel> standing() {
+        return stand;
     }
 
     /**
@@ -353,7 +381,7 @@ public final class SequenceTarget {
      * @since 1.364.0
      */
     public @NotNull SequenceTarget follow(@Nullable Entity entity) {
-        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, entity, scale);
+        return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, entity, scale, stand);
     }
 
     /**
@@ -392,7 +420,7 @@ public final class SequenceTarget {
             throw new IllegalArgumentException("A sequence's scale must be above zero, not " + factor);
         }
         return new SequenceTarget(location, source, target, visibility, radius, values, items, wearing, follows,
-                factor);
+                factor, stand);
     }
 
     /**

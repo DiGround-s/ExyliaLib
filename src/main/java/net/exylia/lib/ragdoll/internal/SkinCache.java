@@ -22,9 +22,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -91,31 +89,6 @@ public final class SkinCache {
             .version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(TIMEOUT)
             .build();
-
-    /**
-     * Vanilla's default skins in the client's own order: slim alex, ari, efe,
-     * kai, makena, noor, steve, sunny, zuri, then the same nine wide.
-     */
-    private static final String[] DEFAULT_SKINS = {
-            "46acd06e8483b176e8ea39fc12fe105eb3a2a4970f5100057e9d84d4b60bdfa7",
-            "6ac6ca262d67bcfb3dbc924ba8215a18195497c780058a5749de674217721892",
-            "fece7017b1bb13926d1158864b283b8b930271f80a90482f174cca6a17e88236",
-            "226c617fde5b1ba569aa08bd2cb6fd84c93337532a872b3eb7bf66bdd5b395f8",
-            "7cb3ba52ddd5cc82c0b050c3f920f87da36add80165846f479079663805433db",
-            "6c160fbd16adbc4bff2409e70180d911002aebcfa811eb6ec3d1040761aea6dd",
-            "d5c4ee5ce20aed9e33e866c66caa37178606234b3721084bf01d13320fb2eb3f",
-            "b66bc80f002b10371e2fa23de6f230dd5e2f3affc2e15786f65bc9be4c6eb71a",
-            "eee522611005acf256dbd152e992c60c0bb7978cb0f3127807700e478ad97664",
-            "1abc803022d8300ab7578b189294cce39622d9a404cdc00d3feacfdf45be6981",
-            "4c05ab9e07b3505dc3ec11370c3bdce5570ad2fb2b562e9b9dd9cf271f81aa44",
-            "daf3d88ccb38f11f74814e92053d92f7728ddb1a7955652a60e30cb27ae6659f",
-            "e5cdc3243b2153ab28a159861be643a4fc1e3c17d291cdd3e57a7f370ad676f3",
-            "dc0fcfaf2aa040a83dc0de4e56058d1bbb2ea40157501f3e7d15dc245e493095",
-            "90e75cd429ba6331cd210b9bd19399527ee3bab467b5a9f61cb8a27b177f6789",
-            "31f477eb1a7beee631c2ca64d06f8f68fa93a3386d04452ab27f43acdf1b60cb",
-            "a3bd16079f764cd541e072e888fe43885e711f98658323db0f9a6045da91ee7a",
-            "f5dddb41dcafef616e959c2817808e0be741c89ffbfed39134a13e75b811863d"
-    };
 
     /** What a body is drawn in until its real skin has been read. */
     private static final RagdollSkin FALLBACK = defaultSkin();
@@ -270,6 +243,12 @@ public final class SkinCache {
         return skin == null ? FALLBACK : skin;
     }
 
+    /** Whether the picture behind a texture value is already read, so a body wearing it gets its colours. */
+    public static boolean isRead(String property) {
+        String url = property == null ? null : Textures.urlOf(property);
+        return url != null && BY_TEXTURE.getIfPresent(url) != null;
+    }
+
     private static RagdollSkin skinOf(Player player) {
         return skinOfProperty(texturesOf(player));
     }
@@ -329,11 +308,7 @@ public final class SkinCache {
      * @return the texture property, with the slim model marked
      */
     static String defaultTextures(UUID id) {
-        int index = Math.floorMod(id.hashCode(), DEFAULT_SKINS.length);
-        boolean slim = index < DEFAULT_SKINS.length / 2;
-        String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/"
-                + DEFAULT_SKINS[index] + "\"" + (slim ? ",\"metadata\":{\"model\":\"slim\"}" : "") + "}}}";
-        return Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));
+        return net.exylia.lib.npc.DefaultSkin.of(id).textures();
     }
 
     private static void fetch(String url, boolean slim) {

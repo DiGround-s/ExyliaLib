@@ -50,6 +50,8 @@ config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
 ```
 
 - **Mannequins are placed NPCs** (default skin, facing the way the admin faced).
+  For a body that must wear a chosen real skin, see
+  [`PreviewSkins`](npcs.md#preview-bodies-since-1416).
   A timer a second keeps them in step with the settings, so a reload, an admin
   placing one or a world that loads late needs no call. They are taken down
   when the plugin is disabled.

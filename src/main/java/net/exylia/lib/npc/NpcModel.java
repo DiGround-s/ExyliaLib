@@ -116,6 +116,22 @@ public final class NpcModel {
                 NpcPose.STANDING, -1, null, null, null, 1.0, null);
     }
 
+    /**
+     * An NPC in one of vanilla's default skins, chosen rather than left to chance.
+     *
+     * <p>Announced under a UUID the client hashes to that skin and with no texture, so it is the real
+     * default skin from the client's own assets: no signature, no download.
+     *
+     * @param name the name it carries
+     * @param skin the default skin
+     * @return the model
+     * @since 1.416.0
+     */
+    public static @NotNull NpcModel of(@NotNull String name, @NotNull DefaultSkin skin) {
+        return new NpcModel(skin.uuid(), trimmedName(name), null, null,
+                NpcPose.STANDING, -1, null, null, null, 1.0, null);
+    }
+
     /** How it holds itself. */
     public @NotNull NpcModel pose(@NotNull NpcPose pose) {
         return new NpcModel(id, name, texture, signature, pose, glowArgb, wearing, held, offHand,

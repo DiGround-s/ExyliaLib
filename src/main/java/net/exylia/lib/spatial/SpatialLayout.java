@@ -41,7 +41,9 @@ public record SpatialLayout(
         @Comment("vanish-on-play: an effect's mannequin disappears while the effect plays, so a kill reads as a death.")
         @Comment("effect-scale: how large an effect plays, as a miniature on the pedestal: its mannequin, every offset,")
         @Comment("movement, body and particle spread that many times its written size. 0.35 fits a typical kill effect")
-        @Comment("between the carousel and the header.")
+        @Comment("between the carousel and the header. skins: whose skin an effect's mannequin and its body wear, the")
+        @Comment("first source that has one: others (another online player, varied per play), viewer, defaults")
+        @Comment("(vanilla's Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny and Zuri, slim and wide).")
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
@@ -191,38 +193,57 @@ public record SpatialLayout(
      *                     as a miniature standing on the pedestal, every offset, movement, body and
      *                     spread that many times its written size ({@link
      *                     net.exylia.lib.util.sequence.SequenceTarget#scale}). Since 1.413.0.
+     * @param skins        whose skin an effect preview's mannequin, its ragdoll and its {@code [NPC] {victim}}
+     *                     wear when the plugin names nobody: {@code others}, {@code viewer}, {@code defaults},
+     *                     the first that has a body ({@link net.exylia.lib.npc.PreviewSkins}). Since 1.416.0.
      */
     public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
-                          double effectScale) {
+                          double effectScale, List<String> skins) {
+
+        /** Whose skin an effect preview wears when the file does not say. */
+        public static final List<String> SKINS = List.of("others", "defaults");
 
         /** What an effect preview plays at when the file does not say: a kill fits between the carousel and the header. */
         public static final double EFFECT_SCALE = 0.35;
 
         public Preview() {
             // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
-            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE);
+            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS);
         }
 
         /** @deprecated since 1.408.0; use the constructor with {@code vanishOnPlay} and {@code effectScale}. */
         @Deprecated
         public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale) {
-            this(at, turnSpeed, pedestal, scale, true, EFFECT_SCALE);
+            this(at, turnSpeed, pedestal, scale, true, EFFECT_SCALE, SKINS);
         }
 
         /** @deprecated since 1.413.0; use the constructor with {@code effectScale}. */
         @Deprecated
         public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay) {
-            this(at, turnSpeed, pedestal, scale, vanishOnPlay, EFFECT_SCALE);
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, EFFECT_SCALE, SKINS);
+        }
+
+        /** @deprecated since 1.416.0; use the constructor with {@code skins}. */
+        @Deprecated
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
+                       double effectScale) {
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, effectScale, SKINS);
         }
 
         public Preview {
             at = point(at);
             scale = scale <= 0 ? 1 : scale;
             effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : EFFECT_SCALE;
+            skins = skins == null || skins.isEmpty() ? SKINS : List.copyOf(skins);
+        }
+
+        /** {@link #skins()} as the policy that picks a body. */
+        public net.exylia.lib.npc.PreviewSkins skinPolicy() {
+            return net.exylia.lib.npc.PreviewSkins.of(skins);
         }
 
         public Preview moved(double across, double up, double forward) {
-            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale);
+            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins);
         }
     }
 

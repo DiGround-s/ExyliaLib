@@ -86,6 +86,34 @@ That is also why `[NPC]` takes `{victim}` and `{killer}` and not a player name:
 a name is a request to Mojang, and an effect cannot wait for one. A base64
 texture written into the file works too, and is resolved when the file is read.
 
+## Preview bodies (since 1.416.0)
+
+A body that belongs to nobody (a cosmetic preview's mannequin, a showcase)
+still wears a real skin. `DefaultSkin` is vanilla's eighteen defaults, in the
+client's order; `NpcModel.of(name, DefaultSkin.ZURI_WIDE)` is announced under a
+fresh UUID the client hashes to that skin (`floorMod(uuid.hashCode(), 18)`, as
+`DefaultPlayerSkin.get` since 1.19.3) and with no texture, so the client draws
+its own default: nothing to sign, nothing to download, nothing a modern client
+rejects. `skin.textures()` is the same skin as an unsigned value pointing at
+Mojang's copy, for what is drawn from pixels (a ragdoll, a head).
+
+`PreviewSkins` picks whose skin from an ordered list of `others`, `viewer` and
+`defaults` (default `[others, defaults]`):
+
+```java
+PreviewSkins.Body body = PreviewSkins.of(List.of("others", "defaults")).pick(viewer);
+npcs.show(body.npc().nameless(), motion, at, life, List.of(viewer));   // stands there
+sequences.play(kill, SequenceTarget.at(at).by(viewer).onlyTo(viewer)
+        .wearing(body.ragdoll())          // [RAGDOLL] lines
+        .standing(body::npc));            // [NPC] {victim} when nobody died
+```
+
+Other players' skins are read from their own profile on their own thread when
+they join (and again two seconds later, for SkinsRestorer) and kept in memory;
+picking one is a map read. A player with no skin (offline mode) counts as their
+UUID's default. `body.ready()` says whether its ragdoll has its colours yet.
+[Spatial menus](spatial.md) use it for `preview.skins`.
+
 ## Written in a sequence
 
 | Parameter | What it does | Default |

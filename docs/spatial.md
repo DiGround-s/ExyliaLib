@@ -97,7 +97,8 @@ panels:
               footer: {label: '{highlight}&lAPPLY TO SET', action: apply-set}}
   focus:     {at: [0, 1.05, 0.2], size: [1.6, 0.42],
               content: {type: TEXT, lines: ['{letters}&l%pattern%', '{info}Editing %piece%']}}
-preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true, effect-scale: 0.35}
+preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true, effect-scale: 0.35,
+           skins: [others, defaults]}
 carousel: {source: patterns, at: [0, -1.05, 0.8], slots: 6, spacing: 0.62, centre-gap: 1.3, curve: 0.15}
 ```
 
@@ -211,10 +212,26 @@ Previews: `SpatialPreview.npc(player)` (their skin, wearing what they wear),
 it again and again, for the viewer alone: a kill effect seen for real), `none()`.
 
 An effect is played `by(viewer)` with no target, as the previews'
-[mannequin mode](previews.md) does: `{victim}` falls back to the viewer, so an
-`[NPC] {victim}` line has a body, and every `[RAGDOLL]` line wears the
-mannequin's skin (`skin`, or the default skin for `null`); a `[POTION]` or a
-victim's title never lands on anyone. With `preview.vanish-on-play` (default
+[mannequin mode](previews.md) does, so a `[POTION]` or a victim's title never
+lands on anyone. The mannequin, every `[RAGDOLL]` line and every
+`[NPC] {victim}` line wear the same skin, so the body that falls is the one that
+stood there: `skin`'s when one is given, otherwise the one `preview.skins` picks
+(since 1.416.0), afresh each time the mannequin stands.
+
+`preview.skins` is an ordered list; the first source that has a body wins
+([`PreviewSkins`](npcs.md#preview-bodies-since-1416)):
+
+| Source | Body |
+|---|---|
+| `others` | Another online player, at random each time (who the "victim" is) |
+| `viewer` | The player looking |
+| `defaults` | Vanilla's default skins (Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny, Zuri, slim and wide), one after another |
+
+The default is `[others, defaults]`: a kill effect reads best on somebody else,
+and alone on the server you see the real vanilla skins rather than yourself.
+`viewer` and `defaults` always have a body, so anything after them is never
+reached. A fresh body's first play waits up to 3 s for its skin's picture, so a
+ragdoll never falls in placeholder colours. With `preview.vanish-on-play` (default
 true) the mannequin is taken down while the effect plays (its length, or 3 s for
 an endless or very long one), as the previews' `vanish-on-hit`, so a kill reads
 as a death; it stands again at least a second before the next play. Set it to

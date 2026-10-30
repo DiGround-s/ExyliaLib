@@ -12,7 +12,6 @@ import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.ragdoll.RagdollModel;
-import net.exylia.lib.ragdoll.internal.SkinCache;
 import net.exylia.lib.spatial.internal.Drafts;
 import net.exylia.lib.spatial.internal.Geometry;
 import net.exylia.lib.stage.Stage;
@@ -52,6 +51,9 @@ final class MenuSession implements SpatialContext {
     private static final double EYES = 1.62;
     private static final long HOVER_MILLIS = 120L;
     private static final long GLIDE_MILLIS = 180L;
+    /** How long a fresh preview body waits for its skin's picture before it plays anyway. */
+    private static final long SKIN_WAIT_MILLIS = 3000L;
+
     /** How long a mannequin is gone for an effect with no length, an endless one or a very long one. */
     private static final long VANISH_FALLBACK_MILLIS = 3000L;
     private static final long VANISH_MAX_MILLIS = 10_000L;
@@ -1335,6 +1337,10 @@ final class MenuSession implements SpatialContext {
         private long npcUntil;
         /** When a mannequin taken down while its effect plays comes back; 0 when it stands. */
         private long hiddenUntil;
+        /** Whose skin a mannequin with nobody named wears, picked each time it stands, worn by its effect too. */
+        private @Nullable net.exylia.lib.npc.PreviewSkins.Body body;
+        /** When that body stood; its first play waits up to {@link #SKIN_WAIT_MILLIS} for its skin to be read. */
+        private long stoodAt;
 
         PreviewPart(long delay) {
             SpatialLayout.Preview look = layout.preview();
@@ -1403,7 +1409,9 @@ final class MenuSession implements SpatialContext {
         private void mannequin(SpatialPreview.Effect effect) {
             Location stand = base.clone();
             stand.setYaw(board.yaw() + 180);
-            NpcModel model = effect.skin() == null ? NpcModel.of("Mannequin") : NpcModel.of(effect.skin());
+            body = effect.skin() == null ? layout.preview().skinPolicy().pick(viewer) : null;
+            stoodAt = System.currentTimeMillis();
+            NpcModel model = body != null ? body.npc() : NpcModel.of(effect.skin());
             // The size the effect plays at, so the body that dies is the one that stood there.
             spawn(model.scale(layout.preview().effectScale()).nameless(), stand, layout.preview());
         }
@@ -1436,20 +1444,21 @@ final class MenuSession implements SpatialContext {
                 draw();
                 return;
             }
-            if (current instanceof SpatialPreview.Effect effect && npc != null && now >= nextPlay) {
+            if (current instanceof SpatialPreview.Effect effect && npc != null && now >= nextPlay
+                    && (body == null || body.ready() || now - stoodAt > SKIN_WAIT_MILLIS)) {
                 if (run != null) run.cancel();
                 // Where the mannequin's feet were, the pedestal's top: a kill effect is written round the
                 // victim's feet. It plays as a miniature of itself (effect-scale) so all of it stays
                 // between the carousel and the header.
                 Location at = base.clone();
-                // The viewer sets it off and, with nobody else there, is who it happens to as well: an
-                // [NPC] {victim} line has a body. [RAGDOLL] lines wear the mannequin's skin. No target,
-                // as in the previews' mannequin mode: a [POTION] or a victim's title never lands on them.
-                RagdollModel body = effect.skin() == null ? RagdollModel.of(SkinCache.fallback(), null)
-                        : RagdollModel.of(effect.skin());
-                run = Sequences.of(menus.plugin()).play(effect.sequence(),
-                        SequenceTarget.at(at).by(viewer).onlyTo(viewer).wearing(body)
-                                .scale(layout.preview().effectScale()));
+                // The viewer sets it off; [RAGDOLL] and [NPC] {victim} lines wear the mannequin's skin, so
+                // the body that falls is the one that stood there. No target, as in the previews' mannequin
+                // mode: a [POTION] or a victim's title never lands on anybody.
+                SequenceTarget where = SequenceTarget.at(at).by(viewer).onlyTo(viewer)
+                        .scale(layout.preview().effectScale());
+                where = body != null ? where.wearing(body.ragdoll()).standing(body::npc)
+                        : where.wearing(RagdollModel.of(effect.skin()));
+                run = Sequences.of(menus.plugin()).play(effect.sequence(), where);
                 long length = effect.sequence().isEndless() ? Long.MAX_VALUE / 4 : effect.sequence().durationMillis();
                 nextPlay = now + Math.max(2500L, length + 1500L);
                 if (layout.preview().vanishOnPlay()) {

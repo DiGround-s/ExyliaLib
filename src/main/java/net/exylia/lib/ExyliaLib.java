@@ -273,6 +273,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // background reader that turns a skin into the colours a body is drawn
         // in before anybody dies in it.
         net.exylia.lib.ragdoll.internal.SkinCache.init(this);
+        for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
+            Tasks.of(this).runAtEntity(online, () -> net.exylia.lib.npc.PreviewSkins.remember(online));
+        }
         NpcRuntime.init(this);
         net.exylia.lib.npc.internal.PlacedRuntime.init(this);
         // After the NPC module, whose bodies a playback is made of.
@@ -811,6 +814,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.actionbar.internal.ActionBarRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
+        net.exylia.lib.npc.PreviewSkins.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
         net.exylia.lib.playtime.Playtime.left(event.getPlayer());
         net.exylia.lib.settings.internal.SettingsRuntime.left(event.getPlayer().getUniqueId());
@@ -883,6 +887,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Their skin is a picture on Mojang's texture server, and an effect
         // cannot wait for one. Read now, used whenever they die.
         net.exylia.lib.ragdoll.Ragdolls.warm(player);
+        // Their skin for previews that show other players, read on their own thread now and again once a
+        // skin plugin (SkinsRestorer) has applied theirs.
+        net.exylia.lib.npc.PreviewSkins.remember(player);
+        Tasks.of(this).runAtEntityLater(player, 40L, () -> net.exylia.lib.npc.PreviewSkins.remember(player));
         // Reading a file is not something the main thread should wait for.
         java.util.UUID id = player.getUniqueId();
         Tasks.of(this).runAsync(() -> Cooldowns.load(id));

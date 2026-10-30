@@ -45,7 +45,9 @@ public sealed interface SpatialPreview {
 
     /**
      * A mannequin in {@code skin}'s skin with {@code sequence} playing on it again and again, for the
-     * viewer alone: a kill or hit effect seen for real. {@code null} skin is the default skin.
+     * viewer alone: a kill or hit effect seen for real. {@code null} skin wears the layout's
+     * {@code preview.skins} (another online player, or a vanilla default skin), and the effect's ragdoll and
+     * {@code [NPC] {victim}} wear the same one.
      */
     static @NotNull SpatialPreview sequence(@NotNull Sequence sequence, @Nullable Player skin) {
         return new Effect(sequence, skin);

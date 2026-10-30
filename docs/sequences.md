@@ -271,6 +271,10 @@ no connected player. The line's `detail:`, `glow:`, `light:` and `hold:`/`offhan
 `hat:` still apply over the model, and `size:` multiplies its scale. Placed NPCs
 perform this way ([npcs.md](npcs.md#performances)).
 
+Since 1.416.0 `SequenceTarget.standing(Supplier<NpcModel>)` is the body an
+`[NPC] {victim}` line wears when the play has no victim (a preview), asked once per
+line so no two NPCs share a profile. A real victim still wears their own skin.
+
 ### Following an entity through delays (since 1.364.0)
 
 A sequence is anchored where it started, so a line after a `[DELAY]` plays where

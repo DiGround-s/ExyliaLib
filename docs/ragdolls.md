@@ -499,6 +499,13 @@ the number those `[DELAY]` lines add up to.
 
 ### The real skin
 
+A preview body that belongs to nobody wears a real skin too:
+[`PreviewSkins`](npcs.md#preview-bodies-since-1416) hands a ragdoll and an NPC
+in the same skin, another online player's or one of vanilla's defaults, whose
+picture is read from Mojang's copy and cut like anybody's. The block-coloured
+`SkinCache.fallback()` is only what a body wears for the moment its picture is
+still on its way.
+
 A body wears its **real skin** with nothing to set up: no key, no account. The
 body is cut into pieces, each repainted as a head texture of its own — all six
 faces and the second layer — and drawn as a head stretched back to the piece's

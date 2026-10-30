@@ -539,7 +539,10 @@ final class Steps {
             Player victim = target.target() instanceof Player player ? player : null;
             NpcModel model = switch (face) {
                 case KILLER -> wearer(killer != null ? killer : victim);
-                case VICTIM -> wearer(victim != null ? victim : killer);
+                // A preview's mannequin stands in for a victim nobody is: the body that lies there is
+                // the one that stood there.
+                case VICTIM -> victim == null && target.standing() != null ? target.standing().get()
+                        : wearer(victim != null ? victim : killer);
                 case FIXED -> texture == null ? null : NpcModel.of("Body", texture, null);
             };
             if (model == null) {
