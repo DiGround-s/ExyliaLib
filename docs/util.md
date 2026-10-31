@@ -395,6 +395,10 @@ permissions, or the fallback when none carries one. A node set to `false`
 grants nothing and a tail that is not a number is skipped. Read it on the thread
 that owns the player.
 
+`lowest(player, prefix, fallback)` (since 1.424.0) is the same read for values
+where less is the perk, such as a cooldown, a warmup or a tax:
+`PermissionNumbers.lowest(player, "myplugin.cooldown.", settings.cooldownSeconds())`.
+
 ## PlayerStates — god mode and vanish kept by other plugins
 
 *Since 1.332.0.*
