@@ -233,6 +233,8 @@ locks.lease(Duration.ofSeconds(60)).holdRenewing(vault.id(), lease -> {
   is still held: a row holding what was written proves it landed, one holding
   what was read proves it did not, and anything else completes with
   `WriteUnknownException` — refund nothing and pay nothing for that one.
+  The id may be any id the repository takes (a `UUID` since 1.425.0); the key
+  locked is its `toString()`.
   `same` must tell the row read from the row written (a balance, a stamp).
 
 ```java

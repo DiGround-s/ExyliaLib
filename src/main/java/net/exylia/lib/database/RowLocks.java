@@ -206,6 +206,18 @@ public final class RowLocks {
     }
 
     /**
+     * {@link #write(Repository, Object, UnaryOperator, BiPredicate, Consumer)} with nothing to run
+     * before the lock is given back.
+     *
+     * @since 1.425.0
+     */
+    public <T> @NotNull CompletableFuture<Optional<T>> write(@NotNull Repository<T> rows, @NotNull Object id,
+                                                             @NotNull UnaryOperator<T> change,
+                                                             @NotNull BiPredicate<? super T, ? super T> same) {
+        return write(rows, id, change, same, row -> { });
+    }
+
+    /**
      * Changes one row while holding its lock, the row's id being the key.
      *
      * <pre>{@code
@@ -244,11 +256,25 @@ public final class RowLocks {
                                                              @NotNull UnaryOperator<T> change,
                                                              @NotNull BiPredicate<? super T, ? super T> same,
                                                              @NotNull Consumer<? super T> stored) {
+        return write(rows, (Object) id, change, same, stored);
+    }
+
+    /**
+     * {@link #write(Repository, String, UnaryOperator, BiPredicate, Consumer)} for a row whose id
+     * is not a string (a {@link java.util.UUID}, a number): the row is read and saved with the id
+     * itself, and the key locked is {@code id.toString()}.
+     *
+     * @since 1.425.0
+     */
+    public <T> @NotNull CompletableFuture<Optional<T>> write(@NotNull Repository<T> rows, @NotNull Object id,
+                                                             @NotNull UnaryOperator<T> change,
+                                                             @NotNull BiPredicate<? super T, ? super T> same,
+                                                             @NotNull Consumer<? super T> stored) {
         Objects.requireNonNull(rows, "rows");
         Objects.requireNonNull(change, "change");
         Objects.requireNonNull(same, "same");
         Objects.requireNonNull(stored, "stored");
-        return hold(id, () -> rows.findFresh(id).thenCompose(found -> {
+        return hold(id.toString(), () -> rows.findFresh(id).thenCompose(found -> {
             T before = found.orElse(null);
             T next = before == null ? null : change.apply(before);
             CompletableFuture<T> written = next == null || next.equals(before)
@@ -266,7 +292,7 @@ public final class RowLocks {
     }
 
     /** Settles a save that failed, while its lock is still held: the row written, {@code null} when it did not land. */
-    private static <T> CompletableFuture<T> landed(Repository<T> rows, String id, T before, T written,
+    private static <T> CompletableFuture<T> landed(Repository<T> rows, Object id, T before, T written,
                                                    BiPredicate<? super T, ? super T> same, Throwable failure) {
         return rows.findFresh(id).handle((row, unreachable) -> {
             if (unreachable == null && row.isPresent() && !same.test(before, written)) {

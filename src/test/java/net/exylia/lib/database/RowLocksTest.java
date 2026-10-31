@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -205,5 +206,22 @@ class RowLocksTest {
         assertEquals(2L, await(locks.write(rows, "row", row -> row, (a, b) -> true)).orElseThrow().version());
         assertTrue(await(locks.write(rows, "missing", row -> row, (a, b) -> true)).isEmpty(), "a missing row");
         assertEquals(0, locks.queuedKeys());
+    }
+
+    @Table("locks_profiles")
+    record Profile(@Id UUID uuid, @Column int kills) {
+    }
+
+    @Test
+    @DisplayName("a write reads and saves a UUID-keyed row with the UUID itself")
+    void writeTakesAUuidId() {
+        Repository<Profile> rows = Databases.of(plugin).repository(Profile.class);
+        UUID uuid = UUID.randomUUID();
+        await(rows.save(new Profile(uuid, 1)));
+
+        Optional<Profile> changed = await(server().write(rows, uuid,
+                row -> new Profile(row.uuid(), row.kills() + 1), (a, b) -> a.kills() == b.kills()));
+        assertEquals(2, changed.orElseThrow().kills());
+        assertEquals(2, await(rows.findFresh(uuid)).orElseThrow().kills());
     }
 }
