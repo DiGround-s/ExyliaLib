@@ -14,7 +14,7 @@ ragdolls.show(
 
 `RagdollModel.of(player)` wears the player's own profile. A player with no skin on
 it (offline mode) wears their UUID's vanilla default head, so building a body never
-asks Mojang for a profile (since 1.429.0; before, every body built for one timed
+asks Mojang for a profile (since 1.430.0; before, every body built for one timed
 out against the session server).
 
 A body wearing a skin that is not a connected player's (since 1.302.0):
