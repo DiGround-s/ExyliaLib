@@ -1426,3 +1426,5 @@ x, y or z: x, y o z
 '{warning}&lSKIP': '{warning}&lSALTAR'
 ' {letters_black}▎ {letters}Hands every prize over now.': ' {letters_black}▎ {letters}Entrega todos los premios ya.'
 '{warning}➥ Right-click or sneak to skip': '{warning}➥ Clic derecho o agáchate para saltar'
+'{primary}&lBUILD HEIGHT': '{primary}&lALTURA DE CONSTRUCCIÓN'
+Highest Y a block can be placed at. 0 means no limit.: Y más alta a la que se puede colocar un bloque. 0 significa sin límite.

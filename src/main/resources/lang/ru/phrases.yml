@@ -1414,3 +1414,5 @@
 '{warning}&lSKIP': '{warning}&lПРОПУСТИТЬ'
 ' {letters_black}▎ {letters}Hands every prize over now.': ' {letters_black}▎ {letters}Сразу выдаёт все призы.'
 '{warning}➥ Right-click or sneak to skip': '{warning}➥ ПКМ или присядь, чтобы пропустить'
+'{primary}&lBUILD HEIGHT': '{primary}&lВЫСОТА СТРОИТЕЛЬСТВА'
+Highest Y a block can be placed at. 0 means no limit.: Наибольшая высота Y, на которой можно ставить блоки. 0 — без ограничения.

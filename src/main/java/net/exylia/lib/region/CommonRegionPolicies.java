@@ -28,6 +28,14 @@ public final class CommonRegionPolicies {
      */
     public static final PolicyKey<Integer> TEMPORARY_BLOCKS_SECONDS =
             PolicyKey.of(new RegionId("exylia", "temporary_blocks_seconds"), Integer.class, 0);
+    /**
+     * The highest block Y a player may place a block or pour a bucket at; zero means
+     * no limit. Absolute, so it survives an arena copy pasted at another X or Z.
+     *
+     * @since 1.429.0
+     */
+    public static final PolicyKey<Integer> BUILD_MAX_Y =
+            PolicyKey.of(new RegionId("exylia", "build_max_y"), Integer.class, 0);
     public static final PolicyKey<Boolean> RE_GIVE_BLOCKS = bool("re_give_blocks", false);
     public static final PolicyKey<Boolean> REGION_MEMBERS_ONLY = bool("region_members_only", false);
     public static final PolicyKey<Boolean> ENTRY = bool("entry", true);

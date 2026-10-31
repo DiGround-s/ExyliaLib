@@ -1414,3 +1414,5 @@
 '{warning}&lSKIP': '{warning}&lPASSER'
 ' {letters_black}▎ {letters}Hands every prize over now.': ' {letters_black}▎ {letters}Remet tous les prix maintenant.'
 '{warning}➥ Right-click or sneak to skip': '{warning}➥ Clic droit ou accroupis-toi pour passer'
+'{primary}&lBUILD HEIGHT': '{primary}&lHAUTEUR DE CONSTRUCTION'
+Highest Y a block can be placed at. 0 means no limit.: Y le plus haut où un bloc peut être posé. 0 signifie aucune limite.

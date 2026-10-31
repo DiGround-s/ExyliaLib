@@ -325,6 +325,7 @@ thread on Folia — so it must be cheap and read only thread-safe state.
 | `breakable_blocks_only` | when it holds, `breakable_blocks` alone decides for the material, even where `break` is false |
 | `allowed_blocks_only` | when it holds, `allowed_blocks` alone decides; a bucket counts as its item, such as `WATER_BUCKET` |
 | `player_build_only` | breaking (or scooping) what no player placed; independent of `break`, which still refuses on its own |
+| `build_max_y` | placing or pouring above that block Y; `0` (the default) is no limit. Absolute, so an arena copy pasted elsewhere on X/Z keeps it (since 1.429.0) |
 | `interact` | using a clicked block — the item in hand still works, so eating, pearls and bows go through; stepping on plates and farmland; right-clicking any entity but a player: armour stands, frames, villagers, mounts, leads |
 | `pvp` | a player hurting a player, directly or through an arrow, TNT, a crystal, a harmful potion or a tamed pet, when a region applying to the victim at the victim's place, or to the attacker at the attacker's, says no |
 | `fall_damage` | fall damage at the player's position |

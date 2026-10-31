@@ -141,6 +141,20 @@ class RegionEnforcementTest {
     }
 
     @Test
+    @DisplayName("build_max_y refuses building above it, and zero means no limit")
+    void buildCeiling() {
+        register(regions, "bridge", 0, PolicySet.of(CommonRegionPolicies.BUILD_MAX_Y, 5));
+        regions.enforce();
+        assertFalse(RegionEnforcement.denies(player, world.getUID(), 5, 5.9, 5, Check.BUILD, Material.STONE));
+        assertTrue(RegionEnforcement.denies(player, world.getUID(), 5, 6, 5, Check.BUILD, Material.STONE));
+        assertFalse(RegionEnforcement.denies(player, world.getUID(), 5, 6, 5, Check.BREAK, Material.STONE),
+                "the ceiling limits building only");
+
+        register(regions, "unlimited", 9, PolicySet.of(CommonRegionPolicies.BUILD_MAX_Y, 0));
+        assertFalse(RegionEnforcement.denies(player, world.getUID(), 5, 14, 5, Check.BUILD, Material.STONE));
+    }
+
+    @Test
     @DisplayName("a *_only flag makes its list a whitelist, even where the plain flag says no")
     void blockListsWhitelist() {
         register(regions, "mine", 0, PolicySet.of(CommonRegionPolicies.BREAK, false)

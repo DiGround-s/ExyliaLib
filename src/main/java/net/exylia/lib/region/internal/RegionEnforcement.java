@@ -155,7 +155,8 @@ public final class RegionEnforcement {
                     || value(applying, CommonRegionPolicies.PLAYER_BUILD_ONLY)
                     && !placedByPlayer(regions, x, y, z);
             case BUILD -> !mayChange(applying, CommonRegionPolicies.ALLOWED_BLOCKS_ONLY,
-                    CommonRegionPolicies.ALLOWED_BLOCKS, CommonRegionPolicies.BUILD, material);
+                    CommonRegionPolicies.ALLOWED_BLOCKS, CommonRegionPolicies.BUILD, material)
+                    || aboveCeiling(value(applying, CommonRegionPolicies.BUILD_MAX_Y), y);
             default -> !value(applying, check.key);
         };
     }
@@ -182,6 +183,11 @@ public final class RegionEnforcement {
                                      @Nullable Material material) {
         if (value(applying, only)) return material != null && value(applying, list).contains(material);
         return value(applying, plain);
+    }
+
+    /** {@code build_max_y}: zero is no limit, anything else is the highest block Y allowed. */
+    private static boolean aboveCeiling(int ceiling, double y) {
+        return ceiling != 0 && Math.floor(y) > ceiling;
     }
 
     private static <T> T value(List<RegionSnapshot> applying, PolicyKey<T> key) {

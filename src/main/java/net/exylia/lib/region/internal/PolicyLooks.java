@@ -74,6 +74,9 @@ public final class PolicyLooks {
         BUILT_IN.put(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS, () -> new Look("CLOCK",
                 Phrases.tr("{primary}&lBLOCK LIFETIME"), Phrases.tr("How long a temporary block lasts."),
                 Phrases.tr("s ⌚")));
+        BUILT_IN.put(CommonRegionPolicies.BUILD_MAX_Y, () -> new Look("LADDER",
+                Phrases.tr("{primary}&lBUILD HEIGHT"),
+                Phrases.tr("Highest Y a block can be placed at. 0 means no limit.")));
         BUILT_IN.put(CommonRegionPolicies.ALLOWED_BLOCKS, () -> new Look("WRITABLE_BOOK",
                 Phrases.tr("{primary}&lALLOWED BLOCKS"), Phrases.tr("What can be placed when the list is on.")));
         BUILT_IN.put(CommonRegionPolicies.BREAKABLE_BLOCKS, () -> new Look("BOOK",
