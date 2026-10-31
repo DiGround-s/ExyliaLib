@@ -273,15 +273,28 @@ public final class RagdollModel {
         }
     }
 
-    /** A head item wearing a connected player's face. */
+    /**
+     * A head item wearing a connected player's face: their own profile when it carries a skin, else
+     * their UUID's vanilla default. Never {@code setOwningPlayer} on a profile with no skin (offline
+     * mode): the server would ask Mojang for it on every body built, and time out offline.
+     */
     private static @Nullable ItemStack head(Player player) {
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        if (!(item.getItemMeta() instanceof SkullMeta meta)) {
-            return null;
+        try {
+            com.destroystokyo.paper.profile.PlayerProfile profile = player.getPlayerProfile();
+            boolean skinned = profile.getProperties().stream().anyMatch(property -> "textures".equals(property.getName()));
+            if (!skinned) return textureHead(net.exylia.lib.npc.DefaultSkin.of(player.getUniqueId()).textures());
+            ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+            if (!(item.getItemMeta() instanceof SkullMeta meta)) return null;
+            meta.setPlayerProfile(profile);
+            item.setItemMeta(meta);
+            return item;
+        } catch (NoSuchMethodError | NoClassDefFoundError spigot) {
+            ItemStack item = new ItemStack(Material.PLAYER_HEAD);
+            if (!(item.getItemMeta() instanceof SkullMeta meta)) return null;
+            meta.setOwningPlayer(player);
+            item.setItemMeta(meta);
+            return item;
         }
-        meta.setOwningPlayer(player);
-        item.setItemMeta(meta);
-        return item;
     }
 
     /**
