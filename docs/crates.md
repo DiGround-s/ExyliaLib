@@ -540,6 +540,8 @@ move while open (players, unlocks, places, the counts) are lambdas over memory.
 | `importing(uuid -> future)` | Seeds a row from the plugin's own table, once, when the row is created (1.190.0) |
 | `admin()` | The admin menu's hooks and `open(player)` (1.342.0) |
 | `legacyKeys(key, value)` | Also accepts key items tagged `key=value` in the plugin's item values (1.190.0) |
+| `access(player -> ...)` | Who may open the crate, asked before anything is spent on the menu, a command and a bound block; the check tells the player why not (1.426.0) |
+| `atOnceByPermission(prefix)` | `max-at-once` per player: the highest `<prefix><n>` they hold, still capped at seven (1.426.0) |
 
 And on the catalogue, both optional (1.190.0):
 

@@ -50,6 +50,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 /**
  * Two screens: one that asks how many crates, and one that opens them.
@@ -79,6 +80,8 @@ public final class CrateScreens<T> implements Listener {
     static final String AGAIN = "again";
 
     private final Plugin plugin;
+    private final Predicate<Player> access;
+    private final ToIntFunction<Player> atOnce;
     private final TaskScheduler tasks;
     private final Debug debug;
     private final PluginEffects effects;
@@ -123,12 +126,15 @@ public final class CrateScreens<T> implements Listener {
      * @param isKey    whether an item is one of this crate's key items
      * @param keyBack  a fresh key item, for a paid key a crate turned out unable to use
      * @param giveItem hands an item over under the plugin's overflow policy
+     * @param access   whether a player may open the crate at all, telling them why not
+     * @param atOnce   the most crates a player may open at once, before the reels' cap
      */
     public CrateScreens(@NotNull Plugin plugin, @NotNull Prizes<T> prizes, @NotNull CrateStore store,
                         @NotNull Supplier<CrateSettings> settings, @NotNull Supplier<CrateMessages> messages,
                         @NotNull PluginMenus menus, @NotNull String menuId, @NotNull String openingId,
                         @NotNull Predicate<ItemStack> isKey, @NotNull Function<Player, ItemStack> keyBack,
-                        @NotNull BiConsumer<Player, ItemStack> giveItem) {
+                        @NotNull BiConsumer<Player, ItemStack> giveItem,
+                        @NotNull Predicate<Player> access, @NotNull ToIntFunction<Player> atOnce) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.debug = Debug.of(plugin);
@@ -143,6 +149,8 @@ public final class CrateScreens<T> implements Listener {
         this.isKey = isKey;
         this.keyBack = keyBack;
         this.giveItem = giveItem;
+        this.access = access;
+        this.atOnce = atOnce;
     }
 
     /**
@@ -183,6 +191,7 @@ public final class CrateScreens<T> implements Listener {
             say(player, messages.get().disabled());
             return;
         }
+        if (!access.test(player)) return;
         whenLoaded(player, () -> menus.definition(menuId).ifPresentOrElse(definition -> {
             Map<String, Object> context = new HashMap<>();
             putStatus(context::put, player);
@@ -197,7 +206,7 @@ public final class CrateScreens<T> implements Listener {
      */
     private List<UiEntry> amounts(Player player) {
         int keys = keysOf(player);
-        List<Integer> columns = Reel.columns(mostAtOnce());
+        List<Integer> columns = Reel.columns(mostAtOnce(player));
 
         List<UiEntry> rows = new ArrayList<>(Reel.COLUMNS);
         for (int column = Reel.FIRST_COLUMN; column <= Reel.LAST_COLUMN; column++) {
@@ -216,8 +225,8 @@ public final class CrateScreens<T> implements Listener {
         return rows;
     }
 
-    private int mostAtOnce() {
-        return Math.min(Reel.COLUMNS, Math.max(1, settings.get().maxAtOnce()));
+    private int mostAtOnce(Player player) {
+        return Math.min(Reel.COLUMNS, Math.max(1, atOnce.applyAsInt(player)));
     }
 
     // ------------------------------------------------------------------
@@ -257,8 +266,9 @@ public final class CrateScreens<T> implements Listener {
      * @param held whether the keys are items in the hand rather than the number on the account
      */
     private void spin(Player player, int requested, boolean held) {
+        if (!access.test(player)) return;
         CrateMessages lines = messages.get();
-        int amount = Math.min(mostAtOnce(), Math.max(1, requested));
+        int amount = Math.min(mostAtOnce(player), Math.max(1, requested));
         UUID uuid = player.getUniqueId();
 
         if (spinning.asMap().putIfAbsent(uuid, Boolean.TRUE) != null) {

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.crate;
 
+import net.exylia.lib.util.PermissionNumbers;
 import net.exylia.lib.action.ActionResult;
 import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.debug.Debug;
@@ -80,6 +81,8 @@ public final class PluginCrates {
     private volatile @Nullable Running<?> running;
     private volatile @Nullable Function<UUID, CompletableFuture<CrateImport>> importer;
     private volatile Predicate<ItemStack> legacyKey = item -> false;
+    private volatile Predicate<Player> access = player -> true;
+    private volatile @Nullable String atOncePrefix;
     private final CrateAdmin admin;
 
     /** Everything a started crate holds, dropped whole by {@link #stop}. */
@@ -161,7 +164,13 @@ public final class PluginCrates {
             };
         });
         CrateScreens<T> screens = new CrateScreens<>(plugin, prizes, store, settings, messages, menus,
-                menu, openingMenu, this::isKey, this::keyItem, rewards::giveItem);
+                menu, openingMenu, this::isKey, this::keyItem, rewards::giveItem,
+                player -> access.test(player),
+                player -> {
+                    int configured = settings.get().maxAtOnce();
+                    String prefix = atOncePrefix;
+                    return prefix == null ? configured : PermissionNumbers.highest(player, prefix, configured);
+                });
         BoundBlocks blocks = new BoundBlocks(plugin, () -> settings.get().blocks(), saveBlocks, screens::click);
 
         var events = plugin.getServer().getPluginManager();
@@ -284,6 +293,40 @@ public final class PluginCrates {
     public @NotNull PluginCrates legacyKeys(@NotNull String key, @NotNull String value) {
         Items.of(plugin).inert(key);
         this.legacyKey = item -> value.equals(values.text(item, key, ""));
+        return this;
+    }
+
+    /**
+     * Who may open the crate, from the menu, a command or a bound block. Asked
+     * on the player's thread before anything is spent; when it answers
+     * {@code false} the crate does nothing more, so the check tells the player
+     * why. Unset, everybody may.
+     *
+     * <pre>{@code
+     * crates.access(player -> permissions.allows(player, "myplugin.crate"));
+     * }</pre>
+     *
+     * @param access whether this player may open it; {@code null} lets everybody
+     * @return this
+     * @since 1.426.0
+     */
+    public @NotNull PluginCrates access(@Nullable Predicate<Player> access) {
+        this.access = access == null ? player -> true : access;
+        return this;
+    }
+
+    /**
+     * Lets a permission raise {@code max-at-once} per player: the highest
+     * {@code <prefix><n>} a player holds, through {@link PermissionNumbers},
+     * still capped by the seven reels. Unset, everybody gets the setting.
+     *
+     * @param prefix the node before the number, dot included, such as
+     *               {@code myplugin.crate.multi.}; {@code null} stops reading it
+     * @return this
+     * @since 1.426.0
+     */
+    public @NotNull PluginCrates atOnceByPermission(@Nullable String prefix) {
+        this.atOncePrefix = prefix;
         return this;
     }
 
