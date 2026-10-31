@@ -59,6 +59,11 @@ public interface NpcSink {
      */
     void equip(List<Player> viewers, int entityId, EquipmentSlot slot, ItemStack item);
 
+    /** Several slots at once ({@code null} empties one), one packet where the sink can. */
+    default void equip(List<Player> viewers, int entityId, java.util.Map<EquipmentSlot, ItemStack> items) {
+        items.forEach((slot, item) -> equip(viewers, entityId, slot, item));
+    }
+
     /**
      * Whether it is holding an item up: drawing a bow, raising a shield,
      * eating.

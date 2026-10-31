@@ -96,6 +96,52 @@ public interface Migration {
     }
 
     /**
+     * Replaces a text line's leading tag (a {@code [sound:...]} prefix, say) while it still starts
+     * with the shipped one, so a translated or reworded line keeps its words and a tag the owner
+     * chose is left alone.
+     *
+     * <pre>{@code
+     * Migration.retag("granted", "[sound:ENTITY_PLAYER_LEVELUP|1.0|1.2]", "[sound:ENTITY_PLAYER_LEVELUP|0.6|1.2]")
+     * }</pre>
+     *
+     * @param path    the dotted path of the line
+     * @param old     the prefix as shipped
+     * @param current the prefix that replaces it
+     * @return the migration step
+     * @since 1.428.0
+     */
+    static @NotNull Migration retag(@NotNull String path, @NotNull String old, @NotNull String current) {
+        return transform(path, value -> value instanceof String line && line.startsWith(old)
+                ? current + line.substring(old.length()) : value);
+    }
+
+    /**
+     * Swaps a sound section ({@code name}, {@code volume}, {@code pitch} under {@code path}, as an
+     * {@code EffectConfig} sound writes it) for another while all three are still exactly as shipped,
+     * so a sound the owner picked or tuned stays.
+     *
+     * <pre>{@code
+     * Migration.swapSound("feedback.match-won.sound", "UI_TOAST_CHALLENGE_COMPLETE", 1.0, 1.0,
+     *         "ENTITY_PLAYER_LEVELUP", 0.6, 1.2)
+     * }</pre>
+     *
+     * @return the migration step
+     * @since 1.428.0
+     */
+    static @NotNull Migration swapSound(@NotNull String path, @NotNull String oldName, double oldVolume,
+                                        double oldPitch, @NotNull String name, double volume, double pitch) {
+        return data -> {
+            if (oldName.equals(data.get(path + ".name"))
+                    && data.get(path + ".volume") instanceof Number v && v.doubleValue() == oldVolume
+                    && data.get(path + ".pitch") instanceof Number p && p.doubleValue() == oldPitch) {
+                data.set(path + ".name", name);
+                data.set(path + ".volume", volume);
+                data.set(path + ".pitch", pitch);
+            }
+        };
+    }
+
+    /**
      * Runs several steps in order, as a single version bump.
      *
      * @param steps the steps to run

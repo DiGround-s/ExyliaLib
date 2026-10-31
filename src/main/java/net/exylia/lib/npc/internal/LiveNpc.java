@@ -389,6 +389,16 @@ final class LiveNpc implements NpcHandle {
     }
 
     @Override
+    public void equip(@NotNull Map<EquipmentSlot, ItemStack> items) {
+        if (gone || items.isEmpty()) return;
+        if (!drawn) {
+            pendingKit.putAll(items);
+            return;
+        }
+        NpcRuntime.sink().equip(viewers, entityId, items);
+    }
+
+    @Override
     public void swing() {
         if (!gone) {
             NpcRuntime.sink().swing(viewers, entityId);

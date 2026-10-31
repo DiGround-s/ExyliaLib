@@ -37,6 +37,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,9 +59,11 @@ final class MenuSession implements SpatialContext {
     /** How long a fresh preview body waits for its skin's picture before it plays anyway. */
     private static final long SKIN_WAIT_MILLIS = 3000L;
 
-    /** How long a mannequin is gone for an effect with no length, an endless one or a very long one. */
-    private static final long VANISH_FALLBACK_MILLIS = 3000L;
-    private static final long VANISH_MAX_MILLIS = 10_000L;
+    /** How long a finished performance rests before it starts again. */
+    private static final long ENCORE_MILLIS = 600L;
+    /** The slots a preview body is dressed in, in the order they are sent. */
+    private static final List<EquipmentSlot> DRESSED = List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST,
+            EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.HAND, EquipmentSlot.OFF_HAND);
 
     final SpatialMenus menus;
     final SpatialMenu definition;
@@ -171,7 +174,13 @@ final class MenuSession implements SpatialContext {
         inPass(() -> {
             for (Part part : parts) part.refresh();
         });
-        if (preview != null) preview.update(definition.preview == null ? SpatialPreview.none() : definition.preview.apply(this));
+        refreshPreview();
+    }
+
+    @Override
+    public void refreshPreview() {
+        if (closed || preview == null) return;
+        preview.update(definition.preview == null ? SpatialPreview.none() : definition.preview.apply(this));
     }
 
     /** Runs a redraw with the plugin's values read once for it. */
@@ -296,6 +305,7 @@ final class MenuSession implements SpatialContext {
         savedState().forEach((key, value) -> {
             if (definition.sources.containsKey(key)) select(key, value == null ? null : value.toString());
         });
+        if (definition.onRevert != null) definition.onRevert.accept(this);
         refresh();
     }
 
@@ -1529,10 +1539,18 @@ final class MenuSession implements SpatialContext {
         private @Nullable SequenceRun run;
         private long nextPlay;
         private long npcUntil;
-        /** When a mannequin taken down while its effect plays comes back; 0 when it stands. */
-        private long hiddenUntil;
+        /** Whether a mannequin is taken down while its effect plays: it stands again once the effect is gone. */
+        private boolean hidden;
+        /** What the NPC was last sent, slot by slot, so a re-dress sends only what changed. */
+        private final Map<EquipmentSlot, ItemStack> dressed = new EnumMap<>(EquipmentSlot.class);
+        /** A performance's runs: one body, or a duet's two. */
+        private final List<SequenceRun> acts = new ArrayList<>(2);
         /** Whose skin a mannequin with nobody named wears, picked each time it stands, worn by its effect too. */
         private @Nullable net.exylia.lib.npc.PreviewSkins.Body body;
+        /** A duet's second body, from {@code preview.skins}. */
+        private @Nullable net.exylia.lib.npc.PreviewSkins.Body partner;
+        /** A performance's body in the skin it was handed, built once rather than on every encore. */
+        private @Nullable RagdollModel own;
         /** When that body stood; its first play waits up to {@link #SKIN_WAIT_MILLIS} for its skin to be read. */
         private long stoodAt;
         /** A flight's target and the projectile in the air (or stuck in it), with what they set off. */
@@ -1561,12 +1579,19 @@ final class MenuSession implements SpatialContext {
 
         void update(SpatialPreview next) {
             if (next == null) next = SpatialPreview.none();
+            if (current instanceof SpatialPreview.LiveNpc && next instanceof SpatialPreview.LiveNpc live
+                    && next.equals(current) && npc != null && npc.isShowing()) {
+                // The same body: only its supplier is new, read at once.
+                current = next;
+                dress(live.equipment().get());
+                return;
+            }
             if (next.equals(current) && (npc == null || npc.isShowing())) return;
             if (current instanceof SpatialPreview.Npc was && next instanceof SpatialPreview.Npc now
                     && was.skin().equals(now.skin()) && was.equipment() != null && now.equipment() != null
                     && npc != null && npc.isShowing()) {
                 current = next;
-                dress(now);
+                dress(now.equipment());
                 return;
             }
             remove();
@@ -1585,7 +1610,18 @@ final class MenuSession implements SpatialContext {
                     NpcModel model = NpcModel.of(body.skin()).scale(look.scale()).nameless();
                     if (body.equipment() == null) model = model.wearing(body.skin());
                     spawn(model, stand, look);
-                    dress(body);
+                    dress(body.equipment());
+                }
+                case SpatialPreview.LiveNpc body -> {
+                    spawn(NpcModel.of(body.skin()).scale(look.scale()).nameless(), stand, look);
+                    dress(body.equipment().get());
+                }
+                case SpatialPreview.Performance act -> {
+                    body = act.skin() == null ? look.skinPolicy().pick(viewer) : null;
+                    partner = act.isDuet() ? look.skinPolicy().pick(viewer) : null;
+                    own = act.skin() == null ? null : RagdollModel.of(act.skin());
+                    stoodAt = System.currentTimeMillis();
+                    nextPlay = 0;
                 }
                 case SpatialPreview.Item shown -> {
                     double size = 0.62 * look.scale();
@@ -1694,12 +1730,60 @@ final class MenuSession implements SpatialContext {
             npcUntil = System.currentTimeMillis() + 115_000L;
         }
 
-        private void dress(SpatialPreview.Npc body) {
-            if (npc == null || body.equipment() == null) return;
-            for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
-                    EquipmentSlot.FEET, EquipmentSlot.HAND, EquipmentSlot.OFF_HAND)) {
-                npc.equip(slot, body.equipment().get(slot));
+        /** Sends the slots whose item differs from what the NPC was last sent; a fresh NPC wears nothing. */
+        private void dress(@Nullable Map<EquipmentSlot, ItemStack> equipment) {
+            if (npc == null || equipment == null) return;
+            Map<EquipmentSlot, ItemStack> changed = new EnumMap<>(EquipmentSlot.class);
+            for (EquipmentSlot slot : DRESSED) {
+                ItemStack item = equipment.get(slot);
+                if (item != null && item.getType().isAir()) item = null;
+                if (Objects.equals(item, dressed.get(slot))) continue;
+                changed.put(slot, item);
+                if (item == null) dressed.remove(slot);
+                else dressed.put(slot, item.clone());
             }
+            // One packet for every slot that moved, not one a slot.
+            if (!changed.isEmpty()) npc.equip(changed);
+        }
+
+        /**
+         * A performance, every poll: plays once its bodies' skins are read (or after a short wait), and a
+         * finite one again once every piece of the last play is gone. There is no mannequin to hide.
+         */
+        private void perform(SpatialPreview.Performance act, long now) {
+            if (!acts.isEmpty()) {
+                for (SequenceRun playing : acts) {
+                    if (!playing.isFinished()) return;
+                }
+                acts.clear();
+                nextPlay = now + ENCORE_MILLIS;
+            }
+            if (now < nextPlay) return;
+            boolean ready = (body == null || body.ready()) && (partner == null || partner.ready());
+            if (!ready && now - stoodAt <= SKIN_WAIT_MILLIS) return;
+            Location at = base.clone();
+            if (!act.isDuet()) {
+                acts.add(Sequences.of(menus.plugin()).play(act.sequence(), performer(at, body, act.skin())));
+                return;
+            }
+            // As a duet plays between two players: both on one line, the emote's gap apart (at the size it
+            // plays), turned towards each other, so the choreography meets in the middle.
+            double half = act.gap() * layout.preview().effectScale() / 2;
+            Location first = plane.point(-half, 0, 0);
+            Location second = plane.point(half, 0, 0);
+            first.setDirection(second.toVector().subtract(first.toVector()));
+            second.setDirection(first.toVector().subtract(second.toVector()));
+            acts.add(Sequences.of(menus.plugin()).play(act.sequence(), performer(first, body, act.skin())));
+            acts.add(Sequences.of(menus.plugin()).play(act.sequence(), performer(second, partner, null)));
+        }
+
+        /** Where one body performs and whose skin it wears: {@code skin}'s, or the picked body's. */
+        private SequenceTarget performer(Location at, @Nullable net.exylia.lib.npc.PreviewSkins.Body worn,
+                                         @Nullable Player skin) {
+            SequenceTarget where = SequenceTarget.at(at).by(viewer).onlyTo(viewer)
+                    .scale(layout.preview().effectScale());
+            if (worn != null) return where.wearing(worn.ragdoll()).standing(worn::npc);
+            return skin != null && own != null ? where.wearing(own) : where;
         }
 
         /** Every poll: an NPC lives two minutes at most, so a long look gets a fresh one; an effect plays again. */
@@ -1709,9 +1793,16 @@ final class MenuSession implements SpatialContext {
                 fly(flight, now);
                 return;
             }
-            if (current instanceof SpatialPreview.Effect effect && npc == null && hiddenUntil > 0 && now >= hiddenUntil) {
-                hiddenUntil = 0;
+            if (current instanceof SpatialPreview.Performance act) {
+                perform(act, now);
+                return;
+            }
+            // Gone while its effect plays, and back only once every piece of it is: never two bodies.
+            if (current instanceof SpatialPreview.Effect effect && npc == null && hidden
+                    && (run == null || run.isFinished())) {
+                hidden = false;
                 mannequin(effect);
+                nextPlay = now + 1000L;
             }
             if (npc != null && (now > npcUntil || !npc.isShowing())) {
                 SpatialPreview again = current;
@@ -1720,6 +1811,7 @@ final class MenuSession implements SpatialContext {
                 draw();
                 return;
             }
+            if (current instanceof SpatialPreview.LiveNpc live && npc != null) dress(live.equipment().get());
             if (current instanceof SpatialPreview.Effect effect && npc != null && now >= nextPlay
                     && (body == null || body.ready() || now - stoodAt > SKIN_WAIT_MILLIS)) {
                 if (run != null) run.cancel();
@@ -1739,12 +1831,12 @@ final class MenuSession implements SpatialContext {
                 nextPlay = now + Math.max(2500L, length + 1500L);
                 if (layout.preview().vanishOnPlay()) {
                     // As the previews' vanish-on-hit: the mannequin is gone while it plays, so a kill reads
-                    // as a death, and stands again a second before the next play.
-                    long gone = length <= 0 || length > VANISH_MAX_MILLIS ? VANISH_FALLBACK_MILLIS : length;
+                    // as a death. It stands again once the effect's last piece is gone (never while an
+                    // endless one plays), and the next play waits a second after that.
                     npc.remove();
                     npc = null;
-                    hiddenUntil = now + gone;
-                    nextPlay = Math.max(nextPlay, hiddenUntil + 1000L);
+                    hidden = true;
+                    nextPlay = Long.MAX_VALUE;
                 }
             }
         }
@@ -1771,8 +1863,14 @@ final class MenuSession implements SpatialContext {
             projectile = null;
             flightRuns.forEach(SequenceRun::cancel);
             flightRuns.clear();
+            acts.forEach(SequenceRun::cancel);
+            acts.clear();
+            dressed.clear();
+            body = null;
+            partner = null;
+            own = null;
             launchedAt = 0;
-            hiddenUntil = 0;
+            hidden = false;
             current = SpatialPreview.none();
         }
     }

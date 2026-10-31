@@ -109,6 +109,17 @@ public interface NpcHandle {
     void equip(@NotNull EquipmentSlot slot, @Nullable ItemStack item);
 
     /**
+     * Changes several slots at once, in one packet where the protocol allows: a {@code null} value
+     * empties its slot, a slot left out is left alone.
+     *
+     * @param items the slots to change
+     * @since 1.428.0
+     */
+    default void equip(@NotNull java.util.Map<EquipmentSlot, ItemStack> items) {
+        items.forEach(this::equip);
+    }
+
+    /**
      * Swings its main arm, the way a player swinging at something does.
      *
      * @since 1.175.0

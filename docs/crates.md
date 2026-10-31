@@ -63,7 +63,7 @@ crate:
   spin-frames: 34          # faces the first reel runs through, capped at 200
   stagger-seconds: 2.0     # the gap between one reel landing and the next
   on-spin: { ... }         # EffectConfig: a hat note by default
-  on-win: { ... }          # EffectConfig: the level-up sound
+  on-win: { ... }          # EffectConfig: an orb pickup at 0.7 (since 1.428.0; a level-up before)
   on-duplicate: { ... }    # EffectConfig: a bass note
   key-item:
     material: TRIPWIRE_HOOK

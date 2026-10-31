@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
 /**
  * What stands in the middle of a spatial menu, on its pedestal, slowly turning: the player wearing
@@ -39,6 +40,19 @@ public sealed interface SpatialPreview {
         return new Npc(skin, equipment);
     }
 
+    /**
+     * A body in {@code skin}'s skin wearing what {@code equipment} answers, read again every couple of
+     * ticks while the menu is open: an animated skin or trim moves on it with no redraw of the menu.
+     * Only the slots whose item changed are sent again. The supplier runs on the viewer's thread, so it
+     * reads memory, never a database. Two of these with the same skin are the same preview, so the menu's
+     * {@code preview} may build a fresh one on every redraw.
+     *
+     * @since 1.428.0
+     */
+    static @NotNull SpatialPreview npc(@NotNull Player skin, @NotNull Supplier<Map<EquipmentSlot, ItemStack>> equipment) {
+        return new LiveNpc(skin, equipment);
+    }
+
     /** An item on the pedestal. */
     static @NotNull SpatialPreview item(@NotNull ItemStack item) {
         return new Item(item.clone());
@@ -52,6 +66,30 @@ public sealed interface SpatialPreview {
      */
     static @NotNull SpatialPreview sequence(@NotNull Sequence sequence, @Nullable Player skin) {
         return new Effect(sequence, skin);
+    }
+
+    /**
+     * A body performing {@code sequence} on the pedestal, for the viewer alone: an emote or a dance. No
+     * mannequin stands in for it: the performing body is the preview, so there is only ever one. An
+     * endless sequence keeps going; a finite one starts again once its pieces are gone. {@code null}
+     * skin wears the layout's {@code preview.skins}. Plays at the layout's {@code preview.effect-scale}.
+     *
+     * @since 1.428.0
+     */
+    static @NotNull SpatialPreview performance(@NotNull Sequence sequence, @Nullable Player skin) {
+        return new Performance(sequence, skin, 0);
+    }
+
+    /**
+     * Two bodies performing {@code sequence} side by side, {@code gap} blocks apart (before
+     * {@code preview.effect-scale}) and turned towards each other, as a duet emote plays between two
+     * players: the first in {@code skin}'s skin ({@code null} for the layout's {@code preview.skins}),
+     * the partner in a body {@code preview.skins} picks. Otherwise as {@link #performance}.
+     *
+     * @since 1.428.0
+     */
+    static @NotNull SpatialPreview duet(@NotNull Sequence sequence, @Nullable Player skin, double gap) {
+        return new Performance(sequence, skin, Math.max(0.1, gap));
     }
 
     /**
@@ -86,6 +124,29 @@ public sealed interface SpatialPreview {
     }
 
     record Item(@NotNull ItemStack item) implements SpatialPreview {
+    }
+
+    /** @since 1.428.0; equal by skin alone, whatever the supplier */
+    record LiveNpc(@NotNull Player skin, @NotNull Supplier<Map<EquipmentSlot, ItemStack>> equipment)
+            implements SpatialPreview {
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof LiveNpc that && skin.equals(that.skin);
+        }
+
+        @Override
+        public int hashCode() {
+            return skin.hashCode();
+        }
+    }
+
+    /** @param gap {@code 0} for one body, else how far apart a duet's two stand; @since 1.428.0 */
+    record Performance(@NotNull Sequence sequence, @Nullable Player skin, double gap) implements SpatialPreview {
+
+        public boolean isDuet() {
+            return gap > 0;
+        }
     }
 
     /** @since 1.422.0 */

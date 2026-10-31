@@ -180,6 +180,8 @@ on `Migration`:
 - `Migration.rename(from, to)` — move a value.
 - `Migration.remove(path)` — drop a key.
 - `Migration.transform(path, UnaryOperator<Object>)` — rewrite a value.
+- `Migration.retag(path, old, new)` — swap a text line's leading tag (`[sound:...]`) while it still starts with the shipped one (since 1.428.0).
+- `Migration.swapSound(path, oldName, oldVolume, oldPitch, name, volume, pitch)` — swap a sound section (`name`/`volume`/`pitch`) only while all three are as shipped (since 1.428.0).
 - `Migration.all(steps...)` — compose.
 
 Renaming a key without a migration silently loses what the owner configured.

@@ -683,7 +683,10 @@ final class SceneSession {
         void show(SpatialPreview preview, boolean vanishes) {
             remove();
             // A crate prize stands still on its plinth: a flight shows the projectile itself.
-            current = preview instanceof SpatialPreview.Flight flight ? SpatialPreview.item(flight.projectile()) : preview;
+            // A live NPC is shown as it is now: a prize is looked at for a moment, not tried on.
+            current = preview instanceof SpatialPreview.Flight flight ? SpatialPreview.item(flight.projectile())
+                    : preview instanceof SpatialPreview.LiveNpc live ? SpatialPreview.npc(live.skin(), live.equipment().get())
+                    : preview;
             vanish = vanishes;
             draw();
         }
@@ -720,6 +723,8 @@ final class SceneSession {
                     mannequin(effect);
                     nextPlay = now() + 1200L;
                 }
+                case SpatialPreview.Performance act -> nextPlay = now() + 600L;
+                case SpatialPreview.LiveNpc live -> { }
                 case SpatialPreview.Flight flight -> { }
                 case SpatialPreview.None none -> { }
             }
@@ -740,6 +745,10 @@ final class SceneSession {
         /** Every poll: an NPC lives two minutes at most; an effect plays again once it is over. */
         void keep(long now) {
             if (current instanceof SpatialPreview.None) return;
+            if (current instanceof SpatialPreview.Performance act) {
+                perform(act, now);
+                return;
+            }
             if (npc != null && (now > npcUntil || !npc.isShowing()) && !(current instanceof SpatialPreview.Effect)) {
                 SpatialPreview again = current;
                 remove();
@@ -771,6 +780,24 @@ final class SceneSession {
                 npc.remove();
                 npc = null;
             }
+        }
+
+        /**
+         * A performance: the body dancing is the prize, with no mannequin, again once its pieces are gone.
+         * ponytail: a duet shows its first body alone here; the menus' preview stands both.
+         */
+        private void perform(SpatialPreview.Performance act, long now) {
+            if (run != null && !run.isFinished()) return;
+            if (run != null) {
+                run = null;
+                nextPlay = now + 600L;
+                return;
+            }
+            if (now < nextPlay) return;
+            RagdollModel body = act.skin() != null ? RagdollModel.of(act.skin())
+                    : net.exylia.lib.npc.PreviewSkins.DEFAULT.pick(viewer).ragdoll();
+            run = Sequences.of(owner.plugin).play(act.sequence(), SequenceTarget.at(base()).by(viewer).onlyTo(viewer)
+                    .wearing(body).scale(layout.preview().effectScale()));
         }
 
         void remove() {

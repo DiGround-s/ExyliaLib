@@ -118,7 +118,7 @@ public record CrateSettings(
     public CrateSettings() {
         this(true, 0, 1, CrateReward.UNLOCK, List.of(), 4, 34, 2.0,
                 sound("BLOCK_NOTE_BLOCK_HAT", 1.6),
-                sound("ENTITY_PLAYER_LEVELUP", 1.2),
+                sound("ENTITY_EXPERIENCE_ORB_PICKUP", 1.2),
                 sound("BLOCK_NOTE_BLOCK_BASS", 0.8),
                 new KeyItem(), CrateTier.defaults(), CrateOpening.INVENTORY);
     }

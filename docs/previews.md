@@ -50,8 +50,12 @@ config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
 ```
 
 - **Mannequins are placed NPCs** (default skin, facing the way the admin faced).
-  For a body that must wear a chosen real skin, see
-  [`PreviewSkins`](npcs.md#preview-bodies-since-1416).
+  The body that falls when one is struck (`[RAGDOLL]`, `[NPC] {victim}`) wears
+  `mannequin.skins` (since 1.428.0, default `[others, defaults]`, as a spatial
+  menu's `preview.skins`; see [`PreviewSkins`](npcs.md#preview-bodies-since-1416)),
+  picked at the loan's first hit and kept for the loan, never the striker's own
+  skin. The effect plays at the mannequin's feet, as a real kill and the
+  TELEPORT preview do (since 1.428.0; a block above them before).
   A timer a second keeps them in step with the settings, so a reload, an admin
   placing one or a world that loads late needs no call. They are taken down
   when the plugin is disabled.
@@ -70,8 +74,9 @@ config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
 - **A loan is not a preview lock:** `Previews.isPreviewing` stays false, and the
   player moves, fights and chats as usual.
 - **`vanish-on-hit`** hides the struck mannequin from that player while the
-  effect plays (its length, or 3 s for an endless or very long one), so a kill
-  effect reads as a death.
+  effect plays, so a kill effect reads as a death. It comes back once every piece
+  of the effect is gone (since 1.428.0; before, after its length or 3 s, which
+  showed it beside a ragdoll still lying there).
 - **`effect-scale`** (since 1.413.0, default 1) plays the lent effect that many
   times its written size on the mannequin, every offset, movement, body and
   spread with it ([`SequenceTarget.scale`](sequences.md#played-as-a-miniature-since-1413)).
@@ -154,6 +159,7 @@ preview:
     radius: 12.0      # walking further from every mannequin ends the loan
     vanish-on-hit: false
     effect-scale: 1.0 # how large the effect plays on a mannequin (since 1.413.0)
+    skins: [others, defaults] # whose skin the struck body wears (since 1.428.0)
   # Every one of these is ticks, and every one also reads 1s, 30s or 1m30s.
 ```
 

@@ -263,6 +263,20 @@ final class NpcPackets implements NpcSink, PlacedSink {
                 List.of(new Equipment(target, drawn))));
     }
 
+    @Override
+    public void equip(List<Player> viewers, int entityId,
+                      java.util.Map<org.bukkit.inventory.EquipmentSlot, org.bukkit.inventory.ItemStack> items) {
+        List<Equipment> changed = new java.util.ArrayList<>(items.size());
+        items.forEach((slot, item) -> {
+            EquipmentSlot target = slotOf(slot);
+            if (target == null) return;
+            changed.add(new Equipment(target, item == null || item.getType().isAir()
+                    ? com.github.retrooper.packetevents.protocol.item.ItemStack.EMPTY
+                    : SpigotConversionUtil.fromBukkitItemStack(item)));
+        });
+        if (!changed.isEmpty()) send(viewers, new WrapperPlayServerEntityEquipment(entityId, changed));
+    }
+
     /** The protocol's name for a Bukkit slot, or {@code null} when it has none. */
     private static EquipmentSlot slotOf(org.bukkit.inventory.EquipmentSlot slot) {
         return switch (slot) {

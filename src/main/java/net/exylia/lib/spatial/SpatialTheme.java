@@ -88,8 +88,8 @@ public record SpatialTheme(
                 "BARRIER", "{error}&lLEAVE",
                 List.of("", "{secondary}Information:", " {letters_black}▎ {letters}Closes this menu.", "",
                         "{warning}➥ Right-click to leave", ""),
-                "minecraft:block.note_block.hat|0.35|1.8", "minecraft:block.note_block.hat|1.0|1.0",
-                "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|1.0|1.4",
+                "minecraft:block.note_block.hat|0.35|1.8", "minecraft:block.note_block.hat|0.7|1.0",
+                "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|0.6|1.4",
                 "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0",
                 0.95, false);
     }

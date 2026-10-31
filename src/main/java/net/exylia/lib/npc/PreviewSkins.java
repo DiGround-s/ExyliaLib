@@ -54,6 +54,9 @@ public final class PreviewSkins {
     /** {@code [others, defaults]}: somebody else on the server, or a vanilla default when alone. */
     public static final PreviewSkins DEFAULT = new PreviewSkins(List.of(Source.OTHERS, Source.DEFAULTS));
 
+    /** {@link #DEFAULT} as a config writes it. @since 1.428.0 */
+    public static final List<String> DEFAULT_NAMES = List.of("others", "defaults");
+
     /** Online players' {@code textures} value and signature, read on their own thread. */
     private static final Map<UUID, String[]> ONLINE = new ConcurrentHashMap<>();
     private static final AtomicInteger NEXT_DEFAULT = new AtomicInteger(ThreadLocalRandom.current().nextInt(18));
@@ -102,8 +105,9 @@ public final class PreviewSkins {
                 }
                 case VIEWER -> {
                     String[] own = ONLINE.get(me);
-                    if (own == null) own = texturesOf(viewer);
-                    return own != null ? new Body(own[0], own[1], null) : new Body(null, null, DefaultSkin.of(me));
+                    // Remembered as {null, null} when they have no skin (offline mode): their UUID's default.
+                    if (own == null || own[0] == null) own = texturesOf(viewer);
+                    return own != null && own[0] != null ? new Body(own[0], own[1], null) : new Body(null, null, DefaultSkin.of(me));
                 }
                 case DEFAULTS -> {
                     return nextDefault();

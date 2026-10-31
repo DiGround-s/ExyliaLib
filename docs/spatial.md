@@ -73,8 +73,9 @@ every redraw: read memory, never a database. Equal entries are not redrawn.
 `SpatialContext` is what every callback is handed: `viewer()`, `menu()`,
 `get/set(key)` (the menu's own state, gone when it closes; every key is also a
 `%key%` placeholder in TEXT lines), `page(source)` / `page(source, n)`,
-`selected(source)` / `select(source, id)`, `refresh()`, `replay()` (since
-1.408.0: plays the preview again from the start, now) and `close()`.
+`selected(source)` / `select(source, id)`, `refresh()`, `refreshPreview()`
+(since 1.428.0: the preview alone, cheap enough for every few ticks), `replay()`
+(since 1.408.0: plays the preview again from the start, now) and `close()`.
 `open(player, id, state)` (since 1.423.0) opens it with `state` already set,
 so `onOpen` and every source read what the menu is about (`ctx.get("slot")`); a
 placed spot opens without it, so a menu reading it keeps its own default.
@@ -218,6 +219,24 @@ Previews: `SpatialPreview.npc(player)` (their skin, wearing what they wear),
 `npc(player, equipment)` (re-dressed in place when only the equipment changes),
 `item(stack)`, `sequence(sequence, skin)` (a mannequin with the effect played on
 it again and again, for the viewer alone: a kill effect seen for real), `none()`.
+A re-dress sends only the slots whose item changed (since 1.428.0).
+
+`npc(player, () -> equipment)` (since 1.428.0) is read again every poll (two
+ticks) while the menu is open, so an animated skin or trim moves with no timer
+and no `refresh()`; only changed slots are sent. Two with the same skin are the
+same preview, so `preview` may build a fresh supplier on every redraw. The
+supplier runs on the viewer's thread: read memory, and cache what is costly to
+build.
+
+`performance(sequence, skin)` (since 1.428.0) is a body performing: an emote or
+a dance. There is no mannequin: the body the sequence draws (`[RAGDOLL]`,
+wearing `skin`, or `preview.skins` for `null`) is the preview, so only one ever
+stands there. An endless sequence keeps going; a finite one starts again 0.6 s
+after its last piece is gone. `duet(sequence, skin, gap)` stands two, `gap`
+blocks apart (times `preview.effect-scale`) and turned towards each other, as a
+duet emote plays between two players: the first in `skin`, the partner in a body
+`preview.skins` picks. Both wait up to 3 s for their skins' pictures. A crate
+scene shows a performance's first body alone.
 
 `flight(projectile, launch, trail, trailEveryTicks, impact)` (since 1.422.0) is a
 projectile seen in flight, for the viewer alone: the item (an arrow, a snowball,
@@ -255,9 +274,11 @@ and alone on the server you see the real vanilla skins rather than yourself.
 `viewer` and `defaults` always have a body, so anything after them is never
 reached. A fresh body's first play waits up to 3 s for its skin's picture, so a
 ragdoll never falls in placeholder colours. With `preview.vanish-on-play` (default
-true) the mannequin is taken down while the effect plays (its length, or 3 s for
-an endless or very long one), as the previews' `vanish-on-hit`, so a kill reads
-as a death; it stands again at least a second before the next play. Set it to
+true) the mannequin is taken down while the effect plays, as the previews'
+`vanish-on-hit`, so a kill reads as a death. It stands again only once every piece
+of the effect is gone (since 1.428.0; before, after the effect's length or 3 s, so
+a long ragdoll was seen beside a second body), never while an endless one plays,
+and the next play waits a second after that. Set it to
 false for hit effects. `ctx.replay()` plays it again at once.
 An NPC lives two minutes at most; the menu brings a fresh one before that.
 
@@ -303,6 +324,10 @@ menus.register("effects", menu -> menu
 - A BUTTON or footer with `action: save` runs `onSave` (also `ctx.save()`); with
   `action: revert`, `ctx.revert()` drops every draft and re-selects what is saved.
   Both are answered only when the plugin registers no action of that name itself.
+- Only sources named as saved keys are re-selected by REVERT. A menu whose markers
+  follow its drafts some other way (a basket of parts, the piece being edited)
+  moves them in `onRevert(ctx -> ...)` (since 1.428.0), run after the drafts are
+  dropped and before the redraw.
 - The SAVE plate is warmed towards `plate-selected` while `dirty()`, calm otherwise;
   the label is the plugin's (`SAVE` / `Saved ✔` from its lang files, picked with
   `ctx.dirty()` in `values`).
@@ -452,8 +477,9 @@ An entry for sale reads `price` under it (`%price%`), and the theme's
 and skins (re-dressed in place as the draft changes); `sequence(sequence, null)`
 for a kill or hit effect on a mannequin (`preview.vanish-on-play: false` for a
 hit effect, which must not read as a death); an emote is
-`sequence(emote, viewer)`, the viewer's own skin performing it (the mannequin
-stands aside while it plays); a trail or a projectile effect is a
+`performance(emote, viewer)` (since 1.428.0; `sequence` before), the viewer's own
+skin performing it with nothing beside it, and a duet emote `duet(emote, viewer,
+gap)`; an animated skin is `npc(viewer, () -> equipment)`; a trail or a projectile effect is a
 `flight(projectile, launch, trail, every, impact)` (since 1.422.0; a `sequence`
 before); `item(stack)` for a shield, a banner or anything held.
 
@@ -538,7 +564,7 @@ library's look:
 | `page-line`, `previous-arrow`, `next-arrow`, `empty-line` | `{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%`, `←`, `→`, `{muted}Nothing here yet` |
 | `spot-lines` | `%title%`, `{warning}➥ Click to open` |
 | `leave-material`, `leave-name`, `leave-lore` | `BARRIER`, `{error}&lLEAVE`, the Exylia lore pattern |
-| `hover-sound`, `select-sound`, `page-sound`, `open-sound`, `close-sound`, `error-sound` | note-block hat (soft), the menus' click, `item.book.page_turn`, the menus' open, `item.bundle.remove_one\|1.0\|0.5`, `entity.villager.no` |
+| `hover-sound`, `select-sound`, `page-sound`, `open-sound`, `close-sound`, `error-sound` | note-block hat at 0.35, note-block hat at 0.7, `item.book.page_turn`, `block.ender_chest.open\|0.6\|1.4`, `item.bundle.remove_one\|1.0\|0.5`, `entity.villager.no\|0.6` (select and open at 1.0 before 1.428.0) |
 
 Every colour is a palette token, read when a piece is drawn: a palette reload
 restyles the next menu opened.

@@ -240,16 +240,28 @@ public record PreviewSettings(
             @Key("effect-scale")
             @Comment("How large the effect plays on a mannequin: every offset, movement, body and")
             @Comment("particle spread that many times its written size. 1 is as written.")
-            double effectScale) {
+            double effectScale,
+
+            @Comment("Whose skin the body that falls wears, the first source that has one:")
+            @Comment("others (another online player, at random), viewer (the player trying it),")
+            @Comment("defaults (vanilla's default skins, one after another).")
+            List<String> skins) {
 
         public Mannequin() {
-            this(List.of(), 30, 12.0, false, 1.0);
+            this(List.of(), 30, 12.0, false, 1.0, net.exylia.lib.npc.PreviewSkins.DEFAULT_NAMES);
+        }
+
+        /** @deprecated since 1.428.0; use the constructor with {@code skins}. */
+        @Deprecated
+        public Mannequin(List<String> locations, int trialSeconds, double radius, boolean vanishOnHit,
+                         double effectScale) {
+            this(locations, trialSeconds, radius, vanishOnHit, effectScale, net.exylia.lib.npc.PreviewSkins.DEFAULT_NAMES);
         }
 
         /** @deprecated since 1.413.0; use the constructor with {@code effectScale}. */
         @Deprecated
         public Mannequin(List<String> locations, int trialSeconds, double radius, boolean vanishOnHit) {
-            this(locations, trialSeconds, radius, vanishOnHit, 1.0);
+            this(locations, trialSeconds, radius, vanishOnHit, 1.0, net.exylia.lib.npc.PreviewSkins.DEFAULT_NAMES);
         }
 
         public Mannequin {
@@ -257,16 +269,22 @@ public record PreviewSettings(
             trialSeconds = Math.max(1, trialSeconds);
             radius = Math.max(2, radius);
             effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : 1.0;
+            skins = skins == null || skins.isEmpty() ? net.exylia.lib.npc.PreviewSkins.DEFAULT_NAMES : List.copyOf(skins);
+        }
+
+        /** {@link #skins()} as the policy that picks a body. @since 1.428.0 */
+        public @NotNull net.exylia.lib.npc.PreviewSkins skinPolicy() {
+            return net.exylia.lib.npc.PreviewSkins.of(skins);
         }
 
         /** The same settings with the mannequins standing somewhere else. */
         public @NotNull Mannequin withLocations(@NotNull List<String> locations) {
-            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale);
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale, skins);
         }
 
         /** The same settings with a struck mannequin vanishing, or not. */
         public @NotNull Mannequin withVanishOnHit(boolean vanishOnHit) {
-            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale);
+            return new Mannequin(locations, trialSeconds, radius, vanishOnHit, effectScale, skins);
         }
     }
 

@@ -36,6 +36,7 @@ A handle can also be driven after it is shown — since 1.175.0:
 ```java
 body.moveTo(next);                          // a step, or a teleport when it is too far
 body.equip(EquipmentSlot.HAND, sword);      // one slot, leaving the other five
+body.equip(Map.of(EquipmentSlot.HEAD, helmet, EquipmentSlot.CHEST, chest)); // several, one packet (since 1.428.0)
 body.swing();
 body.hurt();
 ```

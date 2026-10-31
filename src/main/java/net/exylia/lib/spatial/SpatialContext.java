@@ -49,6 +49,17 @@ public interface SpatialContext {
     void refresh();
 
     /**
+     * Reads the preview again and redraws it alone, leaving the panels and the carousel as they are:
+     * cheap enough to call every few ticks. An equal preview is left as it is; an NPC whose equipment
+     * alone changed is re-dressed, slot by slot.
+     *
+     * @since 1.428.0
+     */
+    default void refreshPreview() {
+        refresh();
+    }
+
+    /**
      * Plays the preview again from the start, now: an effect from its first step (its mannequin back
      * if it had vanished), an NPC or an item drawn afresh.
      *

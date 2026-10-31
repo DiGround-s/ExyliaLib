@@ -46,6 +46,7 @@ public final class SpatialMenu {
     @Nullable Function<SpatialContext, Map<String, ?>> saved;
     @Nullable Function<SpatialContext, String> save;
     @Nullable Consumer<SpatialContext> discard;
+    @Nullable Consumer<SpatialContext> onRevert;
 
     SpatialMenu(String id) {
         this.id = id;
@@ -155,6 +156,18 @@ public final class SpatialMenu {
      */
     public @NotNull SpatialMenu onDiscard(@Nullable Consumer<SpatialContext> discard) {
         this.discard = discard;
+        return this;
+    }
+
+    /**
+     * Runs on REVERT, after every draft is dropped and before the redraw: where a menu whose markers
+     * follow its drafts rather than a saved key (a basket of parts, the piece being edited) moves them
+     * back to what is saved. Sources named as saved keys are re-selected by the library first.
+     *
+     * @since 1.428.0
+     */
+    public @NotNull SpatialMenu onRevert(@Nullable Consumer<SpatialContext> onRevert) {
+        this.onRevert = onRevert;
         return this;
     }
 

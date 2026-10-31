@@ -6,12 +6,14 @@ import net.exylia.lib.npc.NpcSpec;
 import net.exylia.lib.npc.Npcs;
 import net.exylia.lib.npc.PlacedNpc;
 import net.exylia.lib.npc.PluginNpcs;
+import net.exylia.lib.npc.PreviewSkins;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.preview.Preview;
 import net.exylia.lib.util.preview.PreviewSettings;
 import net.exylia.lib.util.sequence.Sequence;
+import net.exylia.lib.util.sequence.SequenceRun;
 import net.exylia.lib.util.sequence.SequenceTarget;
 import net.exylia.lib.util.sequence.Sequences;
 import net.exylia.lib.util.teleport.ExyliaLocation;
@@ -49,9 +51,8 @@ import java.util.function.Supplier;
 public final class MannequinTrials {
 
     private static final String ID_PREFIX = "preview_mannequin_";
-    /** How long a struck mannequin stays hidden when the effect has no length of its own. */
-    private static final long VANISH_FALLBACK_MILLIS = 3000;
-    private static final long VANISH_MAX_MILLIS = 10_000;
+    /** How often a hidden mannequin asks whether the effect it hides for is gone, in ticks. */
+    private static final long VANISH_CHECK_TICKS = 5;
 
     private final Plugin plugin;
     private final TaskScheduler tasks;
@@ -154,18 +155,26 @@ public final class MannequinTrials {
     private void strike(Player player, PlacedNpc npc, Location at, Set<UUID> hidden) {
         Trial trial = trials.get(player.getUniqueId());
         if (trial == null || trial.isFinished()) return;
+        if (trial.body == null) trial.body = settings.get().mannequin().skinPolicy().pick(player);
+        PreviewSkins.Body body = trial.body;
         npc.play(NpcAnimation.parse("hurt"), player);
         // No target: a [POTION] or a victim's title would land on the striker,
-        // and a lent effect must never hand out anything usable.
-        Sequences.of(plugin).play(trial.sequence,
-                SequenceTarget.at(at.clone().add(0, 1, 0)).by(player).onlyTo(player)
-                        .scale(settings.get().mannequin().effectScale()));
+        // and a lent effect must never hand out anything usable. At the feet,
+        // as a real kill and the TELEPORT preview play it; [RAGDOLL] and
+        // [NPC] {victim} wear the trial's body, never the striker's own.
+        SequenceRun run = Sequences.of(plugin).play(trial.sequence,
+                SequenceTarget.at(at.clone()).by(player).onlyTo(player)
+                        .scale(settings.get().mannequin().effectScale())
+                        .wearing(body.ragdoll()).standing(body::npc));
         if (settings.get().mannequin().vanishOnHit()) {
-            long length = trial.sequence.durationMillis();
-            long millis = length <= 0 || length > VANISH_MAX_MILLIS ? VANISH_FALLBACK_MILLIS : length;
+            // Hidden until every piece of the effect is gone, so a body never stands beside its own fall.
             UUID id = player.getUniqueId();
             hidden.add(id);
-            tasks.runLater(Math.max(1, millis / 50), () -> hidden.remove(id));
+            tasks.runTimer(VANISH_CHECK_TICKS, VANISH_CHECK_TICKS, check -> {
+                if (!run.isFinished() && player.isOnline()) return;
+                check.cancel();
+                hidden.remove(id);
+            });
         }
     }
 
@@ -195,6 +204,8 @@ public final class MannequinTrials {
         private final Player viewer;
         private final Sequence sequence;
         private final long endsAt;
+        /** Whose skin the struck body wears, picked at the first hit and kept for the loan. */
+        private @Nullable PreviewSkins.Body body;
         private final UUID bar = UUID.randomUUID();
         private volatile boolean arrived;
         private volatile boolean finished;
