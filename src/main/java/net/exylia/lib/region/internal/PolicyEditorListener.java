@@ -1,5 +1,6 @@
 package net.exylia.lib.region.internal;
 
+import net.exylia.lib.ui.ClickGuard;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -26,7 +27,9 @@ public final class PolicyEditorListener implements Listener {
             return;
         }
         event.setCancelled(true);
-        if (event.getClickedInventory() == event.getView().getTopInventory()) {
+        // A double-click arrives as a left click and a DOUBLE_CLICK, which
+        // would cycle a toggle twice and leave it where it was.
+        if (event.getClickedInventory() == event.getView().getTopInventory() && ClickGuard.tryClick(event)) {
             holder.click(viewer, event.getSlot(), event.isRightClick());
         }
     }

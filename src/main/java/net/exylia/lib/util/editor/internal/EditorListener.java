@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor.internal;
 
+import net.exylia.lib.ui.ClickGuard;
 import net.exylia.lib.util.editor.Clipboard;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -49,6 +50,11 @@ public final class EditorListener implements Listener {
         }
         event.setCancelled(true);
         if (holder.isFinished() || event.getClickedInventory() != event.getView().getTopInventory()) {
+            return;
+        }
+        // One physical click, one run: a double-click would turn two pages or
+        // press a plugin's button twice.
+        if (!ClickGuard.tryClick(event)) {
             return;
         }
         handle(holder, viewer, event.getSlot(), event.getClick());
