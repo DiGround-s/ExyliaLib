@@ -24,8 +24,19 @@ class ReplayCaptureTest {
     @DisplayName("a packet heard twice in one tick is one sound")
     void deduplicates() {
         ReplayClock.useWall(true);
-        assertTrue(ReplayCapture.first(-123_456));
-        assertFalse(ReplayCapture.first(-123_456));
+        // Both reads inside one tick: wall time can move on between them.
+        int key = -123_456;
+        int tick;
+        boolean once;
+        boolean twice;
+        do {
+            key--;
+            tick = ReplayClock.now();
+            once = ReplayCapture.first(key);
+            twice = ReplayCapture.first(key);
+        } while (ReplayClock.now() != tick);
+        assertTrue(once);
+        assertFalse(twice);
     }
 
     @Test

@@ -86,6 +86,14 @@ public final class BlackBox {
     /** Block changes kept, at most, across the server. */
     private static final int MAX_CHANGES = 400_000;
 
+    /**
+     * Marks kept, at most, across the server: a busy FFA writes a few hundred a
+     * second, so this is minutes of them. Trimming by time is what normally
+     * bounds them; this is for a clock that stops trimming, which once kept
+     * eleven million and gigabytes of heap.
+     */
+    private static final int MAX_HAPPENINGS = 400_000;
+
     /** How often a mob's equipment is compared; a player's is every tick. */
     private static final int MOB_EQUIPMENT_EVERY = 10;
 
@@ -125,6 +133,7 @@ public final class BlackBox {
      * into: a second. Emptied by the trim, and outright past {@link #MAX_FOLDING}.
      */
     private final Map<Folding, Flag> folding = new ConcurrentHashMap<>();
+    private final AtomicInteger happeningCount = new AtomicInteger();
     private final AtomicInteger nonPlayers = new AtomicInteger();
 
     /** Things a look left out because the box was full, this second and the last. */
@@ -198,6 +207,7 @@ public final class BlackBox {
         regionWritten.clear();
         ClientView.closeAll();
         changeCount.set(0);
+        happeningCount.set(0);
         nonPlayers.set(0);
         capped.set(0);
         cappedLastSecond = 0;
@@ -324,7 +334,7 @@ public final class BlackBox {
         if (!hidden && player.isValid() && !ReplayEvents.spectating(player)) {
             write(player, tapes.get(player.getUniqueId()), here, tick, seen);
             if (watcher.age % 20 == 0) {
-                happenings.add(new Happening(tick, ReplayMark.PING, player.getUniqueId(),
+                happened(new Happening(tick, ReplayMark.PING, player.getUniqueId(),
                         String.valueOf(player.getPing()).getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         null, 0, 0, 0, null, 0f));
                 if (regional) regionStats(here);
@@ -578,12 +588,12 @@ public final class BlackBox {
 
     void mark(String kind, UUID actor, byte @Nullable [] data) {
         if (!running) return;
-        happenings.add(new Happening(ReplayClock.now(), kind, actor, data, null, 0, 0, 0, null, 0f));
+        happened(new Happening(ReplayClock.now(), kind, actor, data, null, 0, 0, 0, null, 0f));
     }
 
     void markAt(String kind, @Nullable UUID actor, Location at, @Nullable String text, float power) {
         if (!running || at.getWorld() == null) return;
-        happenings.add(new Happening(ReplayClock.now(), kind, actor, null, at.getWorld().getUID(),
+        happened(new Happening(ReplayClock.now(), kind, actor, null, at.getWorld().getUID(),
                 at.getX(), at.getY(), at.getZ(), text, power));
     }
 
@@ -605,8 +615,15 @@ public final class BlackBox {
             return started[0];
         });
         if (started[0] != null) {
-            happenings.add(new Happening(now, ReplayMark.FLAG, player, null, null, 0, 0, 0, null, 0f, started[0]));
+            happened(new Happening(now, ReplayMark.FLAG, player, null, null, 0, 0, 0, null, 0f, started[0]));
         }
+    }
+
+    private void happened(Happening happening) {
+        if (happeningCount.incrementAndGet() > MAX_HAPPENINGS && happenings.pollFirst() != null) {
+            happeningCount.decrementAndGet();
+        }
+        happenings.add(happening);
     }
 
     /** A block is about to change, or just has: what it was before. */
@@ -639,7 +656,7 @@ public final class BlackBox {
         while (true) {
             Happening first = happenings.peekFirst();
             if (first == null || first.tick >= oldest) break;
-            happenings.pollFirst();
+            if (happenings.pollFirst() != null) happeningCount.decrementAndGet();
         }
         while (true) {
             ClientView.Sent first = attacks.peekFirst();
@@ -705,7 +722,7 @@ public final class BlackBox {
     }
 
     private void stats(String text) {
-        happenings.add(new Happening(ReplayClock.now(), ReplayMark.SERVER, null,
+        happened(new Happening(ReplayClock.now(), ReplayMark.SERVER, null,
                 text.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, 0, 0, 0, null, 0f));
     }
 

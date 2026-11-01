@@ -41,6 +41,10 @@ public final class ReplayClock {
     private static volatile int lastSeen = Integer.MIN_VALUE;
     private static volatile long lastChange = System.nanoTime();
 
+    /** Wall time reads {@link #wallTick} at {@link #wallFrom}, and counts on from there. */
+    private static volatile int wallTick;
+    private static volatile long wallFrom = EPOCH;
+
     private ReplayClock() {
     }
 
@@ -49,13 +53,15 @@ public final class ReplayClock {
         long nanos = System.nanoTime();
         if (!wall) {
             int tick = serverTick();
-            if (tick != lastSeen) {
-                lastSeen = tick;
-                lastChange = nanos;
-                return tick;
+            if (!wall) {
+                if (tick != lastSeen) {
+                    lastSeen = tick;
+                    lastChange = nanos;
+                    return tick;
+                }
+                if (nanos - lastChange < STUCK_NANOS) return tick;
+                toWall(tick, lastChange);
             }
-            if (nanos - lastChange < STUCK_NANOS) return tick;
-            wall = true;
         }
         long[] cached = CACHED.get();
         // A thread that never read the clock has nothing cached: nanos minus
@@ -64,7 +70,7 @@ public final class ReplayClock {
         // to wall time was zero on every thread.
         if (cached[0] != Long.MIN_VALUE && nanos - cached[0] < SAME_TICK_NANOS) return (int) cached[1];
         cached[0] = nanos;
-        cached[1] = (nanos - EPOCH) / NANOS_PER_TICK;
+        cached[1] = wallTick + (nanos - wallFrom) / NANOS_PER_TICK;
         return (int) cached[1];
     }
 
@@ -81,11 +87,22 @@ public final class ReplayClock {
         wall = useWall;
     }
 
+    /**
+     * Goes over to wall time, carrying on from the server's last tick. Counting
+     * from anywhere else is a jump: backwards, everything already stamped looks
+     * newer than now and the black box never trims it again.
+     */
+    private static void toWall(int from, long at) {
+        wallTick = from;
+        wallFrom = at;
+        wall = true;
+    }
+
     private static int serverTick() {
         try {
             return Bukkit.getCurrentTick();
         } catch (RuntimeException unsupported) {
-            wall = true;
+            toWall(lastSeen == Integer.MIN_VALUE ? 0 : lastSeen, System.nanoTime());
             return lastSeen;
         }
     }

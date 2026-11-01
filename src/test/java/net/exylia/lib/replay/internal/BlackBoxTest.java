@@ -9,11 +9,13 @@ import org.bukkit.entity.Entity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -223,5 +225,19 @@ class BlackBoxTest {
         assertFalse(box.regionDue(WORLD, 10, 10, 119), "still the same second");
         assertTrue(box.regionDue(WORLD, 10, 10, 120), "a second later it is due again");
         assertTrue(box.regionDue(WORLD, 10, 10, 50), "a clock that went back is due");
+    }
+
+    @Test
+    @DisplayName("marks stop at a ceiling even when nothing trims them")
+    void marksHaveACeiling() throws ReflectiveOperationException {
+        BlackBox box = new BlackBox(null, BlackBoxSettings.defaults());
+        Field running = BlackBox.class.getDeclaredField("running");
+        running.setAccessible(true);
+        running.set(box, true);
+        UUID actor = UUID.randomUUID();
+        for (int i = 0; i < 400_100; i++) box.mark("test", actor, null);
+        Field happenings = BlackBox.class.getDeclaredField("happenings");
+        happenings.setAccessible(true);
+        assertEquals(400_000, ((ConcurrentLinkedDeque<?>) happenings.get(box)).size());
     }
 }
