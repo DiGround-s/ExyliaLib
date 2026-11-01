@@ -300,6 +300,18 @@ final class NpcPackets implements NpcSink, PlacedSink {
      * @return {@code {value, signature}}, or {@code null} when there is none
      */
     static String[] textureOf(Player player) {
+        // The server's profile first: PacketEvents only keeps what the login
+        // packet carried, which is empty behind a proxy or offline-mode skin
+        // plugin, and a body without a texture wears a random default skin.
+        try {
+            for (com.destroystokyo.paper.profile.ProfileProperty property : player.getPlayerProfile().getProperties()) {
+                if ("textures".equals(property.getName())) {
+                    return new String[] {property.getValue(), property.getSignature()};
+                }
+            }
+        } catch (Throwable noProfileApi) {
+            // Spigot: fall back to the connection's profile.
+        }
         try {
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
             if (user == null || user.getProfile() == null) {
