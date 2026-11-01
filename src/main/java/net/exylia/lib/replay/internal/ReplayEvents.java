@@ -63,7 +63,6 @@ import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.attribute.Attribute;
@@ -123,6 +122,7 @@ final class ReplayEvents implements Listener {
             if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) SPECTATING.add(player.getUniqueId());
         }
         Bukkit.getPluginManager().registerEvents(new ReplayEvents(), plugin);
+        net.exylia.lib.respawn.Respawns.of(plugin).after(ReplayEvents::respawned);
         Bukkit.getPluginManager().registerEvents(new LiveWatch.Guard(), plugin);
         try {
             Bukkit.getPluginManager().registerEvents(new Recent(), plugin);
@@ -304,10 +304,10 @@ final class ReplayEvents implements Listener {
         actor(ReplayMark.DEATH, event.getEntity(), null);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        actor(ReplayMark.RESPAWN, event.getPlayer(), null);
-        resume(event.getPlayer());
+    /** Registered with {@code Respawns#after}, so it also runs on Folia. */
+    private static void respawned(Player player) {
+        actor(ReplayMark.RESPAWN, player, null);
+        resume(player);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

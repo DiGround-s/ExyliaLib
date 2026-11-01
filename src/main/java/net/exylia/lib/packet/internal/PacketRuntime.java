@@ -40,7 +40,6 @@ import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -349,6 +348,11 @@ public final class PacketRuntime {
                     ENTITY_IDS.put(online.getEntityId(), online.getUniqueId());
                 }
                 Bukkit.getPluginManager().registerEvents(new BukkitHooks(), plugin);
+                net.exylia.lib.respawn.Respawns.of(plugin).after(player -> {
+                    RESYNCING.remove(player.getUniqueId());
+                    // A respawn resets the client's border like a world change does.
+                    Borders.resend(player);
+                });
             }
         }
     }
@@ -726,13 +730,6 @@ public final class PacketRuntime {
             if (creativeBefore != creativeAfter && ItemDecor.decoratesAnything()) {
                 resendLater(event.getPlayer());
             }
-        }
-
-        @EventHandler(priority = EventPriority.MONITOR)
-        public void onRespawn(PlayerRespawnEvent event) {
-            RESYNCING.remove(event.getPlayer().getUniqueId());
-            // A respawn resets the client's border like a world change does.
-            Borders.resend(event.getPlayer());
         }
 
         @EventHandler(ignoreCancelled = true)

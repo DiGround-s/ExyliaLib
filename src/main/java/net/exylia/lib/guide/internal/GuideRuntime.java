@@ -70,6 +70,7 @@ public final class GuideRuntime {
             listener = GuidePackets.install();
         }
         plugin.getServer().getPluginManager().registerEvents(new GuideListener(), plugin);
+        net.exylia.lib.respawn.Respawns.of(plugin).after(GuideRuntime::clientReset);
     }
 
     /** Whether guidance can be drawn at all: PacketEvents is here. */

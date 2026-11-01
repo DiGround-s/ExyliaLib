@@ -12,7 +12,6 @@ import net.exylia.lib.region.WorldIdentity;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 import org.junit.jupiter.api.BeforeEach;
@@ -110,10 +109,8 @@ class RegionListenerTest {
     void respawnExits() {
         FakePlayer player = playerAt(world, 5, 5, 5);
 
-        listener.onRespawn(new PlayerRespawnEvent(player.player(),
-                new Location(world, 100, 5, 100), false, false, false,
-                PlayerRespawnEvent.RespawnReason.DEATH,
-                com.google.common.collect.ImmutableSet.builder()));
+        player.at(new Location(world, 100, 5, 100));
+        RegionListener.respawned(player.player());
 
         List<PlayerRegionChangeEvent> fired = FakeServer.events(PlayerRegionChangeEvent.class);
         assertEquals(1, fired.size());

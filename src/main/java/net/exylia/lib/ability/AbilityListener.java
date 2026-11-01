@@ -25,7 +25,6 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerStatisticIncrementEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -193,13 +192,6 @@ final class AbilityListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onClose(InventoryCloseEvent event) {
         if (event.getPlayer() instanceof Player player) abilities.refreshSoon(player);
-    }
-
-    /** Death took every potion effect: everything held equips again. */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        Player player = event.getPlayer();
-        abilities.tasks().runAtEntityLater(player, 1, () -> abilities.refresh(player, true));
     }
 
     /** Milk took every potion effect: PASSIVE ones go back on. */

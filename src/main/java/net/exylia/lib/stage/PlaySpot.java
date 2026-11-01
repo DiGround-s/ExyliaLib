@@ -1,6 +1,9 @@
 package net.exylia.lib.stage;
 
 import net.exylia.lib.platform.Platform;
+import net.exylia.lib.respawn.RespawnContext;
+import net.exylia.lib.respawn.RespawnHook;
+import net.exylia.lib.respawn.Respawns;
 import net.exylia.lib.util.teleport.Teleports;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -13,7 +16,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -54,6 +56,7 @@ public final class PlaySpot implements Listener {
 
     private final Plugin plugin;
     private final File file;
+    private final RespawnHook respawnRule;
     private final Predicate<UUID> playing;
     private final Map<UUID, Location> returns = new ConcurrentHashMap<>();
     private volatile Saved spot;
@@ -76,6 +79,7 @@ public final class PlaySpot implements Listener {
         this.playing = playing;
         load();
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        this.respawnRule = Respawns.of(plugin).location(EventPriority.HIGH, this::respawnHome);
     }
 
     /** The spot, while one is set and its world is loaded. */
@@ -134,6 +138,7 @@ public final class PlaySpot implements Listener {
     /** Sends back everyone still away, for a shutdown; the file keeps whoever could not be moved. */
     public void close() {
         HandlerList.unregisterAll(this);
+        respawnRule.cancel();
         for (Map.Entry<UUID, Location> entry : Map.copyOf(returns).entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || player.isDead() || entry.getValue().getWorld() == null) continue;
@@ -153,13 +158,13 @@ public final class PlaySpot implements Listener {
         giveBack(player);
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onRespawn(PlayerRespawnEvent event) {
-        UUID id = event.getPlayer().getUniqueId();
+    /** Respawns a player who is away at home; a rule so it also works on Folia. */
+    private @Nullable Location respawnHome(RespawnContext context) {
+        UUID id = context.player().getUniqueId();
         Location home = returns.get(id);
-        if (home == null || home.getWorld() == null || playing.test(id)) return;
-        event.setRespawnLocation(home);
+        if (home == null || home.getWorld() == null || playing.test(id)) return null;
         forget(id);
+        return home.clone();
     }
 
     private void forget(UUID player) {

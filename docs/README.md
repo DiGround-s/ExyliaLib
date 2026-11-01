@@ -54,6 +54,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Playtime](playtime.md) | How long a player has actually played on the whole network: one tracker per server shared by every plugin, idle time dropped, a once-a-minute hook for milestones | 1.341.0 |
 | [Rewards](rewards.md) | What a player earned — items, commands, money, odds and conditions — stored exactly as ExyliaCommons stored it; items thrown out at a spot with `giveDropping` since 1.191.0 | 1.34.0 |
 | [Snapshots](snapshots.md) | A player's state kept for later — in memory for a menu, or stored so it survives a restart; restores this server's snapshots only, on request, since 1.350.0 | 1.34.0 |
+| [Respawns](respawns.md) | Where players respawn and code that runs once they stand again, on Paper and on Folia (which fires no respawn event after a death) | 1.440.0 |
 | [Stays](stays.md) | A player kept in an arena or on a board and given back exactly as they came — claim, snapshot, teleport and restore in the one order that works; `DeathDrops` (whose a death's drops are) since 1.322.0; join recovery holds the player until it lands and `recoverLocal` for networks since 1.350.0 | 1.292.0 |
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |

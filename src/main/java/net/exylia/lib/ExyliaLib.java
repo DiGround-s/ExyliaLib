@@ -105,7 +105,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -317,6 +316,15 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         SchematicRuntime.init(this);
         net.exylia.lib.util.preview.internal.PreviewRuntime.init(this);
         net.exylia.lib.util.teleport.internal.TeleportRuntime.init(this);
+        // Respawns: Folia fires no respawn event after a death, so the module detects it.
+        net.exylia.lib.respawn.internal.RespawnRuntime.init(this);
+        net.exylia.lib.respawn.Respawns.of(this).after(player -> {
+            // Re-sends the board, for the same reason as a world change.
+            BoardManager.reinit(player);
+            net.exylia.lib.npc.internal.PlacedRuntime.respawned(player);
+            // Items owed while dead: an inventory handed to a corpse is cleared on respawn.
+            net.exylia.lib.escrow.Escrow.respawned(player);
+        });
         // One listener for every plugin's wizards, for the same reason menus
         // and questions have one: a block click fires once, and the run that
         // owns it is found by player rather than by plugin.
@@ -964,20 +972,6 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     }
 
     /**
-     * Re-sends a player's board after a respawn, for the same reason as a
-     * world change.
-     *
-     * @param event the respawn event
-     */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        BoardManager.reinit(event.getPlayer());
-        net.exylia.lib.npc.internal.PlacedRuntime.respawned(event.getPlayer());
-        // Items owed while dead: an inventory handed to a corpse is cleared on respawn.
-        net.exylia.lib.escrow.Escrow.respawned(event.getPlayer());
-    }
-
-    /**
      * Releases a plugin's resources when it is disabled.
      *
      * <p>Runs at {@link EventPriority#MONITOR} so no other listener can still
@@ -1132,6 +1126,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // belonging to this plugin and must be cancelled before its scheduler
         // goes away.
         Teleports.release(pluginName);
+        net.exylia.lib.respawn.Respawns.release(pluginName);
         // Same reason, and it is the whole point of this module's cleanup: a
         // paste in flight is a chain of tasks on that plugin's own scheduler,
         // so cancelling the scheduler first would leave the stage that

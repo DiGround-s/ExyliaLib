@@ -115,6 +115,7 @@ public final class PluginAbilities {
     private final Set<String> reported = ConcurrentHashMap.newKeySet();
     private final List<Consumer<AbilityOutcome>> outcomes = new CopyOnWriteArrayList<>();
     private final List<Listener> listeners = new ArrayList<>(2);
+    private net.exylia.lib.respawn.RespawnHook respawned;
 
     private volatile Function<Player, List<Held>> holdings = player -> List.of();
     private volatile @Nullable AbilityGate gate;
@@ -147,6 +148,8 @@ public final class PluginAbilities {
         AbilityListener listener = new AbilityListener(this);
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         listeners.add(listener);
+        // Death took every potion effect: everything held equips again.
+        respawned = net.exylia.lib.respawn.Respawns.of(plugin).after(player -> refresh(player, true));
         listenOnPaper("com.destroystokyo.paper.event.player.PlayerArmorChangeEvent", "PaperArmourListener");
         listenOnPaper("io.papermc.paper.event.player.PlayerInventorySlotChangeEvent", "PaperSlotListener");
     }
@@ -868,6 +871,7 @@ public final class PluginAbilities {
             org.bukkit.event.HandlerList.unregisterAll(listener);
         }
         listeners.clear();
+        if (respawned != null) respawned.cancel();
         for (Map.Entry<UUID, Holding> entry : cache.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null) continue;

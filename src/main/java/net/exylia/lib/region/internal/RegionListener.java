@@ -12,7 +12,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 /** Single listener feeding accepted movement into the shared membership tracker. */
@@ -42,11 +41,12 @@ public final class RegionListener implements Listener {
         handle(event.getPlayer(), event.getFrom(), event.getTo(), RegionChangeCause.TELEPORT);
     }
 
-    /** A respawn moves the player without any move or teleport event at all. */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        handle(event.getPlayer(), event.getPlayer().getLocation(), event.getRespawnLocation(),
-                RegionChangeCause.TELEPORT);
+    /**
+     * A respawn moves the player without any move or teleport event at all.
+     * Registered with {@code Respawns#after}, so it also runs on Folia.
+     */
+    public static void respawned(Player player) {
+        handle(player, null, player.getLocation(), RegionChangeCause.TELEPORT);
     }
 
     /** Covers platform world transitions that do not produce a useful move destination. */

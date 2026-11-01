@@ -38,6 +38,7 @@ public final class FakePlayer {
     private volatile boolean acceptsCommands = true;
     private volatile boolean online = true;
     private volatile boolean dead;
+    private volatile org.bukkit.Location respawnPoint;
     private final java.util.Set<String> permissions = new java.util.concurrent.CopyOnWriteArraySet<>();
     private final java.util.concurrent.atomic.AtomicInteger experience =
             new java.util.concurrent.atomic.AtomicInteger();
@@ -69,6 +70,8 @@ public final class FakePlayer {
                     case "isSneaking" -> sneaking;
                     // Bukkit reports a dead player as invalid while they are still connected.
                     case "isValid" -> online && !dead;
+                    case "isDead" -> dead;
+                    case "getPotentialRespawnLocation" -> respawnPoint;
                     case "hasPermission" -> permissions.contains(String.valueOf(args[0]));
                     case "getInventory" -> inventory;
                     case "giveExp" -> {
@@ -339,6 +342,17 @@ public final class FakePlayer {
     /** Simulates the player dying: still connected, no longer a valid entity. */
     public void die() {
         dead = true;
+    }
+
+    /** Simulates the respawn: standing again, wherever the server put them. */
+    public void revive() {
+        dead = false;
+    }
+
+    /** Sets the bed, anchor or forced spawn point the player has stored. */
+    public FakePlayer respawnPoint(org.bukkit.Location where) {
+        respawnPoint = where;
+        return this;
     }
 
     /** Simulates the player leaving. */

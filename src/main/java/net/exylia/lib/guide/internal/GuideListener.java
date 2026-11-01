@@ -5,7 +5,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.Location;
 
@@ -40,10 +39,5 @@ final class GuideListener implements Listener {
                 Math.min(event.getPlayer().getClientViewDistance(), to.getWorld().getViewDistance()))) {
             GuideRuntime.teleported(event.getPlayer());
         }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        GuideRuntime.clientReset(event.getPlayer());
     }
 }
