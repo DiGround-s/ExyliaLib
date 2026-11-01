@@ -74,6 +74,54 @@ public final class BundledFiles {
     }
 
     /**
+     * Marks values the library wrote into a packaged file with its own defaults, before the plugin's jar
+     * shipped those keys, as defaults nobody has reviewed yet rather than as the owner's: a key the jar
+     * ships now, which the reviewed defaults never had, whose value on disk is still {@code defaults}'.
+     * The next {@link #refresh} then offers the jar's value in {@code /exylialib updates} instead of
+     * keeping the library's for good. Call it before {@code refresh}.
+     *
+     * <p>That happens when the library is updated before a plugin: a record file (a spatial layout) gains
+     * its new keys from the record, then the plugin's jar ships its own value for them.
+     *
+     * @param defaults dotted keys and the value the library writes for each
+     * @since 1.442.0
+     */
+    public static void libraryWrote(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource,
+                                    @NotNull java.util.Map<String, Object> defaults) {
+        Path relative = BundledResources.relative(resource);
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path onDisk = dataFolder.resolve(relative);
+        Path reviewedPath = dataFolder.resolve(REVIEWED).resolve(relative);
+        if (Files.notExists(onDisk) || Files.notExists(reviewedPath)) return;
+        try (java.io.InputStream in = BundledResources.open(anchor.getClassLoader(), resource)) {
+            if (in == null) return;
+            YamlConfiguration shipped = DefaultsMerge.yaml();
+            shipped.loadFromString(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            YamlConfiguration disk = DefaultsMerge.yaml();
+            disk.load(onDisk.toFile());
+            YamlConfiguration reviewed = DefaultsMerge.yaml();
+            reviewed.load(reviewedPath.toFile());
+            boolean changed = false;
+            for (java.util.Map.Entry<String, Object> key : defaults.entrySet()) {
+                // These trees keep dotted keys whole: their separator is not the dot.
+                String path = key.getKey().replace('.', DefaultsMerge.SEPARATOR);
+                if (!shipped.contains(path) || reviewed.contains(path) || !disk.contains(path)) continue;
+                if (!sameValue(disk.get(path), key.getValue())) continue;
+                reviewed.set(path, disk.get(path));
+                changed = true;
+            }
+            if (changed) BundledResources.write(reviewedPath, reviewed.saveToString());
+        } catch (IOException | InvalidConfigurationException | SecurityException failure) {
+            Debug.of(plugin).warn("Could not read " + resource + " to review its new defaults: " + failure.getMessage());
+        }
+    }
+
+    private static boolean sameValue(@Nullable Object disk, @Nullable Object library) {
+        if (disk instanceof Number a && library instanceof Number b) return a.doubleValue() == b.doubleValue();
+        return java.util.Objects.equals(disk, library);
+    }
+
+    /**
      * Installs and updates a packaged file, or every file under a packaged directory.
      *
      * @param plugin   the plugin whose data folder receives the files

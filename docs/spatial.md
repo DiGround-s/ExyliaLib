@@ -330,6 +330,28 @@ fit at any readable size. Before 1.413.0 the effect played full size from 0.8
 above the pedestal, so a body towered over the header and floor rings drew at
 eye height, edge-on, as a thin bar across the middle.
 
+**Facing and turning the body (since 1.442.0).** `preview.facing` is the side a
+body (`npc(...)`, the mannequin) shows when it stands: `FRONT` (towards the
+viewer, the default), `SIDE`, `BACK`, `OTHER_SIDE`, or degrees turned from the
+front. `turn-speed: 0` stands it still; otherwise it turns from there on its own.
+With `preview.turn-controls: true` the viewer turns it: a click on the body turns it
+to the next side (front, side, back, other side; sneaking, the other way), the
+wheel over it turns it 30° a notch, and two arrows beside the pedestal (`↺` `↻`,
+lit in `hover-glow` under the crosshair) turn it either way. Each turn glides there
+in 0.45 s and holds that side, its own turning stopped, for `turn-pause` seconds
+(8), then it turns on its own again from where it was left. `turn-hint` is the
+short line under the pedestal saying so (`{muted}Click the body to turn it`; blank
+for none; a `%placeholder%` from the plugin's lang files translates it).
+
+```yaml
+preview: {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, facing: FRONT,
+          turn-controls: true, turn-hint: '%wardrobe_turn_hint%', turn-pause: 8}
+```
+
+ExyliaArmorTrims' and ExyliaArmorSkin's wardrobes ship with it on; a server's own
+layout gains the keys through `/exylialib updates`. Item, effect, flight and
+performance previews are unchanged.
+
 Preview NPCs (`npc(...)` and the mannequin) are [nameless](npcs.md): announced
 under a generated name in a team that hides the tag, so no name, and no
 scoreboard-team prefix of the viewer's (a rank), hangs over them.
@@ -577,8 +599,39 @@ player across every plugin: opening another closes the first.
 
 FRONT: the board is set square to the world (yaw in 45° steps) where the player
 stands, the player turned to face it (through [Teleports](teleport.md), no
-countdown), and brought nearer (never under 2 blocks) when a block stands in the
-way.
+countdown). With `anchor.clear-view: false` it is brought nearer (never under 2
+blocks) when a block stands in the way.
+
+**The space it stands in is kept empty (since 1.442.0).** Before anything is
+drawn, the menu seals the space it stands in for its viewer
+([`Visibility#seal`](packets.md#visibility)), from just behind them to just
+behind the board, as wide as its widest piece and as high as its highest: every
+entity in it that is not the menu's own is out of sight, whoever drew it (mobs,
+other players, other plugins' packet-only NPCs and holograms, already there or
+walking in later), and back where it really is when the menu closes. With
+`hide-others: true` that is every entity anywhere, not only players.
+
+With `anchor.clear-view: true` (the default) every block in front of them up to
+just behind the board and up to its top (walls, trunks, leaves, a slab, water) is
+sent to them as air and kept so while it is open, also one placed there
+meanwhile; the board keeps its full distance. The floor stays: the layer they stand
+on (a slab, a carpet, farmland count as theirs) and everything under it is never
+touched, so nothing opens under them or the pedestals, and nothing behind them is
+cleared. Closing, quitting, a teleport (the menu closes) or the plugin's disable
+gives every block back; a world change forgets them. With `freeze: false` a viewer
+who walks into a cleared block is stopped by the real one. A layout written before
+gains `clear-view: true`. The crate scene does the same (`clear-view` in
+`spatial/crate.yml`).
+
+**Opened in mid-air (since 1.442.0).** A FRONT menu (and the crate scene) asked for
+while the player is falling or jumping waits for them to land, up to five seconds,
+and opens there ([`Footing`](stage.md#a-play-spot)); still in the air after that
+(the void, an elytra) or killed by the fall, nothing opens and the theme's
+`error-sound` plays. A menu at a placed spot walks them there as before. Before,
+it opened where they hung in the air: the board floated there, `freeze` held the
+falling client up with a position correction every tick (and cancelled the
+server's "floating too long" kick each time), and leaving dropped them the rest
+of the way.
 
 ## Theme
 

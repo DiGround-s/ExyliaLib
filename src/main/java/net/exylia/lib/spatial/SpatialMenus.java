@@ -8,6 +8,7 @@ import net.exylia.lib.overlay.Overlays;
 import net.exylia.lib.overlay.PluginOverlays;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.Visibility;
+import net.exylia.lib.spatial.internal.SceneShield;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.teleport.Teleports;
@@ -127,9 +128,22 @@ public final class SpatialMenus {
         // keeps the jar in memory and answers only the stream, so getResource said "no layout" there and
         // the library's wardrobe was written in the plugin's place.
         boolean packaged = packaged(anchor, path);
-        if (packaged) BundledFiles.refresh(plugin, anchor, path);
+        if (packaged) {
+            // Keys a newer library added with its own value before this jar shipped one: offered, not kept.
+            // ponytail: the keys added since 1.442.0 only; extend the map when a later version adds keys a jar sets.
+            BundledFiles.libraryWrote(plugin, anchor, path, LIBRARY_WROTE);
+            BundledFiles.refresh(plugin, anchor, path);
+        }
         return define(id, definition, packaged ? anchor : null);
     }
+
+    /** What the layout record writes for the keys it gained in 1.442.0, before a plugin's jar ships them. */
+    private static final Map<String, Object> LIBRARY_WROTE = Map.of(
+            "anchor.clear-view", true,
+            "preview.facing", "FRONT",
+            "preview.turn-controls", false,
+            "preview.turn-hint", SpatialLayout.Preview.TURN_HINT,
+            "preview.turn-pause", 8.0);
 
     /** Whether the jar {@code anchor} came from holds {@code path}. */
     static boolean packaged(Class<?> anchor, String path) {
@@ -369,7 +383,17 @@ public final class SpatialMenus {
                     .min(java.util.Comparator.comparingDouble(s -> s.location().distanceSquared(player.getLocation())));
         }
         Location feet = player.getLocation();
-        if (spot.isPresent() && spot.get().location() != null) {
+        boolean placed = spot.isPresent() && spot.get().location() != null;
+        if (!placed && !net.exylia.lib.stage.Footing.settled(player)) {
+            // In mid-air the board would hang where they happen to be, and the hold fight their fall:
+            // it opens where they land instead.
+            net.exylia.lib.stage.Footing.landed(plugin, player).thenAccept(landed -> {
+                if (landed) start(player, definition, file, spotId, editing, state);
+                else net.exylia.lib.stage.StageLook.play(player, layout.theme().errorSound());
+            });
+            return;
+        }
+        if (placed) {
             Location at = spot.get().location().clone();
             at.setPitch(0);
             boolean there = at.getWorld() == feet.getWorld() && at.distanceSquared(feet) < 0.09
@@ -384,7 +408,8 @@ public final class SpatialMenus {
         Location at = feet.clone();
         at.setYaw(yaw);
         at.setPitch(0);
-        double distance = clearance(at, layout.anchor().distance());
+        // With the view cleared, nothing stands between them and the board: it keeps its distance.
+        double distance = layout.anchor().clearView() ? layout.anchor().distance() : clearance(at, layout.anchor().distance());
         if (Math.abs(wrap(yaw - feet.getYaw())) < 2) {
             build(player, definition, file, at, distance, editing, state);
         } else {
@@ -437,8 +462,11 @@ public final class SpatialMenus {
         if (open != null) open.menus.close(open, false);
         SpatialLayout layout = file.get();
         SpatialTheme theme = layout.theme();
+        // First, so everything the menu draws from here on is its own and nothing else stands in it.
+        SceneShield shield = shield(player, layout, anchor, distance);
         SpatialPointer pointer = input.attach(player).sounds(theme.hoverSound(), theme.selectSound());
         MenuSession session = new MenuSession(this, definition, layout, player, anchor, distance, pointer);
+        session.shield = shield;
         if (editing) session.edit = new EditMode(session, file);
         OPEN.put(player.getUniqueId(), session);
         pointer.onSneak(() -> close(session, true))
@@ -472,6 +500,30 @@ public final class SpatialMenus {
             }
         }
         unhide(player);
+        if (session.shield != null) session.shield.lower();
+    }
+
+    /**
+     * The space the menu stands in, from the layout: as wide as its widest piece, as high as its highest,
+     * from the eyes to just behind the board. Every entity in it (all of them with {@code hide-others})
+     * is kept out of sight, and with {@code clear-view} every block in it shown as air.
+     */
+    private static SceneShield shield(Player player, SpatialLayout layout, Location anchor, double distance) {
+        double half = 0.6;
+        double top = 0.4;
+        for (SpatialLayout.Panel panel : layout.panels().values()) {
+            half = Math.max(half, Math.abs(panel.across()) + panel.width() / 2);
+            top = Math.max(top, panel.up() + panel.height() / 2);
+        }
+        SpatialLayout.Carousel carousel = layout.carousel();
+        if (carousel.present()) {
+            half = Math.max(half, Math.abs(carousel.at().get(0)) + carousel.centreGap() / 2
+                    + carousel.slots() / 2.0 * carousel.spacing());
+        }
+        Plugin owner = library;
+        if (owner == null) return null;
+        return SceneShield.raise(owner, player, anchor, distance, half, top + layout.anchor().lift(),
+                layout.anchor().clearView(), layout.hideOthers());
     }
 
     // ── Hiding ────────────────────────────────────────────────────────────
@@ -537,6 +589,7 @@ public final class SpatialMenus {
                         // Off the player's region on Folia: its displays and NPCs are released next anyway.
                         OPEN.remove(session.viewer.getUniqueId(), session);
                         HIDDEN.remove(session.viewer.getUniqueId());
+                        if (session.shield != null) session.shield.lower();
                     }
                 }
             }

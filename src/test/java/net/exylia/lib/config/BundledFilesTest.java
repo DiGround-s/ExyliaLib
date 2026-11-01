@@ -78,6 +78,38 @@ class BundledFilesTest {
     }
 
     @Test
+    void aKeyTheLibraryWroteBeforeTheJarShippedItIsOfferedNotKept() throws Exception {
+        pack("bundled-library/spatial.yml", "preview:\n  scale: 0.8\n");
+        assertTrue(refresh("bundled-library/spatial.yml"));
+        // The newer library's record adds its keys with its own values, the old jar still in place.
+        onDisk("bundled-library/spatial.yml", "preview:\n  scale: 0.8\n  turn-controls: false\n  turn-pause: 8.0\n");
+        // The plugin's new jar ships its own value for one of them.
+        pack("bundled-library/spatial.yml", "preview:\n  scale: 0.8\n  turn-controls: true\n");
+
+        BundledFiles.libraryWrote(plugin, BundledFilesTest.class, "bundled-library/spatial.yml",
+                java.util.Map.of("preview.turn-controls", false, "preview.turn-pause", 8));
+        assertTrue(refresh("bundled-library/spatial.yml"));
+
+        assertEquals(false, value("bundled-library/spatial.yml", "preview.turn-controls"));
+        assertEquals(List.of("preview.turn-controls"), pendingKeys());
+    }
+
+    @Test
+    void anOwnersValueForSuchAKeyStaysTheirs() throws Exception {
+        pack("bundled-library-own/spatial.yml", "preview:\n  scale: 0.8\n");
+        assertTrue(refresh("bundled-library-own/spatial.yml"));
+        onDisk("bundled-library-own/spatial.yml", "preview:\n  scale: 0.8\n  turn-controls: true\n");
+        pack("bundled-library-own/spatial.yml", "preview:\n  scale: 0.8\n  turn-controls: false\n");
+
+        BundledFiles.libraryWrote(plugin, BundledFilesTest.class, "bundled-library-own/spatial.yml",
+                java.util.Map.of("preview.turn-controls", false));
+        assertTrue(refresh("bundled-library-own/spatial.yml"));
+
+        assertEquals(true, value("bundled-library-own/spatial.yml", "preview.turn-controls"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
+    }
+
+    @Test
     void installsMissingFilesQuietly() throws Exception {
         pack("bundled-fresh/main.yml", "title: fresh");
         pack("bundled-fresh/games/lobby.yml", "title: lobby");

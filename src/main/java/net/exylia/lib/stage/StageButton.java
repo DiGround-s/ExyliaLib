@@ -6,6 +6,7 @@ import net.exylia.lib.display.DisplayModel;
 import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -136,11 +137,69 @@ public final class StageButton {
 
     private DisplayHandle draw(Component text, long delay) {
         String plain = Text.of(PlainTextComponentSerializer.plainText().serialize(text)).plain();
-        double fit = (width * 0.86) / Math.max(1, plain.length() * CHAR_WIDTH);
         double cap = plain.strip().length() <= ICON_LENGTH ? height * ICON_FILL : Math.min(MAX_LABEL, height * 2.4);
-        double scale = Math.min(fit, cap);
-        Location at = stage.plane.point(across, up - Stage.TEXT_HEIGHT * scale / 2, 0.05);
-        return stage.show(Stage.textModel(text).background(0).textShadow(true),
+        Fit fit = fit(plain, width, height, cap);
+        Component shown = broken(text, fit.breaks());
+        double scale = fit.scale();
+        int lines = fit.breaks().size() + 1;
+        Location at = stage.plane.point(across, up - Stage.TEXT_HEIGHT * scale * lines / 2, 0.05);
+        return stage.show(Stage.textModel(shown).background(0).textShadow(true),
                 StageLook.pop(stage.facing, scale, scale, scale, delay, stage.life), at);
+    }
+
+    /** The label with the {@code breaks}-th spaces (counted from 1 over the whole label) made line breaks, colours kept. */
+    static Component broken(Component text, List<Integer> breaks) {
+        Component shown = text;
+        int done = 0;
+        for (int at : breaks) {
+            // Each break already made is one space fewer before the next.
+            int target = at - done++;
+            shown = shown.replaceText(TextReplacementConfig.builder().matchLiteral(" ").replacement("\n")
+                    .condition((index, replaced) -> index == target
+                            ? net.kyori.adventure.text.PatternReplacementResult.REPLACE
+                            : net.kyori.adventure.text.PatternReplacementResult.CONTINUE)
+                    .build());
+        }
+        return shown;
+    }
+
+    /** How a label is drawn: its scale and which spaces (counted from 1) become line breaks. */
+    record Fit(double scale, List<Integer> breaks) {
+    }
+
+    /**
+     * The largest a label can be drawn on a plate {@code width} by {@code height}: on one line, or broken
+     * at its spaces into two or three as even as they come, whichever reads larger (never over
+     * {@code cap}). A long translation ("Reveal a tile first") is two readable lines, not one tiny one.
+     */
+    static Fit fit(String plain, double width, double height, double cap) {
+        List<Integer> spaces = new java.util.ArrayList<>();
+        for (int i = 0; i < plain.length(); i++) if (plain.charAt(i) == ' ') spaces.add(i);
+        Fit best = new Fit(Math.min(cap, width * 0.86 / Math.max(1, plain.length() * CHAR_WIDTH)), List.of());
+        // A label that already reads well on one line stays on one line.
+        if (best.scale() >= cap * 0.6) return best;
+        int n = spaces.size();
+        for (int a = 0; a < n; a++) {
+            best = better(best, plain, width, height, cap, List.of(a + 1), spaces);
+            for (int b = a + 1; b < n; b++) best = better(best, plain, width, height, cap, List.of(a + 1, b + 1), spaces);
+        }
+        return best;
+    }
+
+    private static Fit better(Fit best, String plain, double width, double height, double cap, List<Integer> breaks,
+                              List<Integer> spaces) {
+        int longest = 0;
+        int start = 0;
+        for (int index : breaks) {
+            int space = spaces.get(index - 1);
+            longest = Math.max(longest, space - start);
+            start = space + 1;
+        }
+        longest = Math.max(longest, plain.length() - start);
+        int lines = breaks.size() + 1;
+        double scale = Math.min(cap, Math.min(width * 0.86 / Math.max(1, longest * CHAR_WIDTH),
+                height * 0.8 / (lines * Stage.TEXT_HEIGHT)));
+        // Broken only when it reads clearly larger: one line stays one line where it fits.
+        return scale > best.scale() * 1.15 ? new Fit(scale, breaks) : best;
     }
 }

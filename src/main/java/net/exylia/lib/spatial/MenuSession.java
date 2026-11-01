@@ -101,6 +101,8 @@ final class MenuSession implements SpatialContext {
     /** Where pieces drawn during a carousel page turn come in from, in the world's axes; {@code null} otherwise. */
     private double @Nullable [] slideFrom;
     @Nullable EditMode edit;
+    /** The space it stands in, kept empty for the viewer; lowered when it closes. */
+    @Nullable net.exylia.lib.spatial.internal.SceneShield shield;
     private boolean closed;
 
     MenuSession(SpatialMenus menus, SpatialMenu definition, SpatialLayout layout, Player viewer, Location anchor,
@@ -1594,6 +1596,10 @@ final class MenuSession implements SpatialContext {
         private long launchedAt;
         private int trailSteps;
         private boolean landed;
+        /** With {@code turn-controls}: which way the body faces, turned by the viewer or on its own. */
+        private final @Nullable net.exylia.lib.spatial.internal.Turntable table;
+        private float sentYaw = Float.NaN;
+        private final DisplayHandle[] arrows = new DisplayHandle[2];
 
         PreviewPart(long delay) {
             SpatialLayout.Preview look = layout.preview();
@@ -1608,6 +1614,58 @@ final class MenuSession implements SpatialContext {
                 sheet(plane.point(0, -0.085, 0.395), rotation, 0.66, 0.012,
                         Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), delay < 0 ? -1 : delay + 120);
             }
+            table = look.turnControls() ? new net.exylia.lib.spatial.internal.Turntable(look.facingDegrees(),
+                    look.turnSpeed(), (long) (look.turnPause() * 1000), System.currentTimeMillis()) : null;
+            if (table != null) controls(look, delay);
+        }
+
+        /** The arrows either side of the pedestal, the hint under it, and the body answering clicks and the wheel. */
+        private void controls(SpatialLayout.Preview look, long delay) {
+            long after = delay < 0 ? -1 : delay + 180;
+            for (int side = 0; side < 2; side++) arrow(side, false, after);
+            if (!look.turnHint().isBlank()) {
+                write(fill(look.turnHint()), true, plane, rotation, 0, -0.27, 0.4, 1.1, theme.smallScale(), true, after);
+            }
+            if (edit != null) return;
+            for (int side = 0; side < 2; side++) {
+                int which = side;
+                pointer.add(Hotspot.rect(plane, ARROW_ACROSS * (side == 0 ? -1 : 1), ARROW_UP, 0.26, 0.26).priority(2)
+                        .onHover(on -> arrow(which, on, -1))
+                        .onPress(click -> turn(which == 0 ? -1 : 1)));
+            }
+            // The body itself: a click turns it to the next side (sneaking, the other way), the wheel a little.
+            double height = 1.9 * look.scale();
+            pointer.add(Hotspot.rect(plane, 0, height / 2, 0.75 * look.scale(), height).priority(1)
+                    .onPress(click -> turn(click.sneaking() ? -1 : 1))
+                    .onScroll(notch -> {
+                        if (table != null) table.turnBy(notch * WHEEL_DEGREES, System.currentTimeMillis());
+                        keep();
+                    }));
+        }
+
+        /** One of the two arrows, lit while the crosshair is on it. */
+        private void arrow(int side, boolean lit, long delay) {
+            drop(arrows[side]);
+            String glyph = side == 0 ? "↺" : "↻";
+            String text = (lit ? theme.hoverGlow() : "{letters}") + "&l" + glyph;
+            arrows[side] = write(fill(text), false, plane, rotation, ARROW_ACROSS * (side == 0 ? -1 : 1),
+                    ARROW_UP - 0.08, 0.36, 0.3, theme.textScale() * (lit ? 1.5 : 1.3), true, delay);
+        }
+
+        /** The viewer turns the body to the next side, {@code direction} the way round. */
+        private void turn(int direction) {
+            if (table == null) return;
+            table.nextSide(direction, System.currentTimeMillis());
+            keep();
+        }
+
+        /** With the controls: the body turned to where the table faces now, when that moved. */
+        private void face() {
+            if (table == null || npc == null) return;
+            float yaw = (float) (board.yaw() + 180 + table.angle(System.currentTimeMillis()));
+            if (!Float.isNaN(sentYaw) && Math.abs(yaw - sentYaw) < 0.25f) return;
+            sentYaw = yaw;
+            npc.look(yaw, 0);
         }
 
         void update(SpatialPreview next) {
@@ -1758,7 +1816,16 @@ final class MenuSession implements SpatialContext {
         }
 
         private void spawn(NpcModel model, Location stand, SpatialLayout.Preview look) {
-            NpcMotion turn = look.turnSpeed() == 0 ? NpcMotion.still() : NpcMotion.builder().spin(look.turnSpeed()).build();
+            NpcMotion turn;
+            if (table != null) {
+                // Turned by the table every poll, so a turn the viewer asks for glides from where it stands.
+                turn = NpcMotion.still();
+                stand.setYaw((float) (board.yaw() + 180 + table.angle(System.currentTimeMillis())));
+                sentYaw = stand.getYaw();
+            } else {
+                turn = look.turnSpeed() == 0 ? NpcMotion.still() : NpcMotion.builder().spin(look.turnSpeed()).build();
+                stand.setYaw((float) (stand.getYaw() + look.facingDegrees()));
+            }
             npc = Npcs.of(menus.plugin()).show(model, turn, stand, 120_000L, List.of(viewer));
             npcUntil = System.currentTimeMillis() + 115_000L;
         }
@@ -1821,6 +1888,7 @@ final class MenuSession implements SpatialContext {
 
         /** Every poll: an NPC lives two minutes at most, so a long look gets a fresh one; an effect plays again. */
         void keep() {
+            face();
             long now = System.currentTimeMillis();
             if (current instanceof SpatialPreview.Flight flight) {
                 fly(flight, now);
@@ -1907,6 +1975,12 @@ final class MenuSession implements SpatialContext {
             current = SpatialPreview.none();
         }
     }
+
+    /** The preview's arrows: how far either side of the pedestal's middle, and how high over its top. */
+    private static final double ARROW_ACROSS = 0.56;
+    private static final double ARROW_UP = 0.2;
+    /** How far one notch of the wheel over the body turns it. */
+    private static final double WHEEL_DEGREES = 30;
 
     // ── For edit mode ─────────────────────────────────────────────────────
 

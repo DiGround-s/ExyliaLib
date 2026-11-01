@@ -226,10 +226,6 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 || type == PacketType.Play.Server.CHUNK_DATA) {
             Map<Long, BlockData> kept = PacketRuntime.keptOf(viewer);
             if (kept != null) keepBlocks(event, type, kept);
-        } else if (type == PacketType.Play.Server.SPAWN_ENTITY && PacketRuntime.sealedOf(viewer) != null
-                && sealedOut(event, PacketRuntime.sealedOf(viewer))) {
-            event.setCancelled(true);
-            return;
         }
         if (PacketRuntime.hidesAnything(viewer)) {
             if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
@@ -246,6 +242,9 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 return;
             }
         }
+        // What reached this far reaches the client: follow it, and keep sealed boxes empty.
+        Scenes.onSend(event, type, viewer);
+        if (event.isCancelled()) return;
         if (type == PacketType.Play.Server.ENTITY_METADATA) {
             RevealStyle style = PacketRuntime.revealStyle(viewer);
             if (style != null) {
@@ -312,24 +311,6 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             }
         }
         event.getTasksAfterSend().add(() -> PacketRuntime.rekeep(viewer, chunkX, chunkZ));
-    }
-
-    /** Whether an entity spawned in packets lands in the viewer's sealed box and is not a display or a hitbox. */
-    private static boolean sealedOut(PacketSendEvent event, PacketRuntime.Sealed sealed) {
-        if (!(event.getPlayer() instanceof Player viewer) || !viewer.getWorld().getUID().equals(sealed.world())) {
-            return false;
-        }
-        WrapperPlayServerSpawnEntity spawn = new WrapperPlayServerSpawnEntity(event);
-        var type = spawn.getEntityType();
-        if (type == EntityTypes.BLOCK_DISPLAY || type == EntityTypes.ITEM_DISPLAY || type == EntityTypes.TEXT_DISPLAY
-                || type == EntityTypes.INTERACTION) {
-            return false;
-        }
-        Vector3d at = spawn.getPosition();
-        // A real entity spawned here is also hidden through the server by whoever sealed the box, within a
-        // few ticks, and shown again (spawned anew) once it leaves.
-        // ponytail: one spawned inside that leaves before that look is not drawn until it is tracked again.
-        return sealed.box().holds(at.getX(), at.getY() + 0.1, at.getZ());
     }
 
     // ------------------------------------------------------------------

@@ -38,6 +38,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.inventory.EquipmentSlot;
 import org.jetbrains.annotations.Nullable;
 
@@ -79,6 +80,10 @@ final class SceneSession {
     private final CrateReveal[] revealed;
     private SpatialPointer pointer;
     private String hotbarId = "";
+    /** Where the board stands from: the feet, facing it. */
+    private final Location feet;
+    private net.exylia.lib.spatial.internal.SceneShield shield;
+
 
     /** Every piece drawn, so nothing is left behind. */
     private final List<DisplayHandle> pieces = new ArrayList<>();
@@ -109,6 +114,7 @@ final class SceneSession {
         this.layout = layout;
         this.theme = layout.theme();
         this.distance = distance;
+        this.feet = feet.clone();
         this.board = StagePlane.inFrontOf(feet, EYES, distance, 0, 1, 1, 1, 1);
         this.facing = StageLook.facing(board);
         this.displays = Displays.of(owner.plugin);
@@ -122,6 +128,11 @@ final class SceneSession {
     // ── Lifecycle ─────────────────────────────────────────────────────────
 
     void open() {
+        // First, so everything drawn from here on is the scene's own and nothing else stands in it.
+        Plugin library = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(SceneSession.class);
+        double half = Math.max(2.0, layout.reel().slots() * layout.reel().spacing() / 2 + 0.4);
+        shield = net.exylia.lib.spatial.internal.SceneShield.raise(library, viewer, feet, distance, half,
+                layout.header().up() + 0.4, layout.clearView(), layout.hideOthers());
         SpatialInput input = SpatialInput.of(owner.plugin);
         pointer = input.attach(viewer).sounds(theme.hoverSound(), theme.selectSound())
                 .onSneak(this::skip)
@@ -182,6 +193,7 @@ final class SceneSession {
             }
         }
         if (layout.hideOthers()) SpatialMenus.hideOthers(viewer, false);
+        if (shield != null) shield.lower();
         show.ended(quit);
     }
 

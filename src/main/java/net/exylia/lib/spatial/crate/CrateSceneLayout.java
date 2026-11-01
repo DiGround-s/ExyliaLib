@@ -44,11 +44,21 @@ public record CrateSceneLayout(
         Buttons buttons,
         @Comment("The only item in the hotbar while it plays: right-clicking it, like sneaking, skips to the end")
         @Comment("and hands every prize over at once.")
-        SkipItem skipItem) {
+        SkipItem skipItem,
+        @Comment("The blocks standing between the viewer and the board (walls, trunks, leaves) are shown to them as")
+        @Comment("air while it plays, the ground they stand on kept; off brings the board nearer to a wall instead.")
+        boolean clearView) {
 
     public CrateSceneLayout() {
         this(3.2, true, true, new SpatialTheme(), new Header(), new Reel(), new Crate(), new Reveal(), new Preview(),
-                new Buttons(), new SkipItem());
+                new Buttons(), new SkipItem(), true);
+    }
+
+    /** @deprecated since 1.442.0; use the constructor with {@code clearView}. */
+    @Deprecated
+    public CrateSceneLayout(double distance, boolean hideOthers, boolean freeze, SpatialTheme theme, Header header,
+                            Reel reel, Crate crate, Reveal reveal, Preview preview, Buttons buttons, SkipItem skipItem) {
+        this(distance, hideOthers, freeze, theme, header, reel, crate, reveal, preview, buttons, skipItem, true);
     }
 
     public CrateSceneLayout {

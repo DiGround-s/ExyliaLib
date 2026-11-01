@@ -54,10 +54,26 @@ public interface Visibility {
     boolean canSee(@NotNull Player viewer, @NotNull Player target);
 
     /**
-     * Keeps a box empty of entities drawn only in packets, for one viewer: an entity another plugin
-     * spawns there in packets alone (a hologram, an NPC) is not drawn to them, while block, item and
-     * text displays and interaction hitboxes still are, so screens drawn there stay. Real entities are
-     * the caller's to hide ({@link Player#hideEntity}). {@code null} lifts it. Forgotten on quit.
+     * Keeps a box empty for one viewer while a screen stands in it: every entity in it that is not the
+     * screen's own is out of their sight, whoever drew it (the server's mobs, items and players, another
+     * plugin's packet-only NPCs and holograms, this library's), and comes back when it leaves the box or
+     * the box is lifted. {@code null} lifts it. Each plugin seals one box per viewer; a viewer in several
+     * plugins' boxes sees nothing in any of them. Forgotten on quit, lifted when the plugin is disabled.
+     *
+     * <p>The screen's own pieces are what is spawned to the viewer after the box goes up: seal before
+     * drawing. An entity already there, or spawned again later under the id it had (a hologram another
+     * plugin redraws, an NPC respawned), is not the screen's, nor is any real player.
+     *
+     * <p>Nothing is despawned: an entity in the box is moved, for this viewer alone, far beyond what any
+     * client draws, and moved back to where it really is on lifting, so another plugin's NPC keeps the
+     * skin, equipment, metadata and passengers it was sent with and that plugin is never asked to draw it
+     * again. A vehicle the viewer rides is never moved. Since 1.442.0; before, only entities spawned in
+     * packets after the box went up were kept out, and displays never.
+     *
+     * <h4>Limits</h4>
+     * An entity another plugin spawns for the first time while the box is up, with a brand-new id, counts
+     * as the screen's (only real players are told apart then). The server still has every entity where it
+     * is: it collides, and {@code getNearbyEntities} finds it.
      *
      * @param viewer the player
      * @param box    the box, in the viewer's world, or {@code null}

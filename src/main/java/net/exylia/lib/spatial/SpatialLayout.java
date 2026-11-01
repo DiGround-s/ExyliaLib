@@ -25,7 +25,9 @@ public record SpatialLayout(
         String title,
         @Comment("Where the menu stands. FRONT: in front of the player, wherever they are. PLACED: at the nearest")
         @Comment("spot set down for it (falls back to FRONT without one). distance: the board's distance from the")
-        @Comment("eyes, in blocks. lift: how far above eye height its middle is.")
+        @Comment("eyes, in blocks. lift: how far above eye height its middle is. clear-view: the blocks standing")
+        @Comment("between the viewer and the board (walls, trunks, leaves) are shown to them as air while it is")
+        @Comment("open, the ground they stand on kept; off brings the board nearer to a wall instead.")
         Anchor anchor,
         @Comment("Hide other players from the viewer, and the viewer from them, while it is open.")
         boolean hideOthers,
@@ -46,6 +48,10 @@ public record SpatialLayout(
         @Comment("between the carousel and the header. skins: whose skin an effect's mannequin and its body wear, the")
         @Comment("first source that has one: others (another online player, varied per play), viewer, defaults")
         @Comment("(vanilla's Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny and Zuri, slim and wide).")
+        @Comment("facing: which way a body faces when it stands: FRONT, SIDE, BACK, OTHER_SIDE or degrees from the front.")
+        @Comment("turn-controls: the viewer turns the body: a click on it turns it to the next side, the wheel over it a")
+        @Comment("little, and the two arrows beside the pedestal either way; it holds that side for turn-pause seconds")
+        @Comment("before turning on its own again. turn-hint: the short line under the pedestal saying so.")
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
@@ -97,12 +103,24 @@ public record SpatialLayout(
         return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel);
     }
 
-    /** Where the menu stands. */
-    public record Anchor(Mode mode, double distance, double lift) {
+    /**
+     * Where the menu stands.
+     *
+     * @param clearView whether the blocks in the space the menu stands in are shown to its viewer as air
+     *                  while it is open (the floor kept), so no wall or trunk cuts through a panel; off,
+     *                  the board is brought nearer when a block is in the way, as before. Since 1.442.0.
+     */
+    public record Anchor(Mode mode, double distance, double lift, boolean clearView) {
         public enum Mode { FRONT, PLACED }
 
         public Anchor() {
-            this(Mode.FRONT, 3.4, 0.0);
+            this(Mode.FRONT, 3.4, 0.0, true);
+        }
+
+        /** @deprecated since 1.442.0; use the constructor with {@code clearView}. */
+        @Deprecated
+        public Anchor(Mode mode, double distance, double lift) {
+            this(mode, distance, lift, true);
         }
     }
 
@@ -234,9 +252,24 @@ public record SpatialLayout(
      * @param skins        whose skin an effect preview's mannequin, its ragdoll and its {@code [NPC] {victim}}
      *                     wear when the plugin names nobody: {@code others}, {@code viewer}, {@code defaults},
      *                     the first that has a body ({@link net.exylia.lib.npc.PreviewSkins}). Since 1.416.0.
+     * @param facing       which way a body on the pedestal faces when it stands: {@code FRONT} (towards the
+     *                     viewer), {@code SIDE}, {@code BACK}, {@code OTHER_SIDE}, or a number of degrees turned
+     *                     from the front. Since 1.442.0.
+     * @param turnControls whether the viewer turns a body themselves: clicking it turns it to the next side
+     *                     (front, side, back, other side), the wheel over it turns it a little, and two arrows
+     *                     beside the pedestal turn it either way. A turn holds the side chosen, the body's own
+     *                     turning stopped, for {@code turnPause} seconds. Since 1.442.0.
+     * @param turnHint     the short line under the pedestal saying it can be turned, with {@code turnControls};
+     *                     blank for none. Since 1.442.0.
+     * @param turnPause    how long a chosen side is held before the body turns on its own again, in seconds.
+     *                     Since 1.442.0.
      */
     public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
-                          double effectScale, List<String> skins) {
+                          double effectScale, List<String> skins, String facing, boolean turnControls, String turnHint,
+                          double turnPause) {
+
+        /** The hint under the pedestal when the file does not say. */
+        public static final String TURN_HINT = "{muted}Click the body to turn it";
 
         /** Whose skin an effect preview wears when the file does not say. */
         public static final List<String> SKINS = List.of("others", "defaults");
@@ -246,7 +279,14 @@ public record SpatialLayout(
 
         public Preview() {
             // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
-            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS);
+            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS, "FRONT", false, TURN_HINT, 8);
+        }
+
+        /** @deprecated since 1.442.0; use the constructor with {@code facing} and the turn controls. */
+        @Deprecated
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
+                       double effectScale, List<String> skins) {
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins, "FRONT", false, TURN_HINT, 8);
         }
 
         /** @deprecated since 1.408.0; use the constructor with {@code vanishOnPlay} and {@code effectScale}. */
@@ -273,6 +313,30 @@ public record SpatialLayout(
             scale = scale <= 0 ? 1 : scale;
             effectScale = effectScale > 0 && effectScale <= 16 ? effectScale : EFFECT_SCALE;
             skins = skins == null || skins.isEmpty() ? SKINS : List.copyOf(skins);
+            facing = facing == null || facing.isBlank() ? "FRONT" : facing;
+            turnHint = turnHint == null ? "" : turnHint;
+            turnPause = turnPause < 0 ? 8 : turnPause;
+        }
+
+        /**
+         * {@link #facing()} in degrees turned from the front: {@code FRONT} 0, {@code SIDE} 90, {@code BACK}
+         * 180, {@code OTHER_SIDE} 270, a number as written; anything else reads as the front.
+         */
+        public double facingDegrees() {
+            String side = facing.strip().toUpperCase(java.util.Locale.ROOT).replace('-', '_').replace(' ', '_');
+            return switch (side) {
+                case "FRONT" -> 0;
+                case "SIDE", "LEFT", "LEFT_SIDE" -> 90;
+                case "BACK" -> 180;
+                case "OTHER_SIDE", "RIGHT", "RIGHT_SIDE" -> 270;
+                default -> {
+                    try {
+                        yield Double.parseDouble(side);
+                    } catch (NumberFormatException notANumber) {
+                        yield 0;
+                    }
+                }
+            };
         }
 
         /** {@link #skins()} as the policy that picks a body. */
@@ -281,7 +345,8 @@ public record SpatialLayout(
         }
 
         public Preview moved(double across, double up, double forward) {
-            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins);
+            return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins,
+                    facing, turnControls, turnHint, turnPause);
         }
     }
 

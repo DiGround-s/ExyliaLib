@@ -268,6 +268,7 @@ public final class PacketRuntime {
             impl.clear();
         }
         Mirrors.release(pluginName);
+        if (sink != null) Scenes.release(pluginName);
         if (ItemDecor.unregister(pluginName)) {
             // Its lines are on screen until the slots are sent again.
             resendAll();
@@ -289,6 +290,7 @@ public final class PacketRuntime {
         sink = null;
         tried = false;
         listening = false;
+        if (current != null) Scenes.clear();
         HIDDEN.clear();
         ENTITY_IDS.clear();
         ANCHORS.clear();
@@ -495,13 +497,6 @@ public final class PacketRuntime {
 
     /** Fake blocks a viewer keeps through the server's own updates: packed position to what they see. */
     private static final Map<UUID, Map<Long, BlockData>> KEPT = new ConcurrentHashMap<>();
-    /** Viewers who see no entity spawned inside a box but displays and hitboxes. */
-    private static final Map<UUID, Sealed> SEALED = new ConcurrentHashMap<>();
-
-    /** A box no entity is drawn in for one viewer, in one world. */
-    record Sealed(UUID world, Volume box) {
-    }
-
     static long pack(int x, int y, int z) {
         return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
     }
@@ -509,10 +504,6 @@ public final class PacketRuntime {
     static @Nullable Map<Long, BlockData> keptOf(UUID viewer) {
         Map<Long, BlockData> kept = KEPT.get(viewer);
         return kept == null || kept.isEmpty() ? null : kept;
-    }
-
-    static @Nullable Sealed sealedOf(UUID viewer) {
-        return SEALED.get(viewer);
     }
 
     /** Sends a viewer the blocks they keep in one chunk again, after the server sent the chunk's real ones. */
@@ -604,7 +595,7 @@ public final class PacketRuntime {
         FAKED.remove(id);
         KEPT.remove(id);
         Masks.forget(id);
-        SEALED.remove(id);
+        if (sink != null) Scenes.forget(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
         REVEALING.remove(id);
@@ -1010,12 +1001,7 @@ public final class PacketRuntime {
 
         @Override
         public void seal(@NotNull Player viewer, @Nullable Volume box) {
-            if (box == null) {
-                SEALED.remove(viewer.getUniqueId());
-            } else {
-                SEALED.put(viewer.getUniqueId(), new Sealed(viewer.getWorld().getUID(), box));
-                sink();
-            }
+            if (sink() != null) Scenes.seal(viewer, name, box);
         }
 
         @Override

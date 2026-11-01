@@ -109,10 +109,16 @@ public final class PlaySpot implements Listener {
      * Sends a player to the spot and remembers where they were; completes with where they will play: the
      * spot, or where they stand when none is set. Completes with {@code null} when the move failed. On the
      * player's thread.
+     *
+     * <p>With no spot set, a player in mid-air (falling, jumping) is waited for until they land, up to
+     * {@link Footing#WAIT_TICKS}, and plays where they land: a room built in the air would hang there and
+     * its hold fight their fall. Still in the air after that, it completes with {@code null}. Since 1.442.0.
      */
     public @NotNull CompletableFuture<Location> send(@NotNull Player player) {
         Location at = spot().orElse(null);
-        if (at == null) return CompletableFuture.completedFuture(player.getLocation());
+        if (at == null) {
+            return Footing.landed(plugin, player).thenApply(landed -> landed ? player.getLocation() : null);
+        }
         // A second game in a row keeps the first way back.
         returns.putIfAbsent(player.getUniqueId(), player.getLocation().clone());
         save();

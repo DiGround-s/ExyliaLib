@@ -70,6 +70,13 @@ colour, no zoom.
 when pressed. A plugin that plays its own passes a theme with blank sounds
 (`withSounds("", "")`).
 
+A label too long to read on one line is broken at its spaces into two or three
+lines, as even as they come, when that draws it clearly larger (since 1.442.0): a
+long translation on a narrow plate ("Revela una casilla primero" on Mines' 1.0 ×
+0.5 cash-out) reads at more than twice the size instead of a speck in the middle
+of the plate. Its colours are kept; a label that already reads well stays on one
+line.
+
 ## The first table sizes the board
 
 `Stage.table(...)` brings the plane nearer by the theme's `zoom`, as far as the
@@ -192,18 +199,19 @@ Everything here is the viewer's alone; everyone else sees the real world.
   The drawn floor sits on top. Under the floor layer the world stays as it is.
   The server's half is `Movement#confine`: back to the centre on a fall or a
   flight, no fall damage, no flying kick.
-- **Entities.** Every few ticks, on the player's thread, whatever stands in the
-  room (mobs, items, item frames, paintings, armour stands, projectiles, display
-  entities, other plugins' entity holograms and NPCs) is hidden from the player
-  with `Player#hideEntity` and shown again once it leaves or the room closes.
-  Entities other plugins draw in packets alone are kept out with
-  `Visibility#seal` when they spawn inside; displays and hitboxes are not, so this
-  plugin's screens stay. Players: with the walls drawn every other player is hidden
-  (their names would show through the walls); with `enabled: false` only those
-  inside the room are, and they come back when they step out.
-- **Limits.** A packet-only entity another plugin had already drawn in the room
-  before it opened stays until that plugin draws it again, and one that walks in
-  by relative moves is not caught.
+- **Entities.** The room is a sealed box ([`Visibility#seal`](packets.md#visibility)):
+  every entity in it that is not the plugin's own screen is out of the player's
+  sight, whoever drew it (mobs, items, frames, armour stands, projectiles, other
+  players, another plugin's packet-only NPCs and holograms, already there when the
+  room opened or arriving later), and is back where it really is once it leaves or
+  the room closes. Real entities are also hidden through the server every few
+  ticks (`Player#hideEntity`). Players: with the walls drawn every other player is
+  hidden (their names would show through the walls); with `enabled: false` only
+  those inside the room are, and they come back when they step out. Since 1.442.0;
+  before, a packet-only entity already in the room stayed, and one walking in by
+  relative moves was not caught.
+- **Draw after opening.** The screen's own pieces are what is spawned after
+  `open`: open the room first, then draw the board (both consumers do).
 
 ### A play spot
 
@@ -214,6 +222,19 @@ spot.send(player).thenAccept(at -> ...);  // to the spot (Teleports, no warmup),
 spot.giveBack(player);                    // the game ended or they left
 spot.close();                             // onDisable
 ```
+
+With no spot set, a player in mid-air (falling, jumping) is waited for until
+they land, up to five seconds, and plays where they land; still in the air (the
+void, an elytra) or killed by the fall, `send` completes with `null`, as a failed
+move (since 1.442.0). Before, the room went up wherever they were in the air, the
+confine held them there against their fall and the server's "floating too long"
+kick, and they dropped the rest of the way when it closed.
+
+`Footing` is the check every in-world screen makes (spatial menus, the crate scene,
+`PlaySpot`): `Footing.settled(player)` (on the ground, flying, riding, swimming,
+climbing) and `Footing.landed(plugin, player)`, a future completing `true` on the
+player's thread once they are, `false` after `Footing.WAIT_TICKS` (100) in the
+air, a quit or a death.
 
 Every player goes to the same spot: a room is drawn for its player alone and
 every other player is hidden from them, so any number play there at once, each

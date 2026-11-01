@@ -44,6 +44,8 @@ public final class CrateScene {
 
     private static final Map<String, CrateScene> BY_PLUGIN = new ConcurrentHashMap<>();
     static final Map<UUID, SceneSession> PLAYING = new ConcurrentHashMap<>();
+    /** Players whose scene waits for them to land. */
+    private static final java.util.Set<UUID> WAITING = ConcurrentHashMap.newKeySet();
 
     final Plugin plugin;
     final TaskScheduler tasks;
@@ -100,13 +102,38 @@ public final class CrateScene {
         SpatialMenus.of(plugin).close(player);
         if (SpatialMenus.inMenu(player)) return false;
         player.closeInventory();
+        if (!net.exylia.lib.stage.Footing.settled(player)) {
+            // In mid-air the scene would hang where they happen to be: it plays where they land. Given up
+            // (the void, an elytra), every prize is handed over as a skipped scene hands it.
+            WAITING.add(player.getUniqueId());
+            net.exylia.lib.stage.Footing.landed(plugin, player).thenAccept(landed -> {
+                WAITING.remove(player.getUniqueId());
+                if (!player.isOnline()) {
+                    // Paid by the caller's quit path, as a scene the player left.
+                    show.ended(true);
+                    return;
+                }
+                if (!landed || SpatialMenus.inMenu(player) || PLAYING.containsKey(player.getUniqueId())) {
+                    for (int i = 0; i < show.prizes().size(); i++) show.reveal(i);
+                    show.ended(false);
+                    return;
+                }
+                start(player, show);
+            });
+            return true;
+        }
+        start(player, show);
+        return true;
+    }
+
+    private void start(Player player, CrateShow show) {
         CrateSceneLayout look = layout().get();
         Location feet = player.getLocation();
         feet.setPitch(0);
-        SceneSession session = new SceneSession(this, player, show, look, feet, clearance(feet, look.distance()));
+        double distance = look.clearView() ? look.distance() : clearance(feet, look.distance());
+        SceneSession session = new SceneSession(this, player, show, look, feet, distance);
         PLAYING.put(player.getUniqueId(), session);
         session.open();
-        return true;
     }
 
     /** Ends the player's scene, handing over every prize not revealed yet. */
@@ -119,7 +146,7 @@ public final class CrateScene {
 
     /** Whether the player is watching a crate opening of any plugin's. */
     public static boolean isPlaying(@NotNull Player player) {
-        return PLAYING.containsKey(player.getUniqueId());
+        return PLAYING.containsKey(player.getUniqueId()) || WAITING.contains(player.getUniqueId());
     }
 
     /** How far ahead the board may stand: nearer than {@code wanted} when a block is in the way, never under 2. */

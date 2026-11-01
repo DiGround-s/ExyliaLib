@@ -41,13 +41,35 @@ boolean canSee(Player viewer, Player target);
 void seal(Player viewer, Volume box);        // 1.420.0+; null lifts it
 ```
 
-`seal(viewer, box)` keeps a box empty of entities drawn in packets alone for one
-viewer: a spawn landing inside it (another plugin's packet hologram or NPC) is
-dropped on its way to them, unless it is a block, item or text display or an
-interaction hitbox, so screens drawn there stay. Real entities are the caller's
-to hide with `Player#hideEntity`; an `Enclosure` does both. `Volume` is the
-shared maths: a square turned by a yaw between two heights (`holds`,
-`holdsColumn`, `touches(box)`).
+`seal(viewer, box)` keeps a box empty for one viewer while a screen stands in it
+(since 1.442.0): every entity in it that is not the screen's own is out of their
+sight, whoever drew it: the server's mobs, items and players, another plugin's
+packet-only NPCs and holograms (FancyNpcs, DecentHolograms and the like, which
+`hideEntity` cannot reach), this library's own holograms. It comes back where it
+really is when it walks out or the box is lifted. Each plugin seals one box per
+viewer (several plugins' boxes add up); quitting forgets it and disabling the
+plugin lifts it. `Volume` is the shared maths: a square turned by a yaw between two
+heights (`holds`, `holdsColumn`, `touches(box)`).
+
+How: the module follows every entity sent to every viewer (spawn, absolute and
+relative moves, despawn, passengers, a new level). Nothing is despawned: an entity
+in a sealed box is moved, for that viewer alone, 100 000 blocks across (past every
+client's entity and display view range) and moved back on lifting, so a foreign
+NPC keeps the skin, equipment, metadata, team and passengers its plugin sent and
+that plugin is never asked to draw it again. Absolute moves of a parked entity are
+dropped, its real position kept; relative ones are applied far away. A vehicle the
+viewer rides is never moved. The screen's own pieces are what is spawned to the
+viewer after the box goes up with an id newer than any entity then (every id comes
+from the server's one counter), so **seal before drawing**: an entity already
+there, or spawned again under the id it had (a hologram redrawn, an NPC respawned),
+is not the screen's, and neither is any real player (one who walks in or joins
+while it is up included).
+
+Limits: an entity another plugin spawns for the first time while the box is up,
+with a brand-new id, counts as the screen's. The server still has every entity
+where it is (it collides; `getNearbyEntities` finds it). Before 1.442.0 only
+packet-only spawns landing inside after the box went up were dropped, displays
+never; entities already drawn there stayed.
 
 `refresh` despawns the target for viewers who lost sight — `hidePlayer` plus
 an explicit destroy and tab-list removal — and respawns them for viewers who
