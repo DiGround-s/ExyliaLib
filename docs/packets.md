@@ -357,6 +357,15 @@ and back) the real item returns, so show it to somebody standing still.
 the player's thread. Clients from before 1.20.5 do not read the map id
 component and see an empty map.
 
+## ClientVersions
+
+`ClientVersions.atLeast(player, ClientVersion.V_1_21_4)` is the version the player's
+client really runs (PacketEvents' view at login, so an older client behind
+ViaBackwards reads its own), compared with a minimum; `ClientVersions.of(player)`
+is the version itself, `null` when unknown. Unknown (no PacketEvents, no user yet)
+counts as the server's version. Spatial menus, the crate scene, dialogs and
+locator-bar waypoints all ask it. Since 1.431.0.
+
 ## Lifecycle
 
 What a plugin hid, froze, faked, opened or wrote under items is undone when that plugin is

@@ -65,6 +65,26 @@ anywhere. A refusal plays the theme's `error-sound`; `canOpen`'s line (unless
 blank) is sent to them, so it comes from the plugin's lang files. `null` lets
 them in.
 
+**Minimum client 1.21.4 (since 1.431.0).** A player whose client is older (joining
+through ViaBackwards; the version PacketEvents saw at login, through
+[`ClientVersions`](packets.md#clientversions)) never gets a 3D menu. Every `open`,
+a command, the catalogue, a placed spot's hologram or a PLACED layout alike, runs
+the menu's fallback instead, before the permission and `canOpen`, with nothing
+built and nobody walked onto a spot:
+
+```java
+menus.register("trims", Main.class, menu -> menu
+        .fallback(player -> classicMenu.open(player))   // the plugin's inventory screen
+        ...);
+catalog.menu(menu -> menu.fallback(player -> classicMenu.open(player)));  // a catalogue
+```
+
+Without a fallback such a player hears the theme's `error-sound` and nothing
+opens (edit mode is refused the same way). `SpatialMenus.supports(player)` is the
+same check, for a plugin choosing a screen up front. An unknown version counts as
+the server's, so a server without ViaVersion behaves as before. The crate scene
+follows the same rule ([crate scene](crate-scene.md)).
+
 `SpatialEntry` is an immutable record: `id`, `icon` (an `ItemStack`) or `model`
 (any `DisplayModel`), `name`, `subtitle`, `state` and an optional `price`, with
 `of(id, icon, name)` and `with*` withers. Sources run on the viewer's thread on

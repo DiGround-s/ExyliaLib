@@ -43,6 +43,7 @@ public final class SpatialMenu {
     @Nullable Consumer<SpatialContext> onClose;
     @Nullable String permission;
     @Nullable Function<Player, String> guard;
+    @Nullable Consumer<Player> fallback;
     @Nullable Function<SpatialContext, Map<String, ?>> saved;
     @Nullable Function<SpatialContext, String> save;
     @Nullable Consumer<SpatialContext> discard;
@@ -113,6 +114,21 @@ public final class SpatialMenu {
      */
     public @NotNull SpatialMenu canOpen(@Nullable Function<Player, String> guard) {
         this.guard = guard;
+        return this;
+    }
+
+    /**
+     * What opens instead for a player whose client cannot draw the menu (older than 1.21.4, joining
+     * through ViaBackwards): usually the plugin's inventory menu, {@code player -> classic.open(player)}.
+     * Asked on the player's thread from every open, a command or a placed spot alike, before the
+     * permission and {@link #canOpen}, and nothing of the 3D menu is built or teleported. Without one
+     * such a player hears the theme's {@code error-sound} and nothing opens.
+     *
+     * @see SpatialMenus#supports(Player)
+     * @since 1.431.0
+     */
+    public @NotNull SpatialMenu fallback(@Nullable Consumer<Player> fallback) {
+        this.fallback = fallback;
         return this;
     }
 

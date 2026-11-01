@@ -145,8 +145,7 @@ final class DialogPackets {
                 return false;
             }
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
-            if (user == null || user.getClientVersion() == null
-                    || !user.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_21_6)) {
+            if (user == null || !net.exylia.lib.packet.ClientVersions.atLeast(player, ClientVersion.V_1_21_6)) {
                 return false;
             }
             if (!supports(session.request())) {

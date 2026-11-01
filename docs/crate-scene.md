@@ -23,6 +23,11 @@ crate:
 The crate's question (how many) is still `menus/crate.yml`; the choice opens the scene. Without
 PacketEvents, or while another plugin's spatial menu is open, the inventory reels play instead.
 
+**Minimum client 1.21.4 (since 1.431.0).** A player whose client is older (joining through
+ViaBackwards, as PacketEvents saw it at login) always gets the inventory reels, whatever `opening`
+says; `CrateScene#available(player)` answers it and `play` returns `false` for them. An unknown
+version counts as the server's, so nothing changes without ViaVersion.
+
 The plugin says how a prize is tried on, on its `CrateCatalogue`:
 
 ```java

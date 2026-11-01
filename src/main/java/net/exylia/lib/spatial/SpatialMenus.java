@@ -316,6 +316,19 @@ public final class SpatialMenus {
         });
     }
 
+    /**
+     * Whether the player's client can draw a spatial menu (and the crate scene): 1.21.4 or newer, as
+     * PacketEvents saw it at login. An unknown version counts as the server's. Every {@code open} asks
+     * this itself and runs the menu's {@link SpatialMenu#fallback} instead; plugins ask it to pick a
+     * screen up front.
+     *
+     * @since 1.431.0
+     */
+    public static boolean supports(@NotNull Player player) {
+        return net.exylia.lib.packet.ClientVersions.atLeast(player,
+                com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_4);
+    }
+
     /** Whether a player has any spatial menu open, whichever plugin opened it. */
     public static boolean inMenu(@NotNull Player player) {
         return OPEN.containsKey(player.getUniqueId());
@@ -338,6 +351,12 @@ public final class SpatialMenus {
                        boolean editing, Map<String, ?> state) {
         if (!player.isOnline()) return;
         SpatialLayout layout = file.get();
+        if (!supports(player)) {
+            // Too old a client for item displays as the menu draws them: its inventory screen, or a refusal.
+            if (!editing && definition.fallback != null) definition.fallback.accept(player);
+            else net.exylia.lib.stage.StageLook.play(player, layout.theme().errorSound());
+            return;
+        }
         if (!editing && !allowed(player, definition, layout.theme())) return;
         MenuSession open = OPEN.get(player.getUniqueId());
         if (open != null) open.menus.close(open, false);

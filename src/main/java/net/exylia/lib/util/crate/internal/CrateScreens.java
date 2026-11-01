@@ -316,7 +316,7 @@ public final class CrateScreens<T> implements Listener {
             return;
         }
 
-        if (settings.get().opening() == CrateOpening.SPATIAL && CrateScene.of(plugin).available()) {
+        if (settings.get().opening() == CrateOpening.SPATIAL && CrateScene.of(plugin).available(player)) {
             // Held from now, so a quit in the tick before the scene opens still pays them out.
             List<Reel<T>> reels = new ArrayList<>(bought.size());
             for (T prize : bought) reels.add(Reel.of(0, prize, 1, () -> null));

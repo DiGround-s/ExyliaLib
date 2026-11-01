@@ -76,15 +76,25 @@ public final class CrateScene {
     }
 
     /**
+     * Whether the scene can be drawn for this player: {@link #available()} and a client of 1.21.4 or newer
+     * ({@link SpatialMenus#supports}). An older client gets the inventory opening.
+     *
+     * @since 1.431.0
+     */
+    public boolean available(@NotNull Player player) {
+        return available() && SpatialMenus.supports(player);
+    }
+
+    /**
      * Plays an opening in front of the player, on their thread. Closes a spatial menu of this plugin's
      * they had open (the wardrobe the crate was opened from) and a scene already playing.
      *
-     * @return {@code false} when it cannot be drawn: no PacketEvents, the player gone, or another
+     * @return {@code false} when it cannot be drawn: no PacketEvents, a client older than 1.21.4, the player gone, or another
      *         plugin's spatial menu in the way. Nothing of {@code show} was asked then, so the caller
      *         shows it another way.
      */
     public boolean play(@NotNull Player player, @NotNull CrateShow show) {
-        if (!player.isOnline() || !available() || show.prizes().isEmpty()) return false;
+        if (!player.isOnline() || !available(player) || show.prizes().isEmpty()) return false;
         SceneSession open = PLAYING.get(player.getUniqueId());
         if (open != null) open.close(false);
         SpatialMenus.of(plugin).close(player);

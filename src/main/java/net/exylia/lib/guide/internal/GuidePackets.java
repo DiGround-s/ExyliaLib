@@ -463,16 +463,14 @@ final class GuidePackets extends PacketListenerAbstract {
      * packet does not exist before it, and PacketEvents encodes in the
      * server's protocol), the client does too (an older client behind
      * ViaVersion has no locator bar), and the PacketEvents installed at
-     * runtime knows the packet. Any doubt answers {@code false}.
+     * runtime knows the packet. An unknown client counts as the server's version.
      */
     static boolean waypointsSupported(Player viewer) {
         try {
             if (!PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_21_6)) {
                 return false;
             }
-            User user = userOf(viewer);
-            return user != null && user.getClientVersion() != null
-                    && user.getClientVersion().isNewerThanOrEquals(ClientVersion.V_1_21_6);
+            return net.exylia.lib.packet.ClientVersions.atLeast(viewer, ClientVersion.V_1_21_6);
         } catch (Throwable unknown) {
             return false;
         }
