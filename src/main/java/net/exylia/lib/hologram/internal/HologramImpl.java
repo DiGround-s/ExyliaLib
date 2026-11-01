@@ -232,6 +232,13 @@ final class HologramImpl implements Hologram {
 
     /** What each display currently shows, for the diff. */
     private volatile String[] lastText;
+    /**
+     * What each line last resolved to for each viewer of a per-player
+     * hologram, for the same diff. Dropped whenever their client is given the
+     * lines some other way (spawned, revealed, re-shown), so it only ever
+     * skips a text their client already has.
+     */
+    private final Map<UUID, String[]> sentText = new ConcurrentHashMap<>();
 
     private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
 
@@ -728,6 +735,8 @@ final class HologramImpl implements Hologram {
 
     @Override
     public void refresh() {
+        // New lines or data may draw the same string differently (a button's padding): send it all again.
+        sentText.clear();
         pending = true;
         lastRender = -intervalMs;
     }
@@ -899,18 +908,31 @@ final class HologramImpl implements Hologram {
     private void renderFor(Player viewer, boolean send) {
         DisplayState[] current = displays;
         Template[] lines = templates;
+        UUID uuid = viewer.getUniqueId();
+        String[] sent = send ? sentText.computeIfAbsent(uuid, key -> new String[current.length]) : null;
+        boolean changed = false;
         for (int i = 0; i < current.length && i < lines.length; i++) {
             if (current[i].kind() != HologramConfig.Kind.TEXT) {
                 continue;
             }
             String text = lines[i].render(viewer, data);
+            // A shimmering line keeps being re-sent on every render, as it always was: its frames are
+            // keyed on the shared display's text, which this viewer's skip must not second-guess.
+            boolean diffed = sent != null && i < sent.length && !current[i].style().shimmers();
+            if (diffed && text.equals(sent[i])) {
+                continue;
+            }
             current[i].text(componentFor(i, lines[i], text, viewer));
-            if (send && receivesText(viewer.getUniqueId(), i)) {
+            if (send && receivesText(uuid, i)) {
+                if (diffed) {
+                    sent[i] = text;
+                }
+                changed = true;
                 HologramRuntime.sink().text(viewer, current[i],
                         Shimmer.dress(current[i].style(), current[i].text(), seconds()));
             }
         }
-        if (send && paneled) {
+        if (changed && paneled) {
             reshapePanel(viewer);
         }
     }
@@ -975,6 +997,8 @@ final class HologramImpl implements Hologram {
             return;
         }
         DisplayState[] current = displays;
+        // Their client gets the lines whole in the spawn: nothing sent before counts.
+        sentText.remove(viewer.getUniqueId());
         if (config.type() == HologramConfig.Kind.TEXT) {
             // Resolve for this viewer before spawning: a shared hologram still
             // has to show them something, and a per-player one shows them
@@ -1042,6 +1066,8 @@ final class HologramImpl implements Hologram {
             return;
         }
         masks.put(uuid, after);
+        // Revealed lines are spawned with fresh text and typing may restart: diff from scratch.
+        sentText.remove(uuid);
         DisplayState[] current = displays;
         List<Integer> hidden = new ArrayList<>();
         boolean revealed = false;
@@ -1916,6 +1942,7 @@ final class HologramImpl implements Hologram {
         typing.remove(uuid);
         lastClick.remove(uuid);
         states.remove(uuid);
+        sentText.remove(uuid);
         if (viewers.remove(uuid)) {
             HologramRuntime.sink().destroy(viewer, entityIdsWithHitbox());
         }
@@ -1930,6 +1957,7 @@ final class HologramImpl implements Hologram {
         typing.remove(viewer);
         lastClick.remove(viewer);
         states.remove(viewer);
+        sentText.remove(viewer);
     }
 
     /**
@@ -1942,6 +1970,7 @@ final class HologramImpl implements Hologram {
         masks.remove(viewer);
         typing.remove(viewer);
         states.remove(viewer);
+        sentText.remove(viewer);
     }
 
     /** Moves every display for everybody who can see it. */

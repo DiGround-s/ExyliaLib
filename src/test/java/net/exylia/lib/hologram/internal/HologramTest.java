@@ -875,7 +875,7 @@ class HologramTest {
                 request -> request.hasViewer() ? request.requireViewer().getName() : "nobody");
 
         HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
-                List.of("Hello %koth_viewer%"), "", "", true, 32.0, 0, 0, 0,
+                List.of("Hello %koth_viewer% %koth_capturer%"), "", "", true, 32.0, 0, 0, 0,
                 new HologramConfig.Properties(), new HologramConfig.Refresh());
 
         far.at(new Location(world, 1, 64, 1));
@@ -883,11 +883,60 @@ class HologramTest {
         drive();
         sink.clear();
 
+        capturer.set("Steve");
         advanceSeconds(1.1);
         drive();
 
-        assertEquals(List.of("text:Near:1000:Hello Near", "text:Far:1000:Hello Far"),
+        assertEquals(List.of("text:Near:1000:Hello Near Steve", "text:Far:1000:Hello Far Steve"),
                 sink.calls("text"));
+    }
+
+    @Test
+    @DisplayName("a per-player line is not re-sent unchanged, and is again once the viewer is given it anew")
+    void perPlayerUnchangedSendsNothing() {
+        Placeholders.register(plugin, "koth_viewer",
+                request -> request.hasViewer() ? request.requireViewer().getName() : "nobody");
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("Hello %koth_viewer% %koth_capturer%"), "", "", true, 32.0, 0, 0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh());
+        // Somebody else stays in range, so the hologram keeps rendering while Near is away.
+        far.at(new Location(world, 1, 64, 1));
+        Holograms.show(plugin, "koth", spawn(), config);
+        drive();
+        capturer.set("Steve");
+        advanceSeconds(1.1);
+        drive();
+        sink.clear();
+
+        advanceSeconds(1.1);
+        drive();
+        assertEquals(List.of(), sink.calls("text"), "nothing changed for anybody");
+
+        // Near leaves, comes back between renders to be spawned with what it reads now, and then it
+        // reads what they were last sent before leaving: their client shows the spawned text, so
+        // that must be sent.
+        near.at(new Location(world, 500, 64, 0));
+        advanceSeconds(1.1);
+        drive();
+        capturer.set("Alex");
+        advanceSeconds(1.1);
+        drive();
+        near.at(new Location(world, 0, 64, 0));
+        sink.clear();
+        advanceSeconds(0.3);
+        drive();
+        assertEquals(List.of("Hello Near Alex"), sink.spawnedText);
+        assertEquals(List.of(), sink.calls("text"), "not due yet");
+        capturer.set("Steve");
+        advanceSeconds(1.1);
+        drive();
+        assertEquals(List.of("text:Near:1000:Hello Near Steve", "text:Far:1000:Hello Far Steve"),
+                sink.calls("text"), "spawned anew, the diff starts over");
+        sink.clear();
+
+        advanceSeconds(1.1);
+        drive();
+        assertEquals(List.of(), sink.calls("text"));
     }
 
     // ------------------------------------------------------------------

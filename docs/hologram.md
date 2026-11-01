@@ -447,7 +447,8 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 - **Visibility is checked four times a second** with squared distance per
   player per hologram; packets only go out when someone crosses the edge.
 - **Only what changed is sent.** A line with no placeholders never refreshes;
-  one that does diffs and re-sends just that line.
+  one that does diffs and re-sends just that line. A per-player hologram
+  diffs per viewer: a line that resolves the same for them is not re-sent.
 - Nothing outlives its owner: plugin disable, player quit and palette reload
   all clean up (palette reload re-sends everything).
 
