@@ -26,7 +26,8 @@ import java.util.zip.ZipFile;
  * that the older API cannot satisfy:
  *
  * <ul>
- *   <li>a class, field or method that does not exist there;</li>
+ *   <li>a class, field or method that does not exist there, or exists but is
+ *       private or package-private there;</li>
  *   <li>a call that treats a type as an interface when it is a class there, or
  *       the reverse ({@code Sound} and {@code Attribute} became interfaces in
  *       1.21.3, so a call compiled against 1.21.4 dies on 1.21.1 with
@@ -137,6 +138,10 @@ public final class CompatCheck {
                 if (ref.kind == Ref.Kind.FIELD) {
                     if (!hasField(owner, ref.name, ref.descriptor)) {
                         findings.add(where + ": missing field " + dots(ref.owner) + "." + ref.name);
+                    } else {
+                        String hidden = inaccessible(owner, ref.name + ":" + ref.descriptor);
+                        if (hidden != null) findings.add(where + ": field " + dots(ref.owner) + "." + ref.name
+                                + " is " + hidden + " on the old server");
                     }
                     continue;
                 }
@@ -147,6 +152,10 @@ public final class CompatCheck {
                             + (owner.isInterface ? "an interface" : "a class") + " on the old server");
                 } else if (!hasMethod(owner, ref.name, ref.descriptor)) {
                     findings.add(where + ": missing method " + dots(ref.owner) + "." + ref.name + ref.descriptor);
+                } else {
+                    String hidden = inaccessible(owner, ref.name + ref.descriptor);
+                    if (hidden != null) findings.add(where + ": method " + dots(ref.owner) + "." + ref.name
+                            + ref.descriptor + " is " + hidden + " on the old server");
                 }
             }
         }
@@ -176,6 +185,36 @@ public final class CompatCheck {
     private boolean hasMethod(Info owner, String name, String descriptor) {
         return find(owner, new HashSet<>(), info -> info.methods.contains(name + descriptor),
                 type -> jdkHas(type, name, false));
+    }
+
+    /**
+     * Why the member cannot be reached from outside its package, or null.
+     *
+     * <p>Only the declaring class is asked: an API member that exists but is
+     * private (or package-private) on the old server is an
+     * {@code IllegalAccessError} there, as {@code EnchantmentKeys.create} is on
+     * 1.21.1.
+     */
+    private String inaccessible(Info owner, String member) {
+        Info declaring = declaring(owner, member, new HashSet<>());
+        if (declaring == null) return null;
+        int flags = declaring.access.get(member);
+        if ((flags & 0x0002) != 0) return "private";
+        if ((flags & 0x0001) == 0 && (flags & 0x0004) == 0) return "package-private";
+        return null;
+    }
+
+    private Info declaring(Info info, String member, Set<String> seen) {
+        if (!seen.add(info.name)) return null;
+        if (info.access.containsKey(member)) return info;
+        List<String> parents = new ArrayList<>(info.interfaces);
+        if (info.superName != null) parents.add(info.superName);
+        for (String parent : parents) {
+            Info next = api.get(parent);
+            Info found = next == null ? null : declaring(next, member, seen);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private boolean find(Info info, Set<String> seen, java.util.function.Predicate<Info> test,
@@ -242,6 +281,8 @@ public final class CompatCheck {
         final List<String> interfaces = new ArrayList<>();
         final Set<String> fields = new HashSet<>();
         final Set<String> methods = new HashSet<>();
+        /** Access flags of each field ({@code name:descriptor}) and method ({@code name+descriptor}). */
+        final Map<String, Integer> access = new HashMap<>();
         final Set<String> annotations = new HashSet<>();
         final Set<String> classRefs = new HashSet<>();
         final List<String> ownDescriptors = new ArrayList<>();
@@ -280,11 +321,13 @@ public final class CompatCheck {
             for (int kind = 0; kind < 2; kind++) {
                 int members = in.readUnsignedShort();
                 for (int i = 0; i < members; i++) {
-                    in.readUnsignedShort();
+                    int flags = in.readUnsignedShort();
                     String name = (String) pool[in.readUnsignedShort()];
                     String descriptor = (String) pool[in.readUnsignedShort()];
-                    if (kind == 0) info.fields.add(name + ":" + descriptor);
-                    else info.methods.add(name + descriptor);
+                    String member = kind == 0 ? name + ":" + descriptor : name + descriptor;
+                    if (kind == 0) info.fields.add(member);
+                    else info.methods.add(member);
+                    info.access.put(member, flags);
                     info.ownDescriptors.add(descriptor);
                     skipAttributes(in);
                 }

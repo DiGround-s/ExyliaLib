@@ -134,6 +134,19 @@ class's caller would, can be accepted with `--allow <file>`: one binary class
 name per line, `#` comments saying why. Keep the file in the plugin's repo as
 `compat-allow.txt`.
 
+### The whole fleet
+
+```bash
+tools/compat/check-fleet.sh [--branch-lib] ../ExyliaMines ../ExyliaCrates ...
+```
+
+Compiles each plugin and checks it against the oldest server it supports:
+the `api-version` in its `plugin.yml` when that names a patch
+(`api-version: '1.21.9'`), 1.21.1 otherwise. Paper refuses to load a plugin
+whose `plugin.yml` names a newer patch than the server (it does not enforce
+this for `paper-plugin.yml`), so that line is how a plugin that truly needs a
+newer server says so. One `ok`/`FAIL` line per plugin.
+
 ### Building a plugin against an unreleased lib
 
 `tools/compat/branch-lib.gradle` publishes this checkout as `0.0.0-branch` to

@@ -47,6 +47,7 @@ thread, or adding layers to save nanoseconds where the real cost is I/O. See
 | Java | 21 |
 | API | paper-api 1.21.4 (`compileOnly`) |
 | Platforms | Spigot, Paper, Purpur and **Folia**, from a single build |
+| Minecraft | Paper 1.21.1+, Folia 1.21.4+ (one jar; newer features gated at runtime, see `docs/server-versions.md`) |
 | Packets | PacketEvents 2.13.0 (`compileOnly`) |
 | Commands | Lamp 4.0.0-rc.17 (`compileOnly` + `libraries:` in plugin.yml) |
 | Sidebars | scoreboard-library 2.8.1 (**shaded and relocated**) |
@@ -442,9 +443,12 @@ parser inside a plugin.
   component whose name isn't stable across the supported versions; the ones that
   are (`FOOD`, `CONSUMABLE`, `ATTRIBUTE_MODIFIERS`) are still named directly in
   `Components`.
-- **Compiling against 1.21.4 is not running on 1.21.4.** The minimum baseline is
-  1.21.4 on purpose, so every new API is also verified against the version the
-  server actually runs before being used.
+- **Compiling against 1.21.4 is not running on 1.21.4.** The library compiles
+  against 1.21.4 and runs down to Paper 1.21.1 (Folia 1.21.4): API newer than
+  1.21.1 lives in a `@RequiresServer` class behind a `Features` probe, and
+  `tools/compat/check-compat.sh` must pass. Every new API is still verified
+  against the version the server actually runs before being used. See
+  `docs/server-versions.md`.
 - **A test that asks about the flag doesn't prove this.** The flag was set the
   whole time while the player saw the opposite; what is verified is that the
   component is requested, not that the flag is added.
