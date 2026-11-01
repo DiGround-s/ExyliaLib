@@ -167,6 +167,12 @@ public final class GatedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model,
+                                                                  @NotNull T record) {
+        return after(storage -> storage.insertIfAbsent(model, record));
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
                                                        @NotNull T record) {
         return after(storage -> storage.insert(model, record));

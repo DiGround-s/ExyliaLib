@@ -85,6 +85,7 @@ if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
 | `onClick(handler)` | both buttons at once |
 | `protect(boolean)` | `true` — cannot be broken, blown up, pushed by a piston or burnt |
 | `vanilla(boolean)` | `false` — the click does not do what the material does |
+| `ownExplosions(boolean)` | `false` — a protected block is taken out of every explosion; `true` leaves it in the block list for the owner to decide (1.438.0) |
 | `register()` | returns the `ClickableBlock` |
 
 `ClickableBlock` carries `plugin()`, `owner()`, `location()`, `isRegistered()`
@@ -118,6 +119,10 @@ second registration. `button()` is `BlockButton.LEFT` or `RIGHT`.
 - **An explosion loses the protected blocks, not its blast.** They are taken out
   of the block list rather than the event being cancelled, so one crate in range
   does not save the rest of the street.
+- **An owner can decide explosions itself.** With `ownExplosions(true)` the
+  library leaves the block in the list. The owner listens at `HIGHEST`, after
+  claim plugins have trimmed the list, and handles only the blocks still in it
+  (a stacked spawner losing one of its stack, a block that needs its own drop).
 - **A piston that would move one is cancelled**, because a moved block is a
   registration pointing at air.
 - **Nothing survives its plugin.** Disabling it unregisters every block it owns;

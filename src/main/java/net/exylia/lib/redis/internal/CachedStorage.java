@@ -293,6 +293,21 @@ public final class CachedStorage implements Storage {
     }
 
     @Override
+    public <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model,
+                                                                  @NotNull T record) {
+        // A winner caches what it wrote; a loser drops its copy, which most
+        // likely missed the row the other writer created.
+        return after(delegate.insertIfAbsent(model, record), (cache, won) -> {
+            Object id = model.id().decode(model.idOf(record));
+            if (won) {
+                cache.put(model, id, record);
+            } else {
+                cache.drop(model, id);
+            }
+        });
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Long> insert(@NotNull EntityModel<T> model,
                                                        @NotNull T record) {
         // Cached under the key the database chose, which is only known once the

@@ -576,6 +576,28 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Inserts a document under its own key unless one already holds it: the
+     * {@code _id} index refuses the second writer.
+     *
+     * @param model    the record model, whose key is not generated
+     * @param instance the record
+     * @param <T>      the record type
+     * @return whether the document was created
+     * @since 1.438.0
+     */
+    public <T> boolean insertIfAbsent(@NotNull EntityModel<T> model, @NotNull T instance) {
+        try {
+            collection(model).insertOne(document(MongoDocuments.toDocument(model, instance)));
+            return true;
+        } catch (com.mongodb.MongoWriteException raced) {
+            if (raced.getError().getCategory() != com.mongodb.ErrorCategory.DUPLICATE_KEY) {
+                throw raced;
+            }
+            return false;
+        }
+    }
+
+    /**
      * Adds to one field with {@code $inc}, inserting the rest with
      * {@code $setOnInsert} when the document is missing.
      *

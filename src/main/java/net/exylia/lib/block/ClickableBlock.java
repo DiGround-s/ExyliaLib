@@ -27,9 +27,12 @@ public final class ClickableBlock {
     private final Consumer<BlockClick> onRight;
     private final boolean protectBlock;
     private final boolean cancelVanilla;
+    private final boolean ownExplosions;
 
     ClickableBlock(Plugin plugin, Location location, Consumer<BlockClick> onLeft,
-                   Consumer<BlockClick> onRight, boolean protectBlock, boolean cancelVanilla) {
+                   Consumer<BlockClick> onRight, boolean protectBlock, boolean cancelVanilla,
+                   boolean ownExplosions) {
+        this.ownExplosions = ownExplosions;
         this.plugin = plugin;
         this.location = location;
         this.onLeft = onLeft;
@@ -56,6 +59,16 @@ public final class ClickableBlock {
     /** Whether the world may not take it away. */
     public boolean protectedBlock() {
         return protectBlock;
+    }
+
+    /**
+     * Whether the plugin that registered it decides what an explosion does to it,
+     * so the library leaves it in the blast's block list.
+     *
+     * @since 1.438.0
+     */
+    public boolean ownsExplosions() {
+        return ownExplosions;
     }
 
     /** Whether a click on it is kept from doing what its material does. */
@@ -112,6 +125,7 @@ public final class ClickableBlock {
         private Consumer<BlockClick> onRight;
         private boolean protectBlock = true;
         private boolean cancelVanilla = true;
+        private boolean ownExplosions;
 
         Builder(@NotNull Plugin plugin, @NotNull Location location) {
             this.plugin = plugin;
@@ -167,12 +181,30 @@ public final class ClickableBlock {
         }
 
         /**
+         * Whether the registering plugin decides what an explosion does to the
+         * block. Off by default: a protected block is taken out of every
+         * explosion's block list at {@code HIGH}. On, the library leaves it in
+         * the list, so the owner, listening at {@code HIGHEST}, sees whether a
+         * claim plugin already took it out and handles the rest itself. Breaking
+         * by hand, pistons and fire stay covered by {@link #protect}.
+         *
+         * @param value whether the owner handles explosions
+         * @return this
+         * @since 1.438.0
+         */
+        public @NotNull Builder ownExplosions(boolean value) {
+            this.ownExplosions = value;
+            return this;
+        }
+
+        /**
          * Registers it, replacing whatever held that location.
          *
          * @return the registration
          */
         public @NotNull ClickableBlock register() {
-            ClickableBlock block = new ClickableBlock(plugin, location, onLeft, onRight, protectBlock, cancelVanilla);
+            ClickableBlock block = new ClickableBlock(plugin, location, onLeft, onRight, protectBlock, cancelVanilla,
+                    ownExplosions);
             BlockRuntime.register(block);
             return block;
         }

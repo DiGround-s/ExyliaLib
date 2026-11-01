@@ -102,12 +102,13 @@ public final class BlockListener implements Listener {
 
     /**
      * Takes the protected blocks out of an explosion rather than cancelling it,
-     * so one crate in range does not save the rest of the street.
+     * so one crate in range does not save the rest of the street. A block whose
+     * owner handles explosions itself stays in the list for it to decide.
      */
-    private static void spare(List<Block> blocks) {
+    static void spare(List<Block> blocks) {
         blocks.removeIf(block -> {
             ClickableBlock registered = BlockRuntime.at(block);
-            return registered != null && registered.protectedBlock();
+            return registered != null && registered.protectedBlock() && !registered.ownsExplosions();
         });
     }
 

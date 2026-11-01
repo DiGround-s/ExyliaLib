@@ -410,6 +410,50 @@ public final class SqlBackend implements AutoCloseable {
         }
     }
 
+    /**
+     * Inserts a record under its own key unless a row already holds it.
+     *
+     * <p>A plain {@code INSERT}: the primary key refuses the second of two
+     * writers, and that refusal is the answer. Standard SQL on all four engines
+     * rather than one {@code INSERT IGNORE} / {@code ON CONFLICT DO NOTHING} per
+     * dialect, and only a duplicate key counts as losing: any other constraint
+     * failure is still thrown.
+     *
+     * @param model    the record model, whose key is not generated
+     * @param instance the record
+     * @param <T>      the record type
+     * @return whether the row was created
+     * @throws SQLException if the write failed for any other reason
+     * @since 1.438.0
+     */
+    public <T> boolean insertIfAbsent(@NotNull EntityModel<T> model, @NotNull T instance) throws SQLException {
+        String insert = statements.computeIfAbsent("insertRow:" + model.key(),
+                key -> dialect.insert(model));
+        try (Connection connection = pool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(insert)) {
+            bindRow(statement, model, model.values(instance));
+            statement.executeUpdate();
+            return true;
+        } catch (SQLException failure) {
+            if (duplicateKey(failure)) {
+                return false;
+            }
+            throw failure;
+        }
+    }
+
+    /** 23505 on H2 and Postgres; 23000 with error 1062 on MySQL and MariaDB. */
+    static boolean duplicateKey(SQLException failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sql && sql.getSQLState() != null
+                    && ("23505".equals(sql.getSQLState())
+                    || "23000".equals(sql.getSQLState()) && sql.getErrorCode() == 1062)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** SQLSTATE class 23, which H2, MySQL, MariaDB and Postgres all use for a duplicate key. */
     private static boolean integrityViolation(SQLException failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {

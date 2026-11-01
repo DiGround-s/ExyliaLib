@@ -212,6 +212,21 @@ public interface Storage {
                                                      @NotNull ColumnModel column, @Nullable Object expected);
 
     /**
+     * Inserts a record under the key it carries, only when no row holds that key.
+     *
+     * <p>One statement: of several callers inserting the same key exactly one is
+     * answered {@code true}; the others change nothing and are answered
+     * {@code false}. Never updates a row.
+     *
+     * @param model  the compiled record model, whose key is not generated
+     * @param record the record
+     * @param <T>    the record type
+     * @return whether the row was created
+     * @since 1.438.0
+     */
+    <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model, @NotNull T record);
+
+    /**
      * Inserts a record whose key the store hands out, and answers that key.
      *
      * <p>Only ever called for a model whose key is generated; the value the

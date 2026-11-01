@@ -115,6 +115,30 @@ class AtomicWriteTest {
     }
 
     @Test
+    @DisplayName("of callers creating the same key, exactly one wins and the row is never overwritten")
+    void insertIfAbsentHasOneWinner() {
+        Repository<Counter> counters = counters();
+
+        List<CompletableFuture<Boolean>> creates = new ArrayList<>();
+        for (int index = 0; index < 16; index++) {
+            creates.add(counters.insertIfAbsent(new Counter("first", "creator-" + index, index)));
+        }
+        await(CompletableFuture.allOf(creates.toArray(CompletableFuture[]::new)));
+
+        int winner = -1;
+        for (int index = 0; index < creates.size(); index++) {
+            if (creates.get(index).join()) {
+                assertEquals(-1, winner);
+                winner = index;
+            }
+        }
+        assertTrue(winner >= 0);
+        assertEquals("creator-" + winner, await(counters.find("first")).orElseThrow().name());
+        assertFalse(await(counters.insertIfAbsent(new Counter("first", "late", 99))));
+        assertEquals(winner, await(counters.findFresh("first")).orElseThrow().amount());
+    }
+
+    @Test
     @DisplayName("updateIf never creates a row, and compares null as absent")
     void updateIfEdges() {
         Repository<Counter> counters = counters();

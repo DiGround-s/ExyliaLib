@@ -164,13 +164,20 @@ votes.updateIf(vote.withClaimed(true), "claimed", false).thenAccept(won -> {
   still holds `expected` (`null` compares as absent), and answers whether it
   did. It never creates a row. Compare something exact — a number, a bounded
   string, a boolean, a UUID.
+- **`insertIfAbsent(row)`** (1.438.0) creates the row under its own key only
+  when none holds it, and answers whether it did; an existing row is left as it
+  was. The first write of a versioned row goes here, every later one through
+  `updateIf`, so two servers writing version 1 at once cannot both win. SQL runs
+  a plain `INSERT` and reads a duplicate key (`23505`, or `23000`/1062 on
+  MySQL and MariaDB) as losing; Mongo an `insertOne`. A generated key is
+  refused (use `insert`).
 - **One statement on every engine.** SQL runs `UPDATE ... SET c = c + ?` under
   the row lock and inserts on a miss; an insert that loses to another server
   adds to the winner's row. The condition of `updateIf` sits in the `UPDATE`'s
   `WHERE`. Mongo uses `$inc` with `$setOnInsert`, and `replaceOne` with the
   condition in its filter.
 - **The cache follows.** An increment drops the cached row, a won `updateIf`
-  caches the row it wrote, and a lost one drops the stale copy it most likely
+  or `insertIfAbsent` caches the row it wrote, and a lost one drops the stale copy it most likely
   compared against.
 
 ### Locks across servers (since 1.163.0)

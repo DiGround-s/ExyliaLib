@@ -352,6 +352,38 @@ public final class Repository<T> {
     }
 
     /**
+     * Creates a row under the record's own key, only when no row holds that key yet.
+     *
+     * <p>Answers {@code true} when this call created it and {@code false} when the
+     * row already existed, which it leaves untouched. One statement, so of several
+     * servers creating the same key exactly one wins: the first write of a row
+     * that must never be overwritten by a racing first write (a counter's version
+     * 1, a claim) goes here, and every later one through {@link #updateIf}.
+     *
+     * <pre>{@code
+     * if (!storage.insertIfAbsent(new Row(id, 1, items)).join()) {
+     *     // somebody else created it first: read it and decide again
+     * }
+     * }</pre>
+     *
+     * @param record the record, carrying its key
+     * @return completes with whether the row was created
+     * @throws IllegalArgumentException if the key is generated (use {@link #insert})
+     * @since 1.438.0
+     */
+    public @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull T record) {
+        if (model.generatedId()) {
+            throw new IllegalArgumentException(model.type().getSimpleName()
+                    + " has a generated key, so a new row is written with insert(), not insertIfAbsent().");
+        }
+        if (frozen) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return reported("insertIfAbsent", ordered(List.of(keyOf(record)),
+                () -> storage.insertIfAbsent(model, record)));
+    }
+
+    /**
      * Stores a new record and answers the key the database gave it.
      *
      * <p>For a record whose {@link Id} is {@code generated}: the key component
