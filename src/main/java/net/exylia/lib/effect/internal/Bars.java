@@ -1,5 +1,6 @@
 package net.exylia.lib.effect.internal;
 
+import net.exylia.lib.client.Clients;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
@@ -116,12 +117,17 @@ final class Bars {
      * but an update for a bar it does not have (lost to a server switch, a
      * reconfiguration, or a proxy or translator in between) throws and
      * disconnects the player. The add costs a title more; the bar only changes
-     * when its drawn width or its text does.
+     * when its drawn width or its text does. Bedrock players behind Geyser get
+     * real updates instead, since Geyser stacks a new bar on every add.
      */
     static void bossBarUpdate(Player viewer, UUID id, Component title, float progress,
                               String colour, String overlay, boolean titleChanged) {
         if (Packets.available()) {
-            PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
+            if (Clients.isBedrock(viewer)) {
+                PacketSender.bossBarUpdate(viewer, id, title, clamp(progress), colour, overlay);
+            } else {
+                PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
+            }
             return;
         }
         BossBar bar = FALLBACK.get(id);
@@ -137,7 +143,11 @@ final class Bars {
     static void bossBarStyle(Player viewer, UUID id, Component title, float progress,
                              String colour, String overlay) {
         if (Packets.available()) {
-            PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
+            if (Clients.isBedrock(viewer)) {
+                PacketSender.bossBarUpdate(viewer, id, title, clamp(progress), colour, overlay);
+            } else {
+                PacketSender.bossBarAdd(viewer, id, title, clamp(progress), colour, overlay);
+            }
             return;
         }
         BossBar bar = FALLBACK.get(id);

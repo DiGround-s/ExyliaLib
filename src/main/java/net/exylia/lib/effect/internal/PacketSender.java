@@ -60,6 +60,28 @@ final class PacketSender {
         send(player, packet);
     }
 
+    /**
+     * Changes a showing bar with real update packets, for Bedrock players.
+     *
+     * <p>Geyser turns every add into a new Bedrock boss bar without removing the
+     * one already under that id, so the add-again path stacks copies on their
+     * screen. Geyser ignores an update for a bar it does not have, so the
+     * disconnect the add path avoids cannot happen there.
+     */
+    static void bossBarUpdate(Player player, UUID id, Component title, float progress,
+                              String colour, String overlay) {
+        WrapperPlayServerBossBar name = new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_TITLE);
+        name.setTitle(title);
+        send(player, name);
+        WrapperPlayServerBossBar health = new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_HEALTH);
+        health.setHealth(progress);
+        send(player, health);
+        WrapperPlayServerBossBar style = new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.UPDATE_STYLE);
+        style.setColor(colour(colour));
+        style.setOverlay(overlay(overlay));
+        send(player, style);
+    }
+
     static void bossBarRemove(Player player, UUID id) {
         send(player, new WrapperPlayServerBossBar(id, WrapperPlayServerBossBar.Action.REMOVE));
     }
