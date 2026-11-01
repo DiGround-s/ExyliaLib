@@ -5,6 +5,8 @@ import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
 import net.exylia.lib.database.transfer.Transfers;
+import net.exylia.lib.database.wipe.internal.WipeRequest;
+import net.exylia.lib.database.wipe.internal.WipeRuntime;
 import net.exylia.lib.redis.Redis;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.text.Phrases;
@@ -71,6 +73,28 @@ interface TransferAccess {
     @NotNull CompletableFuture<TransferReport> wipe(@NotNull String pluginName,
                                                     @Nullable String table);
 
+    /**
+     * Who a typed player name is, here, on the network or anywhere they played.
+     *
+     * @since 1.439.0
+     */
+    @NotNull CompletableFuture<java.util.Optional<net.exylia.lib.player.ExyliaPlayer>> resolve(@NotNull String player);
+
+    /**
+     * Reads every table and counts what a wipe would delete.
+     *
+     * @since 1.439.0
+     */
+    @NotNull CompletableFuture<WipeRequest> plan(@NotNull WipeRequest request);
+
+    /**
+     * Backs up and runs a planned wipe or player reset.
+     *
+     * @since 1.439.0
+     */
+    void run(@NotNull WipeRequest request, @NotNull org.bukkit.command.CommandSender actor, @NotNull Path dumps,
+             @NotNull java.util.function.Consumer<WipeRuntime.Outcome> report);
+
     /** The real one, wired to the modules. */
     static @NotNull TransferAccess live() {
         return new TransferAccess() {
@@ -88,6 +112,23 @@ interface TransferAccess {
                 // mistyped name would leave a config file behind in the data
                 // folder of a plugin that never asked for one.
                 return database == null ? null : List.copyOf(database.tables().keySet());
+            }
+
+            @Override
+            public @NotNull CompletableFuture<java.util.Optional<net.exylia.lib.player.ExyliaPlayer>> resolve(
+                    @NotNull String player) {
+                return net.exylia.lib.player.ExyliaPlayers.resolve(player);
+            }
+
+            @Override
+            public @NotNull CompletableFuture<WipeRequest> plan(@NotNull WipeRequest request) {
+                return WipeRuntime.plan(request);
+            }
+
+            @Override
+            public void run(@NotNull WipeRequest request, @NotNull org.bukkit.command.CommandSender actor,
+                            @NotNull Path dumps, @NotNull java.util.function.Consumer<WipeRuntime.Outcome> report) {
+                WipeRuntime.run(request, actor, dumps, report);
             }
 
             @Override

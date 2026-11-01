@@ -4,6 +4,8 @@ import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 import net.exylia.lib.log.Logs;
 import org.bukkit.inventory.ItemStack;
@@ -28,7 +30,7 @@ import java.util.List;
  *
  * @since 1.296.0
  */
-@Table("exylia_logs")
+@Table(value = "exylia_logs", data = DataKind.HISTORY)
 @Index(columns = {"plugin", "actor", "created_at"}, descending = {"created_at"})
 @Index(columns = {"plugin", "target", "created_at"}, descending = {"created_at"})
 @Index(columns = {"plugin", "created_at"}, descending = {"created_at"})
@@ -39,7 +41,7 @@ public record LogRow(
         @Column(value = "log_action", length = 48) String action,
         @Column(length = 36) String actor,
         @Column(length = 32) String actorName,
-        @Column(length = 36) String target,
+        @Owner @Column(length = 36) String target,
         @Column(length = 32) String targetName,
         @Column(length = Column.UNBOUNDED) String detail,
         @Column(length = 64) String world,

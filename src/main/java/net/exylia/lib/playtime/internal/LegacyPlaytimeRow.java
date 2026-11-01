@@ -2,6 +2,8 @@ package net.exylia.lib.playtime.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 /**
@@ -11,9 +13,9 @@ import net.exylia.lib.database.Table;
  *
  * @since 1.341.0
  */
-@Table("playtime_data")
+@Table(value = "playtime_data", data = DataKind.PROGRESS)
 public record LegacyPlaytimeRow(
-        @Id(length = 36) String playerUuid,
+        @Owner @Id(length = 36) String playerUuid,
         @Column("total_playtime_ms") long totalPlaytimeMs,
         @Column(value = "claimed_rewards", length = 4000) String claimedRewards,
         @Column("created_at") long createdAt,

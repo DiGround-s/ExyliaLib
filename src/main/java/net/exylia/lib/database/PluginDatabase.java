@@ -123,6 +123,24 @@ public final class PluginDatabase {
         return settings.engine();
     }
 
+    /**
+     * Where this plugin's tables physically live, for telling two views of
+     * one database apart from two databases.
+     *
+     * <p>Not API. Two plugins with the same location share every table of the
+     * same name, which is what lets a network-wide wipe count and delete such a
+     * table once.
+     *
+     * @return the engine and its address, never {@code null}
+     * @since 1.439.0
+     */
+    @ApiStatus.Internal
+    public @NotNull String location() {
+        return settings.engine().toLowerCase(java.util.Locale.ROOT) + '|' + settings.host() + '|'
+                + settings.port() + '|' + settings.database() + '|'
+                + (settings.file() == null ? "" : settings.file().toAbsolutePath().normalize());
+    }
+
     /** Whether this plugin's acquired target is open and usable. */
     public boolean isReady() {
         DatabaseRuntime.Lease current = lease;

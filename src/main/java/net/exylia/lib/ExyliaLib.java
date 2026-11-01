@@ -365,6 +365,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Housekeeping of the server's own folders, on a timer of its own. Last
         // because nothing else waits on it: the first pass is a minute away.
         CleanupRuntime.init(this);
+        // Wipes: the network channel, the login gate during a wipe, and the
+        // vanilla player files a full wipe asked to delete before this start.
+        net.exylia.lib.database.wipe.internal.WipeRuntime.init(this);
         LibCommands.register(this);
         net.exylia.lib.internal.UpdatesMenu.init(this);
         // A tick after startup every plugin has enabled and read its files, so
@@ -732,6 +735,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // would strand the working copy nobody approved.
         EditorRuntime.releaseAll();
         net.exylia.lib.internal.UpdatesMenu.release();
+        net.exylia.lib.database.wipe.internal.WipeRuntime.release();
         Menus.releaseAll();
         net.exylia.lib.trade.Trades.releaseAll();
         Regions.releaseAll();
@@ -1229,6 +1233,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // own shutdown from onDisable; before the datasources it shares a
         // client with.
         Channels.release(plugin);
+        net.exylia.lib.database.wipe.Wipes.release(plugin);
         // Drops the plugin's repositories and datasource lease. A target closes
         // only after its last owning plugin releases it.
         Databases.release(plugin);

@@ -327,3 +327,9 @@ caches nothing at all between transfers: no listener, no task, no open file.
   truncated file, the memory bound and the wipe (all tables, one table, an
   unknown name, and the round trip back from the dump); plus the command's
   output and its confirmation flow in `internal/ReloadCommandTest.java`.
+
+## Wiping by kind
+
+Wiping a new season, every player's data or one player across every plugin —
+selected by what each table declares rather than by name — is in
+[wipes.md](wipes.md) (since 1.439.0).

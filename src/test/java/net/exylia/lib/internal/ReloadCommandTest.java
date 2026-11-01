@@ -1,6 +1,9 @@
 package net.exylia.lib.internal;
 
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.wipe.internal.WipeRequest;
+import net.exylia.lib.database.wipe.internal.WipeRuntime;
 import net.exylia.lib.database.transfer.TableTransfer;
 import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
@@ -305,6 +308,28 @@ class ReloadCommandTest {
                     List.of()));
         }
 
+        private final List<String> ran = new CopyOnWriteArrayList<>();
+
+        @Override
+        public CompletableFuture<java.util.Optional<net.exylia.lib.player.ExyliaPlayer>> resolve(String player) {
+            return CompletableFuture.completedFuture(player.equals("Nobody") ? java.util.Optional.empty()
+                    : java.util.Optional.of(net.exylia.lib.player.ExyliaPlayer.of(
+                            java.util.UUID.nameUUIDFromBytes(player.getBytes()), player)));
+        }
+
+        @Override
+        public CompletableFuture<WipeRequest> plan(WipeRequest request) {
+            return CompletableFuture.completedFuture(request);
+        }
+
+        @Override
+        public void run(WipeRequest request, CommandSender actor, Path dumps,
+                        java.util.function.Consumer<WipeRuntime.Outcome> report) {
+            ran.add(request.describe());
+            report.accept(new WipeRuntime.Outcome(null, Map.of("Practice", Map.of(DataKind.PROGRESS, 3L)),
+                    List.of(Path.of("/srv/dumps/Practice-h2.exyliadump.gz")), List.of(), 0, request.whole()));
+        }
+
         @Override
         public CompletableFuture<TransferReport> importFrom(String pluginName, Path file,
                                                             boolean force) {
@@ -586,6 +611,77 @@ class ReloadCommandTest {
         String text = sent.get(0);
         assertTrue(transfers.wiped.isEmpty());
         assertTrue(text.contains("practice_stats"), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("a preset wipe shows what goes and a code, and deletes nothing yet")
+    void presetWipeAsksFirst() {
+        ReloadCommand command = withTransfers();
+        command.wipe(sender, "all", "@season", null);
+
+        assertTrue(transfers.ran.isEmpty(), "nothing may run before the code");
+        String text = sent.get(sent.size() - 1);
+        assertTrue(text.contains("/exylialib wipe all @season "), "got: " + text);
+    }
+
+    @Test
+    @DisplayName("a preset wipe runs once with its code, and the code is bound to that preset")
+    void presetWipeRunsWithItsCode() {
+        ReloadCommand command = withTransfers();
+        command.wipe(sender, "all", "@season", null);
+        String code = codeFrom(sent.get(sent.size() - 1));
+
+        command.wipe(sender, "all", "@players", code);
+        assertTrue(transfers.ran.isEmpty(), "a code issued for @season cannot confirm @players");
+
+        command.wipe(sender, "all", "@season", null);
+        code = codeFrom(sent.get(sent.size() - 1));
+        command.wipe(sender, "all", "@season", code);
+        command.wipe(sender, "all", "@season", code);
+        assertEquals(1, transfers.ran.size(), "the code is spent once: " + transfers.ran);
+        assertTrue(sent.get(sent.size() - 2).contains("Restart every server"), "got: " + sent);
+    }
+
+    @Test
+    @DisplayName("an unknown @word is refused before anything is planned")
+    void unknownKindIsRefused() {
+        ReloadCommand command = withTransfers();
+        command.wipe(sender, "all", "@seasons", null);
+
+        assertTrue(transfers.ran.isEmpty());
+        assertTrue(sent.get(0).contains("not a kind or a preset"), "got: " + sent);
+    }
+
+    @Test
+    @DisplayName("resetplayer reads a plugin, kinds and a code in any of the optional slots")
+    void resetArguments() {
+        ReloadCommand.ResetArguments only = ReloadCommand.ResetArguments.of("@progress", "@account 123456");
+        assertNull(only.plugin());
+        assertEquals(List.of("@progress", "@account"), only.kinds());
+        assertEquals("123456", only.code());
+
+        ReloadCommand.ResetArguments scoped = ReloadCommand.ResetArguments.of("Practice", null);
+        assertEquals("Practice", scoped.plugin());
+        assertTrue(scoped.kinds().isEmpty());
+        assertNull(scoped.code());
+        assertNull(ReloadCommand.ResetArguments.of("all", "@history").plugin());
+    }
+
+    @Test
+    @DisplayName("resetplayer confirms with a code and refuses a kind a reset never touches")
+    void resetPlayerFlow() {
+        ReloadCommand command = withTransfers();
+        command.resetPlayer(sender, "Steve", "Practice", "@setup");
+        assertTrue(sent.get(0).contains("never touches"), "got: " + sent);
+
+        command.resetPlayer(sender, "Steve", "Practice", null);
+        String preview = sent.get(sent.size() - 1);
+        assertTrue(preview.contains("/exylialib resetplayer Steve Practice "), "got: " + preview);
+        command.resetPlayer(sender, "Steve", "Practice", codeFrom(preview));
+        assertEquals(1, transfers.ran.size());
+
+        command.resetPlayer(sender, "Nobody", null, null);
+        assertTrue(sent.get(sent.size() - 1).contains("Nobody by that name"), "got: " + sent);
     }
 
     @Test

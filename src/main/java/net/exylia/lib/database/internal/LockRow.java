@@ -2,6 +2,7 @@ package net.exylia.lib.database.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
 import net.exylia.lib.database.Table;
 
 /**
@@ -17,7 +18,7 @@ import net.exylia.lib.database.Table;
  * @param version   bumped by every acquire and release
  * @since 1.163.0
  */
-@Table("exylia_row_locks")
+@Table(value = "exylia_row_locks", data = DataKind.CACHE)
 public record LockRow(
         @Id String id,
         @Column String holder,

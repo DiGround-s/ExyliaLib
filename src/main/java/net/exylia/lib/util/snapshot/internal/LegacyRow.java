@@ -2,6 +2,8 @@ package net.exylia.lib.util.snapshot.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 import net.exylia.lib.util.snapshot.Snapshot;
 import org.bukkit.Location;
@@ -27,10 +29,10 @@ import org.jetbrains.annotations.ApiStatus;
  * @param updatedAt  when it was last written
  */
 @ApiStatus.Internal
-@Table("snapshot_player_states")
+@Table(value = "snapshot_player_states", data = DataKind.PROGRESS)
 public record LegacyRow(
 
-        @Id(length = 36) String uuid,
+        @Owner @Id(length = 36) String uuid,
 
         @Column(length = Column.UNBOUNDED) Snapshot snapshot,
 

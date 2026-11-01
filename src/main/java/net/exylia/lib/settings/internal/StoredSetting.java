@@ -3,6 +3,8 @@ package net.exylia.lib.settings.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -22,11 +24,11 @@ import java.util.UUID;
  * @param updatedAt when it was written, in epoch milliseconds
  * @since 1.261.0
  */
-@Table("exylia_player_settings")
+@Table(value = "exylia_player_settings", data = DataKind.ACCOUNT)
 @Index(columns = {"player", "namespace"})
 public record StoredSetting(
         @Id(length = 255) String id,
-        @Column UUID player,
+        @Owner @Column UUID player,
         @Column(length = 64) String namespace,
         @Column(length = 64) String name,
         @Column(length = 64) String server,

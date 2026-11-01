@@ -3,6 +3,8 @@ package net.exylia.lib.util.reward;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Indexed;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.List;
@@ -28,11 +30,11 @@ import java.util.UUID;
  * @param owedAt   when they were owed, in epoch milliseconds
  * @since 1.128.0
  */
-@Table("exylia_pending_rewards")
+@Table(value = "exylia_pending_rewards", data = DataKind.PROGRESS)
 public record PendingRewardRow(
         @Id(length = 64) String id,
         @Indexed @Column(length = 64) String plugin,
-        @Indexed @Column(length = 64) String owner,
+        @Owner @Indexed @Column(length = 64) String owner,
         @Column(length = Column.UNBOUNDED) String payload,
         @Column long owedAt) {
 

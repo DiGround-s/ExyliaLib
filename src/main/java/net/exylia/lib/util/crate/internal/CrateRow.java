@@ -2,6 +2,8 @@ package net.exylia.lib.util.crate.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 import org.jetbrains.annotations.NotNull;
 
@@ -28,11 +30,11 @@ import java.util.UUID;
  * @param updatedAt when it last changed, in epoch milliseconds
  * @since 1.189.0
  */
-@Table("exylia_crate_players")
+@Table(value = "exylia_crate_players", data = DataKind.ACCOUNT)
 public record CrateRow(
         @Id(length = 128) String id,
         @Column(length = 64) String plugin,
-        @Column UUID uuid,
+        @Owner @Column UUID uuid,
         @Column int keys,
         @Column(length = Column.UNBOUNDED) String unlocked,
         @Column("created_at") long createdAt,

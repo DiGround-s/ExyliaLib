@@ -3,6 +3,8 @@ package net.exylia.lib.escrow.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -22,7 +24,7 @@ import java.util.UUID;
  * @param updatedAt when the state last changed, in epoch milliseconds
  * @since 1.345.0
  */
-@Table("exylia_escrow_items")
+@Table(value = "exylia_escrow_items", data = DataKind.PROGRESS)
 @Index(columns = {"plugin", "match_id"})
 @Index(columns = {"plugin", "server", "state"})
 public record ItemRow(
@@ -30,7 +32,7 @@ public record ItemRow(
         @Column(length = 64) String plugin,
         @Column(length = 64) String server,
         @Column(value = "match_id", length = 64) String matchId,
-        @Column UUID player,
+        @Owner @Column UUID player,
         @Column(length = Column.UNBOUNDED) String items,
         @Column(length = 16) StakeState state,
         @Column("updated_at") long updatedAt) {

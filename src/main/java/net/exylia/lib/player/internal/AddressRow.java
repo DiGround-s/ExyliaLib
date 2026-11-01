@@ -3,6 +3,8 @@ package net.exylia.lib.player.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Indexed;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -20,10 +22,10 @@ import java.util.UUID;
  * @param lastSeen the last join from it, in epoch milliseconds
  * @since 1.184.0
  */
-@Table("exylia_account_addresses")
+@Table(value = "exylia_account_addresses", data = DataKind.ACCOUNT)
 public record AddressRow(
         @Id(length = 80) String id,
-        @Indexed @Column UUID player,
+        @Owner @Indexed @Column UUID player,
         @Indexed @Column(length = 32) String address,
         @Column("last_seen") long lastSeen) {
 }

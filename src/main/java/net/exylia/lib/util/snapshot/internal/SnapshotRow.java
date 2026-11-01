@@ -4,6 +4,8 @@ import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 import net.exylia.lib.util.snapshot.Snapshot;
 import net.exylia.lib.util.teleport.ExyliaLocation;
@@ -51,7 +53,7 @@ import java.util.UUID;
  * @param savedAt      when it was taken, in epoch milliseconds
  */
 @ApiStatus.Internal
-@Table("exylia_snapshots")
+@Table(value = "exylia_snapshots", data = DataKind.PROGRESS)
 // Both halves of the identity, in the order a lookup asks for them: every read
 // that is not by key is "this player's snapshots", sometimes narrowed to one
 // context. A single index answers both.
@@ -60,7 +62,7 @@ public record SnapshotRow(
 
         @Id(length = 128) String key,
 
-        @Column(length = 36, nullable = false) @Indexed UUID uuid,
+        @Owner @Column(length = 36, nullable = false) @Indexed UUID uuid,
 
         @Column(length = 64, nullable = false) String contextId,
 

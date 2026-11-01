@@ -2,6 +2,7 @@ package net.exylia.lib.ragdoll.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
 import net.exylia.lib.database.Table;
 import org.jetbrains.annotations.ApiStatus;
 
@@ -20,7 +21,7 @@ import org.jetbrains.annotations.ApiStatus;
  * @param texture     the id at the end of its textures.minecraft.net address
  */
 @ApiStatus.Internal
-@Table("exylia_ragdoll_skins")
+@Table(value = "exylia_ragdoll_skins", data = DataKind.CACHE)
 public record RagdollTextureRow(
         @Id(length = 64) String fingerprint,
         @Column(length = 64) String texture) {

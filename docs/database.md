@@ -709,6 +709,20 @@ The same holds for a full server stop, by a different route: there the deferred
 task never runs, and the shutdown path releases everything after every plugin's
 `onDisable` has finished.
 
+## What a table holds: `DataKind` and `@Owner` (since 1.439.0)
+
+```java
+@Table(value = "homes", data = DataKind.PROGRESS)
+public record Home(@Id String id, @Owner @Indexed @Column UUID player, @Column String name) { }
+```
+
+`@Table#data` says what the rows are (`PROGRESS`, `WORLD`, `ACCOUNT`,
+`HISTORY`, `CACHE`, `SETUP`, or `UNSPECIFIED` by default) and `@Owner` marks the
+component holding the player a row belongs to (a `UUID` or its text form; may be
+the `@Id`; one per record). Neither changes the schema: they are what the
+library's wipes and player resets select by. An unclassified table is never
+touched by a preset or a player reset. How to pick a kind: [wipes.md](wipes.md).
+
 ## Enumerating what a plugin stores (since 1.36.0)
 
 For a whole-plugin operation — an export, a diagnostic listing — there has to

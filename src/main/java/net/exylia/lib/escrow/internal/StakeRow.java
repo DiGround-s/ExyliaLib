@@ -3,6 +3,8 @@ package net.exylia.lib.escrow.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.math.BigDecimal;
@@ -25,7 +27,7 @@ import java.util.UUID;
  * @param updatedAt when the state last changed, in epoch milliseconds
  * @since 1.345.0
  */
-@Table("exylia_escrow_stakes")
+@Table(value = "exylia_escrow_stakes", data = DataKind.PROGRESS)
 @Index(columns = {"plugin", "match_id"})
 @Index(columns = {"plugin", "server", "state"})
 public record StakeRow(
@@ -33,7 +35,7 @@ public record StakeRow(
         @Column(length = 64) String plugin,
         @Column(length = 64) String server,
         @Column(value = "match_id", length = 64) String matchId,
-        @Column UUID player,
+        @Owner @Column UUID player,
         @Column(length = 64) String currency,
         @Column BigDecimal amount,
         @Column(length = 16) StakeState state,

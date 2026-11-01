@@ -11,6 +11,9 @@ import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.transfer.TableTransfer;
 import net.exylia.lib.database.transfer.TransferOutcome;
 import net.exylia.lib.database.transfer.TransferReport;
+import net.exylia.lib.database.wipe.internal.WipeMenu;
+import net.exylia.lib.database.wipe.internal.WipePanels;
+import net.exylia.lib.database.wipe.internal.WipeRequest;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.Effects;
 import net.exylia.lib.hologram.internal.HologramRuntime;
@@ -606,9 +609,21 @@ public final class ReloadCommand {
     @Subcommand("wipe")
     @CommandPermission("exylialib.admin.wipe")
     public void wipe(@NotNull CommandSender sender,
-                     @SuggestWith(KnownPlugins.class) @NotNull String pluginName,
+                     @SuggestWith(WipePlugins.class) @NotNull String pluginName,
                      @SuggestWith(WipeTargets.class) @NotNull String table,
                      @Optional String code) {
+        WipeRequest request;
+        try {
+            request = WipeRequest.parse(pluginName, table);
+        } catch (IllegalArgumentException unknown) {
+            Text.of(Phrases.tr("{primary}&lWIPE&r {muted}{0}", pluginName) + "\n{letters_black}▎ {error}"
+                    + unknown.getMessage()).send(sender);
+            return;
+        }
+        if (request != null) {
+            confirmed(sender, request, "/exylialib wipe " + pluginName + " " + table, code);
+            return;
+        }
         List<String> tables = transfers.tablesOf(pluginName);
         if (tables == null || tables.isEmpty()) {
             Text.of(unknownPlugin(pluginName, transfers.plugins())).send(sender);
@@ -657,6 +672,143 @@ public final class ReloadCommand {
             return transfers.wipe(pluginName, target).thenAccept(report ->
                     Text.of(wipePanel(pluginName, target, backup, report)).send(sender));
         });
+    }
+
+    /**
+     * Opens the wipe screens, or tells the console how to wipe without them.
+     *
+     * @param sender who asked
+     * @since 1.439.0
+     */
+    @Subcommand("wipe")
+    @CommandPermission("exylialib.admin.wipe")
+    public void wipeMenu(@NotNull CommandSender sender) {
+        if (sender instanceof Player player) {
+            WipeMenu.open(player);
+            return;
+        }
+        Text.of(wipeHelp()).send(sender);
+    }
+
+    /** What the console reads instead of the screens. */
+    static String wipeHelp() {
+        return Phrases.tr("{primary}&lWIPE&r {muted}{0}", "/exylialib wipe")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Presets {letters_black}» {letters}@season, @players")
+                + "\n" + Phrases.tr("{letters_black}▎ {secondary}Kinds {letters_black}» {letters}@progress, @world, @account, @history, @cache, @setup, @unspecified")
+                + "\n{letters_black}▎ {muted}/exylialib wipe <plugin|all> <table|@kind|@preset|all> [code]"
+                + "\n{letters_black}▎ {muted}/exylialib resetplayer <player> [plugin|all] [@kind ...] [code]"
+                + "\n" + Phrases.tr("{letters_black}▎ {letters}Every run shows what goes and a code; run it again with the code to confirm.");
+    }
+
+    /**
+     * Deletes one player's rows in every plugin, in two steps, after a dump.
+     *
+     * <p>Only tables that declare an {@code @Owner} column are touched, and
+     * only the kinds a player reset allows. The player is kicked and locked out
+     * of the network while it runs; a player online on another server is
+     * refused.
+     *
+     * @param sender who asked
+     * @param player the player's name or id
+     * @param plugin one plugin, or {@code all}
+     * @param rest   {@code @kind} words and, on the second run, the code
+     * @since 1.439.0
+     */
+    @Subcommand("resetplayer")
+    @CommandPermission("exylialib.admin.wipe")
+    public void resetPlayer(@NotNull CommandSender sender,
+                            @NotNull String player,
+                            @Optional @SuggestWith(WipePlugins.class) String plugin,
+                            @Optional @SuggestWith(WipeTargets.class) String rest) {
+        ResetArguments arguments = ResetArguments.of(plugin, rest);
+        transfers.resolve(player).thenAccept(found -> {
+            if (found.isEmpty()) {
+                Text.of(Phrases.tr("{primary}&lRESET&r {muted}{0}", player) + "\n"
+                        + Phrases.tr("{letters_black}▎ {error}Nobody by that name has played here.")).send(sender);
+                return;
+            }
+            WipeRequest request;
+            try {
+                request = WipeRequest.player(found.get().id(), found.get().name(), arguments.plugin(),
+                        arguments.kinds());
+            } catch (IllegalArgumentException refused) {
+                Text.of(Phrases.tr("{primary}&lRESET&r {muted}{0}", player) + "\n{letters_black}▎ {error}"
+                        + refused.getMessage()).send(sender);
+                return;
+            }
+            StringBuilder line = new StringBuilder("/exylialib resetplayer ").append(found.get().name())
+                    .append(' ').append(arguments.plugin() == null ? "all" : arguments.plugin());
+            arguments.kinds().forEach(kind -> line.append(' ').append(kind));
+            confirmed(sender, request, line.toString(), arguments.code());
+        });
+    }
+
+    /**
+     * What follows the player of {@code resetplayer}: a plugin, kinds, a code,
+     * each optional.
+     *
+     * @param plugin the plugin, or {@code null} for every plugin
+     * @param kinds  the {@code @kind} words
+     * @param code   the confirmation, or {@code null} on the first run
+     */
+    record ResetArguments(@Nullable String plugin, List<String> kinds, @Nullable String code) {
+
+        static ResetArguments of(@Nullable String plugin, @Nullable String rest) {
+            List<String> words = new java.util.ArrayList<>();
+            if (plugin != null && !plugin.isBlank()) words.add(plugin.trim());
+            if (rest != null && !rest.isBlank()) words.addAll(List.of(rest.trim().split("\\s+")));
+            String chosen = null;
+            String code = null;
+            List<String> kinds = new java.util.ArrayList<>();
+            for (int i = 0; i < words.size(); i++) {
+                String word = words.get(i);
+                if (word.startsWith("@")) kinds.add(word.toLowerCase(java.util.Locale.ROOT));
+                else if (word.matches("\\d{6}")) code = word;
+                else if (i == 0 && !WipeRequest.everyPlugin(word)) chosen = word;
+            }
+            return new ResetArguments(chosen, List.copyOf(kinds), code);
+        }
+    }
+
+    /**
+     * The two-step flow of a planned wipe: the first run counts and shows a
+     * code, the second, with that code, runs it.
+     */
+    private void confirmed(CommandSender sender, WipeRequest request, String line, @Nullable String code) {
+        String who = String.valueOf(sender.getName());
+        String key = request.describe();
+        if (code == null) {
+            String issued = newCode();
+            pendingWipes.put(who, new PendingWipe(key, null, issued));
+            transfers.plan(request).thenAccept(planned ->
+                    Text.of(WipePanels.preview(planned, line + " " + issued, CONFIRM_SECONDS)).send(sender));
+            return;
+        }
+        PendingWipe pending = pendingWipes.getIfPresent(who);
+        if (pending == null || !pending.matches(key, null, code)) {
+            Text.of(Phrases.tr("{primary}&lWIPE&r {muted}{0}", line)
+                    + "\n" + Phrases.tr("{letters_black}▎ {error}That confirmation is not valid.")
+                    + "\n" + Phrases.tr("{letters_black}▎ {muted}Nothing was deleted.")
+                    + "\n\n" + Phrases.tr("{warning}➥ Start again:")
+                    + "\n{letters_black}▎ {muted}" + line).send(sender);
+            return;
+        }
+        pendingWipes.invalidate(who);
+        Text.of(Phrases.tr("{secondary}➥ {letters}Backing up, then deleting. This can take a while.")).send(sender);
+        transfers.run(request, sender, dumpFolder.get(),
+                outcome -> Text.of(WipePanels.result(request, outcome)).send(sender));
+    }
+
+    /** The plugins a wipe can name, and {@code all}. */
+    public static final class WipePlugins implements SuggestionProvider<BukkitCommandActor> {
+
+        @Override
+        public java.util.Collection<String> getSuggestions(
+                @NotNull ExecutionContext<BukkitCommandActor> context) {
+            List<String> names = new java.util.ArrayList<>(Databases.registeredPlugins());
+            names.add(ALL_TABLES_WORD);
+            return names;
+        }
     }
 
     /** A code short enough to type and long enough not to be guessed at. */
@@ -782,11 +934,14 @@ public final class ReloadCommand {
             String plugin = typedPlugin(context.input().source());
             PluginDatabase database = plugin == null ? null : Databases.find(plugin);
             if (database == null) {
-                return List.of(ALL_TABLES, ALL_TABLES_WORD);
+                List<String> names = new java.util.ArrayList<>(List.of(ALL_TABLES, ALL_TABLES_WORD));
+                names.addAll(WipeRequest.words());
+                return names;
             }
             List<String> names = new java.util.ArrayList<>(database.tables().keySet());
             names.add(ALL_TABLES);
             names.add(ALL_TABLES_WORD);
+            names.addAll(WipeRequest.words());
             return names;
         }
     }

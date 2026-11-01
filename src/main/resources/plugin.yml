@@ -23,6 +23,9 @@ permissions:
   exylialib.logs:
     description: Read the staff audit log every plugin records into, with /exylialib logs.
     default: op
+  exylialib.admin.wipe:
+    description: Wipe data and reset players with /exylialib wipe and resetplayer, and stay on a server locked by a wipe.
+    default: op
 # Every Exylia plugin needs packetevents next to the library: the server refuses
 # to load either without it, rather than starting with its packet features dark.
 depend: [packetevents]

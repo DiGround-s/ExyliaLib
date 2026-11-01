@@ -44,4 +44,17 @@ public @interface Table {
      * @since 1.343.0
      */
     boolean cache() default true;
+
+    /**
+     * What the table holds, which decides what a library wipe or player reset
+     * does to it.
+     *
+     * <p>{@link DataKind#UNSPECIFIED} by default: an unclassified table is
+     * never touched by a preset ("new season") or a player reset, only by a
+     * wipe that names it or its whole plugin. See {@code docs/wipes.md} for how
+     * to pick a kind.
+     *
+     * @since 1.439.0
+     */
+    DataKind data() default DataKind.UNSPECIFIED;
 }

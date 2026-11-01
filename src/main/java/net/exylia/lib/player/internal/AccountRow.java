@@ -2,6 +2,8 @@ package net.exylia.lib.player.internal;
 
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -16,8 +18,8 @@ import java.util.UUID;
  * @param firstSeen the earliest join any server recorded, in epoch milliseconds
  * @since 1.184.0
  */
-@Table("exylia_accounts")
+@Table(value = "exylia_accounts", data = DataKind.ACCOUNT)
 public record AccountRow(
-        @Id UUID id,
+        @Owner @Id UUID id,
         @Column("first_seen") long firstSeen) {
 }

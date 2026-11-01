@@ -3,6 +3,8 @@ package net.exylia.lib.command.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -23,12 +25,12 @@ import java.util.UUID;
  * @param queuedAt when they were queued, in epoch milliseconds
  * @since 1.337.0
  */
-@Table("exylia_server_commands")
+@Table(value = "exylia_server_commands", data = DataKind.PROGRESS)
 @Index(columns = {"plugin", "player"})
 public record ServerCommandRow(
         @Id(length = 64) String id,
         @Column(length = 64) String plugin,
-        @Column UUID player,
+        @Owner @Column UUID player,
         @Column(length = 64) String server,
         @Column(length = Column.UNBOUNDED) String lines,
         @Column(length = Column.UNBOUNDED) String data,

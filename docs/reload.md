@@ -22,6 +22,8 @@ that one.
 | `/exylialib export <plugin>` (since 1.36.0) | Writes that plugin's tables to a dump |
 | `/exylialib import <plugin> <file> [force]` (since 1.36.0) | Reads one back; `force` **merges**, it does not replace |
 | `/exylialib wipe <plugin> <table\|*> [code]` (since 1.76.0) | Empties one table or all of them (`*` or `all`), after a typed confirmation and an automatic dump |
+| `/exylialib wipe [<plugin\|all> <@kind\|@preset\|table\|all> [code]]` (since 1.439.0) | No arguments: the wipe screens. Presets and kinds across every plugin: [wipes.md](wipes.md) |
+| `/exylialib resetplayer <player> [plugin\|all] [@kind ...] [code]` (since 1.439.0) | Deletes one player's rows in every plugin: [wipes.md](wipes.md) |
 | `/exylialib logs <player\|*> [plugin] [action]` (since 1.296.0) | The staff audit log every plugin records into: a menu in game, the newest lines in the console. Its own permission, `exylialib.logs`; see [logs.md](logs.md) |
 | `/exylialib editor [plugin]`, `editor apply <code> [confirm]`, `editor trust <code> <challenge>` (since 1.304.0) | The browser editor: open a session, bring its changes down, trust a second browser. Its own permission, `exylialib.editor`; see [web-editor.md](web-editor.md) |
 
@@ -105,6 +107,10 @@ is active and the target was non-empty, which is the one case the module's
 known limitation actually bites. See [transfer.md](transfer.md).
 
 ### `/exylialib wipe` (since 1.76.0)
+
+The per-plugin table syntax below is unchanged. Presets (`@season`, `@players`),
+kinds (`@progress` …), `all` plugins, the in-game screens (`/exylialib wipe` with
+no arguments) and `/exylialib resetplayer` are in [wipes.md](wipes.md) (1.439.0).
 
 Empties a plugin's tables. There is no undo, so the command is built around
 that fact rather than around the deletion:

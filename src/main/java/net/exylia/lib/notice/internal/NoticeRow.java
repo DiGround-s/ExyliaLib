@@ -4,6 +4,8 @@ import net.exylia.lib.database.Column;
 import net.exylia.lib.database.Id;
 import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
+import net.exylia.lib.database.DataKind;
+import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
 
 import java.util.UUID;
@@ -23,12 +25,12 @@ import java.util.UUID;
  * @param sentAt   when it was sent, in epoch milliseconds
  * @since 1.278.0
  */
-@Table("exylia_notices")
+@Table(value = "exylia_notices", data = DataKind.CACHE)
 @Index(columns = {"plugin", "player"})
 public record NoticeRow(
         @Id(length = 64) String id,
         @Column(length = 64) String plugin,
-        @Column UUID player,
+        @Owner @Column UUID player,
         @Column(length = 64) String category,
         @Column(length = Column.UNBOUNDED) String message,
         @Column(length = Column.UNBOUNDED) String data,
