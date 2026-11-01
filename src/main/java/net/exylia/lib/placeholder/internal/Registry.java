@@ -363,6 +363,22 @@ public final class Registry {
     private static final Set<String> REPORTED_UNKNOWN = ConcurrentHashMap.newKeySet();
 
     /**
+     * A logger for renders that only look, such as the web editor's preview of
+     * every token in every file. Templates compiled with it never report a name
+     * as unknown: those files hold per-message values like {@code %kit_name%}
+     * that are filled at send time, and calling them all unregistered floods the
+     * console and uses up the one report a real typo would get.
+     */
+    public static final Logger QUIET = quietLogger();
+
+    private static Logger quietLogger() {
+        Logger quiet = Logger.getAnonymousLogger();
+        quiet.setUseParentHandlers(false);
+        quiet.setLevel(Level.OFF);
+        return quiet;
+    }
+
+    /**
      * Reports a placeholder nobody could resolve.
      *
      * <p>An unresolved placeholder used to fail in silence: the text kept the
@@ -374,6 +390,9 @@ public final class Registry {
      * @param logger where to report it
      */
     public static void reportUnknown(String name, Logger logger) {
+        if (logger == QUIET) {
+            return;
+        }
         if (REPORTED_UNKNOWN.add(name)) {
             logger.warning("Placeholder %" + name + "% is not registered by any plugin"
                     + " and no value was given for it, so it is left as written."

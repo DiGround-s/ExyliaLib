@@ -5,7 +5,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.exylia.lib.internal.LibrarySettings;
-import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.internal.Registry;
+import net.exylia.lib.placeholder.internal.TemplateCache;
 import net.exylia.lib.platform.Platform;
 import net.exylia.lib.text.Colors;
 import net.kyori.adventure.text.format.TextColor;
@@ -236,7 +237,9 @@ final class Snapshot {
         JsonObject out = new JsonObject();
         for (String token : tokens) {
             try {
-                String value = Placeholders.apply(token, viewer);
+                // Quiet and uncached: these tokens come from every file, most of them
+                // values a plugin passes per message, so none of them is a typo to report.
+                String value = TemplateCache.compile(token, Registry.QUIET).render(viewer);
                 if (!value.equals(token)) {
                     out.addProperty(token, value);
                 }
