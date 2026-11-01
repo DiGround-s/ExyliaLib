@@ -21,6 +21,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.CodeSource;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -494,13 +495,32 @@ public final class BundledResources {
         }
         List<String> names = new ArrayList<>();
         for (Map<?, ?> table : tables(loader)) {
-            for (Object key : table.keySet()) {
+            for (Object key : keysOf(table)) {
                 if (key instanceof String name && name.startsWith(prefix) && !name.endsWith("/")) {
                     names.add(name);
                 }
             }
         }
         return names;
+    }
+
+    /**
+     * A copy of a table's keys, taken while other threads may be writing to it.
+     *
+     * <p>{@link #tables} reads every map the loader declares, including caches
+     * that other plugins fill as they load classes during startup. A table that
+     * keeps changing under every attempt is a cache, not the resource table, so
+     * it reports nothing.
+     */
+    private static List<Object> keysOf(Map<?, ?> table) {
+        for (int attempt = 0; attempt < 5; attempt++) {
+            try {
+                return new ArrayList<>(table.keySet());
+            } catch (ConcurrentModificationException ignored) {
+                // Written to mid-copy; try again.
+            }
+        }
+        return List.of();
     }
 
     /**
