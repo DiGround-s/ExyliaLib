@@ -115,6 +115,32 @@ class PacketHooksTest {
         assertEquals("hello world", PacketHooks.flatten(line));
     }
 
+    @Test
+    @DisplayName("the same bytes are not decoded again; different ones are, and still read right")
+    void flattenEncodedCache() {
+        java.util.concurrent.atomic.AtomicInteger decodes = new java.util.concurrent.atomic.AtomicInteger();
+        byte[] hello = {1, 2, 3};
+        java.util.function.Supplier<Component> helloLine = () -> {
+            decodes.incrementAndGet();
+            return Component.text("hello");
+        };
+
+        assertEquals("hello", PacketHooks.flatten(hello, helloLine));
+        // Another receiver's packet: an equal array, not the same one.
+        assertEquals("hello", PacketHooks.flatten(new byte[]{1, 2, 3}, helloLine));
+        assertEquals(1, decodes.get(), "the second receiver's line is the first one's bytes");
+
+        assertEquals("bye", PacketHooks.flatten(new byte[]{1, 2, 4}, () -> {
+            decodes.incrementAndGet();
+            return Component.text("bye");
+        }));
+        assertEquals(2, decodes.get());
+        // Unknown bytes always decode: an earlier listener may have changed the line.
+        assertEquals("edited", PacketHooks.flatten(null, () -> Component.text("edited")));
+        assertEquals("hello", PacketHooks.flatten(hello, helloLine));
+        assertEquals(3, decodes.get());
+    }
+
     private static Buf written(PacketWrapper<?> packet) {
         Buf buf = new Buf();
         packet.setBuffer(buf);

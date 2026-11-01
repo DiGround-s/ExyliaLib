@@ -75,11 +75,13 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 
 /**
  * The one class in the module that names PacketEvents.
@@ -511,15 +513,32 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         String text;
         try {
-            text = flatten(new WrapperPlayServerSystemChatMessage(event).getMessage());
+            // The bytes as they stand, unless an earlier listener decoded the line and its edits are
+            // not in the buffer yet: then only the wrapper says what the receiver will read.
+            text = flatten(event.getLastUsedWrapper() == null ? encoded(event.getByteBuf()) : null,
+                    () -> new WrapperPlayServerSystemChatMessage(event).getMessage());
         } catch (Throwable unreadable) {
             return true;
         }
         return PacketRuntime.canRead(receiver, text);
     }
 
-    /** One line and what it reads as; replaced whole, so a reader never sees half of one. */
-    private record Flattened(Component message, String text) {
+    /** The bytes left to read, without reading them; {@code null} for a buffer that will not say. */
+    private static byte[] encoded(Object buffer) {
+        try {
+            byte[] bytes = new byte[ByteBufHelper.readableBytes(buffer)];
+            ByteBufHelper.getBytes(buffer, ByteBufHelper.readerIndex(buffer), bytes);
+            return bytes;
+        } catch (Throwable unknown) {
+            return null;
+        }
+    }
+
+    /**
+     * One line, the bytes it came in ({@code null} when not known) and what it reads as; replaced
+     * whole, so a reader never sees half of one.
+     */
+    private record Flattened(Component message, byte[] encoded, String text) {
     }
 
     private static volatile Flattened lastFlattened;
@@ -533,12 +552,30 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * differs simply replaces it.
      */
     static String flatten(Component message) {
+        return flatten(null, () -> message);
+    }
+
+    /**
+     * The same, asked with the line still encoded: the same bytes read the
+     * same, so a broadcast is decoded once rather than once per receiver.
+     *
+     * @param encoded the packet's bytes past its id, or {@code null} to compare the decoded line
+     * @param decoded the line, decoded only when the bytes are not the last ones
+     */
+    static String flatten(byte[] encoded, Supplier<Component> decoded) {
         Flattened last = lastFlattened;
+        if (encoded != null && last != null && Arrays.equals(encoded, last.encoded())) {
+            return last.text();
+        }
+        Component message = decoded.get();
         if (last != null && last.message().equals(message)) {
+            if (encoded != null) {
+                lastFlattened = new Flattened(last.message(), encoded, last.text());
+            }
             return last.text();
         }
         String text = PlainTextComponentSerializer.plainText().serialize(message);
-        lastFlattened = new Flattened(message, text);
+        lastFlattened = new Flattened(message, encoded, text);
         return text;
     }
 
