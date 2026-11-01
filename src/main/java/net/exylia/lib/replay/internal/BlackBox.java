@@ -144,6 +144,19 @@ public final class BlackBox {
     /** Whether the server's figures are per region (Folia) rather than global. */
     private volatile boolean regional;
     private volatile java.lang.reflect.Method regionTps;
+
+    /**
+     * Folia: the tick each patch of the world last had its region's TPS written.
+     * Players standing together share a region, and reading its TPS sorts
+     * fifteen minutes of tick times, so one of them writing it a second is enough.
+     */
+    private final Map<RegionCell, Integer> regionWritten = new ConcurrentHashMap<>();
+
+    /** Eight by eight chunks: the patch players in it are taken to share a region in. */
+    private record RegionCell(UUID world, int x, int z) {
+    }
+
+    private static final int MAX_REGION_CELLS = 4096;
     private volatile boolean running;
 
     BlackBox(TaskScheduler scheduler, BlackBoxSettings settings) {
@@ -182,6 +195,7 @@ public final class BlackBox {
         changes.clear();
         attacks.clear();
         folding.clear();
+        regionWritten.clear();
         ClientView.closeAll();
         changeCount.set(0);
         nonPlayers.set(0);
@@ -664,6 +678,8 @@ public final class BlackBox {
      * Through reflection, because the method is Folia's own API.
      */
     private void regionStats(Location at) {
+        World world = at.getWorld();
+        if (world == null || !regionDue(world.getUID(), at.getBlockX(), at.getBlockZ(), ReplayClock.now())) return;
         try {
             if (regionTps == null) {
                 regionTps = Bukkit.getServer().getClass().getMethod("getRegionTPS", Location.class);
@@ -675,6 +691,17 @@ public final class BlackBox {
         } catch (ReflectiveOperationException | RuntimeException unsupported) {
             regional = false;
         }
+    }
+
+    /** Whether the patch around a block is owed its region's TPS this second, and claims it if so. */
+    boolean regionDue(UUID world, int blockX, int blockZ, int tick) {
+        RegionCell cell = new RegionCell(world, blockX >> 7, blockZ >> 7);
+        Integer last = regionWritten.get(cell);
+        // A clock that went back (a restart of the box) counts as due.
+        if (last != null && tick >= last && tick - last < 20) return false;
+        if (regionWritten.size() > MAX_REGION_CELLS) regionWritten.clear();
+        regionWritten.put(cell, tick);
+        return true;
     }
 
     private void stats(String text) {

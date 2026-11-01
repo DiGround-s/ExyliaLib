@@ -211,4 +211,17 @@ class BlackBoxTest {
         assertEquals(BlackBox.SNAPSHOTS_PER_TICK, ran.get(), "only the first batch runs now");
         assertTrue(loading.stream().allMatch(CompletableFuture::isDone), "every read is complete");
     }
+
+    @Test
+    @DisplayName("players standing together write their region's TPS once a second between them")
+    void regionTpsOncePerPatchASecond() {
+        BlackBox box = new BlackBox(null, BlackBoxSettings.defaults());
+        assertTrue(box.regionDue(WORLD, 10, 10, 100), "first in the patch writes it");
+        assertFalse(box.regionDue(WORLD, 100, -1 + 128, 105), "a neighbour in the same patch does not");
+        assertTrue(box.regionDue(WORLD, 10, -10, 105), "another patch does");
+        assertTrue(box.regionDue(OTHER, 10, 10, 105), "the same spot in another world does");
+        assertFalse(box.regionDue(WORLD, 10, 10, 119), "still the same second");
+        assertTrue(box.regionDue(WORLD, 10, 10, 120), "a second later it is due again");
+        assertTrue(box.regionDue(WORLD, 10, 10, 50), "a clock that went back is due");
+    }
 }

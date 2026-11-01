@@ -999,6 +999,6 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (channel == null || ChannelHelper.getPipelineHandler(channel, PacketEvents.ENCODER_NAME) == null) {
             return;
         }
-        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(channel, packet);
+        PacketEvents.getAPI().getProtocolManager().sendPacketSilently(channel, packet);
     }
 }
