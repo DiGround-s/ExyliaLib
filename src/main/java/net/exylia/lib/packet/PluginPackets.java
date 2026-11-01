@@ -49,4 +49,11 @@ public interface PluginPackets {
      * @since 1.203.0
      */
     @NotNull ItemLines itemLines();
+
+    /**
+     * Blocks only players close to them see as they are: an anti-ESP.
+     *
+     * @since 1.434.0
+     */
+    @NotNull BlockMasks blockMasks();
 }

@@ -1,6 +1,7 @@
 package net.exylia.lib.packet.internal;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.packet.BlockMasks;
 import net.exylia.lib.packet.FakeBlocks;
 import net.exylia.lib.packet.FakeGameMode;
 import net.exylia.lib.packet.GlowingBlocks;
@@ -122,6 +123,11 @@ public final class PacketRuntime {
                 PacketHooks.warmBlockStates(plugin);
             }
         }
+    }
+
+    /** The library plugin, once {@link #init} ran. */
+    static @Nullable Plugin lib() {
+        return lib;
     }
 
     public static boolean isAvailable() {
@@ -299,6 +305,7 @@ public final class PacketRuntime {
         WARNED.clear();
         Mirrors.shutdown();
         Borders.shutdown();
+        Masks.shutdown();
     }
 
     /** Installs a sink directly and resets state. For tests. */
@@ -592,6 +599,7 @@ public final class PacketRuntime {
         LET_GO.remove(id);
         FAKED.remove(id);
         KEPT.remove(id);
+        Masks.forget(id);
         SEALED.remove(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
@@ -680,6 +688,7 @@ public final class PacketRuntime {
             // The client dropped every chunk of the old world; so do we.
             FAKED.remove(event.getPlayer().getUniqueId());
             KEPT.remove(event.getPlayer().getUniqueId());
+            Masks.forget(event.getPlayer().getUniqueId());
             // Its entities went with them: forget without sending a despawn.
             OUTLINED.remove(event.getPlayer().getUniqueId());
             Borders.resend(event.getPlayer());
@@ -817,6 +826,7 @@ public final class PacketRuntime {
         private final SilentContainer containers;
         private final BlockOutlines outlines;
         private final Borders borders;
+        private final Masks masks;
 
         /** Its own object rather than another face of this one: {@code clear()} is already taken here. */
         private final ItemLines itemLines = new ItemLines() {
@@ -861,6 +871,7 @@ public final class PacketRuntime {
             this.containers = new Mirrors(plugin);
             this.outlines = new BlockOutlines(plugin);
             this.borders = new Borders(plugin);
+            this.masks = new Masks(plugin);
         }
 
         /**
@@ -888,10 +899,12 @@ public final class PacketRuntime {
         @Override public @NotNull Messages messages() { return messages; }
         @Override public @NotNull WorldBorders worldBorders() { return borders; }
         @Override public @NotNull ItemLines itemLines() { return itemLines; }
+        @Override public @NotNull BlockMasks blockMasks() { return masks; }
 
         /** Puts back everything this plugin changed. */
         void clear() {
             borders.release();
+            masks.unmaskAll();
             for (UUID id : new ArrayList<>(FROZEN_BY.keySet())) {
                 if (name.equals(FROZEN_BY.get(id))) {
                     ANCHORS.remove(id);

@@ -217,6 +217,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             event.setCancelled(true);
             return;
         }
+        if (Masks.any() && MaskPackets.carries(type) && event.getPlayer() instanceof Player masked
+                && MaskPackets.apply(event, type, masked)) {
+            event.setCancelled(true);
+            return;
+        }
         if (type == PacketType.Play.Server.BLOCK_CHANGE || type == PacketType.Play.Server.MULTI_BLOCK_CHANGE
                 || type == PacketType.Play.Server.CHUNK_DATA) {
             Map<Long, BlockData> kept = PacketRuntime.keptOf(viewer);
@@ -932,7 +937,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
 
     private static final int MAX_BLOCK_IDS = 4096;
 
-    private static int globalId(BlockData data) {
+    static int globalId(BlockData data) {
         Integer known = BLOCK_IDS.get(data);
         if (known != null) {
             return known;

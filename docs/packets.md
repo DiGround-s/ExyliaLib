@@ -113,6 +113,38 @@ there. `clear` lets it go.
 Limits: a fake wall stops nobody, and with `show` a chunk the server resends
 shows the truth again.
 
+## BlockMasks
+
+Since 1.434.0. Blocks only players close to them see as they are: an anti-ESP for spawners,
+chests or anything a modified client looks for through the walls.
+
+```java
+BlockMasks masks = Packets.of(this).blockMasks();
+masks.mask(spawner.getLocation(), Material.STONE.createBlockData(), 24);  // far players see stone
+masks.unmask(spawner.getLocation());                                     // it was broken
+```
+
+| Method | Contract |
+| --- | --- |
+| `mask(at, shown, revealDistance)` | players farther than the distance see `shown`; calling again changes the mask |
+| `unmask(at)` / `unmaskAll()` | the real block goes back to whoever was seeing the mask |
+| `isMasked(at)` / `isRevealed(viewer, at)` | queries |
+
+- **Never on the wire.** A chunk holding a mask a viewer is not near is rewritten before it leaves:
+  the block in its section and its block entity taken out. Block changes, multi block changes,
+  block entity data, block actions and world events at the position are rewritten or dropped
+  the same way. A chunk with no mask is not decoded.
+- **Who is near** is checked twice a second from memory. Coming within the distance sends the real
+  block and its block entity (read on the block's region); going 2 blocks past it sends the mask again.
+- Masks are shared by every plugin (a client sees one block per position) but each plugin unmasks
+  only its own; a disabled plugin's masks are taken off.
+
+Limits: nothing changes on the server, so keep the distance above a player's reach (8 blocks or
+more) or someone may mine a block they see as stone. A player flying fast sees the mask for up to
+half a second as they arrive. Lighting is the client's: a solid mask over a see-through block leaves
+a shadow until the player comes near. Positions are not forgotten when their chunk unloads: unmask
+what you remove.
+
 ## Movement
 
 ```java
