@@ -79,6 +79,8 @@ public final class PluginCrates {
     private final ItemValues values;
     private final List<Consumer<UUID>> listeners = new CopyOnWriteArrayList<>();
     private volatile @Nullable Running<?> running;
+    /** Loads asked for while the crate was not running, answered by the next {@link #start}. */
+    private final Map<UUID, CompletableFuture<Void>> waiting = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile @Nullable Function<UUID, CompletableFuture<CrateImport>> importer;
     private volatile Predicate<ItemStack> legacyKey = item -> false;
     private volatile Predicate<Player> access = player -> true;
@@ -193,8 +195,18 @@ public final class PluginCrates {
         // Written now, so an owner who turned the 3D opening on finds its file without opening a crate first.
         if (settings.get().opening() == CrateOpening.SPATIAL) net.exylia.lib.spatial.crate.CrateScene.of(plugin).layout();
         for (Player online : plugin.getServer().getOnlinePlayers()) {
-            store.open(online.getUniqueId());
+            CompletableFuture<Void> opened = store.open(online.getUniqueId());
+            CompletableFuture<Void> parked = waiting.remove(online.getUniqueId());
+            if (parked != null) {
+                opened.whenComplete((ignored, failure) -> {
+                    if (failure != null) parked.completeExceptionally(failure);
+                    else parked.complete(null);
+                });
+            }
         }
+        // Whoever asked and has left since has no row to wait for.
+        waiting.values().forEach(parked -> parked.complete(null));
+        waiting.clear();
         return this;
     }
 
@@ -351,11 +363,24 @@ public final class PluginCrates {
      * Reads a player's row, for a plugin that must know what they own before it
      * acts, such as one that takes off what they no longer own on join.
      *
+     * <p>A join can land while the crate is not running (before {@link #start},
+     * or between the {@link #stop} and {@link #start} of a reload). The answer
+     * then waits for {@code start}, which opens a row for everyone online.
+     *
      * @param player who, online here
      * @return done once their row is in memory; at once for a player who already left
      */
     public @NotNull CompletableFuture<Void> load(@NotNull Player player) {
-        CrateStore store = require().store();
+        Running<?> current = running;
+        if (current == null) {
+            synchronized (this) {
+                current = running;
+                if (current == null) {
+                    return waiting.computeIfAbsent(player.getUniqueId(), id -> new CompletableFuture<>());
+                }
+            }
+        }
+        CrateStore store = current.store();
         // A row opened for somebody who left would never be forgotten.
         if (!player.isOnline()) return CompletableFuture.completedFuture(null);
         return store.open(player.getUniqueId());

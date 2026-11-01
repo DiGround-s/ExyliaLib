@@ -34,6 +34,8 @@ public final class DatabaseRuntime {
 
     private static volatile Plugin library;
     private static volatile Executor executor;
+    /** Whether the module ran and was shut down, so a late call is told apart from an early one. */
+    private static volatile boolean stopped;
     private static Map<TargetKey, Target> targets = new LinkedHashMap<>();
     private static volatile Map<String, SqlSettings> overrides = Map.of();
 
@@ -49,6 +51,7 @@ public final class DatabaseRuntime {
         synchronized (LOCK) {
             library = plugin;
             executor = new TaskExecutor(plugin);
+            stopped = false;
         }
     }
 
@@ -279,6 +282,7 @@ public final class DatabaseRuntime {
             library = null;
             executor = null;
             overrides = Map.of();
+            stopped = true;
         }
     }
 
@@ -608,6 +612,10 @@ public final class DatabaseRuntime {
 
     private static void requireStarted() {
         if (library == null || executor == null) {
+            if (stopped) {
+                throw new IllegalStateException("The database module was used after ExyliaLib disabled."
+                        + " A plugin that depends on ExyliaLib must stop or restart with it, not outlive it.");
+            }
             throw new IllegalStateException("The database module was used before ExyliaLib enabled."
                     + " Ask for repositories from onEnable, not from a static initialiser.");
         }

@@ -1,6 +1,7 @@
 package net.exylia.lib.packet.internal;
 
 import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.netty.channel.ChannelHelper;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
@@ -1005,6 +1006,13 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 new WrapperPlayServerInitializeWorldBorder(x, z, from, to, duration, PORTAL_LIMIT, 0, 0);
         packet.setWarningBlocks(warningBlocks);
         packet.setWarningTime(warningSeconds);
-        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(viewer, packet);
+        // A silent write goes through PacketEvents' encoder by name. A connection
+        // without one (an NPC that is a Player, or one already closing) has no
+        // client to draw a border for.
+        Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(viewer);
+        if (channel == null || ChannelHelper.getPipelineHandler(channel, PacketEvents.ENCODER_NAME) == null) {
+            return;
+        }
+        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(channel, packet);
     }
 }
