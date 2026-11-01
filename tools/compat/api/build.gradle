@@ -1,0 +1,21 @@
+// The oldest server API Exylia plugins run on, with everything it brings
+// (Adventure, gson, ...), copied into one folder for CompatCheck.
+plugins {
+    id 'java'
+}
+
+def minimum = (findProperty('minimum') ?: '1.21.1') + '-R0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    implementation "io.papermc.paper:paper-api:$minimum"
+}
+
+tasks.register('apiJars', Sync) {
+    from configurations.runtimeClasspath
+    into layout.buildDirectory.dir("api-$minimum")
+}
