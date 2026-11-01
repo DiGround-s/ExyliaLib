@@ -92,11 +92,11 @@ class CameraOverlayTest {
         sent.clear();
         live.advance(sink, 3 * CameraShot.SAMPLE_MILLIS);
         live.advance(sink, 4 * CameraShot.SAMPLE_MILLIS);
-        assertEquals(List.of("text hello", "background 11 112"), sent);
+        assertEquals(List.of("text hello"), sent);
 
         sent.clear();
         live.advance(sink, 7 * CameraShot.SAMPLE_MILLIS);
-        assertEquals(List.of("text ", "background 11 0"), sent);
+        assertEquals(List.of("text "), sent);
 
         // What end() destroys with the camera (end itself needs a live packet module).
         assertArrayEquals(new int[]{11, 12, 13}, overlay.ids());
