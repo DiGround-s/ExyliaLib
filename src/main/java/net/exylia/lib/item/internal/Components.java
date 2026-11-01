@@ -30,6 +30,7 @@ import java.util.List;
  * supported servers older than the components; we compile against paper-api
  * 1.21.4, where they are ordinary method calls.
  */
+@net.exylia.lib.platform.RequiresServer("1.21.4")
 final class Components {
 
     /**

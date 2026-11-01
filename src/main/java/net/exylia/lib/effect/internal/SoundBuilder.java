@@ -174,8 +174,10 @@ public final class SoundBuilder {
 
     private static String resolveKey(String trimmed) {
         try {
-            org.bukkit.Sound sound = org.bukkit.Sound.valueOf(trimmed.toUpperCase(Locale.ROOT));
-            org.bukkit.NamespacedKey key = org.bukkit.Registry.SOUNDS.getKey(sound);
+            // Through Constants: Sound.valueOf compiled against 1.21.4 is an
+            // interface call, and Sound is still an enum on 1.21.1.
+            org.bukkit.Sound sound = net.exylia.lib.platform.Constants.named(org.bukkit.Sound.class, trimmed);
+            org.bukkit.NamespacedKey key = sound == null ? null : org.bukkit.Registry.SOUNDS.getKey(sound);
             if (key != null) {
                 return key.toString();
             }

@@ -1,6 +1,5 @@
 package net.exylia.lib.database.transfer.internal;
 
-import com.google.gson.Strictness;
 import com.google.gson.stream.JsonWriter;
 import net.exylia.lib.database.internal.ColumnModel;
 import net.exylia.lib.database.internal.EntityModel;
@@ -93,7 +92,7 @@ final class DumpWriter implements AutoCloseable {
         JsonWriter json = new JsonWriter(text);
         // Lenient because a file of many top-level values is exactly what
         // NDJSON is, and strict mode refuses the second one.
-        json.setStrictness(Strictness.LENIENT);
+        setLenient(json);
         // Explicit: a null column has to be a JSON null rather than an omitted
         // entry. A row is positional, so an omitted value would shift every
         // column after it by one.
@@ -250,5 +249,15 @@ final class DumpWriter implements AutoCloseable {
     @Override
     public void close() throws IOException {
         json.close();
+    }
+
+    /**
+     * Lenient, in the call every supported gson has. {@code setStrictness}
+     * arrived in gson 2.11, and Paper 1.21.1 ships 2.10.1; on 2.11 and newer
+     * this is the same as {@code setStrictness(Strictness.LENIENT)}.
+     */
+    @SuppressWarnings("deprecation")
+    private static void setLenient(JsonWriter json) {
+        json.setLenient(true);
     }
 }

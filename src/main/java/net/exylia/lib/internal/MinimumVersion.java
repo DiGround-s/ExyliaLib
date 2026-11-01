@@ -8,15 +8,24 @@ import java.util.logging.Logger;
  * Warns at startup when the server runs a Minecraft version older than the
  * library's baseline.
  *
- * <p>The library compiles against and is verified on 1.21.4. An older server
- * still loads it, then fails mid-game with {@code NoSuchMethodError} the first
- * time a newer API is touched. Loading is not stopped: an owner who chose to
- * run it keeps the behaviour they had, but the console says why things break.
+ * <p>The library compiles against 1.21.4 and switches newer features off at
+ * runtime, down to 1.21.1 on Paper (Folia's oldest 1.21 build is 1.21.4). An
+ * older server still loads it, then fails mid-game with
+ * {@code NoSuchMethodError} the first time a newer API is touched. Loading is
+ * not stopped: an owner who chose to run it keeps the behaviour they had, but
+ * the console says why things break.
+ *
+ * <p>A plugin that needs a newer server than this says so in its own
+ * {@code plugin.yml} ({@code api-version: '1.21.9'}), and the server refuses
+ * to load it with its own message.
  */
 public final class MinimumVersion {
 
-    /** The oldest Minecraft version the library supports. */
-    public static final String MINIMUM = "1.21.4";
+    /** The oldest Minecraft version the library supports on Paper. */
+    public static final String MINIMUM = "1.21.1";
+
+    /** The oldest on Folia, which has no 1.21.1 build. */
+    public static final String MINIMUM_FOLIA = "1.21.4";
 
     private MinimumVersion() {
     }
@@ -24,12 +33,13 @@ public final class MinimumVersion {
     /** Logs a prominent error when the running server is older than {@link #MINIMUM}. */
     public static void check(Logger logger) {
         String running = running();
-        if (!olderThan(running, MINIMUM)) return;
+        String minimum = net.exylia.lib.platform.Platform.isFolia() ? MINIMUM_FOLIA : MINIMUM;
+        if (!olderThan(running, minimum)) return;
         logger.severe("************************************************************");
         logger.severe(" UNSUPPORTED MINECRAFT VERSION: " + running);
-        logger.severe(" ExyliaLib and every Exylia plugin require " + MINIMUM + " or newer.");
+        logger.severe(" ExyliaLib and every Exylia plugin require " + minimum + " or newer.");
         logger.severe(" On this version Exylia plugins WILL malfunction (errors such as");
-        logger.severe(" NoSuchMethodError mid-game). Update the server to " + MINIMUM + "+.");
+        logger.severe(" NoSuchMethodError mid-game). Update the server to " + minimum + "+.");
         logger.severe("************************************************************");
     }
 

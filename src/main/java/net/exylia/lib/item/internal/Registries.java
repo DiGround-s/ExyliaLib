@@ -103,8 +103,8 @@ public final class Registries {
 
     /** An attribute by key, as {@link net.exylia.lib.item.Modifier#key} produces. */
     public static Attribute attribute(String name) {
-        NamespacedKey key = key(name);
-        return key == null ? null : Registry.ATTRIBUTE.get(key);
+        // Either spelling: generic.max_health (before 1.21.2) or max_health.
+        return net.exylia.lib.platform.Attributes.byKey(name);
     }
 
     /** A dye colour by name, such as {@code light_gray}. */

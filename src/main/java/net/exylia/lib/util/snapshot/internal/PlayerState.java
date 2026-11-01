@@ -54,10 +54,26 @@ public final class PlayerState {
 
     private static @Nullable Attribute resolveMaxHealth() {
         try {
-            return Attribute.MAX_HEALTH;
+            return net.exylia.lib.platform.Attributes.MAX_HEALTH;
         } catch (RuntimeException | LinkageError unavailable) {
             return null;
         }
+    }
+
+    /**
+     * The key an attribute is stored under, the same on every version.
+     *
+     * <p>Asked of the registry ({@code attribute.getKey()} is an interface call
+     * 1.21.1 refuses) and written without the {@code generic.}-style prefix
+     * keys carried before 1.21.2, so a snapshot taken on one version restores
+     * on another.
+     */
+    private static String storedKey(Attribute attribute) {
+        org.bukkit.NamespacedKey key = net.exylia.lib.platform.Attributes.key(attribute);
+        if (key == null) return "unknown";
+        String value = key.getKey();
+        int dot = value.indexOf('.');
+        return key.getNamespace() + ":" + (dot < 0 ? value : value.substring(dot + 1));
     }
 
     /**
@@ -169,7 +185,7 @@ public final class PlayerState {
             try {
                 double base = instance.getBaseValue();
                 if (base != instance.getDefaultValue()) {
-                    changed.put(attribute.getKey().toString(), base);
+                    changed.put(storedKey(attribute), base);
                 }
             } catch (RuntimeException | LinkageError unreadable) {
                 // One attribute this server will not talk about costs that
@@ -381,13 +397,13 @@ public final class PlayerState {
                 continue;
             }
             try {
-                Double base = stored.get(attribute.getKey().toString());
+                Double base = stored.get(storedKey(attribute));
                 double target = base == null ? instance.getDefaultValue() : base;
                 if (instance.getBaseValue() != target) {
                     instance.setBaseValue(target);
                 }
             } catch (RuntimeException | LinkageError refused) {
-                problems.accept("the attribute \"" + attribute.getKey()
+                problems.accept("the attribute \"" + storedKey(attribute)
                         + "\" could not be restored, and was left as it is");
             }
         }

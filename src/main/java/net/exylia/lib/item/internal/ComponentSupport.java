@@ -12,22 +12,11 @@ package net.exylia.lib.item.internal;
  */
 final class ComponentSupport {
 
-    private static final boolean AVAILABLE = detect();
-
     private ComponentSupport() {
     }
 
     /** Returns whether data components can be written. */
     static boolean available() {
-        return AVAILABLE;
-    }
-
-    private static boolean detect() {
-        try {
-            Class.forName("io.papermc.paper.datacomponent.DataComponentTypes");
-            return true;
-        } catch (ClassNotFoundException spigot) {
-            return false;
-        }
+        return net.exylia.lib.platform.Features.dataComponents();
     }
 }

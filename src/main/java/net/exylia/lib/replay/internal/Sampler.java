@@ -111,7 +111,7 @@ final class Sampler {
     }
 
     /** Whether data components can be compared one by one; false on a server older than them. */
-    private static volatile boolean components = true;
+    private static volatile boolean components = net.exylia.lib.platform.Features.dataComponents();
 
     /**
      * Whether two items of the same material look the same in somebody's hand.
@@ -124,23 +124,27 @@ final class Sampler {
     static boolean looksAlike(ItemStack a, ItemStack b) {
         if (components) {
             try {
-                return Unseen.alike(a, b);
+                return UnseenData.alike(a, b);
             } catch (LinkageError older) {
                 components = false;
             }
         }
-        return a.isSimilar(b);
-    }
-
-    /** Kept out of line: naming a data component type needs a server that has them. */
-    private static final class Unseen {
-
-        private static final java.util.Set<io.papermc.paper.datacomponent.DataComponentType> TYPES =
-                java.util.Set.of(io.papermc.paper.datacomponent.DataComponentTypes.DAMAGE);
-
-        static boolean alike(ItemStack a, ItemStack b) {
-            return a.matchesWithoutData(b, TYPES, true);
+        if (a.isSimilar(b)) return true;
+        // No data component API (1.21.1): the same question through the meta,
+        // asked only when the plain comparison said no, so a still item costs
+        // nothing more than it did.
+        if (a.getType() != b.getType()) return false;
+        ItemStack left = a.clone();
+        ItemStack right = b.clone();
+        if (!(left.getItemMeta() instanceof org.bukkit.inventory.meta.Damageable l)
+                || !(right.getItemMeta() instanceof org.bukkit.inventory.meta.Damageable r)) {
+            return false;
         }
+        l.setDamage(0);
+        r.setDamage(0);
+        left.setItemMeta(l);
+        right.setItemMeta(r);
+        return left.isSimilar(right);
     }
 
     static ItemStack worn(LivingEntity living, EquipmentSlot slot) {

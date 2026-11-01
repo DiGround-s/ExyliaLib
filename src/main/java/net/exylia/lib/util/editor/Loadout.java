@@ -1,7 +1,5 @@
 package net.exylia.lib.util.editor;
 
-import io.papermc.paper.datacomponent.DataComponentType;
-import io.papermc.paper.datacomponent.DataComponentTypes;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -306,16 +304,6 @@ public final class Loadout {
         }
     }
 
-    /** What only changes how an item looks; a holder, since the types need a server to load. */
-    private static final class Looks {
-        static final List<DataComponentType> ALL = List.of(
-                DataComponentTypes.CUSTOM_NAME, DataComponentTypes.ITEM_NAME, DataComponentTypes.LORE,
-                DataComponentTypes.ITEM_MODEL, DataComponentTypes.CUSTOM_MODEL_DATA,
-                DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE,
-                DataComponentTypes.DYED_COLOR, DataComponentTypes.TRIM,
-                DataComponentTypes.BANNER_PATTERNS, DataComponentTypes.BASE_COLOR);
-    }
-
     /**
      * An item as an inventory holds it, without its looks. A kit read from
      * storage keeps the meta it was written with, and the server can drop part
@@ -326,8 +314,31 @@ public final class Loadout {
         // A test server installed by another suite has no item factory either.
         if (Bukkit.getServer() == null || Bukkit.getServer().getItemFactory() == null) return item;
         ItemStack plain = item.ensureServerConversions().clone();
-        Looks.ALL.forEach(plain::resetData);
+        if (net.exylia.lib.platform.Features.dataComponents()) {
+            ComponentLooks.strip(plain);
+        } else {
+            stripThroughMeta(plain);
+        }
         return plain;
+    }
+
+    /**
+     * The same looks, cleared through the meta, on a server without the data
+     * component API (1.21.1). Covers what that version has: name, item name,
+     * lore, model number, glint, dye, trim and banner.
+     */
+    private static void stripThroughMeta(ItemStack item) {
+        org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        meta.displayName(null);
+        meta.itemName(null);
+        meta.lore(null);
+        meta.setCustomModelData(null);
+        meta.setEnchantmentGlintOverride(null);
+        if (meta instanceof org.bukkit.inventory.meta.LeatherArmorMeta leather) leather.setColor(null);
+        if (meta instanceof org.bukkit.inventory.meta.ArmorMeta armor) armor.setTrim(null);
+        if (meta instanceof org.bukkit.inventory.meta.BannerMeta banner) banner.setPatterns(java.util.List.of());
+        item.setItemMeta(meta);
     }
 
     private static @Nullable ItemStack clone(@Nullable ItemStack item) {

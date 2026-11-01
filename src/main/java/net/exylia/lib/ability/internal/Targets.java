@@ -118,7 +118,7 @@ public final class Targets {
     /** {@code Attribute} stopped being an enum in 1.21; resolved once and guarded. */
     private static @Nullable Attribute maxHealthAttribute() {
         try {
-            return Attribute.MAX_HEALTH;
+            return net.exylia.lib.platform.Attributes.MAX_HEALTH;
         } catch (RuntimeException | LinkageError unavailable) {
             return null;
         }

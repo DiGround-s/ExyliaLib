@@ -113,10 +113,13 @@ Root classes that are not a module:
 
 - `net.exylia.lib.ExyliaLib` — the plugin itself; only lifecycle and cleanup.
 - `net.exylia.lib.platform.Platform` — `current()`, `isFolia()`, `isPaper()`.
+- [Server versions](server-versions.md) — running on 1.21.1 while compiling
+  against 1.21.4: `Features` probes, `Attributes`, `Constants`,
+  `@RequiresServer`, and the `check-compat.sh` bytecode check.
 - `net.exylia.lib.internal.LibrarySettings`, `internal.ExyliaLibUpdater` —
   internal, free to change without notice.
 - `net.exylia.lib.internal.MinimumVersion` — the minimum Minecraft version is
-  1.21.4. On an older server the lib still loads (nothing changes for whoever
+  1.21.1 on Paper and 1.21.4 on Folia (which has no 1.21.1 build). On an older server the lib still loads (nothing changes for whoever
   runs it) but logs a boxed console error at startup naming the detected
   version, because Exylia plugins will fail mid-game there with
   `NoSuchMethodError`. Versions compare number by number, so `26.x` counts as

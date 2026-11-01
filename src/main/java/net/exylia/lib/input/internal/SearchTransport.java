@@ -3,6 +3,7 @@ package net.exylia.lib.input.internal;
 import net.exylia.lib.input.InputOutcome;
 import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.SearchInput;
+import net.exylia.lib.platform.Features;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
@@ -19,7 +20,6 @@ import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.MenuType;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.view.AnvilView;
 import org.bukkit.plugin.Plugin;
@@ -474,13 +474,29 @@ public final class SearchTransport implements Transport {
      * view immediately, which would make search silently do nothing.
      */
     private void openAnvil(InputSession session, Player player, SearchView<?> view) {
-        AnvilView anvilView;
-        try {
-            anvilView = MenuType.ANVIL.builder()
-                    .title(Text.of(Phrases.tr("{primary}Search")).build())
-                    .checkReachable(false)
-                    .build(player);
-        } catch (Throwable unsupported) {
+        Component title = Text.of(Phrases.tr("{primary}Search")).build();
+        AnvilView anvilView = null;
+        boolean alreadyOpen = false;
+        if (Features.menuBuilders()) {
+            try {
+                anvilView = ModernAnvil.build(player, title);
+            } catch (Throwable unsupported) {
+                anvilView = null;
+            }
+        } else {
+            // 1.21.1 has no view builders. The older door opens the anvil at
+            // once, so the chest it replaces closes here, on purpose.
+            programmaticCloses.add(session.id());
+            try {
+                anvilView = legacyAnvil(player, title);
+                alreadyOpen = anvilView != null;
+            } catch (Throwable unsupported) {
+                anvilView = null;
+            } finally {
+                programmaticCloses.remove(session.id());
+            }
+        }
+        if (anvilView == null) {
             // No anvil menu on this server: stay on the chest rather than
             // stranding the player in a window that never opened.
             Text.of(Phrases.tr("{error}The search box is unavailable here.")).send(player);
@@ -496,7 +512,9 @@ public final class SearchTransport implements Transport {
             // disposable and is removed before any close; see clearAnvil.
             anvilView.getTopInventory().setItem(0, queryItem(view.query()));
             anvilView.setRepairCost(0);
-            player.openInventory(anvilView);
+            if (!alreadyOpen) {
+                player.openInventory(anvilView);
+            }
         } catch (Throwable failure) {
             anvils.remove(player.getUniqueId());
             clearAnvilSlots(anvilView);
@@ -504,6 +522,23 @@ public final class SearchTransport implements Transport {
         } finally {
             programmaticCloses.remove(session.id());
         }
+    }
+
+    /**
+     * The anvil on a server without {@code MenuType} builders (1.21.1).
+     *
+     * <p>Deprecated on newer servers, which take the builder instead, and the
+     * only portable way on older ones.
+     */
+    @SuppressWarnings({"deprecation", "removal"})
+    private static @Nullable AnvilView legacyAnvil(Player player, Component title) {
+        InventoryView opened = player.openAnvil(null, true);
+        if (!(opened instanceof AnvilView anvil)) {
+            return null;
+        }
+        anvil.setTitle(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacySection().serialize(title));
+        return anvil;
     }
 
     private void anvilClick(InventoryClickEvent event, Player player, AnvilQuery anvil) {

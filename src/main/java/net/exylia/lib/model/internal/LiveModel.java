@@ -26,7 +26,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
@@ -793,7 +792,7 @@ final class LiveModel implements ModelInstance {
 
     private static @Nullable AttributeInstance scaleOf(LivingEntity body) {
         try {
-            return body.getAttribute(Attribute.SCALE);
+            return net.exylia.lib.platform.Attributes.of(body, net.exylia.lib.platform.Attributes.SCALE);
         } catch (RuntimeException | LinkageError older) {
             return null;
         }
@@ -1465,7 +1464,7 @@ final class LiveModel implements ModelInstance {
 
     private static @Nullable AttributeInstance interactionRange(Player player) {
         try {
-            return player.getAttribute(Attribute.ENTITY_INTERACTION_RANGE);
+            return net.exylia.lib.platform.Attributes.of(player, net.exylia.lib.platform.Attributes.ENTITY_INTERACTION_RANGE);
         } catch (RuntimeException | LinkageError older) {
             return null;
         }

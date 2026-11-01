@@ -173,7 +173,11 @@ public final class RandomLocations {
         if (biome == null) {
             return false;
         }
-        org.bukkit.NamespacedKey key = biome.getKey();
+        // The registry, not biome.getKey(): an interface call 1.21.1 refuses.
+        org.bukkit.NamespacedKey key = org.bukkit.Registry.BIOME.getKey(biome);
+        if (key == null) {
+            return false;
+        }
         return area.blocks(key.getKey()) || area.blocks(key.toString().toLowerCase(Locale.ROOT));
     }
 

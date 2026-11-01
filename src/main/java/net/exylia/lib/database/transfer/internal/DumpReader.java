@@ -1,6 +1,5 @@
 package net.exylia.lib.database.transfer.internal;
 
-import com.google.gson.Strictness;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import org.jetbrains.annotations.NotNull;
@@ -297,7 +296,7 @@ final class DumpReader implements AutoCloseable {
 
     private static JsonReader reader(String text) {
         JsonReader json = new JsonReader(new StringReader(text));
-        json.setStrictness(Strictness.LENIENT);
+        setLenient(json);
         return json;
     }
 
@@ -402,5 +401,15 @@ final class DumpReader implements AutoCloseable {
      * @param rows  each in the order the header's layout for that table lists
      */
     record Batch(@NotNull String table, @NotNull List<List<Object>> rows) {
+    }
+
+    /**
+     * Lenient, in the call every supported gson has. {@code setStrictness}
+     * arrived in gson 2.11, and Paper 1.21.1 ships 2.10.1; on 2.11 and newer
+     * this is the same as {@code setStrictness(Strictness.LENIENT)}.
+     */
+    @SuppressWarnings("deprecation")
+    private static void setLenient(JsonReader json) {
+        json.setLenient(true);
     }
 }

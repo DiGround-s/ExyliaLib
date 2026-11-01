@@ -204,7 +204,7 @@ public final class Gradients {
             Style style = text.style();
             Style bare = style.color() == null ? style : style.color(null);
             TextComponent.Builder builder = Component.text()
-                    .style(bare != style && Shadows.supported() ? bare.shadowColor(null) : bare);
+                    .style(bare != style ? Shadows.withoutShadow(bare) : bare);
             text.content().codePoints().forEach(codePoint -> builder.append(
                     Component.text(new String(Character.toChars(codePoint)), colourAt.apply(cursor[0]++))));
             painted = builder.build();

@@ -39,7 +39,6 @@ import org.bukkit.Material;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -1879,8 +1878,8 @@ public final class MobEngine implements Listener {
 
     /** By registry key, never by field: the constants were renamed in 1.21.2. */
     private static @Nullable Attribute attribute(String key) {
-        NamespacedKey namespaced = NamespacedKey.fromString(key.toLowerCase(Locale.ROOT));
-        return namespaced == null ? null : Registry.ATTRIBUTE.get(namespaced);
+        // Either spelling: generic.max_health (before 1.21.2) or max_health.
+        return net.exylia.lib.platform.Attributes.byKey(key);
     }
 
     /** The same resolver {@link Effects} applies through, so a legacy name works here too. */

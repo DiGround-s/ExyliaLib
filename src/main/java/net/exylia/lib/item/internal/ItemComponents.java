@@ -45,6 +45,7 @@ import java.util.function.Supplier;
  * <p>Nothing here throws. A server that supports neither draws the item with
  * the flags alone and says so once.
  */
+@net.exylia.lib.platform.RequiresServer("1.21.4")
 final class ItemComponents implements ItemRenderer.Components {
 
     static final ItemRenderer.Components INSTANCE = new ItemComponents();

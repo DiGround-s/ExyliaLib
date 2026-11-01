@@ -265,7 +265,7 @@ public final class TraitApplier {
                                    Reporter problems) {
         if (!ComponentSupport.available()) {
             problems.found("force-consumable",
-                    "this server cannot make items edible; Paper 1.21 or newer is needed");
+                    "this server cannot make items edible; Minecraft 1.21.4 or newer is needed");
             return;
         }
         Key sound = soundKey(consumable.sound());

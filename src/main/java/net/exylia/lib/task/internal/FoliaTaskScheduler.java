@@ -33,6 +33,8 @@ import java.util.concurrent.TimeUnit;
  * <p>This class is only ever loaded after {@link net.exylia.lib.platform.Platform}
  * confirms Folia is present.
  */
+// Folia has no 1.21.1 build: its oldest 1.21 release is 1.21.4.
+@net.exylia.lib.platform.RequiresServer("1.21.4")
 public final class FoliaTaskScheduler extends AbstractTaskScheduler {
 
     private final GlobalRegionScheduler globalScheduler;

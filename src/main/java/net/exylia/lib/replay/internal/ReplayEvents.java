@@ -65,7 +65,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.StructureGrowEvent;
-import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
@@ -291,7 +290,7 @@ final class ReplayEvents implements Listener {
     private boolean charged(Player attacker) {
         Integer last = swungAt.get(attacker.getUniqueId());
         if (last == null) return true;
-        AttributeInstance speed = attacker.getAttribute(Attribute.ATTACK_SPEED);
+        AttributeInstance speed = net.exylia.lib.platform.Attributes.of(attacker, net.exylia.lib.platform.Attributes.ATTACK_SPEED);
         double perSecond = speed == null ? 4.0 : speed.getValue();
         double delay = perSecond <= 0 ? 0 : 20.0 / perSecond;
         // The client sends the hit before the swing that goes with it, so the
@@ -562,6 +561,7 @@ final class ReplayEvents implements Listener {
      * when it changed rather than every other tick in case it did. Kept apart
      * from {@link Recent}: a server without it still has those.
      */
+    @net.exylia.lib.platform.RequiresServer("1.21.4")
     static final class Equipment implements Listener {
 
         @EventHandler(priority = EventPriority.MONITOR)

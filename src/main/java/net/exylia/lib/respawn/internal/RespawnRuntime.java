@@ -229,11 +229,39 @@ public final class RespawnRuntime implements Listener {
         AWAITING_AFTER.remove(id);
     }
 
+    /** Whether the server has the unchecked read (1.21.4); older ones only have the checked one. */
+    private static final boolean UNCHECKED_RESPAWN = hasUncheckedRespawn();
+
+    private static boolean hasUncheckedRespawn() {
+        try {
+            Player.class.getMethod("getPotentialRespawnLocation");
+            return true;
+        } catch (NoSuchMethodException | LinkageError older) {
+            return false;
+        }
+    }
+
+    /**
+     * The stored respawn point. On a server without the unchecked read
+     * (1.21.1, Paper only: Folia starts at 1.21.4) the checked one is safe,
+     * since there is one main thread and the bed's block is on it.
+     */
+    private static @Nullable Location potentialRespawn(Player player) {
+        return UNCHECKED_RESPAWN ? Unchecked.of(player) : player.getRespawnLocation();
+    }
+
+    @net.exylia.lib.platform.RequiresServer("1.21.4")
+    private static final class Unchecked {
+        static Location of(Player player) {
+            return player.getPotentialRespawnLocation();
+        }
+    }
+
     private static void watch(Player player) {
         Location at = player.getLocation();
         // The stored point, unchecked: validating it reads the bed's block,
         // which on Folia may belong to another region's thread.
-        Location point = player.getPotentialRespawnLocation();
+        Location point = potentialRespawn(player);
         Pending pending = new Pending(at == null ? null : at.clone(), point, new AtomicBoolean());
         synchronized (RespawnRuntime.class) {
             PENDING.put(player.getUniqueId(), pending);

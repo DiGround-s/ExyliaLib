@@ -1282,9 +1282,10 @@ public final class Playback implements ReplayPlayback {
         });
     }
 
-    @SuppressWarnings({"deprecation", "removal"})
+    /** Asked of the registry: {@code sound.getKey()} is an interface call that 1.21.1 refuses. */
     private static String keyOf(org.bukkit.Sound sound) {
-        return sound.getKey().toString();
+        org.bukkit.NamespacedKey key = org.bukkit.Registry.SOUNDS.getKey(sound);
+        return key == null ? "minecraft:intentionally_empty" : key.toString();
     }
 
     /** The sound and the pieces of a batch of block changes, a few of them. */

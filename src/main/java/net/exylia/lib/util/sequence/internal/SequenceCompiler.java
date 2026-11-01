@@ -1027,8 +1027,8 @@ public final class SequenceCompiler {
     private @NotNull String soundKey(@NotNull String name, @NotNull String line) {
         String trimmed = name.trim();
         try {
-            Sound sound = Sound.valueOf(trimmed.toUpperCase(Locale.ROOT));
-            org.bukkit.NamespacedKey key = org.bukkit.Registry.SOUNDS.getKey(sound);
+            Sound sound = net.exylia.lib.platform.Constants.named(Sound.class, trimmed);
+            org.bukkit.NamespacedKey key = sound == null ? null : org.bukkit.Registry.SOUNDS.getKey(sound);
             if (key != null) {
                 return key.toString();
             }

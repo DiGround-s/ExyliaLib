@@ -1,5 +1,7 @@
 package net.exylia.lib.item.internal;
 
+import net.exylia.lib.platform.Features;
+
 import net.exylia.lib.item.Appearance;
 import net.exylia.lib.item.Item;
 import net.exylia.lib.item.Source;
@@ -512,7 +514,7 @@ public final class ItemRenderer {
      */
     private static ItemStack undescribed(ItemStack item, Appearance appearance) {
         if (!appearance.hideAttributes() || !describesItself(item.getType())
-                || components.hidesWhatATypeWrites()) {
+                || components.hidesWhatATypeWrites() || !Features.itemModel()) {
             return item;
         }
         ItemStack drawn = new ItemStack(Material.PAPER, item.getAmount());
@@ -526,7 +528,7 @@ public final class ItemRenderer {
         // The type's own model where the file named none, and where it named
         // one nobody can read — appearance() reports that, and an icon drawn as
         // a blank sheet of paper is worse than the block it was hiding.
-        meta.setItemModel(written == null ? item.getType().getKey() : written);
+        ModernMeta.itemModel(meta, written == null ? item.getType().getKey() : written);
         drawn.setItemMeta(meta);
         return drawn;
     }
@@ -780,8 +782,38 @@ public final class ItemRenderer {
         boolean hidesWhatATypeWrites();
     }
 
-    /** The real one, kept out of line so the class above stays loadable. */
-    private static Components components = ItemComponents.INSTANCE;
+    /**
+     * The real one, kept out of line so the class above stays loadable.
+     *
+     * <p>Without the data component API (1.21.1) the flags are all there is:
+     * on those versions {@code HIDE_ADDITIONAL_TOOLTIP} is still the flag that
+     * hides what a type writes, so nothing more is needed or possible.
+     */
+    private static Components components = Features.dataComponents()
+            ? ItemComponents.INSTANCE : FlagsOnly.INSTANCE;
+
+    /** The stand-in for servers without data components: the flags already did the work. */
+    private enum FlagsOnly implements Components {
+        INSTANCE;
+
+        @Override
+        public void hideAdditionalTooltip(ItemStack item, TraitApplier.Reporter problems) {
+        }
+
+        @Override
+        public boolean hidesWhatATypeWrites() {
+            return true;
+        }
+    }
+
+    /** Keys a file named that this server cannot draw, each reported once per server. */
+    private static final java.util.Set<String> UNSUPPORTED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static void unsupportedOnce(TraitApplier.Reporter problems, String where, String problem) {
+        if (UNSUPPORTED.add(where)) {
+            problems.found(where, problem);
+        }
+    }
 
     /** Swaps in a stand-in. Tests only; returns what was there before. */
     static Components components(Components replacement) {
@@ -851,8 +883,11 @@ public final class ItemRenderer {
             if (key == null) {
                 problems.found("item_model",
                         "\"" + appearance.model() + "\" is not a namespace:key");
+            } else if (Features.itemModel()) {
+                ModernMeta.itemModel(meta, key);
             } else {
-                meta.setItemModel(key);
+                unsupportedOnce(problems, "item_model", "item_model needs Minecraft 1.21.4 or newer;"
+                        + " ignored on this server (custom-model-data still works)");
             }
         }
         if (appearance.tooltipStyle() != null) {
@@ -860,8 +895,11 @@ public final class ItemRenderer {
             if (key == null) {
                 problems.found("tooltip_style",
                         "\"" + appearance.tooltipStyle() + "\" is not a namespace:key");
+            } else if (Features.tooltipStyle()) {
+                ModernMeta.tooltipStyle(meta, key);
             } else {
-                meta.setTooltipStyle(key);
+                unsupportedOnce(problems, "tooltip_style", "tooltip_style needs Minecraft 1.21.2 or newer;"
+                        + " ignored on this server");
             }
         }
     }

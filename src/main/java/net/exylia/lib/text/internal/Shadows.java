@@ -151,7 +151,7 @@ public final class Shadows {
             // One colour for the whole line: only the outermost style is set,
             // since the client inherits it down the tree, and a <shadow>
             // somebody wrote inside still wins where they wrote it.
-            return component.shadowColorIfAbsent(ShadowColor.shadowColor(spec.color()));
+            return Modern.shadowIfAbsent(component, spec.color());
         }
         return darken(component, spec.factor(), false);
     }
@@ -176,10 +176,10 @@ public final class Shadows {
      *               everything under it inherits and nothing here overrides
      */
     private static Component darken(Component component, float factor, boolean author) {
-        boolean own = component.shadowColor() != null;
+        boolean own = Modern.hasShadow(component);
         TextColor colour = component.color();
         Component out = !own && !author && colour != null
-                ? component.shadowColor(ShadowColor.shadowColor(scale(colour.value(), factor)))
+                ? Modern.shadow(component, scale(colour.value(), factor))
                 : component;
         boolean written = own || author;
         List<Component> children = out.children();
@@ -189,6 +189,43 @@ public final class Shadows {
             darkened.add(darken(child, factor, written));
         }
         return out.children(darkened);
+    }
+
+    /**
+     * The style without a shadow colour, on a server whose Adventure has one.
+     *
+     * @param style the style to clear
+     * @return the same style without its shadow, or unchanged where shadows do not exist
+     */
+    public static @NotNull net.kyori.adventure.text.format.Style withoutShadow(
+            @NotNull net.kyori.adventure.text.format.Style style) {
+        return AVAILABLE ? Modern.clear(style) : style;
+    }
+
+    /**
+     * Every call that names {@code ShadowColor}, behind {@link #AVAILABLE}.
+     *
+     * <p>A class of its own so that Shadows itself loads on a server whose
+     * Adventure predates shadows (Paper 1.21.1 ships 4.17).
+     */
+    @net.exylia.lib.platform.RequiresServer("1.21.4")
+    private static final class Modern {
+
+        static Component shadowIfAbsent(Component component, int argb) {
+            return component.shadowColorIfAbsent(ShadowColor.shadowColor(argb));
+        }
+
+        static boolean hasShadow(Component component) {
+            return component.shadowColor() != null;
+        }
+
+        static Component shadow(Component component, int argb) {
+            return component.shadowColor(ShadowColor.shadowColor(argb));
+        }
+
+        static net.kyori.adventure.text.format.Style clear(net.kyori.adventure.text.format.Style style) {
+            return style.shadowColor(null);
+        }
     }
 
     /** A colour with each channel scaled, opaque, as packed ARGB. */
