@@ -919,10 +919,16 @@ final class HologramImpl implements Hologram {
             // A shimmering line keeps being re-sent on every render, as it always was: its frames are
             // keyed on the shared display's text, which this viewer's skip must not second-guess.
             boolean diffed = sent != null && i < sent.length && !current[i].style().shimmers();
-            if (diffed && text.equals(sent[i])) {
+            boolean same = diffed && text.equals(sent[i]);
+            if (same && !paneled) {
                 continue;
             }
             current[i].text(componentFor(i, lines[i], text, viewer));
+            // A panel is fitted to every line's text for this viewer, so the state is
+            // still theirs; only the send is skipped.
+            if (same) {
+                continue;
+            }
             if (send && receivesText(uuid, i)) {
                 if (diffed) {
                     sent[i] = text;
