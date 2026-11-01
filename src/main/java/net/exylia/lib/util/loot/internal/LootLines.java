@@ -17,6 +17,7 @@ import java.util.function.BiConsumer;
  * DIAMOND_SWORD 1 1 5 RARE
  * SPLASH:HEALING 1 2 20
  * nexo:ruby_sword 1 1 2 EPIC
+ * bytes:AAAB... 1 1 10
  * }</pre>
  *
  * <p>Everything here is decided before an item is built, so the whole grammar —
@@ -34,6 +35,9 @@ public final class LootLines {
 
     /** How many tokens a line must have before the optional tier. */
     private static final int REQUIRED_TOKENS = 4;
+
+    /** The prefix of a serialised item, which is kept as written (Base64 is case-sensitive). */
+    private static final String BYTES = "bytes:";
 
     /**
      * Reads one line.
@@ -76,7 +80,14 @@ public final class LootLines {
         }
 
         String snapshot;
-        if (CustomItems.isCustom(parts[0])) {
+        if (parts[0].regionMatches(true, 0, BYTES, 0, BYTES.length())) {
+            // A whole item, as Loot.line writes one that carries a name, lore or enchantments.
+            snapshot = BYTES + parts[0].substring(BYTES.length());
+            if (items.build(snapshot) == null) {
+                problems.accept(written, "the stored item could not be read");
+                return null;
+            }
+        } else if (CustomItems.isCustom(parts[0])) {
             // Kept by id and built when it is rolled: ItemsAdder and Oraxen
             // load after the tables are read, and a stored copy would miss
             // every later change to the pack.
@@ -97,5 +108,40 @@ public final class LootLines {
                 .weight(weight)
                 .tier(parts.length > REQUIRED_TOKENS ? parts[REQUIRED_TOKENS].toUpperCase(Locale.ROOT) : null)
                 .build();
+    }
+
+    /**
+     * Writes an entry back in the grammar {@link #parse} reads.
+     *
+     * <p>A stored item that is nothing but its material is written as the
+     * material name, so a table saved from an editor stays readable; anything
+     * else is written as its {@code bytes:} snapshot. A weight is written
+     * without a trailing {@code .0}.
+     *
+     * @param entry the entry
+     * @param items how a stored item is read
+     * @return the line, or {@code null} for an entry the grammar cannot hold:
+     *         a command or money line, an item line with no item, or a head
+     * @since 1.433.0
+     */
+    public static @Nullable String write(@NotNull LootEntry entry, @NotNull LootItems items) {
+        String snapshot = entry.itemSnapshot();
+        if (!entry.isItem() || snapshot == null || snapshot.isBlank()) {
+            return null;
+        }
+        String token;
+        if (snapshot.regionMatches(true, 0, BYTES, 0, BYTES.length())) {
+            String plain = items.plainName(snapshot);
+            token = plain != null ? plain : snapshot;
+        } else if (CustomItems.isCustom(snapshot)
+                || items.of(snapshot.toUpperCase(Locale.ROOT)) != null) {
+            token = snapshot;
+        } else {
+            return null;
+        }
+        String weight = java.math.BigDecimal.valueOf(entry.weight()).stripTrailingZeros().toPlainString();
+        String line = token + " " + entry.minAmount() + " " + Math.max(entry.minAmount(), entry.maxAmount())
+                + " " + weight;
+        return entry.tier() == null || entry.tier().isBlank() ? line : line + " " + entry.tier();
     }
 }

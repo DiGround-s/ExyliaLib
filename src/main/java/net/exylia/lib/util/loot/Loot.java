@@ -181,6 +181,23 @@ public final class Loot {
         return LootLines.parse(line, LootItems.BUKKIT, problems);
     }
 
+    /**
+     * Writes an entry as a line {@link #parse} reads back: what an in-game
+     * editor saves into a config that holds its table as lines.
+     *
+     * <p>An item that is nothing but its material is written by name
+     * ({@code DIAMOND 1 2 50}); one with a name, lore or enchantments as its
+     * {@code bytes:} snapshot, which reads back as the same item.
+     *
+     * @param entry the entry
+     * @return the line, or {@code null} for a command or money line, an item
+     *         line with no item, or a head
+     * @since 1.433.0
+     */
+    public static @Nullable String line(@NotNull LootEntry entry) {
+        return LootLines.write(entry, LootItems.BUKKIT);
+    }
+
     // --------------------------------------------------------------- rolling
 
     /**

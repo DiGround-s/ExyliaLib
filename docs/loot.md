@@ -190,6 +190,8 @@ nexo:ruby_sword 1 1 2 EPIC
 
 - A resource-pack plugin's item (`nexo:`, `oraxen:`, `itemsadder:`/`ia:`,
   `craftengine:`/`ce:`) is kept by id and built when it is rolled (1.328.0).
+- A `bytes:` token is a whole item, kept exactly as written (1.433.0): what
+  `Loot.line` writes for an item with a name, lore or enchantments.
 
 - The material token also takes a potion: `POTION:`, `SPLASH:`, `LINGERING:`
   and `TIPPED:`, followed by a potion type. Both spellings of every renamed
@@ -204,6 +206,16 @@ nexo:ruby_sword 1 1 2 EPIC
 A line is refused when it has fewer than four tokens, when the amounts or the
 weight are not numbers, when an amount is zero or negative, when the range is
 the wrong way round, or when nothing on the server answers to the material.
+
+### Writing a line back (1.433.0)
+
+`Loot.line(entry)` is the other direction, for an in-game editor saving a table
+into a config that holds it as lines. An item that is nothing but its material
+is written by name (`DIAMOND 1 2 50`), anything with more as its `bytes:`
+snapshot; the weight has no trailing `.0`. It answers `null` for what the
+grammar cannot hold — a command or money line, an item line with no item, a
+head — so the caller decides whether to refuse the save or keep that row
+elsewhere.
 
 Pass a plugin's own reporter to hear about it:
 

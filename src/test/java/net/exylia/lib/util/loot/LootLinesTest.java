@@ -127,6 +127,52 @@ class LootLinesTest {
     }
 
     /** The item seam, without a registry: a token is an item if we say so. */
+    private String write(LootEntry entry) {
+        return net.exylia.lib.util.loot.internal.LootLines.write(entry, items);
+    }
+
+    @Test
+    @DisplayName("a bytes token is kept as written, case and all")
+    void bytesToken() {
+        LootEntry entry = parse("bytes:AbC+/= 1 2 10");
+
+        assertNotNull(entry);
+        assertEquals("bytes:AbC+/=", entry.itemSnapshot());
+        assertTrue(problems.isEmpty(), problems::toString);
+    }
+
+    @Test
+    @DisplayName("a bytes token nothing can read is skipped and reported")
+    void unreadableBytes() {
+        assertNull(parse("bytes:broken 1 1 10"));
+        assertEquals(1, problems.size(), problems::toString);
+    }
+
+    @Test
+    @DisplayName("writing a plain item gives its material name back, weight without .0")
+    void writePlain() {
+        assertEquals("DIAMOND 1 3 25.5", write(parse("DIAMOND 1 3 25.5")));
+        assertEquals("BREAD 2 2 100 RARE", write(parse("bread 2 2 100 rare")));
+    }
+
+    @Test
+    @DisplayName("an item that carries data is written whole and reads back the same")
+    void writeBytesRoundTrip() {
+        LootEntry entry = LootEntry.item("bytes:Custom9").minAmount(1).maxAmount(4).weight(12).build();
+
+        String line = write(entry);
+
+        assertEquals("bytes:Custom9 1 4 12", line);
+        assertEquals("bytes:Custom9", parse(line).itemSnapshot());
+    }
+
+    @Test
+    @DisplayName("lines the grammar cannot hold are not written")
+    void writeRefuses() {
+        assertNull(write(LootEntry.command("say hi").build()));
+        assertNull(write(LootEntry.item("playerhead-Notch").build()));
+    }
+
     private static final class Items implements LootItems {
 
         private static final Set<String> KNOWN = Set.of(
@@ -144,7 +190,13 @@ class LootLinesTest {
 
         @Override
         public ItemStack build(String snapshot) {
-            return new Named(snapshot);
+            return snapshot.equals("bytes:broken") ? null : new Named(snapshot);
+        }
+
+        @Override
+        public String plainName(String snapshot) {
+            String token = snapshot.substring("bytes:".length());
+            return KNOWN.contains(token) ? token : null;
         }
     }
 

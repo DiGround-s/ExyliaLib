@@ -56,6 +56,18 @@ public interface LootItems {
      */
     @Nullable ItemStack build(@NotNull String snapshot);
 
+    /**
+     * The material name a stored item can be written as, when the item is
+     * nothing but that material: no name, lore, enchantment or other data.
+     *
+     * @param snapshot the stored form
+     * @return the material name, or {@code null} when the item carries more
+     * @since 1.433.0
+     */
+    default @Nullable String plainName(@NotNull String snapshot) {
+        return null;
+    }
+
     /** The real one. */
     LootItems BUKKIT = new LootItems() {
 
@@ -109,6 +121,15 @@ public interface LootItems {
             // and a loot table that stores a head is drawn far more often than
             // it is rolled.
             return new ItemStack(Material.PLAYER_HEAD);
+        }
+
+        @Override
+        public @Nullable String plainName(@NotNull String snapshot) {
+            ItemStack item = build(snapshot);
+            if (item == null || item.getType() == Material.AIR) {
+                return null;
+            }
+            return item.isSimilar(new ItemStack(item.getType())) ? item.getType().name() : null;
         }
     };
 
