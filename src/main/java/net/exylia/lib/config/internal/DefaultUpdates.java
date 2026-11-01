@@ -88,7 +88,7 @@ public final class DefaultUpdates {
     public static void track(@NotNull Plugin plugin, @NotNull String file, @NotNull Path disk,
                              @NotNull Path reviewed, @NotNull String shipped,
                              @Nullable Runnable reloadFile, @NotNull List<Change> changes) {
-        String key = key(plugin.getName(), file);
+        String key = key(plugin.getName(), file, reviewed);
         Tracked previous = TRACKED.get(key);
         if (changes.isEmpty()) {
             TRACKED.remove(key);
@@ -108,7 +108,8 @@ public final class DefaultUpdates {
 
     /** Drops what a file has pending, for a file that was replaced outright. */
     public static void forget(@NotNull Plugin plugin, @NotNull String file) {
-        TRACKED.remove(key(plugin.getName(), file));
+        TRACKED.values().removeIf(tracked -> tracked.plugin().getName().equals(plugin.getName())
+                && tracked.file().equals(file));
     }
 
     /** Drops everything a plugin has pending, when it disables. */
@@ -292,7 +293,12 @@ public final class DefaultUpdates {
         return IDS.incrementAndGet();
     }
 
-    private static String key(String plugin, String file) {
-        return plugin + '/' + file;
+    /**
+     * One file can be followed twice, as a {@link net.exylia.lib.config.BundledFiles bundled} file and as
+     * a config read from a record (a spatial layout is both): each keeps its own reviewed defaults, so
+     * neither may replace what the other has pending.
+     */
+    private static String key(String plugin, String file, Path reviewed) {
+        return plugin + '/' + file + '\u0001' + reviewed;
     }
 }

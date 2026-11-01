@@ -531,6 +531,20 @@ final class MenuSession implements SpatialContext {
         return new Fitted(asWritten ? Text.verbatim(shown) : Text.component(shown), shown, scale);
     }
 
+    /** Body lines of a TEXT panel are fitted into 90 % of its width at the theme's text scale (see PanelPart). */
+    @Override
+    public @NotNull List<String> wrap(@NotNull String panel, @Nullable String text, int lines) {
+        SpatialLayout.Panel part = layout.panels().get(panel);
+        if (part == null) return SpatialContext.super.wrap(panel, text, lines);
+        boolean small = theme.smallCapsBody() && net.exylia.lib.text.internal.SmallText.enabled();
+        double away = board == null ? distance
+                : Geometry.panel(anchor.getWorld(), board, part.across(), part.up(), part.forward(), part.turn())
+                        .point(0, 0, 0).distance(eyes());
+        double floor = Geometry.readableScale(away, theme.minGlyphDegrees(),
+                small ? Geometry.SMALL_CAPITAL_PIXELS : Geometry.CAPITAL_PIXELS);
+        return Geometry.wrap(text, part.width() * 0.9 / Math.max(floor, theme.textScale()), lines);
+    }
+
     /** A fitted line centred on a point of a plane. */
     private @Nullable DisplayHandle text(Fitted line, StagePlane plane, Rotation rotation, double across, double up,
                                          double forward, boolean shadow, long delay) {
@@ -692,6 +706,10 @@ final class MenuSession implements SpatialContext {
 
     /** The gap between footers side by side. */
     private static final double FOOTER_GAP = 0.06;
+    /** A bare header at least this tall stacks its hint under its title instead of at its right end. */
+    private static final double STACKED_HEADER = 0.36;
+    /** The least room between a header's title and its hint at the right end. */
+    private static final double HEADER_GAP = 0.2;
 
     /** How many clicks UNDO can walk back. */
     private static final int UNDO_STEPS = 64;
@@ -799,15 +817,30 @@ final class MenuSession implements SpatialContext {
             boolean bare = content.type() == SpatialLayout.Content.Type.NONE;
             boolean titled = !panel.title().isBlank() && !bare;
             boolean hinted = !panel.hint().isBlank() && !bare;
-            if (bare) {
+            if (bare && h >= STACKED_HEADER && !panel.hint().isBlank()) {
+                // A header tall enough for two lines: its title, its hint centred under it.
+                double titleUp = panel.title().isBlank() ? 0 : h * 0.19;
+                double hintUp = panel.title().isBlank() ? 0 : -h * 0.2;
+                if (!panel.title().isBlank()) {
+                    labels.add(new Label(panel.title(), (title, at) -> write(title, false, plane, rotation, 0, titleUp, 0.012,
+                            w * 0.86, theme.titleScale() * 0.85, true, at), inner));
+                }
+                labels.add(new Label(panel.hint(), (hint, at) -> write(hint, true, plane, rotation, 0, hintUp, 0.012,
+                        w * 0.86, theme.smallScale(), false, at), inner));
+            } else if (bare) {
                 // A header: its title in the middle, its hint at the right end.
                 if (!panel.title().isBlank()) {
                     labels.add(new Label(panel.title(), (title, at) -> write(title, false, plane, rotation, 0, 0, 0.012,
                             w * 0.6, theme.titleScale(), true, at), inner));
                 }
                 if (!panel.hint().isBlank()) {
-                    labels.add(new Label(panel.hint(), (hint, at) -> writeTo(hint, true, plane, rotation, w / 2 - 0.12, 0,
-                            0.012, w * 0.2, theme.smallScale(), at), inner));
+                    // The hint has whatever the title leaves on its right, never less than a fifth of the bar.
+                    labels.add(new Label(panel.hint(), (hint, at) -> {
+                        double title = panel.title().isBlank() ? 0 : fit(fill(panel.title()), false, w * 0.6,
+                                theme.titleScale(), plane.point(0, 0, 0.012)).width();
+                        double room = Math.max(w * 0.2, w / 2 - 0.12 - title / 2 - HEADER_GAP);
+                        return writeTo(hint, true, plane, rotation, w / 2 - 0.12, 0, 0.012, room, theme.smallScale(), at);
+                    }, inner));
                 }
             } else {
                 if (titled) {

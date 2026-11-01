@@ -134,6 +134,22 @@ class BundledFilesTest {
     }
 
     @Test
+    void aFileRewrittenFromARecordIsStillOfferedItsChangedDefaults() throws Exception {
+        pack("bundled-record/spatial/menu.yml", "header:\n  at: [0, 1.98, 0]\n  size: [4.6, 0.34]\n");
+        assertTrue(refresh("bundled-record/spatial/menu.yml"));
+        // What a spatial layout looks like once its record has written it back: every number a double.
+        onDisk("bundled-record/spatial/menu.yml", "header:\n  at: [0.0, 1.98, 0.0]\n  size: [4.6, 0.34]\n");
+
+        pack("bundled-record/spatial/menu.yml", "header:\n  at: [0, 2.1, 0]\n  size: [2.7, 0.4]\n");
+        assertTrue(refresh("bundled-record/spatial/menu.yml"));
+        // The same file followed as a config, with nothing of its own pending, leaves those alone.
+        DefaultUpdates.track(plugin, "bundled-record/spatial/menu.yml", folder.resolve("bundled-record/spatial/menu.yml"),
+                folder.resolve(".defaults/configs/bundled-record/spatial/menu.yml"), "", null, List.of());
+
+        assertEquals(List.of("header.at", "header.size"), pendingKeys());
+    }
+
+    @Test
     void aFileFromBeforeTrackingIsOfferedWhatItLacks() throws Exception {
         pack("bundled-predates/main.yml", "cooldown: 30\nrange: 12\n");
         onDisk("bundled-predates/main.yml", "cooldown: 45\n");

@@ -151,9 +151,28 @@ public final class DefaultsMerge {
         }
     }
 
-    /** Whether two YAML values hold the same thing, sections compared by content. */
+    /**
+     * Whether two YAML values hold the same thing, sections compared by content and numbers by value: a
+     * file written from a record says {@code 0.0} where the shipped one says {@code 0}, which is no change.
+     */
     public static boolean same(@Nullable Object first, @Nullable Object second) {
-        return Objects.equals(plain(first), plain(second));
+        return Objects.equals(numbers(plain(first)), numbers(plain(second)));
+    }
+
+    /** A plain value with every number as a double, for comparing. */
+    private static @Nullable Object numbers(@Nullable Object value) {
+        if (value instanceof Number number) return number.doubleValue();
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, entry) -> copy.put(key, numbers(entry)));
+            return copy;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>(list.size());
+            list.forEach(entry -> copy.add(numbers(entry)));
+            return copy;
+        }
+        return value;
     }
 
     private static void walk(@Nullable ConfigurationSection disk, @Nullable ConfigurationSection reviewed,

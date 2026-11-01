@@ -285,7 +285,9 @@ the plugin's data folder, and compares them on each load:
 - **A new key** is added, as it always was.
 - **A changed or removed default** on a key still at its reviewed value is left
   as it is and listed in `/exylialib updates`.
-- **A value the owner changed** is theirs and is never listed.
+- **A value the owner changed** is theirs and is never listed. Numbers compare by
+  value (since 1.441.0): a file written back from a record says `0.0` where the
+  shipped one says `0`, and that is no change of the owner's.
 
 For a player, `/exylialib updates` opens a menu: plugins, then their files,
 then each change with the current value and the new default in its lore. Left

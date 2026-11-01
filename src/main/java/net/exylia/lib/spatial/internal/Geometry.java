@@ -158,6 +158,46 @@ public final class Geometry {
         return out.append('…').toString();
     }
 
+    /**
+     * Prose broken into at most {@code lines} lines whose visible letters fit {@code width} blocks at
+     * scale 1, word by word. Breaks already in the text are kept while it fits that way; otherwise it
+     * flows as one paragraph (breaks written for a wider lore waste a short panel's lines). What still
+     * does not fit stays on the last line, for the line's own fitting to cut with an ellipsis. Markup
+     * takes no room.
+     */
+    public static List<String> wrap(String raw, double width, int lines) {
+        if (raw == null || raw.isBlank() || lines <= 0) return new ArrayList<>();
+        List<String> paragraphs = net.exylia.lib.text.Lines.split(raw);
+        List<String> kept = wrap(paragraphs, width, lines);
+        if (paragraphs.size() < 2 || visibleWidth(kept.get(kept.size() - 1)) <= width) return kept;
+        return wrap(List.of(String.join(" ", paragraphs)), width, lines);
+    }
+
+    private static List<String> wrap(List<String> paragraphs, double width, int lines) {
+        List<String> out = new ArrayList<>();
+        for (String paragraph : paragraphs) {
+            if (paragraph.isBlank()) continue;
+            StringBuilder line = new StringBuilder();
+            for (String word : paragraph.trim().split("\\s+")) {
+                String longer = line.isEmpty() ? word : line + " " + word;
+                if (!line.isEmpty() && visibleWidth(longer) > width && out.size() < lines - 1) {
+                    out.add(line.toString());
+                    line.setLength(0);
+                    line.append(word);
+                } else {
+                    line.setLength(0);
+                    line.append(longer);
+                }
+            }
+            if (out.size() < lines) {
+                out.add(line.toString());
+            } else {
+                out.set(lines - 1, out.get(lines - 1) + " " + line);
+            }
+        }
+        return out;
+    }
+
     /** How wide a line's visible letters are at scale 1, its markup left out. */
     public static double visibleWidth(String raw) {
         StringBuilder plain = new StringBuilder();

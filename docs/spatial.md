@@ -46,7 +46,9 @@ it costs nothing) passes a class packaged with the layout:
 `menus.register("trims", MyPlugin.class, menu -> ...)` (since 1.408.0). The file
 is then installed and kept up to date through [BundledFiles](config.md), the
 way `Languages` reads lang files: written when missing, new keys added, changed
-defaults offered in `/exylialib updates`.
+defaults offered in `/exylialib updates`. Before 1.441.0 those offers never showed for a layout: the file
+is also read as a record, whose own (empty) review replaced them, and its record-written `0.0`
+counted as the owner's change of a shipped `0`.
 
 Since 1.413.0 the anchored `register` looks for the jar's layout through
 `getResourceAsStream`, the only call Lukittu's in-memory loader answers.
@@ -144,7 +146,7 @@ Since 1.408.0; a layout written before keeps its own values.
 
 | Where | What it draws |
 | --- | --- |
-| Panel | Glass, a darker backing sheet, the accent bar along its top, its `title` (bold, shadowed, fitted) and `hint`. A panel with `type: NONE` is a header: title in the middle, hint at its right end |
+| Panel | Glass, a darker backing sheet, the accent bar along its top, its `title` (bold, shadowed, fitted) and `hint`. A panel with `type: NONE` is a header: title in the middle, hint at its right end (since 1.441.0 in all the room the title leaves); one 0.36 or taller (since 1.441.0) stacks the hint centred under the title, so a header narrowed to the gap between upper side panels keeps both whole |
 | `TEXT` | `lines`, centred; `%key%` from the menu's state and `values(...)`; drawn again, fitted, when they read something else |
 | `LIST` | `rows` rows of icon, name and state line; the row under the crosshair lights with a bar, the chosen one carries a `{highlight}` marker that glides between rows |
 | `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid, followed by its price or `locked-line` when it is `LOCKED` |
@@ -226,6 +228,18 @@ theme:
 
 No second hook: `values` already runs per viewer on every redraw. An entry's
 own `price` still wins over `locked-line`.
+
+Prose spread over several TEXT lines (a description in `%description_1%` ..
+`%description_3%`) is broken with `ctx.wrap(panel, text, lines)` (since
+1.441.0): word by word, at the width a body line of that panel really has from
+the eyes (90 % of the panel, the theme's `text-scale`, never under
+`min-glyph-degrees`). Each line then fits whole instead of being cut with an
+ellipsis; only what overflows the last line is cut.
+
+```java
+List<String> lines = ctx.wrap("info", effect.description(), 3);
+for (int i = 0; i < 3; i++) values.put("description_" + (i + 1), i < lines.size() ? lines.get(i) : "");
+```
 
 A placed spot's hologram (`spot-lines`, `%title%` the layout's `title`) has no
 open menu to read `values` from: each viewer gets their own copy, so a
@@ -486,7 +500,7 @@ the rest and redraws with what the player owns now. A part nobody sells (no
 | `%catalog_status%` | `status-saved` / `status-unsaved` / `status-buy` / `status-confirm` / `status-locked`, with `%name%` (the offer tried), `%price%` (the total), `%count%` (parts to buy), `%part%` (the part not for sale) |
 | `%catalog_revert%`, `%catalog_unequip%` | Their label while there is something to undo or take off; blank otherwise, so a `BUTTONS` column closes up |
 | `%catalog_favourite%` | `favourite` / `unfavourite` for the offer looked at; blank when none |
-| `%catalog_filter%` | `filter` with `%category%` (`filter-all`, `filter-favourites` or the category's name) |
+| `%catalog_filter%` | `filter` with `%category%` (`filter-all`, `filter-favourites` or the category's name). It is a footer button: since 1.441.0 the default is the name alone (`{info}%category%`), so it fits |
 | `%catalog_crate%` | `crate` with `%keys%`; blank without crates |
 | `%catalog_total%`, `%catalog_name%` | The basket's total; the chosen offer's name |
 
@@ -804,7 +818,7 @@ admin alone.
   `releaseAll` in `onDisable`.
 - Tests: `spatial/internal/GeometryTest` (turned panels facing the eyes, hits on a
   turned panel, the carousel's symmetry, gap and curve, pagination, diffs, glass
-  sizing, footers side by side), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
+  sizing, footers side by side, prose wrapped into a panel's lines), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
   cell picking and the gap, hover reported once, wheel wrap, custom pickers from
   state, refused cells falling through, hotspots that do not hover, press guards),
   `spatial/internal/ReadabilityTest` (the floor's angle, the default theme readable

@@ -70,6 +70,24 @@ public interface SpatialContext {
     /** Closes the menu, deflating it. */
     void close();
 
+    /**
+     * Prose broken into at most {@code lines} TEXT lines of {@code panel}, word by word, at the width a
+     * body line of that panel really has from the viewer's eyes: give each line its own
+     * {@code %placeholder%} and the words wrap instead of being cut. Breaks already in the text are
+     * kept; what does not fit stays on the last line, which is cut with an ellipsis. An unknown panel
+     * gives the text's own lines.
+     *
+     * <pre>{@code
+     * List<String> lines = ctx.wrap("info", effect.description(), 3);   // %description_1% .. %description_3%
+     * }</pre>
+     *
+     * @since 1.441.0
+     */
+    default @NotNull java.util.List<String> wrap(@NotNull String panel, @Nullable String text, int lines) {
+        java.util.List<String> split = net.exylia.lib.text.Lines.split(text).stream().filter(l -> !l.isBlank()).toList();
+        return split.size() > lines ? split.subList(0, Math.max(0, lines)) : split;
+    }
+
     // ── Drafts (since 1.414.0) ────────────────────────────────────────────
 
     /**

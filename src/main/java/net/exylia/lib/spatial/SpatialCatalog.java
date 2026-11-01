@@ -185,7 +185,7 @@ public final class SpatialCatalog {
             @Comment("The favourite button, for the entry tried or looked at.")
             @Key("favourite") String favourite,
             @Key("unfavourite") String unfavourite,
-            @Comment("The filter button. %category% is the open filter's name.")
+            @Comment("The filter button. %category% is the open filter's name; the button is narrow, so keep it to that.")
             @Key("filter") String filter,
             @Key("filter-all") String filterAll,
             @Key("filter-favourites") String filterFavourites,
@@ -203,7 +203,7 @@ public final class SpatialCatalog {
                     "{error}✘ %part% {muted}is not for sale",
                     "{info}&l↺ REVERT", "{error}&l✘ UNEQUIP",
                     "{highlight}&l☆ FAVOURITE", "{highlight}&l★ FAVOURITE",
-                    "{letters_black}« {info}%category% {letters_black}»", "All", "Favourites",
+                    "{info}%category%", "All", "Favourites",
                     "{primary}&lCRATE {letters_black}» {highlight}%keys%",
                     "{warning}%price%");
         }

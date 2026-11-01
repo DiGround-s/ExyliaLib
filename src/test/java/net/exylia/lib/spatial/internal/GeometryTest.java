@@ -146,4 +146,24 @@ class GeometryTest {
         assertEquals(0.0, three[1], 1e-9, "the middle of three is centred");
         assertEquals(0, Geometry.row(1.35, 0, 0.06).length);
     }
+
+    @Test
+    void proseWrapsWordByWordIntoItsRoom() {
+        String text = "They dance for the crowd until the very last song of the night";
+        List<String> lines = Geometry.wrap(text, 2.5, 3);
+        assertTrue(lines.size() > 1, "a long line is broken: " + lines);
+        for (int i = 0; i < lines.size() - 1; i++) {
+            assertTrue(Geometry.visibleWidth(lines.get(i)) <= 2.5, "line " + i + " fits: " + lines.get(i));
+        }
+        assertEquals(text, String.join(" ", lines), "no word is lost or cut");
+        List<String> two = Geometry.wrap(text, 1.0, 2);
+        assertEquals(2, two.size(), "never more lines than asked");
+        assertEquals(text, String.join(" ", two), "the rest stays on the last line, for the ellipsis");
+        assertEquals(List.of("{info}Short", "Next"), Geometry.wrap("{info}Short\nNext", 9, 3), "breaks kept, markup free");
+        assertTrue(Geometry.wrap("  ", 3, 3).isEmpty());
+        List<String> flowed = Geometry.wrap("A bottle raised to whoever is\nthere, and a long drink", 3.6, 3);
+        assertEquals("A bottle raised to whoever is there, and a long drink", String.join(" ", flowed),
+                "breaks that would overflow give way to one flowing paragraph");
+        assertTrue(Geometry.visibleWidth(flowed.get(flowed.size() - 1)) <= 3.6, "and then it fits: " + flowed);
+    }
 }
