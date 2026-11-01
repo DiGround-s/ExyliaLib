@@ -186,7 +186,7 @@ final class Masks implements BlockMasks {
             boolean saw = revealed != null && revealed.remove(packed);
             if (!saw && restore && distanceSquared(viewer.getLocation(), x, y, z) <= viewRange()) restoring.add(viewer);
         }
-        if (!restoring.isEmpty()) sendReal(plugin, restoring, new Location(world, x, y, z));
+        if (!restoring.isEmpty()) sendReal(restoring, List.of(new Location(world, x, y, z)));
     }
 
     // ---- who is near ----
@@ -271,7 +271,7 @@ final class Masks implements BlockMasks {
                         if (reveal == null) reveal = new ArrayList<>();
                         reveal.add(new Location(world, x, y, z));
                     }
-                    if (reveal != null) sendReal(lib, List.of(viewer), reveal);
+                    if (reveal != null) sendReal(List.of(viewer), reveal);
                 }
             }
         }
@@ -283,13 +283,15 @@ final class Masks implements BlockMasks {
         SectionGroups.group(blocks.keySet()).forEach((section, positions) -> out.blocks(viewer, section, positions, blocks));
     }
 
-    private static void sendReal(Plugin owner, List<Player> viewers, Location at) {
-        sendReal(owner, viewers, List.of(at));
-    }
-
-    /** Sends blocks of one chunk as they are, with their block entities, read on the chunk's own region. */
-    private static void sendReal(Plugin owner, List<Player> viewers, List<Location> blocks) {
-        Tasks.of(owner).runAtLocation(blocks.getFirst(), () -> {
+    /**
+     * Sends blocks of one chunk as they are, with their block entities, read on the chunk's own region.
+     * Run by the library, which outlives the plugin unmasking on its way out; nothing is sent while the
+     * library itself is going down.
+     */
+    private static void sendReal(List<Player> viewers, List<Location> blocks) {
+        Plugin lib = PacketRuntime.lib();
+        if (lib == null || !lib.isEnabled()) return;
+        Tasks.of(lib).runAtLocation(blocks.getFirst(), () -> {
             for (Location at : blocks) {
                 Block block = at.getBlock();
                 BlockData data = block.getBlockData();
