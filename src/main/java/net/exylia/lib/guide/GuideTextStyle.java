@@ -42,12 +42,12 @@ public record GuideTextStyle(int background, int opacity, boolean shadow, int li
 
     /**
      * A panel ahead of the eyes: two and a half blocks out, a little low,
-     * small, on a dark panel, out of the way while the player runs or fights.
+     * small, with no panel, out of the way while the player runs or fights.
      *
      * @return the companion defaults
      */
     public static @NotNull GuideTextStyle companion() {
-        return new GuideTextStyle(0x78000000, 255, true, 220, 0.55f, false, 2.5, 0.35, 7.5, true,
+        return new GuideTextStyle(0, 255, true, 220, 0.55f, false, 2.5, 0.35, 7.5, true,
                 false, 1f);
     }
 
@@ -58,7 +58,7 @@ public record GuideTextStyle(int background, int opacity, boolean shadow, int li
      * @return the anchored defaults
      */
     public static @NotNull GuideTextStyle anchored() {
-        return new GuideTextStyle(0x78000000, 255, true, 220, 1f, false, 2.5, 0, 0, false, true, 4f);
+        return new GuideTextStyle(0, 255, true, 220, 1f, false, 2.5, 0, 0, false, true, 4f);
     }
 
     /**

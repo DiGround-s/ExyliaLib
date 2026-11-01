@@ -49,7 +49,7 @@ public final class StageGuide {
     /** One pixel of text at scale 1, in blocks; the font's glyphs are a pixel narrower than bold ones. */
     private static final double PIXEL = 0.025;
     private static final double ICON = 1.7;
-    private static final int BACKDROP = 0x70000000;
+    private static final int BACKDROP = 0;
 
     private final List<Stage> sides = new ArrayList<>(2);
 
@@ -100,7 +100,7 @@ public final class StageGuide {
     }
 
     /**
-     * A title over one block of lines against a dark backdrop, centred on the panel. Rows with an item
+     * A title over one block of lines centred on the panel. Rows with an item
      * are spaced a line apart, the item drawn left of its line.
      */
     private static void page(Stage view, Look look, @Nullable Component title, List<Row> rows) {

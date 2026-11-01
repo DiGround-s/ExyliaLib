@@ -37,14 +37,14 @@ public record ViewTextStyle(int background, int opacity, boolean shadow, int lin
     }
 
     /**
-     * A cinematic subtitle for normal play: small, on a translucent panel,
+     * A cinematic subtitle for normal play: small, with no panel behind it,
      * centred, its bottom edge a quarter of the way up the screen so it clears
      * the hotbar, hearts, hunger and experience bar at any GUI scale.
      *
      * @return the subtitle defaults
      */
     public static @NotNull ViewTextStyle subtitle() {
-        return new ViewTextStyle(0x70000000, 255, true, 300, 0.2f, 0.25f, true);
+        return new ViewTextStyle(0, 255, true, 300, 0.2f, 0.25f, true);
     }
 
     /**

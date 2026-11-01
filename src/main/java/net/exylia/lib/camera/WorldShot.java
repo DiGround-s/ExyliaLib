@@ -266,8 +266,8 @@ public final class WorldShot {
     public record TextStyle(int background, boolean shadow, int lineWidth, double scale, boolean seeThrough,
                             double gap) {
 
-        /** How subtitles were always drawn: a translucent black panel, a shadow, 360 pixels wide. */
-        public static final TextStyle SUBTITLE = new TextStyle(0x70000000, true, 360, 1, false, 0.011);
+        /** The default subtitle: no panel (since 1.437.0), a shadow, 360 pixels wide. */
+        public static final TextStyle SUBTITLE = new TextStyle(0, true, 360, 1, false, 0.011);
         /** Title cards: no panel, a shadow. */
         public static final TextStyle TITLE = new TextStyle(0, true, 160, 1, false, 0.011);
 

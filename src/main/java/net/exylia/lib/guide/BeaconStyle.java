@@ -35,12 +35,12 @@ public record BeaconStyle(@NotNull BlockData beam, int colour, double height, do
                           @NotNull GuideTextStyle label) {
 
     /**
-     * The label as it has always been drawn: a light dark panel, hidden by
+     * The default label: no panel (since 1.437.0), hidden by
      * terrain, growing with distance up to eight times its size.
      *
      * @since 1.393.0
      */
-    public static final GuideTextStyle DEFAULT_LABEL = GuideTextStyle.anchored().background(0x60000000)
+    public static final GuideTextStyle DEFAULT_LABEL = GuideTextStyle.anchored()
             .growWithDistance(true, 8f);
 
     /** Keeps the numbers inside what reads as a beacon. */

@@ -81,7 +81,7 @@ more lines.
 
 | Field | Copy | Default |
 | --- | --- | --- |
-| `background` (ARGB, `0` none) | `background(argb)` | `0x70000000` |
+| `background` (ARGB, `0` none) | `background(argb)` | `0` |
 | `opacity` (0-255) | `opacity(alpha)` | 255 |
 | `shadow` | `shadow(on)` | true |
 | `lineWidth` (pixels) | `lineWidth(px)` | 300 |
@@ -134,7 +134,7 @@ starting points, and each field has a `with`-style copy:
 
 | Field | Copy | Companion | Anchored |
 | --- | --- | --- | --- |
-| `background` (ARGB, `0` none) | `background(argb)` | `0x78000000` | `0x78000000` |
+| `background` (ARGB, `0` none) | `background(argb)` | `0` | `0` |
 | `opacity` (0-255) | `opacity(alpha)` | 255 | 255 |
 | `shadow` | `shadow(on)` | true | true |
 | `lineWidth` (pixels) | `lineWidth(px)` | 220 | 220 |
@@ -205,7 +205,7 @@ companion text instead.
 | `labelHeight` | 2.8 |
 | `markerDistance` | 30 |
 | `farDistance` | 0 (automatic) |
-| `label` | `DEFAULT_LABEL`: anchored, background `0x60000000`, not see-through, grows up to 8 |
+| `label` | `DEFAULT_LABEL`: anchored, no background, not see-through, grows up to 8 |
 
 ## Trails
 

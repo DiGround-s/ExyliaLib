@@ -278,8 +278,14 @@ final class GuidePackets extends PacketListenerAbstract {
                 index == ids.length ? ids : java.util.Arrays.copyOf(ids, index)));
     }
 
-    /** How far ahead of the eyes a view text floats: the same depth as a cinematic subtitle. */
-    static final float VIEW_DISTANCE = 0.95f;
+    /**
+     * How far ahead of the eyes a view text floats. Far on purpose: the client's
+     * view bobbing shifts the camera up to a tenth of a block while walking, which
+     * a panel a block away shows as a bounce of several degrees; at sixteen it is
+     * a third of a degree. The text is see-through and scaled with the distance,
+     * so it looks the same.
+     */
+    static final float VIEW_DISTANCE = 16f;
 
     /** Moves a view text within the view, over {@code ticks}. */
     static void viewTranslate(Player viewer, int id, float[] translation, int ticks) {

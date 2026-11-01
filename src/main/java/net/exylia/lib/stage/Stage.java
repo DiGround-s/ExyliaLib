@@ -396,7 +396,7 @@ public class Stage implements CardSprite.Canvas {
             header.text(lines);
             return;
         }
-        header = show(textModel(lines).background(0x60000000).lineWidth(260),
+        header = show(textModel(lines).background(0).lineWidth(260),
                 StageLook.still(facing, 0.8, 0.8, 0.8, life), plane.point(0, up, 0));
     }
 
@@ -413,7 +413,7 @@ public class Stage implements CardSprite.Canvas {
         headingUp = up;
         this.title = show(textModel(title).background(0).lineWidth(1000), StageLook.pop(facing, 0.75, 0.75, 0.75, 0, life),
                 plane.point(0, up + 0.16, 0.02));
-        info = show(textModel(figures).background(0x50000000).lineWidth(1000),
+        info = show(textModel(figures).background(0).lineWidth(1000),
                 StageLook.pop(facing, 0.55, 0.55, 0.55, 120, life), plane.point(0, up, 0.02));
     }
 
