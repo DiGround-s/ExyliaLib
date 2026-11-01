@@ -21,6 +21,15 @@ class PermissionNumbersTest {
         assertEquals(5, PermissionNumbers.lowest(player, "p.other.", 5));
     }
 
+    @Test
+    void limitIsTheHighestTierOrUnlimited() {
+        assertEquals(10, PermissionNumbers.limit(holding(Map.of("p.limit.5", true, "p.limit.10", true)), "p.limit.", 2));
+        assertEquals(2, PermissionNumbers.limit(holding(Map.of("p.limit.50", false)), "p.limit.", 2));
+        assertEquals(PermissionNumbers.UNLIMITED, PermissionNumbers.limit(holding(Map.of("p.limit.5", true, "p.limit.unlimited", true)), "p.limit.", 2));
+        assertEquals(PermissionNumbers.UNLIMITED, PermissionNumbers.limit(holding(Map.of("P.LIMIT.*", true)), "p.limit.", 2));
+        assertEquals(2, PermissionNumbers.limit(holding(Map.of("p.limit.unlimited", false)), "p.limit.", 2));
+    }
+
     private static Permissible holding(Map<String, Boolean> nodes) {
         Permissible[] self = new Permissible[1];
         self[0] = (Permissible) Proxy.newProxyInstance(Permissible.class.getClassLoader(), new Class<?>[]{Permissible.class},

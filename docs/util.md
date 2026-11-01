@@ -399,6 +399,18 @@ that owns the player.
 where less is the perk, such as a cooldown, a warmup or a tax:
 `PermissionNumbers.lowest(player, "myplugin.cooldown.", settings.cooldownSeconds())`.
 
+`limit(player, prefix, fallback)` (since 1.432.0) is the read for a cap granted
+in tiers (`myplugin.limit.5`, `myplugin.limit.10`): the highest number, or
+`PermissionNumbers.UNLIMITED` (`Integer.MAX_VALUE`) when the player holds a node
+ending in `unlimited` or `*`. Compare with `count < limit` and unlimited needs
+no special case. Only nodes the player holds count, so an operator is capped
+too unless the plugin declares `<prefix>unlimited` with `default: op`.
+
+```java
+int cap = PermissionNumbers.limit(player, "exyliaspawners.limit.", settings.defaultLimit());
+if (owned >= cap) refuse();
+```
+
 ## PlayerStates — god mode and vanish kept by other plugins
 
 *Since 1.332.0.*
@@ -537,12 +549,22 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
 | `price(level)` | the cost formula with `%level%` = the level being bought and `%max%`; two decimals, never negative; zero outside `1..max` or unreadable |
 | `effect(level)` | the effect formula at the level owned (0 included), clamped to `0..max`; 0 when unreadable |
 | `check(owned, progress)` | `Check(state, next, price, requirement, needed)`; requirements checked in map order, the first one short is named |
-| `problems()` | what does not read, for a load-time warning |
+| `Upgrade(id, maxLevel, cost, currency, effect, requirements, permission, levels)` | the full record (1.432.0): `permission` is needed for every level, blank for none; `levels` overrides single levels by number; a written level above `maxLevel` raises it, a key that is no number is dropped |
+| `Upgrade.Level(cost, currency, permission, requirements, values)` | one level written on its own; blank text and empty maps inherit the track; `requirements` are added to the track's; `values` are named numbers (`radius-bonus`, `max-members`) |
+| `level(n)`, `currency(n)`, `permission(n)`, `requirements(n)` | what level `n` uses once its overrides are applied; `price(n)` uses the level's own cost formula when it writes one |
+| `value(level, name, fallback)` | the named value at the level owned, or at the closest level below that writes it; `fallback` before any |
+| `check(owned, progress, permitted)` | as `check`, then the level's permission: missing is `LOCKED` with `requirement = Upgrade.PERMISSION` (`"permission"`), `needed = 0`. The two-argument `check` ignores permissions |
+| `problems()` | what does not read, for a load-time warning, per-level costs included |
 | `Upgrades.buy(uuid, upgrade, owned, progress, store)` | `CompletableFuture<Purchase>`, never exceptional; `store` gets the level bought, once, before the guard opens (1.384.0). The overload without `store` leaves storing to the caller and is open to a double charge |
+| `Upgrades.buy(player, upgrade, owned, progress, store)` | the online-player overload (1.432.0): permissions read with `player.hasPermission` on the calling thread, which must be the player's |
+| `Upgrades.price(upgrade, level)` | the level's price through `Economy.format` in its own currency |
+| `Upgrades.placeholders(upgrade, owned, check)` | plain values for a menu card: `level`, `max_level`, `next_level`, `price` (empty when maxed), `currency`, `effect`, `next_effect`, `state` (`maxed`/`locked`/`ready`), `requirement`, `needed`. Labels like "Maxed" or "Free" stay the plugin's messages |
 | `Purchase` | `outcome` (`BOUGHT`, `MAXED`, `LOCKED`, `INSUFFICIENT_FUNDS` with `shortfall`, `BUSY`, `FAILED`), `level`, `price`, `requirement`, `needed`, `response` |
 
-- **Charged through `Economy.of(currency).withdrawLater`**, so a purchase works
-  from any thread and in every currency, items and experience included. The
+- **Charged through `Economy.of(currency).withdrawLater`**, in the currency of
+  the level being bought, so a purchase works from any thread and in every
+  currency, items and experience included: an item price is a registered
+  `ItemCurrency` id. The
   transaction reason is `upgrade:<id>`. A free level is bought without a charge.
 - **One purchase at a time per player and upgrade id**: a second click while the
   charge is under way answers `BUSY`. The library stores no levels; the plugin
@@ -552,12 +574,29 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
   answers the player's value of each one.
 - Formulas are `Expressions`: no placeholders other than `%level%` and `%max%`,
   so nothing touches PlaceholderAPI and every call is pure.
+- **Written as config** (1.432.0), a track mixes formulas and levels written
+  one by one, so a plugin whose levels are a hand-written table (cost, a
+  permission and a few limits per level) and one whose levels are a curve read
+  the same record:
+
+  ```yaml
+  speed:
+    id: speed
+    max-level: 5
+    cost: '1000 * %level%'
+    currency: coins
+    effect: '%level%'
+    requirements: {}
+    permission: ''
+    levels:
+      '5': { cost: '64', currency: diamonds, permission: 'myplugin.speed.max', requirements: {}, values: { delay: 100 } }
+  ```
 
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java`, `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
-- Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
+  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java` (and `util/BuildZones.java`, on its [own page](build-zones.md)), `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
+- Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/internal/ClaimHooks.java` (their hook cache, shared with `ClaimBuild`), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `ConditionTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).

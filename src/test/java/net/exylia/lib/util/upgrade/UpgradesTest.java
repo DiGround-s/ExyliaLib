@@ -154,4 +154,75 @@ class UpgradesTest {
         assertTrue(first.join().bought());
         assertEquals(1, stored[0]);
     }
+
+    /** Speed: formulas in coins, level 3 costs diamonds and a permission, level 4 written only as a list entry. */
+    private static Upgrade speed() {
+        Map<String, Upgrade.Level> levels = new LinkedHashMap<>();
+        levels.put("3", new Upgrade.Level("64", "diamonds", "p.speed.3", Map.of("prestige", 2), Map.of("delay", 300.0)));
+        levels.put("1", new Upgrade.Level("", "", "", Map.of(), Map.of("delay", 500.0)));
+        levels.put("4", new Upgrade.Level());
+        levels.put("nope", new Upgrade.Level());
+        return new Upgrade("speed", 2, "1000 * %level%", "coins", "%level%", Map.of("level", 1), "p.speed", levels);
+    }
+
+    @Test
+    void levelsOverrideTheTrackOneByOne() {
+        Upgrade speed = speed();
+        assertEquals(4, speed.maxLevel(), "the highest written level raises the max; a key that is no number is dropped");
+        assertEquals(0, new BigDecimal("2000").compareTo(speed.price(2)));
+        assertEquals(0, new BigDecimal("64").compareTo(speed.price(3)));
+        assertEquals("coins", speed.currency(2));
+        assertEquals("diamonds", speed.currency(3));
+        assertEquals("p.speed", speed.permission(1));
+        assertEquals("p.speed.3", speed.permission(3));
+        assertEquals(Map.of("level", 1, "prestige", 2), speed.requirements(3));
+        assertEquals(800, speed.value(0, "delay", 800));
+        assertEquals(500, speed.value(2, "delay", 800), "level 2 writes none: level 1's holds");
+        assertEquals(300, speed.value(9, "delay", 800));
+        assertTrue(speed.problems().isEmpty());
+    }
+
+    @Test
+    void aMissingPermissionLocksAfterTheMinimums() {
+        Upgrade speed = speed();
+        Upgrade.Check noNode = speed.check(0, name -> 9, node -> false);
+        assertEquals(Upgrade.State.LOCKED, noNode.state());
+        assertEquals(Upgrade.PERMISSION, noNode.requirement());
+        assertEquals("level", speed.check(0, name -> 0, node -> false).requirement(), "minimums are named first");
+        assertEquals(Upgrade.State.READY, speed.check(0, name -> 9, node -> node.equals("p.speed")).state());
+        assertEquals(Upgrade.State.LOCKED, speed.check(2, name -> 9, node -> node.equals("p.speed")).state(),
+                "level 3 asks for its own node");
+        assertEquals(Upgrade.State.READY, speed.check(0, name -> 9).state(), "the old check ignores permissions");
+    }
+
+    @Test
+    void aWrittenLevelIsChargedInItsOwnCurrency() {
+        List<String> charged = new ArrayList<>();
+        Upgrades.charge = (currency, who, price, transaction) -> {
+            charged.add(currency + ":" + price.toPlainString());
+            return CompletableFuture.completedFuture(EconomyResponse.success(price, BigDecimal.TEN));
+        };
+        assertTrue(Upgrades.buy(player, speed(), 2, name -> 9).join().bought());
+        assertEquals(List.of("diamonds:64"), charged);
+    }
+
+    @Test
+    void menuPlaceholdersDescribeTheCard() {
+        Upgrade speed = speed();
+        Map<String, String> ready = Upgrades.placeholders(speed, 1, speed.check(1, name -> 9, node -> true));
+        assertEquals("1", ready.get("level"));
+        assertEquals("4", ready.get("max_level"));
+        assertEquals("2", ready.get("next_level"));
+        assertEquals("coins", ready.get("currency"));
+        assertEquals("2", ready.get("next_effect"));
+        assertEquals("ready", ready.get("state"));
+        assertEquals("", ready.get("requirement"));
+        Map<String, String> maxed = Upgrades.placeholders(speed, 4, speed.check(4, name -> 9, node -> true));
+        assertEquals("maxed", maxed.get("state"));
+        assertEquals("", maxed.get("price"));
+        assertEquals("4", maxed.get("next_effect"));
+        Map<String, String> locked = Upgrades.placeholders(speed, 0, speed.check(0, name -> 0, node -> true));
+        assertEquals("level", locked.get("requirement"));
+        assertEquals("1", locked.get("needed"));
+    }
 }

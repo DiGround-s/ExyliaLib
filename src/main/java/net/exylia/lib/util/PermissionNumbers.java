@@ -23,7 +23,47 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class PermissionNumbers {
 
+    /**
+     * What {@link #limit} answers for a player with no cap. Compare counts with
+     * {@code count < limit} and this needs no special case.
+     *
+     * @since 1.432.0
+     */
+    public static final int UNLIMITED = Integer.MAX_VALUE;
+
     private PermissionNumbers() {
+    }
+
+    /**
+     * A cap granted in tiers, such as {@code myplugin.limit.5} and
+     * {@code myplugin.limit.10}: the largest number, {@link #UNLIMITED} for a
+     * node ending in {@code unlimited} or {@code *}, or {@code fallback} when
+     * the player holds none.
+     *
+     * <pre>{@code
+     * int cap = PermissionNumbers.limit(player, "myplugin.limit.", settings.defaultLimit());
+     * if (owned >= cap) refuse();
+     * }</pre>
+     *
+     * <p>Only nodes the player actually holds count, so an operator is capped
+     * like anyone else unless the plugin declares {@code <prefix>unlimited}
+     * with {@code default: op} in its {@code plugin.yml}.
+     *
+     * @param permissible who to ask
+     * @param prefix      the node before the number, dot included
+     * @param fallback    the cap when no node carries one; pass {@link #UNLIMITED} for none
+     * @return the cap, never negative unless {@code fallback} is
+     * @since 1.432.0
+     */
+    public static int limit(@NotNull Permissible permissible, @NotNull String prefix, int fallback) {
+        for (PermissionAttachmentInfo info : permissible.getEffectivePermissions()) {
+            if (!info.getValue()) continue;
+            String node = info.getPermission();
+            if (node.length() <= prefix.length() || !node.regionMatches(true, 0, prefix, 0, prefix.length())) continue;
+            String tail = node.substring(prefix.length());
+            if (tail.equals("*") || tail.equalsIgnoreCase("unlimited")) return UNLIMITED;
+        }
+        return best(permissible, prefix, fallback, true);
     }
 
     /**

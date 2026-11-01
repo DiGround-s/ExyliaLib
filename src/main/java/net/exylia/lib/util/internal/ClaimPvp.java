@@ -1,7 +1,6 @@
 package net.exylia.lib.util.internal;
 
 import net.exylia.lib.util.PvpZones;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -12,84 +11,46 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 /**
  * The claim plugins behind {@link PvpZones}, reached by reflection.
  *
- * <p>Each hook is resolved once per plugin instance, through that plugin's own
- * class loader, so a reloaded plugin is resolved again and a missing one costs
- * a plugin lookup. A hook that cannot be resolved, or throws when asked, is
- * logged once and answers "allowed" from then on.
+ * <p>Resolved through {@link ClaimHooks}: once per plugin instance, and a hook
+ * that cannot be resolved, or throws when asked, answers "allowed" from then on.
  */
 public final class ClaimPvp {
 
-    private static final Logger LOGGER = Logger.getLogger("ExyliaLib");
-    private static final Map<PvpZones.Source, Resolved> HOOKS = new EnumMap<>(PvpZones.Source.class);
+    private static final ClaimHooks<Hook> HOOKS = new ClaimHooks<>("PvP zones", "allowing PvP everywhere");
 
     private ClaimPvp() {
     }
 
     public static boolean denies(@NotNull PvpZones.Source source, @NotNull Location at, @Nullable Player player) {
-        Plugin plugin = Bukkit.getPluginManager().getPlugin(source.pluginName());
-        if (plugin == null || !plugin.isEnabled()) {
+        Plugin plugin = ClaimHooks.enabled(source.pluginName());
+        if (plugin == null) {
             return false;
         }
-        Hook hook = hook(source, plugin);
+        Hook hook = HOOKS.hook(plugin, enabled -> switch (source) {
+            case LANDS -> new Lands(enabled);
+            case GRIEF_PREVENTION -> new GriefPrevention(enabled);
+            case TOWNY -> new Towny(enabled);
+            case SUPERIOR_SKYBLOCK -> new SuperiorSkyblock(enabled);
+            default -> null;
+        });
         if (hook == null) {
             return false;
         }
         try {
             return hook.denies(at, player);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
-            broken(source, plugin, failure);
+            HOOKS.broken(plugin, failure);
             return false;
         }
     }
 
-    private static Hook hook(PvpZones.Source source, Plugin plugin) {
-        Resolved resolved;
-        synchronized (HOOKS) {
-            resolved = HOOKS.get(source);
-        }
-        if (resolved != null && resolved.plugin == plugin) {
-            return resolved.hook;
-        }
-        Hook hook;
-        try {
-            hook = switch (source) {
-                case LANDS -> new Lands(plugin);
-                case GRIEF_PREVENTION -> new GriefPrevention(plugin);
-                case TOWNY -> new Towny(plugin);
-                case SUPERIOR_SKYBLOCK -> new SuperiorSkyblock(plugin);
-                default -> null;
-            };
-        } catch (ReflectiveOperationException | RuntimeException | LinkageError failure) {
-            LOGGER.warning("PvP zones: could not hook " + plugin.getName() + " " + plugin.getPluginMeta().getVersion()
-                    + "; it is treated as allowing PvP everywhere (" + failure + ")");
-            hook = null;
-        }
-        synchronized (HOOKS) {
-            HOOKS.put(source, new Resolved(plugin, hook));
-        }
-        return hook;
-    }
-
-    private static void broken(PvpZones.Source source, Plugin plugin, Throwable failure) {
-        LOGGER.warning("PvP zones: " + plugin.getName() + " failed when asked and is ignored from now on (" + failure + ")");
-        synchronized (HOOKS) {
-            HOOKS.put(source, new Resolved(plugin, null));
-        }
-    }
-
     private static Class<?> type(Plugin plugin, String name) throws ClassNotFoundException {
-        return Class.forName(name, true, plugin.getClass().getClassLoader());
-    }
-
-    private record Resolved(Plugin plugin, Hook hook) {
+        return ClaimHooks.type(plugin, name);
     }
 
     private interface Hook {

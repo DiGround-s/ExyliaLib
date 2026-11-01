@@ -9,6 +9,7 @@ import com.sk89q.worldguard.protection.flags.Flags;
 import com.sk89q.worldguard.protection.flags.StateFlag;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
+import net.exylia.lib.util.BuildZones;
 import net.exylia.lib.util.worldguard.WorldGuardRegion;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -70,6 +71,31 @@ public final class WorldGuardAccess {
             }
             return WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
                     .testBuild(BukkitAdapter.adapt(location), local);
+        } catch (RuntimeException unavailable) {
+            return true;
+        }
+    }
+
+    /**
+     * WorldGuard's own test for one kind of block action, as its listeners run
+     * it: bypass first, then membership, the build flag and the action's flag;
+     * {@code true} if it cannot answer.
+     */
+    public static boolean allows(@NotNull Player player, @NotNull Location location, @NotNull BuildZones.Action action) {
+        StateFlag flag = switch (action) {
+            case BUILD -> Flags.BLOCK_PLACE;
+            case BREAK -> Flags.BLOCK_BREAK;
+            case INTERACT -> Flags.INTERACT;
+            case CONTAINER -> Flags.CHEST_ACCESS;
+        };
+        try {
+            LocalPlayer local = WorldGuardPlugin.inst().wrapPlayer(player);
+            if (WorldGuard.getInstance().getPlatform().getSessionManager()
+                    .hasBypass(local, BukkitAdapter.adapt(location.getWorld()))) {
+                return true;
+            }
+            return WorldGuard.getInstance().getPlatform().getRegionContainer().createQuery()
+                    .testBuild(BukkitAdapter.adapt(location), local, flag);
         } catch (RuntimeException unavailable) {
             return true;
         }

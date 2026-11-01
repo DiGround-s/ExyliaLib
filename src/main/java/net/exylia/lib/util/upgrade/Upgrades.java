@@ -3,10 +3,15 @@ package net.exylia.lib.util.upgrade;
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.economy.EconomyResponse;
 import net.exylia.lib.economy.Transaction;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -79,7 +84,77 @@ public final class Upgrades {
     public static @NotNull CompletableFuture<Purchase> buy(@NotNull UUID player, @NotNull Upgrade upgrade, int owned,
                                                            @NotNull ToIntFunction<String> progress,
                                                            @NotNull IntConsumer store) {
-        Upgrade.Check check = upgrade.check(owned, progress);
+        return settle(player, upgrade.check(owned, progress), upgrade, store);
+    }
+
+    /**
+     * Charges the next level for an online player, the upgrade's permissions
+     * included: a missing node answers {@link Purchase.Outcome#LOCKED} with
+     * {@link Upgrade#PERMISSION} as the requirement.
+     *
+     * <pre>{@code
+     * Upgrades.buy(player, speed, spawner.level("speed"), name -> 0, level -> spawner.raise("speed", level))
+     *         .thenAccept(purchase -> tasks.runAtEntity(player, () -> tell(player, purchase)));
+     * }</pre>
+     *
+     * <p>Call it on the player's thread: the permissions are read there, before
+     * anything is charged. The future may complete on another thread.
+     *
+     * @since 1.432.0
+     */
+    public static @NotNull CompletableFuture<Purchase> buy(@NotNull Player player, @NotNull Upgrade upgrade, int owned,
+                                                           @NotNull ToIntFunction<String> progress,
+                                                           @NotNull IntConsumer store) {
+        return settle(player.getUniqueId(), upgrade.check(owned, progress, player::hasPermission), upgrade, store);
+    }
+
+    /**
+     * The price of a level as the player reads it, in its own currency:
+     * {@code "$1,250.00"}, {@code "64 Diamonds"}. Zero for a level past the max.
+     *
+     * @since 1.432.0
+     */
+    public static @NotNull String price(@NotNull Upgrade upgrade, int level) {
+        String currency = upgrade.currency(level);
+        return Economy.format(currency.isEmpty() ? null : currency, upgrade.price(level));
+    }
+
+    /**
+     * The plain values a menu card shows for a track, ready for
+     * {@code UiEntry.with(name, value)} or a {@code Values} map:
+     * {@code level}, {@code max_level}, {@code next_level}, {@code price}
+     * (formatted, in the next level's currency; empty when maxed), {@code currency},
+     * {@code effect}, {@code next_effect} (the current one when maxed),
+     * {@code state} ({@code maxed}, {@code locked}, {@code ready}),
+     * {@code requirement} and {@code needed} (empty when nothing is short).
+     * Labels such as "Maxed" or "Free" stay the plugin's messages, keyed on
+     * {@code state} and on {@link Upgrade.Check#price()}.
+     *
+     * @param check the answer of {@link Upgrade#check} for the same level
+     * @since 1.432.0
+     */
+    public static @NotNull Map<String, String> placeholders(@NotNull Upgrade upgrade, int owned, @NotNull Upgrade.Check check) {
+        boolean maxed = check.state() == Upgrade.State.MAXED;
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("level", String.valueOf(Math.max(0, Math.min(owned, upgrade.maxLevel()))));
+        values.put("max_level", String.valueOf(upgrade.maxLevel()));
+        values.put("next_level", String.valueOf(check.next()));
+        values.put("price", maxed ? "" : price(upgrade, check.next()));
+        values.put("currency", upgrade.currency(check.next()));
+        values.put("effect", number(upgrade.effect(owned)));
+        values.put("next_effect", number(upgrade.effect(maxed ? owned : check.next())));
+        values.put("state", check.state().name().toLowerCase(Locale.ROOT));
+        values.put("requirement", check.requirement() == null ? "" : check.requirement());
+        values.put("needed", check.requirement() == null ? "" : String.valueOf(check.needed()));
+        return values;
+    }
+
+    private static String number(double value) {
+        if (!Double.isFinite(value)) return "0";
+        return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
+    }
+
+    private static CompletableFuture<Purchase> settle(UUID player, Upgrade.Check check, Upgrade upgrade, IntConsumer store) {
         switch (check.state()) {
             case MAXED -> {
                 return done(Purchase.Outcome.MAXED, check, BigDecimal.ZERO, null);
@@ -101,7 +176,7 @@ public final class Upgrades {
         }
         CompletableFuture<EconomyResponse> charged;
         try {
-            charged = charge.charge(upgrade.currency(), player, check.price(), Transaction.of("upgrade:" + upgrade.id()));
+            charged = charge.charge(upgrade.currency(check.next()), player, check.price(), Transaction.of("upgrade:" + upgrade.id()));
         } catch (RuntimeException failure) {
             charged = CompletableFuture.failedFuture(failure);
         }
