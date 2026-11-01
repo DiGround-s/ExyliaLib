@@ -84,6 +84,18 @@ NamespacedKey key = sound == null ? null : Registry.SOUNDS.getKey(sound);
 renamed names) and falls back to reading its static fields. For a key, ask
 the registry (`Registry.SOUNDS.getKey(sound)`, `Registry.BIOME.getKey(biome)`).
 
+## Small shims
+
+One call each, for API that only gained a direct method after 1.21.1. Each
+takes the direct method where the server has it, so 1.21.4+ behaves as before.
+
+| Call | Instead of | On 1.21.1 |
+| --- | --- | --- |
+| `ArmorChanges.slot(event)` | `PlayerArmorChangeEvent#getSlot()` (1.21.4) | maps `getSlotType()` to the `EquipmentSlot` |
+| `ItemNames.of(item)` | `ItemStack#effectiveName()` (1.21.4) | custom name, else item name, else the type's translatable name |
+| `ItemData.edit(item, pdc -> …)` | `ItemStack#editPersistentDataContainer` (1.21.4) | edits through the meta |
+| `util.EnderPearls.inFlight(player)` | `Player#getEnderPearls()` (1.21.2) | the pearls whose shooter is the player, from every world |
+
 ## What a 1.21.1 server does without
 
 | Feature | On 1.21.1 |
@@ -116,3 +128,19 @@ It downloads paper-api for the minimum version with everything it brings
 
 Classes marked `@RequiresServer`, and their nested classes, are skipped. Exit
 code 1 when anything is reported.
+
+A class that names newer API but checks for it itself, the way a gated
+class's caller would, can be accepted with `--allow <file>`: one binary class
+name per line, `#` comments saying why. Keep the file in the plugin's repo as
+`compat-allow.txt`.
+
+### Building a plugin against an unreleased lib
+
+`tools/compat/branch-lib.gradle` publishes this checkout as `0.0.0-branch` to
+`build/compat-repo` (never `~/.m2`, which other checkouts resolve
+`latest.release` from) and points a plugin build at it:
+
+```bash
+./gradlew publishAllPublicationsToCompatRepository -I tools/compat/branch-lib.gradle -x test
+cd ../SomePlugin && ./gradlew compileJava -I <lib>/tools/compat/branch-lib.gradle
+```

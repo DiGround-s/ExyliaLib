@@ -40,7 +40,12 @@ import java.util.zip.ZipFile;
  * their nested classes, are the gated code that only loads on a newer server,
  * and are skipped.
  *
- * <p>Usage: {@code java CompatCheck.java <api-jars-dir> <classes-dir-or-jar>...}.
+ * <p>A class that names newer API but is known to be safe where it loads (it
+ * checks for the feature itself, the way a gated class's caller would) can be
+ * listed in an allow file, one binary class name per line, with {@code #}
+ * comments saying why. Its nested classes are allowed with it.
+ *
+ * <p>Usage: {@code java CompatCheck.java [--allow <file>] <api-jars-dir> <classes-dir-or-jar>...}.
  * Prints one line per finding and exits 1 when there is any.
  */
 public final class CompatCheck {
@@ -54,6 +59,7 @@ public final class CompatCheck {
     private static final String GATE = "Lnet/exylia/lib/platform/RequiresServer;";
 
     private final Map<String, Info> api = new HashMap<>();
+    private final Set<String> allowed = new HashSet<>();
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
@@ -61,11 +67,19 @@ public final class CompatCheck {
             System.exit(2);
         }
         CompatCheck check = new CompatCheck();
-        try (Stream<Path> jars = Files.list(Path.of(args[0]))) {
+        int first = 0;
+        if (args[0].equals("--allow")) {
+            for (String line : Files.readAllLines(Path.of(args[1]))) {
+                String name = line.replaceAll("#.*", "").trim();
+                if (!name.isEmpty()) check.allowed.add(name.replace('.', '/'));
+            }
+            first = 2;
+        }
+        try (Stream<Path> jars = Files.list(Path.of(args[first]))) {
             for (Path jar : jars.filter(p -> p.toString().endsWith(".jar")).toList()) check.loadApi(jar);
         }
         Set<String> findings = new TreeSet<>();
-        for (int i = 1; i < args.length; i++) check.scan(Path.of(args[i]), findings);
+        for (int i = first + 1; i < args.length; i++) check.scan(Path.of(args[i]), findings);
         findings.forEach(System.out::println);
         System.exit(findings.isEmpty() ? 0 : 1);
     }
@@ -104,7 +118,7 @@ public final class CompatCheck {
             }
         }
         for (Info info : classes.values()) {
-            if (gated(info, classes)) continue;
+            if (gated(info, classes) || allowed(info.name)) continue;
             String where = info.name.replace('/', '.');
             for (String type : info.classRefs) {
                 if (inApi(type) && !api.containsKey(type)) findings.add(where + ": missing class " + dots(type));
@@ -136,6 +150,11 @@ public final class CompatCheck {
                 }
             }
         }
+    }
+
+    private boolean allowed(String name) {
+        int dollar = name.indexOf('$');
+        return allowed.contains(dollar < 0 ? name : name.substring(0, dollar));
     }
 
     private static boolean gated(Info info, Map<String, Info> classes) {

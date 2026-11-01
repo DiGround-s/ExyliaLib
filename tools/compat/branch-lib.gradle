@@ -1,0 +1,31 @@
+// Builds a consumer against an ExyliaLib checkout that is not released yet,
+// without touching ~/.m2 (other sessions resolve latest.release from there).
+//
+//   In the lib checkout:  ./gradlew publishAllPublicationsToCompatRepository -I tools/compat/branch-lib.gradle
+//   In a plugin:          ./gradlew compileJava -I <lib>/tools/compat/branch-lib.gradle
+//
+// The lib is published as 0.0.0-branch to <lib>/build/compat-repo, a version
+// latest.release never picks over a real one.
+def libDir = new File(buildscript.sourceFile.parentFile, '../..').canonicalFile
+def repo = new File(libDir, 'build/compat-repo')
+def branchVersion = '0.0.0-branch'
+
+allprojects {
+    if (rootDir.canonicalFile == libDir) {
+        afterEvaluate { version = branchVersion }
+        plugins.withId('maven-publish') {
+            publishing.repositories.maven { name = 'compat'; url = repo.toURI() }
+        }
+    } else {
+        repositories {
+            maven { url = repo.toURI(); content { includeModule 'net.exylia', 'ExyliaLib' } }
+        }
+        configurations.configureEach {
+            resolutionStrategy.eachDependency { d ->
+                if (d.requested.group == 'net.exylia' && d.requested.name == 'ExyliaLib') {
+                    d.useVersion(branchVersion)
+                }
+            }
+        }
+    }
+}
