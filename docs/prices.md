@@ -63,3 +63,36 @@ public interface PriceProvider {
   disables. `Prices.unregister(provider)` for a provider switched off at
   runtime (a module disabled).
 - Nothing is derived from the palette: no reload hook.
+
+## Blocks a sell wand sells (1.435.0)
+
+A sell wand reaches into containers. A block that holds goods without being one
+— a spawner's storage — registers a `SellTarget`, and a wand plugin asks
+`SellTargets` before giving up on a block it cannot open:
+
+```java
+// the block's owner
+SellTargets.register(this, new SellTarget() {
+    public boolean claims(Block block) { return spawners.at(block).isPresent(); }
+    public CompletableFuture<SellTarget.Sold> sell(Player player, Block block, double factor) {
+        return selling.sell(player, spawners.at(block).orElseThrow(), factor);
+    }
+});
+
+// the wand
+if (!SellTargets.claims(block)) return;     // before permissions and cooldowns
+SellTargets.sell(player, block, wand.multiplier()).ifPresent(sale ->
+        sale.thenAccept(sold -> { if (!sold.isEmpty()) spendUse(); }));
+```
+
+- `claims(block)` is memory only: it is asked for every block a wand touches.
+  `sell` runs on the block's region thread and answers a future that may
+  complete on any thread.
+- `factor` is the wand's multiplier; the target pays with it on top of the
+  player's own bonuses (`Modifiers`) and answers `Sold(items, money)`.
+- Targets are asked in registration order, the first claim wins, one that
+  throws is logged and skipped, and a plugin's targets are released when it
+  disables.
+
+`net.exylia.lib.price`: `SellTarget`, `SellTargets`; `internal/SellTargetRuntime`.
+Test: `SellTargetsTest`.
