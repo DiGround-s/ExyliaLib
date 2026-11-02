@@ -1,6 +1,6 @@
 # The entries of a block in a content file: one button per entry.
 # Values: %cfg_plugin% %cfg_where% %cfg_back_to%
-# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value%
+# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value% %cfg_hint%
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
 title: '{primary}&lКОНТЕНТ {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
 size: 54
@@ -33,7 +33,7 @@ pagination:
       - '{secondary}Состояние:'
       - ' {letters_black}▎ {letters}Содержит {letters_black}» %cfg_value%'
       - ''
-      - '{warning}➥ Клик {letters_black}» {letters}открыть'
+      - '%cfg_hint%'
       - '{warning}➥ Shift + ЛКМ {letters_black}» {letters}дублировать'
       - '{error}➥ Shift + ПКМ {letters_black}» {letters}удалить'
       - '{letters_black}Потребуется подтверждение.'
@@ -70,8 +70,8 @@ items:
     lore:
       - ''
       - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Добавляет запись — копию'
-      - ' {letters_black}▎ {letters}{highlight}первой{letters}, чтобы она загрузилась.'
+      - ' {letters_black}▎ {letters}Добавляет новую запись, которая'
+      - ' {letters_black}▎ {letters}сразу загрузится; {highlight}правьте{letters} её здесь.'
       - ''
       - '{warning}➥ Клик {letters_black}» {letters}Создать'
       - ''

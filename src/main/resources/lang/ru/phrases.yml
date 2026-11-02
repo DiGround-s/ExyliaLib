@@ -1572,6 +1572,7 @@ World: Мир
 '{warning}➥ Click {letters_black}» {letters}change': '{warning}➥ Клик {letters_black}» {letters}изменить'
 '{warning}➥ Click {letters_black}» {letters}open': '{warning}➥ Клик {letters_black}» {letters}открыть'
 '{warning}➥ Click {letters_black}» {letters}switch': '{warning}➥ Клик {letters_black}» {letters}переключить'
+'{warning}➥ Click {letters_black}» {letters}next': '{warning}➥ Клик {letters_black}» {letters}следующее'
 '{warning}➥ Left-click {letters_black}» {letters}next': '{warning}➥ ЛКМ {letters_black}» {letters}следующее'
 '{warning}✘ {letters}{0} has no settings to change here.': '{warning}✘ {letters}У {0} нет настроек, которые можно менять здесь.'
 '{warning}➥ Press Q {letters_black}» {letters}type a value': '{warning}➥ Нажмите Q {letters_black}» {letters}ввести значение'

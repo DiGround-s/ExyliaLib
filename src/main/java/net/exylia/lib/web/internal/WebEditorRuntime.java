@@ -702,32 +702,44 @@ public final class WebEditorRuntime {
      * @return its files, in definition order
      */
     public @NotNull List<ConfigFile<?>> settingsOf(@NotNull Plugin plugin) {
-        if (!discoverable(plugin)) {
-            return List.of();
-        }
-        Map<String, SubjectImpl> registered = registry.getOrDefault(plugin.getName(), Map.of());
         List<ConfigFile<?>> files = new ArrayList<>();
-        for (SubjectImpl subject : Discovery.records(plugin, registered.values(),
-                options(plugin.getName()).excluded(), net.exylia.lib.config.Configs.loaded())) {
-            if ("settings".equals(subject.group()) && subject.file() != null) {
-                files.add(subject.file());
-            }
+        for (SubjectImpl subject : settingSubjectsOf(plugin)) {
+            files.add(subject.file());
         }
         return files;
     }
 
+    /** {@link #settingsOf} as the discovered subjects they are, so a map or list in one is edited as content is. */
+    @NotNull List<SubjectImpl> settingSubjectsOf(@NotNull Plugin plugin) {
+        if (!discoverable(plugin)) {
+            return List.of();
+        }
+        Map<String, SubjectImpl> registered = registry.getOrDefault(plugin.getName(), Map.of());
+        List<SubjectImpl> subjects = new ArrayList<>();
+        for (SubjectImpl subject : Discovery.records(plugin, registered.values(),
+                options(plugin.getName()).excluded(), net.exylia.lib.config.Configs.loaded())) {
+            if ("settings".equals(subject.group()) && subject.file() != null) {
+                subjects.add(subject);
+            }
+        }
+        return subjects;
+    }
+
     /**
      * The content files of a plugin an admin may change in game: the YAML subjects it registered
-     * ({@code WebEditor.of(plugin).yaml(...)}), each with its own checker. Menus and the YAML files
-     * discovery found on its own are left to the web editor. Sorted by title.
+     * ({@code WebEditor.of(plugin).yaml(...)}), each with its own checker, and the record files it
+     * registered ({@code subject(id, file)}), read through the binder. Menus, entries a plugin
+     * stores itself and the YAML files discovery found on its own are left to the web editor.
+     * Sorted by title.
      *
      * @param plugin the plugin
-     * @return its registered YAML subjects
+     * @return its registered YAML and record subjects
      */
     @NotNull List<SubjectImpl> contentOf(@NotNull Plugin plugin) {
         List<SubjectImpl> subjects = new ArrayList<>();
         for (SubjectImpl subject : registry.getOrDefault(plugin.getName(), Map.of()).values()) {
-            if (subject instanceof YamlSubjectImpl && !Discovery.MENU_KIND.equals(subject.kind())) {
+            boolean editable = subject instanceof YamlSubjectImpl || subject.source() instanceof Source.RecordFile;
+            if (editable && !Discovery.MENU_KIND.equals(subject.kind())) {
                 subjects.add(subject);
             }
         }

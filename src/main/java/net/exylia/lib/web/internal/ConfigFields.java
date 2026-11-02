@@ -33,7 +33,7 @@ final class ConfigFields {
     enum Kind {
         /** A nested section: opens its own page. */
         SECTION,
-        /** A block of named entries in a YAML file: opens the list of entries. */
+        /** A block of named entries, or a list of blocks: opens the list of entries. */
         ENTRIES,
         /** {@code true} / {@code false}: a click flips it. */
         TOGGLE,
@@ -51,7 +51,7 @@ final class ConfigFields {
         MATERIAL,
         /** A list of text lines, asked as one box of lines. */
         LINES,
-        /** Anything else (maps, lists of records): shown, edited in the web editor. */
+        /** Anything else (a map of lists, a list of numbers): shown, edited in the web editor. */
         LOCKED
     }
 
@@ -139,11 +139,29 @@ final class ConfigFields {
             return whole ? Kind.INTEGER : Kind.DECIMAL;
         }
         if (type == String.class) return Kind.TEXT;
-        if (List.class.isAssignableFrom(type) && field.generic() instanceof ParameterizedType list
-                && list.getActualTypeArguments()[0] == String.class) {
-            return Kind.LINES;
+        if (List.class.isAssignableFrom(type) && field.generic() instanceof ParameterizedType list) {
+            java.lang.reflect.Type element = list.getActualTypeArguments()[0];
+            if (element == String.class) return Kind.LINES;
+            if (element instanceof Class<?> record && record.isRecord()) return Kind.ENTRIES;
+        }
+        if (java.util.Map.class.isAssignableFrom(type) && field.generic() instanceof ParameterizedType map
+                && map.getActualTypeArguments()[1] instanceof Class<?> value && editable(value)) {
+            return Kind.ENTRIES;
         }
         return Kind.LOCKED;
+    }
+
+    /** Whether a map's values can each be edited in game: a record, or one value of a kind a click edits. */
+    private static boolean editable(Class<?> value) {
+        return value.isRecord() || value.isEnum() || value == String.class || value == Boolean.class
+                || value == Duration.class || Number.class.isAssignableFrom(value);
+    }
+
+    /** How many entries a map or list holds. */
+    static int size(@Nullable Object value) {
+        if (value instanceof java.util.Map<?, ?> map) return map.size();
+        if (value instanceof java.util.Collection<?> list) return list.size();
+        return value instanceof Number number ? number.intValue() : 0;
     }
 
     private static @Nullable Time annotation(Class<?> owner, String component) {
@@ -286,7 +304,7 @@ final class ConfigFields {
                     : "{letters}" + Values.inert(cut(value.toString()));
             case LINES -> Phrases.tr("{info}{0} {letters}lines", value instanceof List<?> list ? list.size() : 0);
             case LOCKED -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
-            case ENTRIES -> entries(value instanceof Number number ? number.intValue() : 0);
+            case ENTRIES -> entries(size(value));
         };
     }
 
@@ -309,6 +327,8 @@ final class ConfigFields {
             case LINES -> Phrases.tr("{info}{0} {letters}lines", value instanceof List<?> list ? list.size() : 0);
             case ENTRIES -> entries(value instanceof Number number ? number.intValue() : 0);
             case SECTION -> Phrases.tr("{info}{0} {letters}settings", value instanceof Number number ? number.intValue() : 0);
+            case CHOICE, MATERIAL -> value == null ? none() : "{highlight}" + Values.inert(cut(String.valueOf(value)));
+            case TIME -> value == null ? none() : "{info}" + Values.inert(cut(String.valueOf(value))) + " ⌚";
             default -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
         };
     }

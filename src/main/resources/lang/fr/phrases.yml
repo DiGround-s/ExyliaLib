@@ -1572,6 +1572,7 @@ World: Monde
 '{warning}➥ Click {letters_black}» {letters}change': '{warning}➥ Clic {letters_black}» {letters}modifier'
 '{warning}➥ Click {letters_black}» {letters}open': '{warning}➥ Clic {letters_black}» {letters}ouvrir'
 '{warning}➥ Click {letters_black}» {letters}switch': '{warning}➥ Clic {letters_black}» {letters}basculer'
+'{warning}➥ Click {letters_black}» {letters}next': '{warning}➥ Clic {letters_black}» {letters}suivant'
 '{warning}➥ Left-click {letters_black}» {letters}next': '{warning}➥ Clic gauche {letters_black}» {letters}suivant'
 '{warning}✘ {letters}{0} has no settings to change here.': '{warning}✘ {letters}{0} n’a aucun réglage à changer ici.'
 '{warning}➥ Press Q {letters_black}» {letters}type a value': '{warning}➥ Touche Q {letters_black}» {letters}saisir une valeur'

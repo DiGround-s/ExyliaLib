@@ -118,7 +118,7 @@ class ConfigFieldsTest {
         assertEquals(ConfigFields.Kind.TEXT, kinds.get("title"));
         assertEquals(ConfigFields.Kind.MATERIAL, kinds.get("icon"));
         assertEquals(ConfigFields.Kind.LINES, kinds.get("lines"));
-        assertEquals(ConfigFields.Kind.LOCKED, kinds.get("weights"));
+        assertEquals(ConfigFields.Kind.ENTRIES, kinds.get("weights"));
         assertEquals(ConfigFields.Kind.SECTION, kinds.get("limits"));
         assertEquals(ConfigFields.Kind.INTEGER, kinds.get("limits.min-distance"));
         assertEquals(ConfigFields.Kind.DECIMAL, kinds.get("limits.ratio"));

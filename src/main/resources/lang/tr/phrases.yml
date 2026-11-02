@@ -1584,6 +1584,7 @@ World: Dünya
 '{warning}➥ Click {letters_black}» {letters}change': '{warning}➥ Tıkla {letters_black}» {letters}değiştir'
 '{warning}➥ Click {letters_black}» {letters}open': '{warning}➥ Tıkla {letters_black}» {letters}aç'
 '{warning}➥ Click {letters_black}» {letters}switch': '{warning}➥ Tıkla {letters_black}» {letters}aç/kapat'
+'{warning}➥ Click {letters_black}» {letters}next': '{warning}➥ Tıkla {letters_black}» {letters}sonraki'
 '{warning}➥ Left-click {letters_black}» {letters}next': '{warning}➥ Sol tık {letters_black}» {letters}sonraki'
 '{warning}✘ {letters}{0} has no settings to change here.': '{warning}✘ {letters}{0} için burada değiştirilecek ayar yok.'
 '{warning}➥ Press Q {letters_black}» {letters}type a value': '{warning}➥ Q''ya bas {letters_black}» {letters}değer yaz'

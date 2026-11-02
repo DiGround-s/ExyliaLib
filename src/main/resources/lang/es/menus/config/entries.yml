@@ -1,6 +1,6 @@
 # The entries of a block in a content file: one button per entry.
 # Values: %cfg_plugin% %cfg_where% %cfg_back_to%
-# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value%
+# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value% %cfg_hint%
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
 title: '{primary}&lCONTENIDO {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
 size: 54
@@ -33,7 +33,7 @@ pagination:
       - '{secondary}Estado:'
       - ' {letters_black}▎ {letters}Contiene {letters_black}» %cfg_value%'
       - ''
-      - '{warning}➥ Clic {letters_black}» {letters}abrir'
+      - '%cfg_hint%'
       - '{warning}➥ Clic izq. + Shift {letters_black}» {letters}duplicar'
       - '{error}➥ Clic der. + Shift {letters_black}» {letters}borrar'
       - '{letters_black}Se te pedirá confirmación.'
@@ -70,8 +70,8 @@ items:
     lore:
       - ''
       - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Añade una entrada que empieza como'
-      - ' {letters_black}▎ {letters}copia de la {highlight}primera{letters}, así carga.'
+      - ' {letters_black}▎ {letters}Añade una entrada nueva que ya'
+      - ' {letters_black}▎ {letters}carga, lista para {highlight}editar{letters} aquí.'
       - ''
       - '{warning}➥ Clic {letters_black}» {letters}Crear'
       - ''

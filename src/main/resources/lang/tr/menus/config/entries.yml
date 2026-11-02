@@ -1,6 +1,6 @@
 # The entries of a block in a content file: one button per entry.
 # Values: %cfg_plugin% %cfg_where% %cfg_back_to%
-# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value%
+# Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value% %cfg_hint%
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
 title: '{primary}&lİÇERİK {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
 size: 54
@@ -33,7 +33,7 @@ pagination:
       - '{secondary}Durum:'
       - ' {letters_black}▎ {letters}İçerir {letters_black}» %cfg_value%'
       - ''
-      - '{warning}➥ Tıkla {letters_black}» {letters}aç'
+      - '%cfg_hint%'
       - '{warning}➥ Shift + sol tık {letters_black}» {letters}kopyala'
       - '{error}➥ Shift + sağ tık {letters_black}» {letters}sil'
       - '{letters_black}Onay istenecek.'
@@ -70,8 +70,8 @@ items:
     lore:
       - ''
       - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}İlkinin {highlight}kopyası {letters}olarak başlayan'
-      - ' {letters_black}▎ {letters}bir girdi ekler, böylece yüklenir.'
+      - ' {letters_black}▎ {letters}Hemen yüklenen yeni bir girdi'
+      - ' {letters_black}▎ {letters}ekler; onu burada {highlight}düzenle{letters}.'
       - ''
       - '{warning}➥ Tıkla {letters_black}» {letters}Oluştur'
       - ''

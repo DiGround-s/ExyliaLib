@@ -1584,6 +1584,7 @@ World: Mundo
 '{warning}➥ Click {letters_black}» {letters}change': '{warning}➥ Clic {letters_black}» {letters}cambiar'
 '{warning}➥ Click {letters_black}» {letters}open': '{warning}➥ Clic {letters_black}» {letters}abrir'
 '{warning}➥ Click {letters_black}» {letters}switch': '{warning}➥ Clic {letters_black}» {letters}alternar'
+'{warning}➥ Click {letters_black}» {letters}next': '{warning}➥ Clic {letters_black}» {letters}siguiente'
 '{warning}➥ Left-click {letters_black}» {letters}next': '{warning}➥ Clic izquierdo {letters_black}» {letters}siguiente'
 '{warning}✘ {letters}{0} has no settings to change here.': '{warning}✘ {letters}{0} no tiene ajustes que cambiar aquí.'
 '{warning}➥ Press Q {letters_black}» {letters}type a value': '{warning}➥ Pulsa Q {letters_black}» {letters}escribir un valor'

@@ -327,8 +327,9 @@ class WebEditorRuntimeTest {
                 .sensitive("tags.*.price")
                 .onApplied(reloaded::incrementAndGet);
         runtime.registerYaml(plugin, "shop", "menus/shop", Discovery.MENU_KIND);
-        SubjectImpl tags = runtime.contentOf(plugin).get(0);
-        assertEquals(1, runtime.contentOf(plugin).size(), "a menu is left to the web editor");
+        List<SubjectImpl> content = runtime.contentOf(plugin);
+        assertTrue(content.stream().noneMatch(subject -> subject.id().equals("shop")), "a menu is left to the web editor");
+        SubjectImpl tags = content.stream().filter(subject -> subject.id().equals("tags")).findFirst().orElseThrow();
 
         JsonObject schema = tags.source().schema(plugin.getName());
         List<String> star = List.of("tags", "star");

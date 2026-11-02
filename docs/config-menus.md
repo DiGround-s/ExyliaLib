@@ -88,6 +88,12 @@ The same line makes the file editable in the browser. A subject of kind
 editor: they have no checker of their own to stand between a click and the
 file.
 
+Since 1.447.0 a record file the plugin registered with
+[`WebEditor.of(plugin).subject(id, file[, kind])`](web-editor.md#what-a-subject-is)
+(ExyliaDisplays' holograms and NPCs) is a content file too, behind the
+subject's own permission and sensitive paths, read through the binder. Entries
+a plugin stores itself (`entries(...)`) stay in the web editor.
+
 ## The screens
 
 1. **Plugins** (54, paginated): one book per plugin, its version and how many
@@ -112,24 +118,42 @@ the YAML and reloaded shows on an open screen within a second.
 | `String` | text | asks with `inputs().text`, prefilled |
 | `Material` | icon | the icon picker |
 | `List<String>` | lines | one box, one entry per line, prefilled |
-| anything else (maps, lists of records) | read-only | edit it with `/exylialib editor` |
+| `Map<String, Record>`, `List<Record>` | entries | opens the list of entries (see *Content screens*) |
+| `Map<String, value>` (text, number, boolean, enum, `Duration`) | entries | the list of entries; a click changes the one value an entry is |
+| anything else (a map of lists, a list of numbers) | read-only | edit it with `/exylialib editor` |
+
+A map or a list of a settings file (since 1.447.0) opens the content screens
+below, written through the same `ConfigFile` and binder. BACK from it returns
+to the record screen it was opened from.
 
 ## Content screens
 
 A content file is drawn from the schema the web editor infers from it
 (see [YAML subjects](web-editor.md#yaml-subjects)):
 
-- **A block of named entries** (every child a block) is a list of entries
-  (54, paginated). Click opens one, shift-left-click duplicates it as
-  `<id>-copy`, shift-right-click deletes it after a dangerous confirm.
-  **NEW ENTRY** (slot 45) asks for an id (letters, digits, `-`, `_`, `.`) and
-  starts the entry as a copy of the first one, so it passes the checker; an
-  empty block starts it empty. An entry shows the item its `material`, `icon`,
-  `item`, `display-item` or `type` key names, if any.
+- **A block of named entries** (every child a block, or a record's `Map`) is a
+  list of entries (54, paginated). Click opens one, shift-left-click duplicates
+  it as `<id>-copy`, shift-right-click deletes it after a dangerous confirm.
+  **NEW ENTRY** (slot 45) asks for an id (letters, digits, `-`, `_`, `.`). In a
+  record file the entry starts as the record's defaults (the binder fills
+  them); in a YAML file, which has none, as a copy of the first entry, so it
+  passes the checker. An entry shows the item its `material`, `icon`, `item`,
+  `display-item` or `type` key names, if any.
+- **A list of blocks** (a record's `List<Record>`, or a YAML list of blocks,
+  since 1.447.0) is the same screen in order: `#1`, `#2`... with the entry's
+  `name`, `id` or `title` when it has one. NEW ENTRY appends one without asking
+  for an id: the element record's defaults in a record file, a copy of the last
+  one in a YAML file. Duplicate puts the copy right after the original.
+  Reordering is not offered; use `/exylialib editor`.
+- **A map of single values** (`Map<String, Integer>`, of text, of booleans...)
+  lists its entries with their values; a click changes one straight away
+  (types a number or text, flips a switch, steps a choice). A new entry starts
+  at zero, empty, off, or the first choice.
 - **Inside an entry or a section**, every key any entry uses is listed, with the
-  controls of a record: switch, ±steppers with Q to type, text, lines. Nested
-  blocks open their own page. Lists of blocks and keys whose type differs
-  between entries are read-only.
+  controls of a record: switch, choice, ±steppers with Q to type, length of
+  time, text, lines, and the icon picker for a record's `Material`. Nested
+  blocks open their own page. Keys whose type differs between entries, and
+  lists of anything but text or blocks, are read-only.
 - The file is read again only when it changed on disk, so a hand edit shows on
   an open screen within a second.
 
@@ -138,6 +162,8 @@ file holds at that moment: the whole new text is built, the subject's `check`
 reads it (any problem refuses the click, tells the admin why, and writes
 nothing), a sensitive path or a console line asks a dangerous confirm, the file
 is written atomically keeping its comments and order, then `onApplied` runs.
+A record file is bound instead, exactly as a reload binds it: a value of the
+wrong shape refuses the click with the binder's reason.
 
 ## How a change is written
 
@@ -157,7 +183,7 @@ reopened when a prompt had closed it.
 
 ## Restyling
 
-The three screens are admin menus in `lang/<code>/menus/config/`, rewritten
+The screens are admin menus in `lang/<code>/menus/config/`, rewritten
 from the jar on every start. The words on the buttons (values, click hints,
 prompts) are `phrases.yml` lines.
 

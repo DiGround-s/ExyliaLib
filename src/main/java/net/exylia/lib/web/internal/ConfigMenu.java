@@ -52,9 +52,11 @@ import java.util.function.Supplier;
  * an open screen within a second.
  *
  * <p>After the settings come a plugin's content files: the YAML subjects it registered, drawn
- * from the schema {@link YamlSource} infers ({@link YamlFields}), a block of entries as a list
- * with create, duplicate and delete. Each click is read and written by
- * {@link WebEditorRuntime#inGame}, the path an applied web edit takes, checker included.
+ * from the schema {@link YamlSource} infers ({@link YamlFields}), and the record files it
+ * registered, drawn from their record's. A block of entries or a list of blocks is a list with
+ * create, duplicate and delete. Each click is read and written by {@link WebEditorRuntime#inGame},
+ * the path an applied web edit takes, checker or binder included. A map or a list inside a
+ * settings file is edited on those same screens, as its file's discovered subject.
  *
  * <p>Admin screens, rewritten from the jar on every start ({@link #FOLDER}).
  */
@@ -329,9 +331,9 @@ public final class ConfigMenu {
             for (ConfigFields.Field field : ConfigFields.fields(schema, path)) {
                 Object value = field.kind() == ConfigFields.Kind.SECTION ? null
                         : ConfigFields.read(schema, values, field.key());
+                boolean opens = field.kind() == ConfigFields.Kind.SECTION || field.kind() == ConfigFields.Kind.ENTRIES;
                 rows.add(UiEntry.of(field.key())
-                        .template(field.kind() == ConfigFields.Kind.SECTION ? "section"
-                                : field.kind() == ConfigFields.Kind.LOCKED ? "locked" : null)
+                        .template(opens ? "section" : field.kind() == ConfigFields.Kind.LOCKED ? "locked" : null)
                         .with("cfg_key", field.key())
                         .with("cfg_name", ConfigFields.title(field.name()))
                         .with("cfg_icon", ConfigFields.icon(field, value))
@@ -391,8 +393,20 @@ public final class ConfigMenu {
             }
             case MATERIAL -> ask(viewer, back, inputs(viewer).icon(viewer, prompt(field)).open(),
                     material -> write(viewer, plugin, file, field, material, back));
-            case ENTRIES, LOCKED -> { }
+            case ENTRIES -> {
+                SubjectImpl subject = settingSubject(plugin, file);
+                if (subject != null) openYaml(viewer, plugin, subject, List.of(key.split("\\.")));
+            }
+            case LOCKED -> { }
         }
+    }
+
+    /** The discovered subject a settings file is, so its maps and lists are edited as content is. */
+    private static @Nullable SubjectImpl settingSubject(Plugin plugin, ConfigFile<?> file) {
+        for (SubjectImpl subject : WebEditorRuntime.get().settingSubjectsOf(plugin)) {
+            if (subject.file() == file) return subject;
+        }
+        return null;
     }
 
     private static void number(Player viewer, Plugin plugin, ConfigFile<?> file, ConfigFields.Field field,
@@ -549,6 +563,10 @@ public final class ConfigMenu {
         for (SubjectImpl subject : contentOf(viewer, plugin)) {
             if (subject.id().equals(id)) return subject;
         }
+        // A map or list of a settings file: behind the same permission as the file's own screens.
+        for (SubjectImpl subject : WebEditorRuntime.get().settingSubjectsOf(plugin)) {
+            if (subject.id().equals(id)) return subject;
+        }
         return null;
     }
 
@@ -557,12 +575,14 @@ public final class ConfigMenu {
         java.io.File disk = subject.source().disk();
         long modified = disk == null ? 0 : disk.lastModified();
         long length = disk == null ? 0 : disk.length();
-        Read known = READS.get(subject.key());
+        // A record file is already in memory: read it every time, so a write in the same second shows.
+        boolean memory = subject.source() instanceof Source.RecordFile;
+        Read known = memory ? null : READS.get(subject.key());
         if (known != null && known.modified() == modified && known.length() == length) return known;
         try {
             String name = subject.plugin().getName();
             Read fresh = new Read(modified, length, subject.source().schema(name), subject.source().values(name));
-            READS.put(subject.key(), fresh);
+            if (!memory) READS.put(subject.key(), fresh);
             return fresh;
         } catch (RuntimeException unreadable) {
             return null;
@@ -574,6 +594,12 @@ public final class ConfigMenu {
         PluginMenus current = menus;
         Read read = read(subject);
         if (current == null || read == null) return;
+        ConfigFile<?> file = subject.file();
+        if (subject.isDiscovered() && file != null && YamlFields.sections(read.schema(), path)) {
+            // A settings file's own sections keep their record screen, with every control it has.
+            openFields(viewer, plugin, file, String.join(".", path));
+            return;
+        }
         boolean entries = YamlFields.kind(YamlFields.type(read.schema(), path)) == ConfigFields.Kind.ENTRIES;
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
@@ -620,29 +646,72 @@ public final class ConfigMenu {
             case INTEGER, DECIMAL -> "PAPER";
             case TEXT -> "NAME_TAG";
             case LINES -> "WRITABLE_BOOK";
+            case CHOICE -> "COMPARATOR";
+            case TIME -> "CLOCK";
+            case MATERIAL -> {
+                org.bukkit.Material material = value == null ? null : org.bukkit.Material.matchMaterial(String.valueOf(value));
+                yield material != null && material.isItem() && !material.isAir() ? material.name() : "BARRIER";
+            }
             default -> "STRUCTURE_VOID";
         };
     }
 
-    /** The entries of a block, each drawn with the item it names when it names one. */
+    /**
+     * The entries of a block or a list, each drawn with the item it names when it names one; an
+     * entry that is a single value (a map of numbers, of text) shows that value and is edited
+     * straight from here.
+     */
     private static Supplier<List<UiEntry>> entryRows(SubjectImpl subject, List<String> path) {
         return () -> {
             Read read = read(subject);
             if (read == null) return List.of();
+            JsonObject type = YamlFields.type(read.schema(), path);
+            boolean list = YamlFields.isList(type);
+            JsonObject of = type == null ? null : type.getAsJsonObject("of");
+            ConfigFields.Kind kind = YamlFields.kind(of);
+            boolean opens = kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.ENTRIES;
             List<UiEntry> rows = new ArrayList<>();
             List<String> ids = YamlFields.ids(read.values(), path);
             for (int i = 0; i < ids.size(); i++) {
                 JsonElement entry = YamlFields.value(read.values(), YamlFields.child(path, ids.get(i)));
+                Object plain = YamlFields.plain(kind, entry);
                 rows.add(UiEntry.of(ids.get(i))
                         .with("cfg_key", String.valueOf(i))
-                        .with("cfg_name", ids.get(i))
-                        .with("cfg_icon", entryIcon(entry))
-                        .withFormatted("cfg_value", Phrases.tr("{info}{0} {letters}keys",
-                                entry != null && entry.isJsonObject() ? entry.getAsJsonObject().size() : 0))
+                        .with("cfg_name", list ? label(i, entry) : ids.get(i))
+                        .with("cfg_icon", opens ? entryIcon(entry) : yamlIcon(kind, plain))
+                        .withFormatted("cfg_value", opens && kind == ConfigFields.Kind.SECTION
+                                ? Phrases.tr("{info}{0} {letters}keys", entry != null && entry.isJsonObject() ? entry.getAsJsonObject().size() : 0)
+                                : ConfigFields.plain(kind, plain))
+                        .withFormatted("cfg_hint", entryHint(kind))
                         .build());
             }
             return rows;
         };
+    }
+
+    /** What a click on an entry does: open it, or change the one value it is. */
+    private static String entryHint(ConfigFields.Kind kind) {
+        return switch (kind) {
+            case TOGGLE -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}switch");
+            case CHOICE -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}next");
+            case INTEGER, DECIMAL, TEXT, LINES, TIME, MATERIAL -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}change");
+            default -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}open");
+        };
+    }
+
+    /** A list's entry: its position, and the name it gives itself when it has one. */
+    private static String label(int index, @Nullable JsonElement entry) {
+        String label = "#" + (index + 1);
+        if (entry != null && entry.isJsonObject()) {
+            for (String key : List.of("name", "id", "title")) {
+                JsonElement named = entry.getAsJsonObject().get(key);
+                if (named != null && named.isJsonPrimitive() && !named.getAsString().isBlank()) {
+                    String text = named.getAsString();
+                    return label + " · " + (text.length() <= 24 ? text : text.substring(0, 23) + "…");
+                }
+            }
+        }
+        return label;
     }
 
     private static String entryIcon(@Nullable JsonElement entry) {
@@ -666,16 +735,32 @@ public final class ConfigMenu {
         int at = parse(index);
         if (at < 0 || at >= nodes.size()) return;
         YamlFields.Node node = nodes.get(at);
-        List<String> key = YamlFields.child(path, node.key());
+        editAt(viewer, plugin, subject, path, YamlFields.child(path, node.key()), node.kind(), node.type(), node.key(), click);
+    }
+
+    /**
+     * Changes the value at one place of a content file, the way its kind is changed.
+     *
+     * @param screen where the viewer is, reopened after a prompt
+     * @param key    the place
+     * @param name   what the prompt calls it
+     */
+    private static void editAt(Player viewer, Plugin plugin, SubjectImpl subject, List<String> screen, List<String> key,
+                               ConfigFields.Kind kind, @Nullable JsonObject type, String name, String click) {
+        Read read = read(subject);
+        if (read == null) return;
         JsonElement current = YamlFields.value(read.values(), key);
-        Runnable back = () -> openYaml(viewer, plugin, subject, path);
+        Runnable back = () -> openYaml(viewer, plugin, subject, screen);
         boolean big = click.startsWith("shift");
         int direction = click.endsWith("right") ? -1 : 1;
-        String prompt = Phrases.tr("{primary}&lNEW {0}", ConfigFields.title(node.key()));
-        switch (node.kind()) {
+        String prompt = Phrases.tr("{primary}&lNEW {0}", ConfigFields.title(name));
+        switch (kind) {
             case SECTION, ENTRIES -> openYaml(viewer, plugin, subject, key);
             case TOGGLE -> set(viewer, plugin, subject, key,
-                    new JsonPrimitive(!(Boolean.TRUE.equals(YamlFields.plain(node.kind(), current)))), null);
+                    new JsonPrimitive(!(Boolean.TRUE.equals(YamlFields.plain(kind, current)))), null);
+            case CHOICE -> {
+                if (type != null) set(viewer, plugin, subject, key, YamlFields.next(type, current, direction), null);
+            }
             case INTEGER -> {
                 long now = current != null && current.isJsonPrimitive() && current.getAsJsonPrimitive().isNumber() ? current.getAsLong() : 0;
                 if (click.equals("drop")) {
@@ -696,13 +781,23 @@ public final class ConfigMenu {
                     set(viewer, plugin, subject, key, new JsonPrimitive(next.doubleValue()), null);
                 }
             }
+            case TIME -> {
+                if (type == null) return;
+                ask(viewer, back, inputs(viewer).duration(viewer, prompt).defaultValue(YamlFields.duration(type, current)).open(),
+                        duration -> set(viewer, plugin, subject, key, YamlFields.time(type, duration), back));
+            }
+            case MATERIAL -> {
+                if (type == null) return;
+                ask(viewer, back, inputs(viewer).icon(viewer, prompt).open(),
+                        material -> set(viewer, plugin, subject, key, YamlFields.material(type, material), back));
+            }
             case TEXT -> {
-                String now = current == null ? "" : String.valueOf(YamlFields.plain(node.kind(), current));
+                String now = current == null ? "" : String.valueOf(YamlFields.plain(kind, current));
                 ask(viewer, back, inputs(viewer).text(viewer, prompt).defaultValue(now).lines(now.length() > 30 ? 3 : 1).open(),
                         typed -> set(viewer, plugin, subject, key, new JsonPrimitive(typed), back));
             }
             case LINES -> {
-                Object plain = YamlFields.plain(node.kind(), current);
+                Object plain = YamlFields.plain(kind, current);
                 List<String> now = plain instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of();
                 ask(viewer, back, inputs(viewer).text(viewer, prompt).defaultValue(String.join("\n", now))
                                 .lines(Math.max(4, Math.min(10, now.size() + 1))).hint(Phrases.tr("One entry per line")).open(),
@@ -717,9 +812,21 @@ public final class ConfigMenu {
                               String action, String index) {
         Read read = read(subject);
         if (read == null) return;
+        JsonObject type = YamlFields.type(read.schema(), path);
+        boolean list = YamlFields.isList(type);
+        JsonObject of = type == null ? null : type.getAsJsonObject("of");
+        ConfigFields.Kind kind = YamlFields.kind(of);
+        boolean opens = kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.ENTRIES;
         List<String> ids = YamlFields.ids(read.values(), path);
         Runnable back = () -> openYaml(viewer, plugin, subject, path);
         if (action.equals("create")) {
+            if (list) {
+                String id = String.valueOf(ids.size());
+                change(viewer, plugin, subject, path,
+                        values -> YamlFields.inserted(values, path, Integer.MAX_VALUE, fresh(subject, read.schema(), path, of, values)),
+                        opens ? () -> openYaml(viewer, plugin, subject, YamlFields.child(path, id)) : null);
+                return;
+            }
             ask(viewer, back, inputs(viewer).text(viewer, Phrases.tr("{primary}&lNEW ENTRY")).open(), typed -> {
                 String id = typed.trim();
                 if (!YamlFields.ID.matcher(id).matches() || ids.contains(id)) {
@@ -728,27 +835,78 @@ public final class ConfigMenu {
                     back.run();
                     return;
                 }
-                change(viewer, plugin, subject, path, values -> YamlFields.added(values, path, id, null),
-                        () -> openYaml(viewer, plugin, subject, YamlFields.child(path, id)));
+                change(viewer, plugin, subject, path,
+                        values -> YamlFields.with(values, YamlFields.child(path, id), fresh(subject, read.schema(), path, of, values)),
+                        opens ? () -> openYaml(viewer, plugin, subject, YamlFields.child(path, id)) : back);
             });
             return;
         }
         int at = parse(index);
         if (at < 0 || at >= ids.size()) return;
         String id = ids.get(at);
+        String shown = list ? label(at, YamlFields.value(read.values(), YamlFields.child(path, id))) : id;
         switch (action) {
-            case "open" -> openYaml(viewer, plugin, subject, YamlFields.child(path, id));
+            case "open" -> {
+                if (opens) {
+                    openYaml(viewer, plugin, subject, YamlFields.child(path, id));
+                } else {
+                    boolean typed = kind == ConfigFields.Kind.INTEGER || kind == ConfigFields.Kind.DECIMAL;
+                    editAt(viewer, plugin, subject, path, YamlFields.child(path, id), kind, of, id, typed ? "drop" : "left");
+                }
+            }
             case "duplicate" -> {
-                String copy = YamlFields.freeId(ids, id);
-                change(viewer, plugin, subject, path, values -> YamlFields.added(values, path, copy, id), back);
+                if (list) {
+                    change(viewer, plugin, subject, path, values -> {
+                        JsonElement copy = YamlFields.value(values, YamlFields.child(path, id));
+                        return copy == null ? values : YamlFields.inserted(values, path, at + 1, copy);
+                    }, back);
+                } else {
+                    String copy = YamlFields.freeId(ids, id);
+                    change(viewer, plugin, subject, path, values -> YamlFields.added(values, path, copy, id), back);
+                }
             }
             case "delete" -> ask(viewer, back, inputs(viewer).confirm(viewer,
-                            Phrases.tr("{error}Delete {0}? It is removed from the file.", net.exylia.lib.text.Values.inert(id))).dangerous().open(),
+                            Phrases.tr("{error}Delete {0}? It is removed from the file.", net.exylia.lib.text.Values.inert(shown))).dangerous().open(),
                     yes -> {
                         if (yes) change(viewer, plugin, subject, path, values -> YamlFields.with(values, YamlFields.child(path, id), null), back);
                         else back.run();
                     });
             default -> { }
+        }
+    }
+
+    /**
+     * What a new entry starts as. In a record file: a block the binder fills with the record's
+     * defaults, and for a list (whose blocks the binder wants whole) the element record's own
+     * defaults. In a YAML file, which has no defaults: a copy of an entry it already holds, so
+     * it passes the plugin's checker.
+     */
+    static JsonElement fresh(SubjectImpl subject, JsonObject schema, List<String> path, @Nullable JsonObject of, JsonObject values) {
+        boolean list = YamlFields.isList(YamlFields.type(schema, path));
+        ConfigFile<?> file = subject.file();
+        if (file != null) {
+            if (!list) return YamlFields.blank(of);
+            JsonElement defaults = defaults(subject, file, schema, path);
+            if (defaults != null) return defaults;
+        }
+        List<String> ids = YamlFields.ids(values, path);
+        if (!ids.isEmpty()) {
+            JsonElement sample = YamlFields.value(values, YamlFields.child(path, ids.get(list ? ids.size() - 1 : 0)));
+            if (sample != null) return sample;
+        }
+        return YamlFields.blank(of);
+    }
+
+    /** A list element's record defaults, as the file writes them; {@code null} when its type cannot be followed. */
+    private static @Nullable JsonElement defaults(SubjectImpl subject, ConfigFile<?> file, JsonObject schema, List<String> path) {
+        java.lang.reflect.Type type = YamlFields.javaType(file.schema().type(), schema, YamlFields.child(path, "0"));
+        if (!(type instanceof Class<?> record) || !record.isRecord()) return null;
+        try {
+            var constructor = record.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return ValueCodec.toJson(record, subject.plugin().getName(), constructor.newInstance());
+        } catch (ReflectiveOperationException | RuntimeException unbuildable) {
+            return null;
         }
     }
 
