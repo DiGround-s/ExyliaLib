@@ -191,6 +191,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.util.world.TemporaryWorld.start(this);
 
         getServer().getPluginManager().registerEvents(this, this);
+        // Nodes an auto-updated plugin added after its loader jar was installed.
+        net.exylia.lib.internal.DeclaredPermissions declared = new net.exylia.lib.internal.DeclaredPermissions(this);
+        getServer().getPluginManager().registerEvents(declared, this);
+        declared.sweep();
         // One listener for every plugin's menus: an inventory event fires once,
         // and the window's holder says whose menu it is.
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
