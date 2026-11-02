@@ -1,5 +1,5 @@
 # /exylialib config: every Exylia plugin with settings to change.
-# Per row: %cfg_plugin_name% %cfg_plugin_version% %cfg_plugin_files%
+# Per row: %cfg_plugin_name% %cfg_plugin_about% %cfg_plugin_status% (also %cfg_plugin_version% %cfg_plugin_files%)
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
 title: '{primary}&lCONFIGURAÇÕES {muted}%current_page%/%total_pages%'
 size: 54
@@ -29,10 +29,8 @@ pagination:
     name: '{primary}&l%cfg_plugin_name%'
     lore:
       - ''
-      - '{secondary}Informações:'
-      - ' {letters_black}▎ {letters}Versão {letters_black}» {info}%cfg_plugin_version%'
-      - ' {letters_black}▎ {letters}Arquivos {letters_black}» {info}%cfg_plugin_files%'
-      - ''
+      - '%cfg_plugin_about%'
+      - '%cfg_plugin_status%'
       - '{warning}➥ Clique para abrir as configurações'
       - ''
     actions:

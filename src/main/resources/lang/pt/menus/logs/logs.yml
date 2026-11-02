@@ -102,7 +102,5 @@ items:
       - ''
       - '{secondary}Informação:'
       - ' {letters_black}▎ {letters}Jogador {letters_black}» {highlight}%logs_subject%'
-      - ' {letters_black}▎ {letters}Plugin {letters_black}» {info}%logs_plugin%'
-      - ' {letters_black}▎ {letters}Ação {letters_black}» {info}%logs_action%'
       - ' {letters_black}▎ {letters}Registros {letters_black}» {info}%logs_count%'
       - ''

@@ -111,7 +111,5 @@ items:
       - ''
       - '{secondary}Information:'
       - ' {letters_black}▎ {letters}Player {letters_black}» {highlight}%logs_subject%'
-      - ' {letters_black}▎ {letters}Plugin {letters_black}» {info}%logs_plugin%'
-      - ' {letters_black}▎ {letters}Action {letters_black}» {info}%logs_action%'
       - ' {letters_black}▎ {letters}Entries {letters_black}» {info}%logs_count%'
       - ''

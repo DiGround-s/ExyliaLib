@@ -1607,3 +1607,7 @@ World: Dünya
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} must be between {info}{1} {letters}and {info}{2}{letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0}, {info}{1} {letters}ile {info}{2} {letters}arasında olmalı.'
 'the settings of {0}': '{0} ayarları'
 '{warning}➥ Left / Right-click {letters_black}» {letters}+{0} / -{0}': '{warning}➥ Sol / Sağ tık {letters_black}» {letters}+{0} / -{0}'
+' {letters_black}▎ {letters}Problems {letters_black}» {error}{0}': ' {letters_black}▎ {letters}Sorunlar {letters_black}» {error}{0}'
+'{warning}➥ Press Q {letters_black}» {letters}type a sound': '{warning}➥ Q''ya bas {letters_black}» {letters}bir ses yaz'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} şundan düşük olamaz: {1} {letters_black}({2}{letters_black}){letters}.'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} şundan yüksek olamaz: {1} {letters_black}({2}{letters_black}){letters}.'

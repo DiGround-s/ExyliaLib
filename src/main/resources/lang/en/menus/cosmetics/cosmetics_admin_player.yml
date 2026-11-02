@@ -27,10 +27,9 @@ items:
     name: '{primary}&l%player_name%'
     lore:
       - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Crate keys {letters_black}» {info}%player_keys%'
-      - ' {letters_black}▎ {letters}Owned {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Equipped {letters_black}» %player_equipped%'
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Keys, unlocks and what this'
+      - ' {letters_black}▎ {letters}player has {highlight}equipped{letters}.'
       - ''
   keys:
     group: cards

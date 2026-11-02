@@ -21,10 +21,9 @@ items:
     name: '{primary}&l%player_name%'
     lore:
       - ''
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Llaves de caja {letters_black}» {info}%player_keys%'
-      - ' {letters_black}▎ {letters}Obtenidos {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Equipado {letters_black}» %player_equipped%'
+      - '{secondary}Información:'
+      - ' {letters_black}▎ {letters}Llaves, desbloqueos y lo que'
+      - ' {letters_black}▎ {letters}este jugador tiene {highlight}equipado{letters}.'
       - ''
   keys:
     group: cards

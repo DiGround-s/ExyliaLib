@@ -111,7 +111,5 @@ items:
       - ''
       - '{secondary}Bilgi:'
       - ' {letters_black}▎ {letters}Oyuncu {letters_black}» {highlight}%logs_subject%'
-      - ' {letters_black}▎ {letters}Eklenti {letters_black}» {info}%logs_plugin%'
-      - ' {letters_black}▎ {letters}İşlem {letters_black}» {info}%logs_action%'
       - ' {letters_black}▎ {letters}Kayıtlar {letters_black}» {info}%logs_count%'
       - ''

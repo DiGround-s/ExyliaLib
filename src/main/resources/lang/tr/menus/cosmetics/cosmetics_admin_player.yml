@@ -21,10 +21,9 @@ items:
     name: '{primary}&l%player_name%'
     lore:
       - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Sandık anahtarı {letters_black}» {info}%player_keys%'
-      - ' {letters_black}▎ {letters}Sahip olunan {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Kuşanılan {letters_black}» %player_equipped%'
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Anahtarlar, açılanlar ve'
+      - ' {letters_black}▎ {letters}{highlight}kuşanılanlar{letters}.'
       - ''
   keys:
     group: cards

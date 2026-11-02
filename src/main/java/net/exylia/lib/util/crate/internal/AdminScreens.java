@@ -290,7 +290,9 @@ public final class AdminScreens<T> {
                         .with("place_x", at == null ? "?" : (int) Math.floor(at.x()))
                         .with("place_y", at == null ? "?" : (int) Math.floor(at.y()))
                         .with("place_z", at == null ? "?" : (int) Math.floor(at.z()))
-                        .with("place_server", at == null || at.server() == null ? "—" : at.server())
+                        // Off a network every place is on this server: the line is not drawn.
+                        .withFormatted("place_server", at == null || at.server() == null || at.server().isBlank()
+                                ? Lines.OMIT : Values.inert(at.server()))
                         .build());
             }
             return rows;

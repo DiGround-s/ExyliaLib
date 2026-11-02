@@ -1607,3 +1607,7 @@ World: Mundo
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} must be between {info}{1} {letters}and {info}{2}{letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} debe estar entre {info}{1} {letters}y {info}{2}{letters}.'
 'the settings of {0}': 'los ajustes de {0}'
 '{warning}➥ Left / Right-click {letters_black}» {letters}+{0} / -{0}': '{warning}➥ Clic izquierdo / derecho {letters_black}» {letters}+{0} / -{0}'
+' {letters_black}▎ {letters}Problems {letters_black}» {error}{0}': ' {letters_black}▎ {letters}Problemas {letters_black}» {error}{0}'
+'{warning}➥ Press Q {letters_black}» {letters}type a sound': '{warning}➥ Pulsa Q {letters_black}» {letters}escribir un sonido'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} no puede ser menor que {1} {letters_black}({2}{letters_black}){letters}.'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} no puede ser mayor que {1} {letters_black}({2}{letters_black}){letters}.'

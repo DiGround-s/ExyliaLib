@@ -56,6 +56,20 @@ class ConfigPagesTest {
         }
     }
 
+    record Rich(@Menu.Format(Menu.Style.MULTIPLIER) @Menu.Range(preset = Menu.Preset.MULTIPLIER) double fortune,
+                @Menu.Format(Menu.Style.FRACTION) @Menu.Range(preset = Menu.Preset.FRACTION) double share,
+                @Menu.Choices(value = {"survival", "adventure"}, labels = {"Survival", "Adventure"}) String gamemode,
+                @Menu.Language String language,
+                @Menu.Material String helmet,
+                @Menu.Sound String click,
+                @Menu.Unit("min") int window,
+                @Menu.Range(preset = Menu.Preset.HUNDRED, max = 50) @Menu.AtMost("critical") int warning,
+                @Menu.Range(preset = Menu.Preset.HUNDRED) @Menu.AtLeast("warning") int critical) {
+        Rich() {
+            this(1.25, 0.25, "survival", "default", "diamond_helmet", "ENTITY_EXPERIENCE_ORB_PICKUP|0.5|1.2", 90, 30, 60);
+        }
+    }
+
     @TempDir
     Path folder;
 
@@ -160,5 +174,47 @@ class ConfigPagesTest {
         assertEquals(0.0, ConfigFields.step(price, -1.0, 1, false), "stepping off none starts at the edge");
         assertEquals(-1.0, ConfigFields.step(price, 0.0, -1, false), "stepping below the range is none");
         assertTrue(ConfigFields.allowed(price, -1));
+    }
+
+    @Test
+    void richerControlsFormatCycleAndKeepTheOrder() {
+        ConfigFile<Rich> file = Configs.define(plugin, "rich", Rich.class).load();
+        var schema = file.schema();
+        ConfigFields.Field fortune = ConfigFields.field(schema, "fortune");
+        assertEquals("{info}×1.25", ConfigFields.display(fortune, 1.25));
+        assertEquals(1.35, ConfigFields.step(fortune, 1.25, 1, false), "the preset's step");
+        assertFalse(ConfigFields.allowed(fortune, 101), "the preset's max");
+
+        ConfigFields.Field share = ConfigFields.field(schema, "share");
+        assertEquals("{info}25%", ConfigFields.display(share, 0.25));
+        assertEquals(0.3, ConfigFields.step(share, 0.25, 1, false));
+
+        ConfigFields.Field gamemode = ConfigFields.field(schema, "gamemode");
+        assertEquals(ConfigFields.Kind.CHOICE, gamemode.kind());
+        assertEquals("adventure", ConfigFields.step(gamemode, "survival", 1, false));
+        assertEquals("survival", ConfigFields.step(gamemode, "adventure", 1, false), "wraps");
+        assertEquals("survival", ConfigFields.step(gamemode, "creative", 1, false), "a value outside the set moves to the first");
+        assertEquals("{highlight}Adventure", ConfigFields.display(gamemode, "adventure"));
+
+        ConfigFields.Field language = ConfigFields.field(schema, "language");
+        assertEquals("en", ConfigFields.step(language, "default", 1, false));
+        assertEquals("{highlight}Español", ConfigFields.display(language, "es"));
+
+        assertEquals(ConfigFields.Kind.MATERIAL, ConfigFields.field(schema, "helmet").kind());
+
+        ConfigFields.Field click = ConfigFields.field(schema, "click");
+        assertEquals(ConfigFields.Kind.SOUND, click.kind());
+        assertEquals("BLOCK_NOTE_BLOCK_PLING|0.5|1.2", ConfigFields.step(click, "ENTITY_EXPERIENCE_ORB_PICKUP|0.5|1.2", 1, false),
+                "the next house sound, written the way the file writes it, volume and pitch kept");
+        assertEquals("minecraft:entity.villager.no", ConfigFields.nextSound("minecraft:ui.button.click", -1));
+
+        assertTrue(ConfigFields.display(ConfigFields.field(schema, "window"), 90).contains("⌚"), "minutes read as a length of time");
+
+        ConfigFields.Field warning = ConfigFields.field(schema, "warning");
+        ConfigFields.Field critical = ConfigFields.field(schema, "critical");
+        assertNull(ConfigFields.order(schema, file.get(), warning, 50));
+        assertEquals("most", ConfigFields.order(schema, file.get(), warning, 61)[2], "warning may not pass critical");
+        assertEquals("least", ConfigFields.order(schema, file.get(), critical, 20)[2], "critical may not drop under warning");
+        assertFalse(ConfigFields.allowed(warning, 51), "max written beside the preset wins");
     }
 }

@@ -119,7 +119,14 @@ public final class Menu {
         /** An amount of the server's default currency. */
         MONEY,
         /** A share, written {@code 5%}. */
-        PERCENT
+        PERCENT,
+        /**
+         * A share held as a fraction of one: {@code 0.25} reads {@code 25%}. The file and a
+         * typed value stay fractions. Since 1.451.0.
+         */
+        FRACTION,
+        /** A factor: {@code 1.25} reads {@code ×1.25}. Since 1.451.0. */
+        MULTIPLIER
     }
 
     /**
@@ -139,6 +146,124 @@ public final class Menu {
         double step() default 0;
 
         double none() default Double.NaN;
+
+        /**
+         * A common range, so dozens of keys do not each spell it out. {@code min}, {@code max}
+         * and {@code step} written beside it win over the preset's. Since 1.451.0.
+         */
+        Preset preset() default Preset.NONE;
+    }
+
+    /** A common {@link Range}. Since 1.451.0. */
+    public enum Preset {
+        /** No preset: the range is what {@link Range} says. */
+        NONE(-Double.MAX_VALUE, Double.MAX_VALUE, 0),
+        /** Zero or more. */
+        POSITIVE(0, Double.MAX_VALUE, 0),
+        /** {@code 0} to {@code 100}, one at a time: points, percentages, levels. */
+        HUNDRED(0, 100, 1),
+        /** {@code 0} to {@code 1} in steps of {@code 0.05}: a share held as a fraction. */
+        FRACTION(0, 1, 0.05),
+        /** {@code 0} to {@code 100} in steps of {@code 0.1}: a factor. */
+        MULTIPLIER(0, 100, 0.1);
+
+        private final double min;
+        private final double max;
+        private final double step;
+
+        Preset(double min, double max, double step) {
+            this.min = min;
+            this.max = max;
+            this.step = step;
+        }
+
+        /** The lowest value. */
+        public double min() {
+            return min;
+        }
+
+        /** The highest value. */
+        public double max() {
+            return max;
+        }
+
+        /** One click's step; {@code 0} keeps the default. */
+        public double step() {
+            return step;
+        }
+    }
+
+    /**
+     * Text that holds one of a fixed set of values: cycled like an enum instead of typed. A value
+     * the file holds outside the set is kept and shown as written until a click moves it on.
+     * Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Choices {
+        /** The values, as the file writes them. */
+        String[] value();
+
+        /** What each is called on screen, in the same order; default: the value in words. */
+        String[] labels() default {};
+    }
+
+    /**
+     * A plugin's {@code language} key: cycles through {@code default} and the languages Exylia
+     * plugins ship. Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Language {
+    }
+
+    /**
+     * Text that names an item: picked with the icon picker and written in the case the file
+     * already uses. Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Material {
+    }
+
+    /**
+     * A sound written {@code NAME|volume|pitch}: clicks walk a short list of quiet interface
+     * sounds, each played to the admin as it is chosen, keeping the volume and pitch already
+     * written; Q types any sound. Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Sound {
+    }
+
+    /**
+     * The unit a plain number is written in, shown beside it; the file is unchanged. A unit of
+     * time ({@code ms}, {@code t}, {@code s}, {@code min}, {@code h}, {@code d}, {@code w}) reads
+     * as a length of time, {@code 90} minutes as {@code 1h 30m ⌚}. Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Unit {
+        String value();
+    }
+
+    /**
+     * A number that may not go below another key of the same file: a change that would is
+     * refused and the admin told why. The key is a sibling in the same section, or a dotted key
+     * from the file's root. Annotate the other key with {@link AtMost} too, so changing either
+     * keeps the order. Since 1.451.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface AtLeast {
+        String value();
+    }
+
+    /** A number that may not go above another key of the same file; see {@link AtLeast}. Since 1.451.0. */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface AtMost {
+        String value();
     }
 
     /** Left out of the in-game screens. Still in the file and in the web editor. */

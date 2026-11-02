@@ -100,14 +100,19 @@ Laid out the way the hand-made admin screens are (ExyliaMines, ExyliaMarket's
 `/marketadmin`): a header on top, cards centred on their row, the screen cut
 to the rows it needs, BACK in the middle of the bottom row. *Since 1.449.0.*
 
-1. **Plugins** (54, paginated): one book per plugin, its version and how many
-   files it has. A command opens it, so ESC closes it.
+1. **Plugins** (54, paginated): one book per plugin with its description, and
+   *Problems* when its files hold any. A command opens it, so ESC closes it.
 2. **A plugin's files** (hub): one card per settings file and content file,
    with its header comment. Skipped when the plugin has a single file.
 3. **A file's pages** (hub): one card per page, each with the first four
    values it holds, live. Skipped when the file has a single page.
 4. **A page**: a header (the page's card), then one button per key, centred.
    A nested section is a button opening its own page.
+
+Every line on these screens has to help the admin decide something (since
+1.451.0): no plugin version, no count of files or keys. A plugin's or a file's
+*Problems* line appears only when the last read found some, and a file card
+keeps its `File » x.yml`, the place to edit it by hand.
 
 ```
 A file's hub (45)            A page with 3 keys (36)
@@ -152,9 +157,28 @@ like a hand-made screen. None changes the YAML.
 | `@Menu.About({"line", "line"})` | key, section, record type | the *Information* lines, palette tokens allowed; the `@Comment` stays the owner's manual |
 | `@Menu.Page("fees")` | key | puts the key on that page, whatever section it is written in |
 | `@Menu.Pages({@Menu.Card(...)})` | any record of the file | describes the pages: `id`, `label`, `icon`, `about` |
-| `@Menu.Format(Menu.Style.MONEY)` | number | reads as money (`Economy.format`, default currency) or `PERCENT` (`5%`) |
-| `@Menu.Range(min, max, step, none)` | number, `@Time` number | clicks stay inside `[min, max]`, a typed value outside is refused; `step` per click (shift ×10); `none` (such as `-1`) is also accepted and reads *None* |
+| `@Menu.Format(Menu.Style.MONEY)` | number | reads as money (`Economy.format`, default currency), `PERCENT` (`5` → `5%`), `FRACTION` (`0.25` → `25%`, the file keeps the fraction) or `MULTIPLIER` (`1.25` → `×1.25`) |
+| `@Menu.Range(min, max, step, none, preset)` | number, `@Time` number | clicks stay inside `[min, max]`, a typed value outside is refused; `step` per click (shift ×10); `none` (such as `-1`) is also accepted and reads *None*; `preset` fills what is not written: `POSITIVE` (0 – ∞), `HUNDRED` (0 – 100, step 1), `FRACTION` (0 – 1, step 0.05), `MULTIPLIER` (0 – 100, step 0.1) |
+| `@Menu.Unit("min")` | number | the unit beside the value; a unit of time (`ms`, `t`, `s`, `min`, `h`, `d`, `w`) reads as a length (`90` → `1h 30m ⌚`). The file is unchanged |
+| `@Menu.AtLeast("key")` / `@Menu.AtMost("key")` | number | a change that would put it below / above that key is refused with the reason. A sibling key, or a dotted key from the root; annotate both ends so either change keeps the order |
+| `@Menu.Choices(value = {...}, labels = {...})` | text | cycles through a fixed set like an enum; `labels` name them on screen. A value outside the set is shown as written until a click moves it |
+| `@Menu.Language` | text | the plugin's `language`: cycles `default`, `en`, `es`, `fr`, `pt`, `ru`, `tr` |
+| `@Menu.Material` | text | picked with the icon picker, written in the case the file already uses |
+| `@Menu.Sound` | text `NAME\|volume\|pitch` | left / right walk the house UI sounds (`ui.button.click`, `entity.experience_orb.pickup`, `block.note_block.*`, `item.book.page_turn`, `item.bundle.remove_one`, `entity.villager.no`), each played to the admin alone; volume, pitch and the way the name is written are kept; Q types any sound |
 | `@Menu.Hidden` | key | left out of the screens (still in the file and the web editor) |
+
+Since 1.451.0: `FRACTION`, `MULTIPLIER`, `preset`, `Unit`, `AtLeast`, `AtMost`,
+`Choices`, `Language`, `Material`, `Sound`.
+
+```java
+record Detection(
+        @Menu.Label("Warning") @Menu.Range(preset = Menu.Preset.HUNDRED) @Menu.AtMost("critical") int warning,
+        @Menu.Label("Critical") @Menu.Range(preset = Menu.Preset.HUNDRED) @Menu.AtLeast("warning") int critical,
+        @Menu.Label("Window") @Menu.Unit("min") @Menu.Range(min = 1, max = 1440) int windowMinutes,
+        @Menu.Label("Directness") @Menu.Format(Menu.Style.FRACTION) @Menu.Range(preset = Menu.Preset.FRACTION) double directness,
+        @Menu.Label("Game mode") @Menu.Choices(value = {"survival", "adventure", "creative", "spectator"}) String gamemode,
+        @Menu.Label("Alert sound") @Menu.Sound String alertSound) { ... }
+```
 
 A section whose keys all went to pages has no card of its own. Pages are listed
 in the order their first key is declared.

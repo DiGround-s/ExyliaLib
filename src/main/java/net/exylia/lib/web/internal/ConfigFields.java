@@ -54,6 +54,8 @@ final class ConfigFields {
         MATERIAL,
         /** A list of text lines, asked as one box of lines. */
         LINES,
+        /** A {@link Menu.Sound} string: left forward, right back through the house sounds, Q to type one. */
+        SOUND,
         /** Anything else (a map of lists, a list of numbers): shown, edited in the web editor. */
         LOCKED
     }
@@ -147,7 +149,12 @@ final class ConfigFields {
             if (annotation(owner, field.name(), Time.class) != null) return Kind.TIME;
             return whole ? Kind.INTEGER : Kind.DECIMAL;
         }
-        if (type == String.class) return Kind.TEXT;
+        if (type == String.class) {
+            if (annotation(owner, field.name(), Menu.Sound.class) != null) return Kind.SOUND;
+            if (annotation(owner, field.name(), Menu.Material.class) != null) return Kind.MATERIAL;
+            if (choices(owner, field.name()) != null) return Kind.CHOICE;
+            return Kind.TEXT;
+        }
         if (List.class.isAssignableFrom(type) && field.generic() instanceof ParameterizedType list) {
             java.lang.reflect.Type element = list.getActualTypeArguments()[0];
             if (element == String.class) return Kind.LINES;
@@ -179,6 +186,49 @@ final class ConfigFields {
             if (part.getName().equals(component)) return part.getAnnotation(type);
         }
         return null;
+    }
+
+    /** The languages Exylia plugins ship, after {@code default}, which follows ExyliaLib's. */
+    static final List<String> LANGUAGES = List.of("default", "en", "es", "fr", "pt", "ru", "tr");
+    private static final List<String> LANGUAGE_NAMES =
+            List.of("Default", "English", "Español", "Français", "Português", "Русский", "Türkçe");
+
+    /**
+     * The values a text key cycles through and what each is called, or {@code null} when it is
+     * free text.
+     */
+    static @Nullable List<String[]> choices(Class<?> owner, String component) {
+        if (annotation(owner, component, Menu.Language.class) != null) {
+            List<String[]> out = new ArrayList<>();
+            for (int i = 0; i < LANGUAGES.size(); i++) out.add(new String[]{LANGUAGES.get(i), LANGUAGE_NAMES.get(i)});
+            return out;
+        }
+        Menu.Choices choices = annotation(owner, component, Menu.Choices.class);
+        if (choices == null || choices.value().length == 0) return null;
+        List<String[]> out = new ArrayList<>();
+        for (int i = 0; i < choices.value().length; i++) {
+            String label = i < choices.labels().length ? choices.labels()[i] : words(choices.value()[i]);
+            out.add(new String[]{choices.value()[i], label});
+        }
+        return out;
+    }
+
+    /** A key's resolved {@link Menu.Range}: what it says, filled in from its preset. */
+    record Bounds(double min, double max, double step, double none) {
+        boolean hasNone() {
+            return !Double.isNaN(none);
+        }
+    }
+
+    /** The key's bounds, or {@code null} when it declares no {@link Menu.Range}. */
+    static @Nullable Bounds bounds(Field field) {
+        Menu.Range range = field.hint(Menu.Range.class);
+        if (range == null) return null;
+        Menu.Preset preset = range.preset();
+        double min = range.min() != -Double.MAX_VALUE ? range.min() : preset.min();
+        double max = range.max() != Double.MAX_VALUE ? range.max() : preset.max();
+        double step = range.step() > 0 ? range.step() : preset.step();
+        return new Bounds(min, max, step, range.none());
     }
 
     // ------------------------------------------------------------------ values
@@ -234,7 +284,10 @@ final class ConfigFields {
     static @Nullable Object step(Field field, @Nullable Object current, int direction, boolean big) {
         return switch (field.kind()) {
             case TOGGLE -> !Boolean.TRUE.equals(current);
-            case CHOICE -> next(field.schema().type(), current, direction);
+            case CHOICE -> field.schema().type() == String.class
+                    ? nextChoice(choices(field.owner(), field.schema().name()), current, direction)
+                    : next(field.schema().type(), current, direction);
+            case SOUND -> nextSound(current == null ? "" : current.toString(), direction);
             case INTEGER -> {
                 long now = current instanceof Number number ? number.longValue() : 0;
                 long step = Math.max(1, Math.round(step(field)));
@@ -254,7 +307,7 @@ final class ConfigFields {
 
     /** One click's step: the key's {@link Menu.Range#step()}, or 1 for a whole number and 0.1 for a decimal. */
     static double step(Field field) {
-        Menu.Range range = field.hint(Menu.Range.class);
+        Bounds range = bounds(field);
         if (range != null && range.step() > 0) return range.step();
         return field.kind() == Kind.DECIMAL ? 0.1 : 1;
     }
@@ -264,9 +317,9 @@ final class ConfigFields {
      * from the range's edge; stepping below the range lands on {@code none} when there is one.
      */
     static double clamp(Field field, double from, double to) {
-        Menu.Range range = field.hint(Menu.Range.class);
+        Bounds range = bounds(field);
         if (range == null) return to;
-        boolean hasNone = !Double.isNaN(range.none());
+        boolean hasNone = range.hasNone();
         if (hasNone && from == range.none()) return to > from ? range.min() : range.max();
         if (to < range.min()) return hasNone && from == range.min() ? range.none() : range.min();
         if (to > range.max()) return range.max();
@@ -275,16 +328,16 @@ final class ConfigFields {
 
     /** Whether a typed number may be written: inside the key's range, or its {@code none} value. */
     static boolean allowed(Field field, double value) {
-        Menu.Range range = field.hint(Menu.Range.class);
+        Bounds range = bounds(field);
         if (!Double.isFinite(value)) return false;
         if (range == null) return true;
-        if (!Double.isNaN(range.none()) && value == range.none()) return true;
+        if (range.hasNone() && value == range.none()) return true;
         return value >= range.min() && value <= range.max();
     }
 
     /** The range a typed number must be in, as the refusal says it. */
-    static String[] bounds(Field field) {
-        Menu.Range range = field.hint(Menu.Range.class);
+    static String[] limits(Field field) {
+        Bounds range = bounds(field);
         return range == null ? new String[]{"", ""} : new String[]{number(range.min()), number(range.max())};
     }
 
@@ -297,6 +350,77 @@ final class ConfigFields {
         }
         int next = Math.floorMod(at + direction, constants.length);
         return written((Enum<?>) constants[next]);
+    }
+
+    /** The text choice after (or before) {@code current}, wrapping; from the first when it is none of them. */
+    static @Nullable String nextChoice(@Nullable List<String[]> choices, @Nullable Object current, int direction) {
+        if (choices == null || choices.isEmpty()) return null;
+        int at = -1;
+        for (int i = 0; i < choices.size(); i++) {
+            if (choices.get(i)[0].equalsIgnoreCase(String.valueOf(current))) at = i;
+        }
+        if (at < 0) return choices.get(direction > 0 ? 0 : choices.size() - 1)[0];
+        return choices.get(Math.floorMod(at + direction, choices.size()))[0];
+    }
+
+    /** The quiet interface sounds a {@link Menu.Sound} key walks through, as resource keys. */
+    static final List<String> SOUNDS = List.of(
+            "ui.button.click", "entity.experience_orb.pickup", "block.note_block.pling", "block.note_block.chime",
+            "block.note_block.bell", "block.note_block.hat", "block.note_block.bit", "item.book.page_turn",
+            "item.bundle.remove_one", "entity.villager.no");
+
+    /**
+     * The next house sound, keeping the volume and pitch written after the name and the way the
+     * name is written: {@code ENTITY_X_Y} stays an upper-case constant, {@code minecraft:} stays.
+     */
+    static String nextSound(String current, int direction) {
+        int bar = current.indexOf('|');
+        String name = bar < 0 ? current : current.substring(0, bar);
+        String rest = bar < 0 ? "" : current.substring(bar);
+        int at = SOUNDS.indexOf(soundKey(name));
+        String next = at < 0 ? SOUNDS.get(direction > 0 ? 0 : SOUNDS.size() - 1)
+                : SOUNDS.get(Math.floorMod(at + direction, SOUNDS.size()));
+        boolean constant = !name.isEmpty() && name.equals(name.toUpperCase(Locale.ROOT)) && name.indexOf('.') < 0;
+        String written = constant ? next.replace('.', '_').toUpperCase(Locale.ROOT)
+                : name.startsWith("minecraft:") ? "minecraft:" + next : next;
+        return written + rest;
+    }
+
+    /** A written sound name as a resource key: {@code ENTITY_VILLAGER_NO} and {@code minecraft:entity.villager.no} alike. */
+    static String soundKey(String name) {
+        String key = name.trim().toLowerCase(Locale.ROOT);
+        if (key.startsWith("minecraft:")) key = key.substring("minecraft:".length());
+        if (key.indexOf('.') >= 0) return key;
+        for (String known : SOUNDS) {
+            if (known.replace('.', '_').equals(key)) return known;
+        }
+        return key.replace('_', '.');
+    }
+
+    /**
+     * Whether writing {@code value} keeps the key's {@link Menu.AtLeast} / {@link Menu.AtMost}
+     * order: {@code null} when it does, else the other key's label and value, and
+     * {@code "least"} or {@code "most"}.
+     */
+    static @Nullable String[] order(Schema root, Object values, Field field, double value) {
+        Menu.AtLeast least = field.hint(Menu.AtLeast.class);
+        Menu.AtMost most = field.hint(Menu.AtMost.class);
+        for (String[] rule : new String[][]{{least == null ? null : least.value(), "least"},
+                {most == null ? null : most.value(), "most"}}) {
+            if (rule[0] == null) continue;
+            String key = rule[0].indexOf('.') >= 0 ? rule[0]
+                    : field.key().lastIndexOf('.') < 0 ? rule[0] : field.key().substring(0, field.key().lastIndexOf('.') + 1) + rule[0];
+            if (!(read(root, values, key) instanceof Number other)) continue;
+            Field otherField = field(root, key);
+            Bounds bounds = otherField == null ? null : bounds(otherField);
+            if (bounds != null && bounds.hasNone() && other.doubleValue() == bounds.none()) continue;
+            boolean broken = rule[1].equals("least") ? value < other.doubleValue() : value > other.doubleValue();
+            if (broken) {
+                return new String[]{otherField == null ? title(key) : label(otherField),
+                        otherField == null ? String.valueOf(other) : display(otherField, other), rule[1]};
+            }
+        }
+        return null;
     }
 
     /** An enum constant the way the binder writes it: {@code lower-hyphen}. */
@@ -360,15 +484,19 @@ final class ConfigFields {
             case SECTION -> Phrases.tr("{info}{0} {letters}settings", field.schema().nested() == null ? 0
                     : field.schema().nested().fields().size());
             case TOGGLE -> Boolean.TRUE.equals(value) ? Phrases.tr("{success}Enabled") : Phrases.tr("{error}Disabled");
-            case CHOICE -> value instanceof Enum<?> constant ? "{highlight}" + words(constant.name()) : none();
+            case CHOICE -> value instanceof Enum<?> constant ? "{highlight}" + words(constant.name())
+                    : value == null || value.toString().isEmpty() ? none() : "{highlight}" + choiceLabel(field, value.toString());
+            case SOUND -> value == null || value.toString().isBlank() ? none()
+                    : "{highlight}" + Values.inert(words(soundKey(value.toString().split("\\|")[0]).replace('.', ' ')));
             case INTEGER, DECIMAL -> number(field, value);
             case TIME -> {
-                Menu.Range range = field.hint(Menu.Range.class);
+                Bounds range = bounds(field);
                 if (range != null && value instanceof Number number && number.doubleValue() == range.none()) yield none();
                 Duration duration = duration(field, value);
                 yield duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT) + " ⌚";
             }
-            case MATERIAL -> value instanceof Material material ? "{highlight}" + material.name() : none();
+            case MATERIAL -> value instanceof Material material ? "{highlight}" + material.name()
+                    : value == null || value.toString().isBlank() ? none() : "{highlight}" + Values.inert(cut(value.toString()));
             case TEXT -> value == null || value.toString().isEmpty() ? Phrases.tr("{muted}Empty")
                     : "{letters}" + Values.inert(cut(value.toString()));
             case LINES -> Phrases.tr("{info}{0} {letters}lines", value instanceof List<?> list ? list.size() : 0);
@@ -380,16 +508,50 @@ final class ConfigFields {
     /** A number, read as its {@link Menu.Format} says. */
     private static String number(Field field, @Nullable Object value) {
         if (!(value instanceof Number number)) return none();
-        Menu.Range range = field.hint(Menu.Range.class);
+        Bounds range = bounds(field);
         if (range != null && number.doubleValue() == range.none()) return none();
         BigDecimal amount = new BigDecimal(number.toString()).stripTrailingZeros();
+        Menu.Unit unit = field.hint(Menu.Unit.class);
+        Long millis = unit == null ? null : unitMillis(unit.value());
+        if (millis != null) {
+            Duration duration = Duration.ofMillis(Math.max(0, Math.round(number.doubleValue() * millis)));
+            return duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT) + " ⌚";
+        }
         Menu.Format format = field.hint(Menu.Format.class);
         Menu.Style style = format == null ? Menu.Style.NUMBER : format.value();
-        return switch (style) {
+        String shown = switch (style) {
             case MONEY -> "{success}" + Values.inert(money(amount));
             case PERCENT -> "{info}" + amount.toPlainString() + "%";
+            case FRACTION -> "{info}" + amount.movePointRight(2).stripTrailingZeros().toPlainString() + "%";
+            case MULTIPLIER -> "{info}×" + amount.toPlainString();
             case NUMBER -> "{info}" + amount.toPlainString();
         };
+        return unit == null || unit.value().isBlank() ? shown : shown + " {letters}" + Values.inert(unit.value());
+    }
+
+    /** How long one of a {@link Menu.Unit} of time is, or {@code null} for a unit that is not time. */
+    static @Nullable Long unitMillis(String unit) {
+        return switch (unit.trim().toLowerCase(Locale.ROOT)) {
+            case "ms", "millis", "milliseconds" -> 1L;
+            case "t", "tick", "ticks" -> 50L;
+            case "s", "sec", "secs", "second", "seconds" -> 1_000L;
+            case "m", "min", "mins", "minute", "minutes" -> 60_000L;
+            case "h", "hour", "hours" -> 3_600_000L;
+            case "d", "day", "days" -> 86_400_000L;
+            case "w", "week", "weeks" -> 604_800_000L;
+            default -> null;
+        };
+    }
+
+    /** What a text choice is called: its label, or the value in words when it is none of the choices. */
+    private static String choiceLabel(Field field, String value) {
+        List<String[]> choices = choices(field.owner(), field.schema().name());
+        if (choices != null) {
+            for (String[] choice : choices) {
+                if (choice[0].equalsIgnoreCase(value)) return Values.inert(choice[1]);
+            }
+        }
+        return Values.inert(cut(words(value)));
     }
 
     private static String money(BigDecimal amount) {
@@ -431,6 +593,10 @@ final class ConfigFields {
         if (field.kind() == Kind.MATERIAL && value instanceof Material material && material.isItem() && !material.isAir()) {
             return material.name();
         }
+        if (field.kind() == Kind.MATERIAL && value instanceof String written) {
+            Material material = Material.matchMaterial(written.trim());
+            if (material != null && material.isItem() && !material.isAir()) return material.name();
+        }
         Menu.Icon icon = field.hint(Menu.Icon.class);
         if (icon != null && !icon.value().isBlank()) return icon.value();
         String named = named(field.name());
@@ -445,6 +611,7 @@ final class ConfigFields {
             case TEXT -> "NAME_TAG";
             case MATERIAL -> "BARRIER";
             case LINES -> "WRITABLE_BOOK";
+            case SOUND -> "NOTE_BLOCK";
             case LOCKED -> "STRUCTURE_VOID";
         };
     }
@@ -501,6 +668,9 @@ final class ConfigFields {
                     Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"));
             case INTEGER, DECIMAL -> numbers(BigDecimal.ONE, BigDecimal.TEN);
             case TIME, TEXT, MATERIAL, LINES -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}change"));
+            case SOUND -> List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next"),
+                    Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"),
+                    Phrases.tr("{warning}➥ Press Q {letters_black}» {letters}type a sound"));
             case LOCKED -> List.of(Phrases.tr("{letters_black}Edit it with {letters}/exylialib editor{letters_black}."));
         };
         return Lines.join(lines);

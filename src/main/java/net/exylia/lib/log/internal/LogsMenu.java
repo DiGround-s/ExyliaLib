@@ -305,7 +305,9 @@ public final class LogsMenu {
                 .put("log_actor", Values.inert(orNone(entry.actorName())))
                 .put("log_target", Values.inert(orNone(entry.targetName())))
                 .put("log_detail", detail(entry.detail(), lines))
-                .put("log_server", Values.inert(orNone(entry.server())))
+                // Off a network the server is always empty: the line is not drawn.
+                .put("log_server", entry.server() == null || entry.server().isBlank()
+                        ? net.exylia.lib.text.Lines.OMIT : Values.inert(entry.server()))
                 .put("log_location", Values.inert(entry.world() == null ? text.none()
                         : entry.world() + " " + entry.x() + ", " + entry.y() + ", " + entry.z()))
                 .put("log_when", Formats.relative(entry.createdAt()))

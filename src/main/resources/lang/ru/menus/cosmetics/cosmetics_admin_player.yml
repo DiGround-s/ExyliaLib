@@ -21,10 +21,9 @@ items:
     name: '{primary}&l%player_name%'
     lore:
       - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Ключи от ящика {letters_black}» {info}%player_keys%'
-      - ' {letters_black}▎ {letters}Есть {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Надето {letters_black}» %player_equipped%'
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Ключи, открытое и то, что'
+      - ' {letters_black}▎ {letters}сейчас {highlight}надето{letters}.'
       - ''
   keys:
     group: cards

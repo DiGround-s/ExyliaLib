@@ -265,9 +265,7 @@ public final class ConfigMenu {
         String description = plugin.getDescription().getDescription();
         header(context, "BEACON", plugin.getName(),
                 description == null || description.isBlank() ? net.exylia.lib.text.Lines.OMIT : ConfigFields.summary(List.of(description)),
-                List.of(Phrases.tr(" {letters_black}▎ {letters}Version {letters_black}» {info}{0}",
-                                net.exylia.lib.text.Values.inert(plugin.getDescription().getVersion())),
-                        Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", files.size() + content.size())));
+                problems(files));
         show(viewer, FILES, context, () -> fileRows(viewer, plugin), files.size() + content.size(), 2);
     }
 
@@ -323,8 +321,7 @@ public final class ConfigMenu {
         Menu.About about = type.getAnnotation(Menu.About.class);
         header(context, icon == null ? "COMPARATOR" : icon.value(), fileName(file),
                 about != null ? ConfigFields.block(List.of(about.value())) : ConfigFields.summary(file.schema().comments()),
-                List.of(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
-                        net.exylia.lib.text.Values.inert(file.name() + ".yml"))));
+                fileStatus(file));
         show(viewer, FILES, context, cardRows(file), cards.size(), 2);
     }
 
@@ -360,8 +357,7 @@ public final class ConfigMenu {
         context.put("cfg_title", page.label());
         context.put("cfg_where", net.exylia.lib.text.Values.inert(Discovery.title(file.name())));
         context.put("cfg_back_to", backTo(viewer, plugin, page, file));
-        header(context, page.icon(), page.label(), page.about(),
-                List.of(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", page.fields().size())));
+        header(context, page.icon(), page.label(), page.about(), List.of());
         show(viewer, FIELDS, context, pageRows(file, token), page.fields().size(), 1);
     }
 
@@ -401,6 +397,8 @@ public final class ConfigMenu {
                     .with("cfg_plugin_name", plugin.getName())
                     .with("cfg_plugin_version", plugin.getDescription().getVersion())
                     .with("cfg_plugin_files", WebEditorRuntime.get().settingsOf(plugin).size())
+                    .withFormatted("cfg_plugin_about", description(plugin))
+                    .withFormatted("cfg_plugin_status", status(problems(WebEditorRuntime.get().settingsOf(plugin))))
                     .build());
         }
         return rows;
@@ -418,11 +416,7 @@ public final class ConfigMenu {
                     .with("cfg_card_name", fileName(file))
                     .withFormatted("cfg_card_about", about != null ? ConfigFields.block(List.of(about.value()))
                             : ConfigFields.summary(file.schema().comments()))
-                    .withFormatted("cfg_card_status", net.exylia.lib.text.Lines.join(List.of(
-                            Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
-                                    net.exylia.lib.text.Values.inert(file.name() + ".yml")),
-                            Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}",
-                                    ConfigPages.pages(file.schema()).stream().mapToInt(page -> page.fields().size()).sum()))))
+                    .withFormatted("cfg_card_status", net.exylia.lib.text.Lines.join(fileStatus(file)))
                     .build());
         }
         for (SubjectImpl subject : contentOf(viewer, plugin)) {
@@ -441,6 +435,43 @@ public final class ConfigMenu {
                     .build());
         }
         return rows;
+    }
+
+    /**
+     * The problems the last read of these files found, as a Status line; none when they are
+     * clean, since a count of files or keys tells the admin nothing.
+     */
+    static List<String> problems(List<ConfigFile<?>> files) {
+        int count = 0;
+        for (ConfigFile<?> file : files) count += file.issues().size();
+        return count == 0 ? List.of()
+                : List.of(Phrases.tr(" {letters_black}▎ {letters}Problems {letters_black}» {error}{0}", count));
+    }
+
+    /** Where a file is edited by hand, and its problems when it has any. */
+    private static List<String> fileStatus(ConfigFile<?> file) {
+        List<String> lines = new ArrayList<>();
+        lines.add(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
+                net.exylia.lib.text.Values.inert(file.name() + ".yml")));
+        lines.addAll(problems(List.of(file)));
+        return lines;
+    }
+
+    /** A Status block of these lines, or nothing at all. */
+    private static String status(List<String> lines) {
+        if (lines.isEmpty()) return net.exylia.lib.text.Lines.OMIT;
+        List<String> block = new ArrayList<>();
+        block.add(Phrases.tr("{secondary}Status:"));
+        block.addAll(lines);
+        block.add("");
+        return net.exylia.lib.text.Lines.join(block);
+    }
+
+    /** A plugin's own description as an Information block, or nothing. */
+    private static String description(Plugin plugin) {
+        String description = plugin.getDescription().getDescription();
+        return description == null || description.isBlank() ? net.exylia.lib.text.Lines.OMIT
+                : ConfigFields.summary(List.of(description));
     }
 
     private static List<String> comments(JsonObject schema) {
@@ -572,7 +603,23 @@ public final class ConfigMenu {
                         typed -> guarded(viewer, plugin, file, field, ConfigFields.lines(typed), back));
             }
             case MATERIAL -> ask(viewer, back, inputs(viewer).icon(viewer, prompt(field)).open(),
-                    material -> write(viewer, plugin, file, field, material, back));
+                    material -> write(viewer, plugin, file, field, field.schema().type() == String.class
+                            // Text that names an item keeps the case the file already writes it in.
+                            && current != null && !current.toString().isEmpty()
+                            && current.toString().equals(current.toString().toLowerCase(java.util.Locale.ROOT))
+                            ? material.toLowerCase(java.util.Locale.ROOT) : material, back));
+            case SOUND -> {
+                if (click.equals("drop")) {
+                    String now = current == null ? "" : current.toString();
+                    ask(viewer, back, inputs(viewer).text(viewer, prompt(field)).defaultValue(now)
+                                    .hint("NAME|volume|pitch").open(),
+                            typed -> write(viewer, plugin, file, field, typed.trim(), back));
+                } else {
+                    String next = (String) ConfigFields.step(field, current, direction, big);
+                    write(viewer, plugin, file, field, next, null);
+                    preview(viewer, next);
+                }
+            }
             case ENTRIES -> {
                 SubjectImpl subject = settingSubject(plugin, file);
                 if (subject != null) openYaml(viewer, plugin, subject, List.of(key.split("\\.")));
@@ -612,7 +659,7 @@ public final class ConfigMenu {
     /** Whether a typed number is inside the key's {@link Menu.Range}; tells the viewer and reopens the screen when not. */
     private static boolean inRange(Player viewer, ConfigFields.Field field, double typed, Runnable back) {
         if (ConfigFields.allowed(field, typed)) return true;
-        String[] bounds = ConfigFields.bounds(field);
+        String[] bounds = ConfigFields.limits(field);
         Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} must be between {info}{1} {letters}and {info}{2}{letters}.",
                 ConfigFields.label(field), bounds[0], bounds[1])).send(viewer);
         back.run();
@@ -635,6 +682,24 @@ public final class ConfigMenu {
                     if (yes) write(viewer, plugin, file, field, value, back);
                     else back.run();
                 });
+    }
+
+    /** Plays a {@code NAME|volume|pitch} sound to the admin alone, so a click lets them hear what they chose. */
+    private static void preview(Player viewer, String written) {
+        String[] parts = written.split("\\|");
+        float volume = parts.length > 1 ? decimal(parts[1], 1f) : 1f;
+        float pitch = parts.length > 2 ? decimal(parts[2], 1f) : 1f;
+        String key = "minecraft:" + ConfigFields.soundKey(parts[0]);
+        Plugin owner = library;
+        if (owner != null) Tasks.of(owner).runAtEntity(viewer, () -> viewer.playSound(viewer.getLocation(), key, volume, pitch));
+    }
+
+    private static float decimal(String number, float fallback) {
+        try {
+            return Float.parseFloat(number.trim());
+        } catch (NumberFormatException notNumber) {
+            return fallback;
+        }
     }
 
     private static <T> void ask(Player viewer, Runnable back, CompletionStage<InputResult<T>> asked,
@@ -661,6 +726,19 @@ public final class ConfigMenu {
         Plugin owner = library;
         if (owner == null || value == null) return;
         Tasks.of(owner).run(() -> {
+            String[] order = value instanceof Number number
+                    ? ConfigFields.order(file.schema(), file.get(), field, number.doubleValue()) : null;
+            if (order != null) {
+                Tasks.of(owner).runAtEntity(viewer, () -> {
+                    Text.of(order[2].equals("least")
+                            ? Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can't be lower than {1} {letters_black}({2}{letters_black}){letters}.",
+                            ConfigFields.label(field), order[0], order[1])
+                            : Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can't be higher than {1} {letters_black}({2}{letters_black}){letters}.",
+                            ConfigFields.label(field), order[0], order[1])).send(viewer);
+                    if (reopen != null) reopen.run();
+                });
+                return;
+            }
             List<ConfigIssue> issues = file.set(field.key(), value);
             WebEditorRuntime.reloadWritten(plugin, List.of());
             Tasks.of(owner).runAtEntity(viewer, () -> {

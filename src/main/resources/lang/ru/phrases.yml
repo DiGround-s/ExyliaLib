@@ -1595,3 +1595,7 @@ World: Мир
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} must be between {info}{1} {letters}and {info}{2}{letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} должно быть от {info}{1} {letters}до {info}{2}{letters}.'
 'the settings of {0}': 'к настройкам {0}'
 '{warning}➥ Left / Right-click {letters_black}» {letters}+{0} / -{0}': '{warning}➥ ЛКМ / ПКМ {letters_black}» {letters}+{0} / -{0}'
+' {letters_black}▎ {letters}Problems {letters_black}» {error}{0}': ' {letters_black}▎ {letters}Проблемы {letters_black}» {error}{0}'
+'{warning}➥ Press Q {letters_black}» {letters}type a sound': '{warning}➥ Нажмите Q {letters_black}» {letters}ввести звук'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} не может быть меньше, чем {1} {letters_black}({2}{letters_black}){letters}.'
+'[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} не может быть больше, чем {1} {letters_black}({2}{letters_black}){letters}.'
