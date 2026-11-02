@@ -84,7 +84,7 @@ public final class BundledFiles {
      * its new keys from the record, then the plugin's jar ships its own value for them.
      *
      * @param defaults dotted keys and the value the library writes for each
-     * @since 1.448.0
+     * @since 1.442.0
      */
     public static void libraryWrote(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource,
                                     @NotNull java.util.Map<String, Object> defaults) {

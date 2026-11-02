@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
  * });
  * }</pre>
  *
- * @since 1.448.0
+ * @since 1.442.0
  */
 public final class Footing {
 
