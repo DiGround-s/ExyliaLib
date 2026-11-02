@@ -655,22 +655,77 @@ public final class WebEditorRuntime {
             }
         }
         written.forEach((plugin, subjects) -> {
-            try {
-                Reloads reloads = Reloads.declared(plugin);
-                if (reloads != null) {
-                    reloads.run();
-                    return;
+            List<ConfigFile<?>> files = new ArrayList<>();
+            for (SubjectImpl subject : subjects) {
+                ConfigFile<?> file = subject.file();
+                if (file != null) {
+                    files.add(file);
                 }
-                for (SubjectImpl subject : subjects) {
-                    ConfigFile<?> file = subject.file();
-                    if (file != null) {
-                        file.reload();
-                    }
-                }
-            } catch (Throwable thrown) {
-                Debug.of(subjects.get(0).plugin()).error("The web editor wrote " + plugin + "'s files, but reloading it threw", thrown);
             }
+            reloadWritten(subjects.get(0).plugin(), files);
         });
+    }
+
+    /**
+     * Brings a plugin up to date after its files were written behind its back: its declared
+     * {@code Reloads}, or, for the library, what {@code /exylialib reload} does; otherwise each
+     * written file is re-read so its {@code onReload} listeners run. On the global thread.
+     *
+     * @param plugin  whose files were written
+     * @param written the record files that changed; already re-read ones may be left out
+     */
+    public static void reloadWritten(@NotNull Plugin plugin, @NotNull Collection<? extends ConfigFile<?>> written) {
+        try {
+            Reloads reloads = Reloads.declared(plugin.getName());
+            if (reloads != null) {
+                reloads.run();
+                return;
+            }
+            if (plugin instanceof ExyliaLib lib) {
+                lib.reloadPalette();
+                return;
+            }
+            for (ConfigFile<?> file : written) {
+                file.reload();
+            }
+        } catch (Throwable thrown) {
+            Debug.of(plugin).error("The editor wrote " + plugin.getName() + "'s files, but reloading it threw", thrown);
+        }
+    }
+
+    /**
+     * The record settings files of a plugin an admin may change in game: what discovery offers
+     * as {@code settings} (not translated, not covered by a registration, not excluded). Empty
+     * for a plugin that turned discovery off.
+     *
+     * @param plugin the plugin
+     * @return its files, in definition order
+     */
+    public @NotNull List<ConfigFile<?>> settingsOf(@NotNull Plugin plugin) {
+        if (!discoverable(plugin)) {
+            return List.of();
+        }
+        Map<String, SubjectImpl> registered = registry.getOrDefault(plugin.getName(), Map.of());
+        List<ConfigFile<?>> files = new ArrayList<>();
+        for (SubjectImpl subject : Discovery.records(plugin, registered.values(),
+                options(plugin.getName()).excluded(), net.exylia.lib.config.Configs.loaded())) {
+            if ("settings".equals(subject.group()) && subject.file() != null) {
+                files.add(subject.file());
+            }
+        }
+        return files;
+    }
+
+    /** The enabled Exylia plugins with at least one settings file, by name. */
+    public @NotNull List<Plugin> configurablePlugins() {
+        List<Plugin> plugins = new ArrayList<>();
+        for (Plugin plugin : Snapshot.exyliaPlugins()) {
+            if (!settingsOf(plugin).isEmpty()) {
+                plugins.add(plugin);
+            }
+        }
+        plugins.sort(Comparator.comparing(Plugin::getName, String.CASE_INSENSITIVE_ORDER));
+        return plugins;
     }
 
     /** The cause a completed future failed with, unwrapped; null when it succeeded. */

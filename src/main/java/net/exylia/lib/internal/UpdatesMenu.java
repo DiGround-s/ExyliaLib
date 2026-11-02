@@ -97,6 +97,7 @@ public final class UpdatesMenu {
         PendingRewardsMenu.init(plugin);
         net.exylia.lib.settings.internal.SettingsMenu.init(plugin, NAMESPACE);
         net.exylia.lib.log.internal.LogsMenu.init(plugin, NAMESPACE);
+        net.exylia.lib.web.internal.ConfigMenu.init(plugin, NAMESPACE);
         net.exylia.lib.modes.internal.ModesMenu.init(plugin, NAMESPACE);
         net.exylia.lib.util.crate.internal.AdminScreens.init(plugin, NAMESPACE);
         net.exylia.lib.database.wipe.internal.WipeMenu.init(plugin, NAMESPACE);
@@ -121,6 +122,7 @@ public final class UpdatesMenu {
         PendingRewardsMenu.release();
         net.exylia.lib.settings.internal.SettingsMenu.release();
         net.exylia.lib.log.internal.LogsMenu.release();
+        net.exylia.lib.web.internal.ConfigMenu.release();
         net.exylia.lib.modes.internal.ModesMenu.release();
         net.exylia.lib.util.crate.internal.AdminScreens.release();
         net.exylia.lib.database.wipe.internal.WipeMenu.release();
@@ -156,6 +158,7 @@ public final class UpdatesMenu {
         PendingRewardsMenu.load(target);
         net.exylia.lib.settings.internal.SettingsMenu.load(target);
         net.exylia.lib.log.internal.LogsMenu.load(target);
+        net.exylia.lib.web.internal.ConfigMenu.load(target);
         net.exylia.lib.modes.internal.ModesMenu.load(target);
         net.exylia.lib.util.crate.internal.AdminScreens.load(target);
         net.exylia.lib.database.wipe.internal.WipeMenu.load(target);

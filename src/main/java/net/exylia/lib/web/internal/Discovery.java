@@ -65,29 +65,7 @@ final class Discovery {
         List<Pattern> globs = excluded.stream().map(Discovery::glob).toList();
         Set<File> covered = new HashSet<>();
         Set<String> ids = new HashSet<>();
-        for (SubjectImpl subject : registered) {
-            ids.add(subject.id().toLowerCase(Locale.ROOT));
-            File file = subject.source().disk();
-            if (file != null) {
-                covered.add(canonical(file));
-            }
-        }
-        List<SubjectImpl> found = new ArrayList<>();
-
-        for (ConfigFile<?> config : configs) {
-            if (!(config instanceof ConfigFileImpl<?> impl) || !impl.ownedBy(plugin) || impl.file() == null) {
-                continue;
-            }
-            File file = canonical(impl.file());
-            if (!covered.add(file) || excluded(relative(root, file.toPath()), globs)) {
-                continue;
-            }
-            String id = id(config.name(), ids);
-            SubjectImpl subject = new SubjectImpl(plugin, id, new Source.RecordFile(config), Subject.GENERIC)
-                    .discovered(impl.translated() ? "messages" : "settings");
-            subject.title(title(config.name())).permission(PERMISSION);
-            found.add(subject);
-        }
+        List<SubjectImpl> found = records(plugin, registered, globs, configs, covered, ids);
 
         List<Path> files = yamlFiles(root, installed, owned, globs);
         for (Path path : files) {
@@ -113,6 +91,46 @@ final class Discovery {
                     return (namespace == null ? Menus.of(plugin) : Menus.of(plugin, namespace)).check(section);
                 });
             }
+            found.add(subject);
+        }
+        return found;
+    }
+
+    /**
+     * Step 1 alone: the plugin's record config files a registration does not cover, as discovered
+     * subjects. Reads no disk beyond resolving paths, so the in-game settings screens call it on
+     * the player's thread.
+     */
+    static List<SubjectImpl> records(Plugin plugin, Collection<SubjectImpl> registered, List<String> excluded,
+                                     Collection<? extends ConfigFile<?>> configs) {
+        return records(plugin, registered, excluded.stream().map(Discovery::glob).toList(), configs,
+                new HashSet<>(), new HashSet<>());
+    }
+
+    private static List<SubjectImpl> records(Plugin plugin, Collection<SubjectImpl> registered, List<Pattern> globs,
+                                             Collection<? extends ConfigFile<?>> configs, Set<File> covered,
+                                             Set<String> ids) {
+        Path root = canonical(plugin.getDataFolder()).toPath();
+        for (SubjectImpl subject : registered) {
+            ids.add(subject.id().toLowerCase(Locale.ROOT));
+            File file = subject.source().disk();
+            if (file != null) {
+                covered.add(canonical(file));
+            }
+        }
+        List<SubjectImpl> found = new ArrayList<>();
+        for (ConfigFile<?> config : configs) {
+            if (!(config instanceof ConfigFileImpl<?> impl) || !impl.ownedBy(plugin) || impl.file() == null) {
+                continue;
+            }
+            File file = canonical(impl.file());
+            if (!covered.add(file) || excluded(relative(root, file.toPath()), globs)) {
+                continue;
+            }
+            String id = id(config.name(), ids);
+            SubjectImpl subject = new SubjectImpl(plugin, id, new Source.RecordFile(config), Subject.GENERIC)
+                    .discovered(impl.translated() ? "messages" : "settings");
+            subject.title(title(config.name())).permission(PERMISSION);
             found.add(subject);
         }
         return found;

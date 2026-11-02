@@ -1666,6 +1666,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | --- | --- | --- | --- | --- |
 | task | `task/Tasks`, `TaskScheduler`, `TaskHandle`; `platform/Platform` | `task/internal/` | [docs/task.md](docs/task.md) | 1.0.0 |
 | config | `config/Configs`, `ConfigFile`, `MutableConfig`, `Key`, `Comment`, `Migration`, `ConfigIssue`, `Schema` (1.50.0); `Map<String, V>` sections (1.63.0) | `config/internal/` (+ `SchemaProjection`) | [docs/config.md](docs/config.md) | 1.1.0 |
+| config menus (in game) | `config/ConfigMenus` (`open`, `PERMISSION`) | `web/internal/ConfigMenu` (screens, clicks, global-thread write via `ConfigFile.set`), `ConfigFields` (schema → control, values, display), `WebEditorRuntime.settingsOf`/`configurablePlugins`/`reloadWritten`, `Discovery.records`; `internal/ConfigCommand` — `/exylialib config`; screens in `lang/<code>/menus/config/` | [docs/config-menus.md](docs/config-menus.md) | 1.443.0 |
 | text | `text/Text`, `Colors`, `Palette`, `Lines` (1.48.0), `LibraryMessages` (1.67.0), `PluginMessages`/`Values` (1.266.0) | `text/internal/` | [docs/text.md](docs/text.md) | 1.2.0 |
 | gradients over Components and character maps | `text/Gradients` (`blend`, `at`, `wrap`, `paint`, `apply`, `length`), `text/CharMaps.transform` | `SmallText` is only the table and delegates to `CharMaps`; `Debug.gradientName` uses `Gradients.blend` | [docs/text.md](docs/text.md) | 1.102.0 |
 | actionbar | `actionbar/ActionBars` | `actionbar/internal/` (`ActionBarRuntime`, `ActionBarLine`) | [docs/actionbars.md](docs/actionbars.md) | 1.323.0 |

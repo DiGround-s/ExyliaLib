@@ -17,6 +17,9 @@ permissions:
   exylialib.editor:
     description: Open the browser editor with /exylialib editor, apply what it saved and trust a second browser.
     default: op
+  exylialib.config:
+    description: Change every Exylia plugin's settings from a menu with /exylialib config.
+    default: op
   exylialib.pendingrewards:
     description: Review the rewards players are still owed, and give or cancel them.
     default: op

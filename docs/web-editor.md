@@ -173,7 +173,8 @@ subjects:
    namespace the plugin's menus use): any problem refuses it. Any other file is
    group `files`, kind `generic`, with no checker beyond being valid YAML.
 3. **Applying** any discovered subject runs the plugin's declared `Reloads`
-   once per apply, however many of its files changed. A plugin that declares
+   once per apply, however many of its files changed. ExyliaLib's own files
+   run what `/exylialib reload` does (since 1.443.0). A plugin that declares
    none has each written record file re-read instead, so its `onReload`
    listeners run.
 
