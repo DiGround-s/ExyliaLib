@@ -228,9 +228,12 @@ public record SpatialLayout(
          * chosen one lit; a catalogue fills {@code catalog_tabs} with its filter steps and hides the row when it
          * has none. {@code ACTION} (since 1.452.0): the one primary button, filling the panel; {@code label}
          * defaults to {@code %catalog_action%} and {@code action} to {@code save}, lit while there is
-         * something to do and dimmed (it still answers) while there is not.
+         * something to do and dimmed (it still answers) while there is not. {@code ICONS} (since 1.453.0): a row of
+         * glyphs, one per entry of {@code buttons}, no plates; a button's label is {@code "<glyph>|<words>"} or
+         * words whose first glyph is the icon ({@code ☆ FAVOURITE}); the words show only under the crosshair, in
+         * the hint line ({@code %catalog_hint%}). One whose words read blank is left out.
          */
-        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS, TABS, ACTION }
+        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS, TABS, ACTION, ICONS }
 
         public Content() {
             this(Type.NONE, "", 1, 1, List.of(), "", "", List.of());
@@ -389,7 +392,11 @@ public record SpatialLayout(
                            int rows, double rowGap, Style style) {
 
         /** How a carousel draws its entries. */
-        public enum Style { PLINTHS, SHELF }
+        /**
+         * {@code ARC} (since 1.453.0): one row of icons floating at eye level either side of the preview, bent round
+         * the viewer like an orbit, each over a soft light disc, no tiles or names.
+         */
+        public enum Style { PLINTHS, SHELF, ARC }
 
         public Carousel() {
             this("items", List.of(0.0, -1.05, 0.8), 6, 0.62, 1.3, 0.15);
@@ -409,9 +416,13 @@ public record SpatialLayout(
             style = style == null ? Style.PLINTHS : style;
         }
 
-        /** How many entries a page holds: every slot of every row of a shelf, a plinth row's slots. */
+        /** How many entries a page holds: every slot of every row of a shelf, a plinth row's or an arc's slots. */
         public int perPage() {
             return shelf() ? slots * rows : slots;
+        }
+
+        public boolean arc() {
+            return style == Style.ARC;
         }
 
         public boolean shelf() {

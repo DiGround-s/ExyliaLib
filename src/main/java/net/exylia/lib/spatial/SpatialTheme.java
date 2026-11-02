@@ -74,10 +74,13 @@ public record SpatialTheme(
         @Comment("Whether body lines (descriptions, hints, subtitles, the page line) follow the server's small-text")
         @Comment("setting like titles and buttons do. Small capitals are hard to read at body sizes.")
         boolean smallCapsBody,
-        @Comment("The guided tour of a first open: the line under each step (%step% of %steps%), and the outline")
-        @Comment("round the piece the step points at.")
+        @Comment("The guided tour of a first open: the line under each caption (%dots% the step dots, %step% of")
+        @Comment("%steps%), and the colour of the arrow and the light on the piece a step points at.")
         String introLine,
-        String introOutline) {
+        String introOutline,
+        @Comment("How pieces come in when the menu opens: POP (grow in with a small bounce) or RISE (rise a little")
+        @Comment("and settle, quickly and quietly).")
+        String openMotion) {
 
     /** The library's look. */
     public SpatialTheme() {
@@ -96,8 +99,31 @@ public record SpatialTheme(
                 "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|0.6|1.4",
                 "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0",
                 0.95, false,
-                "{muted}Click to continue {letters_black}· {muted}Sneak to skip {letters_black}» {info}%step%{letters_black}/{info}%steps%",
-                "{highlight}");
+                "%dots%\n{muted}Click to continue {letters_black}· {muted}sneak to skip",
+                "{highlight}", "POP");
+    }
+
+    /** Every key but the open motion: the shape themes had in 1.452.0. */
+    public SpatialTheme(String glassTint, double glassTintStrength, int glassAlpha, double backingReach, int backingAlpha,
+                        String accent, double accentHeight, double titleScale, double textScale, double smallScale,
+                        String pedestalBlock, String plateIdle, String plateHover, String plateSelected, String hoverGlow,
+                        double hoverGrow, String editOutline, String lockedLine, String ownedLine, String equippedLine,
+                        String equippedMarker, String lockedMarker, String pageLine, String previousArrow,
+                        String nextArrow, String emptyLine, List<String> spotLines, String leaveMaterial,
+                        String leaveName, List<String> leaveLore, String hoverSound, String selectSound,
+                        String pageSound, String openSound, String closeSound, String errorSound,
+                        double minGlyphDegrees, boolean smallCapsBody, String introLine, String introOutline) {
+        this(glassTint, glassTintStrength, glassAlpha, backingReach, backingAlpha, accent, accentHeight, titleScale,
+                textScale, smallScale, pedestalBlock, plateIdle, plateHover, plateSelected, hoverGlow, hoverGrow,
+                editOutline, lockedLine, ownedLine, equippedLine, equippedMarker, lockedMarker, pageLine,
+                previousArrow, nextArrow, emptyLine, spotLines, leaveMaterial, leaveName, leaveLore, hoverSound,
+                selectSound, pageSound, openSound, closeSound, errorSound, minGlyphDegrees, smallCapsBody,
+                introLine, introOutline, "POP");
+    }
+
+    /** Whether pieces rise in rather than pop in. */
+    public boolean rises() {
+        return "RISE".equalsIgnoreCase(openMotion.strip());
     }
 
     /** Every key but the guided tour's: the shape themes had before 1.452.0. */
@@ -115,12 +141,13 @@ public record SpatialTheme(
                 editOutline, lockedLine, ownedLine, equippedLine, equippedMarker, lockedMarker, pageLine,
                 previousArrow, nextArrow, emptyLine, spotLines, leaveMaterial, leaveName, leaveLore, hoverSound,
                 selectSound, pageSound, openSound, closeSound, errorSound, minGlyphDegrees, smallCapsBody,
-                new SpatialTheme().introLine(), new SpatialTheme().introOutline());
+                new SpatialTheme().introLine(), new SpatialTheme().introOutline(), "POP");
     }
 
     public SpatialTheme {
         introLine = introLine == null ? "" : introLine;
         introOutline = introOutline == null || introOutline.isBlank() ? "{highlight}" : introOutline;
+        openMotion = openMotion == null || openMotion.isBlank() ? "POP" : openMotion;
         spotLines = spotLines == null ? List.of() : List.copyOf(spotLines);
         leaveLore = leaveLore == null ? List.of() : List.copyOf(leaveLore);
     }

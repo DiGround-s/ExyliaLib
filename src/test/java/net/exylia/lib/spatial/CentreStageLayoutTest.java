@@ -57,14 +57,16 @@ class CentreStageLayoutTest {
     @Test
     void theTemplateReadsBackClean() throws Exception {
         SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
-        assertEquals(1, layout.menuVersion());
-        assertEquals(6.0, layout.anchor().distance(), 1e-9);
-        assertTrue(layout.carousel().shelf());
-        assertEquals(16, layout.carousel().perPage());
-        assertEquals(3, layout.intro().steps().size());
+        assertEquals(2, layout.menuVersion());
+        assertEquals(4.5, layout.anchor().distance(), 1e-9);
+        assertTrue(layout.carousel().arc());
+        assertEquals(8, layout.carousel().perPage());
+        assertEquals(4, layout.intro().steps().size());
         assertEquals(SpatialLayout.Content.Type.TABS, layout.panel("tabs").content().type());
         assertEquals(SpatialLayout.Content.Type.ACTION, layout.panel("action").content().type());
-        assertTrue(!layout.panel("hint").frame() && layout.panel("card").frame());
+        assertEquals(SpatialLayout.Content.Type.ICONS, layout.panel("icons").content().type());
+        assertTrue(layout.theme().rises());
+        layout.panels().forEach((name, panel) -> assertTrue(!panel.frame(), name + " stands bare: no glass anywhere"));
     }
 
     // ── Seen from the eyes ────────────────────────────────────────────────
@@ -117,14 +119,28 @@ class CentreStageLayoutTest {
         standing.addAll(rect(px, py + 0.9 * s, pz + 0.3 * s, 0, 0.6 * s, 1.8 * s));
         boxes.put("preview", project(d, standing));
 
-        SpatialLayout.Carousel shelf = layout.carousel();
+        SpatialLayout.Carousel row = layout.carousel();
+        double[] at = {row.at().get(0), row.at().get(1), row.at().get(2)};
+        if (row.arc()) {
+            double icon = row.spacing() * 0.74;
+            for (int i = 0; i < row.perPage(); i++) {
+                double[] slot = Geometry.carousel(i, row.perPage(), row.spacing(), row.centreGap(), row.curve());
+                // The icon at rest, and the soft disc under it.
+                boxes.put("arc/" + i, project(d, rect(at[0] + slot[0], at[1] - icon * 0.2, at[2] + slot[1], 0, icon, icon * 1.4)));
+            }
+            double outer = Geometry.outermost(row.perPage(), row.spacing(), row.centreGap()) + row.spacing() * 0.9;
+            for (int side = -1; side <= 1; side += 2) {
+                boxes.put("arc/arrow" + side, project(d, rect(at[0] + side * outer, at[1], at[2] + row.curve(), 0, 0.2, 0.3)));
+            }
+            boxes.put("arc/page", project(d, rect(at[0] + outer - row.spacing() * 0.5, at[1] - row.spacing() * 0.9 * 0.95, at[2] + row.curve(), 0, 0.5, 0.12)));
+            return boxes;
+        }
+        SpatialLayout.Carousel shelf = row;
         double tile = shelf.spacing() * 0.8;
         double tall = Math.min(tile, shelf.rowGap() * 0.86);
-        double[] at = {shelf.at().get(0), shelf.at().get(1), shelf.at().get(2)};
         for (int i = 0; i < shelf.perPage(); i++) {
             double[] slot = Geometry.shelf(i, shelf.slots(), shelf.spacing(), shelf.rowGap(), shelf.curve());
             double turn = Geometry.facingTurn(at[0] + slot[0], d - at[2] - slot[2]);
-            // A hovered tile's icon comes 0.12 nearer and grows ×1.12: its largest outline.
             boxes.put("shelf/" + i, project(d, rect(at[0] + slot[0], at[1] + slot[1], at[2] + slot[2] + 0.12, -turn,
                     tile * 1.12, tall * 1.12)));
         }
@@ -153,12 +169,15 @@ class CentreStageLayoutTest {
     }
 
     @Test
-    void theWholeBoardFitsSixtyDegrees() throws Exception {
+    void theWholeBoardFitsAboutHalfTheView() throws Exception {
         SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
-        double half = layout.anchor().distance() * Math.tan(Math.toRadians(30));
-        // A little margin inside the 60°, both ways.
-        boxes(layout).forEach((name, box) -> assertTrue(box.x0() > -half * 0.95 && box.x1() < half * 0.95
-                && box.y0() > -half * 0.95 && box.y1() < half * 0.95, name + " " + box + " leaves ±" + half));
+        double d = layout.anchor().distance();
+        double lift = layout.anchor().lift();
+        double across = d * Math.tan(Math.toRadians(36));
+        double up = d * Math.tan(Math.toRadians(25));
+        // About 72° across and 50° top to bottom: half a 16:9 window's view at most, with the eyes level.
+        boxes(layout).forEach((name, box) -> assertTrue(box.x0() > -across && box.x1() < across
+                && box.y0() + lift > -up && box.y1() + lift < up, name + " " + box + " leaves ±" + across + " × ±" + up));
     }
 
     // ── Readable and whole ────────────────────────────────────────────────
@@ -178,16 +197,12 @@ class CentreStageLayoutTest {
                 words.actionBuy().replace("%price%", "$12,500.00"), words.actionConfirm().replace("%price%", "$12,500.00"))) {
             assertTrue(floorWidth(label, d - action.forward(), layout.theme()) <= action.width() * 0.86, label);
         }
-        SpatialLayout.Panel leave = layout.panel("leave");
-        assertTrue(floorWidth(words.leave(), d, layout.theme()) <= leave.width() * 0.86, words.leave());
         SpatialLayout.Panel hint = layout.panel("hint");
         for (String line : List.of(words.hintIdle(), words.hintHoverLocked().replace("%unlock%", "Not for sale"),
                 words.hintBuy().replace("%price%", "$12,500.00"), words.hintEquip().replace("%name%", "Lightning Strike"))) {
             assertTrue(floorWidth(line, d - hint.forward(), layout.theme()) <= hint.width() * 0.9, line);
         }
-        // Seven tabs, as a plugin with five categories, every offer and the favourites has, all in one row.
         SpatialLayout.Panel tabs = layout.panel("tabs");
-        // Sized, as the row is, for its far end.
         double far = Math.sqrt(Math.pow(d - tabs.forward(), 2) + Math.pow(Math.abs(tabs.across()) + tabs.width() / 2, 2)
                 + tabs.up() * tabs.up());
         double[] widths = new double[7];
@@ -195,7 +210,7 @@ class CentreStageLayoutTest {
         for (int i = 0; i < names.length; i++) {
             widths[i] = floorWidth(words.tabActive().replace("%tab%", names[i]), far, layout.theme()) + 0.2;
         }
-        assertArrayEquals(new int[]{0, 7}, Geometry.tabWindow(widths, 0.05, layout.panel("tabs").width(), 3));
+        assertArrayEquals(new int[]{0, 7}, Geometry.tabWindow(widths, 0.05, tabs.width(), 3));
     }
 
     // ── Geometry ──────────────────────────────────────────────────────────

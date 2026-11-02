@@ -567,106 +567,54 @@ that filters to presets, a material grid) declares two `offers` lists, a
 6. Call `menus.refresh(player)` when ownership changes outside the menu (crate
    `onChange`, the store's listener) and `menus.refreshAll()` in the reload step.
 
-## Centre stage (since 1.452.0)
+## Centre stage (since 1.452.0; redrawn in 1.453.0)
 
-The catalogue layout new players read at once: one job per zone, one primary
-action, nothing behind scroll or sneak.
+The catalogue layout new players read at once, and nothing like an inventory pasted in the sky: no panels,
+words floating with a shadow, one filled button, the items floating round the preview at eye level.
 
 ```
-   [ ALL ][ MEME ][ VOID ][ CATACLYSM ][ LOVESTRUCK ][ COSMIC ][ ★ ]     tabs
-   ┌──────────┐       ┌─────────┐          ✕ LEAVE
-   │ CARD     │       │ PREVIEW │          ☆ FAVOURITE      quiet buttons
-   │ name ... │       │         │          ? Help
-   └──────────┘       └─────────┘
-                     [   EQUIP   ]                          the one primary action
-   ◀   ▣  ▣  ▣  ▣  ▣  ▣  ▣  ▣   ▶                           the shelf: 2 rows a page
-       ▣  ▣  ▣  ▣  ▣  ▣  ▣  ▣
-                PAGE 1 / 7
-   ➥ Look at an effect to see it · click to try it          the live hint
+           All   Meme   Void   Cataclysm   Lovestruck   Cosmic   ★          tabs: plain words
+                        THE FLOOR IS LAVA                                   the name looked at
+                      Epic · ✔ Equipped                                     one quiet line
+             (a short muted description once the crosshair rests)
+   ‹   ◆  ◆  ◆  ◆        ( preview )        ◆  ◆  ◆  ◆   ›  1 / 14         the arc, at eye level
+                           [ EQUIP ]                                        the one primary button
+               ☆   ✘   ↺   ⟳   ▶   ✦   ?   ✕                                icons, words on hover
+               Look at an effect to see it · click to try it                the hint
 ```
 
-The board stands **6 blocks** away (`anchor.distance`; 3.4 before, which made
-everything huge and cramped), and the whole of it stays inside about 56° across
-and 51° top to bottom. Text is never scaled up to fill the room: every line is
-drawn at the theme's `min-glyph-degrees` where it stands (so at 6 blocks a
-capital is a 0.57 scale), and the extra room is spacing and detail. Moving the
-board further keeps it readable; nothing has to change but `distance`.
+The board stands **4.5 blocks** away and spans about 71° across and 47° top to bottom (measured by the bot
+from the packets): about half the view of a 16:9 window at the default 70° FOV. 1.452.0 stood it 6 blocks
+away with glass cards, plates and tiles: on a real client it read as an old inventory screen, small and
+crammed in the middle. Every line is still drawn at the theme's `min-glyph-degrees` where it stands.
 
 | Piece | YAML | What it does |
 | --- | --- | --- |
-| Tabs | a panel, `frame: false`, `content: {type: TABS, source: catalog_tabs}` | The catalogue's filter steps (every offer, each category, `★` favourites) as one row of tabs, the open one lit. Each tab as wide as its words, never cut; when they do not all fit, as many as fit round the open one. Click or wheel. Hidden with no categories and no favourites |
-| ✕ LEAVE | a panel, `frame: false`, `content: {type: BUTTON, label: '%catalog_leave%', action: leave}` | Closes the menu (`leave` is answered by every menu). Sneaking still leaves |
-| Card | a framed `TEXT` panel | What is looked at on the shelf, else what is chosen: `%catalog_card_name%`, `%catalog_card_subtitle%`, `%catalog_card_status%` (equipped, owned, price, locked), `%catalog_card_unlock%` (how a locked one is had), plus the plugin's own lines (description wrapped with `ctx.wrap("card", ...)`) |
-| Primary action | a panel, `frame: false`, `content: {type: ACTION}` | One plate filling the panel: `%catalog_action%`, the `save` action. Lit in `plate-selected` while it has something to do (`SpatialMenu.ready`), dark and calm while not; still clicked either way |
-| Quiet buttons | a panel, `frame: false`, `content: {type: BUTTONS, ...}` | Favourite, unequip, revert, crate, the plugin's extras and `? Help` (`action: intro`); blank ones close up |
-| Shelf | `carousel: {style: SHELF, rows: 2, slots: 8, spacing, row-gap, curve, centre-gap: 0}` | `slots × rows` icons a page on dark tiles, both rows bent round the viewer alike, each tile turned to the eyes. Hover lifts the icon off its tile and lights the tile; the chosen tile is lit in `plate-selected`; a locked icon is dimmed with `locked-marker`, the worn one carries `equipped-marker`. `◀ ▶` at the row ends and `PAGE x / y` under them; the wheel pages too. No names on the shelf: the card says what it is |
-| Hint | a panel, `frame: false`, a `TEXT` line `%catalog_hint%` | What to do next, from what the player is looking at and what their draft waits for |
-| Tour | `intro: {steps: [{target, at, text}]}` | See below |
+| Tabs | `frame: false`, `content: {type: TABS, source: catalog_tabs}` | The filter steps as plain words (`tab` muted, `tab-active` light), a thin accent line under the open one, a faint one under the one looked at. Never cut; a window round the open one when they do not fit |
+| Title | `frame: false`, no content, `title: '%catalog_card_title%'`, `hint: '%catalog_card_meta%'` | The name of what is looked at, else chosen, in one light colour (its own colours dropped), and one quiet line: its subtitle (a rarity, in its colour) `·` where the player stands (`card-owned`, `card-equipped`, the price, or `🔒 ` and its unlock line) |
+| Description | `frame: false`, a `TEXT` panel of up to three lines | The plugin's, through `SpatialCatalog.described(ctx, source)`: the entry the crosshair has **rested on** (`SpatialContext.dwelled`, 0.7 s), else the chosen one while the crosshair is on nothing; nothing during a quick look, so a sweep along the arc stays calm |
+| Arc | `carousel: {style: ARC, slots: 8, spacing, centre-gap, curve}` | The page's items either side of the preview, at eye level, bending towards the viewer like an orbit, each turned to the eyes over a soft disc of light, no tiles, no names, bobbing gently. Under the crosshair an item comes 0.28 forward, grows ×1.3 and glows in its own colour (the first colour of its subtitle: a rarity); the chosen one's disc takes the accent and it turns slowly. `‹ ›` past the ends (muted, light under the crosshair) and `1 / 14` under the right one; the wheel turns it too, the page sliding sideways |
+| Primary action | `frame: false`, `content: {type: ACTION}` | The only filled thing: a translucent accent plate while there is something to do (`EQUIP`, `BUY · $500`, `CONFIRM · $500`), no fill and muted words while not (`EQUIPPED ✔`, `LOCKED`). Its words are drawn bold in one colour whatever colours the words carry |
+| Icons | `frame: false`, `content: {type: ICONS, buttons: [...]}` | A row of muted glyphs, light under the crosshair. A button's label is `'<glyph>\|<words>'` or words starting with their glyph (`☆ FAVOURITE`); the words show only under the crosshair, in the hint line (the menu's `%icon_label%`). Blank words leave it out |
+| Hint | `frame: false`, a `TEXT` line `%catalog_hint%` | One short muted line: what to do next, or what the icon under the crosshair does |
+| Tour | `intro.steps` | Coach marks; see below |
 
-`frame: false` (any panel) draws no glass, backing or accent. A bare panel's
-buttons, the tabs and the primary action are drawn as written, like body lines:
-small capitals run about 40 % wider at the readability floor and read poorly in
-the air. Panel titles still follow the server's `small-text`. Lines of a `TEXT`
-panel are never set closer than the readability floor makes them (before, 0.16
-blocks at most, which at 6 blocks made lines touch).
+`theme.open-motion: RISE` (since 1.453.0; `POP` is the default and the old look) brings pieces in rising a
+little and settling, quickly. Bare panels (`frame: false`) draw their titles, buttons and words as written:
+one font on the board. The shipped layout sets `title-scale: 1.0`, quiet arrows (`‹ ›`), a page line of
+`%page% / %pages%` and a muted lock marker.
 
-**The primary action** (`%catalog_action%`) of an `equips` catalogue reads
-`action-equip` (`EQUIP`), `action-equipped` (`EQUIPPED ✔`, calm), `action-pick`
-(nothing chosen yet), `action-buy` (`BUY » $500`), then `action-confirm`
-(`CONFIRM » $500`, the second click pays and wears), or `action-locked` when
-nobody sells it. A catalogue of several parts reads its `save` words (`SAVE`,
-`Saved ✔`, `BUY & SAVE`, `CONFIRM`). The purchase is SAVE's (see *Cosmetic
-catalogues*), so CONFIRM in place, refusals and refunds are unchanged.
+**The tour as coach marks (since 1.453.0).** No box: each step writes a short caption beside its piece (its
+title, then its words broken to a narrow column, shadowed, nothing behind them) with the step dots under it
+(`theme.intro-line`, `%dots%`: `● ○ ○ ○`, the current one in `intro-outline`), and a `➜` between caption and
+piece pointing at it and nudging towards it. The piece is lit softly rather than framed: the arc's items glow,
+a pool of light on the pedestal for the preview, a thin line under a panel. Moving on, the caption and the
+arrow glide from where the last step stood. Clicking moves on, sneaking skips, `? ` (action `intro`) shows it
+again. The shipped layout has four steps: the arc, the preview, the primary button, the icons and tabs
+(`%catalog_intro_more%`, a new word).
 
-**The hint** (`%catalog_hint%`) reads, in this order: `hint-confirm` while
-CONFIRM waits; for the entry under the crosshair `hint-hover` (`➥ Click to try
-%name%`), `hint-hover-equipped`, `hint-hover-buy` (with its price) or
-`hint-hover-locked` (with `%unlock%`); then for the draft `hint-blocked`,
-`hint-buy`, `hint-equip` (`➥ Press EQUIP to wear %name%`) or `hint-save`; else
-`hint-idle` (`➥ Look at an item to see it · click to try it`). Looking at the
-entry just tried says what to do with it, not to try it again.
-
-**The guided tour.** The first time a player opens a menu whose layout has
-`intro.steps`, after everything has popped in, each step outlines its `target`
-(a panel's name, `carousel` or `preview`) in `theme.intro-outline` and writes its
-`text` (`\n` starts a new line) at `at` on a dark plate, with `theme.intro-line`
-under it (`Click to continue · Sneak to skip » 1/3`). While it shows, a click
-anywhere moves on and presses nothing under it, the wheel does nothing, and
-sneaking skips the rest instead of leaving. It is marked seen when it starts, in
-the player's own data on this server (`PersistentDataContainer`, key
-`<plugin>:spatial_intro_<menu>`), so it never shows again by itself; a button
-with `action: intro`, `SpatialMenus.showIntro(player)` shows it now, and
-`SpatialMenus.resetIntro(player, id)` shows it on the next open (ExyliaKillEffect:
-`/killeffectsadmin spatial tour <player>`). The catalogue's words
-`%catalog_intro_shelf%`, `%catalog_intro_preview%` and `%catalog_intro_action%`
-are the three steps.
-
-```yaml
-menu-version: 1
-anchor: {mode: FRONT, distance: 6.0, lift: 0.0, clear-view: true}
-panels:
-  tabs:   {at: [0, 2.45, 0], size: [6.2, 0.34], frame: false, content: {type: TABS, source: catalog_tabs}}
-  leave:  {at: [2.45, 1.85, 0.3], turn: -24, size: [1.1, 0.34], frame: false,
-           content: {type: BUTTON, label: '%catalog_leave%', action: leave}}
-  card:   {at: [-1.9, 0.8, 0.3], turn: 20, size: [2.0, 2.05],
-           content: {type: TEXT, lines: ['%effect_name%', '%effect_rarity%', '%catalog_card_status%', '%catalog_card_unlock%']}}
-  more:   {at: [2.0, 0.6, 0.3], turn: -24, size: [1.8, 1.7], frame: false,
-           content: {type: BUTTONS, buttons: [{label: '%catalog_favourite%', action: favourite},
-                                              {label: '%catalog_help%', action: intro}]}}
-  action: {at: [0, -0.65, 0.35], size: [2.4, 0.4], frame: false, content: {type: ACTION}}
-  hint:   {at: [0, -2.8, 0.4], size: [6.0, 0.24], frame: false, content: {type: TEXT, lines: ['%catalog_hint%']}}
-preview: {at: [0, -0.25, 0.35], scale: 0.7, effect-scale: 0.7, pedestal: true}
-carousel: {source: effects, style: SHELF, at: [0, -1.2, 0.4], slots: 8, rows: 2, spacing: 0.62,
-           row-gap: 0.72, centre-gap: 0, curve: 0.35}
-intro:
-  steps:
-    - {target: carousel, at: [0, 0.55, 1.3], text: '%catalog_intro_shelf%'}
-    - {target: preview, at: [-1.9, 0.95, 1.3], text: '%catalog_intro_preview%'}
-    - {target: action, at: [0, 0.55, 1.3], text: '%catalog_intro_action%'}
-```
-
-**New words** (`SpatialCatalog.Words`, after the 1.416.0 ones; the 19-word
-constructor still works and gives these in English): `action-equip`,
+**New words** (`SpatialCatalog.Words`, after the 1.416.0 ones; the 19-word and 49-word
+constructors still work and give the later ones in English; `intro-more` since 1.453.0): `action-equip`,
 `action-equipped`, `action-pick`, `action-buy`, `action-confirm`,
 `action-locked`; `card-none`, `card-equipped`, `card-owned`, `card-price`,
 `card-locked`, `unlock`; the ten `hint-*` above; `tab` and `tab-active`
@@ -684,11 +632,13 @@ a catalogue sets it: a draft that can be saved or bought, or CONFIRM armed),
 `SpatialMenus.CENTRE_STAGE` (the bundled layout's path), `SpatialLayout.Intro`,
 `SpatialLayout.Step`, `SpatialLayout.Carousel.Style` / `rows` / `rowGap` /
 `perPage()`, `SpatialLayout.Panel.frame`, `SpatialLayout.menuVersion`,
-`SpatialTheme.introLine` / `introOutline`. Every record keeps its earlier
-constructors.
+`SpatialTheme.introLine` / `introOutline`; since 1.453.0 `SpatialLayout.Carousel.Style.ARC`,
+`Content.Type.ICONS`, `SpatialTheme.openMotion` / `rises()`, `SpatialContext.dwelled(source)`,
+`SpatialCatalog.described(ctx, source)`, `%catalog_card_title%`, `%catalog_card_meta%`,
+`%catalog_intro_more%`, `%icon_label%`. Every record keeps its earlier constructors.
 
 **Shipping it to servers.** A plugin that moves to the centre stage raises its
-layout's `menu-version` (KillEffect: 1; a file without one is 0). A server file
+layout's `menu-version` (KillEffect: 2 since the 1.453.0 redraw; a file without one is 0). A server file
 nobody edited is replaced on the next start (the old one kept as
 `<id>.yml.v<n>`); an edited one keeps its layout and the new one waits in
 `/exylialib updates` as one change. Reading a layout as a record fills in keys
@@ -696,7 +646,7 @@ the jar never shipped, drops unknown ones and stamps a `config-version`, which
 used to make every layout on every server look edited; `SpatialMenus.register`
 now calls `BundledFiles.recordWrote` first, so a file that is exactly the
 reviewed defaults as the record writes them (older library defaults included)
-counts as untouched. `menu-version` is a record key since 1.452.0, so the
+counts as untouched (1.453.0 also counts 1.452.0's `theme.intro-line` default as the library's). `menu-version` is a record key since 1.452.0, so the
 record's own write keeps it.
 
 **Room in front.** A FRONT menu with `clear-view` opens towards the nearest

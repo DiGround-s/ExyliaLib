@@ -218,4 +218,14 @@ public interface SpatialContext {
     /** Drops a waiting confirmation. @since 1.416.0 */
     default void disarm() {
     }
+
+    /**
+     * The entry of {@code source} the crosshair has rested on for a moment (about 0.7 s), else {@code null}: what a
+     * menu shows more of (a description) only once the player lingers, so a sweep along a row stays calm.
+     *
+     * @since 1.453.0
+     */
+    default @org.jetbrains.annotations.Nullable String dwelled(@NotNull String source) {
+        return null;
+    }
 }

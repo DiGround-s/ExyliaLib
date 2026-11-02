@@ -153,7 +153,9 @@ public final class SpatialMenus {
             "theme.text-scale", List.of(0.36),
             "theme.small-scale", List.of(0.27),
             "theme.select-sound", List.of("minecraft:block.note_block.hat|1.0|1.0"),
-            "theme.open-sound", List.of("minecraft:block.ender_chest.open|1.0|1.4"));
+            "theme.open-sound", List.of("minecraft:block.ender_chest.open|1.0|1.4"),
+            "theme.intro-line", List.of("{muted}Click to continue {letters_black}· {muted}Sneak to skip {letters_black}» "
+                    + "{info}%step%{letters_black}/{info}%steps%"));
 
     /** Whether the jar {@code anchor} came from holds {@code path}. */
     static boolean packaged(Class<?> anchor, String path) {
@@ -630,8 +632,9 @@ public final class SpatialMenus {
         }
         SpatialLayout.Carousel carousel = layout.carousel();
         if (carousel.present()) {
+            // An arc's page arrows stand a step past its ends.
             half = Math.max(half, Math.abs(carousel.at().get(0)) + carousel.centreGap() / 2
-                    + carousel.slots() / 2.0 * carousel.spacing());
+                    + carousel.slots() / 2.0 * carousel.spacing() + (carousel.arc() ? carousel.spacing() * 1.5 : 0));
         }
         Plugin owner = library;
         if (owner == null) return null;

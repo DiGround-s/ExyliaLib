@@ -258,7 +258,31 @@ public final class SpatialCatalog {
             @Key("help") String help,
             @Key("intro-shelf") String introShelf,
             @Key("intro-preview") String introPreview,
-            @Key("intro-action") String introAction) {
+            @Key("intro-action") String introAction,
+            @Comment("A fourth tour step (since 1.453.0), for the icons and tabs: %catalog_intro_more%.")
+            @Key("intro-more") String introMore) {
+
+        /** The words of 1.452.0, the fourth tour step in English. */
+        public Words(String save, String saved, String buy, String confirm, String locked, String statusSaved,
+                     String statusUnsaved, String statusBuy, String statusConfirm, String statusLocked, String revert,
+                     String unequip, String favourite, String unfavourite, String filter, String filterAll,
+                     String filterFavourites, String crate, String price, String actionEquip, String actionEquipped,
+                     String actionPick, String actionBuy, String actionConfirm, String actionLocked, String cardNone,
+                     String cardEquipped, String cardOwned, String cardPrice, String cardLocked, String unlock,
+                     String hintIdle, String hintHover, String hintHoverEquipped, String hintHoverBuy,
+                     String hintHoverLocked, String hintEquip, String hintSave, String hintBuy, String hintConfirm,
+                     String hintBlocked, String tab, String tabActive, String tabFavourites, String leave, String help,
+                     String introShelf, String introPreview, String introAction) {
+            this(save, saved, buy, confirm, locked, statusSaved, statusUnsaved, statusBuy, statusConfirm, statusLocked,
+                    revert, unequip, favourite, unfavourite, filter, filterAll, filterFavourites, crate, price,
+                    actionEquip, actionEquipped, actionPick, actionBuy, actionConfirm, actionLocked, cardNone,
+                    cardEquipped, cardOwned, cardPrice, cardLocked, unlock, hintIdle, hintHover, hintHoverEquipped,
+                    hintHoverBuy, hintHoverLocked, hintEquip, hintSave, hintBuy, hintConfirm, hintBlocked, tab,
+                    tabActive, tabFavourites, leave, help, introShelf, introPreview, introAction, INTRO_MORE);
+        }
+
+        private static final String INTRO_MORE =
+                "{letters}&lMORE\n{muted}Look at an icon to read what it does {letters_black}· {muted}the tabs filter";
 
         public Words() {
             this("{success}&lSAVE", "{muted}Saved {success}✔", "{highlight}&lBUY & SAVE", "{warning}&lCONFIRM",
@@ -299,11 +323,12 @@ public final class SpatialCatalog {
                     "{warning}➥ {letters}Press {highlight}BUY {letters}to own it for {warning}%price%",
                     "{warning}➥ {letters}Click {warning}CONFIRM {letters}to pay {warning}%price%",
                     "{error}🔒 {letters}%unlock%",
-                    "{letters_black}%tab%", "{highlight}%tab%", "★",
+                    "{muted}%tab%", "{letters}%tab%", "★",
                     "{error}&l✕ LEAVE", "{muted}? Help",
                     "{highlight}&lYOUR COLLECTION\n{letters}Look at an item to read its card {letters_black}· {letters}click to try it",
                     "{highlight}&lTRY IT ON\n{letters}What you click plays here at once {letters_black}· {letters}nothing is kept yet",
-                    "{highlight}&lKEEP IT\n{letters}This button equips it, or buys it first {letters_black}· {letters}sneak to leave");
+                    "{highlight}&lKEEP IT\n{letters}This button equips it, or buys it first {letters_black}· {letters}sneak to leave",
+                    INTRO_MORE);
         }
     }
 
@@ -468,6 +493,19 @@ public final class SpatialCatalog {
     /** The open filter: {@link #ALL}, {@link #FAVOURITES} or a category id. */
     public static @NotNull String filter(@NotNull SpatialContext ctx) {
         return ctx.get(FILTER_KEY, ALL);
+    }
+
+    /**
+     * What a description describes: the entry the crosshair has rested on ({@link SpatialContext#dwelled}), else
+     * the chosen one while the crosshair is on nothing of {@code source}, else {@code null} (a quick look shows
+     * only the name and its line, so a sweep along a row stays calm).
+     *
+     * @since 1.453.0
+     */
+    public static @Nullable String described(@NotNull SpatialContext ctx, @NotNull String source) {
+        String dwelled = ctx.dwelled(source);
+        if (dwelled != null) return dwelled;
+        return ctx.hovered(source) == null ? ctx.selected(source) : null;
     }
 
     /** The entry under the crosshair in {@code source}, else the chosen one: what an information panel describes. */
@@ -702,7 +740,8 @@ public final class SpatialCatalog {
                 .put("catalog_help", text.help())
                 .put("catalog_intro_shelf", text.introShelf())
                 .put("catalog_intro_preview", text.introPreview())
-                .put("catalog_intro_action", text.introAction());
+                .put("catalog_intro_action", text.introAction())
+                .put("catalog_intro_more", text.introMore());
         card(ctx, text, values);
         values.put("catalog_save", fillIn(save, name, basket, part))
                 .put("catalog_status", fillIn(status, name, basket, part))
@@ -748,6 +787,9 @@ public final class SpatialCatalog {
     /** The live hint: what the player is looking at first, then what their draft waits for. */
     private String hint(SpatialContext ctx, Words text, Basket basket, boolean dirty, boolean confirming, String name,
                         String part, String unlock) {
+        // An icon under the crosshair says what it does, in the hint line, so the icon row stays quiet.
+        String icon = ctx.get(MenuSession.ICON_LABEL, "");
+        if (!icon.isBlank()) return icon;
         if (confirming) return fillIn(text.hintConfirm(), name, basket, part);
         Offer looked = find(ctx, primary, ctx.hovered(primary));
         // Looking at the one just tried says what to do with it, not to try it again.
@@ -772,17 +814,30 @@ public final class SpatialCatalog {
         Offer shown = find(ctx, primary, shown(ctx, primary));
         if (shown == null) {
             values.put("catalog_card_name", text.cardNone()).put("catalog_card_subtitle", "")
-                    .put("catalog_card_status", "").put("catalog_card_unlock", "");
+                    .put("catalog_card_status", "").put("catalog_card_unlock", "")
+                    .put("catalog_card_title", text.cardNone()).put("catalog_card_meta", "");
             return;
         }
         String status;
         if (shown.owned()) status = shown.equipped() ? text.cardEquipped() : text.cardOwned();
         else if (shown.buyable()) status = text.cardPrice().replace("%price%", shown.purchase().price().format());
         else status = text.cardLocked();
+        // The quiet pair (since 1.453.0): the name in one light colour, and one muted line under it saying
+        // what it is (its subtitle, a rarity, in its own colour) and where the player stands with it.
+        String standing = shown.owned() ? (shown.equipped() ? text.cardEquipped() : text.cardOwned())
+                : shown.buyable() ? text.price().replace("%price%", shown.purchase().price().format())
+                : "{muted}🔒 " + plainOf(unlockOf(shown, text));
+        String subtitle = shown.entry().subtitle();
+        values.put("catalog_card_title", "{letters}&l" + plainOf(shown.entry().name()))
+                .put("catalog_card_meta", (subtitle.isBlank() ? "" : subtitle + " {letters_black}· ") + standing);
         values.put("catalog_card_name", shown.entry().name())
                 .put("catalog_card_subtitle", shown.entry().subtitle())
                 .put("catalog_card_status", status)
                 .put("catalog_card_unlock", shown.owned() || shown.buyable() ? "" : unlockOf(shown, text));
+    }
+
+    private static String plainOf(String line) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(Text.verbatim(line)).strip();
     }
 
     private static String fillIn(String line, String name, Basket basket, String part) {
