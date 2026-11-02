@@ -98,3 +98,17 @@ items:
       - ''
     actions:
       - 'exylialib:cosmetics blocks'
+  settings:
+    slot: 36
+    material: COMPARATOR
+    name: '{primary}&lAYARLAR'
+    lore:
+      - ''
+      - '{secondary}Bilgi:'
+      - ' {letters_black}▎ {letters}Eklentinin ayarlarını'
+      - ' {letters_black}▎ {letters}{highlight}dosyalarını {letters}açmadan değiştir.'
+      - ''
+      - '{warning}➥ Tıkla {letters_black}» {letters}Ayarları aç'
+      - ''
+    actions:
+      - 'exylialib:cosmetics settings'

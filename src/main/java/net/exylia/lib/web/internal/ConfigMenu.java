@@ -32,7 +32,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -59,6 +62,20 @@ public final class ConfigMenu {
     private static final String FILE_KEY = "cfg_file";
     private static final String PATH_KEY = "cfg_path";
 
+    /**
+     * Where each viewer came in from a plugin's own hub: that plugin, the permission it accepts
+     * on top of {@link ConfigMenus#PERMISSION}, and what BACK on the top screen does. Replaced on
+     * every open, dropped by a plain open.
+     */
+    // ponytail: an entry outlives a quit until the next open or a disable; it holds a name, a string and a lambda.
+    private static final Map<UUID, Entry> ENTRIES = new ConcurrentHashMap<>();
+
+    private record Entry(String plugin, @Nullable String permission, @Nullable Consumer<Player> back) {
+        boolean covers(@Nullable Plugin target) {
+            return target != null && plugin.equals(target.getName());
+        }
+    }
+
     private static volatile PluginMenus menus;
     private static volatile Plugin library;
     private static volatile Class<?> anchor = ConfigMenu.class;
@@ -75,26 +92,31 @@ public final class ConfigMenu {
     public static void init(@NotNull Plugin plugin, @NotNull String namespace) {
         library = plugin;
         PluginActions actions = Actions.of(plugin, namespace);
-        String permission = ConfigMenus.PERMISSION;
-        actions.registerSync("config_plugin", permission, (context, arguments) -> {
+        actions.registerSync("config_plugin", (context, arguments) -> {
+            if (!allowed(context.player(), null)) return refused(context.player());
             Plugin target = Bukkit.getPluginManager().getPlugin(arguments.string(0, ""));
             if (target != null) open(context.player(), target);
             return ActionResult.success();
         });
-        actions.registerSync("config_file", permission, (context, arguments) -> {
+        actions.registerSync("config_file", (context, arguments) -> {
             UiSession session = context.require(UiKeys.SESSION);
             Plugin target = plugin(session);
+            if (!allowed(context.player(), target)) return refused(context.player());
             ConfigFile<?> file = target == null ? null : file(target, arguments.string(0, ""));
             if (file != null) openFields(context.player(), target, file, "");
             return ActionResult.success();
         });
-        actions.registerSync("config_edit", permission, (context, arguments) -> {
-            edit(context.player(), context.require(UiKeys.SESSION), arguments.string(0, "left"),
+        actions.registerSync("config_edit", (context, arguments) -> {
+            UiSession session = context.require(UiKeys.SESSION);
+            if (!allowed(context.player(), plugin(session))) return refused(context.player());
+            edit(context.player(), session, arguments.string(0, "left"),
                     arguments.string(1, ""));
             return ActionResult.success();
         });
-        actions.registerSync("config_back", permission, (context, arguments) -> {
-            back(context.player(), context.require(UiKeys.SESSION));
+        actions.registerSync("config_back", (context, arguments) -> {
+            UiSession session = context.require(UiKeys.SESSION);
+            if (!allowed(context.player(), plugin(session))) return refused(context.player());
+            back(context.player(), session);
             return ActionResult.success();
         });
     }
@@ -123,6 +145,7 @@ public final class ConfigMenu {
     public static void release() {
         menus = null;
         library = null;
+        ENTRIES.clear();
     }
 
     // ------------------------------------------------------------------ opening
@@ -133,6 +156,11 @@ public final class ConfigMenu {
      * @param viewer who edits; any thread
      */
     public static void open(@NotNull Player viewer) {
+        ENTRIES.remove(viewer.getUniqueId());
+        showPlugins(viewer);
+    }
+
+    private static void showPlugins(Player viewer) {
         PluginMenus current = menus;
         if (current == null) return;
         current.open(viewer, PLUGINS, new LinkedHashMap<>(), ConfigMenu::pluginRows);
@@ -145,6 +173,25 @@ public final class ConfigMenu {
      * @param plugin whose settings
      */
     public static void open(@NotNull Player viewer, @NotNull Plugin plugin) {
+        open(viewer, plugin, null, null);
+    }
+
+    /**
+     * One plugin's settings, entered from that plugin's own screens.
+     *
+     * @param viewer     who edits; any thread
+     * @param plugin     whose settings
+     * @param permission accepted for this plugin's files on top of {@link ConfigMenus#PERMISSION}
+     * @param back       what BACK on the top screen does; {@code null} goes to the plugin list
+     */
+    public static void open(@NotNull Player viewer, @NotNull Plugin plugin, @Nullable String permission,
+                            @Nullable Consumer<Player> back) {
+        if (permission == null && back == null) ENTRIES.remove(viewer.getUniqueId());
+        else ENTRIES.put(viewer.getUniqueId(), new Entry(plugin.getName(), permission, back));
+        showPlugin(viewer, plugin);
+    }
+
+    private static void showPlugin(Player viewer, Plugin plugin) {
         PluginMenus current = menus;
         if (current == null) return;
         List<ConfigFile<?>> files = WebEditorRuntime.get().settingsOf(plugin);
@@ -158,17 +205,17 @@ public final class ConfigMenu {
         }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
-        context.put("cfg_back_to", Phrases.tr("the plugins"));
+        context.put("cfg_back_to", returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins"));
         current.open(viewer, FILES, context, () -> fileRows(plugin));
     }
 
     private static void openFields(Player viewer, Plugin plugin, ConfigFile<?> file, String path) {
         PluginMenus current = menus;
         if (current == null) return;
-        current.open(viewer, FIELDS, fieldsContext(plugin, file, path), rows(file, path));
+        current.open(viewer, FIELDS, fieldsContext(viewer, plugin, file, path), rows(file, path));
     }
 
-    private static Map<String, Object> fieldsContext(Plugin plugin, ConfigFile<?> file, String path) {
+    private static Map<String, Object> fieldsContext(Player viewer, Plugin plugin, ConfigFile<?> file, String path) {
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
         context.put(FILE_KEY, file.name());
@@ -177,7 +224,7 @@ public final class ConfigMenu {
         context.put("cfg_where", net.exylia.lib.text.Values.inert(where));
         context.put("cfg_back_to", path.isEmpty()
                 ? (WebEditorRuntime.get().settingsOf(plugin).size() == 1
-                        ? Phrases.tr("the plugins") : Phrases.tr("the files of {0}", plugin.getName()))
+                        ? (returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins")) : Phrases.tr("the files of {0}", plugin.getName()))
                 : Phrases.tr("the section above"));
         return context;
     }
@@ -359,8 +406,12 @@ public final class ConfigMenu {
 
     private static void back(Player viewer, UiSession session) {
         Plugin plugin = plugin(session);
-        if (plugin == null || !session.menuId().endsWith(FIELDS)) {
-            open(viewer);
+        if (plugin == null) {
+            showPlugins(viewer);
+            return;
+        }
+        if (!session.menuId().endsWith(FIELDS)) {
+            top(viewer, plugin);
             return;
         }
         String path = session.context(PATH_KEY, String.class).orElse("");
@@ -370,8 +421,33 @@ public final class ConfigMenu {
             openFields(viewer, plugin, file, dot < 0 ? "" : path.substring(0, dot));
             return;
         }
-        if (WebEditorRuntime.get().settingsOf(plugin).size() > 1) open(viewer, plugin);
-        else open(viewer);
+        if (WebEditorRuntime.get().settingsOf(plugin).size() > 1) showPlugin(viewer, plugin);
+        else top(viewer, plugin);
+    }
+
+    /** BACK from a plugin's top screen: where the plugin's own hub said, or the plugin list. */
+    private static void top(Player viewer, Plugin plugin) {
+        Entry entry = ENTRIES.get(viewer.getUniqueId());
+        if (entry != null && entry.covers(plugin) && entry.back() != null) entry.back().accept(viewer);
+        else showPlugins(viewer);
+    }
+
+    private static boolean returning(Player viewer, Plugin plugin) {
+        Entry entry = ENTRIES.get(viewer.getUniqueId());
+        return entry != null && entry.covers(plugin) && entry.back() != null;
+    }
+
+    /** {@link ConfigMenus#PERMISSION}, or the permission the plugin's own hub opened these screens with. */
+    static boolean allowed(Player viewer, @Nullable Plugin plugin) {
+        if (viewer.hasPermission(ConfigMenus.PERMISSION)) return true;
+        Entry entry = ENTRIES.get(viewer.getUniqueId());
+        return entry != null && entry.covers(plugin) && entry.permission() != null
+                && viewer.hasPermission(entry.permission());
+    }
+
+    private static ActionResult refused(Player viewer) {
+        viewer.closeInventory();
+        return ActionResult.success();
     }
 
     // ------------------------------------------------------------------ lookups

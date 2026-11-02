@@ -1579,6 +1579,7 @@ World: Dünya
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} was not accepted: {1}': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} kabul edilmedi: {1}'
 'the files of {0}': '{0} dosyaları'
 'the plugins': 'eklentiler'
+'the previous screen': 'önceki ekran'
 'the section above': 'üstteki bölüm'
 '{warning}➥ Click {letters_black}» {letters}change': '{warning}➥ Tıkla {letters_black}» {letters}değiştir'
 '{warning}➥ Click {letters_black}» {letters}open': '{warning}➥ Tıkla {letters_black}» {letters}aç'

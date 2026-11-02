@@ -98,3 +98,17 @@ items:
       - ''
     actions:
       - 'exylialib:cosmetics blocks'
+  settings:
+    slot: 36
+    material: COMPARATOR
+    name: '{primary}&lPARAMÈTRES'
+    lore:
+      - ''
+      - '{secondary}Informations :'
+      - ' {letters_black}▎ {letters}Change les paramètres du plugin'
+      - ' {letters_black}▎ {letters}sans modifier ses {highlight}fichiers{letters}.'
+      - ''
+      - '{warning}➥ Clique {letters_black}» {letters}Ouvrir les paramètres'
+      - ''
+    actions:
+      - 'exylialib:cosmetics settings'

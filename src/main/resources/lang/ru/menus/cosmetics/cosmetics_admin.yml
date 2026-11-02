@@ -98,3 +98,17 @@ items:
       - ''
     actions:
       - 'exylialib:cosmetics blocks'
+  settings:
+    slot: 36
+    material: COMPARATOR
+    name: '{primary}&lНАСТРОЙКИ'
+    lore:
+      - ''
+      - '{secondary}Информация:'
+      - ' {letters_black}▎ {letters}Меняй настройки плагина,'
+      - ' {letters_black}▎ {letters}не открывая его {highlight}файлы{letters}.'
+      - ''
+      - '{warning}➥ Нажми {letters_black}» {letters}Открыть настройки'
+      - ''
+    actions:
+      - 'exylialib:cosmetics settings'

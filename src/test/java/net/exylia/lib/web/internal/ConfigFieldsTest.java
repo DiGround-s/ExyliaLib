@@ -89,6 +89,26 @@ class ConfigFieldsTest {
     }
 
     @Test
+    void aHubPermissionCoversOnlyItsOwnPlugin() {
+        Plugin other = FakeServer.newPlugin("ExyliaCrates", folder.resolve("other").toFile());
+        net.exylia.lib.FakePlayer admin = new net.exylia.lib.FakePlayer("Admin").grant("mines.admin");
+        org.bukkit.entity.Player viewer = admin.player();
+        try {
+            assertTrue(!ConfigMenu.allowed(viewer, plugin), "no entry, no exylialib.config");
+            ConfigMenu.open(viewer, plugin, "mines.admin", null);
+            assertTrue(ConfigMenu.allowed(viewer, plugin));
+            assertTrue(!ConfigMenu.allowed(viewer, other), "another plugin's files");
+            assertTrue(!ConfigMenu.allowed(viewer, null), "the plugin list");
+            ConfigMenu.open(viewer, plugin);
+            assertTrue(!ConfigMenu.allowed(viewer, plugin), "a plain open forgets the hub");
+            admin.grant(net.exylia.lib.config.ConfigMenus.PERMISSION);
+            assertTrue(ConfigMenu.allowed(viewer, other));
+        } finally {
+            ConfigMenu.release();
+        }
+    }
+
+    @Test
     void everyTypeGetsItsControl() {
         Map<String, ConfigFields.Kind> kinds = new java.util.LinkedHashMap<>();
         for (ConfigFields.Field field : ConfigFields.fields(file.schema(), "")) kinds.put(field.key(), field.kind());

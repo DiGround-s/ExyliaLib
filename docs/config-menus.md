@@ -7,10 +7,35 @@ from their record. *Since 1.443.0.*
 ```java
 // a "Settings" button in a plugin's admin hub
 actions.registerSync("settings", "myplugin.admin", (context, arguments) -> {
-    ConfigMenus.open(context.player(), plugin);
+    ConfigMenus.of(plugin)
+            .permission("myplugin.admin")   // edits allowed with this as well as exylialib.config
+            .back(hub::open)                // BACK on the top screen returns to the hub
+            .open(context.player());
     return ActionResult.success();
 });
 ```
+
+The button, ready to copy into the hub (slot 36, the hub's auxiliary corner):
+
+```yaml
+  settings:
+    slot: 36
+    material: COMPARATOR
+    name: '{primary}&lSETTINGS'
+    lore:
+      - ''
+      - '{secondary}Information:'
+      - ' {letters_black}▎ {letters}Change this plugin''s settings'
+      - ' {letters_black}▎ {letters}without editing its {highlight}files{letters}.'
+      - ''
+      - '{warning}➥ Click {letters_black}» {letters}Open settings'
+      - ''
+    actions:
+      - 'myplugin:settings'
+```
+
+The cosmetics admin hub every crate-backed cosmetic plugin shares already has
+this button (1.445.0).
 
 Entry point: `net.exylia.lib.config.ConfigMenus`.
 
@@ -18,8 +43,14 @@ Entry point: `net.exylia.lib.config.ConfigMenus`.
 | --- | --- |
 | `ConfigMenus.open(viewer)` | the Exylia plugins with settings |
 | `ConfigMenus.open(viewer, plugin)` | that plugin's settings: its only file straight away, or the list of its files |
+| `ConfigMenus.of(plugin).permission(p).back(b).open(viewer)` | the same, from the plugin's own hub (1.445.0) |
 
-Any thread. Clicks need `exylialib.config` (`ConfigMenus.PERMISSION`, op by default).
+Any thread. Clicks need `exylialib.config` (`ConfigMenus.PERMISSION`, op by default),
+or the permission given to `permission(...)` for that plugin's files only. The
+list of every plugin always needs `exylialib.config`. `back(...)` replaces BACK
+on the top screen (the file list, or a single file's first page) and runs on the
+viewer's thread; without it BACK goes to the plugin list. A plain `open` forgets
+what an earlier `of(...)` set.
 
 ## What the admin does
 

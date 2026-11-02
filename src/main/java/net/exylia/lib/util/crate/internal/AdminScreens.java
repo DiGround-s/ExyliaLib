@@ -301,6 +301,8 @@ public final class AdminScreens<T> {
             case "players" -> players(viewer);
             case "showcases" -> places(viewer, true);
             case "blocks" -> places(viewer, false);
+            case "settings" -> net.exylia.lib.config.ConfigMenus.of(plugin)
+                    .permission(hooks.get().permission()).back(this::open).open(viewer);
             case "player" -> {
                 if (entry instanceof UUID chosen) player(viewer, chosen);
                 else if (target != null) player(viewer, target);
