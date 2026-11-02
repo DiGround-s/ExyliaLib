@@ -73,7 +73,11 @@ public record SpatialTheme(
         double minGlyphDegrees,
         @Comment("Whether body lines (descriptions, hints, subtitles, the page line) follow the server's small-text")
         @Comment("setting like titles and buttons do. Small capitals are hard to read at body sizes.")
-        boolean smallCapsBody) {
+        boolean smallCapsBody,
+        @Comment("The guided tour of a first open: the line under each step (%step% of %steps%), and the outline")
+        @Comment("round the piece the step points at.")
+        String introLine,
+        String introOutline) {
 
     /** The library's look. */
     public SpatialTheme() {
@@ -91,10 +95,32 @@ public record SpatialTheme(
                 "minecraft:block.note_block.hat|0.35|1.8", "minecraft:block.note_block.hat|0.7|1.0",
                 "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|0.6|1.4",
                 "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0",
-                0.95, false);
+                0.95, false,
+                "{muted}Click to continue {letters_black}· {muted}Sneak to skip {letters_black}» {info}%step%{letters_black}/{info}%steps%",
+                "{highlight}");
+    }
+
+    /** Every key but the guided tour's: the shape themes had before 1.452.0. */
+    public SpatialTheme(String glassTint, double glassTintStrength, int glassAlpha, double backingReach, int backingAlpha,
+                        String accent, double accentHeight, double titleScale, double textScale, double smallScale,
+                        String pedestalBlock, String plateIdle, String plateHover, String plateSelected, String hoverGlow,
+                        double hoverGrow, String editOutline, String lockedLine, String ownedLine, String equippedLine,
+                        String equippedMarker, String lockedMarker, String pageLine, String previousArrow,
+                        String nextArrow, String emptyLine, List<String> spotLines, String leaveMaterial,
+                        String leaveName, List<String> leaveLore, String hoverSound, String selectSound,
+                        String pageSound, String openSound, String closeSound, String errorSound,
+                        double minGlyphDegrees, boolean smallCapsBody) {
+        this(glassTint, glassTintStrength, glassAlpha, backingReach, backingAlpha, accent, accentHeight, titleScale,
+                textScale, smallScale, pedestalBlock, plateIdle, plateHover, plateSelected, hoverGlow, hoverGrow,
+                editOutline, lockedLine, ownedLine, equippedLine, equippedMarker, lockedMarker, pageLine,
+                previousArrow, nextArrow, emptyLine, spotLines, leaveMaterial, leaveName, leaveLore, hoverSound,
+                selectSound, pageSound, openSound, closeSound, errorSound, minGlyphDegrees, smallCapsBody,
+                new SpatialTheme().introLine(), new SpatialTheme().introOutline());
     }
 
     public SpatialTheme {
+        introLine = introLine == null ? "" : introLine;
+        introOutline = introOutline == null || introOutline.isBlank() ? "{highlight}" : introOutline;
         spotLines = spotLines == null ? List.of() : List.copyOf(spotLines);
         leaveLore = leaveLore == null ? List.of() : List.copyOf(leaveLore);
     }

@@ -152,6 +152,7 @@ Since 1.408.0; a layout written before keeps its own values.
 | `GRID` | `columns × rows` icons; an underline glides to the chosen one; the name of the hovered (else chosen) one reads under the grid, followed by its price or `locked-line` when it is `LOCKED` |
 | `BUTTON` | `label` on a plate that lights under the crosshair; runs `action` |
 | `BUTTONS` | A column of `buttons` (`{label, action}` each), stacked in the content area; one whose label reads blank once filled is left out and the rest close up (since 1.416.0) |
+| `TABS`, `ACTION` | A row of tabs, the one primary button (since 1.452.0; see *Centre stage*) |
 | `footer` | A button along any panel's bottom |
 | `footers` | Several buttons side by side along a panel's bottom, `{label, action}` each, equal widths with a small gap; after `footer` when both are given (since 1.423.0) |
 | `carousel` | `slots` plinths (a block display and a dark inlaid plate) each turned to the eyes, the item over it, its name and state line under and in front of it, bare like a hologram; `← PAGE x / y →` under the middle |
@@ -539,28 +540,11 @@ gap)`; an animated skin is `npc(viewer, () -> equipment)`; a trail or a projecti
 `flight(projectile, launch, trail, every, impact)` (since 1.422.0; a `sequence`
 before); `item(stack)` for a shield, a banner or anything held.
 
-**A layout for it.** The KillEffect selector (`spatial/effects.yml` in
-ExyliaKillEffect) is the reference: info on the left (`footer: filter`), the
-actions on the right as one column, the preview in the middle, the offers on
-the carousel.
-
-```yaml
-  actions:
-    at: [2.15, 0.3, 0.45]
-    turn: -24
-    size: [1.55, 1.55]
-    title: '%actions_title%'
-    hint: '%catalog_status%'
-    content:
-      type: BUTTONS
-      buttons:
-        - {label: '%catalog_save%', action: save}
-        - {label: '%catalog_revert%', action: revert}
-        - {label: '%catalog_unequip%', action: unequip}
-        - {label: '%catalog_favourite%', action: favourite}
-        - {label: '%catalog_crate%', action: crate}
-    footer: {label: '%replay_label%', action: replay}
-```
+**A layout for it.** Since 1.452.0 a catalogue's layout is the **centre stage**
+(next section): ExyliaKillEffect's `spatial/effects.yml` is the reference, and
+the library's own `spatial/centre-stage.yml` is written for a catalogue whose
+plugin ships no layout. The panels-and-carousel layouts from before keep
+working unchanged; they are what a plugin has until it moves.
 
 A look of several parts (ExyliaArmorTrims' wardrobe: pieces, a pattern carousel
 that filters to presets, a material grid) declares two `offers` lists, a
@@ -569,18 +553,159 @@ that filters to presets, a material grid) declares two `offers` lists, a
 
 ### Adopting it
 
-1. Ship `src/main/resources/spatial/<id>.yml` (copy KillEffect's) and call
-   `registerCatalog(id, Main.class, ...)` on enable.
+1. Ship `src/main/resources/spatial/<id>.yml` (copy KillEffect's, see *Centre
+   stage*) and call `registerCatalog(id, Main.class, ...)` on enable.
 2. `offers`: one `Offer` per thing sold, built from memory (cache icons).
    Owned ones `Offer.owned(...)`, the worn one `.withEquipped(true)`, the rest
-   `Offer.locked(entry, purchase-or-null)` with the plugin's own shop price.
+   `Offer.locked(entry, purchase-or-null)` with the plugin's own shop price;
+   `.withUnlock(line)` says how one nobody sells is had.
 3. `equips` + `unequip` for one worn at a time; `preview` for the try-on.
 4. `categories`, `favourites`, `crate` where the classic menu has them.
 5. `words` from the lang files (en plus every translation), `values` for the
-   info panel; `menu(m -> m.canOpen(...))` with the same checks the command
+   card; `menu(m -> m.canOpen(...))` with the same checks the command
    makes (a placed spot opens straight from the library).
 6. Call `menus.refresh(player)` when ownership changes outside the menu (crate
    `onChange`, the store's listener) and `menus.refreshAll()` in the reload step.
+
+## Centre stage (since 1.452.0)
+
+The catalogue layout new players read at once: one job per zone, one primary
+action, nothing behind scroll or sneak.
+
+```
+   [ ALL ][ MEME ][ VOID ][ CATACLYSM ][ LOVESTRUCK ][ COSMIC ][ ★ ]     tabs
+   ┌──────────┐       ┌─────────┐          ✕ LEAVE
+   │ CARD     │       │ PREVIEW │          ☆ FAVOURITE      quiet buttons
+   │ name ... │       │         │          ? Help
+   └──────────┘       └─────────┘
+                     [   EQUIP   ]                          the one primary action
+   ◀   ▣  ▣  ▣  ▣  ▣  ▣  ▣  ▣   ▶                           the shelf: 2 rows a page
+       ▣  ▣  ▣  ▣  ▣  ▣  ▣  ▣
+                PAGE 1 / 7
+   ➥ Look at an effect to see it · click to try it          the live hint
+```
+
+The board stands **6 blocks** away (`anchor.distance`; 3.4 before, which made
+everything huge and cramped), and the whole of it stays inside about 56° across
+and 51° top to bottom. Text is never scaled up to fill the room: every line is
+drawn at the theme's `min-glyph-degrees` where it stands (so at 6 blocks a
+capital is a 0.57 scale), and the extra room is spacing and detail. Moving the
+board further keeps it readable; nothing has to change but `distance`.
+
+| Piece | YAML | What it does |
+| --- | --- | --- |
+| Tabs | a panel, `frame: false`, `content: {type: TABS, source: catalog_tabs}` | The catalogue's filter steps (every offer, each category, `★` favourites) as one row of tabs, the open one lit. Each tab as wide as its words, never cut; when they do not all fit, as many as fit round the open one. Click or wheel. Hidden with no categories and no favourites |
+| ✕ LEAVE | a panel, `frame: false`, `content: {type: BUTTON, label: '%catalog_leave%', action: leave}` | Closes the menu (`leave` is answered by every menu). Sneaking still leaves |
+| Card | a framed `TEXT` panel | What is looked at on the shelf, else what is chosen: `%catalog_card_name%`, `%catalog_card_subtitle%`, `%catalog_card_status%` (equipped, owned, price, locked), `%catalog_card_unlock%` (how a locked one is had), plus the plugin's own lines (description wrapped with `ctx.wrap("card", ...)`) |
+| Primary action | a panel, `frame: false`, `content: {type: ACTION}` | One plate filling the panel: `%catalog_action%`, the `save` action. Lit in `plate-selected` while it has something to do (`SpatialMenu.ready`), dark and calm while not; still clicked either way |
+| Quiet buttons | a panel, `frame: false`, `content: {type: BUTTONS, ...}` | Favourite, unequip, revert, crate, the plugin's extras and `? Help` (`action: intro`); blank ones close up |
+| Shelf | `carousel: {style: SHELF, rows: 2, slots: 8, spacing, row-gap, curve, centre-gap: 0}` | `slots × rows` icons a page on dark tiles, both rows bent round the viewer alike, each tile turned to the eyes. Hover lifts the icon off its tile and lights the tile; the chosen tile is lit in `plate-selected`; a locked icon is dimmed with `locked-marker`, the worn one carries `equipped-marker`. `◀ ▶` at the row ends and `PAGE x / y` under them; the wheel pages too. No names on the shelf: the card says what it is |
+| Hint | a panel, `frame: false`, a `TEXT` line `%catalog_hint%` | What to do next, from what the player is looking at and what their draft waits for |
+| Tour | `intro: {steps: [{target, at, text}]}` | See below |
+
+`frame: false` (any panel) draws no glass, backing or accent. A bare panel's
+buttons, the tabs and the primary action are drawn as written, like body lines:
+small capitals run about 40 % wider at the readability floor and read poorly in
+the air. Panel titles still follow the server's `small-text`. Lines of a `TEXT`
+panel are never set closer than the readability floor makes them (before, 0.16
+blocks at most, which at 6 blocks made lines touch).
+
+**The primary action** (`%catalog_action%`) of an `equips` catalogue reads
+`action-equip` (`EQUIP`), `action-equipped` (`EQUIPPED ✔`, calm), `action-pick`
+(nothing chosen yet), `action-buy` (`BUY » $500`), then `action-confirm`
+(`CONFIRM » $500`, the second click pays and wears), or `action-locked` when
+nobody sells it. A catalogue of several parts reads its `save` words (`SAVE`,
+`Saved ✔`, `BUY & SAVE`, `CONFIRM`). The purchase is SAVE's (see *Cosmetic
+catalogues*), so CONFIRM in place, refusals and refunds are unchanged.
+
+**The hint** (`%catalog_hint%`) reads, in this order: `hint-confirm` while
+CONFIRM waits; for the entry under the crosshair `hint-hover` (`➥ Click to try
+%name%`), `hint-hover-equipped`, `hint-hover-buy` (with its price) or
+`hint-hover-locked` (with `%unlock%`); then for the draft `hint-blocked`,
+`hint-buy`, `hint-equip` (`➥ Press EQUIP to wear %name%`) or `hint-save`; else
+`hint-idle` (`➥ Look at an item to see it · click to try it`). Looking at the
+entry just tried says what to do with it, not to try it again.
+
+**The guided tour.** The first time a player opens a menu whose layout has
+`intro.steps`, after everything has popped in, each step outlines its `target`
+(a panel's name, `carousel` or `preview`) in `theme.intro-outline` and writes its
+`text` (`\n` starts a new line) at `at` on a dark plate, with `theme.intro-line`
+under it (`Click to continue · Sneak to skip » 1/3`). While it shows, a click
+anywhere moves on and presses nothing under it, the wheel does nothing, and
+sneaking skips the rest instead of leaving. It is marked seen when it starts, in
+the player's own data on this server (`PersistentDataContainer`, key
+`<plugin>:spatial_intro_<menu>`), so it never shows again by itself; a button
+with `action: intro`, `SpatialMenus.showIntro(player)` shows it now, and
+`SpatialMenus.resetIntro(player, id)` shows it on the next open (ExyliaKillEffect:
+`/killeffectsadmin spatial tour <player>`). The catalogue's words
+`%catalog_intro_shelf%`, `%catalog_intro_preview%` and `%catalog_intro_action%`
+are the three steps.
+
+```yaml
+menu-version: 1
+anchor: {mode: FRONT, distance: 6.0, lift: 0.0, clear-view: true}
+panels:
+  tabs:   {at: [0, 2.45, 0], size: [6.2, 0.34], frame: false, content: {type: TABS, source: catalog_tabs}}
+  leave:  {at: [2.45, 1.85, 0.3], turn: -24, size: [1.1, 0.34], frame: false,
+           content: {type: BUTTON, label: '%catalog_leave%', action: leave}}
+  card:   {at: [-1.9, 0.8, 0.3], turn: 20, size: [2.0, 2.05],
+           content: {type: TEXT, lines: ['%effect_name%', '%effect_rarity%', '%catalog_card_status%', '%catalog_card_unlock%']}}
+  more:   {at: [2.0, 0.6, 0.3], turn: -24, size: [1.8, 1.7], frame: false,
+           content: {type: BUTTONS, buttons: [{label: '%catalog_favourite%', action: favourite},
+                                              {label: '%catalog_help%', action: intro}]}}
+  action: {at: [0, -0.65, 0.35], size: [2.4, 0.4], frame: false, content: {type: ACTION}}
+  hint:   {at: [0, -2.8, 0.4], size: [6.0, 0.24], frame: false, content: {type: TEXT, lines: ['%catalog_hint%']}}
+preview: {at: [0, -0.25, 0.35], scale: 0.7, effect-scale: 0.7, pedestal: true}
+carousel: {source: effects, style: SHELF, at: [0, -1.2, 0.4], slots: 8, rows: 2, spacing: 0.62,
+           row-gap: 0.72, centre-gap: 0, curve: 0.35}
+intro:
+  steps:
+    - {target: carousel, at: [0, 0.55, 1.3], text: '%catalog_intro_shelf%'}
+    - {target: preview, at: [-1.9, 0.95, 1.3], text: '%catalog_intro_preview%'}
+    - {target: action, at: [0, 0.55, 1.3], text: '%catalog_intro_action%'}
+```
+
+**New words** (`SpatialCatalog.Words`, after the 1.416.0 ones; the 19-word
+constructor still works and gives these in English): `action-equip`,
+`action-equipped`, `action-pick`, `action-buy`, `action-confirm`,
+`action-locked`; `card-none`, `card-equipped`, `card-owned`, `card-price`,
+`card-locked`, `unlock`; the ten `hint-*` above; `tab` and `tab-active`
+(`%tab%` the step's name, its own colours dropped), `tab-favourites` (`★`);
+`leave`, `help`, `intro-shelf`, `intro-preview`, `intro-action`. The tab of
+every offer is `filter-all`. Keep them short: each is one button or one line,
+never cut, so a long one is not shrunk but cut at the readability floor.
+ExyliaKillEffect's `SpatialWordsFitTest` measures every language against its
+room; copy it.
+
+**API.** `SpatialMenu.ready(ctx -> boolean)` (what lights the `ACTION` button;
+a catalogue sets it: a draft that can be saved or bought, or CONFIRM armed),
+`SpatialCatalog.TABS` (the tabs source), `Offer.withUnlock(line)`,
+`SpatialMenus.showIntro(player)`, `SpatialMenus.resetIntro(player, id)`,
+`SpatialMenus.CENTRE_STAGE` (the bundled layout's path), `SpatialLayout.Intro`,
+`SpatialLayout.Step`, `SpatialLayout.Carousel.Style` / `rows` / `rowGap` /
+`perPage()`, `SpatialLayout.Panel.frame`, `SpatialLayout.menuVersion`,
+`SpatialTheme.introLine` / `introOutline`. Every record keeps its earlier
+constructors.
+
+**Shipping it to servers.** A plugin that moves to the centre stage raises its
+layout's `menu-version` (KillEffect: 1; a file without one is 0). A server file
+nobody edited is replaced on the next start (the old one kept as
+`<id>.yml.v<n>`); an edited one keeps its layout and the new one waits in
+`/exylialib updates` as one change. Reading a layout as a record fills in keys
+the jar never shipped, drops unknown ones and stamps a `config-version`, which
+used to make every layout on every server look edited; `SpatialMenus.register`
+now calls `BundledFiles.recordWrote` first, so a file that is exactly the
+reviewed defaults as the record writes them (older library defaults included)
+counts as untouched. `menu-version` is a record key since 1.452.0, so the
+record's own write keeps it.
+
+**Room in front.** A FRONT menu with `clear-view` opens towards the nearest
+square heading (45° steps from where the player looks) with room for the whole
+board at its distance, checked across the middle and both sides of the view, and
+turns the player to it; with no such heading, the one with clearly the most room.
+The view is still cleared, so a cramped spot opens; it only clears less. The
+space kept empty (`seal`) and the blocks cleared follow the board's distance and
+size, so a larger board covers the larger volume by itself.
 
 ## Opening and closing
 
@@ -651,6 +776,7 @@ library's look:
 | `page-line`, `previous-arrow`, `next-arrow`, `empty-line` | `{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%`, `←`, `→`, `{muted}Nothing here yet` |
 | `spot-lines` | `%title%`, `{warning}➥ Click to open` |
 | `leave-material`, `leave-name`, `leave-lore` | `BARRIER`, `{error}&lLEAVE`, the Exylia lore pattern |
+| `intro-line`, `intro-outline` | `{muted}Click to continue · Sneak to skip » %step%/%steps%`, `{highlight}` (since 1.452.0) |
 | `hover-sound`, `select-sound`, `page-sound`, `open-sound`, `close-sound`, `error-sound` | note-block hat at 0.35, note-block hat at 0.7, `item.book.page_turn`, `block.ender_chest.open\|0.6\|1.4`, `item.bundle.remove_one\|1.0\|0.5`, `entity.villager.no\|0.6` (select and open at 1.0 before 1.428.0) |
 
 Every colour is a palette token, read when a piece is drawn: a palette reload

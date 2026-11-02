@@ -48,6 +48,8 @@ public final class SpatialMenu {
     @Nullable Function<SpatialContext, String> save;
     @Nullable Consumer<SpatialContext> discard;
     @Nullable Consumer<SpatialContext> onRevert;
+    /** Whether an {@code ACTION} button has something to do now; {@code null}: while anything is drafted. */
+    @Nullable java.util.function.Predicate<SpatialContext> ready;
 
     SpatialMenu(String id) {
         this.id = id;
@@ -196,6 +198,18 @@ public final class SpatialMenu {
     /** Runs once when it closes, however it closed. */
     public @NotNull SpatialMenu onClose(@Nullable Consumer<SpatialContext> onClose) {
         this.onClose = onClose;
+        return this;
+    }
+
+    /**
+     * Whether the layout's {@code ACTION} button (the one primary action) has something to do now: lit while
+     * it does, dimmed while it does not (a click still reaches it). Without this, while anything is drafted.
+     * A catalogue sets it itself.
+     *
+     * @since 1.452.0
+     */
+    public @NotNull SpatialMenu ready(@Nullable java.util.function.Predicate<SpatialContext> ready) {
+        this.ready = ready;
         return this;
     }
 }

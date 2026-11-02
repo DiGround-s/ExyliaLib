@@ -75,6 +75,14 @@ public final class SpatialCatalog {
     /** The menu's state key holding the open filter. */
     static final String FILTER_KEY = "catalog_filter";
 
+    /**
+     * The source a {@code TABS} panel reads to show the filter steps as tabs: every offer (when the catalogue
+     * has that step), each category, the favourites. Empty without categories or favourites, so the row hides.
+     *
+     * @since 1.452.0
+     */
+    public static final String TABS = "catalog_tabs";
+
     // ── What a plugin declares ────────────────────────────────────────────
 
     /**
@@ -116,28 +124,45 @@ public final class SpatialCatalog {
      * @param purchase how to buy it when not owned; {@code null} when it is not for sale
      */
     public record Offer(@NotNull SpatialEntry entry, boolean owned, boolean equipped, @Nullable String category,
-                        @Nullable Purchase purchase) {
+                        @Nullable Purchase purchase, @Nullable String unlock) {
 
         public Offer {
             Objects.requireNonNull(entry, "entry");
         }
 
+        /** An offer without an unlock line: the shape offers had before 1.452.0. */
+        public Offer(@NotNull SpatialEntry entry, boolean owned, boolean equipped, @Nullable String category,
+                     @Nullable Purchase purchase) {
+            this(entry, owned, equipped, category, purchase, null);
+        }
+
         /** Something the player has. */
         public static @NotNull Offer owned(@NotNull SpatialEntry entry) {
-            return new Offer(entry, true, false, null, null);
+            return new Offer(entry, true, false, null, null, null);
         }
 
         /** Something they do not have: for sale through {@code purchase}, or not at all ({@code null}). */
         public static @NotNull Offer locked(@NotNull SpatialEntry entry, @Nullable Purchase purchase) {
-            return new Offer(entry, false, false, null, purchase);
+            return new Offer(entry, false, false, null, purchase, null);
         }
 
         public @NotNull Offer withEquipped(boolean equipped) {
-            return new Offer(entry, owned, equipped, category, purchase);
+            return new Offer(entry, owned, equipped, category, purchase, unlock);
         }
 
         public @NotNull Offer withCategory(@Nullable String category) {
-            return new Offer(entry, owned, equipped, category, purchase);
+            return new Offer(entry, owned, equipped, category, purchase, unlock);
+        }
+
+        /**
+         * How a player gets it when it is not for sale ({@code "{muted}From the crate"}, {@code "{muted}VIP rank"}):
+         * what the card, the hint and the LOCKED button say instead of a price. {@code null}: the catalogue's
+         * {@code unlock} word.
+         *
+         * @since 1.452.0
+         */
+        public @NotNull Offer withUnlock(@Nullable String unlock) {
+            return new Offer(entry, owned, equipped, category, purchase, unlock);
         }
 
         public @NotNull String id() {
@@ -192,7 +217,48 @@ public final class SpatialCatalog {
             @Comment("The crate button. %keys% is how many keys the player has.")
             @Key("crate") String crate,
             @Comment("Under an entry for sale. %price% is what it costs.")
-            @Key("price") String price) {
+            @Key("price") String price,
+            @Comment("The one primary button (%catalog_action%) of a catalogue that wears one at a time: wear the one")
+            @Comment("tried, it is worn already, nothing chosen yet, buy it (%price%), the second click, not for sale.")
+            @Comment("A catalogue of several parts reads save, saved, buy and confirm above instead.")
+            @Key("action-equip") String actionEquip,
+            @Key("action-equipped") String actionEquipped,
+            @Key("action-pick") String actionPick,
+            @Key("action-buy") String actionBuy,
+            @Key("action-confirm") String actionConfirm,
+            @Key("action-locked") String actionLocked,
+            @Comment("The card beside the preview: nothing looked at or chosen, then the state of the one shown")
+            @Comment("(%price% its price). unlock: how a locked one is had when the plugin does not say.")
+            @Key("card-none") String cardNone,
+            @Key("card-equipped") String cardEquipped,
+            @Key("card-owned") String cardOwned,
+            @Key("card-price") String cardPrice,
+            @Key("card-locked") String cardLocked,
+            @Key("unlock") String unlock,
+            @Comment("The live hint line (%catalog_hint%): looking at nothing, at one of theirs, at the one worn, at one")
+            @Comment("for sale, at one not for sale; then after choosing: to wear, to save, to buy, to confirm, blocked.")
+            @Comment("%name% is the one meant, %price% its price (or the total), %unlock% how a locked one is had.")
+            @Key("hint-idle") String hintIdle,
+            @Key("hint-hover") String hintHover,
+            @Key("hint-hover-equipped") String hintHoverEquipped,
+            @Key("hint-hover-buy") String hintHoverBuy,
+            @Key("hint-hover-locked") String hintHoverLocked,
+            @Key("hint-equip") String hintEquip,
+            @Key("hint-save") String hintSave,
+            @Key("hint-buy") String hintBuy,
+            @Key("hint-confirm") String hintConfirm,
+            @Key("hint-blocked") String hintBlocked,
+            @Comment("The tab row: a tab, the open one (%tab% its name), and the favourites tab's name.")
+            @Key("tab") String tab,
+            @Key("tab-active") String tabActive,
+            @Key("tab-favourites") String tabFavourites,
+            @Comment("The leave button, the button that shows the guided tour again, and the tour's three steps")
+            @Comment("(%catalog_intro_shelf%, %catalog_intro_preview%, %catalog_intro_action%; \\n starts a new line).")
+            @Key("leave") String leave,
+            @Key("help") String help,
+            @Key("intro-shelf") String introShelf,
+            @Key("intro-preview") String introPreview,
+            @Key("intro-action") String introAction) {
 
         public Words() {
             this("{success}&lSAVE", "{muted}Saved {success}✔", "{highlight}&lBUY & SAVE", "{warning}&lCONFIRM",
@@ -206,6 +272,38 @@ public final class SpatialCatalog {
                     "{info}%category%", "All", "Favourites",
                     "{primary}&lCRATE {letters_black}» {highlight}%keys%",
                     "{warning}%price%");
+        }
+
+        /** The words catalogues had before 1.452.0; every later one in English. */
+        public Words(String save, String saved, String buy, String confirm, String locked, String statusSaved,
+                     String statusUnsaved, String statusBuy, String statusConfirm, String statusLocked, String revert,
+                     String unequip, String favourite, String unfavourite, String filter, String filterAll,
+                     String filterFavourites, String crate, String price) {
+            this(save, saved, buy, confirm, locked, statusSaved, statusUnsaved, statusBuy, statusConfirm, statusLocked,
+                    revert, unequip, favourite, unfavourite, filter, filterAll, filterFavourites, crate, price,
+                    "{success}&lEQUIP", "{muted}&lEQUIPPED {success}✔", "{muted}&lCHOOSE ONE",
+                    "{highlight}&lBUY {letters_black}» {warning}%price%",
+                    "{warning}&lCONFIRM {letters_black}» {warning}%price%",
+                    "{muted}&l🔒 LOCKED",
+                    "{muted}Look at an item below",
+                    "{success}✔ Equipped", "{muted}Owned",
+                    "{letters}Price {letters_black}» {warning}%price%",
+                    "{error}🔒 Locked", "{muted}Not for sale",
+                    "{warning}➥ {letters}Look at an item to see it {letters_black}· {letters}click to try it",
+                    "{warning}➥ {letters}Click to try {highlight}%name%",
+                    "{success}✔ {letters}You wear {highlight}%name%",
+                    "{warning}➥ {letters}Click to try it {letters_black}· {warning}%price%",
+                    "{error}🔒 {letters}%unlock% {letters_black}· {letters}click to preview",
+                    "{warning}➥ {letters}Press {success}EQUIP {letters}to wear {highlight}%name%",
+                    "{warning}● {letters}Unsaved changes {letters_black}· {letters}press {success}SAVE",
+                    "{warning}➥ {letters}Press {highlight}BUY {letters}to own it for {warning}%price%",
+                    "{warning}➥ {letters}Click {warning}CONFIRM {letters}to pay {warning}%price%",
+                    "{error}🔒 {letters}%unlock%",
+                    "{letters_black}%tab%", "{highlight}%tab%", "★",
+                    "{error}&l✕ LEAVE", "{muted}? Help",
+                    "{highlight}&lYOUR COLLECTION\n{letters}Look at an item to read its card {letters_black}· {letters}click to try it",
+                    "{highlight}&lTRY IT ON\n{letters}What you click plays here at once {letters_black}· {letters}nothing is kept yet",
+                    "{highlight}&lKEEP IT\n{letters}This button equips it, or buys it first {letters_black}· {letters}sneak to leave");
         }
     }
 
@@ -360,6 +458,11 @@ public final class SpatialCatalog {
         return this;
     }
 
+    /** The main list's source, once {@link #offers} has declared one. */
+    @NotNull String primarySource() {
+        return primary == null ? "" : primary;
+    }
+
     // ── What the plugin reads back ────────────────────────────────────────
 
     /** The open filter: {@link #ALL}, {@link #FAVOURITES} or a category id. */
@@ -378,6 +481,14 @@ public final class SpatialCatalog {
     void install() {
         if (primary == null) throw new IllegalStateException("A catalogue needs offers(source, ...)");
         for (String source : offers.keySet()) menu.source(source, ctx -> entries(ctx, source));
+        if (!menu.sources.containsKey(TABS)) {
+            menu.source(TABS, this::tabs);
+            menu.onSelect(TABS, (ctx, tab) -> {
+                ctx.set(FILTER_KEY, tab.id());
+                pageTo(ctx, ctx.selected(primary));
+            });
+        }
+        if (menu.ready == null) menu.ready(this::ready);
         menu.values(this::words);
         if (preview != null) menu.preview(ctx -> {
             String id = ctx.selected(primary);
@@ -477,6 +588,31 @@ public final class SpatialCatalog {
         return entry;
     }
 
+    // ── Tabs ──────────────────────────────────────────────────────────────
+
+    /** The filter steps as tabs, the open one marked {@code SELECTED}; none without categories or favourites. */
+    private List<SpatialEntry> tabs(SpatialContext ctx) {
+        if (categories == null && starred == null) return List.of();
+        Words text = words.apply(ctx);
+        String open = current(ctx);
+        List<Category> all = categories == null ? List.of() : categories.apply(ctx);
+        List<SpatialEntry> tabs = new ArrayList<>();
+        if (allFilter || all.isEmpty()) tabs.add(tab(ALL, text.filterAll(), open, text));
+        for (Category category : all) tabs.add(tab(category.id(), category.name(), open, text));
+        if (starred != null) tabs.add(tab(FAVOURITES, text.tabFavourites(), open, text));
+        // A single step is no choice: no row.
+        return tabs.size() < 2 ? List.of() : tabs;
+    }
+
+    private static SpatialEntry tab(String id, String name, String open, Words text) {
+        boolean on = id.equals(open);
+        // The category's own colours give way to the tab's, so the open one always reads as open.
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(Text.verbatim(name));
+        SpatialEntry entry = SpatialEntry.of(id, null, (on ? text.tabActive() : text.tab()).replace("%tab%", plain));
+        return on ? entry.withState(SpatialEntry.State.SELECTED) : entry;
+    }
+
     // ── Words ─────────────────────────────────────────────────────────────
 
     /** What SAVE has to buy, and what it reads. */
@@ -558,6 +694,16 @@ public final class SpatialCatalog {
             Values own = this.values.apply(ctx);
             if (own != null) own.map().forEach(values::put);
         }
+        String unlockOfBlocked = basket.blocked() == null ? text.unlock() : unlockOf(basket.blocked(), text);
+        values.put("catalog_action", fillIn(action(ctx, text, basket, dirty, confirming, save, chosen), name, basket, part)
+                        .replace("%unlock%", unlockOfBlocked))
+                .put("catalog_hint", hint(ctx, text, basket, dirty, confirming, name, part, unlockOfBlocked))
+                .put("catalog_leave", text.leave())
+                .put("catalog_help", text.help())
+                .put("catalog_intro_shelf", text.introShelf())
+                .put("catalog_intro_preview", text.introPreview())
+                .put("catalog_intro_action", text.introAction());
+        card(ctx, text, values);
         values.put("catalog_save", fillIn(save, name, basket, part))
                 .put("catalog_status", fillIn(status, name, basket, part))
                 .put("catalog_total", basket.total())
@@ -575,6 +721,68 @@ public final class SpatialCatalog {
         PluginCrates crate = crates == null ? null : crates.get();
         values.put("catalog_crate", crate == null ? "" : text.crate().replace("%keys%", String.valueOf(crate.keys(player.getUniqueId()))));
         return values;
+    }
+
+    /** The one primary button: what clicking it would do now. */
+    private String action(SpatialContext ctx, Words text, Basket basket, boolean dirty, boolean confirming, String save,
+                          @Nullable Offer chosen) {
+        // Several parts: SAVE's words, which already say save, saved, buy and confirm.
+        if (worn == null) return save;
+        if (!dirty) return chosen == null ? text.actionPick() : text.actionEquipped();
+        if (basket.empty()) return text.actionEquip();
+        if (basket.blocked() != null) return text.actionLocked();
+        return confirming ? text.actionConfirm() : text.actionBuy();
+    }
+
+    /** Whether the primary button has something to do: a draft that can be saved or bought. */
+    private boolean ready(SpatialContext ctx) {
+        if (ctx.confirming(SAVE)) return true;
+        return ctx.dirty() && basket(ctx).blocked() == null;
+    }
+
+    /** How a locked offer is had: its own line, else the catalogue's word. */
+    private static String unlockOf(Offer offer, Words text) {
+        return offer.unlock() == null || offer.unlock().isBlank() ? text.unlock() : offer.unlock();
+    }
+
+    /** The live hint: what the player is looking at first, then what their draft waits for. */
+    private String hint(SpatialContext ctx, Words text, Basket basket, boolean dirty, boolean confirming, String name,
+                        String part, String unlock) {
+        if (confirming) return fillIn(text.hintConfirm(), name, basket, part);
+        Offer looked = find(ctx, primary, ctx.hovered(primary));
+        // Looking at the one just tried says what to do with it, not to try it again.
+        if (looked != null && dirty && looked.id().equals(ctx.selected(primary))) looked = null;
+        if (looked != null) {
+            String line;
+            if (looked.owned()) line = looked.equipped() ? text.hintHoverEquipped() : text.hintHover();
+            else if (looked.buyable()) line = text.hintHoverBuy().replace("%price%", looked.purchase().price().format());
+            else line = text.hintHoverLocked().replace("%unlock%", unlockOf(looked, text));
+            return line.replace("%name%", looked.name());
+        }
+        if (dirty) {
+            if (basket.blocked() != null) return fillIn(text.hintBlocked(), name, basket, part).replace("%unlock%", unlock);
+            if (!basket.empty()) return fillIn(text.hintBuy(), name, basket, part);
+            return fillIn(worn != null ? text.hintEquip() : text.hintSave(), name, basket, part);
+        }
+        return text.hintIdle();
+    }
+
+    /** The card beside the preview: the offer looked at, else the one chosen. */
+    private void card(SpatialContext ctx, Words text, Values values) {
+        Offer shown = find(ctx, primary, shown(ctx, primary));
+        if (shown == null) {
+            values.put("catalog_card_name", text.cardNone()).put("catalog_card_subtitle", "")
+                    .put("catalog_card_status", "").put("catalog_card_unlock", "");
+            return;
+        }
+        String status;
+        if (shown.owned()) status = shown.equipped() ? text.cardEquipped() : text.cardOwned();
+        else if (shown.buyable()) status = text.cardPrice().replace("%price%", shown.purchase().price().format());
+        else status = text.cardLocked();
+        values.put("catalog_card_name", shown.entry().name())
+                .put("catalog_card_subtitle", shown.entry().subtitle())
+                .put("catalog_card_status", status)
+                .put("catalog_card_unlock", shown.owned() || shown.buyable() ? "" : unlockOf(shown, text));
     }
 
     private static String fillIn(String line, String name, Basket basket, String part) {
@@ -688,7 +896,7 @@ public final class SpatialCatalog {
         var file = menus.layout(menu.id());
         if (file == null) return 1;
         SpatialLayout layout = file.get();
-        if (primary.equals(layout.carousel().source())) return layout.carousel().slots();
+        if (primary.equals(layout.carousel().source())) return layout.carousel().perPage();
         for (SpatialLayout.Panel panel : layout.panels().values()) {
             SpatialLayout.Content content = panel.content();
             if (!primary.equals(content.source())) continue;

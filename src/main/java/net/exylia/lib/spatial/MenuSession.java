@@ -351,6 +351,10 @@ final class MenuSession implements SpatialContext {
         StageLook.play(viewer, theme.openSound());
         if (definition.onOpen != null) definition.onOpen.accept(this);
         refresh();
+        // Once everything has popped in, so the tour points at pieces that are there.
+        menus.tasks().runAtEntityLater(viewer, 14L, () -> {
+            if (!closed) tourOnFirstOpen();
+        }, () -> { });
     }
 
     private void draw(boolean animated) {
@@ -448,6 +452,13 @@ final class MenuSession implements SpatialContext {
      */
     private static final double LABEL_TOP = -0.25;
     private static final double LABEL_FORWARD = 0.31;
+    /** A shelf tile's width against its spacing, its icon against the tile, and how far it pops forward on hover. */
+    private static final double SHELF_TILE = 0.8;
+    private static final double SHELF_ICON = 0.78;
+    private static final double SHELF_HOVER_AHEAD = 0.12;
+    /** The room between a shelf's last row and its page line, and between its row ends and the arrows. */
+    private static final double SHELF_PAGE_GAP = 0.26;
+    private static final double SHELF_ARROW_GAP = 0.18;
 
     private Location eyes() {
         return anchor.clone().add(0, EYES, 0);
@@ -640,6 +651,13 @@ final class MenuSession implements SpatialContext {
         return idlePlate();
     }
 
+    /** A shelf tile: dark at rest, clearly lit when chosen, lighter under the crosshair. */
+    private int tileColour(boolean hovered, boolean chosen) {
+        if (chosen) return Geometry.mix(idlePlate(), colour(theme.plateSelected(), 0xFFD700), hovered ? 0.55 : 0.45);
+        if (hovered) return Geometry.mix(idlePlate(), colour(theme.plateHover(), 0xAA76DE), 0.45);
+        return Geometry.mix(glassColour(), idlePlate(), 0.5);
+    }
+
     private static Rotation facing(StagePlane plane) {
         return StageLook.facing(plane);
     }
@@ -691,12 +709,14 @@ final class MenuSession implements SpatialContext {
             switch (action) {
                 case SAVE -> save();
                 case REVERT -> revert();
+                case LEAVE -> close();
+                case INTRO -> startTour();
                 default -> StageLook.play(viewer, theme.errorSound());
             }
         };
         // SAVE is where the history starts again, and UNDO walks it (a plugin's own undo calling ctx.undo()):
         // neither is a step of it.
-        if (SAVE.equals(action) || UNDO.equals(action)) click.run();
+        if (SAVE.equals(action) || UNDO.equals(action) || LEAVE.equals(action)) click.run();
         else undoable(click);
     }
 
@@ -705,6 +725,12 @@ final class MenuSession implements SpatialContext {
     static final String REVERT = "revert";
     /** Since 1.423.0. */
     static final String UNDO = "undo";
+
+    /** What an {@code ACTION} button reads when the layout gives it no label. */
+    static final String PRIMARY_LABEL = "%catalog_action%";
+    /** Layout actions every menu answers (since 1.452.0): close it, show the guided tour again. */
+    static final String LEAVE = "leave";
+    static final String INTRO = "intro";
 
     /** The gap between footers side by side. */
     private static final double FOOTER_GAP = 0.06;
@@ -726,9 +752,16 @@ final class MenuSession implements SpatialContext {
      */
     private DisplayMotion iconMotion(boolean plinth, int slot, Rotation turn, double size, double depth, Pose pose,
                                      double[] towards, long delay) {
+        return iconMotion(plinth, false, slot, turn, size, depth, pose, towards, delay);
+    }
+
+    /** {@code shelf}: a shelf's icon, which moves like a plinth's but comes forward off its tile under the crosshair. */
+    private DisplayMotion iconMotion(boolean plinth, boolean shelf, int slot, Rotation turn, double size, double depth,
+                                     Pose pose, double[] towards, long delay) {
         double grow = pose == Pose.IDLE ? 1.0 : pose == Pose.HOVER ? theme.hoverGrow() : 1.1;
-        double lift = !plinth ? 0 : pose == Pose.CHOSEN ? 0.07 : pose == Pose.HOVER ? 0.035 : 0;
-        double ahead = plinth || pose == Pose.IDLE ? 0 : 0.02;
+        double lift = shelf ? (pose == Pose.HOVER ? 0.05 : 0)
+                : !plinth ? 0 : pose == Pose.CHOSEN ? 0.07 : pose == Pose.HOVER ? 0.035 : 0;
+        double ahead = shelf ? (pose == Pose.HOVER ? SHELF_HOVER_AHEAD : 0.04) : plinth || pose == Pose.IDLE ? 0 : 0.02;
         float sx = (float) (size * grow);
         float sz = (float) (depth * grow);
         // Every slot a little out of step, so a row does not move as one.
@@ -798,6 +831,7 @@ final class MenuSession implements SpatialContext {
         private final List<Button> buttons = new ArrayList<>();
         private @Nullable Slots slots;
         private @Nullable Column column;
+        private @Nullable Tabs tabs;
 
         PanelPart(String name, SpatialLayout.Panel panel, long delay) {
             this.name = name;
@@ -807,14 +841,16 @@ final class MenuSession implements SpatialContext {
             double w = panel.width();
             double h = panel.height();
             long inner = delay < 0 ? -1 : delay + 180;
-            int glass = glassColour();
-            double reach = theme.backingReach();
-            sheet(plane.point(0, 0, -0.02), rotation, w + reach * 2, h + reach * 2,
-                    Geometry.argb(theme.backingAlpha(), Geometry.mix(0x000000, glass, 0.5)), delay);
-            sheet(plane.point(0, 0, 0), rotation, w, h, Geometry.argb(theme.glassAlpha(), glass), delay);
-            double bar = theme.accentHeight();
-            sheet(plane.point(0, h / 2 - bar / 2, 0.004), rotation, w, bar,
-                    Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), delay < 0 ? -1 : delay + 90);
+            if (panel.frame()) {
+                int glass = glassColour();
+                double reach = theme.backingReach();
+                sheet(plane.point(0, 0, -0.02), rotation, w + reach * 2, h + reach * 2,
+                        Geometry.argb(theme.backingAlpha(), Geometry.mix(0x000000, glass, 0.5)), delay);
+                sheet(plane.point(0, 0, 0), rotation, w, h, Geometry.argb(theme.glassAlpha(), glass), delay);
+                double bar = theme.accentHeight();
+                sheet(plane.point(0, h / 2 - bar / 2, 0.004), rotation, w, bar,
+                        Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), delay < 0 ? -1 : delay + 90);
+            }
             SpatialLayout.Content content = panel.content();
             boolean bare = content.type() == SpatialLayout.Content.Type.NONE;
             boolean titled = !panel.title().isBlank() && !bare;
@@ -860,7 +896,10 @@ final class MenuSession implements SpatialContext {
             switch (content.type()) {
                 case TEXT -> {
                     int count = content.lines().size();
-                    double pitch = Math.min(area[1] / Math.max(1, count), 0.16);
+                    // Lines never closer than the readable size makes them, so a far panel's lines do not touch.
+                    double floor = Stage.TEXT_HEIGHT * Geometry.readableScale(plane.point(0, 0, 0).distance(eyes()),
+                            theme.minGlyphDegrees(), Geometry.CAPITAL_PIXELS) * 1.12;
+                    double pitch = Math.min(area[1] / Math.max(1, count), Math.max(0.16, floor));
                     for (int i = 0; i < count; i++) {
                         double up = area[0] + ((count - 1) / 2.0 - i) * pitch;
                         double scale = i == 0 ? theme.textScale() * 1.15 : theme.textScale();
@@ -870,9 +909,16 @@ final class MenuSession implements SpatialContext {
                 }
                 case LIST -> slots = new Slots(Kind.ROW, content.source(), this, area, inner);
                 case GRID -> slots = new Slots(Kind.CELL, content.source(), this, area, inner);
-                case BUTTON -> buttons.add(new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3),
-                        content.label(), content.action(), inner));
+                case BUTTON -> buttons.add(panel.frame()
+                        ? new Button(plane, rotation, 0, area[0], w - 0.24, Math.min(area[1], 0.3), content.label(),
+                                content.action(), inner)
+                        // Bare: the button is the panel.
+                        : new Button(plane, rotation, 0, 0, w, h, content.label(), content.action(), inner, false, true));
                 case BUTTONS -> column = new Column(this, content.buttons(), area, inner);
+                case ACTION -> buttons.add(new Button(plane, rotation, 0, 0, w, h,
+                        content.label().isBlank() ? PRIMARY_LABEL : content.label(),
+                        content.action().isBlank() ? SAVE : content.action(), inner, true, true));
+                case TABS -> tabs = new Tabs(this, content.source(), inner);
                 case NONE -> { }
             }
             // The bottom row: one footer the panel's width, several side by side.
@@ -895,6 +941,7 @@ final class MenuSession implements SpatialContext {
         public void refresh() {
             refreshWords();
             if (slots != null) slots.refresh();
+            if (tabs != null) tabs.refresh();
         }
     }
 
@@ -942,17 +989,31 @@ final class MenuSession implements SpatialContext {
         final @Nullable DisplayHandle plate;
         final Label label;
         final String action;
+        /** The one primary action ({@code ACTION}): larger words, lit while ready, dimmed while not. */
+        private final boolean primary;
         private @Nullable Hotspot hotspot;
         private boolean lit;
         private boolean hot;
 
         Button(StagePlane plane, Rotation rotation, double across, double up, double width, double height, String label,
                String action, long delay) {
+            this(plane, rotation, across, up, width, height, label, action, delay, false, false);
+        }
+
+        /**
+         * @param primary the one primary action: larger words, lit while ready, dimmed while not
+         * @param bare    a button standing bare in the air (a frameless panel's): its words are drawn as written,
+         *                as body lines are, since small capitals read poorly and run wide with no glass behind them
+         */
+        Button(StagePlane plane, Rotation rotation, double across, double up, double width, double height, String label,
+               String action, long delay, boolean primary, boolean bare) {
             this.action = action;
+            this.primary = primary;
             this.hot = hot();
             plate = sheet(plane.point(across, up, 0.008), rotation, width, height, Geometry.argb(255, colour()), delay);
-            this.label = new Label(label, (text, at) -> write(text, false, plane, rotation, across, up, 0.016,
-                    width * 0.86, theme.textScale(), true, at), delay < 0 ? -1 : delay + 60);
+            double size = primary ? theme.titleScale() : theme.textScale();
+            this.label = new Label(label, (text, at) -> write(text, bare, plane, rotation, across, up, 0.016,
+                    width * 0.86, size, true, at), delay < 0 ? -1 : delay + 60);
             if (edit != null) return;
             hotspot = pointer.add(Hotspot.rect(plane, across, up, width, height).priority(2)
                     .onHover(on -> {
@@ -964,6 +1025,7 @@ final class MenuSession implements SpatialContext {
 
         /** Warm while there is something to save, or while its action waits for a confirming click. */
         private boolean hot() {
+            if (primary && definition.ready != null) return definition.ready.test(MenuSession.this);
             return SAVE.equals(action) && dirty() || confirm.confirming(action, System.currentTimeMillis());
         }
 
@@ -975,6 +1037,11 @@ final class MenuSession implements SpatialContext {
         }
 
         private int colour() {
+            if (primary) {
+                // Lit in the chosen colour while there is something to do; a dark, calm plate while not.
+                if (hot) return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateSelected(), 0xFFD700), lit ? 0.62 : 0.48);
+                return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateIdle(), 0x8A51C4), 0.18);
+            }
             if (hot) return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateSelected(), 0xFFD700), lit ? 0.5 : 0.36);
             return Geometry.mix(glassColour(), MenuSession.this.colour(theme.plateHover(), 0xAA76DE), lit ? 0.5 : 0.2);
         }
@@ -1028,7 +1095,7 @@ final class MenuSession implements SpatialContext {
             for (int i = 0; i < count; i++) {
                 SpatialLayout.Footer button = all.get(visible.get(i));
                 drawn.add(new Button(panel.plane, panel.rotation, 0, ups[i], width, height, button.label(),
-                        button.action(), delay < 0 ? delay : delay + i * 50L));
+                        button.action(), delay < 0 ? delay : delay + i * 50L, false, !panel.panel.frame()));
             }
         }
 
@@ -1044,8 +1111,123 @@ final class MenuSession implements SpatialContext {
         }
     }
 
+    /**
+     * A {@code TABS} content: one row of tabs, one per entry of its source, the chosen one (the entry the
+     * source marks {@code SELECTED}, else the selection) on a lit plate. Tabs are as wide as their words, never
+     * cut; when they do not all fit the row shows as many as fit round the chosen one. A click chooses a tab
+     * (the source's {@code onSelect} runs), the wheel over the row steps to the next. Nothing is drawn while
+     * the source is empty.
+     */
+    private final class Tabs {
+        private static final double GAP = 0.05;
+        private static final double PAD = 0.2;
+        private final PanelPart panel;
+        private final String source;
+        private final List<DisplayHandle> drawn = new ArrayList<>();
+        private final List<Hotspot> spots = new ArrayList<>();
+        private List<SpatialEntry> shown = List.of();
+        private int active = -1;
+        private long delay;
+
+        Tabs(PanelPart panel, String source, long delay) {
+            this.panel = panel;
+            this.source = source;
+            this.delay = delay;
+            if (edit == null) {
+                spots.add(pointer.add(Hotspot.rect(panel.plane, 0, 0, panel.panel.width(), panel.panel.height())
+                        .priority(-1).silent(true).onScroll(notch -> step(notch))));
+            }
+        }
+
+        private List<SpatialEntry> entries() {
+            var supplier = definition.sources.get(source);
+            return supplier == null ? List.of() : List.copyOf(supplier.apply(MenuSession.this));
+        }
+
+        private int activeOf(List<SpatialEntry> entries) {
+            String id = selected.get(source);
+            for (int i = 0; i < entries.size(); i++) if (entries.get(i).state() == SpatialEntry.State.SELECTED) return i;
+            for (int i = 0; i < entries.size(); i++) if (entries.get(i).id().equals(id)) return i;
+            return entries.isEmpty() ? -1 : 0;
+        }
+
+        void refresh() {
+            List<SpatialEntry> now = entries();
+            int at = activeOf(now);
+            if (now.equals(shown) && at == active) return;
+            shown = now;
+            active = at;
+            draw();
+        }
+
+        private void draw() {
+            for (DisplayHandle handle : drawn) drop(handle);
+            drawn.clear();
+            // The row's own wheel hotspot stays; the tabs' are drawn again with them.
+            while (spots.size() > (edit == null ? 1 : 0)) pointer.remove(spots.removeLast());
+            if (shown.isEmpty()) return;
+            double w = panel.panel.width();
+            double h = panel.panel.height();
+            // Sized for the row's far end, so the outermost tab is as readable as the middle one.
+            Location left = panel.plane.point(-w / 2, 0, 0.016);
+            Location right = panel.plane.point(w / 2, 0, 0.016);
+            Location middle = left.distanceSquared(eyes()) > right.distanceSquared(eyes()) ? left : right;
+            List<Fitted> words = new ArrayList<>();
+            double[] widths = new double[shown.size()];
+            for (int i = 0; i < shown.size(); i++) {
+                // Drawn as written, as a body line: a row of small capitals would run wide and read poorly.
+                Fitted line = fit(fill(shown.get(i).name()), true, w, theme.textScale(), middle);
+                words.add(line);
+                widths[i] = line.width() + PAD;
+            }
+            int[] window = Geometry.tabWindow(widths, GAP, w, active);
+            double[] centres = Geometry.tabCentres(widths, GAP, window[0], window[1]);
+            long wait = delay < 0 ? -1 : delay;
+            for (int i = window[0]; i < window[1]; i++) {
+                int tab = i;
+                double across = centres[i - window[0]];
+                boolean on = i == active;
+                DisplayHandle plate = sheet(panel.plane.point(across, 0, 0.008), panel.rotation, widths[i], h,
+                        Geometry.argb(255, tabColour(on, false)), wait);
+                if (plate != null) drawn.add(plate);
+                DisplayHandle label = text(words.get(i), panel.plane, panel.rotation, across, 0, 0.016, true,
+                        wait < 0 ? -1 : wait + 60);
+                if (label != null) drawn.add(label);
+                if (edit != null) continue;
+                spots.add(pointer.add(Hotspot.rect(panel.plane, across, 0, widths[i], h).priority(2)
+                        .onHover(lit -> {
+                            if (plate != null && tab != active) plate.restyle(sheetModel(Geometry.argb(255, tabColour(false, lit))));
+                        })
+                        .onPress(click -> choose(tab))));
+            }
+            // Only the first draw pops in; later ones (a tab chosen) appear in place.
+            delay = REPOP;
+        }
+
+        private int tabColour(boolean on, boolean lit) {
+            if (on) return Geometry.mix(glassColour(), colour(theme.plateSelected(), 0xFFD700), 0.42);
+            return Geometry.mix(glassColour(), colour(theme.plateHover(), 0xAA76DE), lit ? 0.42 : 0.12);
+        }
+
+        private void step(int notch) {
+            if (shown.isEmpty()) return;
+            StageLook.play(viewer, theme.pageSound());
+            choose(Math.floorMod(active + Integer.signum(notch), shown.size()));
+        }
+
+        private void choose(int tab) {
+            if (tab < 0 || tab >= shown.size() || tab == active) return;
+            SpatialEntry entry = shown.get(tab);
+            confirm.disarm();
+            selected.put(source, entry.id());
+            var select = definition.selects.get(source);
+            if (select != null) select.accept(MenuSession.this, entry);
+            MenuSession.this.refresh();
+        }
+    }
+
     /** How a list draws its entries. */
-    private enum Kind { ROW, CELL, PEDESTAL }
+    private enum Kind { ROW, CELL, PEDESTAL, SHELF }
 
     /** Where one slot stands. */
     private record Place(StagePlane plane, Rotation rotation, double across, double up, Location at) {
@@ -1128,12 +1310,37 @@ final class MenuSession implements SpatialContext {
             hotspots(panel.panel.width(), panel.panel.height());
         }
 
-        /** The carousel: a row of plinths. */
+        /** The carousel: a row of plinths, or a shelf of tiles. */
         Slots(SpatialLayout.Carousel row, long delay) {
-            this.kind = Kind.PEDESTAL;
+            this.kind = row.shelf() ? Kind.SHELF : Kind.PEDESTAL;
             this.source = row.source();
             this.delay = delay;
-            this.perPage = row.slots();
+            this.perPage = row.perPage();
+            if (kind == Kind.SHELF) {
+                this.plane = Geometry.panel(anchor.getWorld(), board, row.at().get(0), row.at().get(1), row.at().get(2), 0);
+                this.rotation = facing(plane);
+                this.slotWidth = row.spacing() * SHELF_TILE;
+                this.slotHeight = Math.min(slotWidth, row.rowGap() * 0.86);
+                this.iconScale = slotHeight * SHELF_ICON;
+                for (int i = 0; i < perPage; i++) {
+                    double[] slot = Geometry.shelf(i, row.slots(), row.spacing(), row.rowGap(), row.curve());
+                    double depth = distance - row.at().get(2) - slot[2];
+                    StagePlane turned = Geometry.panel(anchor.getWorld(), board, row.at().get(0) + slot[0],
+                            row.at().get(1) + slot[1], row.at().get(2) + slot[2],
+                            Geometry.facingTurn(row.at().get(0) + slot[0], depth));
+                    places.add(new Place(turned, facing(turned), slot[0], slot[1], turned.point(0, 0, 0)));
+                }
+                double bottom = -(row.rows() - 1) * row.rowGap();
+                emptyUp = bottom / 2;
+                pageUp = bottom - slotHeight / 2 - SHELF_PAGE_GAP;
+                captionUp = Double.NaN;
+                hotspots(0, 0);
+                // The arrows at the ends of the rows, half-way down, a little nearer like the outermost tiles.
+                double outer = Geometry.outermost(row.slots(), row.spacing(), 0) + row.spacing() * 0.5 + SHELF_ARROW_GAP;
+                shelfArrow(-outer, bottom / 2, row.curve(), -1, theme.previousArrow());
+                shelfArrow(outer, bottom / 2, row.curve(), 1, theme.nextArrow());
+                return;
+            }
             this.plane = Geometry.panel(anchor.getWorld(), board, row.at().get(0), row.at().get(1), row.at().get(2), 0);
             this.rotation = facing(plane);
             this.slotWidth = Math.min(row.spacing() * 0.94, 0.7);
@@ -1155,6 +1362,26 @@ final class MenuSession implements SpatialContext {
             arrow(arrows, 1, theme.nextArrow());
         }
 
+        /** A shelf's page arrow: large, beside the end of the rows, turned to the eyes, lit under the crosshair. */
+        private void shelfArrow(double across, double up, double curve, int step, String label) {
+            double depth = distance - layout.carousel().at().get(2) - curve;
+            StagePlane own = Geometry.panel(anchor.getWorld(), board, layout.carousel().at().get(0) + across,
+                    layout.carousel().at().get(1) + up, layout.carousel().at().get(2) + curve,
+                    Geometry.facingTurn(layout.carousel().at().get(0) + across, Math.max(0.5, depth)));
+            Rotation turn = facing(own);
+            DisplayHandle[] shown = new DisplayHandle[1];
+            shown[0] = write(fill(label), false, own, turn, 0, 0, 0.01, 0.5, theme.titleScale() * 1.3, true,
+                    delay < 0 ? -1 : delay + 200);
+            if (edit != null) return;
+            pointer.add(Hotspot.rect(own, 0, 0, 0.5, slotHeight * 1.2).priority(2)
+                    .onHover(on -> {
+                        drop(shown[0]);
+                        String lit = on ? theme.hoverGlow() + "&l" + plain(Text.component(fill(label))) : fill(label);
+                        shown[0] = write(lit, false, own, turn, 0, 0, 0.01, 0.5, theme.titleScale() * (on ? 1.45 : 1.3), true, -1);
+                    })
+                    .onPress(click -> turnPage(this, step)));
+        }
+
         private void arrow(double across, int step, String label) {
             write(fill(label), false, plane, rotation, across, pageUp, 0.01, 0.3, theme.textScale() * 1.2, true,
                     delay < 0 ? -1 : delay + 200);
@@ -1166,7 +1393,7 @@ final class MenuSession implements SpatialContext {
         private void hotspots(double panelWidth, double panelHeight) {
             if (edit != null) return;
             IntConsumer scroll = notch -> turnPage(this, notch);
-            if (kind != Kind.PEDESTAL) {
+            if (kind == Kind.ROW || kind == Kind.CELL) {
                 // The whole panel pages its list under the wheel, not only its slots.
                 pointer.add(Hotspot.rect(plane, 0, 0, panelWidth, panelHeight).priority(-1).silent(true).onScroll(scroll));
             }
@@ -1176,11 +1403,13 @@ final class MenuSession implements SpatialContext {
                 // A plinth answers from its item down to its label, on its own turned plane.
                 Hotspot spot = kind == Kind.PEDESTAL
                         ? Hotspot.rect(place.plane(), 0, -0.13, slotWidth, 0.62)
+                        : kind == Kind.SHELF ? Hotspot.rect(place.plane(), 0, 0, slotWidth, slotHeight)
                         : Hotspot.rect(plane, place.across(), place.up(), slotWidth, kind == Kind.ROW ? slotHeight * 0.96 : slotHeight);
+                boolean carried = kind == Kind.PEDESTAL || kind == Kind.SHELF;
                 spot.priority(1)
                         .onHover(on -> hover(slot, on))
                         .onPress(click -> choose(slot))
-                        .onScroll(kind == Kind.PEDESTAL ? null : scroll)
+                        .onScroll(carried ? null : scroll)
                         .enabled(false);
                 spots.add(pointer.add(spot));
             }
@@ -1196,7 +1425,7 @@ final class MenuSession implements SpatialContext {
             List<SpatialEntry> now = Geometry.page(all, page, perPage);
             List<Integer> changed = Geometry.changed(shown, now, perPage);
             // A page turn on the carousel: the old page slides off one side, the new comes in from the other.
-            boolean turning = kind == Kind.PEDESTAL && !first && page != lastPage;
+            boolean turning = (kind == Kind.PEDESTAL || kind == Kind.SHELF) && !first && page != lastPage;
             int side = step != 0 ? Integer.signum(step) : Integer.signum(page - lastPage);
             double[] across = offset(plane, 1, 0, 0);
             lastPage = page;
@@ -1235,7 +1464,7 @@ final class MenuSession implements SpatialContext {
             // Empty: one line that says so, in the middle.
             if (now.isEmpty() && empty == null) {
                 empty = write(fill(theme.emptyLine()), true, plane, rotation, 0, emptyUp, 0.012,
-                        kind == Kind.PEDESTAL ? 2.4 : slotWidth * 0.9, theme.smallScale(), false, -1);
+                        kind == Kind.PEDESTAL || kind == Kind.SHELF ? 2.4 : slotWidth * 0.9, theme.smallScale(), false, -1);
             } else if (!now.isEmpty() && empty != null) {
                 drop(empty);
                 empty = null;
@@ -1336,6 +1565,29 @@ final class MenuSession implements SpatialContext {
                                 theme.smallScale(), true, at < 0 ? -1 : at + 60));
                     }
                 }
+                case SHELF -> {
+                    StagePlane own = place.plane();
+                    Rotation turn = place.rotation();
+                    // A dark tile, warmed when chosen or looked at; the icon just in front of it, dimmed when locked.
+                    DisplayHandle tile = sheet(own.point(0, 0, 0), turn, slotWidth, slotHeight,
+                            Geometry.argb(255, tileColour(false, false)), at);
+                    keep(slot, tile);
+                    plates.set(slot, tile);
+                    DisplayHandle icon = show(iconModel, iconMotion(true, true, slot, turn, iconScale, iconScale, pose, towards,
+                            at < 0 ? -1 : at + 60), own.point(0, 0, 0));
+                    keep(slot, icon);
+                    icons.set(slot, icon);
+                    // Its state in the tile's top corner: worn, or not theirs yet.
+                    String marker = switch (entry.state()) {
+                        case EQUIPPED -> theme.equippedMarker();
+                        case LOCKED -> theme.lockedMarker();
+                        default -> "";
+                    };
+                    if (marker != null && !marker.isBlank()) {
+                        keep(slot, write(fill(marker, entry), true, own, turn, slotWidth * 0.34, slotHeight * 0.3, 0.09,
+                                0.4, theme.smallScale(), true, at < 0 ? -1 : at + 90));
+                    }
+                }
                 case PEDESTAL -> {
                     StagePlane own = place.plane();
                     Rotation turn = place.rotation();
@@ -1418,16 +1670,23 @@ final class MenuSession implements SpatialContext {
             if (slot < 0 || slot >= drawn.size()) return;
             boolean on = slot == hovered;
             boolean picked = slot == chosen;
-            Pose pose = kind == Kind.PEDESTAL && picked ? Pose.CHOSEN : on ? Pose.HOVER : Pose.IDLE;
+            boolean shelf = kind == Kind.SHELF;
+            Pose pose = shelf ? (on ? Pose.HOVER : picked ? Pose.CHOSEN : Pose.IDLE)
+                    : kind == Kind.PEDESTAL && picked ? Pose.CHOSEN : on ? Pose.HOVER : Pose.IDLE;
             DisplayHandle icon = icons.get(slot);
             Place place = places.get(slot);
             if (icon != null && poses.get(slot) != pose) {
                 poses.set(slot, pose);
-                boolean plinth = kind == Kind.PEDESTAL;
-                icon.then(iconMotion(plinth, slot, place.rotation(), iconScale, plinth ? iconScale : iconScale * 0.3, pose,
-                        offset(place.plane(), 0, 0, 1), REPOP));
+                boolean plinth = kind == Kind.PEDESTAL || shelf;
+                icon.then(iconMotion(plinth, shelf, slot, place.rotation(), iconScale, plinth ? iconScale : iconScale * 0.3,
+                        pose, offset(place.plane(), 0, 0, 1), REPOP));
             }
             if (icon != null && kind != Kind.PEDESTAL) icon.glow(on ? colour(theme.hoverGlow(), 0xFFD700) : -1);
+            if (shelf) {
+                DisplayHandle tile = plates.get(slot);
+                if (tile != null) tile.restyle(sheetModel(Geometry.argb(255, tileColour(on, picked))));
+                return;
+            }
             DisplayHandle plinth = plinths.get(slot);
             if (plinth != null) {
                 // The ring round a plinth: its outline, in the chosen colour or, lighter, the hover's.
@@ -1499,6 +1758,8 @@ final class MenuSession implements SpatialContext {
         }
 
         private void glide(int slot) {
+            // A shelf marks the chosen entry with its tile, not a sliding bar.
+            if (kind == Kind.SHELF) return;
             double width = kind == Kind.ROW ? 0.025 : kind == Kind.PEDESTAL ? 0.3 : slotWidth * 0.5;
             double height = kind == Kind.ROW ? slotHeight * 0.66 : kind == Kind.PEDESTAL ? 0.014 : 0.022;
             if (selector == null) {
@@ -1528,7 +1789,7 @@ final class MenuSession implements SpatialContext {
         }
 
         private void pageLine(int page, int pageCount) {
-            boolean show = kind == Kind.PEDESTAL || pageCount > 1;
+            boolean show = kind == Kind.PEDESTAL || kind == Kind.SHELF || pageCount > 1;
             String raw = fill(theme.pageLine().replace("%page%", String.valueOf(page + 1))
                     .replace("%pages%", String.valueOf(pageCount)));
             if (!show) {
@@ -1540,7 +1801,7 @@ final class MenuSession implements SpatialContext {
                 pageLine.text(theme.smallCapsBody() ? Text.component(raw) : Text.verbatim(raw));
                 return;
             }
-            double room = kind == Kind.PEDESTAL ? 0.62 : slotWidth * 0.9;
+            double room = kind == Kind.PEDESTAL ? 0.62 : kind == Kind.SHELF ? 1.6 : slotWidth * 0.9;
             pageLine = write(raw, true, plane, rotation, 0, pageUp, 0.012, room, theme.smallScale(), false,
                     delay < 0 ? -1 : delay + 220);
         }
@@ -1988,14 +2249,137 @@ final class MenuSession implements SpatialContext {
     StagePlane pieceAt(String piece) {
         if (piece.equals(EditMode.CAROUSEL)) {
             List<Double> at = layout.carousel().at();
-            return Geometry.panel(anchor.getWorld(), board, at.get(0), at.get(1) - 0.1, at.get(2), 0);
+            // A shelf's middle is half-way down its rows, and its outline as near as its outermost tiles, so
+            // the curve never brings a tile in front of it.
+            SpatialLayout.Carousel row = layout.carousel();
+            double up = row.shelf() ? -(row.rows() - 1) * row.rowGap() / 2 : -0.1;
+            double forward = row.shelf() ? row.curve() + SHELF_HOVER_AHEAD : 0;
+            return Geometry.panel(anchor.getWorld(), board, at.get(0), at.get(1) + up, at.get(2) + forward, 0);
         }
         if (piece.equals(EditMode.PREVIEW)) {
             List<Double> at = layout.preview().at();
-            return Geometry.panel(anchor.getWorld(), board, at.get(0), at.get(1) + 0.8, at.get(2), 0);
+            // The body standing on it, as tall as the preview's scale makes it.
+            return Geometry.panel(anchor.getWorld(), board, at.get(0), at.get(1) + 0.95 * previewSize(), at.get(2), 0);
         }
         SpatialLayout.Panel panel = Objects.requireNonNull(layout.panel(piece), piece);
         return Geometry.panel(anchor.getWorld(), board, panel.across(), panel.up(), panel.forward(), panel.turn());
+    }
+
+    /** How large the preview's body stands, by its scale. */
+    private double previewSize() {
+        return Math.clamp(layout.preview().scale(), 0.42, 1.6);
+    }
+
+    /** How large a named piece is on its plane, {width, height}: what edit mode and the tour outline. */
+    double[] pieceSize(String piece) {
+        if (piece.equals(EditMode.CAROUSEL)) {
+            SpatialLayout.Carousel row = layout.carousel();
+            if (row.shelf()) {
+                return new double[]{(row.slots() - 1) * row.spacing() + row.spacing() * SHELF_TILE + 0.12,
+                        (row.rows() - 1) * row.rowGap() + Math.min(row.spacing() * SHELF_TILE, row.rowGap() * 0.86) + 0.12};
+            }
+            return new double[]{Geometry.outermost(row.slots(), row.spacing(), row.centreGap()) * 2 + row.spacing(), 0.8};
+        }
+        if (piece.equals(EditMode.PREVIEW)) return new double[]{0.4 + 0.6 * previewSize(), 1.9 * previewSize()};
+        SpatialLayout.Panel panel = layout.panel(piece);
+        return panel == null ? new double[]{0, 0} : new double[]{panel.width(), panel.height()};
+    }
+
+    // ── Guided tour ───────────────────────────────────────────────────────
+
+    private @Nullable Tour tour;
+    /** The widest a tour's line may be, in blocks. */
+    private static final double TOUR_ROOM = 4.4;
+
+    /** Shows the layout's guided tour now, from its first step; nothing when it has none. Marks it seen. */
+    void startTour() {
+        if (closed || edit != null || !layout.intro().present()) return;
+        if (tour != null) tour.end();
+        tour = new Tour(layout.intro().steps());
+        menus.markIntroSeen(viewer, definition.id());
+    }
+
+    /** Opens the tour on a first open: once per player and menu. */
+    private void tourOnFirstOpen() {
+        if (edit == null && layout.intro().present() && !menus.introSeen(viewer, definition.id())) startTour();
+    }
+
+    /** Sneaking during the tour skips it instead of leaving: {@code true} when there was one to skip. */
+    boolean skipTour() {
+        if (tour == null) return false;
+        tour.end();
+        return true;
+    }
+
+    /**
+     * The guided tour: each step outlines its piece and writes its words, with the theme's continue line
+     * under them. While it shows, a click anywhere moves on (the menu under it is not pressed) and the wheel
+     * does nothing; after the last step the menu is the player's.
+     */
+    private final class Tour {
+        private final List<SpatialLayout.Step> steps;
+        private final List<DisplayHandle> drawn = new ArrayList<>();
+        private final @Nullable Hotspot catcher;
+        private int at = -1;
+
+        Tour(List<SpatialLayout.Step> steps) {
+            this.steps = steps;
+            // In front of everything, as wide as the view: every click is the tour's while it lasts.
+            catcher = pointer.add(Hotspot.rect(board, 0, 0, 40, 30).priority(100).silent(true)
+                    .onPress(click -> next()).onScroll(notch -> { }));
+            next();
+        }
+
+        void next() {
+            clear();
+            at++;
+            if (at >= steps.size()) {
+                end();
+                return;
+            }
+            if (at > 0) StageLook.play(viewer, theme.pageSound());
+            SpatialLayout.Step step = steps.get(at);
+            int outline = colour(theme.introOutline(), 0xFFD700);
+            if (!step.target().isBlank() && (layout.panel(step.target()) != null
+                    || step.target().equals(EditMode.CAROUSEL) || step.target().equals(EditMode.PREVIEW))) {
+                double[] size = pieceSize(step.target());
+                drawn.addAll(outline(pieceAt(step.target()), size[0] + 0.08, size[1] + 0.08, outline));
+            }
+            List<Double> where = step.at();
+            String[] lines = fill(step.text()).split("\\\\n|\n");
+            String more = fill(theme.introLine().replace("%step%", String.valueOf(at + 1))
+                    .replace("%steps%", String.valueOf(steps.size())));
+            Location probe = board.point(where.get(0), where.get(1), where.get(2));
+            double pitch = Stage.TEXT_HEIGHT * Geometry.readableScale(probe.distance(eyes()), theme.minGlyphDegrees(),
+                    Geometry.CAPITAL_PIXELS) * 1.25;
+            // A dark plate behind the words, as wide as the widest line: it reads over whatever is behind it.
+            double widest = 0;
+            for (String line : lines) widest = Math.max(widest, fit(line, true, TOUR_ROOM, theme.textScale() * 1.15, probe).width());
+            widest = Math.max(widest, fit(more, true, TOUR_ROOM, theme.smallScale(), probe).width());
+            double tall = (lines.length + 0.9) * pitch;
+            DisplayHandle plate = sheet(board.point(where.get(0), where.get(1) - tall / 2 + pitch / 2, where.get(2) - 0.01),
+                    facing(board), widest + 0.36, tall + 0.24, Geometry.argb(255, Geometry.mix(0x000000, glassColour(), 0.7)), 0);
+            if (plate != null) drawn.add(plate);
+            for (int i = 0; i < lines.length; i++) {
+                DisplayHandle line = write(lines[i], true, board, facing(board), where.get(0), where.get(1) - i * pitch,
+                        where.get(2), TOUR_ROOM, theme.textScale() * 1.15, true, 60L + i * 60L);
+                if (line != null) drawn.add(line);
+            }
+            DisplayHandle tail = write(more, true, board, facing(board), where.get(0), where.get(1) - lines.length * pitch - pitch * 0.2,
+                    where.get(2), TOUR_ROOM, theme.smallScale(), true, 60L + lines.length * 60L);
+            if (tail != null) drawn.add(tail);
+        }
+
+        private void clear() {
+            drawn.forEach(MenuSession.this::drop);
+            drawn.clear();
+        }
+
+        void end() {
+            clear();
+            pointer.remove(catcher);
+            if (tour == this) tour = null;
+        }
     }
 
     /** An outline round a rectangle of a plane: four opaque bars. */

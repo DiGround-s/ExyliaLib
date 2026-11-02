@@ -116,6 +116,58 @@ public final class BundledFiles {
         }
     }
 
+    /**
+     * Lets a raised {@code menu-version} replace a file nobody edited when the file is also read as a record
+     * ({@code schema}, a spatial layout): reading it fills keys the jar never shipped with the record's
+     * defaults, drops keys the record does not own and stamps a {@code config-version}, so it never equals
+     * the reviewed defaults again and {@link #refresh} took it for one the owner edited, offering the new
+     * layout instead of installing it. When the file on disk is exactly the reviewed defaults as the record
+     * writes them, those become the reviewed defaults, and the next {@code refresh} sees an untouched file.
+     * Does nothing unless the jar's version is higher than the file's. Call it before {@code refresh}.
+     *
+     * @param earlier values the record wrote for a key in an older library, by dotted key: a file written
+     *                then still holds them, and they are the library's, not the owner's
+     * @since 1.452.0
+     */
+    public static void recordWrote(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource,
+                                   @NotNull Class<? extends Record> schema,
+                                   @NotNull java.util.Map<String, java.util.List<Object>> earlier) {
+        Path relative = BundledResources.relative(resource);
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path onDisk = dataFolder.resolve(relative);
+        Path reviewedPath = dataFolder.resolve(REVIEWED).resolve(relative);
+        if (Files.notExists(onDisk) || Files.notExists(reviewedPath)) return;
+        try (java.io.InputStream in = BundledResources.open(anchor.getClassLoader(), resource)) {
+            if (in == null) return;
+            YamlConfiguration shipped = DefaultsMerge.yaml();
+            shipped.loadFromString(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            String versionKey = versionKey(shipped);
+            if (versionKey == null) return;
+            YamlConfiguration disk = DefaultsMerge.yaml();
+            disk.load(onDisk.toFile());
+            int diskVersion = disk.isInt(versionKey) ? disk.getInt(versionKey) : 0;
+            if (diskVersion >= shipped.getInt(versionKey)) return;
+            YamlConfiguration reviewed = DefaultsMerge.yaml();
+            reviewed.load(reviewedPath.toFile());
+            if (DefaultsMerge.same(disk, reviewed)) return;
+            YamlConfiguration written = net.exylia.lib.config.internal.RecordYaml.normalised(schema, plugin.getName(), reviewed);
+            // The record's own bookkeeping, whatever it reads.
+            Object stamp = disk.get("config-version");
+            if (stamp != null) written.set("config-version", stamp);
+            for (java.util.Map.Entry<String, java.util.List<Object>> key : earlier.entrySet()) {
+                String path = key.getKey().replace('.', DefaultsMerge.SEPARATOR);
+                if (reviewed.contains(path) || !disk.contains(path)) continue;
+                for (Object old : key.getValue()) {
+                    if (DefaultsMerge.same(disk.get(path), old)) written.set(path, disk.get(path));
+                }
+            }
+            if (!DefaultsMerge.same(disk, written)) return;
+            BundledResources.write(reviewedPath, written.saveToString());
+        } catch (IOException | InvalidConfigurationException | RuntimeException failure) {
+            Debug.of(plugin).warn("Could not compare " + resource + " with its reviewed defaults: " + failure.getMessage());
+        }
+    }
+
     private static boolean sameValue(@Nullable Object disk, @Nullable Object library) {
         if (disk instanceof Number a && library instanceof Number b) return a.doubleValue() == b.doubleValue();
         return java.util.Objects.equals(disk, library);

@@ -132,6 +132,8 @@ public final class SpatialMenus {
             // Keys a newer library added with its own value before this jar shipped one: offered, not kept.
             // ponytail: the keys added since 1.442.0 only; extend the map when a later version adds keys a jar sets.
             BundledFiles.libraryWrote(plugin, anchor, path, LIBRARY_WROTE);
+            // A file the record filled in and nobody edited still counts as untouched for a new menu-version.
+            BundledFiles.recordWrote(plugin, anchor, path, SpatialLayout.class, EARLIER_DEFAULTS);
             BundledFiles.refresh(plugin, anchor, path);
         }
         return define(id, definition, packaged ? anchor : null);
@@ -144,6 +146,14 @@ public final class SpatialMenus {
             "preview.turn-controls", false,
             "preview.turn-hint", SpatialLayout.Preview.TURN_HINT,
             "preview.turn-pause", 8.0);
+
+    /** What the layout record wrote for a theme key before its default changed: still the library's on disk. */
+    private static final Map<String, List<Object>> EARLIER_DEFAULTS = Map.of(
+            "theme.title-scale", List.of(0.5),
+            "theme.text-scale", List.of(0.36),
+            "theme.small-scale", List.of(0.27),
+            "theme.select-sound", List.of("minecraft:block.note_block.hat|1.0|1.0"),
+            "theme.open-sound", List.of("minecraft:block.ender_chest.open|1.0|1.4"));
 
     /** Whether the jar {@code anchor} came from holds {@code path}. */
     static boolean packaged(Class<?> anchor, String path) {
@@ -327,7 +337,26 @@ public final class SpatialMenus {
             SpatialCatalog declared = new SpatialCatalog(this, menu);
             catalog.accept(declared);
             declared.install();
+            // A plugin that ships no layout gets the library's centre stage rather than the generic wardrobe.
+            if (!packaged(anchor, "spatial/" + id + ".yml")) installCentreStage(id, declared.primarySource());
         });
+    }
+
+    /** The library's catalogue layout ({@code spatial/centre-stage.yml}), its shelf reading {@code source}. */
+    public static final String CENTRE_STAGE = "spatial/centre-stage.yml";
+
+    private void installCentreStage(String id, String source) {
+        java.nio.file.Path file = plugin.getDataFolder().toPath().resolve("spatial/" + id + ".yml");
+        if (java.nio.file.Files.exists(file)) return;
+        try (java.io.InputStream in = net.exylia.lib.config.internal.BundledResources.open(SpatialMenus.class.getClassLoader(), CENTRE_STAGE)) {
+            if (in == null) return;
+            String layout = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("  source: catalog\n", "  source: " + source + "\n");
+            java.nio.file.Files.createDirectories(file.getParent());
+            java.nio.file.Files.writeString(file, layout);
+        } catch (java.io.IOException failure) {
+            net.exylia.lib.debug.Debug.of(plugin).warn("Could not write spatial/" + id + ".yml: " + failure.getMessage());
+        }
     }
 
     /**
@@ -341,6 +370,46 @@ public final class SpatialMenus {
     public static boolean supports(@NotNull Player player) {
         return net.exylia.lib.packet.ClientVersions.atLeast(player,
                 com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_4);
+    }
+
+    // ── Guided tour ───────────────────────────────────────────────────────
+
+    /** Where a player's "tour seen" mark for one menu is kept: their own data, under this plugin's name. */
+    private org.bukkit.NamespacedKey introKey(String id) {
+        String safe = id.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9._-]", "_");
+        return new org.bukkit.NamespacedKey(plugin, "spatial_intro_" + safe);
+    }
+
+    /** Whether the player has seen the guided tour of this plugin's menu {@code id}. Read on the player's thread. */
+    boolean introSeen(Player player, String id) {
+        return player.getPersistentDataContainer().has(introKey(id), org.bukkit.persistence.PersistentDataType.BYTE);
+    }
+
+    void markIntroSeen(Player player, String id) {
+        player.getPersistentDataContainer().set(introKey(id), org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+    }
+
+    /**
+     * Forgets that the player has seen the guided tour of menu {@code id} (a layout's {@code intro}), so it shows
+     * again the next time they open it: a "show me again" option or an admin's reset. The mark lives in the
+     * player's own data on this server, per plugin and menu. Safe from any thread.
+     *
+     * @since 1.452.0
+     */
+    public void resetIntro(@NotNull Player player, @NotNull String id) {
+        Objects.requireNonNull(id, "id");
+        run(player, () -> player.getPersistentDataContainer().remove(introKey(id)));
+    }
+
+    /**
+     * Shows the guided tour of the player's open menu now, if it is this plugin's and its layout has one: what
+     * a button with action {@code intro} does. Safe from any thread.
+     *
+     * @since 1.452.0
+     */
+    public void showIntro(@NotNull Player player) {
+        MenuSession session = OPEN.get(player.getUniqueId());
+        if (session != null && session.menus == this) run(player, session::startTour);
     }
 
     /** Whether a player has any spatial menu open, whichever plugin opened it. */
@@ -405,6 +474,8 @@ public final class SpatialMenus {
         }
         // In front: the board square to the world (45° steps), standing on the ground, nearer when a wall is close.
         float yaw = Math.round(feet.getYaw() / 45f) * 45f;
+        // A large board facing a wall would clear a hole through it: the nearest heading with room for it instead.
+        if (layout.anchor().clearView()) yaw = roomiest(feet, yaw, layout.anchor().distance());
         Location at = feet.clone();
         at.setYaw(yaw);
         at.setPitch(0);
@@ -444,6 +515,45 @@ public final class SpatialMenus {
         return wrapped;
     }
 
+    /**
+     * The square heading (45° steps) nearest {@code yaw} with room for a board {@code distance} ahead: the way
+     * the player faces when nothing stands there, else the next one round either side, else the way with the
+     * most room. The view is cleared whichever it is, so a cramped spot still opens; it only clears less.
+     */
+    static float roomiest(Location feet, float yaw, double distance) {
+        World world = feet.getWorld();
+        if (world == null) return yaw;
+        float best = yaw;
+        double most = -1;
+        for (int step : new int[]{0, 1, -1, 2, -2, 3, -3, 4}) {
+            float heading = yaw + step * 45f;
+            double room = room(feet, heading, distance);
+            if (room >= distance - 0.01) return heading;
+            // A little room more is not worth turning round for: only a clearly better heading wins.
+            if (room > most + 0.75) {
+                most = room;
+                best = heading;
+            }
+        }
+        return best;
+    }
+
+    /** How far ahead the way {@code yaw} looks is clear at eye height, across the middle and both sides of the view. */
+    private static double room(Location feet, float yaw, double distance) {
+        World world = feet.getWorld();
+        Location eyes = feet.clone().add(0, 1.62, 0);
+        double least = distance;
+        for (double side : new double[]{0, -22, 22}) {
+            Location look = feet.clone();
+            look.setYaw((float) (yaw + side));
+            look.setPitch(0);
+            Vector ahead = look.getDirection().setY(0).normalize();
+            RayTraceResult hit = world.rayTraceBlocks(eyes, ahead, distance, FluidCollisionMode.NEVER, true);
+            if (hit != null) least = Math.min(least, hit.getHitPosition().distance(eyes.toVector()));
+        }
+        return least;
+    }
+
     /** How far ahead the board may stand: nearer than {@code wanted} when a block is in the way, never under 2. */
     private static double clearance(Location feet, double wanted) {
         World world = feet.getWorld();
@@ -469,7 +579,10 @@ public final class SpatialMenus {
         session.shield = shield;
         if (editing) session.edit = new EditMode(session, file);
         OPEN.put(player.getUniqueId(), session);
-        pointer.onSneak(() -> close(session, true))
+        // Sneaking leaves; during the guided tour it skips the tour instead.
+        pointer.onSneak(() -> {
+            if (!session.skipTour()) close(session, true);
+        })
                 .onLeave(() -> close(session, true))
                 .onTick(session::tick)
                 .onEnd(end -> close(session, false));

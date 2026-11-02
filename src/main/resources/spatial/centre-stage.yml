@@ -1,0 +1,110 @@
+# Centre stage: the library's layout for a cosmetic catalogue (SpatialCatalog). Written as
+# plugins/<Plugin>/spatial/<menu>.yml for a catalogue whose plugin ships no layout of its own.
+#
+#   [ ALL ][ RARE ][ EPIC ][ ★ ]                  (a tab per category, all in one row)
+#   ┌────────┐      ┌─────────┐        ✕ LEAVE
+#   │  CARD  │      │ PREVIEW │        ☆ FAVOURITE
+#   └────────┘      └─────────┘        ? Help
+#                  [   EQUIP   ]   <- the one primary action
+#   ◀  ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣  ▶            the shelf, two rows
+#      ▣ ▣ ▣ ▣ ▣ ▣ ▣ ▣
+#            PAGE 1 / 3
+#   ➥ Look at an item to see it · click to try it
+#
+# Coordinates are blocks on the board, a plane 'anchor.distance' ahead of the eyes:
+# [across (right +), up, forward (towards the viewer +)]. Sizes are [width, height]. 'turn' turns a
+# panel towards the viewer: positive on the left, negative on the right. At 6 blocks the whole board
+# stays inside about 57° across and 51° top to bottom, and every line is drawn at least as large as
+# theme.min-glyph-degrees reads from the eyes. Every word is a %catalog_...% placeholder, filled from
+# the plugin's lang files.
+menu-version: 1
+title: '{primary}&lCOLLECTION'
+anchor:
+  mode: FRONT
+  distance: 6.0
+  lift: 0.0
+  clear-view: true
+hide-others: true
+freeze: true
+theme: {}
+panels:
+  # The filter steps as tabs, the open one lit. Hidden when the catalogue has no categories or favourites.
+  tabs:
+    at: [0, 2.45, 0]
+    size: [6.2, 0.34]
+    frame: false
+    content: {type: TABS, source: catalog_tabs}
+  # Top right, over the quiet buttons; sneaking leaves too.
+  leave:
+    at: [2.45, 1.85, 0.3]
+    turn: -24
+    size: [1.1, 0.34]
+    frame: false
+    content: {type: BUTTON, label: '%catalog_leave%', action: leave}
+  # What the player looks at on the shelf, else what they chose.
+  card:
+    at: [-1.95, 0.85, 0.3]
+    turn: 20
+    size: [1.7, 1.7]
+    content:
+      type: TEXT
+      lines:
+        - '%catalog_card_name%'
+        - '%catalog_card_subtitle%'
+        - ''
+        - '%catalog_card_status%'
+        - '%catalog_card_unlock%'
+  # Quiet secondary actions; a button with no words now (nothing to revert) is left out.
+  more:
+    at: [2.0, 0.72, 0.3]
+    turn: -24
+    size: [1.8, 1.5]
+    frame: false
+    content:
+      type: BUTTONS
+      buttons:
+        - {label: '%catalog_favourite%', action: favourite}
+        - {label: '%catalog_unequip%', action: unequip}
+        - {label: '%catalog_revert%', action: revert}
+        - {label: '%catalog_crate%', action: crate}
+        - {label: '%catalog_help%', action: intro}
+  # The one primary action: EQUIP, EQUIPPED, BUY » price, CONFIRM » price, LOCKED.
+  action:
+    at: [0, -0.65, 0.35]
+    size: [2.4, 0.4]
+    frame: false
+    content: {type: ACTION}
+  hint:
+    at: [0, -2.8, 0.4]
+    size: [6.0, 0.24]
+    frame: false
+    content:
+      type: TEXT
+      lines: ['%catalog_hint%']
+preview:
+  at: [0, -0.25, 0.35]
+  turn-speed: 12
+  pedestal: true
+  scale: 0.7
+  vanish-on-play: true
+  effect-scale: 0.7
+  skins: [others, defaults]
+  facing: FRONT
+  turn-controls: false
+  turn-hint: ''
+  turn-pause: 8
+carousel:
+  source: catalog
+  style: SHELF
+  at: [0, -1.2, 0.4]
+  slots: 8
+  rows: 2
+  spacing: 0.62
+  row-gap: 0.72
+  centre-gap: 0
+  curve: 0.35
+intro:
+  steps:
+    - {target: carousel, at: [0, 0.55, 1.3], text: '%catalog_intro_shelf%'}
+    - {target: preview, at: [-1.95, 0.95, 1.3], text: '%catalog_intro_preview%'}
+    - {target: action, at: [0, 0.55, 1.3], text: '%catalog_intro_action%'}

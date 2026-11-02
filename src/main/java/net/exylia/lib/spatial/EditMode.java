@@ -38,12 +38,11 @@ final class EditMode {
             spot(panel.getKey(), panel.getValue().width(), panel.getValue().height());
         }
         if (session.layout.carousel().present()) {
-            SpatialLayout.Carousel row = session.layout.carousel();
-            double width = 2 * net.exylia.lib.spatial.internal.Geometry.outermost(row.slots(), row.spacing(), row.centreGap())
-                    + row.spacing();
-            spot(CAROUSEL, width, 0.8);
+            double[] size = session.pieceSize(CAROUSEL);
+            spot(CAROUSEL, size[0], size[1]);
         }
-        spot(PREVIEW, 0.8, 1.9);
+        double[] body = session.pieceSize(PREVIEW);
+        spot(PREVIEW, body[0], body[1]);
     }
 
     private void spot(String piece, double width, double height) {

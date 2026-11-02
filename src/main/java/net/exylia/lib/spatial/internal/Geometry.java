@@ -78,6 +78,56 @@ public final class Geometry {
         return (slots - 1) / 2.0 * spacing;
     }
 
+    /**
+     * Where shelf slot {@code index} sits, as {across, up, forward} from the shelf's top-row centre:
+     * {@code slots} to a row, spread evenly {@code spacing} apart, each row {@code rowGap} under the one
+     * before, the outermost of every row brought {@code curve} blocks nearer on a parabola, so both rows
+     * bend round the viewer alike. Since 1.452.0.
+     */
+    public static double[] shelf(int index, int slots, double spacing, double rowGap, double curve) {
+        int row = index / Math.max(1, slots);
+        double[] slot = carousel(index % Math.max(1, slots), slots, spacing, 0, curve);
+        return new double[]{slot[0], -row * rowGap, slot[1]};
+    }
+
+    /**
+     * The tabs of a tab row that show, round the active one, for tabs {@code widths} wide with {@code gap}
+     * between them in {@code room}: {from, to (exclusive)}. Every tab when they all fit; otherwise as many
+     * as fit, the active one among them, the window starting as early as it can. Never cuts a tab.
+     * Since 1.452.0.
+     */
+    public static int[] tabWindow(double[] widths, double gap, double room, int active) {
+        int count = widths.length;
+        if (count == 0) return new int[]{0, 0};
+        active = Math.clamp(active, 0, count - 1);
+        if (span(widths, gap, 0, count) <= room + 1e-9) return new int[]{0, count};
+        // The furthest-left start whose window still reaches the active tab, growing right as far as it fits.
+        for (int from = 0; from <= active; from++) {
+            int to = from;
+            while (to < count && span(widths, gap, from, to + 1) <= room + 1e-9) to++;
+            if (to > active) return new int[]{from, to};
+        }
+        return new int[]{active, active + 1};
+    }
+
+    /** How wide tabs {@code from} to {@code to} are side by side, {@code gap} apart. */
+    public static double span(double[] widths, double gap, int from, int to) {
+        double total = 0;
+        for (int i = from; i < to; i++) total += widths[i];
+        return total + Math.max(0, to - from - 1) * gap;
+    }
+
+    /** The centres of tabs {@code from} to {@code to} laid side by side, the row centred on 0. */
+    public static double[] tabCentres(double[] widths, double gap, int from, int to) {
+        double[] centres = new double[Math.max(0, to - from)];
+        double x = -span(widths, gap, from, to) / 2;
+        for (int i = from; i < to; i++) {
+            centres[i - from] = x + widths[i] / 2;
+            x += widths[i] + gap;
+        }
+        return centres;
+    }
+
     /** How many pages {@code total} entries fill at {@code perPage} a page; never fewer than one. */
     public static int pages(int total, int perPage) {
         if (perPage <= 0) return 1;

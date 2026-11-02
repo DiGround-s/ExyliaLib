@@ -55,16 +55,32 @@ public record SpatialLayout(
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
-        @Comment("for none. The mouse wheel pages it.")
-        Carousel carousel) {
+        @Comment("for none. The mouse wheel pages it. rows: how many rows a page holds, row-gap blocks apart.")
+        @Comment("style: PLINTHS (each item on a plinth, its name under it) or SHELF (icons on small tiles, no")
+        @Comment("names: a card beside the preview describes what is looked at), with page arrows at the row ends.")
+        Carousel carousel,
+        @Comment("A short guided tour shown the first time a player opens this menu (stored per player), skippable")
+        @Comment("by sneaking, never shown again unless a button with action 'intro' asks for it. Each step outlines")
+        @Comment("one piece (target: a panel's name, carousel or preview) and writes its text at 'at'. Empty: no tour.")
+        Intro intro,
+        @Comment("The layout's version. A plugin update with a higher one replaces this file when it was never")
+        @Comment("edited, and offers its new layout in /exylialib updates when it was. Do not edit.")
+        int menuVersion) {
 
     /** A wardrobe: a header, a list on the left, a grid on the right, a caption, a preview and a carousel. */
     public SpatialLayout() {
         this("{primary}&lWARDROBE", new Anchor(), true, true, new SpatialTheme(), defaultPanels(), new Preview(),
-                new Carousel());
+                new Carousel(), new Intro(), 0);
+    }
+
+    /** A layout without a guided tour: the shape layouts had before 1.452.0. */
+    public SpatialLayout(String title, Anchor anchor, boolean hideOthers, boolean freeze, SpatialTheme theme,
+                         Map<String, Panel> panels, Preview preview, Carousel carousel) {
+        this(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, new Intro(), 0);
     }
 
     public SpatialLayout {
+        intro = intro == null ? new Intro() : intro;
         panels = panels == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(panels));
     }
 
@@ -92,15 +108,15 @@ public record SpatialLayout(
     public SpatialLayout withPanel(String name, Panel panel) {
         Map<String, Panel> next = new LinkedHashMap<>(panels);
         next.put(name, panel);
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, next, preview, carousel);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, next, preview, carousel, intro, menuVersion);
     }
 
     public SpatialLayout withPreview(Preview preview) {
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion);
     }
 
     public SpatialLayout withCarousel(Carousel carousel) {
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion);
     }
 
     /**
@@ -127,13 +143,20 @@ public record SpatialLayout(
     /**
      * One panel: a sheet of glass with a title, what it shows, and an optional footer button. {@code footers}
      * (since 1.423.0) puts several buttons side by side along the bottom (UNDO and CLEAR under a list), after
-     * {@code footer} when both are given.
+     * {@code footer} when both are given. {@code frame: false} (since 1.452.0) draws no glass, backing or
+     * accent: its words and buttons stand bare in the air (a tab row, a hint line, a column of quiet buttons).
      */
     public record Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
-                        Content content, Footer footer, List<Footer> footers) {
+                        Content content, Footer footer, List<Footer> footers, boolean frame) {
 
         public Panel() {
-            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer(), List.of());
+            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer(), List.of(), true);
+        }
+
+        /** A framed panel with a row of footers: the shape layouts had before 1.452.0. */
+        public Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
+                     Content content, Footer footer, List<Footer> footers) {
+            this(at, turn, size, title, hint, content, footer, footers, true);
         }
 
         /** A panel with one footer at most: the shape layouts had before 1.423.0. */
@@ -188,7 +211,7 @@ public record SpatialLayout(
 
         public Panel moved(double across, double up, double forward, double turn, double width, double height) {
             return new Panel(List.of(across, up, forward), turn, List.of(width, height), title, hint, content, footer,
-                    footers);
+                    footers, frame);
         }
     }
 
@@ -200,7 +223,14 @@ public record SpatialLayout(
     public record Content(Type type, String source, int columns, int rows, List<String> lines, String label,
                           String action, List<Footer> buttons) {
 
-        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS }
+        /**
+         * {@code TABS} (since 1.452.0): one row of tabs across the panel, one per entry of {@code source}, the
+         * chosen one lit; a catalogue fills {@code catalog_tabs} with its filter steps and hides the row when it
+         * has none. {@code ACTION} (since 1.452.0): the one primary button, filling the panel; {@code label}
+         * defaults to {@code %catalog_action%} and {@code action} to {@code save}, lit while there is
+         * something to do and dimmed (it still answers) while there is not.
+         */
+        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS, TABS, ACTION }
 
         public Content() {
             this(Type.NONE, "", 1, 1, List.of(), "", "", List.of());
@@ -350,16 +380,42 @@ public record SpatialLayout(
         }
     }
 
-    /** The row of plinths along the bottom. */
-    public record Carousel(String source, List<Double> at, int slots, double spacing, double centreGap, double curve) {
+    /**
+     * The row of plinths along the bottom, or (since 1.452.0, {@code style: SHELF}) a shelf of {@code rows}
+     * rows of icons on tiles, {@code rowGap} blocks apart, the top row at {@code at}. A page holds
+     * {@code slots × rows} entries.
+     */
+    public record Carousel(String source, List<Double> at, int slots, double spacing, double centreGap, double curve,
+                           int rows, double rowGap, Style style) {
+
+        /** How a carousel draws its entries. */
+        public enum Style { PLINTHS, SHELF }
+
         public Carousel() {
             this("items", List.of(0.0, -1.05, 0.8), 6, 0.62, 1.3, 0.15);
+        }
+
+        /** One row of plinths: the shape layouts had before 1.452.0. */
+        public Carousel(String source, List<Double> at, int slots, double spacing, double centreGap, double curve) {
+            this(source, at, slots, spacing, centreGap, curve, 1, 0.7, Style.PLINTHS);
         }
 
         public Carousel {
             source = source == null ? "" : source;
             at = point(at);
             slots = Math.max(1, slots);
+            rows = Math.max(1, rows);
+            rowGap = rowGap <= 0 ? 0.7 : rowGap;
+            style = style == null ? Style.PLINTHS : style;
+        }
+
+        /** How many entries a page holds: every slot of every row of a shelf, a plinth row's slots. */
+        public int perPage() {
+            return shelf() ? slots * rows : slots;
+        }
+
+        public boolean shelf() {
+            return style == Style.SHELF;
         }
 
         public boolean present() {
@@ -367,7 +423,42 @@ public record SpatialLayout(
         }
 
         public Carousel moved(double across, double up, double forward, double spacing, double curve) {
-            return new Carousel(source, List.of(across, up, forward), slots, spacing, centreGap, curve);
+            return new Carousel(source, List.of(across, up, forward), slots, spacing, centreGap, curve, rows, rowGap, style);
+        }
+    }
+
+    /**
+     * The guided tour of a first open (since 1.452.0): {@code steps} shown one after another, a click moving
+     * on, sneaking skipping the rest. Empty for none, which is what a layout written before has.
+     */
+    public record Intro(List<Step> steps) {
+        public Intro() {
+            this(List.of());
+        }
+
+        public Intro {
+            steps = steps == null ? List.of() : List.copyOf(steps);
+        }
+
+        public boolean present() {
+            return !steps.isEmpty();
+        }
+    }
+
+    /**
+     * One step of the tour: the piece it points at ({@code target}: a panel's name, {@code carousel} or
+     * {@code preview}), outlined while it shows, and its {@code text} (several lines with {@code \n}) written
+     * at {@code at} on the board, with the theme's continue line under it.
+     */
+    public record Step(String target, List<Double> at, String text) {
+        public Step() {
+            this("", List.of(0.0, 0.0, 0.0), "");
+        }
+
+        public Step {
+            target = target == null ? "" : target;
+            at = point(at);
+            text = text == null ? "" : text;
         }
     }
 

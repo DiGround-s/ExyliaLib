@@ -342,6 +342,13 @@ as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
   change. Applying it replaces the file and keeps the old one as
   `<name>.v<old version>`; keeping it only raises the file's version, and the
   owner's layout stays as it is.
+- A bundled file that is also read as a record (a spatial layout) never equals
+  its reviewed defaults once the record has filled in its keys, so a raised
+  `menu-version` was only ever offered. `BundledFiles.recordWrote(plugin, anchor,
+  resource, schema, earlierDefaults)` (since 1.452.0), called before `refresh`,
+  records the reviewed defaults as the record writes them when the file on disk
+  is exactly that (values an older library wrote for a key included), so an
+  untouched file is replaced as any other. `SpatialMenus.register` does it.
 - Adding a key rewrites the file through YAML, which keeps comments but may
   re-quote strings. A file with nothing new is never rewritten.
 - A file that is not YAML is only written when missing.
