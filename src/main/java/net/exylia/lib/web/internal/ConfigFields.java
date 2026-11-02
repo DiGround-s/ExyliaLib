@@ -405,6 +405,9 @@ final class ConfigFields {
     static @Nullable String[] order(Schema root, Object values, Field field, double value) {
         Menu.AtLeast least = field.hint(Menu.AtLeast.class);
         Menu.AtMost most = field.hint(Menu.AtMost.class);
+        // The key's own "none" (such as -1 for no limit) has no order to keep.
+        Bounds own = bounds(field);
+        if (own != null && own.hasNone() && value == own.none()) return null;
         for (String[] rule : new String[][]{{least == null ? null : least.value(), "least"},
                 {most == null ? null : most.value(), "most"}}) {
             if (rule[0] == null) continue;

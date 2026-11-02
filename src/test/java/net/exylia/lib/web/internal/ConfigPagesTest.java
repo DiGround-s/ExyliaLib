@@ -176,6 +176,22 @@ class ConfigPagesTest {
         assertTrue(ConfigFields.allowed(price, -1));
     }
 
+    record Prices(@Menu.Range(min = 0, max = 1000) @Menu.AtMost("max-price") int minPrice,
+                  @Menu.Range(min = 0, max = 1000, none = -1) @Menu.AtLeast("min-price") int maxPrice) {
+        Prices() {
+            this(10, 100);
+        }
+    }
+
+    @Test
+    void aKeysOwnNoneHasNoOrderToKeep() {
+        ConfigFile<Prices> file = Configs.define(plugin, "prices", Prices.class).load();
+        var schema = file.schema();
+        ConfigFields.Field max = ConfigFields.field(schema, "max-price");
+        assertNull(ConfigFields.order(schema, file.get(), max, -1), "no maximum is never under the minimum");
+        assertEquals("least", ConfigFields.order(schema, file.get(), max, 5)[2], "a real maximum still keeps the order");
+    }
+
     @Test
     void richerControlsFormatCycleAndKeepTheOrder() {
         ConfigFile<Rich> file = Configs.define(plugin, "rich", Rich.class).load();
