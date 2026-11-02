@@ -28,11 +28,15 @@ public final class ClickableBlock {
     private final boolean protectBlock;
     private final boolean cancelVanilla;
     private final boolean ownExplosions;
+    private final boolean protectInventory;
+    private final boolean ignoreCancelled;
 
     ClickableBlock(Plugin plugin, Location location, Consumer<BlockClick> onLeft,
                    Consumer<BlockClick> onRight, boolean protectBlock, boolean cancelVanilla,
-                   boolean ownExplosions) {
+                   boolean ownExplosions, boolean protectInventory, boolean ignoreCancelled) {
         this.ownExplosions = ownExplosions;
+        this.protectInventory = protectInventory;
+        this.ignoreCancelled = ignoreCancelled;
         this.plugin = plugin;
         this.location = location;
         this.onLeft = onLeft;
@@ -69,6 +73,26 @@ public final class ClickableBlock {
      */
     public boolean ownsExplosions() {
         return ownExplosions;
+    }
+
+    /**
+     * Whether hoppers, droppers and hopper minecarts may not move items into or
+     * out of it.
+     *
+     * @since 1.458.0
+     */
+    public boolean protectsInventory() {
+        return protectInventory;
+    }
+
+    /**
+     * Whether a click another plugin already cancelled leaves it alone: no
+     * handler runs.
+     *
+     * @since 1.458.0
+     */
+    public boolean ignoresCancelled() {
+        return ignoreCancelled;
     }
 
     /** Whether a click on it is kept from doing what its material does. */
@@ -126,6 +150,8 @@ public final class ClickableBlock {
         private boolean protectBlock = true;
         private boolean cancelVanilla = true;
         private boolean ownExplosions;
+        private boolean protectInventory;
+        private boolean ignoreCancelled;
 
         Builder(@NotNull Plugin plugin, @NotNull Location location) {
             this.plugin = plugin;
@@ -198,13 +224,48 @@ public final class ClickableBlock {
         }
 
         /**
+         * Whether hoppers, droppers and hopper minecarts are kept from pulling
+         * items out of the block or pushing items into it. Off by default. On,
+         * a loot chest stays the loot chest's: nobody drains it from below.
+         *
+         * <p>The listener behind it is registered the first time any block asks
+         * for it, because Paper skips building a move event for every hopper on
+         * the server while nobody listens to one.
+         *
+         * @param value whether to guard its inventory
+         * @return this
+         * @since 1.458.0
+         */
+        public @NotNull Builder protectInventory(boolean value) {
+            this.protectInventory = value;
+            return this;
+        }
+
+        /**
+         * Whether a click another plugin already cancelled is left alone. Off by
+         * default: a crate at spawn opens even where a protection plugin denies
+         * every interaction. On, a claim or a region that keeps the block shut
+         * keeps it shut, and no handler runs. The library listens at
+         * {@code HIGH}, so what is seen is what plugins at {@code NORMAL} and
+         * below decided.
+         *
+         * @param value whether to skip cancelled clicks
+         * @return this
+         * @since 1.458.0
+         */
+        public @NotNull Builder ignoreCancelled(boolean value) {
+            this.ignoreCancelled = value;
+            return this;
+        }
+
+        /**
          * Registers it, replacing whatever held that location.
          *
          * @return the registration
          */
         public @NotNull ClickableBlock register() {
             ClickableBlock block = new ClickableBlock(plugin, location, onLeft, onRight, protectBlock, cancelVanilla,
-                    ownExplosions);
+                    ownExplosions, protectInventory, ignoreCancelled);
             BlockRuntime.register(block);
             return block;
         }

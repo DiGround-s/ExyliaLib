@@ -264,6 +264,29 @@ public final class PluginRegions {
                 block.getX(), block.getY(), block.getZ());
     }
 
+    /**
+     * Forgets every block recorded in one of this plugin's regions as placed by
+     * a player ({@code player_build_only}, {@code temporary_blocks}), pending
+     * temporary blocks included, while the region stays registered.
+     *
+     * <p>For a region whose blocks were just put back from a schematic: none of
+     * those records describes a block any more, and a pending temporary block
+     * would otherwise be cleared later over the fresh build. What an
+     * {@code ArenaPool} regeneration already does for its own regions.
+     *
+     * @param id the region
+     * @since 1.458.0
+     */
+    public void forgetPlaced(@NotNull RegionId id) {
+        validate(id);
+        PlacedBlockRuntime.forget(id);
+    }
+
+    /** The same, by key. */
+    public void forgetPlaced(@NotNull String key) {
+        forgetPlaced(id(key));
+    }
+
     /** Whether a player placed the block containing a location. */
     public boolean placedByPlayer(@NotNull Location location) {
         Objects.requireNonNull(location, "location");

@@ -5,8 +5,15 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.lib.block.BlockButton;
 import net.exylia.lib.block.ClickableBlock;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.Chest;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,6 +21,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Where every registered block on the server lives.
@@ -45,6 +53,9 @@ public final class BlockRuntime {
             .maximumSize(2_000)
             .build();
 
+    /** Whether the hopper listener is up; it goes up with the first block that guards its inventory. */
+    private static final AtomicBoolean INVENTORY_LISTENER = new AtomicBoolean();
+
     private BlockRuntime() {
         throw new AssertionError("No instances.");
     }
@@ -68,6 +79,26 @@ public final class BlockRuntime {
         Position position = Position.of(block.location());
         if (position == null) return;
         BLOCKS.put(position, block);
+        if (block.protectsInventory() && INVENTORY_LISTENER.compareAndSet(false, true)) {
+            listenToHoppers();
+        }
+    }
+
+    /**
+     * Registers the hopper listener under the library's own plugin.
+     *
+     * <p>Late, because Paper skips building a move event for every hopper on the
+     * server while nobody listens to one, and most servers never guard an
+     * inventory.
+     */
+    private static void listenToHoppers() {
+        try {
+            Plugin library = JavaPlugin.getProvidingPlugin(BlockRuntime.class);
+            Bukkit.getPluginManager().registerEvents(new BlockInventoryListener(), library);
+        } catch (RuntimeException | LinkageError noServer) {
+            // A test, or the library loaded outside a plugin class loader.
+            INVENTORY_LISTENER.set(false);
+        }
     }
 
     /**
@@ -85,10 +116,44 @@ public final class BlockRuntime {
         return position == null ? null : BLOCKS.get(position);
     }
 
-    /** What is registered at a block, or {@code null}. */
+    /**
+     * What is registered at a block, or {@code null}. A double chest is one
+     * block: either half answers with the registration of the other.
+     */
     public static @Nullable ClickableBlock at(@Nullable Block block) {
-        if (block == null) return null;
-        return BLOCKS.get(new Position(block.getWorld().getUID(), block.getX(), block.getY(), block.getZ()));
+        if (block == null || BLOCKS.isEmpty()) return null;
+        UUID world = block.getWorld().getUID();
+        ClickableBlock own = BLOCKS.get(new Position(world, block.getX(), block.getY(), block.getZ()));
+        if (own != null) return own;
+        // The type first: reading block data allocates, and this runs for every
+        // block an explosion or a piston touches.
+        Material type = block.getType();
+        if (type != Material.CHEST && type != Material.TRAPPED_CHEST) return null;
+        BlockData data = block.getBlockData();
+        if (!(data instanceof Chest chest)) return null;
+        BlockFace towards = otherHalf(chest.getFacing(), chest.getType());
+        if (towards == null) return null;
+        return BLOCKS.get(new Position(world, block.getX() + towards.getModX(), block.getY(),
+                block.getZ() + towards.getModZ()));
+    }
+
+    /**
+     * Where the other half of a double chest is, as Minecraft joins them: a left
+     * half has it clockwise of where the chest faces, a right half
+     * counter-clockwise.
+     *
+     * @return the direction, or {@code null} for a single chest
+     */
+    static @Nullable BlockFace otherHalf(@NotNull BlockFace facing, @NotNull Chest.Type type) {
+        if (type == Chest.Type.SINGLE) return null;
+        boolean left = type == Chest.Type.LEFT;
+        return switch (facing) {
+            case NORTH -> left ? BlockFace.EAST : BlockFace.WEST;
+            case EAST -> left ? BlockFace.SOUTH : BlockFace.NORTH;
+            case SOUTH -> left ? BlockFace.WEST : BlockFace.EAST;
+            case WEST -> left ? BlockFace.NORTH : BlockFace.SOUTH;
+            default -> null;
+        };
     }
 
     /** How many are registered across every plugin. */
@@ -113,6 +178,8 @@ public final class BlockRuntime {
     /** Forgets everything, on shutdown. */
     public static void releaseAll() {
         BLOCKS.clear();
+        // The listener went with the library's plugin; a reload registers it again.
+        INVENTORY_LISTENER.set(false);
         RECENT.invalidateAll();
     }
 

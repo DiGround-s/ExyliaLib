@@ -62,6 +62,7 @@ if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
 | --- | --- |
 | `of(plugin)` | that plugin's view, the same instance every time |
 | `at(location)` | what is registered there, whoever owns it, or `null` |
+| `at(block)` | the same from a block; either half of a double chest finds it (1.458.0) |
 | `isRegistered(block)` | whether any plugin owns it |
 | `active()` | how many are registered across the server |
 | `release(pluginName)` / `releaseAll()` | called by the library; consumers do not |
@@ -86,6 +87,8 @@ if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
 | `protect(boolean)` | `true` — cannot be broken, blown up, pushed by a piston or burnt |
 | `vanilla(boolean)` | `false` — the click does not do what the material does |
 | `ownExplosions(boolean)` | `false` — a protected block is taken out of every explosion; `true` leaves it in the block list for the owner to decide (1.438.0) |
+| `protectInventory(boolean)` | `false` — `true` keeps hoppers, droppers and hopper minecarts from pulling items out or pushing them in (1.458.0) |
+| `ignoreCancelled(boolean)` | `false` — `true` leaves a click another plugin already cancelled alone: no handler runs, so a claim that keeps the block shut keeps it shut (1.458.0) |
 | `register()` | returns the `ClickableBlock` |
 
 `ClickableBlock` carries `plugin()`, `owner()`, `location()`, `isRegistered()`
@@ -97,6 +100,11 @@ can throw the handle away.
 `BlockClick` is `player()`, `block()`, `location()`, `button()` and
 `sneaking()`, so one block can offer a second action behind shift without a
 second registration. `button()` is `BlockButton.LEFT` or `RIGHT`.
+
+`event()` (since 1.458.0) is the `PlayerInteractEvent` behind the click. A block
+registered with `vanilla(true)` refuses its material for one click with
+`click.event().setUseInteractedBlock(Event.Result.DENY)`: a loot chest that is
+refilling stays shut while the others open as chests.
 
 ## Behavior
 
@@ -125,9 +133,59 @@ second registration. `button()` is `BlockButton.LEFT` or `RIGHT`.
   (a stacked spawner losing one of its stack, a block that needs its own drop).
 - **A piston that would move one is cancelled**, because a moved block is a
   registration pointing at air.
+- **A double chest is one block** (since 1.458.0). Registering either half
+  covers both: a click, a break, a blast, a piston or a hopper on the other half
+  finds the registration. `Blocks.at(block)` and `Blocks.isRegistered(block)` answer
+  for both halves; `at(location)` and `registered(location)` stay exact.
+- **Hoppers only when asked.** `protectInventory(true)` registers the hopper
+  listener the first time any block asks for it: Paper skips building a move
+  event for every hopper while nobody listens to one.
 - **Nothing survives its plugin.** Disabling it unregisters every block it owns;
   the blocks themselves are left standing, which is what a restart expects to
   find.
+
+## Walls (since 1.458.0)
+
+Real blocks put up for a while — the walls a duel room closes with — that always
+come down, a crash included.
+
+```java
+Walls walls = Walls.of(this);
+
+// onEnable, before any wall goes up: what a crash left standing comes down
+walls.recover(id -> arenas.regenerate(id));
+
+walls.raise("duel:" + room.id(), world, shellPositions, Material.BARRIER)
+        .thenAccept(wall -> match.wall = wall);
+
+match.wall.lower();      // the fight is over
+match.wall.lowerNow();   // onDisable: what this thread may write
+```
+
+| `Walls` | |
+| --- | --- |
+| `of(plugin)` | that plugin's walls, the same instance every time |
+| `raise(id, world, Collection<BlockVector>, material)` | puts it up and completes with the `Wall`; fails when a wall with that id is standing |
+| `recover(Consumer<String> lowered)` | takes down every wall the last run left, telling each id once it was tried; walls raised in this run are never touched. Never completes exceptionally |
+| `folder()` | `<data folder>/walls` |
+
+| `Wall` | |
+| --- | --- |
+| `id()`, `world()`, `material()`, `size()` | what it is; `size()` counts only the blocks it replaced |
+| `contains(x, y, z)` / `contains(block)` | whether it replaced that block; memory, any thread, for the plugin's own break guard |
+| `lower()` | puts back what it replaced, then deletes its file; `false` keeps the file for the next start |
+| `lowerNow()` | the same, inline, for the chunks the calling thread owns: for a stop no task will outlive |
+
+- **Only air and replaceable blocks become the wall**, and what each was is
+  written to one file per wall (atomically) before the future completes.
+- **Lowering puts a block back only where the wall's material still stands**, so
+  a block somebody changed since is left as they left it, and lowering twice
+  does nothing the second time.
+- **The file is local to the server**, where the blocks are: servers sharing a
+  database never take each other's walls down.
+- **A wall in a world that is not loaded** keeps its file for a start that has it.
+- Blocks are written on the thread that owns their chunk, on Folia as on Bukkit.
+  Guarding the wall against breaking stays the plugin's (`contains`).
 
 ## Performance
 
@@ -141,6 +199,10 @@ moment ago: a Caffeine cache, five seconds, two thousand entries.
 
 - Public: `block/` — `Blocks`, `PluginBlocks`, `ClickableBlock`, `BlockClick`,
   `BlockButton`.
+- Public since 1.458.0: `block/Walls`, `block/Wall`.
+- Internal since 1.458.0: `block/internal/BlockInventoryListener`, `WallFile`.
+- Tests since 1.458.0: `DoubleChestHalfTest` (which way each half joins),
+  `WallFileTest` (a wall's file reads back exactly, damage costs one block).
 - Public since 1.163.0: `block/PlacedBlocks`.
 - Internal: `block/internal/` — `BlockRuntime`, `BlockListener`, `PlacedBlockTracker`.
 - Tests: `PlacedBlockTrackerTest` covers position packing, the per-chunk cap and

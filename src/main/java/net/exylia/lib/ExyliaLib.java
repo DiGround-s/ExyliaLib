@@ -1127,6 +1127,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // A registration whose handler comes from a dying classloader must not
         // answer another click. The blocks themselves stay standing.
         Blocks.release(pluginName);
+        net.exylia.lib.block.Walls.release(pluginName);
         net.exylia.lib.block.PlacedBlocks.release(pluginName);
         // Before the task module: a pending warmup owns an entity timer
         // belonging to this plugin and must be cancelled before its scheduler

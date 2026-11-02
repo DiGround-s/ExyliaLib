@@ -287,6 +287,25 @@ class HologramTest {
         assertEquals(List.of("text:Near:1000:Arena: beta"), sink.calls("text"));
     }
 
+    @Test
+    @DisplayName("a supplied value is read on every refresh and only a changed line is sent")
+    void suppliedValuesMoveOnTheirOwn() {
+        java.util.concurrent.atomic.AtomicLong left = new java.util.concurrent.atomic.AtomicLong(10);
+        Holograms.show(plugin, "drop", spawn(), text(List.of("Opens in %left%s", "Static line")),
+                Map.of("left", (java.util.function.Supplier<Long>) left::get));
+        drive();
+        sink.clear();
+
+        advanceSeconds(1.1);
+        drive();
+        assertEquals(List.of(), sink.calls("text"), "nothing changed, nothing is sent");
+
+        left.set(9);
+        advanceSeconds(1.1);
+        drive();
+        assertEquals(List.of("text:Near:1000:Opens in 9s"), sink.calls("text"));
+    }
+
     // ------------------------------------------------------------------
     // Moving and layout
     // ------------------------------------------------------------------

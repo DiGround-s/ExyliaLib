@@ -159,6 +159,23 @@ class SchematicTest {
     }
 
     @Test
+    @DisplayName("refresh() picks up a file added at runtime and forgets one removed")
+    void refreshReadsOneName() throws Exception {
+        PluginSchematics schematics = schematics();
+        awaitIndexed(schematics);
+        assertFalse(schematics.exists("arena_2"));
+
+        writeSchematic("schematics", "arena_2");
+        assertFalse(schematics.exists("arena_2"), "a file added behind the module's back is not seen on its own");
+        assertTrue(schematics.refresh("arena_2"));
+        assertTrue(schematics.exists("arena_2"));
+
+        assertTrue(new File(dataFolder.toFile(), "schematics/arena_2.schem").delete());
+        assertFalse(schematics.refresh("arena_2"));
+        assertFalse(schematics.exists("arena_2"));
+    }
+
+    @Test
     @DisplayName("exists() still answers when the whole folder is gone")
     void existsSurvivesTheFolderGoing() throws Exception {
         writeSchematic("schematics", "arena_1");

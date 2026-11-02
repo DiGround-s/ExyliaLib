@@ -192,7 +192,10 @@ and `delete`.
 Two consequences worth knowing:
 
 - A file created or deleted **behind the module's back** is not noticed until
-  the next restart. A server owner dropping a `.schem` in by hand has to reload.
+  the next restart, unless the plugin that knows it changed calls
+  `refresh(name)` (since 1.458.0): it reads the disk for that one name and makes
+  `exists()` and `names()` agree, answering whether the file is there. It reads
+  the disk, so it runs off the server threads, once, when a file was copied in.
 - Between a plugin enabling and its first listing finishing, `exists()` answers
   `false` for everything. `isIndexed()` says whether that moment has passed.
 
@@ -264,6 +267,7 @@ Every method is safe from any thread, and none of them blocks.
 | reading the entities in a box | `runAtLocation` |
 | moving a trapped player | `runAtEntity` |
 | `exists()`, `names()`, `isIndexed()` | the calling thread, from memory |
+| `refresh(name)` | the calling thread, reading the disk: call it off the server threads |
 
 Futures complete on whichever thread finished the work, so a caller that then
 touches the game hops back through `Tasks.of(plugin).runAtLocation(...)` first.

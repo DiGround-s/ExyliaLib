@@ -382,6 +382,10 @@ clean up: the record lives exactly as long as the region does.
 An [arena](arenas.md) regenerated from its schematic (released, or in place
 between rounds) also forgets its region's record, temporary blocks included,
 through `PlacedBlockRuntime.forget` (1.388.0): the blocks it described are gone.
+A plugin that pastes a schematic over its own region does the same with
+`PluginRegions.forgetPlaced(key)` (or a `RegionId`, since 1.458.0): every
+record of that region goes, pending temporary blocks included, and the region
+stays registered.
 
 A break is not the only way a block leaves. A consumer enforcing
 `player_build_only` asks the same question of an explosion's block list and of a

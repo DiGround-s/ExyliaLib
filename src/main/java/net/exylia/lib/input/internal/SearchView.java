@@ -114,6 +114,10 @@ final class SearchView<T> implements InventoryHolder {
         this.paged = request.source() != null;
         this.matches = request.choices();
         this.total = matches.size();
+        // An edit opens on the value it edits: the page that holds it, ticked.
+        T current = request.defaultValue();
+        int index = current == null || paged ? -1 : matches.indexOf(current);
+        if (index >= 0) this.page = index / capacity;
     }
 
     /**
@@ -416,6 +420,10 @@ final class SearchView<T> implements InventoryHolder {
                 material = Material.PAPER;
             }
             base = new ItemStack(material);
+        }
+        if (value.equals(request.defaultValue())) {
+            return written(base, Text.of("{success}✔ {primary}&l%label%").with("%label%", label).build(),
+                    Phrases.tr("{letters_black}▎ {success}The current value."));
         }
         return written(base, Text.of("{primary}&l%label%").with("%label%", label).build(),
                 Phrases.tr("{letters_black}▎ {letters}Click to choose this option."));

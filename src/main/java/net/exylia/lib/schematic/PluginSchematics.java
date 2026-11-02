@@ -286,6 +286,23 @@ public final class PluginSchematics {
     }
 
     /**
+     * Looks for one schematic on the disk and makes {@link #exists} and
+     * {@link #names} agree with what is there: a file another plugin or an
+     * owner dropped in while the server runs is known from now on, and one
+     * removed behind the module's back is forgotten.
+     *
+     * <p><strong>Reads the disk</strong>, unlike {@link #exists}: call it off
+     * the server threads, once, when a file is known to have changed.
+     *
+     * @param name the schematic name
+     * @return whether it exists now
+     * @since 1.458.0
+     */
+    public boolean refresh(@NotNull String name) {
+        return SchematicRuntime.refresh(plugin, name);
+    }
+
+    /**
      * Returns whether the first listing has finished.
      *
      * @return {@code true} once {@link #exists} and {@link #names} are

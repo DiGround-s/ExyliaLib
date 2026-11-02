@@ -145,6 +145,13 @@ public interface Hologram {
     /**
      * Replaces the extra values placeholders can read, and re-renders.
      *
+     * <p>A value that is a {@link java.util.function.Supplier} is read on every
+     * render (since 1.458.0), so a countdown is handed over once as
+     * {@code () -> secondsLeft()} and moves on the hologram's own refresh
+     * interval, re-sending only the lines whose text changed. It runs off the
+     * main thread, like every placeholder in a hologram: read memory, never the
+     * world or a database. One that throws reads as no value.
+     *
      * @param data values resolvers can read with
      *             {@link net.exylia.lib.placeholder.Request#get}
      */

@@ -9,6 +9,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -87,6 +88,7 @@ public final class IconInput {
     private Duration timeout;
     private boolean whole;
     private Consumer<? super ItemStack> inserted;
+    private String current;
 
     IconInput(PluginInputs inputs, Player player, String prompt) {
         this.inputs = inputs;
@@ -164,6 +166,20 @@ public final class IconInput {
         return this;
     }
 
+    /**
+     * Opens on the icon being edited: the way it was given is ticked, the
+     * material list opens on the page holding it, ticked too, and the head box
+     * holds the head. An edit opens prefilled; a create leaves it out.
+     *
+     * @param icon the stored {@code material} value, or {@code null} for none
+     * @return this
+     * @since 1.458.0
+     */
+    public @NotNull IconInput current(@Nullable String icon) {
+        this.current = icon == null || icon.isBlank() ? null : icon;
+        return this;
+    }
+
     public @NotNull IconInput maxLength(int maxLength) {
         if (maxLength <= 0) {
             throw new InputException("maxLength must be positive");
@@ -192,10 +208,12 @@ public final class IconInput {
         if (ways.size() == 1) {
             return ask(ways.getFirst());
         }
+        Way given = wayOf(current);
         return timed(inputs.choice(player, prompt, ways)
                 .label(Way::label)
                 .key(Enum::name)
-                .icon(Way::icon))
+                .icon(Way::icon)
+                .defaultValue(ways.contains(given) ? given : null))
                 .open()
                 .thenCompose(chosen -> chosen.completed()
                         ? ask(chosen.value())
@@ -220,7 +238,8 @@ public final class IconInput {
             case MATERIAL -> timed(inputs.search(player, Phrases.tr("{warning}Search a material"), Items.ALL)
                     .label(Material::name)
                     .key(Material::name)
-                    .icon(material -> material))
+                    .icon(material -> material)
+                    .defaultValue(current == null ? null : Material.matchMaterial(current)))
                     .open()
                     .thenApply(result -> map(result, Material::name));
             case INSERT -> insert();
@@ -231,6 +250,7 @@ public final class IconInput {
                             : ended(result));
             case HEAD -> timed(inputs.text(player,
                             Phrases.tr("{warning}Paste a head {muted}(playerhead-Notch, basehead-<base64>, urlhead-<url>)"))
+                    .defaultValue(current != null && isHead(current) ? current : null)
                     .validate(IconInput::isHead, Phrases.tr("{error}That is not a head."))
                     .validate(value -> value.length() <= maxLength,
                             Phrases.tr("{error}That head is too long to store.")))
@@ -276,6 +296,13 @@ public final class IconInput {
             return InputResult.ended(InputOutcome.CANCELLED);
         }
         return InputResult.completed(icon);
+    }
+
+    /** The way an icon was most likely given, or {@code null} for none. */
+    static @Nullable Way wayOf(@Nullable String icon) {
+        if (icon == null) return null;
+        if (isHead(icon)) return Way.HEAD;
+        return Material.matchMaterial(icon) != null ? Way.MATERIAL : Way.INSERT;
     }
 
     /** Whether a value names a head, which is all the head prompt accepts. */

@@ -710,7 +710,13 @@ public interface SurvivalService {
      * @return the total, {@link BigDecimal#ZERO} when there is none or the
      *         module is off
      * @since 1.3.0
+     * @deprecated bounties moved to ExyliaCombat, which exposes no service in
+     *             this API: ExyliaSurvivalCore always answers zero here. Read
+     *             ExyliaCombat's {@code %bounty_total_<player>%} placeholder,
+     *             and listen to {@link net.exylia.lib.api.survival.event.BountyClaimEvent}
+     *             (still fired, by ExyliaCombat) for a claim.
      */
+    @Deprecated(since = "1.458.0")
     @NotNull
     BigDecimal bountyTotal(@NotNull UUID player);
 

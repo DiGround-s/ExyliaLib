@@ -307,6 +307,22 @@ public final class SchematicRuntime {
         return future;
     }
 
+    /**
+     * Reads the disk for one name and makes the index agree with it.
+     *
+     * @return whether the file is there
+     */
+    public static boolean refresh(@NotNull Plugin plugin, @NotNull String name) {
+        Owner owner = owner(plugin);
+        if (!SchematicNames.isValid(name)) return false;
+        if (owner.store.find(name) != null) {
+            owner.store.remember(name);
+            return true;
+        }
+        owner.store.forget(name);
+        return false;
+    }
+
     /** Whether a name is known, from memory. Never touches the disk. */
     public static boolean exists(@NotNull Plugin plugin, @NotNull String name) {
         return owner(plugin).store.contains(name);

@@ -58,6 +58,7 @@ when the minute's write runs, or when they leave, has that stretch dropped.
 | `Playtime.idleAfter()` | The threshold in use. |
 | `Playtime.active(Player)` | Whether the player is inside the threshold. |
 | `Playtime.playing(Player)` | Alive, in survival or adventure, and not vanished (`PlayerStates.isVanished`). For rewards for being somewhere. |
+| `Playtime.onActiveAgain(Plugin, Consumer<Player>)` | Runs when a player who was idle acts again, on that player's thread, within a second. For what an idle player was refused while standing still (a pickup under their feet). One timer a second reads each online player's idle time; the action runs only on the change, never for a player who rejoined. Dropped when the owner is disabled. Since 1.458.0. |
 
 Use `active` and `playing` for anything else that pays for time (referrals,
 power-ups) instead of carrying a copy.

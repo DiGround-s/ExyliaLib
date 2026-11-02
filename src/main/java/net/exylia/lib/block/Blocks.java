@@ -83,6 +83,17 @@ public final class Blocks {
         return BlockRuntime.at(location);
     }
 
+    /**
+     * What is registered at a block, whoever owns it, or {@code null}. Unlike
+     * {@link #at(Location)}, either half of a double chest answers with the
+     * registration of the other.
+     *
+     * @since 1.458.0
+     */
+    public static @Nullable ClickableBlock at(@NotNull Block block) {
+        return BlockRuntime.at(block);
+    }
+
     /** Whether a block is registered by any plugin. */
     public static boolean isRegistered(@NotNull Block block) {
         return BlockRuntime.at(block) != null;

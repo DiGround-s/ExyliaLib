@@ -1599,3 +1599,4 @@ World: Monde
 '{warning}➥ Press Q {letters_black}» {letters}type a sound': '{warning}➥ Touche Q {letters_black}» {letters}saisir un son'
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} ne peut pas être inférieur à {1} {letters_black}({2}{letters_black}){letters}.'
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} ne peut pas être supérieur à {1} {letters_black}({2}{letters_black}){letters}.'
+'{letters_black}▎ {success}The current value.': '{letters_black}▎ {success}La valeur actuelle.'

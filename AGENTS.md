@@ -1789,6 +1789,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | an answer back on the player's thread | `input/PluginInputs.answered` | — | [docs/input.md](docs/input.md) | 1.163.0 |
 | compound durations in `Ticks.parse` | `effect/Ticks.parse` (falls through to `InputParser.duration()`) | — | [docs/effects.md](docs/effects.md) | 1.163.0 |
 | persistent placed-block record | `block/PlacedBlocks` | `block/internal/PlacedBlockTracker` (chunk PDC `exylialib:placed_blocks`) | [docs/blocks.md](docs/blocks.md) | 1.163.0 |
+| walls (temporary blocks that survive a crash) | `block/Walls`, `Wall` | `block/internal/WallFile` (`<data folder>/walls/*.wall`) | [docs/blocks.md](docs/blocks.md) | 1.458.0 |
 | item and experience currencies | `economy/ItemCurrency`, `ExperienceCurrency` | `economy/internal/PlayerThreadBalances` | [docs/economy.md](docs/economy.md) | 1.163.0 |
 | network cooldowns (database-backed, relog and hop proof, unknown refuses) | `util/NetworkCooldowns` | `util/internal/NetworkCooldownRow` (`exylia_network_cooldowns`); `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable` | [docs/cooldowns.md](docs/cooldowns.md) | 1.184.0 |
 | alt accounts: same address (keyed hash, never the IP) and first seen, network-wide | `player/Accounts` | `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`: `exylia_accounts`, `exylia_account_addresses`, `exylia_account_keys`); `joined` in `ExyliaLib.onPlayerJoin` | [docs/players.md](docs/players.md) | 1.184.0 |

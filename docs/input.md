@@ -94,6 +94,7 @@ consumer only when there is an answer.
 | `search(player, prompt)` | `T` | one of a catalogue too large to hold |
 | `form(player, prompt)` | `FormValues` | several things in one window |
 | `icon(player, prompt)` | `String` | what something is drawn as |
+| `colour(player, prompt)` | `String` | a palette token (`{primary}`) or a `#rrggbb` (1.458.0) |
 | `item(player, prompt)` | `ItemStack` | the item itself, stack size included |
 | `item(player, prompt).many()` | `List<ItemStack>` | any number of items, put down at once in a five-row window (1.289.0) |
 
@@ -614,6 +615,7 @@ drag.
 
 | Method | |
 | --- | --- |
+| `current(icon)` | opens on the icon being edited (1.458.0): its way ticked, the material list on the page holding it, ticked too, the head box holding the head. Edits pass it; creates leave it out |
 | `ways(Way...)` | which ways are offered, in that order; **one way skips the question** |
 | `maxLength(int)` | how long an answer may be; 512 by default |
 | `timeout(Duration)` | how long the player has, per step |
@@ -626,6 +628,28 @@ Endings pass through unchanged, so a timeout stays a timeout and a caller that
 reopens its menu on a cancel keeps working. A window closed with nothing in the
 slot ends as `CANCELLED`: there is nothing to ask again, the slot is either
 filled or it is not.
+
+## Colours
+
+Since 1.458.0. What something glows, flashes or is tinted in, answered the way
+every coloured key in the library reads it: a palette token, which follows the
+server's palette when it is restyled, or a `#rrggbb`.
+
+```java
+inputs.colour(player, "{primary}&lGLOW COLOUR")
+      .current(tier.glow())                      // the edit opens on it
+      .open(colour -> tiers.save(tier.withGlow(colour)));
+```
+
+Each palette colour is a swatch drawn in its own colour and named with its hex;
+the last option opens a text box for a hex, validated, holding the current hex
+when there is one. `current` ticks the palette colour on the page that holds
+it. `timeout(Duration)` applies to each step. Vanilla colour names (a team
+colour, a client-drawn glow) are a different set: `Editors.pick().colour`.
+
+**A search opens on its `defaultValue`** (since 1.458.0): on the page that holds
+it, ticked as the current value. That is what `current` uses in both pickers,
+and any `search(...).defaultValue(x)` gets it too.
 
 ---
 

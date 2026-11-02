@@ -248,6 +248,8 @@ final class HologramImpl implements Hologram {
     private volatile Location location;
     private volatile Entity mount;
     private volatile Map<String, Object> data = Map.of();
+    /** Whether any value in {@link #data} is a supplier, read again on every render. */
+    private volatile boolean lazyData;
     private volatile Predicate<Player> filter;
     private volatile boolean removed;
 
@@ -756,8 +758,38 @@ final class HologramImpl implements Hologram {
 
     @Override
     public void updateData(@NotNull Map<String, Object> data) {
-        this.data = data == null ? Map.of() : data;
+        Map<String, Object> next = data == null ? Map.of() : data;
+        boolean lazy = false;
+        for (Object value : next.values()) {
+            if (value instanceof java.util.function.Supplier<?>) {
+                lazy = true;
+                break;
+            }
+        }
+        this.data = next;
+        this.lazyData = lazy;
         refresh();
+    }
+
+    /**
+     * The values for one render: suppliers read now, everything else as given.
+     * The diff that follows sends only the lines whose text changed.
+     */
+    private Map<String, Object> values() {
+        Map<String, Object> current = data;
+        if (!lazyData) return current;
+        Map<String, Object> read = new java.util.HashMap<>(current.size() * 2);
+        current.forEach((key, value) -> {
+            if (value instanceof java.util.function.Supplier<?> supplier) {
+                try {
+                    value = supplier.get();
+                } catch (RuntimeException failed) {
+                    value = null;
+                }
+            }
+            read.put(key, value);
+        });
+        return read;
     }
 
     /** The filter a hologram is born with, set before anything can draw it. */
@@ -860,6 +892,7 @@ final class HologramImpl implements Hologram {
 
     /** One render, sent to everybody: the cheap path, and the default. */
     private void renderShared(List<Player> currentViewers) {
+        Map<String, Object> values = values();
         DisplayState[] current = displays;
         Template[] lines = templates;
         String[] previous = lastText;
@@ -869,7 +902,7 @@ final class HologramImpl implements Hologram {
             if (current[i].kind() != HologramConfig.Kind.TEXT) {
                 continue;
             }
-            String text = lines[i].render(null, data);
+            String text = lines[i].render(null, values);
             if (text.equals(previous[i])) {
                 continue;
             }
@@ -906,6 +939,7 @@ final class HologramImpl implements Hologram {
      * range: what they are sent has to be resolved for them.
      */
     private void renderFor(Player viewer, boolean send) {
+        Map<String, Object> values = values();
         DisplayState[] current = displays;
         Template[] lines = templates;
         UUID uuid = viewer.getUniqueId();
@@ -915,7 +949,7 @@ final class HologramImpl implements Hologram {
             if (current[i].kind() != HologramConfig.Kind.TEXT) {
                 continue;
             }
-            String text = lines[i].render(viewer, data);
+            String text = lines[i].render(viewer, values);
             // A shimmering line keeps being re-sent on every render, as it always was: its frames are
             // keyed on the shared display's text, which this viewer's skip must not second-guess.
             boolean diffed = sent != null && i < sent.length && !current[i].style().shimmers();
@@ -964,7 +998,7 @@ final class HologramImpl implements Hologram {
             return displays[line].text();
         }
         Template template = templates[line];
-        return componentFor(line, template, template.render(viewer, data), viewer);
+        return componentFor(line, template, template.render(viewer, values()), viewer);
     }
 
     /**
@@ -990,7 +1024,7 @@ final class HologramImpl implements Hologram {
             return Text.component(text);
         }
         List<String> pairs = Placeholders.resolvePairs(template,
-                new Request(viewer, viewer, List.of(), data));
+                new Request(viewer, viewer, List.of(), values()));
         if (pairs.isEmpty()) {
             return Text.component(text);
         }
@@ -1921,14 +1955,14 @@ final class HologramImpl implements Hologram {
         if (target >= 0 && target < lineStyles.length) {
             Interaction button = buttonLines.get(lineStyles[target].button());
             if (button != null && button.handles(click)) {
-                button.run(player, click, data);
+                button.run(player, click, values());
             }
             press(player, target);
             return;
         }
         Interaction lines = clickLines[Math.min(page(player), clickLines.length - 1)];
         if (lines.handles(click)) {
-            lines.run(player, click, data);
+            lines.run(player, click, values());
         }
         press(player, WHOLE);
         BiConsumer<Player, Click> handler = clickHandler;

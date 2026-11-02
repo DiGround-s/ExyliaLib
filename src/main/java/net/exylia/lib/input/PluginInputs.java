@@ -156,6 +156,15 @@ public final class PluginInputs {
     }
 
     /**
+     * Starts a request for a colour: a palette token or a {@code #rrggbb}.
+     *
+     * @since 1.458.0
+     */
+    public @NotNull ColourInput colour(@NotNull Player player, @NotNull String prompt) {
+        return new ColourInput(this, player, prompt);
+    }
+
+    /**
      * Starts a request for an item, answered with the item itself.
      *
      * <p>Use it where the stack matters rather than how it looks: a recipe's

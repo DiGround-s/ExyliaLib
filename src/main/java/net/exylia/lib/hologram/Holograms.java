@@ -85,7 +85,9 @@ public final class Holograms {
      * @param location where it stands, before the configured offset
      * @param config   what it looks like
      * @param data     values resolvers can read with
-     *                 {@link net.exylia.lib.placeholder.Request#get}
+     *                 {@link net.exylia.lib.placeholder.Request#get}; a
+     *                 {@link java.util.function.Supplier} is read on every
+     *                 render (since 1.458.0, see {@link Hologram#updateData})
      * @return the hologram, never {@code null}
      */
     public static @NotNull Hologram show(@NotNull Plugin plugin, @NotNull String id,

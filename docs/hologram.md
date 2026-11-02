@@ -447,7 +447,13 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
 - **Visibility is checked four times a second** with squared distance per
   player per hologram; packets only go out when someone crosses the edge.
 - **Only what changed is sent.** A line with no placeholders never refreshes;
-  one that does diffs and re-sends just that line. A per-player hologram
+  one that does diffs and re-sends just that line. A value in the data map that
+  is a `Supplier` is read on every refresh (since 1.458.0), so a countdown is
+  handed over once — `Map.of("left", (Supplier<Long>) drop::secondsLeft)` — and
+  moves on the hologram's own `refresh` interval, re-sending only the lines
+  whose text changed. Suppliers run off the main thread, like every placeholder
+  in a hologram line: read memory, never the world. One that throws reads as no
+  value. A per-player hologram
   diffs per viewer: a line that resolves the same for them is not re-sent.
 - Nothing outlives its owner: plugin disable, player quit and palette reload
   all clean up (palette reload re-sends everything).

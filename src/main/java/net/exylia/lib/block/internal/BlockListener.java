@@ -6,6 +6,7 @@ import net.exylia.lib.block.ClickableBlock;
 import net.exylia.lib.debug.Debug;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -50,6 +51,9 @@ public final class BlockListener implements Listener {
         Block block = event.getClickedBlock();
         ClickableBlock registered = BlockRuntime.at(block);
         if (registered == null) return;
+        // Read before this listener cancels anything: whether another plugin
+        // already kept the block shut.
+        if (registered.ignoresCancelled() && event.useInteractedBlock() == Event.Result.DENY) return;
 
         if (registered.cancelsVanilla()) event.setCancelled(true);
 
@@ -59,7 +63,7 @@ public final class BlockListener implements Listener {
         if (BlockRuntime.isRepeat(player.getUniqueId(), position, button)) return;
 
         try {
-            registered.fire(new BlockClick(player, block, button, player.isSneaking()));
+            registered.fire(new BlockClick(player, block, button, player.isSneaking(), event));
         } catch (Throwable error) {
             // A handler that throws must not take the interact event down with
             // it, and with it every plugin behind this one in the chain.

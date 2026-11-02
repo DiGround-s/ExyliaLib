@@ -99,6 +99,12 @@ public final class Playtime {
     private record MinuteListener(Plugin owner, Consumer<Player> action) {
     }
 
+    private static final List<BackListener> BACK = new CopyOnWriteArrayList<>();
+
+    /** The timer that looks for players coming back, and whose it is. */
+    private record BackListener(Plugin owner, TaskHandle timer) {
+    }
+
     /** What this server knows about one online player. */
     private static final class Session {
         final long joined;
@@ -276,6 +282,59 @@ public final class Playtime {
         MINUTE.add(new MinuteListener(owner, action));
     }
 
+    /**
+     * Runs something when a player who was idle ({@link #active} false) acts
+     * again, on that player's own thread, within a second of it. For whatever
+     * an idle player was refused while standing still: a pickup they are
+     * standing on, a zone that pays only the active.
+     *
+     * <p>One timer a second per registration reads every online player's idle
+     * time, a field; the action runs only on a change. Nothing runs while idle
+     * detection is off ({@link #idleAfter} zero), since nobody is ever idle.
+     * Dropped when the owner is disabled.
+     *
+     * @param owner  the plugin the action belongs to
+     * @param action what to run for the player who came back
+     * @since 1.458.0
+     */
+    public static void onActiveAgain(@NotNull Plugin owner, @NotNull Consumer<Player> action) {
+        java.util.Set<UUID> idle = ConcurrentHashMap.newKeySet();
+        // ponytail: a timer per registration; share one if several plugins ever listen.
+        TaskHandle timer = Tasks.of(owner).runTimer(20L, 20L, () -> {
+            Map<UUID, Boolean> now = new java.util.HashMap<>();
+            Map<UUID, Player> online = new java.util.HashMap<>();
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                now.put(player.getUniqueId(), active(player));
+                online.put(player.getUniqueId(), player);
+            }
+            for (UUID back : cameBack(idle, now)) {
+                Player player = online.get(back);
+                Tasks.of(owner).runAtEntity(player, () -> action.accept(player));
+            }
+        });
+        BACK.add(new BackListener(owner, timer));
+    }
+
+    /**
+     * Who went from idle to active since the last look. Updates {@code idle} to
+     * who is idle now, so a player who left is forgotten.
+     *
+     * @param idle   who was idle at the last look; replaced by who is idle now
+     * @param active every online player, and whether they are active now
+     * @return the players who were idle and are active now
+     */
+    static @NotNull List<UUID> cameBack(@NotNull java.util.Set<UUID> idle, @NotNull Map<UUID, Boolean> active) {
+        List<UUID> back = new ArrayList<>();
+        for (Map.Entry<UUID, Boolean> entry : active.entrySet()) {
+            if (entry.getValue() && idle.contains(entry.getKey())) back.add(entry.getKey());
+        }
+        idle.clear();
+        active.forEach((id, isActive) -> {
+            if (!isActive) idle.add(id);
+        });
+        return back;
+    }
+
     // ------------------------------------------------------------------
     // Lifecycle, driven by the library
     // ------------------------------------------------------------------
@@ -301,6 +360,11 @@ public final class Playtime {
         synchronized (LOCK) {
             OPENERS.remove(plugin);
             MINUTE.removeIf(listener -> listener.owner == plugin);
+            BACK.removeIf(listener -> {
+                if (listener.owner != plugin) return false;
+                listener.timer.cancel();
+                return true;
+            });
             Playtime current = tracker;
             if (current == null || current.host != plugin) return;
             current.stopTimer();
@@ -333,6 +397,8 @@ public final class Playtime {
             tracker = null;
             OPENERS.clear();
             MINUTE.clear();
+            BACK.forEach(listener -> listener.timer.cancel());
+            BACK.clear();
         }
     }
 
