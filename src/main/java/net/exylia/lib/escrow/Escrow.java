@@ -206,6 +206,17 @@ public final class Escrow {
     /** Players owed items while dead, handed them on respawn rather than on their next join. */
     private final java.util.Set<UUID> owedWhileDead = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Why money or items moved, named after the plugin that holds the stakes
+     * ({@code tabletop:payout}, {@code casino:stake}), so a ledger or a
+     * statistic tells a table game from a casino bet from a duel.
+     */
+    private String reason(String what) {
+        String owner = name.toLowerCase(java.util.Locale.ROOT);
+        if (owner.startsWith("exylia") && owner.length() > "exylia".length()) owner = owner.substring("exylia".length());
+        return owner + ":" + what;
+    }
+
     private Escrow(Plugin plugin) {
         this.plugin = plugin;
         this.name = plugin.getName();
@@ -359,7 +370,7 @@ public final class Escrow {
         // Later, not plain withdraw: this runs on a database callback, and items or experience
         // can only be taken on the player's own thread.
         return view.withdrawLater(pending.player(), pending.amount(),
-                Transaction.of("escrow:stake").by(pending.player())).thenCompose(response -> charged(pending, response));
+                Transaction.of(reason("stake")).by(pending.player())).thenCompose(response -> charged(pending, response));
     }
 
     private CompletableFuture<Hold> charged(StakeRow pending, EconomyResponse response) {
@@ -374,7 +385,7 @@ public final class Escrow {
                 // The row still reads PENDING, which a restart voids and never refunds: give it back now.
                 debug.error("Escrow: could not record the stake of " + held.player() + " as held; refunding it.",
                         failure);
-                pay(held.player(), held.currency(), held.amount(), "escrow:refund");
+                pay(held.player(), held.currency(), held.amount(), reason("refund"));
                 return CompletableFuture.completedFuture(Hold.FAILED);
             }
             if (closedMoney.getIfPresent(held.matchId()) != null) {
@@ -447,7 +458,7 @@ public final class Escrow {
                 payouts.add(payout);
                 List<BigDecimal> shares = split(payout.prize(), winners.size(), decimals);
                 for (int i = 0; i < winners.size(); i++) {
-                    if (shares.get(i).signum() > 0) pay(winners.get(i), currency, shares.get(i), "escrow:payout");
+                    if (shares.get(i).signum() > 0) pay(winners.get(i), currency, shares.get(i), reason("payout"));
                 }
             });
             return payouts;
@@ -529,7 +540,7 @@ public final class Escrow {
                                                     Math.max(0, Economy.info(oldest.currency()).decimals()),
                                                     RoundingMode.DOWN);
                                             if (paid.signum() > 0) {
-                                                pay(player, oldest.currency(), paid, "escrow:payout");
+                                                pay(player, oldest.currency(), paid, reason("payout"));
                                             }
                                             return true;
                                         });
@@ -548,7 +559,7 @@ public final class Escrow {
         checkId(matchId);
         closedMoney.put(matchId, Boolean.TRUE);
         return claim(matchId, StakeState.REFUNDED).thenAccept(won ->
-                won.forEach(row -> pay(row.player(), row.currency(), row.amount(), "escrow:refund")));
+                won.forEach(row -> pay(row.player(), row.currency(), row.amount(), reason("refund"))));
     }
 
     /**
@@ -587,7 +598,7 @@ public final class Escrow {
                 debug.error("Escrow: could not record the refund of stake " + row.id()
                         + "; it is refunded on the next start.", failure);
             } else if (won) {
-                pay(row.player(), row.currency(), row.amount(), "escrow:refund");
+                pay(row.player(), row.currency(), row.amount(), reason("refund"));
             }
             return null;
         });
@@ -627,7 +638,7 @@ public final class Escrow {
         String encoded = hands.encode(copy);
         return ready().thenCompose(ready -> {
             if (!ready) {
-                give(player, encoded, "escrow:refund");
+                give(player, encoded, reason("refund"));
                 return CompletableFuture.completedFuture(false);
             }
             ItemRow row = ItemRow.held(name, server, matchId, player, encoded);
@@ -635,7 +646,7 @@ public final class Escrow {
                 if (failure != null) {
                     debug.error("Escrow: could not record the items of " + player + " on " + matchId
                             + "; giving them back.", failure);
-                    give(player, encoded, "escrow:refund");
+                    give(player, encoded, reason("refund"));
                     return CompletableFuture.completedFuture(false);
                 }
                 if (closedItems.getIfPresent(matchId) != null) {
@@ -687,7 +698,7 @@ public final class Escrow {
             if (!all.isEmpty() && multiplier > 0) {
                 // ponytail: the encoded stacks repeated, which the inventory merges; grows with the multiplier,
                 // so scale each stack's amount instead if multipliers ever reach the hundreds.
-                give(winner, String.join(",", java.util.Collections.nCopies(multiplier, all)), "escrow:payout");
+                give(winner, String.join(",", java.util.Collections.nCopies(multiplier, all)), reason("payout"));
             }
         });
     }
@@ -703,7 +714,7 @@ public final class Escrow {
         checkId(matchId);
         closedItems.put(matchId, Boolean.TRUE);
         return claimItems(matchId, StakeState.REFUNDED).thenAccept(won ->
-                won.forEach(row -> give(row.player(), row.items(), "escrow:refund")));
+                won.forEach(row -> give(row.player(), row.items(), reason("refund"))));
     }
 
     /**
@@ -736,7 +747,7 @@ public final class Escrow {
                 debug.error("Escrow: could not record the refund of items " + row.id()
                         + "; they are refunded on the next start.", failure);
             } else if (won) {
-                give(row.player(), row.items(), "escrow:refund");
+                give(row.player(), row.items(), reason("refund"));
             }
             return null;
         });
@@ -764,7 +775,7 @@ public final class Escrow {
             }
         }
         if (!copy.isEmpty()) {
-            give(player, hands.encode(copy), "escrow:give");
+            give(player, hands.encode(copy), reason("give"));
         }
     }
 

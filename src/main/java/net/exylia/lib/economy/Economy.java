@@ -549,6 +549,25 @@ public final class Economy {
         }
 
         /**
+         * {@link #charge(UUID, BigDecimal)} saying why, so a ledger or a statistic
+         * can tell where the money went.
+         *
+         * @since 1.444.0
+         */
+        public boolean charge(@NotNull UUID player, @NotNull BigDecimal amount, @NotNull Transaction transaction) {
+            return withdraw(player, amount, transaction).isSuccess();
+        }
+
+        /**
+         * {@link #pay(UUID, BigDecimal)} saying why.
+         *
+         * @since 1.444.0
+         */
+        public boolean pay(@NotNull UUID player, @NotNull BigDecimal amount, @NotNull Transaction transaction) {
+            return deposit(player, amount, transaction).isSuccess();
+        }
+
+        /**
          * Moves an amount between two players.
          *
          * <p>Uses the provider's own transfer when it has one — PlayerPoints
