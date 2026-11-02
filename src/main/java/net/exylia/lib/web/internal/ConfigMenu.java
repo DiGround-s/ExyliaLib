@@ -10,6 +10,7 @@ import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
 import net.exylia.lib.config.ConfigMenus;
 import net.exylia.lib.config.Languages;
+import net.exylia.lib.config.Menu;
 import net.exylia.lib.config.Schema;
 import net.exylia.lib.input.InputResult;
 import net.exylia.lib.input.Inputs;
@@ -19,6 +20,7 @@ import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
+import net.exylia.lib.ui.UiDefinition;
 import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiKeys;
 import net.exylia.lib.ui.UiSection;
@@ -71,6 +73,8 @@ public final class ConfigMenu {
     private static final String PLUGIN_KEY = "cfg_plugin";
     private static final String FILE_KEY = "cfg_file";
     private static final String PATH_KEY = "cfg_path";
+    /** On a settings file's screens: the page shown ({@link ConfigPages}); empty on the file's hub. */
+    private static final String PAGE_KEY = "cfg_page";
     /** Set instead of {@link #FILE_KEY} on a content file's screens: the YAML subject's id; the path is then {@link YamlFields#join}ed. */
     private static final String YAML_KEY = "cfg_yaml";
 
@@ -122,7 +126,16 @@ public final class ConfigMenu {
             Plugin target = plugin(session);
             if (!allowed(context.player(), target)) return refused(context.player());
             ConfigFile<?> file = target == null ? null : file(target, arguments.string(0, ""));
-            if (file != null) openFields(context.player(), target, file, "");
+            if (file != null) openFile(context.player(), target, file);
+            return ActionResult.success();
+        });
+        actions.registerSync("config_page", (context, arguments) -> {
+            UiSession session = context.require(UiKeys.SESSION);
+            Plugin target = plugin(session);
+            if (!allowed(context.player(), target)) return refused(context.player());
+            ConfigFile<?> file = target == null ? null : file(target, session.context(FILE_KEY, String.class).orElse(""));
+            ConfigPages.Page page = file == null ? null : ConfigPages.page(file.schema(), arguments.string(0, ""));
+            if (page != null) openCard(context.player(), target, file, page);
             return ActionResult.success();
         });
         actions.registerSync("config_yaml", (context, arguments) -> {
@@ -241,30 +254,132 @@ public final class ConfigMenu {
         }
         if (files.size() + content.size() == 1) {
             if (files.isEmpty()) openYaml(viewer, plugin, content.get(0), List.of());
-            else openFields(viewer, plugin, files.get(0), "");
+            else openFile(viewer, plugin, files.get(0));
             return;
         }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
+        context.put("cfg_title", Phrases.tr("Settings").toUpperCase(java.util.Locale.ROOT));
+        context.put("cfg_where", net.exylia.lib.text.Values.inert(plugin.getName()));
         context.put("cfg_back_to", returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins"));
-        current.open(viewer, FILES, context, () -> fileRows(viewer, plugin));
+        String description = plugin.getDescription().getDescription();
+        header(context, "BEACON", plugin.getName(),
+                description == null || description.isBlank() ? net.exylia.lib.text.Lines.OMIT : ConfigFields.summary(List.of(description)),
+                List.of(Phrases.tr(" {letters_black}▎ {letters}Version {letters_black}» {info}{0}",
+                                net.exylia.lib.text.Values.inert(plugin.getDescription().getVersion())),
+                        Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", files.size() + content.size())));
+        show(viewer, FILES, context, () -> fileRows(viewer, plugin), files.size() + content.size(), 2);
     }
 
-    private static void openFields(Player viewer, Plugin plugin, ConfigFile<?> file, String path) {
+    /**
+     * Opens a screen cut to what it shows ({@link ConfigLayout}), its list read from a lambda.
+     *
+     * @param top rows above the buttons: 1 for a header, 2 for a header and a gap
+     */
+    private static void show(Player viewer, String id, Map<String, Object> context,
+                             Supplier<List<UiEntry>> rows, int count, int top) {
         PluginMenus current = menus;
-        if (current == null) return;
-        current.open(viewer, FIELDS, fieldsContext(viewer, plugin, file, path), rows(file, path));
+        Plugin owner = library;
+        UiDefinition base = current == null ? null : current.definition(id).orElse(null);
+        if (base == null || owner == null) return;
+        UiDefinition fitted = ConfigLayout.apply(base, ConfigLayout.fit(count, top));
+        Tasks.of(owner).runAtEntity(viewer, () -> current.openNow(viewer, fitted, context, rows));
     }
 
-    private static Map<String, Object> fieldsContext(Player viewer, Plugin plugin, ConfigFile<?> file, String path) {
+    /** The header in slot 4: an item, a name, an Information block and a Status block. */
+    private static void header(Map<String, Object> context, String icon, String name, String about, List<String> status) {
+        List<String> lore = new ArrayList<>();
+        if (!net.exylia.lib.text.Lines.OMIT.equals(about)) lore.add(about);
+        if (!status.isEmpty()) {
+            lore.add(Phrases.tr("{secondary}Status:"));
+            lore.addAll(status);
+        } else if (!lore.isEmpty()) {
+            // The Information block ends in a blank line of its own.
+            String last = lore.remove(lore.size() - 1);
+            lore.add(last.endsWith(net.exylia.lib.text.Lines.NEWLINE)
+                    ? last.substring(0, last.length() - net.exylia.lib.text.Lines.NEWLINE.length()) : last);
+        }
+        context.put("cfg_head_icon", icon);
+        context.put("cfg_head_name", net.exylia.lib.text.Values.inert(name.toUpperCase(java.util.Locale.ROOT)));
+        context.put("cfg_head_lore", lore.isEmpty() ? net.exylia.lib.text.Lines.OMIT : net.exylia.lib.text.Lines.join(lore));
+    }
+
+    /** A settings file: the hub of its pages, or its only page straight away. */
+    private static void openFile(Player viewer, Plugin plugin, ConfigFile<?> file) {
+        List<ConfigPages.Page> cards = ConfigPages.cards(file.schema());
+        if (cards.size() == 1) {
+            openCard(viewer, plugin, file, cards.get(0));
+            return;
+        }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
         context.put(FILE_KEY, file.name());
-        context.put(PATH_KEY, path);
-        String where = Discovery.title(file.name()) + (path.isEmpty() ? "" : " › " + path);
-        context.put("cfg_where", net.exylia.lib.text.Values.inert(where));
-        context.put("cfg_back_to", backTo(viewer, plugin, path.isEmpty()));
-        return context;
+        context.put(PAGE_KEY, "");
+        context.put("cfg_title", fileName(file));
+        context.put("cfg_where", net.exylia.lib.text.Values.inert(plugin.getName()));
+        context.put("cfg_back_to", backTo(viewer, plugin, null, file));
+        Class<?> type = file.schema().type();
+        Menu.Icon icon = type.getAnnotation(Menu.Icon.class);
+        Menu.About about = type.getAnnotation(Menu.About.class);
+        header(context, icon == null ? "COMPARATOR" : icon.value(), fileName(file),
+                about != null ? ConfigFields.block(List.of(about.value())) : ConfigFields.summary(file.schema().comments()),
+                List.of(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
+                        net.exylia.lib.text.Values.inert(file.name() + ".yml"))));
+        show(viewer, FILES, context, cardRows(file), cards.size(), 2);
+    }
+
+    /** What a file's screens call it: the record's {@link Menu.Label}, or its name in words. */
+    private static String fileName(ConfigFile<?> file) {
+        Menu.Label label = file.schema().type().getAnnotation(Menu.Label.class);
+        String name = label != null ? label.value() : Discovery.title(file.name());
+        return name.toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /** A card of a file's hub: its page, or the list of entries it stands for. */
+    private static void openCard(Player viewer, Plugin plugin, ConfigFile<?> file, ConfigPages.Page page) {
+        if (page.entries() == null) {
+            openPage(viewer, plugin, file, page.token());
+            return;
+        }
+        SubjectImpl subject = settingSubject(plugin, file);
+        if (subject != null) openYaml(viewer, plugin, subject, List.of(page.entries().key().split("\\.")));
+    }
+
+    /** One page of a settings file. */
+    private static void openPage(Player viewer, Plugin plugin, ConfigFile<?> file, String token) {
+        ConfigPages.Page page = ConfigPages.page(file.schema(), token);
+        if (page == null || page.entries() != null) {
+            if (page != null) openCard(viewer, plugin, file, page);
+            else openFile(viewer, plugin, file);
+            return;
+        }
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put(PLUGIN_KEY, plugin.getName());
+        context.put(FILE_KEY, file.name());
+        context.put(PAGE_KEY, token);
+        context.put("cfg_title", page.label());
+        context.put("cfg_where", net.exylia.lib.text.Values.inert(Discovery.title(file.name())));
+        context.put("cfg_back_to", backTo(viewer, plugin, page, file));
+        header(context, page.icon(), page.label(), page.about(),
+                List.of(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", page.fields().size())));
+        show(viewer, FIELDS, context, pageRows(file, token), page.fields().size(), 1);
+    }
+
+    /** A section of a settings file, reached from a content screen: its page, or the file's hub. */
+    private static void openSection(Player viewer, Plugin plugin, ConfigFile<?> file, String key) {
+        if (!key.isEmpty() && ConfigPages.page(file.schema(), "s:" + key) != null) openPage(viewer, plugin, file, "s:" + key);
+        else openFile(viewer, plugin, file);
+    }
+
+    /** Where BACK goes from a page ({@code null}: from the file's hub), in words. */
+    private static String backTo(Player viewer, Plugin plugin, @Nullable ConfigPages.Page page, ConfigFile<?> file) {
+        if (page != null) {
+            ConfigPages.Page holder = page.token().startsWith("s:") ? ConfigPages.holder(file.schema(), page.token().substring(2)) : null;
+            if (holder != null) return Phrases.tr("the section above");
+            if (ConfigPages.cards(file.schema()).size() > 1) return Phrases.tr("the settings of {0}", fileName(file));
+        }
+        if (count(viewer, plugin) > 1) return Phrases.tr("the files of {0}", plugin.getName());
+        return returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins");
     }
 
     private static String backTo(Player viewer, Plugin plugin, boolean top) {
@@ -294,23 +409,35 @@ public final class ConfigMenu {
     private static List<UiEntry> fileRows(Player viewer, Plugin plugin) {
         List<UiEntry> rows = new ArrayList<>();
         for (ConfigFile<?> file : WebEditorRuntime.get().settingsOf(plugin)) {
+            Menu.Icon icon = file.schema().type().getAnnotation(Menu.Icon.class);
+            Menu.About about = file.schema().type().getAnnotation(Menu.About.class);
             rows.add(UiEntry.of(file.name())
-                    .with("cfg_file_id", file.name())
-                    .with("cfg_file_name", Discovery.title(file.name()))
-                    .with("cfg_file_path", file.name() + ".yml")
-                    .with("cfg_file_keys", file.schema().fields().size())
-                    .withFormatted("cfg_file_about", ConfigFields.about(file.schema().comments()))
+                    .template("file")
+                    .with("cfg_card", file.name())
+                    .with("cfg_card_icon", icon == null ? "COMPARATOR" : icon.value())
+                    .with("cfg_card_name", fileName(file))
+                    .withFormatted("cfg_card_about", about != null ? ConfigFields.block(List.of(about.value()))
+                            : ConfigFields.summary(file.schema().comments()))
+                    .withFormatted("cfg_card_status", net.exylia.lib.text.Lines.join(List.of(
+                            Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
+                                    net.exylia.lib.text.Values.inert(file.name() + ".yml")),
+                            Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}",
+                                    ConfigPages.pages(file.schema()).stream().mapToInt(page -> page.fields().size()).sum()))))
                     .build());
         }
         for (SubjectImpl subject : contentOf(viewer, plugin)) {
             Read read = read(subject);
             rows.add(UiEntry.of("content:" + subject.id())
                     .template("content")
-                    .with("cfg_file_id", subject.id())
-                    .with("cfg_file_name", subject.title().toUpperCase(java.util.Locale.ROOT))
-                    .with("cfg_file_path", subject.source().name() + ".yml")
-                    .with("cfg_file_keys", read == null ? 0 : read.values().size())
-                    .withFormatted("cfg_file_about", ConfigFields.about(read == null ? List.of() : comments(read.schema())))
+                    .with("cfg_card", subject.id())
+                    .with("cfg_card_icon", "CHEST")
+                    .with("cfg_card_name", subject.title().toUpperCase(java.util.Locale.ROOT))
+                    .withFormatted("cfg_card_about", ConfigFields.summary(read == null ? List.of() : comments(read.schema())))
+                    .withFormatted("cfg_card_status", net.exylia.lib.text.Lines.join(List.of(
+                            Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
+                                    net.exylia.lib.text.Values.inert(subject.source().name() + ".yml")),
+                            Phrases.tr(" {letters_black}▎ {letters}Entries {letters_black}» {info}{0}",
+                                    read == null ? 0 : read.values().size()))))
                     .build());
         }
         return rows;
@@ -322,28 +449,81 @@ public final class ConfigMenu {
         return lines;
     }
 
-    /** One section's buttons, read again on every redraw so the screen follows the file. */
-    static Supplier<List<UiEntry>> rows(ConfigFile<?> file, String path) {
+    /** One page's buttons, read again on every redraw so the screen follows the file. */
+    static Supplier<List<UiEntry>> pageRows(ConfigFile<?> file, String token) {
         return () -> {
             Schema schema = file.schema();
+            ConfigPages.Page page = ConfigPages.page(schema, token);
+            if (page == null) return List.of();
             Object values = file.get();
             List<UiEntry> rows = new ArrayList<>();
-            for (ConfigFields.Field field : ConfigFields.fields(schema, path)) {
+            for (ConfigFields.Field field : page.fields()) {
                 Object value = field.kind() == ConfigFields.Kind.SECTION ? null
                         : ConfigFields.read(schema, values, field.key());
                 boolean opens = field.kind() == ConfigFields.Kind.SECTION || field.kind() == ConfigFields.Kind.ENTRIES;
                 rows.add(UiEntry.of(field.key())
                         .template(opens ? "section" : field.kind() == ConfigFields.Kind.LOCKED ? "locked" : null)
                         .with("cfg_key", field.key())
-                        .with("cfg_name", ConfigFields.title(field.name()))
+                        .with("cfg_name", ConfigFields.label(field))
                         .with("cfg_icon", ConfigFields.icon(field, value))
-                        .withFormatted("cfg_value", ConfigFields.display(field, value))
-                        .withFormatted("cfg_about", ConfigFields.about(field.schema().comments()))
+                        .withFormatted("cfg_value", opens && field.kind() == ConfigFields.Kind.SECTION
+                                ? sectionValue(schema, field) : ConfigFields.display(field, value))
+                        .withFormatted("cfg_about", ConfigFields.about(field))
                         .withFormatted("cfg_hint", ConfigFields.hint(field))
                         .build());
             }
             return rows;
         };
+    }
+
+    private static String sectionValue(Schema schema, ConfigFields.Field field) {
+        ConfigPages.Page page = ConfigPages.page(schema, "s:" + field.key());
+        return Phrases.tr("{info}{0} {letters}settings", page == null ? 0 : page.fields().size());
+    }
+
+    /** The cards of a file's hub, each with the first values of its page, read again on every redraw. */
+    static Supplier<List<UiEntry>> cardRows(ConfigFile<?> file) {
+        return () -> {
+            Schema schema = file.schema();
+            Object values = file.get();
+            List<UiEntry> rows = new ArrayList<>();
+            for (ConfigPages.Page page : ConfigPages.cards(schema)) {
+                rows.add(UiEntry.of(page.token())
+                        .with("cfg_card", page.token())
+                        .with("cfg_card_icon", page.icon())
+                        .with("cfg_card_name", page.label())
+                        .withFormatted("cfg_card_about", page.about())
+                        .withFormatted("cfg_card_status", summary(schema, values, page))
+                        .build());
+            }
+            return rows;
+        };
+    }
+
+    /** Up to four values of a page, {@code Label » value}; for a list of entries, how many it holds. */
+    private static String summary(Schema schema, Object values, ConfigPages.Page page) {
+        List<String> lines = new ArrayList<>();
+        if (page.entries() != null) {
+            Object value = ConfigFields.read(schema, values, page.entries().key());
+            lines.add(Phrases.tr(" {letters_black}▎ {letters}Entries {letters_black}» {info}{0}", ConfigFields.size(value)));
+            return net.exylia.lib.text.Lines.join(lines);
+        }
+        int shown = 0;
+        for (ConfigFields.Field field : page.fields()) {
+            ConfigFields.Kind kind = field.kind();
+            if (kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.LOCKED) continue;
+            if (shown++ == 4) {
+                lines.add(Phrases.tr(" {letters_black}▎ {letters_black}… and {0} more", page.fields().size() - 4));
+                break;
+            }
+            Object value = ConfigFields.read(schema, values, field.key());
+            lines.add(" {letters_black}▎ {letters}" + net.exylia.lib.text.Values.inert(ConfigFields.words(ConfigFields.label(field)))
+                    + " {letters_black}» " + ConfigFields.display(field, value));
+        }
+        if (lines.isEmpty()) {
+            lines.add(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", page.fields().size()));
+        }
+        return net.exylia.lib.text.Lines.join(lines);
     }
 
     // ------------------------------------------------------------------ clicks
@@ -362,13 +542,13 @@ public final class ConfigMenu {
         if (file == null) return;
         ConfigFields.Field field = ConfigFields.field(file.schema(), key);
         if (field == null) return;
-        String path = session.context(PATH_KEY, String.class).orElse("");
+        String token = session.context(PAGE_KEY, String.class).orElse("");
         Object current = ConfigFields.read(file.schema(), file.get(), key);
-        Runnable back = () -> openFields(viewer, plugin, file, path);
+        Runnable back = () -> openPage(viewer, plugin, file, token);
         boolean big = click.startsWith("shift");
         int direction = click.endsWith("right") ? -1 : 1;
         switch (field.kind()) {
-            case SECTION -> openFields(viewer, plugin, file, key);
+            case SECTION -> openPage(viewer, plugin, file, "s:" + key);
             case TOGGLE, CHOICE -> write(viewer, plugin, file, field, ConfigFields.step(field, current, direction, big), null);
             case INTEGER, DECIMAL -> {
                 if (click.equals("drop")) number(viewer, plugin, file, field, current, back);
@@ -415,6 +595,7 @@ public final class ConfigMenu {
         if (field.kind() == ConfigFields.Kind.INTEGER) {
             long now = current instanceof Number number ? number.longValue() : 0;
             ask(viewer, back, inputs.integer(viewer, prompt(field)).defaultValue(now).open(), typed -> {
+                if (!inRange(viewer, field, typed, back)) return;
                 Class<?> type = field.schema().type();
                 Object value = type == int.class || type == Integer.class
                         ? (Object) (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, typed)) : typed;
@@ -423,8 +604,19 @@ public final class ConfigMenu {
             return;
         }
         BigDecimal now = current instanceof Number number ? new BigDecimal(number.toString()) : BigDecimal.ZERO;
-        ask(viewer, back, inputs.decimal(viewer, prompt(field)).defaultValue(now.stripTrailingZeros()).open(),
-                typed -> write(viewer, plugin, file, field, typed.doubleValue(), back));
+        ask(viewer, back, inputs.decimal(viewer, prompt(field)).defaultValue(now.stripTrailingZeros()).open(), typed -> {
+            if (inRange(viewer, field, typed.doubleValue(), back)) write(viewer, plugin, file, field, typed.doubleValue(), back);
+        });
+    }
+
+    /** Whether a typed number is inside the key's {@link Menu.Range}; tells the viewer and reopens the screen when not. */
+    private static boolean inRange(Player viewer, ConfigFields.Field field, double typed, Runnable back) {
+        if (ConfigFields.allowed(field, typed)) return true;
+        String[] bounds = ConfigFields.bounds(field);
+        Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} must be between {info}{1} {letters}and {info}{2}{letters}.",
+                ConfigFields.label(field), bounds[0], bounds[1])).send(viewer);
+        back.run();
+        return false;
     }
 
     /** Text that starts a console or op command is written only after a dangerous confirm. */
@@ -456,7 +648,7 @@ public final class ConfigMenu {
     }
 
     private static String prompt(ConfigFields.Field field) {
-        return Phrases.tr("{primary}&lNEW {0}", ConfigFields.title(field.name()));
+        return Phrases.tr("{primary}&lNEW {0}", ConfigFields.label(field));
     }
 
     /**
@@ -474,7 +666,7 @@ public final class ConfigMenu {
             Tasks.of(owner).runAtEntity(viewer, () -> {
                 if (!issues.isEmpty()) {
                     Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} was not accepted: {1}",
-                            ConfigFields.title(field.name()), issues.get(0).describe())).send(viewer);
+                            ConfigFields.label(field), issues.get(0).describe())).send(viewer);
                 }
                 if (reopen != null) {
                     reopen.run();
@@ -483,7 +675,7 @@ public final class ConfigMenu {
                 PluginMenus current = menus;
                 UiSession session = current == null ? null : current.session(viewer).orElse(null);
                 if (session != null && session.menuId().endsWith(FIELDS)) {
-                    session.entries(UiSection.MAIN, rows(file, session.context(PATH_KEY, String.class).orElse("")));
+                    session.entries(UiSection.MAIN, pageRows(file, session.context(PAGE_KEY, String.class).orElse("")));
                 }
             });
         });
@@ -499,22 +691,40 @@ public final class ConfigMenu {
         if (!yaml.isEmpty()) {
             List<String> path = YamlFields.split(session.context(PATH_KEY, String.class).orElse(""));
             SubjectImpl subject = content(viewer, plugin, yaml);
-            if (subject != null && !path.isEmpty()) openYaml(viewer, plugin, subject, YamlFields.parent(path));
-            else if (count(viewer, plugin) > 1) showPlugin(viewer, plugin);
-            else top(viewer, plugin);
+            ConfigFile<?> settings = subject == null || !subject.isDiscovered() ? null : subject.file();
+            if (settings != null && !path.isEmpty() && ConfigFields.field(settings.schema(), String.join(".", path)) != null) {
+                // A map or list of a settings file: back to the page its button is on, or the file's hub.
+                ConfigPages.Page holder = ConfigPages.holder(settings.schema(), String.join(".", path));
+                if (holder != null) openPage(viewer, plugin, settings, holder.token());
+                else fileUp(viewer, plugin, settings);
+            } else if (subject != null && !path.isEmpty()) openYaml(viewer, plugin, subject, YamlFields.parent(path));
+            else pluginUp(viewer, plugin);
             return;
         }
-        if (!session.menuId().endsWith(FIELDS)) {
-            top(viewer, plugin);
-            return;
-        }
-        String path = session.context(PATH_KEY, String.class).orElse("");
         ConfigFile<?> file = file(plugin, session.context(FILE_KEY, String.class).orElse(""));
-        if (file != null && !path.isEmpty()) {
-            int dot = path.lastIndexOf('.');
-            openFields(viewer, plugin, file, dot < 0 ? "" : path.substring(0, dot));
+        String token = session.context(PAGE_KEY, String.class).orElse("");
+        if (file == null || (session.menuId().endsWith(FILES) && token.isEmpty())) {
+            pluginUp(viewer, plugin);
             return;
         }
+        if (token.startsWith("s:")) {
+            ConfigPages.Page holder = ConfigPages.holder(file.schema(), token.substring(2));
+            if (holder != null) {
+                openPage(viewer, plugin, file, holder.token());
+                return;
+            }
+        }
+        fileUp(viewer, plugin, file);
+    }
+
+    /** BACK from a page of a file: the file's hub when it has one, the plugin's files otherwise. */
+    private static void fileUp(Player viewer, Plugin plugin, ConfigFile<?> file) {
+        if (ConfigPages.cards(file.schema()).size() > 1) openFile(viewer, plugin, file);
+        else pluginUp(viewer, plugin);
+    }
+
+    /** BACK from a file: the plugin's files when it has several, where it was entered from otherwise. */
+    private static void pluginUp(Player viewer, Plugin plugin) {
         if (count(viewer, plugin) > 1) showPlugin(viewer, plugin);
         else top(viewer, plugin);
     }
@@ -597,7 +807,7 @@ public final class ConfigMenu {
         ConfigFile<?> file = subject.file();
         if (subject.isDiscovered() && file != null && YamlFields.sections(read.schema(), path)) {
             // A settings file's own sections keep their record screen, with every control it has.
-            openFields(viewer, plugin, file, String.join(".", path));
+            openSection(viewer, plugin, file, String.join(".", path));
             return;
         }
         boolean entries = YamlFields.kind(YamlFields.type(read.schema(), path)) == ConfigFields.Kind.ENTRIES;
@@ -608,8 +818,19 @@ public final class ConfigMenu {
         String where = subject.title() + (path.isEmpty() ? "" : " › " + String.join(" › ", path));
         context.put("cfg_where", net.exylia.lib.text.Values.inert(where));
         context.put("cfg_back_to", backTo(viewer, plugin, path.isEmpty()));
-        if (entries) current.open(viewer, ENTRIES_MENU, context, entryRows(subject, path));
-        else current.open(viewer, FIELDS, context, yamlRows(subject, path));
+        if (entries) {
+            current.open(viewer, ENTRIES_MENU, context, entryRows(subject, path));
+            return;
+        }
+        String name = path.isEmpty() ? subject.title() : ConfigFields.words(path.get(path.size() - 1));
+        context.put("cfg_title", name.toUpperCase(java.util.Locale.ROOT));
+        context.put("cfg_where", net.exylia.lib.text.Values.inert(path.isEmpty() ? plugin.getName() : subject.title()));
+        int count = YamlFields.fields(YamlFields.type(read.schema(), path)).size();
+        header(context, path.isEmpty() ? "CHEST" : "BOOKSHELF", name,
+                ConfigFields.summary(path.isEmpty() ? comments(read.schema()) : List.of()),
+                List.of(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
+                        net.exylia.lib.text.Values.inert(subject.source().name() + ".yml"))));
+        show(viewer, FIELDS, context, yamlRows(subject, path), count, 1);
     }
 
     /** One section of a content file; a row's key is its position, so any key a YAML file allows works. */
@@ -628,14 +849,19 @@ public final class ConfigMenu {
                         .template(opens ? "section" : kind == ConfigFields.Kind.LOCKED ? "locked" : null)
                         .with("cfg_key", String.valueOf(i))
                         .with("cfg_name", ConfigFields.title(node.key()))
-                        .with("cfg_icon", yamlIcon(kind, value))
+                        .with("cfg_icon", yamlIcon(node.key(), kind, value))
                         .withFormatted("cfg_value", ConfigFields.plain(kind, value))
-                        .withFormatted("cfg_about", ConfigFields.about(node.comments()))
+                        .withFormatted("cfg_about", ConfigFields.summary(node.comments()))
                         .withFormatted("cfg_hint", ConfigFields.hint(kind))
                         .build());
             }
             return rows;
         };
+    }
+
+    private static String yamlIcon(String key, ConfigFields.Kind kind, @Nullable Object value) {
+        String named = kind == ConfigFields.Kind.TOGGLE || kind == ConfigFields.Kind.MATERIAL ? null : ConfigFields.named(key);
+        return named != null ? named : yamlIcon(kind, value);
     }
 
     private static String yamlIcon(ConfigFields.Kind kind, @Nullable Object value) {

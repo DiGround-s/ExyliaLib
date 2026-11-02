@@ -1,6 +1,8 @@
 package net.exylia.lib.web.internal;
 
+import net.exylia.lib.config.Menu;
 import net.exylia.lib.config.Schema;
+import net.exylia.lib.economy.Economy;
 import net.exylia.lib.config.Time;
 import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.text.Lines;
@@ -10,6 +12,7 @@ import net.exylia.lib.util.TimeFormats;
 import org.bukkit.Material;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.RecordComponent;
 import java.math.BigDecimal;
@@ -72,8 +75,13 @@ final class ConfigFields {
 
         /** The unit a {@link Time} number is written in; {@code null} for anything else. */
         @Nullable Time.Unit unit() {
-            Time time = annotation(owner, schema.name());
+            Time time = annotation(owner, schema.name(), Time.class);
             return time == null ? null : time.value();
+        }
+
+        /** One of the component's annotations, such as a {@link Menu.Range}; {@code null} when absent. */
+        <A extends Annotation> @Nullable A hint(Class<A> type) {
+            return annotation(owner, schema.name(), type);
         }
     }
 
@@ -94,6 +102,7 @@ final class ConfigFields {
         if (schema == null) return List.of();
         List<Field> fields = new ArrayList<>(schema.fields().size());
         for (Schema.Field field : schema.fields()) {
+            if (annotation(schema.type(), field.name(), Menu.Hidden.class) != null) continue;
             String key = section.isEmpty() ? field.key() : section + "." + field.key();
             fields.add(new Field(key, field, schema.type(), kind(schema.type(), field)));
         }
@@ -135,7 +144,7 @@ final class ConfigFields {
         if (type.isEnum()) return Kind.CHOICE;
         boolean whole = type == int.class || type == Integer.class || type == long.class || type == Long.class;
         if (whole || type == double.class || type == Double.class || type == float.class || type == Float.class) {
-            if (annotation(owner, field.name()) != null) return Kind.TIME;
+            if (annotation(owner, field.name(), Time.class) != null) return Kind.TIME;
             return whole ? Kind.INTEGER : Kind.DECIMAL;
         }
         if (type == String.class) return Kind.TEXT;
@@ -164,10 +173,10 @@ final class ConfigFields {
         return value instanceof Number number ? number.intValue() : 0;
     }
 
-    private static @Nullable Time annotation(Class<?> owner, String component) {
+    static <A extends Annotation> @Nullable A annotation(Class<?> owner, String component, Class<A> type) {
         if (!owner.isRecord()) return null;
         for (RecordComponent part : owner.getRecordComponents()) {
-            if (part.getName().equals(component)) return part.getAnnotation(Time.class);
+            if (part.getName().equals(component)) return part.getAnnotation(type);
         }
         return null;
     }
@@ -228,16 +237,55 @@ final class ConfigFields {
             case CHOICE -> next(field.schema().type(), current, direction);
             case INTEGER -> {
                 long now = current instanceof Number number ? number.longValue() : 0;
-                long next = now + (long) direction * (big ? 10 : 1);
+                long step = Math.max(1, Math.round(step(field)));
+                long next = Math.round(clamp(field, now, now + (double) direction * step * (big ? 10 : 1)));
                 yield field.schema().type() == int.class || field.schema().type() == Integer.class
                         ? (Object) (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, next)) : next;
             }
             case DECIMAL -> {
                 BigDecimal now = current instanceof Number number ? new BigDecimal(number.toString()) : BigDecimal.ZERO;
-                yield now.add(new BigDecimal(big ? "1" : "0.1").multiply(BigDecimal.valueOf(direction))).doubleValue();
+                BigDecimal step = BigDecimal.valueOf(step(field)).multiply(BigDecimal.valueOf(big ? 10 : 1));
+                double next = now.add(step.multiply(BigDecimal.valueOf(direction))).doubleValue();
+                yield BigDecimal.valueOf(clamp(field, now.doubleValue(), next)).stripTrailingZeros().doubleValue();
             }
             default -> null;
         };
+    }
+
+    /** One click's step: the key's {@link Menu.Range#step()}, or 1 for a whole number and 0.1 for a decimal. */
+    static double step(Field field) {
+        Menu.Range range = field.hint(Menu.Range.class);
+        if (range != null && range.step() > 0) return range.step();
+        return field.kind() == Kind.DECIMAL ? 0.1 : 1;
+    }
+
+    /**
+     * A stepped value kept inside the key's range. Stepping off the {@code none} value starts
+     * from the range's edge; stepping below the range lands on {@code none} when there is one.
+     */
+    static double clamp(Field field, double from, double to) {
+        Menu.Range range = field.hint(Menu.Range.class);
+        if (range == null) return to;
+        boolean hasNone = !Double.isNaN(range.none());
+        if (hasNone && from == range.none()) return to > from ? range.min() : range.max();
+        if (to < range.min()) return hasNone && from == range.min() ? range.none() : range.min();
+        if (to > range.max()) return range.max();
+        return to;
+    }
+
+    /** Whether a typed number may be written: inside the key's range, or its {@code none} value. */
+    static boolean allowed(Field field, double value) {
+        Menu.Range range = field.hint(Menu.Range.class);
+        if (!Double.isFinite(value)) return false;
+        if (range == null) return true;
+        if (!Double.isNaN(range.none()) && value == range.none()) return true;
+        return value >= range.min() && value <= range.max();
+    }
+
+    /** The range a typed number must be in, as the refusal says it. */
+    static String[] bounds(Field field) {
+        Menu.Range range = field.hint(Menu.Range.class);
+        return range == null ? new String[]{"", ""} : new String[]{number(range.min()), number(range.max())};
     }
 
     /** The constant after (or before) {@code current}, wrapping, as the file writes it. */
@@ -289,16 +337,37 @@ final class ConfigFields {
         return key.replace('-', ' ').replace('_', ' ').toUpperCase(Locale.ROOT);
     }
 
+    /** What a key is called: its {@link Menu.Label}, or its YAML key in words. In capitals. */
+    static String label(Field field) {
+        Menu.Label label = field.hint(Menu.Label.class);
+        return label != null && !label.value().isBlank() ? label.value().toUpperCase(Locale.ROOT) : title(field.name());
+    }
+
+    /** A constant or a key in words, capitalised: {@code soft-reset} as {@code Soft reset}. */
+    static String words(String written) {
+        String spaced = written.replace('-', ' ').replace('_', ' ').toLowerCase(Locale.ROOT).trim();
+        return spaced.isEmpty() ? spaced : Character.toUpperCase(spaced.charAt(0)) + spaced.substring(1);
+    }
+
+    private static String number(double value) {
+        if (value >= 1e15 || value <= -1e15) return value > 0 ? "∞" : "-∞";
+        return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
+    }
+
     /** The value, coloured by what it is; anything typed is shown as written, never parsed. */
     static String display(Field field, @Nullable Object value) {
         return switch (field.kind()) {
             case SECTION -> Phrases.tr("{info}{0} {letters}settings", field.schema().nested() == null ? 0
                     : field.schema().nested().fields().size());
             case TOGGLE -> Boolean.TRUE.equals(value) ? Phrases.tr("{success}Enabled") : Phrases.tr("{error}Disabled");
-            case CHOICE -> value instanceof Enum<?> constant ? "{highlight}" + written(constant) : none();
-            case INTEGER, DECIMAL -> value instanceof Number number
-                    ? "{info}" + new BigDecimal(number.toString()).stripTrailingZeros().toPlainString() : none();
-            case TIME -> "{info}" + TimeFormats.render(duration(field, value), TimeFormats.Style.FULL) + " ⌚";
+            case CHOICE -> value instanceof Enum<?> constant ? "{highlight}" + words(constant.name()) : none();
+            case INTEGER, DECIMAL -> number(field, value);
+            case TIME -> {
+                Menu.Range range = field.hint(Menu.Range.class);
+                if (range != null && value instanceof Number number && number.doubleValue() == range.none()) yield none();
+                Duration duration = duration(field, value);
+                yield duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT) + " ⌚";
+            }
             case MATERIAL -> value instanceof Material material ? "{highlight}" + material.name() : none();
             case TEXT -> value == null || value.toString().isEmpty() ? Phrases.tr("{muted}Empty")
                     : "{letters}" + Values.inert(cut(value.toString()));
@@ -306,6 +375,29 @@ final class ConfigFields {
             case LOCKED -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
             case ENTRIES -> entries(size(value));
         };
+    }
+
+    /** A number, read as its {@link Menu.Format} says. */
+    private static String number(Field field, @Nullable Object value) {
+        if (!(value instanceof Number number)) return none();
+        Menu.Range range = field.hint(Menu.Range.class);
+        if (range != null && number.doubleValue() == range.none()) return none();
+        BigDecimal amount = new BigDecimal(number.toString()).stripTrailingZeros();
+        Menu.Format format = field.hint(Menu.Format.class);
+        Menu.Style style = format == null ? Menu.Style.NUMBER : format.value();
+        return switch (style) {
+            case MONEY -> "{success}" + Values.inert(money(amount));
+            case PERCENT -> "{info}" + amount.toPlainString() + "%";
+            case NUMBER -> "{info}" + amount.toPlainString();
+        };
+    }
+
+    private static String money(BigDecimal amount) {
+        try {
+            return Economy.format(null, amount);
+        } catch (RuntimeException noEconomy) {
+            return amount.toPlainString();
+        }
     }
 
     /** How many entries a block holds. */
@@ -333,8 +425,16 @@ final class ConfigFields {
         };
     }
 
-    /** The icon of a button. */
+    /** The icon of a button: a switch's dye, a material itself, its {@link Menu.Icon}, or one chosen from its name. */
     static String icon(Field field, @Nullable Object value) {
+        if (field.kind() == Kind.TOGGLE) return Boolean.TRUE.equals(value) ? "LIME_DYE" : "GRAY_DYE";
+        if (field.kind() == Kind.MATERIAL && value instanceof Material material && material.isItem() && !material.isAir()) {
+            return material.name();
+        }
+        Menu.Icon icon = field.hint(Menu.Icon.class);
+        if (icon != null && !icon.value().isBlank()) return icon.value();
+        String named = named(field.name());
+        if (named != null && field.kind() != Kind.LOCKED) return named;
         return switch (field.kind()) {
             case SECTION -> "BOOKSHELF";
             case ENTRIES -> "CHEST";
@@ -343,15 +443,52 @@ final class ConfigFields {
             case INTEGER, DECIMAL -> "PAPER";
             case TIME -> "CLOCK";
             case TEXT -> "NAME_TAG";
-            case MATERIAL -> value instanceof Material material && material.isItem() && !material.isAir()
-                    ? material.name() : "BARRIER";
+            case MATERIAL -> "BARRIER";
             case LINES -> "WRITABLE_BOOK";
             case LOCKED -> "STRUCTURE_VOID";
         };
     }
 
+    /** Words in a key that say what it is about, and the item that shows it. First match wins. */
+    private static final List<String[]> NAMED = List.of(
+            new String[]{"price,cost,fee,tax,money,balance,pay,reward,worth,bet", "GOLD_NUGGET"},
+            new String[]{"percent,chance,ratio,rate,multiplier,odds", "EXPERIENCE_BOTTLE"},
+            new String[]{"cooldown,delay,duration,time,seconds,minutes,hours,ticks,interval,timeout,period", "CLOCK"},
+            new String[]{"radius,distance,range,height,size", "COMPASS"},
+            new String[]{"max,limit,cap,amount,count,per,min", "HOPPER"},
+            new String[]{"sound,volume,pitch", "NOTE_BLOCK"},
+            new String[]{"particle,particles,effect,effects,glow", "BLAZE_POWDER"},
+            new String[]{"world,worlds,region,regions", "GRASS_BLOCK"},
+            new String[]{"broadcast,announce,announcement,notify,notification,alert", "BELL"},
+            new String[]{"message,messages,chat,text,title,prefix,format", "OAK_SIGN"},
+            new String[]{"debug,log,logs,metrics", "REDSTONE_TORCH"},
+            new String[]{"language,lang,locale", "BOOK"},
+            new String[]{"database,storage,redis,mysql,cache,sync", "ENDER_CHEST"},
+            new String[]{"permission,permissions,rank,ranks", "TRIPWIRE_HOOK"},
+            new String[]{"command,commands", "COMMAND_BLOCK"},
+            new String[]{"webhook,discord,url,link", "PAPER"},
+            new String[]{"teleport,spawn,location,warp", "ENDER_PEARL"},
+            new String[]{"item,items,material,icon", "ITEM_FRAME"},
+            new String[]{"update,updates,version", "ANVIL"});
+
+    /** The item a key's name suggests, or {@code null} when no word in it does. */
+    static @Nullable String named(String key) {
+        for (String word : key.toLowerCase(Locale.ROOT).split("[-_.]")) {
+            for (String[] entry : NAMED) {
+                for (String candidate : entry[0].split(",")) {
+                    if (candidate.equals(word)) return entry[1];
+                }
+            }
+        }
+        return null;
+    }
+
     /** What the clicks on a button do, one {@code ➥} line each. */
     static String hint(Field field) {
+        if (field.kind() == Kind.INTEGER || field.kind() == Kind.DECIMAL) {
+            BigDecimal step = BigDecimal.valueOf(step(field));
+            return Lines.join(numbers(step, step.multiply(BigDecimal.TEN)));
+        }
         return hint(field.kind());
     }
 
@@ -362,19 +499,61 @@ final class ConfigFields {
             case TOGGLE -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}switch"));
             case CHOICE -> List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next"),
                     Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"));
-            case INTEGER -> numbers("1", "10");
-            case DECIMAL -> numbers("0.1", "1");
+            case INTEGER, DECIMAL -> numbers(BigDecimal.ONE, BigDecimal.TEN);
             case TIME, TEXT, MATERIAL, LINES -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}change"));
             case LOCKED -> List.of(Phrases.tr("{letters_black}Edit it with {letters}/exylialib editor{letters_black}."));
         };
         return Lines.join(lines);
     }
 
-    private static List<String> numbers(String step, String big) {
-        return List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}+{0}", step),
-                Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}-{0}", step),
-                Phrases.tr("{warning}➥ Shift-click {letters_black}» {letters}±{0}", big),
+    private static List<String> numbers(BigDecimal step, BigDecimal big) {
+        String small = step.stripTrailingZeros().toPlainString();
+        return List.of(Phrases.tr("{warning}➥ Left / Right-click {letters_black}» {letters}+{0} / -{0}", small),
+                Phrases.tr("{warning}➥ Shift-click {letters_black}» {letters}±{0}", big.stripTrailingZeros().toPlainString()),
                 Phrases.tr("{warning}➥ Press Q {letters_black}» {letters}type a value"));
+    }
+
+    /**
+     * A key's Information block: its {@link Menu.About}, or the first sentence of its comment,
+     * wrapped. Nothing when it has neither.
+     */
+    static String about(Field field) {
+        Menu.About about = field.hint(Menu.About.class);
+        if (about != null) return block(List.of(about.value()));
+        return summary(field.schema().comments());
+    }
+
+    /** Lines a plugin wrote for the screen, as an Information block; nothing when there are none. */
+    static String block(List<String> lines) {
+        List<String> shown = new ArrayList<>();
+        for (String line : lines) {
+            if (!line.isBlank()) shown.add(" {letters_black}▎ {letters}" + line);
+        }
+        if (shown.isEmpty()) return Lines.OMIT;
+        List<String> out = new ArrayList<>();
+        out.add(Phrases.tr("{secondary}Information:"));
+        out.addAll(shown);
+        out.add("");
+        return Lines.join(out);
+    }
+
+    /** The first sentence of a comment, wrapped, as an Information block; nothing when undocumented. */
+    static String summary(List<String> comments) {
+        List<String> prose = new ArrayList<>();
+        for (String comment : comments) {
+            if (!comment.isBlank()) prose.add(comment.trim());
+        }
+        if (prose.isEmpty()) return Lines.OMIT;
+        String text = String.join(" ", prose);
+        java.util.regex.Matcher end = java.util.regex.Pattern.compile("[.!?](\\s|$)").matcher(text);
+        if (end.find()) text = text.substring(0, end.start() + 1);
+        List<String> lines = new ArrayList<>();
+        lines.add(Phrases.tr("{secondary}Information:"));
+        for (String line : Lines.split(Lines.wrap(text, 34))) {
+            lines.add(" {letters_black}▎ {letters}" + Values.inert(line));
+        }
+        lines.add("");
+        return Lines.join(lines);
     }
 
     /** The comment lines as an Information block ending in a blank line; nothing when undocumented. */

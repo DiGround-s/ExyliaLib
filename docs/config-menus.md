@@ -96,24 +96,109 @@ a plugin stores itself (`entries(...)`) stay in the web editor.
 
 ## The screens
 
+Laid out the way the hand-made admin screens are (ExyliaMines, ExyliaMarket's
+`/marketadmin`): a header on top, cards centred on their row, the screen cut
+to the rows it needs, BACK in the middle of the bottom row. *Since 1.449.0.*
+
 1. **Plugins** (54, paginated): one book per plugin, its version and how many
    files it has. A command opens it, so ESC closes it.
-2. **Files** (54, paginated): one per file, with its header comment. Skipped
-   when the plugin has a single file.
-3. **Section** (54, paginated): one button per key of a section, in the
-   record's order. A nested record is a button that opens its own page; BACK
-   returns to the section above, then to the files, then to the plugins.
+2. **A plugin's files** (hub): one card per settings file and content file,
+   with its header comment. Skipped when the plugin has a single file.
+3. **A file's pages** (hub): one card per page, each with the first four
+   values it holds, live. Skipped when the file has a single page.
+4. **A page**: a header (the page's card), then one button per key, centred.
+   A nested section is a button opening its own page.
 
-Every button shows the key's `@Comment` lines as *Information* and its value
-as *Status*. The lists are lambdas over `ConfigFile.get()`: a value changed in
-the YAML and reloaded shows on an open screen within a second.
+```
+A file's hub (45)            A page with 3 keys (36)
+. . . . H . . . .            . . . . H . . . .      H  header (the file / the page)
+. . . . . . . . .            . . K . K . K . .      C  a page's card
+. C . C . C . C .            . . . . . . . . .      K  a key
+. . . . . . . . .            . . . . B . . . .      B  BACK
+. . . . B . . . .
+```
+
+Buttons per row follow the house rule: 1 → 13, 2 → 12/14, 3 → 11/13/15,
+4 → 10/12/14/16, 5 to 7 side by side. Eight keys are two rows of four. A page
+holds three rows (21 keys) before it pages; a hub, two rows of cards.
+
+### What goes on which card
+
+Without annotations, a file is grouped the way it is written:
+
+| In the record | On screen |
+| --- | --- |
+| keys at the root | a **General** card |
+| each section (nested record) at the root | a card of its own |
+| each map or list of entries at the root | a card that opens the list |
+| a section further down | a button on its parent's page |
+
+A button is named after its key in capitals (`min-distance` reads
+`MIN DISTANCE`), its *Information* is the first sentence of its `@Comment`,
+and its icon is chosen from the words in its key (`price`, `fee` → gold
+nugget; `cooldown`, `delay` → clock; `max`, `limit` → hopper; `radius` →
+compass; `sound` → note block...), or from its type. A switch is a lime or gray
+dye; a `Material` shows itself.
+
+### Annotations
+
+`net.exylia.lib.config.Menu` holds optional annotations that make a record read
+like a hand-made screen. None changes the YAML.
+
+| Annotation | On | Does |
+| --- | --- | --- |
+| `@Menu.Label("Listing fee")` | key, section, record type | the name on screen (drawn in capitals); on the root record, the file's |
+| `@Menu.Icon("GOLD_NUGGET")` | key, section, record type | the button's item; on the root record, the file header's |
+| `@Menu.About({"line", "line"})` | key, section, record type | the *Information* lines, palette tokens allowed; the `@Comment` stays the owner's manual |
+| `@Menu.Page("fees")` | key | puts the key on that page, whatever section it is written in |
+| `@Menu.Pages({@Menu.Card(...)})` | any record of the file | describes the pages: `id`, `label`, `icon`, `about` |
+| `@Menu.Format(Menu.Style.MONEY)` | number | reads as money (`Economy.format`, default currency) or `PERCENT` (`5%`) |
+| `@Menu.Range(min, max, step, none)` | number, `@Time` number | clicks stay inside `[min, max]`, a typed value outside is refused; `step` per click (shift ×10); `none` (such as `-1`) is also accepted and reads *None* |
+| `@Menu.Hidden` | key | left out of the screens (still in the file and the web editor) |
+
+A section whose keys all went to pages has no card of its own. Pages are listed
+in the order their first key is declared.
+
+```java
+@Menu.Label("Auction house")
+@Menu.Icon("BARREL")
+@Menu.About({"Players list items at a fixed price", "and buy from each other."})
+@Menu.Pages({
+        @Menu.Card(id = "fees", label = "Fees & tax", icon = "GOLD_NUGGET",
+                about = {"What a listing costs to put up", "and what a sale pays the server."}),
+        @Menu.Card(id = "limits", label = "Limits", icon = "CHEST",
+                about = {"How many listings, how cheap or", "dear, and for how long."})})
+public record AuctionHouseSettings(
+        @Menu.Page("fees") @Menu.Label("Listing fee") @Menu.Icon("PAPER")
+        @Menu.About({"Charged to the seller when a listing", "goes up, as a share of its price."})
+        @Menu.Format(Menu.Style.PERCENT) @Menu.Range(min = 0, max = 100, step = 0.5)
+        @Comment("Percent of the price charged when an item is listed. Never refunded.")
+        double listingFeePercent,
+
+        @Menu.Page("limits") @Menu.Label("Highest price") @Menu.Icon("GOLD_BLOCK")
+        @Menu.About({"The most a listing may ask for.", "{highlight}-1 {letters}removes the ceiling."})
+        @Menu.Format(Menu.Style.MONEY) @Menu.Range(min = 0, max = 1e12, none = -1)
+        double maxPrice,
+
+        @Menu.Page("limits") @Menu.Label("Listing time")
+        @Time(Time.Unit.HOURS) @Menu.Range(min = 1, max = 8760)
+        int listingHours) {
+    ...
+}
+```
+
+That is ExyliaMarket's auction-house *Fees* and *Limits* screens, drawn from
+the record with no menu file and no code of its own.
+
+The lists are lambdas over `ConfigFile.get()`: a value changed in the YAML and
+reloaded shows on an open screen within a second.
 
 | Type | Control | Clicks |
 | --- | --- | --- |
 | `boolean` | switch | any click flips it |
 | enum | choice | left next, right previous, wrapping |
-| `int`, `long` | stepper | left +1, right −1, shift ±10, Q types a value |
-| `double`, `float` | stepper | left +0.1, right −0.1, shift ±1, Q types a value |
+| `int`, `long` | stepper | left/right ±step (1), shift ±10 steps, Q types a value |
+| `double`, `float` | stepper | left/right ±step (0.1), shift ±10 steps, Q types a value |
 | `Duration`, `@Time` number | length of time | asks with `inputs().duration`, prefilled |
 | `String` | text | asks with `inputs().text`, prefilled |
 | `Material` | icon | the icon picker |
@@ -124,7 +209,7 @@ the YAML and reloaded shows on an open screen within a second.
 
 A map or a list of a settings file (since 1.447.0) opens the content screens
 below, written through the same `ConfigFile` and binder. BACK from it returns
-to the record screen it was opened from.
+to the page its button is on, or to the file's hub.
 
 ## Content screens
 

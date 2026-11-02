@@ -1,8 +1,8 @@
-# One section of a settings file: a button per key, drawn from the file's record.
-# Values: %cfg_plugin% %cfg_where% %cfg_back_to%
+# One page of a settings file: a header, then a button per key, centred and cut to size.
+# Values: %cfg_plugin% %cfg_title% %cfg_where% %cfg_back_to% %cfg_head_icon% %cfg_head_name% %cfg_head_lore%
 # Per row: %cfg_key% %cfg_name% %cfg_icon% %cfg_value% %cfg_about% %cfg_hint%
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
-title: '{primary}&lНАСТРОЙКИ {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
+title: '{primary}&l%cfg_title% {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
 size: 54
 type: PAGINATION
 open_sounds:
@@ -16,15 +16,10 @@ filler:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
   pagination:
-    material: LIGHT_GRAY_STAINED_GLASS_PANE
-    hide_tooltip: false
-    name: '{muted}Больше настроек нет'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}Здесь всё содержимое раздела.'
-      - ''
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
 pagination:
-  slots: '0-35'
+  slots: '10-16'
   item_template:
     material: '%cfg_icon%'
     name: '{primary}&l%cfg_name%'
@@ -87,6 +82,14 @@ pagination:
         - ' {letters_black}▎ {letters}Страница {info}%current_page%{letters_black}/{info}%total_pages%'
         - ''
 items:
+  header:
+    slot: 4
+    material: '%cfg_head_icon%'
+    name: '{primary}&l%cfg_head_name%'
+    lore:
+      - ''
+      - '%cfg_head_lore%'
+      - ''
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"

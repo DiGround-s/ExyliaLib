@@ -1,8 +1,8 @@
-# One plugin's settings files.
-# Values: %cfg_plugin%
-# Per row: %cfg_file_id% %cfg_file_name% %cfg_file_path% %cfg_file_keys% %cfg_file_about%
+# A hub of cards, centred and cut to size: a plugin's settings files, or the pages of one file.
+# Values: %cfg_plugin% %cfg_title% %cfg_where% %cfg_back_to% %cfg_head_icon% %cfg_head_name% %cfg_head_lore%
+# Per card: %cfg_card% %cfg_card_icon% %cfg_card_name% %cfg_card_about% %cfg_card_status%
 # DO NOT EDIT — REGENERATED ON EVERY STARTUP.
-title: '{primary}&lНАСТРОЙКИ {letters_black}» {highlight}%cfg_plugin% {muted}%current_page%/%total_pages%'
+title: '{primary}&l%cfg_title% {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
 size: 54
 type: PAGINATION
 open_sounds:
@@ -16,43 +16,49 @@ filler:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
   pagination:
-    material: LIGHT_GRAY_STAINED_GLASS_PANE
-    hide_tooltip: false
-    name: '{muted}Больше файлов нет'
-    lore:
-      - ''
-      - ' {letters_black}▎ {letters}Здесь все файлы настроек плагина.'
-      - ''
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
 pagination:
-  slots: '0-35'
+  slots: '19-25'
   item_template:
-    material: BOOK
-    name: '{primary}&l%cfg_file_name%'
+    material: '%cfg_card_icon%'
+    name: '{primary}&l%cfg_card_name%'
     lore:
       - ''
-      - '%cfg_file_about%'
+      - '%cfg_card_about%'
       - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Файл {letters_black}» {info}%cfg_file_path%'
-      - ' {letters_black}▎ {letters}Настройки {letters_black}» {info}%cfg_file_keys%'
+      - '%cfg_card_status%'
       - ''
       - '{warning}➥ Нажмите, чтобы открыть'
       - ''
     actions:
-      - 'exylialib:config_file %cfg_file_id%'
+      - 'exylialib:config_page %cfg_card%'
+  file_template:
+    material: '%cfg_card_icon%'
+    name: '{primary}&l%cfg_card_name%'
+    lore:
+      - ''
+      - '%cfg_card_about%'
+      - '{secondary}Состояние:'
+      - '%cfg_card_status%'
+      - ''
+      - '{warning}➥ Нажмите, чтобы открыть'
+      - ''
+    actions:
+      - 'exylialib:config_file %cfg_card%'
   content_template:
-    material: CHEST
-    name: '{primary}&l%cfg_file_name%'
+    material: '%cfg_card_icon%'
+    name: '{primary}&l%cfg_card_name%'
     lore:
       - ''
-      - '%cfg_file_about%'
+      - '%cfg_card_about%'
       - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Контент {letters_black}» {info}%cfg_file_path%'
-      - ' {letters_black}▎ {letters}Записи {letters_black}» {info}%cfg_file_keys%'
+      - '%cfg_card_status%'
       - ''
       - '{warning}➥ Нажмите, чтобы открыть'
       - ''
     actions:
-      - 'exylialib:config_yaml %cfg_file_id%'
+      - 'exylialib:config_yaml %cfg_card%'
   navigation:
     previous:
       slot: 48
@@ -73,6 +79,14 @@ pagination:
         - ' {letters_black}▎ {letters}Страница {info}%current_page%{letters_black}/{info}%total_pages%'
         - ''
 items:
+  header:
+    slot: 4
+    material: '%cfg_head_icon%'
+    name: '{primary}&l%cfg_head_name%'
+    lore:
+      - ''
+      - '%cfg_head_lore%'
+      - ''
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
