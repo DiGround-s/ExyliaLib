@@ -27,7 +27,8 @@ items:
       - ''
       - '{secondary}Durum:'
       - ' {letters_black}▎ {letters}Kozmetikler {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Çevrimiçi oyuncu {letters_black}» {info}%admin_online%'
+      - ' {letters_black}▎ {letters}Kullanımda {letters_black}» {info}%admin_in_use% {letters_black}/ {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
   catalogue:
     group: cards
@@ -55,9 +56,10 @@ items:
       - '{secondary}Bilgi:'
       - ' {letters_black}▎ {letters}Anahtarlar, kilit açmalar ve her'
       - ' {letters_black}▎ {letters}çevrimiçi oyuncunun {highlight}kuşandığı{letters}.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Çevrimiçi {letters_black}» {info}%admin_online%'
+      - '%admin_players_status%'
+      - '%admin_players_status%{secondary}Durum:'
+      - ' {letters_black}▎ {letters}Şu an kuşanan {letters_black}» {info}%admin_wearing% {letters_black}/ {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
       - '{warning}➥ Göz atmak için tıkla'
       - ''

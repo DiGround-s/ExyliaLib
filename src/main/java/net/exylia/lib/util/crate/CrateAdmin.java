@@ -55,6 +55,7 @@ public final class CrateAdmin {
     private volatile @Nullable Function<UUID, String> equipped;
     private volatile @Nullable Consumer<Player> unequip;
     private volatile @Nullable Consumer<Player> favourites;
+    private volatile @Nullable AdminScreens.Activity activity;
 
     CrateAdmin(@NotNull Plugin plugin, @NotNull PluginCrates crates) {
         this.crates = crates;
@@ -113,6 +114,27 @@ public final class CrateAdmin {
     }
 
     /**
+     * The plugin's own live number on the hub, in place of how many players
+     * have something equipped: what the cosmetics are doing right now.
+     *
+     * <pre>{@code
+     * crates.admin().activity(() -> lines().menu().emotingNow(), stage::performing);
+     * }</pre>
+     *
+     * <p>Without it the hub counts the players wearing one (from
+     * {@link #equipped}); with neither, the line is not drawn.
+     *
+     * @param label what it counts, in the server's language, such as "Emoting now"; read on each opening
+     * @param count the number; read every second while the hub is open, on the viewer's thread, from memory only
+     * @return this
+     * @since 1.450.0
+     */
+    public @NotNull CrateAdmin activity(@NotNull Supplier<String> label, @NotNull Supplier<Integer> count) {
+        this.activity = new AdminScreens.Activity(label, count);
+        return this;
+    }
+
+    /**
      * Opens the hub. The crate must be started.
      *
      * @param admin who looks; must hold the permission, checked by the caller's command
@@ -122,6 +144,6 @@ public final class CrateAdmin {
     }
 
     AdminScreens.Hooks hooks() {
-        return new AdminScreens.Hooks(permission, showcases, preview, equipped, unequip, favourites);
+        return new AdminScreens.Hooks(permission, showcases, preview, equipped, unequip, favourites, activity);
     }
 }

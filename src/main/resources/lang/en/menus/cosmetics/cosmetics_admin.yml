@@ -4,6 +4,8 @@
 # Every cosmetic plugin built on the library's crate shares these screens.
 #
 # Values: %admin_title% %admin_catalogue% %admin_online% %admin_showcases% %admin_blocks%
+# %admin_in_use% %admin_wearing% (players with one on), %admin_activity_label% %admin_activity%
+# (the plugin's own live number); a line naming a value the plugin does not give is not drawn.
 title: '{primary}&lADMIN {letters_black}» {highlight}%admin_title%'
 size: 45
 type: SIMPLE
@@ -33,7 +35,8 @@ items:
       - ''
       - '{secondary}Status:'
       - ' {letters_black}▎ {letters}Cosmetics {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Players online {letters_black}» {info}%admin_online%'
+      - ' {letters_black}▎ {letters}In use {letters_black}» {info}%admin_in_use% {letters}of {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
   catalogue:
     group: cards
@@ -61,9 +64,10 @@ items:
       - '{secondary}Information:'
       - ' {letters_black}▎ {letters}Keys, unlocks and what each'
       - ' {letters_black}▎ {letters}player online has {highlight}equipped{letters}.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Online {letters_black}» {info}%admin_online%'
+      - '%admin_players_status%'
+      - '%admin_players_status%{secondary}Status:'
+      - ' {letters_black}▎ {letters}Wearing one now {letters_black}» {info}%admin_wearing% {letters}of {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
       - '{warning}➥ Click to browse'
       - ''

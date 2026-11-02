@@ -490,7 +490,8 @@ crates.admin()
         .showcases(showcases)                          // a SHOWCASES card
         .preview((viewer, id) -> preview(viewer, id))  // a PREVIEW button
         .equipped(uuid -> players.cached(uuid).effect(), players::clearEffect)
-        .favourites(players::clearFavourites);
+        .favourites(players::clearFavourites)
+        .activity(() -> lines().menu().emotingNow(), stage::performing);  // optional, 1.450.0
 
 // The admin command with no arguments, for a player; console keeps the chat output.
 crates.admin().open(player);
@@ -512,6 +513,15 @@ token button only shows when `CrateCatalogue.token` answers an item. The hooks
 are read on every opening. `equipped`'s lookup runs every second on the
 viewer's thread while a screen shows it, so it reads memory only; taking off
 and clearing favourites run on the target's own thread.
+
+The hub's numbers only ever describe the plugin, never the server (1.450.0).
+With `equipped` the header reads **In use 12 of 40** and the PLAYERS card
+**Wearing one now 12 of 40**: online players with something on, of everyone
+online. `activity(label, count)` puts the plugin's own live number in the
+header instead (and adds it to the PLAYERS card), such as Emotes' **Emoting
+now**: the label is the plugin's own message, read on each opening; the count
+is read every second, from memory only. With neither hook those lines are not
+drawn. `%admin_online%` still holds the players online for a restyled screen.
 
 The screens are the library's, under `plugins/ExyliaLib/lang/<code>/menus/cosmetics/`
 (admin screens: rewritten from the jar on every start), and their prompts are

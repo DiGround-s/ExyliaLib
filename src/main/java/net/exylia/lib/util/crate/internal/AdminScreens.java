@@ -8,6 +8,7 @@ import net.exylia.lib.config.Languages;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.PluginInputs;
 import net.exylia.lib.settings.internal.SettingsMenu;
+import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.text.Values;
@@ -65,12 +66,23 @@ public final class AdminScreens<T> {
      * @param equipped   the id a player has on, from memory, or {@code null}
      * @param unequip    takes it off, on that player's thread, or {@code null}
      * @param favourites empties a player's favourites, on that player's thread, or {@code null}
+     * @param activity   the plugin's own live number for the hub, or {@code null}
      */
     public record Hooks(@NotNull String permission, @Nullable Places showcases,
                         @Nullable BiConsumer<Player, String> preview,
                         @Nullable Function<UUID, String> equipped,
                         @Nullable Consumer<Player> unequip,
-                        @Nullable Consumer<Player> favourites) {
+                        @Nullable Consumer<Player> favourites,
+                        @Nullable Activity activity) {
+    }
+
+    /**
+     * A number that says what the cosmetics are doing right now.
+     *
+     * @param label what it counts, in the server's language
+     * @param count the number, from memory; read every second while the hub is open
+     */
+    public record Activity(@NotNull Supplier<String> label, @NotNull Supplier<Integer> count) {
     }
 
     /**
@@ -171,6 +183,15 @@ public final class AdminScreens<T> {
         Hooks now = hooks.get();
         Map<String, Object> context = base();
         context.put("admin_online", (Supplier<Integer>) () -> plugin.getServer().getOnlinePlayers().size());
+        // Every number here must say something about this plugin: a line whose
+        // hook was not given is not drawn rather than showing a meaningless 0.
+        Activity activity = now.activity();
+        Supplier<Integer> wearing = now.equipped() == null ? null : this::wearing;
+        context.put("admin_wearing", wearing == null ? Lines.OMIT : wearing);
+        context.put("admin_in_use", wearing == null || activity != null ? Lines.OMIT : wearing);
+        context.put("admin_activity_label", activity == null ? Lines.OMIT : activity.label().get());
+        context.put("admin_activity", activity == null ? Lines.OMIT : activity.count());
+        context.put("admin_players_status", wearing == null && activity == null ? Lines.OMIT : "");
         context.put("admin_showcases", (Supplier<Integer>) () -> now.showcases() == null ? 0 : now.showcases().all().get().size());
         context.put("admin_blocks", (Supplier<Integer>) () -> crates.boundBlocks().size());
         context.put("admin_has_showcases", now.showcases() != null);
@@ -488,6 +509,17 @@ public final class AdminScreens<T> {
             if (prizes.idOf(reward).equals(wanted)) return reward;
         }
         return null;
+    }
+
+    /** Online players with something on. */
+    private int wearing() {
+        Function<UUID, String> equipped = hooks.get().equipped();
+        if (equipped == null) return 0;
+        int wearing = 0;
+        for (Player online : plugin.getServer().getOnlinePlayers()) {
+            if (equipped.apply(online.getUniqueId()) != null) wearing++;
+        }
+        return wearing;
     }
 
     private String equipped(UUID player) {

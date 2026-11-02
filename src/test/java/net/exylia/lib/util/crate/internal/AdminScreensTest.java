@@ -58,6 +58,11 @@ class AdminScreensTest {
                     if (key.endsWith(".slot") || key.endsWith(".actions") || key.endsWith(".condition")) {
                         assertEquals(english.get(key), translated.get(key), code + " " + id + " " + key);
                     }
+                    // A line drawn only when its value is given must name the same value everywhere.
+                    if (key.endsWith(".lore")) {
+                        assertEquals(placeholders(english.getStringList(key)), placeholders(translated.getStringList(key)),
+                                code + " " + id + " " + key);
+                    }
                 }
             }
         }
@@ -69,6 +74,15 @@ class AdminScreensTest {
         assertEquals("Arrows", AdminScreens.title("ExyliaArrows"));
         assertEquals("Exylia", AdminScreens.title("Exylia"));
         assertEquals("Shop", AdminScreens.title("Shop"));
+    }
+
+    private static List<String> placeholders(List<String> lore) {
+        List<String> found = new java.util.ArrayList<>();
+        for (String line : lore) {
+            java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("%[a-z_]+%").matcher(line);
+            while (matcher.find()) found.add(matcher.group());
+        }
+        return found;
     }
 
     private static YamlConfiguration packaged(String code, String id) throws Exception {

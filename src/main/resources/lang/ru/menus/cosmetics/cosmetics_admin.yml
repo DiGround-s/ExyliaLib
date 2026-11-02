@@ -27,7 +27,8 @@ items:
       - ''
       - '{secondary}Состояние:'
       - ' {letters_black}▎ {letters}Косметика {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Игроков онлайн {letters_black}» {info}%admin_online%'
+      - ' {letters_black}▎ {letters}Используется {letters_black}» {info}%admin_in_use% {letters}из {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
   catalogue:
     group: cards
@@ -55,9 +56,10 @@ items:
       - '{secondary}Информация:'
       - ' {letters_black}▎ {letters}Ключи, открытия и что надето'
       - ' {letters_black}▎ {letters}на каждом игроке {highlight}онлайн{letters}.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Онлайн {letters_black}» {info}%admin_online%'
+      - '%admin_players_status%'
+      - '%admin_players_status%{secondary}Состояние:'
+      - ' {letters_black}▎ {letters}Сейчас носят {letters_black}» {info}%admin_wearing% {letters}из {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
       - '{warning}➥ Нажми, чтобы открыть'
       - ''

@@ -27,7 +27,8 @@ items:
       - ''
       - '{secondary}Status:'
       - ' {letters_black}▎ {letters}Cosméticos {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Jogadores online {letters_black}» {info}%admin_online%'
+      - ' {letters_black}▎ {letters}Em uso {letters_black}» {info}%admin_in_use% {letters}de {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
   catalogue:
     group: cards
@@ -55,9 +56,10 @@ items:
       - '{secondary}Informação:'
       - ' {letters_black}▎ {letters}Chaves, desbloqueios e o que cada'
       - ' {letters_black}▎ {letters}jogador online tem {highlight}equipado{letters}.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Online {letters_black}» {info}%admin_online%'
+      - '%admin_players_status%'
+      - '%admin_players_status%{secondary}Status:'
+      - ' {letters_black}▎ {letters}Usando agora {letters_black}» {info}%admin_wearing% {letters}de {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
       - '{warning}➥ Clique para navegar'
       - ''

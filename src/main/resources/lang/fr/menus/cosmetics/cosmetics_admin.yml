@@ -27,7 +27,8 @@ items:
       - ''
       - '{secondary}Statut :'
       - ' {letters_black}▎ {letters}Cosmétiques {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Joueurs en ligne {letters_black}» {info}%admin_online%'
+      - ' {letters_black}▎ {letters}Utilisés {letters_black}» {info}%admin_in_use% {letters}sur {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
   catalogue:
     group: cards
@@ -55,9 +56,10 @@ items:
       - '{secondary}Informations :'
       - ' {letters_black}▎ {letters}Clés, déblocages et ce que chaque'
       - ' {letters_black}▎ {letters}joueur en ligne a {highlight}équipé{letters}.'
-      - ''
-      - '{secondary}Statut :'
-      - ' {letters_black}▎ {letters}En ligne {letters_black}» {info}%admin_online%'
+      - '%admin_players_status%'
+      - '%admin_players_status%{secondary}Statut :'
+      - ' {letters_black}▎ {letters}Équipés en ce moment {letters_black}» {info}%admin_wearing% {letters}sur {info}%admin_online%'
+      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
       - ''
       - '{warning}➥ Clique pour parcourir'
       - ''
