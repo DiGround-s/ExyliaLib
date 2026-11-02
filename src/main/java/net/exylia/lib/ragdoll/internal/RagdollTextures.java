@@ -78,8 +78,10 @@ public final class RagdollTextures {
         });
         if (added[0]) {
             // Skins read before there was anywhere to look them up are looked
-            // up again the next time they are needed.
+            // up again the next time they are needed; the default skins extras
+            // wear are needed soon, so at once.
             SkinCache.stale();
+            net.exylia.lib.npc.PreviewSkins.rewarmDefaults();
         }
     }
 

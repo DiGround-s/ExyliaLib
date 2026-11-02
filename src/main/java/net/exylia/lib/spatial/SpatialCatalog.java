@@ -282,7 +282,7 @@ public final class SpatialCatalog {
         }
 
         private static final String INTRO_MORE =
-                "{letters}&lMore\n{letters_black}Look at an icon to read what it does · the words on top filter";
+                "{secondary_light}&lMore\\n{letters}Look at an icon to see what it does. The words on top filter.";
 
         public Words() {
             this("{success}&lSAVE", "{muted}Saved {success}✔", "{highlight}&lBUY & SAVE", "{warning}&lCONFIRM",
@@ -325,9 +325,9 @@ public final class SpatialCatalog {
                     "{error}🔒 {letters}%unlock%",
                     "{letters}%tab%", "{secondary_light}%tab%", "★",
                     "{error}&l✕ LEAVE", "{muted}? Help",
-                    "{highlight}&lYOUR COLLECTION\n{letters}Look at an item to read its card {letters_black}· {letters}click to try it",
-                    "{highlight}&lTRY IT ON\n{letters}What you click plays here at once {letters_black}· {letters}nothing is kept yet",
-                    "{highlight}&lKEEP IT\n{letters}This button equips it, or buys it first {letters_black}· {letters}sneak to leave",
+                    "{secondary_light}&lYour collection\\n{letters}Look at an item to read about it. Click it to try it.",
+                    "{secondary_light}&lTry it on\\n{letters}What you try shows here at once. Nothing is kept yet.",
+                    "{secondary_light}&lKeep it\\n{letters}This button equips it, or buys it first.",
                     INTRO_MORE);
         }
     }

@@ -272,6 +272,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // background reader that turns a skin into the colours a body is drawn
         // in before anybody dies in it.
         net.exylia.lib.ragdoll.internal.SkinCache.init(this);
+        // The default skins extras and preview bodies wear, read now so none is ever drawn in blocks.
+        net.exylia.lib.npc.PreviewSkins.warmDefaults();
         for (org.bukkit.entity.Player online : getServer().getOnlinePlayers()) {
             Tasks.of(this).runAtEntity(online, () -> net.exylia.lib.npc.PreviewSkins.remember(online));
         }

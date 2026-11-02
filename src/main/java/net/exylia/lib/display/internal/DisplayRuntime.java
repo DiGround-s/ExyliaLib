@@ -573,7 +573,7 @@ public final class DisplayRuntime {
     /** How many displays are on screen, for diagnostics. */
     /**
      * Where every live display a viewer sees within {@code radius} of {@code near} stands now, but those in
-     * {@code except}: {x, y, z, half its size} in the world, its pose's offset included. What a spatial menu's
+     * {@code except}: {x, y, z, half its size, 1 for a body's piece else 0} in the world, its pose's offset included. What a spatial menu's
      * preview watches to learn the shape of an effect as it plays. Since 1.454.0.
      */
     public static java.util.List<double[]> sample(Player viewer, Location near, double radius, java.util.Set<?> except) {
@@ -593,7 +593,11 @@ public final class DisplayRuntime {
                 z += pose.z();
                 size = Math.max(Math.abs(pose.scaleX()), Math.abs(pose.scaleY())) * 0.5;
             }
-            out.add(new double[]{x, y, z, Math.min(size, 1.5)});
+            // A body's piece (a ragdoll is built of player heads): what a preview measures an effect by.
+            DisplayModel shown = display.model();
+            boolean body = shown != null && shown.kind() == DisplayModel.Kind.ITEM && shown.item() != null
+                    && shown.item().getType() == org.bukkit.Material.PLAYER_HEAD;
+            out.add(new double[]{x, y, z, Math.min(size, 1.5), body ? 1 : 0});
         }
         return out;
     }

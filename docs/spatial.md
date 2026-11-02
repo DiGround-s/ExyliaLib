@@ -634,6 +634,32 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per
   sequence, facing, zone and scale.
 
+**Since 1.455.0** (after the third client test):
+
+- **Effects keep one size, from the first play on.** Before an effect is shown the first time, it is *rehearsed*:
+  played once as a miniature (×0.05) 48 blocks over the board, out of sight and earshot, while its pieces are
+  watched (`DisplayRuntime.sample`, which now marks a body's pieces). Its turn and its size are chosen from that,
+  so every visible play, the first included, looks the same. It is measured by its bodies (a ragdoll is built of
+  player heads) when it has them, with the farthest tenth left out: a crowd, a thrown part or a floating word does
+  not set its size. Only height fits it to `preview.zone`, at the 90th percentile, and never under 60 % of
+  `effect-scale` (`EffectView.MIN_SCALE`); wider than the zone, it spills out sideways rather than shrink. 1.454.0
+  learned from the first visible play and shrank down to 15 %, so a crowd made the next plays a miniature.
+  Particles cannot be scaled by the client: with the 60 % floor they stay in proportion.
+- **No body is ever built of blocks for want of a skin.** An extra with nobody to wear (a `[RAGDOLL] {crowd}` seat
+  with no spectator, a placed NPC with no skin, an account that cannot be read) wears one of vanilla's default
+  skins (`PreviewSkins.extra(seat)`), never `SkinCache.fallback()`'s block colours; every default skin's picture
+  is read when the library starts, so the first death already wears it. This holds for real kills too.
+- **The backdrop is a soft vignette:** 10 rings over 0.9 blocks by default (alpha steps of about 14).
+- **Icons in the colour of what they do:** an `ICONS` label `'{colour}|words'` (or `'{colour}glyph|words'`) draws its
+  glyph in that colour, bolder and larger under the crosshair. The shipped row: favourite `{highlight}`, unequip and
+  leave `{accent}`, revert and replay `{info}`, random `{secondary_light}`, crate `{success}`, help `{info_light}`.
+  The arc's page arrows are `{secondary_light}` and larger, the page line `{letters}`.
+- **The tour finds free room.** Each caption is measured, then set down at the nearest spot round its piece (the
+  layout's `at` only says which side first) where it, and its arrow, touch no piece of the board as the eyes see
+  it: tabs, title, description, every arc item at its hovered size, the button, the icons with their words, the
+  preview's zone. The arrow points at the piece's middle (an inner arc item, the body on the pedestal, a panel). The
+  continue line is one short line (`%dots%  Click: next · sneak: skip`), and captions are plain sentences.
+
 `theme.open-motion: RISE` (since 1.453.0; `POP` is the default and the old look) brings pieces in rising a
 little and settling, quickly. Bare panels (`frame: false`) draw their titles, buttons and words as written:
 one font on the board. The shipped layout sets `title-scale: 1.0`, quiet arrows (`‹ ›`), a page line of

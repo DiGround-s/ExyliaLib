@@ -156,7 +156,7 @@ public final class RagdollModel {
         }
         return net.exylia.lib.skull.Skulls.texture(net.exylia.lib.skull.SkullSource.player(name))
                 .handle((value, failure) -> value == null || failure != null
-                        ? of(SkinCache.fallback(), new ItemStack(Material.PLAYER_HEAD))
+                        ? net.exylia.lib.npc.PreviewSkins.extra(name.hashCode())
                         : ofTexture(value));
     }
 

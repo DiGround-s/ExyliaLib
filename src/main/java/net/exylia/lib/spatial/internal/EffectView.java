@@ -24,8 +24,10 @@ public final class EffectView {
     private static final double STEP = 15;
     /** Below this horizontal spread an effect has no direction worth turning for. */
     private static final double STILL = 0.08;
-    /** How far under the pedestal's top a fitted effect may reach. */
-    private static final double SINK = 0.12;
+    /** The least an effect is shrunk to fit: below this a body is too small to read. */
+    public static final double MIN_SCALE = 0.6;
+    /** How many body samples measure an effect by its bodies alone. */
+    private static final int MIN_BODY_SAMPLES = 20;
 
     /**
      * Chooses the view from {@code samples} ({x, y, z, half size} in the world) watched while the effect played
@@ -37,11 +39,16 @@ public final class EffectView {
     public static Tuning choose(List<double[]> samples, double[] base, float boardYaw, double played, boolean auto,
                                 double fixed, double[] zone) {
         if (samples.isEmpty()) return new Tuning(auto ? 0 : fixed, 1);
+        // Measured by its bodies when it has them (an effect is about who dies), the rest only when it has none,
+        // and with the far tenth left out: a crowd, a flying part or a floating word does not set its size.
+        List<double[]> bodies = new java.util.ArrayList<>();
+        for (double[] sample : samples) if (sample.length > 4 && sample[4] > 0) bodies.add(sample);
+        List<double[]> measured = trimmed(bodies.size() >= MIN_BODY_SAMPLES ? bodies : samples, base);
         double best = auto ? 0 : fixed;
         if (auto) {
             double bestScore = Double.NEGATIVE_INFINITY;
             for (double turn = -90; turn <= 90; turn += STEP) {
-                double[] spread = spread(samples, base, boardYaw, played, turn);
+                double[] spread = spread(measured, base, boardYaw, played, turn);
                 if (Math.sqrt(spread[0] + spread[1]) < STILL) {
                     best = 0;
                     break;
@@ -55,26 +62,23 @@ public final class EffectView {
             }
         }
         double scale = 1;
-        if (zone[0] > 0 && zone[1] > 0) {
-            double half = 0;
-            double top = 0;
-            double bottom = 0;
-            for (double[] sample : samples) {
-                double[] at = place(sample, base, boardYaw, played, best);
-                half = Math.max(half, Math.abs(at[0]) + sample[3]);
-                top = Math.max(top, at[1] + sample[3]);
-                bottom = Math.min(bottom, at[1] - sample[3]);
-            }
-            if (half > 0) scale = Math.min(scale, zone[0] / (2 * half));
-            // Its whole height, what falls under the pedestal's top included, inside the zone's.
-            if (top - bottom > 0) scale = Math.min(scale, zone[1] / (top - bottom));
-            // Little may fall under the pedestal's top: below it are the button and the words.
-            if (bottom < -SINK) scale = Math.min(scale, SINK / -bottom);
-            // ponytail: an effect that leaves for the sky (a body launched into orbit) is not shrunk past this; it
-            // may cross the words above for a moment. A per-effect preview scale would settle it if it matters.
-            scale = Math.max(0.15, scale);
+        if (zone[1] > 0) {
+            // Only its height fits it to the zone; wider than the zone, it spills out sideways rather than shrink.
+            List<Double> tops = new java.util.ArrayList<>();
+            for (double[] sample : measured) tops.add(place(sample, base, boardYaw, played, best)[1] + sample[3]);
+            java.util.Collections.sort(tops);
+            double top = tops.get((int) Math.floor((tops.size() - 1) * 0.9));
+            if (top > 0) scale = Math.clamp(zone[1] / top, MIN_SCALE, 1);
         }
         return new Tuning(best, scale);
+    }
+
+    /** The samples less the tenth that lie furthest from the base: the outliers. */
+    private static List<double[]> trimmed(List<double[]> samples, double[] base) {
+        if (samples.size() < 10) return samples;
+        List<double[]> sorted = new java.util.ArrayList<>(samples);
+        sorted.sort(java.util.Comparator.comparingDouble(s -> Math.hypot(Math.hypot(s[0] - base[0], s[2] - base[2]), s[1] - base[1])));
+        return sorted.subList(0, (int) Math.ceil(sorted.size() * 0.9));
     }
 
     /** {variance across the view, variance towards it} of the samples, the effect turned {@code turn}. */

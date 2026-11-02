@@ -686,8 +686,10 @@ final class Steps {
             // A body handed over by whoever played this (a placed NPC) starts
             // from its own size, outline and what it carries; the line still
             // has the last word on each.
+            // Nobody to wear (an extra in a preview, a crowd with no spectators): a vanilla default skin,
+            // never the block-built placeholder.
             RagdollModel base = worn != null ? worn : whose != null ? RagdollModel.of(whose)
-                    : RagdollModel.of(net.exylia.lib.ragdoll.internal.SkinCache.fallback(), null);
+                    : net.exylia.lib.npc.PreviewSkins.extra(Math.max(0, seat));
             RagdollModel model = base
                     .detail(detail)
                     .scale(scale * base.scaleFactor())

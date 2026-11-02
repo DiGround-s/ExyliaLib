@@ -15,7 +15,7 @@
 # At 4.5 blocks the board stays inside about 70° across and 38° top to bottom, above the floor, and
 # every line is drawn at least as large as theme.min-glyph-degrees reads from the eyes.
 # Every word is a %catalog_...% placeholder.
-menu-version: 3
+menu-version: 4
 title: '{primary}&lCOLLECTION'
 anchor:
   mode: FRONT
@@ -32,9 +32,9 @@ theme:
   min-glyph-degrees: 1.06
   text-scale: 0.42
   small-scale: 0.38
-  previous-arrow: '{letters}‹'
-  next-arrow: '{letters}›'
-  page-line: '{letters_black}%page% / %pages%'
+  previous-arrow: '{secondary_light}‹'
+  next-arrow: '{secondary_light}›'
+  page-line: '{letters}%page% {letters_black}/ {letters}%pages%'
   locked-marker: '{accent}🔒'
   equipped-marker: '{success}✔'
   intro-outline: '{secondary_light}'
@@ -59,7 +59,8 @@ panels:
     size: [2.128, 0.291]
     frame: false
     content: {type: ACTION}
-  # Icons; the words of the one looked at show right under it.
+  # Icons, each in the colour of what it does ('{colour}|words', or '{colour}glyph|words'); the words of the
+  # one looked at show right under it.
   icons:
     at: [0, -1.915, 0.2]
     size: [3.2, 0.246]
@@ -67,12 +68,12 @@ panels:
     content:
       type: ICONS
       buttons:
-        - {label: '%catalog_favourite%', action: favourite}
-        - {label: '%catalog_unequip%', action: unequip}
-        - {label: '%catalog_revert%', action: revert}
-        - {label: '✦|%catalog_crate%', action: crate}
-        - {label: '%catalog_help%', action: intro}
-        - {label: '%catalog_leave%', action: leave}
+        - {label: '{highlight}|%catalog_favourite%', action: favourite}
+        - {label: '{accent}|%catalog_unequip%', action: unequip}
+        - {label: '{info}|%catalog_revert%', action: revert}
+        - {label: '{success}✦|%catalog_crate%', action: crate}
+        - {label: '{info_light}|%catalog_help%', action: intro}
+        - {label: '{accent}|%catalog_leave%', action: leave}
   hint:
     at: [0, -1.344, 0.2]
     size: [5.6, 0.179]
@@ -128,5 +129,5 @@ backdrop:
   size: [8.288, 3.92]
   tint: '{primary}'
   alpha: 150
-  feather: 0.392
-  rings: 3
+  feather: 0.9
+  rings: 10

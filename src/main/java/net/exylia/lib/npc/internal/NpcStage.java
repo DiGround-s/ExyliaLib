@@ -76,7 +76,7 @@ interface NpcStage {
             return null;
         }
         RagdollModel model = (texture != null ? RagdollModel.ofTexture(texture)
-                : RagdollModel.of(SkinCache.fallback(), new ItemStack(Material.PLAYER_HEAD)))
+                : net.exylia.lib.npc.PreviewSkins.extra(0))
                 .scale(spec.scale())
                 .glow(spec.glow())
                 .carrying(spec.equipment().get(EquipmentSlot.HAND),

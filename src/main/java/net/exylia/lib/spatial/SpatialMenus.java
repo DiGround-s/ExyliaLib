@@ -156,7 +156,8 @@ public final class SpatialMenus {
             "theme.open-sound", List.of("minecraft:block.ender_chest.open|1.0|1.4"),
             "theme.intro-line", List.of("{muted}Click to continue {letters_black}· {muted}Sneak to skip {letters_black}» "
                     + "{info}%step%{letters_black}/{info}%steps%",
-                    "%dots%\n{muted}Click to continue {letters_black}· {muted}sneak to skip"));
+                    "%dots%\n{muted}Click to continue {letters_black}· {muted}sneak to skip",
+                    "%dots%\n{letters_black}Click to continue · sneak to skip"));
 
     /** Whether the jar {@code anchor} came from holds {@code path}. */
     static boolean packaged(Class<?> anchor, String path) {

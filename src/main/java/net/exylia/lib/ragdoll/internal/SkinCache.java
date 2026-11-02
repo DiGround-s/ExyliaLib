@@ -249,6 +249,16 @@ public final class SkinCache {
         return url != null && BY_TEXTURE.getIfPresent(url) != null;
     }
 
+    /**
+     * Whether a body in this skin is drawn in its real skin now: its picture is read and every piece of it has its
+     * texture, so it is not drawn in blocks. Since 1.455.0.
+     */
+    public static boolean isDressed(String property) {
+        String url = property == null ? null : Textures.urlOf(property);
+        RagdollSkin skin = url == null ? null : BY_TEXTURE.getIfPresent(url);
+        return skin != null && RagdollBuilder.worn(skin, quality) != null;
+    }
+
     private static RagdollSkin skinOf(Player player) {
         return skinOfProperty(texturesOf(player));
     }

@@ -783,7 +783,7 @@ final class SceneSession {
                 nextPlay = now + 1000L;
                 return;
             }
-            RagdollModel body = effect.skin() == null ? RagdollModel.of(SkinCache.fallback(), null) : RagdollModel.of(effect.skin());
+            RagdollModel body = effect.skin() == null ? net.exylia.lib.npc.PreviewSkins.extra(0) : RagdollModel.of(effect.skin());
             // Played by the viewer, with nobody else there, so an [NPC] {victim} line has a body; no target,
             // so a [POTION] or a victim's title never lands on them. A miniature at the pedestal's top.
             run = Sequences.of(owner.plugin).play(effect.sequence(), SequenceTarget.at(base()).by(viewer).onlyTo(viewer)

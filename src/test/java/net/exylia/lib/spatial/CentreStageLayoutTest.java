@@ -57,7 +57,7 @@ class CentreStageLayoutTest {
     @Test
     void theTemplateReadsBackClean() throws Exception {
         SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
-        assertEquals(3, layout.menuVersion());
+        assertEquals(4, layout.menuVersion());
         assertEquals(4.5, layout.anchor().distance(), 1e-9);
         assertTrue(layout.carousel().arc());
         assertEquals(8, layout.carousel().perPage());
@@ -225,7 +225,7 @@ class CentreStageLayoutTest {
         int alpha = layout.backdrop().alpha();
         // The palette colours the board writes with: letters, letters_black, secondary_light, success, warning,
         // accent, info, highlight. Not muted (#868e96) or error (#a33b53): too dark over the backdrop.
-        int[] used = {0xE7CFFF, 0xA89AB5, 0xB48FD9, 0x8FFFC1, 0xFF9500, 0xFF6B9D, 0x59A4FF, 0xFFD700};
+        int[] used = {0xE7CFFF, 0xA89AB5, 0xB48FD9, 0x8FFFC1, 0xFF9500, 0xFF6B9D, 0x59A4FF, 0xFFD700, 0x7DB7FF};
         int sky = 0x8AB4FF;
         int deepslate = 0x4D4D50;
         for (int colour : used) {
@@ -346,9 +346,16 @@ class CentreStageLayoutTest {
         java.util.List<double[]> across = new java.util.ArrayList<>();
         for (int i = 0; i <= 10; i++) across.add(new double[]{0.15 * i, 64, 0, 0.1});
         assertEquals(0, net.exylia.lib.spatial.internal.EffectView.choose(across, base, board, 0, true, 0, new double[]{0, 0}).turn(), 1e-9);
-        // Too tall for its zone: played smaller, never larger.
-        java.util.List<double[]> tall = java.util.List.of(new double[]{0, 64, 0, 0.1}, new double[]{0, 66, 0, 0.1});
+        // Too tall for its zone: played smaller, never under 60 % of its size.
+        java.util.List<double[]> tall = new java.util.ArrayList<>();
+        for (int i = 0; i <= 20; i++) tall.add(new double[]{0, 64 + 0.1 * i, 0, 0.05, 1});
         var fitted = net.exylia.lib.spatial.internal.EffectView.choose(tall, base, board, 0, true, 0, new double[]{1.3, 0.85});
-        assertEquals(0.85 / 2.2, fitted.scale(), 1e-9, "its whole height, half a piece under the base included");
+        assertEquals(net.exylia.lib.spatial.internal.EffectView.MIN_SCALE, fitted.scale(), 1e-9);
+        // A body that fits, and one far outlier (a crowd member, a part thrown away): not shrunk for it.
+        java.util.List<double[]> body = new java.util.ArrayList<>();
+        for (int i = 0; i <= 30; i++) body.add(new double[]{0, 64 + 0.02 * i, 0, 0.05, 1});
+        body.add(new double[]{0, 70, 0, 0.05, 1});
+        body.add(new double[]{3, 64.5, 0, 0.3, 0});
+        assertEquals(1, net.exylia.lib.spatial.internal.EffectView.choose(body, base, board, 0, true, 0, new double[]{1.3, 0.85}).scale(), 1e-9);
     }
 }

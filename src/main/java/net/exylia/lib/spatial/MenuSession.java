@@ -57,7 +57,7 @@ final class MenuSession implements SpatialContext {
     private static final long HOVER_MILLIS = 120L;
     private static final long GLIDE_MILLIS = 180L;
     /** How long a fresh preview body waits for its skin's picture before it plays anyway. */
-    private static final long SKIN_WAIT_MILLIS = 3000L;
+    private static final long SKIN_WAIT_MILLIS = 8000L;
 
     /** How long a finished performance rests before it starts again. */
     private static final long ENCORE_MILLIS = 600L;
@@ -1010,7 +1010,9 @@ final class MenuSession implements SpatialContext {
         }
 
         void refreshWords() {
-            labels.forEach(Label::refresh);
+            // A bare panel of words (the name, the description, the hint) fades while the guided tour shows.
+            boolean hidden = tour != null && fades(panel);
+            for (Label label : labels) label.refresh(hidden);
             buttons.forEach(Button::refresh);
             if (column != null) column.refresh();
             if (icons != null) icons.refresh();
@@ -1047,7 +1049,12 @@ final class MenuSession implements SpatialContext {
         }
 
         void refresh() {
-            String now = fill(raw);
+            refresh(false);
+        }
+
+        /** {@code hidden}: drawn as nothing for now (the guided tour fades the words it is not about). */
+        void refresh(boolean hidden) {
+            String now = hidden ? "" : fill(raw);
             if (now.equals(shown)) return;
             shown = now;
             redraw();
@@ -1362,7 +1369,8 @@ final class MenuSession implements SpatialContext {
         private List<IconButton> shown = List.of();
         private long delay;
 
-        private record IconButton(String glyph, String words, String action) {
+        /** {@code colour}: the markup an icon is drawn in (its meaning), blank for the board's light colour. */
+        private record IconButton(String glyph, String words, String action, String colour) {
         }
 
         Icons(PanelPart panel, List<SpatialLayout.Footer> all, long delay) {
@@ -1378,15 +1386,18 @@ final class MenuSession implements SpatialContext {
             for (SpatialLayout.Footer button : all) {
                 String raw = button.label();
                 int bar = raw.indexOf('|');
-                String glyph = bar < 0 ? null : plain(Text.verbatim(fill(raw.substring(0, bar)))).strip();
+                // Before the bar: the glyph and the colour it is drawn in, or the colour alone ('{info}|%words%').
+                String left = bar < 0 ? "" : fill(raw.substring(0, bar));
+                String glyph = plain(Text.verbatim(left)).strip();
+                String colour = glyph.isEmpty() ? left.strip() : left.substring(0, Math.max(0, left.lastIndexOf(glyph))).strip();
                 String words = plain(Text.verbatim(fill(bar < 0 ? raw : raw.substring(bar + 1)))).strip();
                 if (words.isEmpty()) continue;
-                if (glyph == null || glyph.isEmpty()) {
+                if (glyph.isEmpty()) {
                     int space = words.indexOf(' ');
                     glyph = space < 0 ? words : words.substring(0, space);
                     words = space < 0 ? words : words.substring(space + 1).strip();
                 }
-                out.add(new IconButton(glyph, words, button.action()));
+                out.add(new IconButton(glyph, words, button.action(), colour));
             }
             return out;
         }
@@ -1433,8 +1444,10 @@ final class MenuSession implements SpatialContext {
         }
 
         private @Nullable DisplayHandle glyph(IconButton button, double across, boolean lit, long delay) {
-            String text = (lit ? "{secondary_light}" : "{letters}") + button.glyph();
-            double size = theme.titleScale() * (lit ? 1.45 : 1.25);
+            // In its own colour when it has one, brighter and bolder under the crosshair.
+            String colour = button.colour().isBlank() ? (lit ? "{secondary_light}" : "{letters}") : button.colour();
+            String text = colour + (lit ? "&l" : "") + button.glyph();
+            double size = theme.titleScale() * (lit ? 1.5 : 1.3);
             return write(text, true, panel.plane, panel.rotation, across, 0, 0.016, panel.panel.height() * ICON_PITCH,
                     size, true, delay);
         }
@@ -1619,15 +1632,15 @@ final class MenuSession implements SpatialContext {
             Rotation turn = facing(own);
             if (kind == Kind.ARC) {
                 // Quiet chevrons, muted until looked at.
-                DisplayHandle[] chevron = {write(fill(label), true, own, turn, 0, 0, 0.01, 0.5, theme.titleScale(), true,
+                DisplayHandle[] chevron = {write(fill(label), true, own, turn, 0, 0, 0.01, 0.5, theme.titleScale() * 1.3, true,
                         delay < 0 ? -1 : delay + 260)};
                 if (edit != null) return;
                 pointer.add(Hotspot.rect(own, 0, 0, 0.45, slotHeight * 1.3).priority(2)
                         .onHover(on -> {
                             drop(chevron[0]);
                             String words = plain(Text.verbatim(fill(label))).strip();
-                            chevron[0] = write((on ? "{secondary_light}" : "{letters}") + words, true, own, turn, 0, 0, 0.01, 0.5,
-                                    theme.titleScale() * (on ? 1.2 : 1.0), true, -1);
+                            chevron[0] = write(on ? "{letters}&l" + words : fill(label), true, own, turn, 0, 0, 0.01, 0.5,
+                                    theme.titleScale() * (on ? 1.5 : 1.3), true, -1);
                         })
                         .onPress(click -> turnPage(this, step)));
                 return;
@@ -2187,10 +2200,11 @@ final class MenuSession implements SpatialContext {
         private final @Nullable net.exylia.lib.spatial.internal.Turntable table;
         private float sentYaw = Float.NaN;
         private final DisplayHandle[] arrows = new DisplayHandle[2];
-        /** What an effect's first play is showing, while its view is learned; {@code null} otherwise. */
-        private @Nullable List<double[]> watching;
-        private double watchedTurn;
-        private long watchingSince;
+        /** An effect played out of sight to learn how to show it, what it showed, where and since when. */
+        private @Nullable SequenceRun rehearsal;
+        private @Nullable List<double[]> rehearsing;
+        private @Nullable Location rehearsalBase;
+        private long rehearsalSince;
 
         PreviewPart(long delay) {
             SpatialLayout.Preview look = layout.preview();
@@ -2436,23 +2450,55 @@ final class MenuSession implements SpatialContext {
             return Double.isNaN(SpatialLayout.Preview.degreesOf(facing)) || zone.get(0) > 0 && zone.get(1) > 0;
         }
 
-        /** Watches the effect while it plays: where its pieces go, in the world. */
+        /**
+         * Learns how to show an effect before anybody sees it: plays it once out of sight (a miniature far over
+         * the board, too small and too far to see or hear), watches where its pieces go, and chooses its turn
+         * and its size from that. Every visible play, the first included, then looks the same.
+         */
+        private void rehearse(SpatialPreview.Effect effect, long now) {
+            if (rehearsal != null) return;
+            Location far = base.clone().add(0, REHEARSAL_UP, 0);
+            far.setYaw(board.yaw() + 180);
+            rehearsing = new ArrayList<>();
+            rehearsalBase = far;
+            rehearsalSince = now;
+            SequenceTarget where = SequenceTarget.at(far).by(viewer).onlyTo(viewer).scale(REHEARSAL_SCALE);
+            where = body != null ? where.wearing(body.ragdoll()) : where.wearing(net.exylia.lib.npc.PreviewSkins.extra(0));
+            rehearsal = Sequences.of(menus.plugin()).play(effect.sequence(), where);
+        }
+
+        /** While a rehearsal runs: where its pieces are; once it is over (or has run long enough), the choice. */
         private void watch() {
-            if (watching == null || run == null) return;
+            if (rehearsal == null) return;
             java.util.Set<Object> ours = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
             ours.addAll(pieces);
-            watching.addAll(net.exylia.lib.display.internal.DisplayRuntime.sample(viewer, base, 24, ours));
-            // Learned once it ends, or after a while for one that keeps going.
-            if (!run.isFinished() && System.currentTimeMillis() - watchingSince < WATCH_MILLIS) return;
+            rehearsing.addAll(net.exylia.lib.display.internal.DisplayRuntime.sample(viewer, rehearsalBase, 3, ours));
+            if (!rehearsal.isFinished() && System.currentTimeMillis() - rehearsalSince < WATCH_MILLIS) return;
+            rehearsal.cancel();
             if (current instanceof SpatialPreview.Effect effect) {
+                // Back to the size it plays at, about a base at the origin.
+                double grow = layout.preview().effectScale() / REHEARSAL_SCALE;
+                List<double[]> samples = new ArrayList<>(rehearsing.size());
+                for (double[] sample : rehearsing) {
+                    samples.add(new double[]{(sample[0] - rehearsalBase.getX()) * grow, (sample[1] - rehearsalBase.getY()) * grow,
+                            (sample[2] - rehearsalBase.getZ()) * grow, sample[3] * grow, sample.length > 4 ? sample[4] : 0});
+                }
                 String facing = effect.facing() != null ? effect.facing() : layout.preview().effectFacing();
                 double fixed = SpatialLayout.Preview.degreesOf(facing);
                 List<Double> zone = layout.preview().zone();
-                TUNED.put(key(effect), net.exylia.lib.spatial.internal.EffectView.choose(watching,
-                        new double[]{base.getX(), base.getY(), base.getZ()}, board.yaw(), watchedTurn,
-                        Double.isNaN(fixed), Double.isNaN(fixed) ? 0 : fixed, new double[]{zone.get(0), zone.get(1)}));
+                TUNED.put(key(effect), net.exylia.lib.spatial.internal.EffectView.choose(samples, new double[]{0, 0, 0},
+                        board.yaw(), 0, Double.isNaN(fixed), Double.isNaN(fixed) ? 0 : fixed,
+                        new double[]{zone.get(0), zone.get(1)}));
+                // The mannequin stands as the effect will play.
+                if (npc != null) {
+                    npc.remove();
+                    npc = null;
+                    mannequin(effect);
+                }
             }
-            watching = null;
+            rehearsal = null;
+            rehearsing = null;
+            nextPlay = System.currentTimeMillis() + 600L;
         }
 
         private void spawn(NpcModel model, Location stand, SpatialLayout.Preview look) {
@@ -2560,16 +2606,16 @@ final class MenuSession implements SpatialContext {
                 // Where the mannequin's feet were, the pedestal's top: a kill effect is written round the
                 // victim's feet. It plays as a miniature of itself (effect-scale) so all of it stays
                 // between the carousel and the header.
+                // Learned first, out of sight, so the first play the viewer sees is already turned and sized.
+                if (learning(effect)) {
+                    rehearse(effect, now);
+                    return;
+                }
                 Location at = base.clone();
                 // Facing the viewer (or turned to show its motion best, never its back): the effect is written
                 // round the victim, who faces where it is played.
                 double turn = effectTurn(effect);
                 at.setYaw((float) (board.yaw() + 180 + turn));
-                if (learning(effect)) {
-                    watching = new ArrayList<>();
-                    watchedTurn = turn;
-                    watchingSince = now;
-                }
                 // The viewer sets it off; [RAGDOLL] and [NPC] {victim} lines wear the mannequin's skin, so
                 // the body that falls is the one that stood there. No target, as in the previews' mannequin
                 // mode: a [POTION] or a victim's title never lands on anybody.
@@ -2602,6 +2648,9 @@ final class MenuSession implements SpatialContext {
         }
 
         void remove() {
+            if (rehearsal != null) rehearsal.cancel();
+            rehearsal = null;
+            rehearsing = null;
             if (npc != null) npc.remove();
             npc = null;
             drop(item);
@@ -2630,8 +2679,11 @@ final class MenuSession implements SpatialContext {
      * What each effect's first play taught (by sequence, facing, zone and scale): the turn and the fit, so every
      * later play, in any menu, shows it best at once. Memory only.
      */
-    /** The longest an effect's first play is watched before its view is chosen from what was seen. */
-    private static final long WATCH_MILLIS = 8000L;
+    /** The longest a rehearsal is watched before the view is chosen from what it showed. */
+    private static final long WATCH_MILLIS = 6000L;
+    /** How far over the board a rehearsal plays, and how small: out of sight and out of earshot. */
+    private static final double REHEARSAL_UP = 48;
+    private static final double REHEARSAL_SCALE = 0.05;
 
     private static final Map<String, net.exylia.lib.spatial.internal.EffectView.Tuning> TUNED =
             new java.util.concurrent.ConcurrentHashMap<>();
@@ -2664,6 +2716,17 @@ final class MenuSession implements SpatialContext {
         return Geometry.panel(anchor.getWorld(), board, panel.across(), panel.up(), panel.forward(), panel.turn());
     }
 
+    /** Whether a panel's words step aside while the guided tour shows: a bare panel of words, no buttons. */
+    static boolean fades(SpatialLayout.Panel panel) {
+        SpatialLayout.Content.Type type = panel.content().type();
+        return !panel.frame() && (type == SpatialLayout.Content.Type.NONE || type == SpatialLayout.Content.Type.TEXT);
+    }
+
+    /** How tall a body on the pedestal stands, in blocks: the larger of the preview's and an effect's scale. */
+    private double effectBodyHeight() {
+        return 1.8 * Math.max(layout.preview().scale(), layout.preview().effectScale());
+    }
+
     /** How large the preview's body stands, by its scale. */
     private double previewSize() {
         return Math.clamp(layout.preview().scale(), 0.42, 1.6);
@@ -2689,15 +2752,24 @@ final class MenuSession implements SpatialContext {
     private @Nullable Tour tour;
     /** The widest a tour's line may be, and the column its words are broken to, in blocks. */
     private static final double TOUR_ROOM = 4.4;
-    private static final double TOUR_COLUMN = 1.6;
-    /** The room between a tour caption's box and its arrow. */
-    private static final double ARROW_GAP = 0.28;
+    private static final double TOUR_COLUMN = 1.9;
+    /** The room between a tour caption's box and its arrow, the arrow's own half size, a caption's own margin. */
+    private static final double ARROW_GAP = 0.3;
+    private static final double ARROW_RADIUS = 0.16;
+    /** How far round the point an arrow aims at it stays: it points at a piece, it never sits on it. */
+    private static final double TARGET_CLEAR = 0.3;
+    private static final double CAPTION_MARGIN = 0.03;
+    /** How far across and up from the board's middle a tour caption may stand: inside the view. */
+    private static final double VIEW_HALF = 4.8;
+    private static final double VIEW_TOP = 2.4;
 
     /** Shows the layout's guided tour now, from its first step; nothing when it has none. Marks it seen. */
     void startTour() {
         if (closed || edit != null || !layout.intro().present()) return;
         if (tour != null) tour.end();
         tour = new Tour(layout.intro().steps());
+        // Now that it is the tour: the words it fades step aside.
+        refreshWords();
         menus.markIntroSeen(viewer, definition.id());
     }
 
@@ -2755,7 +2827,6 @@ final class MenuSession implements SpatialContext {
             SpatialLayout.Step step = steps.get(at);
             int accent = colour(theme.introOutline(), 0xFFD700);
             List<Double> where = step.at();
-            double[] caption = {where.get(0), where.get(1), where.get(2)};
             String[] lines = fill(step.text()).split("\\\\n|\n");
             StringBuilder dots = new StringBuilder();
             for (int i = 0; i < steps.size(); i++) {
@@ -2763,43 +2834,128 @@ final class MenuSession implements SpatialContext {
             }
             String more = fill(theme.introLine().replace("%dots%", dots.toString())
                     .replace("%step%", String.valueOf(at + 1)).replace("%steps%", String.valueOf(steps.size())));
-            Location probe = board.point(caption[0], caption[1], caption[2]);
-            double pitch = Stage.TEXT_HEIGHT * Geometry.readableScale(probe.distance(eyes()), theme.minGlyphDegrees(),
-                    Geometry.CAPITAL_PIXELS) * 1.3;
-            double[] from = captionWas == null ? null : worldOffset(captionWas, probe);
-            // A short caption: its title, then its words broken to a narrow column so it stands beside the piece.
+            Location probe = board.point(where.get(0), where.get(1), where.get(2));
+            double floor = Geometry.readableScale(probe.distance(eyes()), theme.minGlyphDegrees(), Geometry.CAPITAL_PIXELS);
+            double pitch = Stage.TEXT_HEIGHT * floor * 1.2;
+            // One block: the title, its words broken to a narrow balanced column, the step dots and the continue
+            // line, evenly spaced. Measured first, then set down in free room beside its piece.
             List<String> column = new ArrayList<>();
             column.add(lines[0]);
-            double floor = Geometry.readableScale(probe.distance(eyes()), theme.minGlyphDegrees(), Geometry.CAPITAL_PIXELS);
             for (int i = 1; i < lines.length; i++) {
                 column.addAll(Geometry.balanced(lines[i], TOUR_COLUMN / Math.max(floor, theme.textScale()), 3));
             }
-            // One tidy block: the title, its words, then the step dots and the continue line, evenly spaced; its
-            // measured box keeps the arrow off every word of it.
+            String[] tails = more.split("\\\\n|\n");
+            List<Fitted> fitted = new ArrayList<>();
+            List<Double> ups = new ArrayList<>();
             double widest = 0;
-            double top = caption[1];
-            double bottom = caption[1];
-            for (int i = 0; i < column.size(); i++) {
-                double size = i == 0 ? theme.titleScale() * 0.75 : theme.textScale();
-                Fitted line = fit(column.get(i), true, TOUR_ROOM, size, probe);
-                double up = caption[1] - i * pitch;
-                drawn.add(glideLine(line, caption[0], up, caption[2], from, i * 50L));
+            double top = 0;
+            double bottom = 0;
+            for (int i = 0; i < column.size() + tails.length; i++) {
+                boolean tail = i >= column.size();
+                String text = tail ? tails[i - column.size()] : column.get(i);
+                double size = i == 0 ? theme.titleScale() * 0.75 : tail ? theme.smallScale() : theme.textScale();
+                Fitted line = fit(text, true, TOUR_ROOM, size, probe);
+                double up = -i * pitch - (tail ? pitch * 0.25 : 0);
+                fitted.add(line);
+                ups.add(up);
                 widest = Math.max(widest, line.width());
                 top = Math.max(top, up + Stage.TEXT_HEIGHT * line.scale() / 2);
                 bottom = Math.min(bottom, up - Stage.TEXT_HEIGHT * line.scale() / 2);
             }
-            String[] tails = more.split("\\\\n|\n");
-            for (int i = 0; i < tails.length; i++) {
-                Fitted tail = fit(tails[i], true, TOUR_ROOM, theme.smallScale(), probe);
-                double up = caption[1] - (column.size() + i) * pitch - pitch * 0.25;
-                drawn.add(glideLine(tail, caption[0], up, caption[2], from, (column.size() + i) * 50L));
-                widest = Math.max(widest, tail.width());
-                bottom = Math.min(bottom, up - Stage.TEXT_HEIGHT * tail.scale() / 2);
+            double halfWidth = widest / 2 + CAPTION_MARGIN;
+            double halfHeight = (top - bottom) / 2 + CAPTION_MARGIN;
+            double[] target = step.target().isBlank() ? null : targetPoint(step.target(), where.get(0));
+            double[] centre = target == null ? new double[]{where.get(0), where.get(1)}
+                    : freeRoom(target, where, halfWidth, halfHeight, step.target());
+            double titleUp = centre[1] + (top - bottom) / 2 - top;
+            double[] from = captionWas == null ? null : worldOffset(captionWas, board.point(centre[0], titleUp, where.get(2)));
+            for (int i = 0; i < fitted.size(); i++) {
+                drawn.add(glideLine(fitted.get(i), centre[0], titleUp + ups.get(i), where.get(2), from, i * 50L));
             }
-            captionWas = probe;
-            double[] box = {caption[0], (top + bottom) / 2, caption[2], widest / 2, (top - bottom) / 2};
-            if (!step.target().isBlank()) point(step.target(), box, accent);
+            captionWas = board.point(centre[0], titleUp, where.get(2));
+            double[] box = {centre[0], centre[1], where.get(2), widest / 2, (top - bottom) / 2};
+            if (target != null) point(step.target(), box, accent, target);
             drawn.removeIf(Objects::isNull);
+        }
+
+        /**
+         * Where a caption {@code halfWidth} by {@code halfHeight} stands, around {@code target}: the nearest spot,
+         * on the side the layout's {@code at} suggests first, whose box and arrow touch no piece of the board and
+         * stay in view. The layout's {@code at} when there is none.
+         */
+        private double[] freeRoom(double[] target, List<Double> hint, double halfWidth, double halfHeight, String name) {
+            List<double[]> taken = obstacles(null);
+            // The arrow may reach into its own piece's room, never onto the spot it points at.
+            List<double[]> others = obstacles(name);
+            double kt = distance / Math.max(0.5, distance - hint.get(2));
+            others.add(new double[]{(target[0] - TARGET_CLEAR) * kt, (target[1] - TARGET_CLEAR) * kt,
+                    (target[0] + TARGET_CLEAR) * kt, (target[1] + TARGET_CLEAR) * kt});
+            double depth = hint.get(2);
+            double k = distance / Math.max(0.5, distance - depth);
+            double prefer = Math.atan2(hint.get(1) - target[1], hint.get(0) - target[0]);
+            double[] best = null;
+            double bestCost = Double.MAX_VALUE;
+            for (double reach = 0.5; reach <= 3.6; reach += 0.1) {
+                for (int step = 0; step < 36; step++) {
+                    double angle = Math.toRadians(step * 10);
+                    double x = target[0] + Math.cos(angle) * (reach + halfWidth * Math.abs(Math.cos(angle)));
+                    double y = target[1] + Math.sin(angle) * (reach * 0.6 + halfHeight * Math.abs(Math.sin(angle)));
+                    double[] box = {(x - halfWidth) * k, (y - halfHeight) * k, (x + halfWidth) * k, (y + halfHeight) * k};
+                    if (Math.abs(box[0]) > VIEW_HALF || Math.abs(box[2]) > VIEW_HALF) continue;
+                    // Never lower than the board's lowest piece (the floor is under it), never off the top of the view.
+                    if (y - halfHeight < layout.lowest() - 0.05 || box[3] > VIEW_TOP) continue;
+                    if (hits(box, taken)) continue;
+                    // The arrow, between the box and the piece, must not land on anything but the piece.
+                    double[] arrow = arrowAt(new double[]{x, y, depth, halfWidth - CAPTION_MARGIN, halfHeight - CAPTION_MARGIN}, target);
+                    double half = ARROW_RADIUS;
+                    double[] arrowBox = {(arrow[0] - half) * k, (arrow[1] - half) * k, (arrow[0] + half) * k, (arrow[1] + half) * k};
+                    if (hits(arrowBox, others)) continue;
+                    double turn = Math.abs(Math.atan2(Math.sin(angle - prefer), Math.cos(angle - prefer)));
+                    double cost = reach + turn * 0.35;
+                    if (cost < bestCost) {
+                        bestCost = cost;
+                        best = new double[]{x, y};
+                    }
+                }
+                if (best != null && reach > bestCost) break;
+            }
+            if (best == null) net.exylia.lib.debug.Debug.of(menus.plugin()).log("No free room for the tour's '" + name
+                    + "' caption; it stands where the layout put it.");
+            return best != null ? best : new double[]{hint.get(0), hint.get(1)};
+        }
+
+        private boolean hits(double[] box, List<double[]> taken) {
+            for (double[] other : taken) {
+                if (box[0] < other[2] && other[0] < box[2] && box[1] < other[3] && other[1] < box[3]) return true;
+            }
+            return false;
+        }
+
+        /** Where a step points: a panel's middle, the body on the pedestal, or an inner item of the arc on the caption's side. */
+        private double[] targetPoint(String target, double side) {
+            if (target.equals(EditMode.PREVIEW)) {
+                List<Double> base = layout.preview().at();
+                return new double[]{base.get(0), base.get(1) + 0.5 * effectBodyHeight(), base.get(2)};
+            }
+            if (target.equals(EditMode.CAROUSEL) && carousel != null && layout.carousel().present()) {
+                SpatialLayout.Carousel row = layout.carousel();
+                double[] chosen = null;
+                for (int i = 0; i < carousel.perPage; i++) {
+                    double[] slot = row.shelf() ? Geometry.shelf(i, row.slots(), row.spacing(), row.rowGap(), row.curve())
+                            : new double[]{Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[0], 0,
+                                    Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[1]};
+                    if (Math.signum(slot[0]) != Math.signum(side == 0 ? -1 : side)) continue;
+                    // The second item from the end: the outermost has the page arrow beside it.
+                    double[] here = {row.at().get(0) + slot[0], row.at().get(1) + slot[1], row.at().get(2) + slot[2]};
+                    if (chosen == null || Math.abs(here[0]) > Math.abs(chosen[0])) {
+                        if (Math.abs(slot[0]) < Geometry.outermost(carousel.perPage, row.spacing(), row.centreGap()) - 1e-6) chosen = here;
+                    }
+                }
+                if (chosen != null) return chosen;
+            }
+            SpatialLayout.Panel panel = layout.panel(target);
+            if (panel == null) return new double[]{0, 0, 0};
+            return new double[]{panel.across(), panel.up(), panel.forward()};
         }
 
         /**
@@ -2807,59 +2963,30 @@ final class MenuSession implements SpatialContext {
          * caption's box: {across, up, forward, half width, half height}; the arrow stands just outside it, on the
          * side facing the piece, so no word of the caption is ever under it, its nudge included (it nudges away).
          */
-        private void point(String target, double[] caption, int accent) {
-            double[] centre;
-            double reach;
-            if (target.equals(EditMode.CAROUSEL) && carousel != null && layout.carousel().present()) {
-                SpatialLayout.Carousel row = layout.carousel();
-                // The item of the row nearest the caption, so the arrow never points through the preview.
-                centre = null;
-                for (int i = 0; i < carousel.places.size(); i++) {
-                    double[] slot = row.arc() || !row.shelf()
-                            ? new double[]{Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[0], 0,
-                                    Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[1]}
-                            : Geometry.shelf(i, row.slots(), row.spacing(), row.rowGap(), row.curve());
-                    double[] here = {row.at().get(0) + slot[0], row.at().get(1) + slot[1], row.at().get(2) + slot[2]};
-                    // Not the outermost item, whose page arrow stands right beside it.
-                    if (row.arc() && Math.abs(slot[0]) >= Geometry.outermost(carousel.perPage, row.spacing(), row.centreGap()) - 1e-6) continue;
-                    if (centre == null || Math.hypot(here[0] - caption[0], here[1] - caption[1])
-                            < Math.hypot(centre[0] - caption[0], centre[1] - caption[1])) centre = here;
-                }
-                reach = row.spacing() * 0.6;
+        private void point(String target, double[] caption, int accent, double[] centre) {
+            // The soft light on the piece.
+            if (target.equals(EditMode.CAROUSEL) && carousel != null) {
                 for (DisplayHandle icon : carousel.icons) if (icon != null) icon.glow(accent);
             } else if (target.equals(EditMode.PREVIEW)) {
                 List<Double> base = layout.preview().at();
-                centre = new double[]{base.get(0), base.get(1) + 0.95 * previewSize(), base.get(2)};
-                reach = 0.25 + 0.3 * previewSize();
-                // A pool of light on the pedestal.
                 lit.add(show(Stage.textModel(Text.verbatim(String.format("<#%06x>●", accent & 0xFFFFFF))).background(0)
                                 .textShadow(false).seeThrough(false).lineWidth(1000),
                         motion(flat(facing(board)), 4.2, 4.2, 4.2, 0), board.point(base.get(0), base.get(1) + 0.01, base.get(2))));
             } else {
                 SpatialLayout.Panel panel = layout.panel(target);
-                if (panel == null) return;
-                // The point of the panel nearest the caption: a wide row is pointed at its near end.
-                centre = new double[]{Math.clamp(caption[0], panel.across() - panel.width() / 2, panel.across() + panel.width() / 2),
-                        Math.clamp(caption[1], panel.up() - panel.height() / 2, panel.up() + panel.height() / 2), panel.forward()};
-                reach = 0;
-                lit.add(sheet(pieceAt(target).point(0, -panel.height() / 2 - 0.05, 0.02), facing(pieceAt(target)),
-                        panel.width() * 0.7, 0.014, Geometry.argb(255, accent), 0));
+                if (panel != null) {
+                    lit.add(sheet(pieceAt(target).point(0, -panel.height() / 2 - 0.05, 0.02), facing(pieceAt(target)),
+                            panel.width() * 0.7, 0.014, Geometry.argb(255, accent), 0));
+                }
             }
-            if (centre == null) return;
+            double[] spot = arrowAt(caption, centre);
             double dx = caption[0] - centre[0];
             double dy = caption[1] - centre[1];
             double length = Math.max(1e-6, Math.hypot(dx, dy));
             double ux = dx / length;
             double uy = dy / length;
+            double half = Stage.TEXT_HEIGHT * theme.titleScale() * 1.1 * 0.5;
             double scale = theme.titleScale() * 1.1;
-            // Where the line from the caption's middle to the piece leaves the caption's box, then a gap and half
-            // the arrow beyond it.
-            double half = Stage.TEXT_HEIGHT * scale * 0.5;
-            double exit = Math.min(Math.abs(ux) < 1e-6 ? Double.MAX_VALUE : caption[3] / Math.abs(ux),
-                    Math.abs(uy) < 1e-6 ? Double.MAX_VALUE : caption[4] / Math.abs(uy));
-            // Always clear of the caption, even when that brings it up to the piece itself.
-            double out = exit + ARROW_GAP + half;
-            double[] spot = {caption[0] - ux * out, caption[1] - uy * out, caption[2] + 0.02};
             Location here = board.point(spot[0], spot[1], spot[2]);
             // "➜" points along its own right; turned in the board's plane to point back at the piece.
             Rotation turn = Rotation.around(Rotation.Axis.Z, Math.atan2(-uy, -ux)).then(facing(board));
@@ -2891,6 +3018,67 @@ final class MenuSession implements SpatialContext {
             drawn.add(show(arrow, DisplayMotion.of(frames, LIFE).looping(lead, lead + cycle, 1, 1),
                     origin));
             arrowWas = here;
+        }
+
+        /**
+         * Where the arrow stands for a caption box {across, up, forward, half width, half height} pointing at
+         * {@code target}: where the line from the box's middle to the target leaves the box, then a gap and half the
+         * arrow beyond it, so no word of the caption is under it, its nudge (towards the target) included.
+         */
+        private double[] arrowAt(double[] caption, double[] target) {
+            double dx = target[0] - caption[0];
+            double dy = target[1] - caption[1];
+            double length = Math.max(1e-6, Math.hypot(dx, dy));
+            double ux = dx / length;
+            double uy = dy / length;
+            double exit = Math.min(Math.abs(ux) < 1e-6 ? Double.MAX_VALUE : caption[3] / Math.abs(ux),
+                    Math.abs(uy) < 1e-6 ? Double.MAX_VALUE : caption[4] / Math.abs(uy));
+            double out = exit + ARROW_GAP + ARROW_RADIUS;
+            return new double[]{caption[0] + ux * out, caption[1] + uy * out, caption[2] + 0.02};
+        }
+
+        /** Every piece of the board as the eyes see it, {minAcross, minUp, maxAcross, maxUp} on the board's plane. */
+        private List<double[]> obstacles(@Nullable String except) {
+            List<double[]> out = new ArrayList<>();
+            for (Map.Entry<String, SpatialLayout.Panel> named : layout.panels().entrySet()) {
+                SpatialLayout.Panel panel = named.getValue();
+                // Faded while the tour shows: its room is free for a caption.
+                if (fades(panel) || named.getKey().equals(except)) continue;
+                double under = panel.content().type() == SpatialLayout.Content.Type.ICONS ? panel.height() * 0.95 : 0;
+                project(out, panel.across(), panel.up() - under / 2, panel.forward(), panel.width() / 2, (panel.height() + under) / 2);
+            }
+            SpatialLayout.Preview look = layout.preview();
+            if (EditMode.PREVIEW.equals(except)) return carouselObstacles(out, null);
+            double zoneWidth = Math.max(look.zone().get(0), 0.8);
+            double zoneHeight = Math.max(look.zone().get(1), effectBodyHeight());
+            project(out, look.at().get(0), look.at().get(1) + zoneHeight / 2 - 0.09, look.at().get(2), zoneWidth / 2, zoneHeight / 2 + 0.09);
+            return carouselObstacles(out, except);
+        }
+
+        private List<double[]> carouselObstacles(List<double[]> out, @Nullable String except) {
+            SpatialLayout.Carousel row = layout.carousel();
+            if (EditMode.CAROUSEL.equals(except)) return out;
+            if (row.present() && carousel != null) {
+                for (int i = 0; i < carousel.perPage; i++) {
+                    double[] slot = row.shelf() ? Geometry.shelf(i, row.slots(), row.spacing(), row.rowGap(), row.curve())
+                            : new double[]{Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[0], 0,
+                                    Geometry.carousel(i, carousel.perPage, row.spacing(), row.centreGap(), row.curve())[1]};
+                    double size = carousel.iconScale * ARC_HOVER_GROW;
+                    project(out, row.at().get(0) + slot[0], row.at().get(1) + slot[1] - carousel.iconScale * 0.2,
+                            row.at().get(2) + slot[2] + ARC_HOVER_AHEAD, size / 2 + 0.04, size / 2 + carousel.iconScale * 0.45);
+                }
+                if (row.arc()) {
+                    double outer = Geometry.outermost(carousel.perPage, row.spacing(), row.centreGap()) + row.spacing() * 0.9;
+                    project(out, row.at().get(0) - outer, row.at().get(1), row.at().get(2) + row.curve(), 0.2, 0.2);
+                    project(out, row.at().get(0) + outer, row.at().get(1) - row.spacing() * 0.45, row.at().get(2) + row.curve(), 0.35, 0.45);
+                }
+            }
+            return out;
+        }
+
+        private void project(List<double[]> out, double across, double up, double forward, double halfWidth, double halfHeight) {
+            double k = distance / Math.max(0.5, distance - forward);
+            out.add(new double[]{(across - halfWidth) * k, (up - halfHeight) * k, (across + halfWidth) * k, (up + halfHeight) * k});
         }
 
         /** A caption line, gliding in from {@code from} (world offset) when a step before stood elsewhere. */

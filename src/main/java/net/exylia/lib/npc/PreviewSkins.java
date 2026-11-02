@@ -135,9 +135,30 @@ public final class PreviewSkins {
         return new Body(null, null, all[Math.floorMod(NEXT_DEFAULT.getAndIncrement(), all.length)]);
     }
 
+    /**
+     * A body for an extra in an effect (a crowd, a judge) when there is no real player to wear: one of vanilla's
+     * default skins, by {@code seat}, its picture read in the background from the start, never the block-built
+     * placeholder. Since 1.455.0.
+     */
+    public static @NotNull RagdollModel extra(int seat) {
+        warmDefaults();
+        DefaultSkin[] all = DefaultSkin.values();
+        return RagdollModel.ofTexture(all[Math.floorMod(seat * 7 + 3, all.length)].textures());
+    }
+
     /** Reads every default skin's picture once, in the background, so the first ragdoll is not the placeholder. */
-    private static void warmDefaults() {
+    @ApiStatus.Internal
+    public static void warmDefaults() {
         if (!DEFAULTS_WARMED.compareAndSet(false, true)) return;
+        rewarmDefaults();
+    }
+
+    /**
+     * Reads every default skin again: once a plugin keeps ragdoll textures, so their pieces are made and stored
+     * before any extra or preview body needs them. Called by the library.
+     */
+    @ApiStatus.Internal
+    public static void rewarmDefaults() {
         for (DefaultSkin skin : DefaultSkin.values()) {
             RagdollModel.ofTexture(skin.textures());
         }
@@ -201,7 +222,8 @@ public final class PreviewSkins {
          * first time; until then a body falls in the default colours, so a preview waits a moment for it.
          */
         public boolean ready() {
-            return net.exylia.lib.ragdoll.internal.SkinCache.isRead(texture != null ? texture : fallback.textures());
+            // Read, and cut into its real pieces: a body in blocks is never shown when waiting a moment avoids it.
+            return net.exylia.lib.ragdoll.internal.SkinCache.isDressed(texture != null ? texture : fallback.textures());
         }
 
         /** A standing NPC in this skin, named {@code Body}. */

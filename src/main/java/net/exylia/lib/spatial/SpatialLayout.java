@@ -171,7 +171,7 @@ public record SpatialLayout(
      */
     public record Backdrop(List<Double> at, List<Double> size, String tint, int alpha, double feather, int rings) {
         public Backdrop() {
-            this(List.of(0.0, 0.0, -0.3), List.of(0.0, 0.0), "{primary}", 150, 0.3, 3);
+            this(List.of(0.0, 0.0, -0.3), List.of(0.0, 0.0), "{primary}", 150, 0.9, 10);
         }
 
         public Backdrop {
