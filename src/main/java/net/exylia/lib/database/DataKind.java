@@ -28,7 +28,7 @@ public enum DataKind {
     /** Per-player progress a new season starts over: homes, balances, stats, ranks, cooldowns of kits. */
     PROGRESS,
 
-    /** Server-wide state of the current playthrough: listings, claims, graves, clans, seasons. */
+    /** Server-wide state of the current playthrough: listings, claims, graves, clans, the live season. A list of past seasons is {@link #HISTORY}. */
     WORLD,
 
     /** Per-player data that survives a season: purchases, unlocks, settings, punishments, links. */

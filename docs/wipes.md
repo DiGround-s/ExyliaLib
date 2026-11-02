@@ -28,9 +28,9 @@ this table?" and pick the kind whose wipe is *correct*.
 |---|---|---|
 | `UNSPECIFIED` (default) | Not classified yet. **Never** touched by a preset or a player reset; only by a wipe that names the table or the whole plugin. | any table not annotated |
 | `PROGRESS` | Per-player progress a new season starts over | homes, balances, stats, kit cooldowns, rank, missions, farming, ELO, kit layouts, playtime |
-| `WORLD` | Server-wide state of the current playthrough (may have an owner) | project progress, seasons, market listings, auctions, claims, graves, placed spawners, supply-drop crates, clans |
+| `WORLD` | Server-wide state of the current playthrough (may have an owner) | project progress, the live season, market listings, auctions, claims, graves, placed spawners, supply-drop crates, clans |
 | `ACCOUNT` | Per-player data that survives a season | purchased cosmetics and unlocks, crate keys bought, preferences and settings, punishments, 2FA, web links, referral links |
-| `HISTORY` | Logs and history | match history, ledgers, market log, staff audit, replays, opening history |
+| `HISTORY` | Logs and history | match history, ledgers, market log, staff audit, replays, opening history, past seasons |
 | `CACHE` | Rebuilt by itself | stat caches, cooldowns, seen markers, leases, outboxes, delivered queues |
 | `SETUP` | Built by the admin | warps, kits, arenas, crate definitions, zones, shop products, currencies, mob templates, settings rows |
 
