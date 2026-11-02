@@ -1,62 +1,68 @@
 # Centre stage: the library's layout for a cosmetic catalogue (SpatialCatalog). Written as
 # plugins/<Plugin>/spatial/<menu>.yml for a catalogue whose plugin ships no layout of its own.
 #
-#                 All   Rare   Epic   ★                          the tabs (plain words)
+#                 All   Rare   Epic   ★                          the tabs
 #                        THE NAME LOOKED AT                      the title
 #                      Epic · ✔ Equipped                         one quiet line
 #      ‹   ◆  ◆  ◆  ◆      ( preview )      ◆  ◆  ◆  ◆   ›       the arc of items, at eye level
-#                           [ EQUIP ]                            the one primary button
-#                     ☆   ✘   ↺   ✦   ?   ✕                      icons; words show on hover
 #               Look at an item to see it · click to try it      the hint
+#                           [ EQUIP ]                            the one primary button
+#                     ☆   ✘   ↺   ✦   ?   ✕                      icons; words under the one looked at
 #
-# No panels: words float with a shadow, only the primary button is filled. Coordinates are blocks on the
-# board, a plane 'anchor.distance' ahead of the eyes: [across (right +), up, forward (towards the viewer +)].
-# At 4.5 blocks the board stays inside about 70° across and 48° top to bottom, and every line is drawn at
-# least as large as theme.min-glyph-degrees reads from the eyes. Every word is a %catalog_...% placeholder.
-menu-version: 2
+# No panels: words float with a shadow over one soft dark backdrop; only the primary button is filled.
+# Coordinates are blocks on the board, a plane 'anchor.distance' ahead of the eyes:
+# [across (right +), up, forward (towards the viewer +)].
+# At 4.5 blocks the board stays inside about 70° across and 38° top to bottom, above the floor, and
+# every line is drawn at least as large as theme.min-glyph-degrees reads from the eyes.
+# Every word is a %catalog_...% placeholder.
+menu-version: 3
 title: '{primary}&lCOLLECTION'
 anchor:
   mode: FRONT
   distance: 4.5
-  lift: 0.15
+  # Raised so the lowest piece (the icon row's words) stands 0.15 above the floor you stand on; the library
+  # raises it by itself when a layout would put something under the ground.
+  lift: 0.8
   clear-view: true
 hide-others: true
 freeze: true
 theme:
-  title-scale: 1.0
+  title-scale: 0.9
+  # A little larger than the library's floor (0.95°): every word, at 4.5 blocks.
+  min-glyph-degrees: 1.06
   text-scale: 0.42
   small-scale: 0.38
-  previous-arrow: '{muted}‹'
-  next-arrow: '{muted}›'
-  page-line: '{muted}%page% / %pages%'
-  locked-marker: '{muted}🔒'
+  previous-arrow: '{letters}‹'
+  next-arrow: '{letters}›'
+  page-line: '{letters_black}%page% / %pages%'
+  locked-marker: '{accent}🔒'
   equipped-marker: '{success}✔'
   intro-outline: '{secondary_light}'
   open-motion: RISE
 panels:
   # The categories as plain words; the open one has a thin accent line under it. The wheel steps through them.
   tabs:
-    at: [0, 1.65, 0]
-    size: [5.0, 0.26]
+    at: [0, 1.288, 0]
+    size: [5.6, 0.246]
     frame: false
     content: {type: TABS, source: catalog_tabs}
   # The effect looked at, else the one chosen: its name, and one quiet line (rarity · where you stand with it).
   title:
-    at: [0, 1.2, 0.1]
-    size: [3.6, 0.52]
+    at: [0, 0.874, 0.1]
+    size: [4.032, 0.493]
     frame: false
-    title: '%catalog_card_title%'
+    title: '%catalog_card_name%'
     hint: '%catalog_card_meta%'
   # The one primary action: EQUIP, EQUIPPED ✔, BUY · price then CONFIRM · price, or LOCKED.
   action:
-    at: [0, -1.38, 0.2]
-    size: [1.9, 0.28]
+    at: [0, -1.59, 0.2]
+    size: [2.128, 0.291]
     frame: false
     content: {type: ACTION}
-  # Quiet icons; the hint line says what one does while the crosshair is on it.
+  # Icons; the words of the one looked at show right under it.
   icons:
-    at: [0, -1.74, 0.2]
-    size: [3.6, 0.26]
+    at: [0, -1.915, 0.2]
+    size: [3.2, 0.246]
     frame: false
     content:
       type: ICONS
@@ -68,26 +74,32 @@ panels:
         - {label: '%catalog_help%', action: intro}
         - {label: '%catalog_leave%', action: leave}
   hint:
-    at: [0, -2.0, 0.2]
-    size: [5.0, 0.2]
+    at: [0, -1.344, 0.2]
+    size: [5.6, 0.179]
     frame: false
     content:
       type: TEXT
       lines: ['%catalog_hint%']
 preview:
-  at: [0, -1.0, 0.1]
+  at: [0, -1.008, 0.1]
   turn-speed: 0
   pedestal: true
-  scale: 0.72
+  scale: 0.44
   vanish-on-play: true
   # How large the effect and its mannequin play: a miniature on the pedestal, every offset,
   # movement, body and spread that many times its written size.
-  effect-scale: 0.72
+  effect-scale: 0.44
   # Whose skin the mannequin and the body it leaves wear, the first source that has one: others
   # (another online player, a different one each play), viewer (the player looking), defaults
   # (vanilla's Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny and Zuri, slim and wide).
   skins: [others, defaults]
   facing: FRONT
+  # The side an effect is seen from: AUTO watches its first play and turns it so its motion runs across
+  # your view, never showing the victim's back (SpatialPreview.sequence(sequence, skin, facing) sets one per effect).
+  effect-facing: AUTO
+  # [width, height] above the pedestal every effect plays inside, between the arc and under the words:
+  # one that would spill out plays smaller.
+  zone: [2.016, 1.03]
   turn-controls: false
   turn-hint: ''
   turn-pause: 8
@@ -96,17 +108,25 @@ preview:
 carousel:
   source: catalog
   style: ARC
-  at: [0, -0.4, 0.1]
+  at: [0, -0.392, 0.1]
   slots: 8
   rows: 1
-  spacing: 0.42
+  spacing: 0.47
   row-gap: 0.7
-  centre-gap: 1.8
-  curve: 0.45
+  centre-gap: 2.016
+  curve: 0.504
 # Shown once, the first time a player opens the selector. The '?' icon shows it again.
 intro:
   steps:
-    - {target: carousel, at: [-2.35, 0.78, 0.4], text: '%catalog_intro_shelf%'}
-    - {target: preview, at: [2.35, 0.78, 0.4], text: '%catalog_intro_preview%'}
-    - {target: action, at: [2.35, -1.0, 0.4], text: '%catalog_intro_action%'}
-    - {target: icons, at: [-2.35, -1.0, 0.4], text: '%catalog_intro_more%'}
+    - {target: carousel, at: [-2.632, 0.694, 0.4], text: '%catalog_intro_shelf%'}
+    - {target: preview, at: [2.632, 0.694, 0.4], text: '%catalog_intro_preview%'}
+    - {target: action, at: [2.75, -1.1, 0.4], text: '%catalog_intro_action%'}
+    - {target: icons, at: [-2.75, -0.7, 0.4], text: '%catalog_intro_more%'}
+# A soft dark backdrop behind the whole board, its edges fading out, so every word reads on sky and ground alike.
+backdrop:
+  at: [0, -0.47, -0.3]
+  size: [8.288, 3.92]
+  tint: '{primary}'
+  alpha: 150
+  feather: 0.392
+  rings: 3

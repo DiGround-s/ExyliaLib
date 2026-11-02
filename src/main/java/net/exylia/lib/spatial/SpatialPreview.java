@@ -65,7 +65,16 @@ public sealed interface SpatialPreview {
      * {@code [NPC] {victim}} wear the same one.
      */
     static @NotNull SpatialPreview sequence(@NotNull Sequence sequence, @Nullable Player skin) {
-        return new Effect(sequence, skin);
+        return new Effect(sequence, skin, null);
+    }
+
+    /**
+     * {@link #sequence(Sequence, Player)} seen from {@code facing}: {@code AUTO} (the side that shows its motion
+     * best, never the victim's back), {@code FRONT}, {@code SIDE}, {@code OTHER_SIDE} or degrees turned from the
+     * front; {@code null} takes the layout's {@code preview.effect-facing}. Since 1.454.0.
+     */
+    static @NotNull SpatialPreview sequence(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing) {
+        return new Effect(sequence, skin, facing);
     }
 
     /**
@@ -154,6 +163,10 @@ public sealed interface SpatialPreview {
                   int trailEveryTicks, @Nullable Sequence impact) implements SpatialPreview {
     }
 
-    record Effect(@NotNull Sequence sequence, @Nullable Player skin) implements SpatialPreview {
+    record Effect(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing) implements SpatialPreview {
+        /** An effect seen as the layout says: the shape this record had before 1.454.0. */
+        public Effect(@NotNull Sequence sequence, @Nullable Player skin) {
+            this(sequence, skin, null);
+        }
     }
 }

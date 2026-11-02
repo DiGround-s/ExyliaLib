@@ -571,6 +571,33 @@ public final class DisplayRuntime {
     }
 
     /** How many displays are on screen, for diagnostics. */
+    /**
+     * Where every live display a viewer sees within {@code radius} of {@code near} stands now, but those in
+     * {@code except}: {x, y, z, half its size} in the world, its pose's offset included. What a spatial menu's
+     * preview watches to learn the shape of an effect as it plays. Since 1.454.0.
+     */
+    public static java.util.List<double[]> sample(Player viewer, Location near, double radius, java.util.Set<?> except) {
+        java.util.List<double[]> out = new java.util.ArrayList<>();
+        double reach = radius * radius;
+        for (LiveDisplay display : LIVE) {
+            if (except.contains(display)) continue;
+            java.util.List<Player> who = display.viewers();
+            if (who == null || !who.contains(viewer)) continue;
+            Location at = display.location();
+            if (at == null || at.getWorld() != near.getWorld() || at.distanceSquared(near) > reach) continue;
+            DisplayKeyframe pose = display.pose();
+            double x = at.getX(), y = at.getY(), z = at.getZ(), size = 0.1;
+            if (pose != null) {
+                x += pose.x();
+                y += pose.y();
+                z += pose.z();
+                size = Math.max(Math.abs(pose.scaleX()), Math.abs(pose.scaleY())) * 0.5;
+            }
+            out.add(new double[]{x, y, z, Math.min(size, 1.5)});
+        }
+        return out;
+    }
+
     public static int active() {
         return LIVE.size();
     }

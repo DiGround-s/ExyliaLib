@@ -282,7 +282,7 @@ public final class SpatialCatalog {
         }
 
         private static final String INTRO_MORE =
-                "{letters}&lMORE\n{muted}Look at an icon to read what it does {letters_black}· {muted}the tabs filter";
+                "{letters}&lMore\n{letters_black}Look at an icon to read what it does · the words on top filter";
 
         public Words() {
             this("{success}&lSAVE", "{muted}Saved {success}✔", "{highlight}&lBUY & SAVE", "{warning}&lCONFIRM",
@@ -310,7 +310,7 @@ public final class SpatialCatalog {
                     "{warning}&lCONFIRM {letters_black}» {warning}%price%",
                     "{muted}&l🔒 LOCKED",
                     "{muted}Look at an item below",
-                    "{success}✔ Equipped", "{muted}Owned",
+                    "{success}✔ Equipped", "{success}Owned",
                     "{letters}Price {letters_black}» {warning}%price%",
                     "{error}🔒 Locked", "{muted}Not for sale",
                     "{warning}➥ {letters}Look at an item to see it {letters_black}· {letters}click to try it",
@@ -323,7 +323,7 @@ public final class SpatialCatalog {
                     "{warning}➥ {letters}Press {highlight}BUY {letters}to own it for {warning}%price%",
                     "{warning}➥ {letters}Click {warning}CONFIRM {letters}to pay {warning}%price%",
                     "{error}🔒 {letters}%unlock%",
-                    "{muted}%tab%", "{letters}%tab%", "★",
+                    "{letters}%tab%", "{secondary_light}%tab%", "★",
                     "{error}&l✕ LEAVE", "{muted}? Help",
                     "{highlight}&lYOUR COLLECTION\n{letters}Look at an item to read its card {letters_black}· {letters}click to try it",
                     "{highlight}&lTRY IT ON\n{letters}What you click plays here at once {letters_black}· {letters}nothing is kept yet",
@@ -787,9 +787,8 @@ public final class SpatialCatalog {
     /** The live hint: what the player is looking at first, then what their draft waits for. */
     private String hint(SpatialContext ctx, Words text, Basket basket, boolean dirty, boolean confirming, String name,
                         String part, String unlock) {
-        // An icon under the crosshair says what it does, in the hint line, so the icon row stays quiet.
-        String icon = ctx.get(MenuSession.ICON_LABEL, "");
-        if (!icon.isBlank()) return icon;
+        // The guided tour says what to do while it shows.
+        if (Boolean.TRUE.equals(ctx.get(MenuSession.TOURING))) return "";
         if (confirming) return fillIn(text.hintConfirm(), name, basket, part);
         Offer looked = find(ctx, primary, ctx.hovered(primary));
         // Looking at the one just tried says what to do with it, not to try it again.
@@ -826,7 +825,7 @@ public final class SpatialCatalog {
         // what it is (its subtitle, a rarity, in its own colour) and where the player stands with it.
         String standing = shown.owned() ? (shown.equipped() ? text.cardEquipped() : text.cardOwned())
                 : shown.buyable() ? text.price().replace("%price%", shown.purchase().price().format())
-                : "{muted}🔒 " + plainOf(unlockOf(shown, text));
+                : "{accent}🔒 {letters_black}" + plainOf(unlockOf(shown, text));
         String subtitle = shown.entry().subtitle();
         values.put("catalog_card_title", "{letters}&l" + plainOf(shown.entry().name()))
                 .put("catalog_card_meta", (subtitle.isBlank() ? "" : subtitle + " {letters_black}· ") + standing);

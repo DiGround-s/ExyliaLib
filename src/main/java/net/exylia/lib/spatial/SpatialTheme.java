@@ -99,7 +99,7 @@ public record SpatialTheme(
                 "minecraft:item.book.page_turn|1.0|1.0", "minecraft:block.ender_chest.open|0.6|1.4",
                 "minecraft:item.bundle.remove_one|1.0|0.5", "minecraft:entity.villager.no|0.6|1.0",
                 0.95, false,
-                "%dots%\n{muted}Click to continue {letters_black}· {muted}sneak to skip",
+                "%dots%\n{letters_black}Click to continue · sneak to skip",
                 "{highlight}", "POP");
     }
 

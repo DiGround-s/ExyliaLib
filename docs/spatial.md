@@ -583,8 +583,8 @@ words floating with a shadow, one filled button, the items floating round the pr
                Look at an effect to see it · click to try it                the hint
 ```
 
-The board stands **4.5 blocks** away and spans about 71° across and 47° top to bottom (measured by the bot
-from the packets): about half the view of a 16:9 window at the default 70° FOV. 1.452.0 stood it 6 blocks
+The board stands **4.5 blocks** away and spans about 78° across and 42° top to bottom since 1.454.0 (measured by the bot
+from the packets; its words drawn at `min-glyph-degrees: 1.06`, a little over the library's floor): about half the view of a 16:9 window at the default 70° FOV. 1.452.0 stood it 6 blocks
 away with glass cards, plates and tiles: on a real client it read as an old inventory screen, small and
 crammed in the middle. Every line is still drawn at the theme's `min-glyph-degrees` where it stands.
 
@@ -598,6 +598,41 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
 | Icons | `frame: false`, `content: {type: ICONS, buttons: [...]}` | A row of muted glyphs, light under the crosshair. A button's label is `'<glyph>\|<words>'` or words starting with their glyph (`☆ FAVOURITE`); the words show only under the crosshair, in the hint line (the menu's `%icon_label%`). Blank words leave it out |
 | Hint | `frame: false`, a `TEXT` line `%catalog_hint%` | One short muted line: what to do next, or what the icon under the crosshair does |
 | Tour | `intro.steps` | Coach marks; see below |
+
+**Since 1.454.0** (after the second client test):
+
+- **Readable on any sky or ground.** `backdrop: {at, size, tint, alpha, feather, rings}` draws one soft dark
+  translucent sheet behind the whole board, its edge fading out in `rings` steps over `feather` blocks (each ring a
+  little further back and fainter; no border). The words use the palette with meaning again, chosen for at least
+  3:1 contrast over the backdrop on sky (`#8ab4ff`) and deepslate: `{letters}` for words, `{letters_black}` for the
+  quieter ones, `{secondary_light}` for the open tab and a lit icon, `{success}` / `{warning}` / `{accent}` for owned,
+  price and locked. Not `{muted}` or `{error}`: under 3:1 there (`CentreStageLayoutTest` measures it). The title is the
+  item's own name, gradient and all (`%catalog_card_name%`).
+- **Never under the floor.** `SpatialLayout.lowest()` is how far below the board's middle its lowest piece reaches
+  (an icon row's hover words included), and the board is drawn at `liftOverFloor(1.62, 0.15)`: its own lift, or
+  more when its lowest piece would stand less than 0.15 above the floor the viewer stands on (clear-view keeps the
+  ground, which hid the button, icons and hint in 1.453.0). Every layout gets this; the library's old wardrobe moves
+  up a few centimetres at most.
+- **Icons** are larger (`title-scale` × 1.25), light, accent under the crosshair, and their words show right under
+  the icon looked at.
+- **Description lines are balanced** (`ctx.wrap` uses `Geometry.balanced`): as many lines as needed at the narrowest
+  width that holds them, so no lone word ends a paragraph; the author's own breaks stay when they already balance.
+- **Tour arrow** stands outside its caption's measured box, on the side facing the piece, with room for its nudge; it
+  points at an inner item of the arc (the outermost has the page arrow beside it) or the near end of a panel.
+  Caption, dots and the continue line are one evenly spaced block. While the tour shows, the menu's state holds
+  `touring` and a catalogue's hint line is blank.
+- **The effect preview is smaller** in the shipped layout (`effect-scale: 0.44`, about 60% of 1.453.0's body), and
+  the zone keeps every effect off the words.
+- **Effects seen from the front or the side, sized to fit.** An effect now plays facing the viewer (before, it played
+  at the world's yaw 0 whatever way the board faced, so a victim could show its back). With
+  `preview.effect-facing: AUTO` (the default) the first play of each effect is watched (every display it shows the
+  viewer within 12 blocks, from `DisplayRuntime.sample`), and later plays are turned within ±90° so its motion runs
+  across the view (`EffectView`: the turn that maximises the spread across against the spread in depth; a still
+  effect stays facing you). `preview.zone: [width, height]` is the room above the pedestal it must stay inside: an
+  effect that spills out plays smaller, never larger than `effect-scale`, the mannequin with it. Per effect,
+  `SpatialPreview.sequence(sequence, skin, facing)` (`AUTO`, `FRONT`, `SIDE`, degrees) wins over the layout's; in
+  ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per
+  sequence, facing, zone and scale.
 
 `theme.open-motion: RISE` (since 1.453.0; `POP` is the default and the old look) brings pieces in rising a
 little and settling, quickly. Bare panels (`frame: false`) draw their titles, buttons and words as written:

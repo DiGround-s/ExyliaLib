@@ -57,10 +57,11 @@ class CentreStageLayoutTest {
     @Test
     void theTemplateReadsBackClean() throws Exception {
         SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
-        assertEquals(2, layout.menuVersion());
+        assertEquals(3, layout.menuVersion());
         assertEquals(4.5, layout.anchor().distance(), 1e-9);
         assertTrue(layout.carousel().arc());
         assertEquals(8, layout.carousel().perPage());
+        assertTrue(layout.backdrop().present());
         assertEquals(4, layout.intro().steps().size());
         assertEquals(SpatialLayout.Content.Type.TABS, layout.panel("tabs").content().type());
         assertEquals(SpatialLayout.Content.Type.ACTION, layout.panel("action").content().type());
@@ -109,7 +110,10 @@ class CentreStageLayoutTest {
         Map<String, Box> boxes = new LinkedHashMap<>();
         layout.panels().forEach((name, p) -> {
             double grow = p.frame() ? reach * 2 : 0;
-            boxes.put(name, project(d, rect(p.across(), p.up(), p.forward(), p.turn(), p.width() + grow, p.height() + grow)));
+            // An icon row also writes the words of the icon looked at under it.
+            double under = p.content().type() == SpatialLayout.Content.Type.ICONS ? p.height() * 0.95 : 0;
+            boxes.put(name, project(d, rect(p.across(), p.up() - under / 2, p.forward(), p.turn(), p.width() + grow,
+                    p.height() + grow + under)));
         });
         SpatialLayout.Preview preview = layout.preview();
         double s = Math.max(preview.scale(), preview.effectScale());
@@ -169,15 +173,65 @@ class CentreStageLayoutTest {
     }
 
     @Test
-    void theWholeBoardFitsAboutHalfTheView() throws Exception {
+    void theBoardFitsTheViewAndStaysAboveTheFloor() throws Exception {
         SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
         double d = layout.anchor().distance();
-        double lift = layout.anchor().lift();
-        double across = d * Math.tan(Math.toRadians(36));
-        double up = d * Math.tan(Math.toRadians(25));
-        // About 72° across and 50° top to bottom: half a 16:9 window's view at most, with the eyes level.
-        boxes(layout).forEach((name, box) -> assertTrue(box.x0() > -across && box.x1() < across
-                && box.y0() + lift > -up && box.y1() + lift < up, name + " " + box + " leaves ±" + across + " × ±" + up));
+        double lift = layout.liftOverFloor(1.62, MenuSession.FLOOR_MARGIN);
+        double x0 = 0, x1 = 0, y0 = 0, y1 = 0;
+        for (Box box : boxes(layout).values()) {
+            x0 = Math.min(x0, box.x0());
+            x1 = Math.max(x1, box.x1());
+            y0 = Math.min(y0, box.y0() + lift);
+            y1 = Math.max(y1, box.y1() + lift);
+        }
+        double across = Math.toDegrees(Math.atan(x1 / d) - Math.atan(x0 / d));
+        double tall = Math.toDegrees(Math.atan(y1 / d) - Math.atan(y0 / d));
+        assertTrue(across <= 80 && tall <= 47, "about 78° × 45° (a 16:9 window at 70° FOV sees ~102° × 70°): " + across + "° × " + tall + "°");
+        // Standing on flat ground, the lowest piece stays above the floor (eyes 1.62 above the feet).
+        assertTrue(layout.lowest() + lift >= -1.62 + MenuSession.FLOOR_MARGIN - 1e-9,
+                "lowest " + (layout.lowest() + lift + 1.62) + " above the floor");
+    }
+
+    @Test
+    void aLayoutThatWouldSinkIsRaisedAboveTheFloor() {
+        SpatialLayout low = new SpatialLayout().withPanel("deep", new SpatialLayout.Panel(List.of(0.0, -2.5, 0.0), 0,
+                List.of(1.0, 0.3), "", "", new SpatialLayout.Content(), new SpatialLayout.Footer()));
+        double lift = low.liftOverFloor(1.62, 0.15);
+        assertEquals(-1.62 + 0.15, low.lowest() + lift, 1e-9, "its bottom 0.15 over the floor");
+        assertTrue(new SpatialLayout().liftOverFloor(1.62, 0.15) - new SpatialLayout().anchor().lift() < 0.06,
+                "the library's wardrobe, its labels at the floor, rises a few centimetres at most");
+    }
+
+    /** WCAG contrast of a colour over the sky and over deepslate, both seen through the backdrop. */
+    private static double contrast(int text, int ground, int backdropAlpha) {
+        double a = backdropAlpha / 255.0;
+        int r = (int) (((ground >> 16) & 255) * (1 - a));
+        int g = (int) (((ground >> 8) & 255) * (1 - a));
+        int b = (int) ((ground & 255) * (1 - a));
+        double behind = luminance((r << 16) | (g << 8) | b);
+        double front = luminance(text);
+        return (Math.max(front, behind) + 0.05) / (Math.min(front, behind) + 0.05);
+    }
+
+    private static double luminance(int rgb) {
+        double[] c = {((rgb >> 16) & 255) / 255.0, ((rgb >> 8) & 255) / 255.0, (rgb & 255) / 255.0};
+        for (int i = 0; i < 3; i++) c[i] = c[i] <= 0.03928 ? c[i] / 12.92 : Math.pow((c[i] + 0.055) / 1.055, 2.4);
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    }
+
+    @Test
+    void everyWordColourReadsOnSkyAndGround() throws Exception {
+        SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
+        int alpha = layout.backdrop().alpha();
+        // The palette colours the board writes with: letters, letters_black, secondary_light, success, warning,
+        // accent, info, highlight. Not muted (#868e96) or error (#a33b53): too dark over the backdrop.
+        int[] used = {0xE7CFFF, 0xA89AB5, 0xB48FD9, 0x8FFFC1, 0xFF9500, 0xFF6B9D, 0x59A4FF, 0xFFD700};
+        int sky = 0x8AB4FF;
+        int deepslate = 0x4D4D50;
+        for (int colour : used) {
+            assertTrue(contrast(colour, sky, alpha) >= 3, Integer.toHexString(colour) + " on sky " + contrast(colour, sky, alpha));
+            assertTrue(contrast(colour, deepslate, alpha) >= 3, Integer.toHexString(colour) + " on deepslate " + contrast(colour, deepslate, alpha));
+        }
     }
 
     // ── Readable and whole ────────────────────────────────────────────────
@@ -208,9 +262,9 @@ class CentreStageLayoutTest {
         double[] widths = new double[7];
         String[] names = {"All", "Meme", "Void", "Cataclysm", "Lovestruck", "Cosmic", words.tabFavourites()};
         for (int i = 0; i < names.length; i++) {
-            widths[i] = floorWidth(words.tabActive().replace("%tab%", names[i]), far, layout.theme()) + 0.2;
+            widths[i] = floorWidth(words.tabActive().replace("%tab%", names[i]), far, layout.theme()) + 0.16;
         }
-        assertArrayEquals(new int[]{0, 7}, Geometry.tabWindow(widths, 0.05, tabs.width(), 3));
+        assertArrayEquals(new int[]{0, 7}, Geometry.tabWindow(widths, 0.04, tabs.width(), 3));
     }
 
     // ── Geometry ──────────────────────────────────────────────────────────
@@ -259,5 +313,42 @@ class CentreStageLayoutTest {
         double[] centres = Geometry.tabCentres(widths, 0.07, 0, 2);
         assertEquals(-centres[1] + (0.8 - 0.6) / 2, centres[0] + 0, 0.5);
         assertEquals(0, (centres[0] - 0.3 + centres[1] + 0.4) / 2, 1e-9, "the row is centred");
+    }
+
+    @Test
+    void wrappedLinesAreBalanced() {
+        String text = "The blast lifts them into a backflip, bounces them twice, and leaves them in pieces.";
+        double width = Geometry.visibleWidth("The blast lifts them into a backflip,") + 0.01;
+        List<String> lines = Geometry.balanced(text, width, 3);
+        for (String line : lines) assertTrue(line.trim().split(" ").length > 1, "no lone word: " + lines);
+        double longest = lines.stream().mapToDouble(Geometry::visibleWidth).max().orElse(0);
+        double shortest = lines.stream().mapToDouble(Geometry::visibleWidth).min().orElse(0);
+        assertTrue(shortest > longest * 0.6, "even lines: " + lines);
+        assertEquals(String.join(" ", lines), text, "every word kept, in order");
+    }
+
+    @Test
+    void anEffectIsTurnedToShowItsMotionAcrossTheView() {
+        // A body thrown straight away from the viewer when played facing them: seen end-on, it shows nothing.
+        float board = 0;
+        double[] base = {0, 64, 0};
+        java.util.List<double[]> samples = new java.util.ArrayList<>();
+        for (int i = 0; i <= 10; i++) {
+            // Facing the viewer means facing yaw 180 on a board of yaw 0: its own forward is -z here.
+            samples.add(new double[]{0, 64 + 0.1 * i, -0.15 * i, 0.1});
+        }
+        var tuning = net.exylia.lib.spatial.internal.EffectView.choose(samples, base, board, 0, true, 0, new double[]{0, 0});
+        assertEquals(90, Math.abs(tuning.turn()), 1e-9, "turned side-on: " + tuning.turn());
+        // Turned, the throw runs across the view.
+        double[] end = net.exylia.lib.spatial.internal.EffectView.place(samples.getLast(), base, board, 0, tuning.turn());
+        assertTrue(Math.abs(end[0]) > 1.4 && Math.abs(end[2]) < 1e-6, java.util.Arrays.toString(end));
+        // Something already moving across is left facing the viewer.
+        java.util.List<double[]> across = new java.util.ArrayList<>();
+        for (int i = 0; i <= 10; i++) across.add(new double[]{0.15 * i, 64, 0, 0.1});
+        assertEquals(0, net.exylia.lib.spatial.internal.EffectView.choose(across, base, board, 0, true, 0, new double[]{0, 0}).turn(), 1e-9);
+        // Too tall for its zone: played smaller, never larger.
+        java.util.List<double[]> tall = java.util.List.of(new double[]{0, 64, 0, 0.1}, new double[]{0, 66, 0, 0.1});
+        var fitted = net.exylia.lib.spatial.internal.EffectView.choose(tall, base, board, 0, true, 0, new double[]{1.3, 0.85});
+        assertEquals(0.85 / 2.2, fitted.scale(), 1e-9, "its whole height, half a piece under the base included");
     }
 }

@@ -155,7 +155,8 @@ public final class SpatialMenus {
             "theme.select-sound", List.of("minecraft:block.note_block.hat|1.0|1.0"),
             "theme.open-sound", List.of("minecraft:block.ender_chest.open|1.0|1.4"),
             "theme.intro-line", List.of("{muted}Click to continue {letters_black}· {muted}Sneak to skip {letters_black}» "
-                    + "{info}%step%{letters_black}/{info}%steps%"));
+                    + "{info}%step%{letters_black}/{info}%steps%",
+                    "%dots%\n{muted}Click to continue {letters_black}· {muted}sneak to skip"));
 
     /** Whether the jar {@code anchor} came from holds {@code path}. */
     static boolean packaged(Class<?> anchor, String path) {
@@ -638,8 +639,15 @@ public final class SpatialMenus {
         }
         Plugin owner = library;
         if (owner == null) return null;
-        return SceneShield.raise(owner, player, anchor, distance, half, top + layout.anchor().lift(),
-                layout.anchor().clearView(), layout.hideOthers());
+        SpatialLayout.Backdrop backdrop = layout.backdrop();
+        if (backdrop.present()) {
+            half = Math.max(half, Math.abs(backdrop.at().get(0)) + backdrop.size().get(0) / 2 + backdrop.feather());
+            top = Math.max(top, backdrop.at().get(1) + backdrop.size().get(1) / 2 + backdrop.feather());
+        }
+        // As deep as the backdrop behind the board, and as high as the board stands once kept above the floor.
+        double deeper = backdrop.present() ? Math.max(0, -backdrop.at().get(2)) + 0.1 : 0;
+        return SceneShield.raise(owner, player, anchor, distance + deeper, half,
+                top + layout.liftOverFloor(1.62, MenuSession.FLOOR_MARGIN), layout.anchor().clearView(), layout.hideOthers());
     }
 
     // ── Hiding ────────────────────────────────────────────────────────────

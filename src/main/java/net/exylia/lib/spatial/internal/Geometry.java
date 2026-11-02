@@ -209,6 +209,38 @@ public final class Geometry {
     }
 
     /**
+     * {@link #wrap} with even lines: as many lines as a plain wrap needs, at the narrowest width that still fits
+     * the words in them, so no line is left with a word or two while the others run long. The author's own line
+     * breaks are kept when every line fits and none is a lone word. Since 1.454.0.
+     */
+    public static List<String> balanced(String raw, double width, int lines) {
+        List<String> plain = wrap(raw, width, lines);
+        if (plain.size() < 2) return plain;
+        List<String> paragraphs = net.exylia.lib.text.Lines.split(raw);
+        if (paragraphs.size() > 1 && paragraphs.size() <= lines && paragraphs.stream().allMatch(line ->
+                visibleWidth(line) <= width && line.trim().split("\\s+").length > 1)) {
+            return new ArrayList<>(paragraphs.stream().map(String::trim).toList());
+        }
+        String joined = String.join(" ", paragraphs.stream().map(String::trim).toList());
+        int count = plain.size();
+        if (!fits(wrap(joined, width, count), width, count)) return plain;
+        double low = 0;
+        double high = width;
+        for (int step = 0; step < 24; step++) {
+            double middle = (low + high) / 2;
+            if (fits(wrap(joined, middle, count), middle, count)) high = middle;
+            else low = middle;
+        }
+        return wrap(joined, high, count);
+    }
+
+    private static boolean fits(List<String> wrapped, double width, int count) {
+        if (wrapped.size() > count) return false;
+        for (String line : wrapped) if (visibleWidth(line) > width + 1e-9) return false;
+        return true;
+    }
+
+    /**
      * Prose broken into at most {@code lines} lines whose visible letters fit {@code width} blocks at
      * scale 1, word by word. Breaks already in the text are kept while it fits that way; otherwise it
      * flows as one paragraph (breaks written for a wider lore waste a short panel's lines). What still

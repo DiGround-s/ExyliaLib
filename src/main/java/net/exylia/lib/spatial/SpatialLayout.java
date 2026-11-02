@@ -52,6 +52,9 @@ public record SpatialLayout(
         @Comment("turn-controls: the viewer turns the body: a click on it turns it to the next side, the wheel over it a")
         @Comment("little, and the two arrows beside the pedestal either way; it holds that side for turn-pause seconds")
         @Comment("before turning on its own again. turn-hint: the short line under the pedestal saying so.")
+        @Comment("effect-facing: the side an effect is seen from: AUTO (watched once, then turned so its motion runs across")
+        @Comment("the view, never showing the victim's back), FRONT, SIDE or degrees. zone: [width, height] above the")
+        @Comment("pedestal an effect must play inside; it is made smaller (never larger than effect-scale) to fit. 0: none.")
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
@@ -65,21 +68,31 @@ public record SpatialLayout(
         Intro intro,
         @Comment("The layout's version. A plugin update with a higher one replaces this file when it was never")
         @Comment("edited, and offers its new layout in /exylialib updates when it was. Do not edit.")
-        int menuVersion) {
+        int menuVersion,
+        @Comment("A soft, translucent dark backdrop behind the whole board, so its words read on any sky or ground:")
+        @Comment("size [width, height] at 'at', its edges fading out over 'feather' blocks in 'rings' steps. Size 0: none.")
+        Backdrop backdrop) {
 
     /** A wardrobe: a header, a list on the left, a grid on the right, a caption, a preview and a carousel. */
     public SpatialLayout() {
         this("{primary}&lWARDROBE", new Anchor(), true, true, new SpatialTheme(), defaultPanels(), new Preview(),
-                new Carousel(), new Intro(), 0);
+                new Carousel(), new Intro(), 0, new Backdrop());
     }
 
     /** A layout without a guided tour: the shape layouts had before 1.452.0. */
     public SpatialLayout(String title, Anchor anchor, boolean hideOthers, boolean freeze, SpatialTheme theme,
                          Map<String, Panel> panels, Preview preview, Carousel carousel) {
-        this(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, new Intro(), 0);
+        this(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, new Intro(), 0, new Backdrop());
+    }
+
+    /** A layout without a backdrop: the shape layouts had in 1.452.0 and 1.453.0. */
+    public SpatialLayout(String title, Anchor anchor, boolean hideOthers, boolean freeze, SpatialTheme theme,
+                         Map<String, Panel> panels, Preview preview, Carousel carousel, Intro intro, int menuVersion) {
+        this(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion, new Backdrop());
     }
 
     public SpatialLayout {
+        backdrop = backdrop == null ? new Backdrop() : backdrop;
         intro = intro == null ? new Intro() : intro;
         panels = panels == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(panels));
     }
@@ -108,15 +121,71 @@ public record SpatialLayout(
     public SpatialLayout withPanel(String name, Panel panel) {
         Map<String, Panel> next = new LinkedHashMap<>(panels);
         next.put(name, panel);
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, next, preview, carousel, intro, menuVersion);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, next, preview, carousel, intro, menuVersion, backdrop);
     }
 
     public SpatialLayout withPreview(Preview preview) {
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion, backdrop);
     }
 
     public SpatialLayout withCarousel(Carousel carousel) {
-        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion);
+        return new SpatialLayout(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion, backdrop);
+    }
+
+    /**
+     * How far below the board's middle its lowest piece reaches, in blocks (negative): every panel's bottom, the
+     * preview's pedestal, the carousel with its labels, page line and arrows. The backdrop is left out: it may fade
+     * into the floor. Since 1.454.0.
+     */
+    public double lowest() {
+        double low = 0;
+        for (Panel panel : panels.values()) {
+            // An icon row writes the words of the icon looked at under it.
+            double under = panel.content().type() == Content.Type.ICONS ? panel.height() * 0.95 : 0;
+            low = Math.min(low, panel.up() - panel.height() / 2 - under);
+        }
+        low = Math.min(low, preview.at().get(1) - 0.14);
+        if (carousel.present()) {
+            double up = carousel.at().get(1);
+            if (carousel.arc()) low = Math.min(low, up - carousel.spacing() * 0.9 * 0.95 - 0.1);
+            else if (carousel.shelf()) low = Math.min(low, up - (carousel.rows() - 1) * carousel.rowGap()
+                    - Math.min(carousel.spacing() * 0.8, carousel.rowGap() * 0.86) / 2 - 0.42);
+            else low = Math.min(low, up - 0.47);
+        }
+        return low;
+    }
+
+    /**
+     * The lift the board is drawn at for a viewer standing on flat ground with their eyes {@code eyes} above
+     * their feet: the layout's own, or more when that would put its lowest piece less than {@code margin} above
+     * the floor, where the ground (kept by clear-view) would hide it. Since 1.454.0.
+     */
+    public double liftOverFloor(double eyes, double margin) {
+        return Math.max(anchor.lift(), margin - eyes - lowest());
+    }
+
+    /**
+     * A soft backdrop behind the board (since 1.454.0): a dark sheet of {@code alpha} tinted towards {@code tint},
+     * {@code size} wide and tall at {@code at}, ringed by {@code rings} fainter, larger sheets fading out over
+     * {@code feather} blocks, so it has no hard edge. Size 0 (the default): none.
+     */
+    public record Backdrop(List<Double> at, List<Double> size, String tint, int alpha, double feather, int rings) {
+        public Backdrop() {
+            this(List.of(0.0, 0.0, -0.3), List.of(0.0, 0.0), "{primary}", 150, 0.3, 3);
+        }
+
+        public Backdrop {
+            at = point(at);
+            size = size == null || size.size() < 2 ? List.of(0.0, 0.0) : numbers(size, 2);
+            tint = tint == null || tint.isBlank() ? "{primary}" : tint;
+            alpha = Math.clamp(alpha, 0, 255);
+            feather = Math.max(0, feather);
+            rings = Math.clamp(rings, 0, 8);
+        }
+
+        public boolean present() {
+            return size.get(0) > 0 && size.get(1) > 0 && alpha > 0;
+        }
     }
 
     /**
@@ -299,7 +368,7 @@ public record SpatialLayout(
      */
     public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
                           double effectScale, List<String> skins, String facing, boolean turnControls, String turnHint,
-                          double turnPause) {
+                          double turnPause, String effectFacing, List<Double> zone) {
 
         /** The hint under the pedestal when the file does not say. */
         public static final String TURN_HINT = "{muted}Click the body to turn it";
@@ -312,7 +381,16 @@ public record SpatialLayout(
 
         public Preview() {
             // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
-            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS, "FRONT", false, TURN_HINT, 8);
+            this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS, "FRONT", false, TURN_HINT, 8,
+                    "AUTO", List.of(0.0, 0.0));
+        }
+
+        /** Every key but the effect's facing and zone: the shape previews had before 1.454.0. */
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
+                       double effectScale, List<String> skins, String facing, boolean turnControls, String turnHint,
+                       double turnPause) {
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins, facing, turnControls, turnHint,
+                    turnPause, "AUTO", List.of(0.0, 0.0));
         }
 
         /** @deprecated since 1.442.0; use the constructor with {@code facing} and the turn controls. */
@@ -349,6 +427,32 @@ public record SpatialLayout(
             facing = facing == null || facing.isBlank() ? "FRONT" : facing;
             turnHint = turnHint == null ? "" : turnHint;
             turnPause = turnPause < 0 ? 8 : turnPause;
+            effectFacing = effectFacing == null || effectFacing.isBlank() ? "AUTO" : effectFacing;
+            zone = zone == null || zone.size() < 2 ? List.of(0.0, 0.0) : numbers(zone, 2);
+        }
+
+        /**
+         * A facing as degrees turned from the front: {@code FRONT} 0, {@code SIDE} 90, {@code BACK} 180,
+         * {@code OTHER_SIDE} 270, a number as written, {@code NaN} for {@code AUTO}; anything else the front.
+         *
+         * @since 1.454.0
+         */
+        public static double degreesOf(String facing) {
+            String side = facing == null ? "" : facing.strip().toUpperCase(java.util.Locale.ROOT).replace('-', '_').replace(' ', '_');
+            if (side.equals("AUTO")) return Double.NaN;
+            return switch (side) {
+                case "FRONT", "" -> 0;
+                case "SIDE", "LEFT", "LEFT_SIDE" -> 90;
+                case "BACK" -> 180;
+                case "OTHER_SIDE", "RIGHT", "RIGHT_SIDE" -> 270;
+                default -> {
+                    try {
+                        yield Double.parseDouble(side);
+                    } catch (NumberFormatException notANumber) {
+                        yield 0;
+                    }
+                }
+            };
         }
 
         /**
@@ -379,7 +483,7 @@ public record SpatialLayout(
 
         public Preview moved(double across, double up, double forward) {
             return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins,
-                    facing, turnControls, turnHint, turnPause);
+                    facing, turnControls, turnHint, turnPause, effectFacing, zone);
         }
     }
 
