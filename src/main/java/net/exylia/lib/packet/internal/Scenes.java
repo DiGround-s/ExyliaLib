@@ -30,8 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * packet NPCs and holograms, this library), followed by its position, so a screen standing in the
  * world can keep everything that is not its own out of sight for one viewer and give it all back after.
  *
- * <p>An entity in a sealed box is <em>parked</em>: moved, for that viewer alone, far beyond what any
- * client draws, and moved back to where it really is once the box is lifted or it walks out. Nothing is
+ * <p>An entity in a sealed box is <em>parked</em>: moved, for that viewer alone, straight up far beyond
+ * what any client draws, and moved back to where it really is once the box is lifted or it walks out. Nothing is
  * despawned, so nothing has to be spawned again: a packet-only NPC or hologram another plugin drew
  * keeps its skin, metadata, equipment, passengers and team on the client exactly as that plugin sent
  * them, and the plugin is never asked for anything. Packets about it keep arriving as usual; the ones
@@ -45,7 +45,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class Scenes {
 
-    /** How far across an entity is parked: past every client's entity and display view range. */
+    /** How far up an entity is parked: past every client's entity and display view range. */
     static final double PARK = 100_000;
     /** An entity's box when it is looked for in a box: a player's, which covers NPCs and holograms. */
     private static final double HALF_WIDTH = 0.3;
@@ -271,9 +271,13 @@ final class Scenes {
         return false;
     }
 
-    /** Where a parked entity is sent: the same height, far across, never past the world's edge. */
+    /**
+     * Where a parked entity is sent: straight up, so it stays in its chunk column. A client only ticks
+     * entities in chunks it has loaded, and a teleport back is applied by ticking (interpolation): one
+     * parked sideways in an unloaded chunk would never come back.
+     */
     private static Vector3d away(Seen seen) {
-        return new Vector3d(seen.x > 0 ? seen.x - PARK : seen.x + PARK, seen.y, seen.z);
+        return new Vector3d(seen.x, seen.y + PARK, seen.z);
     }
 
     private static WrapperPlayServerEntityTeleport teleport(int id, Seen seen, boolean park) {
