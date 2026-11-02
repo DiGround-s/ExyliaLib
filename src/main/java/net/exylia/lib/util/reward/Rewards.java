@@ -154,6 +154,50 @@ public final class Rewards {
         return read.isEmpty() ? null : read.get(0);
     }
 
+    /**
+     * A reward list in the form {@link #read} reads back, for a plugin that keeps
+     * rewards in its own config and saves what an {@link PluginRewards#editor editor}
+     * handed back:
+     *
+     * <pre>{@code
+     * settings.update(current -> current.withRewards(Rewards.write(edited)));
+     * }</pre>
+     *
+     * <p>One map per reward holding the stored fields, so a file and a column say
+     * the same thing; whole numbers are written without a decimal point.
+     *
+     * @param rewards the rewards to write
+     * @return one map per reward, in order; empty for an empty list
+     * @since 1.456.0
+     */
+    public static @NotNull List<Map<String, Object>> write(@NotNull List<RewardEntry> rewards) {
+        String json = RewardCodec.encode(rewards);
+        if (json == null) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (com.google.gson.JsonElement element : com.google.gson.JsonParser.parseString(json).getAsJsonArray()) {
+            Map<String, Object> row = new java.util.LinkedHashMap<>();
+            for (Map.Entry<String, com.google.gson.JsonElement> field : element.getAsJsonObject().entrySet()) {
+                if (!field.getValue().isJsonPrimitive()) {
+                    continue;
+                }
+                com.google.gson.JsonPrimitive value = field.getValue().getAsJsonPrimitive();
+                if (value.isBoolean()) {
+                    row.put(field.getKey(), value.getAsBoolean());
+                } else if (value.isNumber()) {
+                    double number = value.getAsDouble();
+                    row.put(field.getKey(), number == Math.rint(number) && Math.abs(number) < 1e15
+                            ? (Object) (long) number : number);
+                } else {
+                    row.put(field.getKey(), value.getAsString());
+                }
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
     // ------------------------------------------------------------------ items
 
     /**

@@ -401,6 +401,11 @@ write reward lists that way and none of them are going to be rewritten.
 
 A row that cannot be read is reported and skipped; the rest still load.
 
+`Rewards.write(rewards)` (since 1.456.0) is the other direction: one map per
+reward, in the shape `read` reads back, for a plugin that keeps a list in its
+own config and saves what the [editor](#editing-a-list-on-screen) handed back
+(`settings.update(c -> c.withRewards(Rewards.write(edited)))`).
+
 ### Conditions
 
 A left side, an operator and a right side, with placeholders resolved on both:

@@ -34,6 +34,29 @@ class RewardConfigTest {
         return Rewards.read(config, "rewards", (where, problem) -> problems.add(where + ": " + problem));
     }
 
+    @Test
+    @DisplayName("write gives back what read reads, with whole numbers kept whole")
+    void writeRoundTrips() {
+        List<RewardEntry> rewards = read("""
+                rewards:
+                  - type: ITEM
+                    itemSnapshot: DIAMOND
+                    itemAmount: 4
+                    chance: 25.5
+                  - type: ECONOMY
+                    value: "250"
+                  - "say hi"
+                """);
+        YamlConfiguration written = new YamlConfiguration();
+        written.set("rewards", Rewards.write(rewards));
+
+        assertEquals(rewards, Rewards.read(written, "rewards", (where, problem) -> problems.add(problem)));
+        assertEquals(4L, Rewards.write(rewards).get(0).get("itemAmount"));
+        assertEquals(25.5, Rewards.write(rewards).get(0).get("chance"));
+        assertTrue(Rewards.write(List.of()).isEmpty());
+        assertTrue(problems.isEmpty(), problems::toString);
+    }
+
     // ------------------------------------------------------------------
     // Reading a file
     // ------------------------------------------------------------------
