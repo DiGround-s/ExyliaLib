@@ -35,6 +35,12 @@ import java.util.function.Function;
  */
 public final class Attributes {
 
+    /**
+     * Prefixes keys carried before 1.21.2, tried in turn after the bare key.
+     * Declared first: the constants below resolve through it while the class initialises.
+     */
+    private static final String[] OLD_PREFIXES = {"generic.", "player.", "zombie.", "horse."};
+
     public static final Attribute ARMOR = require("armor");
     public static final Attribute ARMOR_TOUGHNESS = require("armor_toughness");
     public static final Attribute ATTACK_DAMAGE = require("attack_damage");
@@ -58,8 +64,6 @@ public final class Attributes {
     public static final Attribute SPAWN_REINFORCEMENTS = require("spawn_reinforcements");
     public static final Attribute STEP_HEIGHT = require("step_height");
 
-    /** Prefixes keys carried before 1.21.2, tried in turn after the bare key. */
-    private static final String[] OLD_PREFIXES = {"generic.", "player.", "zombie.", "horse."};
 
     private Attributes() {
     }
