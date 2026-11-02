@@ -108,6 +108,10 @@ WebEditor.of(this).yaml("tags", "cosmetics/tags", "chatcosmetics/catalog")
 
 `Subject.file()` is `null` for a YAML subject.
 
+A registered YAML subject is also editable in game, from
+[`/exylialib config`](config-menus.md#content-screens) and the plugin's own
+Settings button, through the same checker (since 1.446.0).
+
 ## Entries a plugin stores itself
 
 Mines, kits, arenas: things a plugin keeps in a database, or anywhere that is

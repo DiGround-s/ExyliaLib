@@ -74,7 +74,7 @@ class ConfigFieldsTest {
             for (String code : List.of("en", "es", "fr", "pt", "ru", "tr")) {
                 net.exylia.lib.config.Languages.use(library, code);
                 ConfigMenu.load(menus);
-                for (String id : List.of(ConfigMenu.PLUGINS, ConfigMenu.FILES, ConfigMenu.FIELDS)) {
+                for (String id : List.of(ConfigMenu.PLUGINS, ConfigMenu.FILES, ConfigMenu.FIELDS, ConfigMenu.ENTRIES_MENU)) {
                     assertTrue(menus.definition(id).isPresent(), code + " " + id);
                 }
                 menus.unload();

@@ -309,6 +309,66 @@ class WebEditorRuntimeTest {
         assertTrue(java.nio.file.Files.readString(catalog).contains("display: '&6*'"));
     }
 
+    @Test
+    void anInGameChangeToAYamlSubjectGoesThroughItsCheckerAndKeepsTheComments() throws IOException {
+        java.nio.file.Path catalog = folder.resolve("cosmetics/tags.yml");
+        java.nio.file.Files.createDirectories(catalog.getParent());
+        java.nio.file.Files.writeString(catalog, "# Every tag.\ntags:\n  # The first one.\n  star:\n    display: '&e*'\n    price: 5\n");
+        AtomicInteger reloaded = new AtomicInteger();
+        runtime.registerYaml(plugin, "tags", "cosmetics/tags", "test/catalog")
+                .check(yaml -> {
+                    var tags = yaml.getConfigurationSection("tags");
+                    if (tags == null) return List.of();
+                    for (String id : tags.getKeys(false)) {
+                        if (yaml.getString("tags." + id + ".display", "").isBlank()) return List.of(id + " has no display");
+                    }
+                    return List.of();
+                })
+                .sensitive("tags.*.price")
+                .onApplied(reloaded::incrementAndGet);
+        runtime.registerYaml(plugin, "shop", "menus/shop", Discovery.MENU_KIND);
+        SubjectImpl tags = runtime.contentOf(plugin).get(0);
+        assertEquals(1, runtime.contentOf(plugin).size(), "a menu is left to the web editor");
+
+        JsonObject schema = tags.source().schema(plugin.getName());
+        List<String> star = List.of("tags", "star");
+        assertEquals(ConfigFields.Kind.ENTRIES, YamlFields.kind(YamlFields.type(schema, List.of("tags"))));
+        List<YamlFields.Node> keys = YamlFields.fields(YamlFields.type(schema, star));
+        assertEquals(ConfigFields.Kind.TEXT, keys.get(0).kind());
+        assertEquals(ConfigFields.Kind.INTEGER, keys.get(1).kind());
+
+        JsonObject values = tags.source().values(plugin.getName());
+        WebEditorRuntime.InGame edit = runtime.inGame(tags,
+                YamlFields.with(values, YamlFields.child(star, "display"), new com.google.gson.JsonPrimitive("&6*")));
+        assertNull(edit.problem());
+        assertTrue(edit.confirm().isEmpty());
+        edit.write().run();
+        String written = java.nio.file.Files.readString(catalog);
+        assertTrue(written.contains("display: '&6*'"), written);
+        assertTrue(written.contains("# The first one."), written);
+        assertEquals(1, reloaded.get());
+
+        values = tags.source().values(plugin.getName());
+        runtime.inGame(tags, YamlFields.added(values, List.of("tags"), "moon", null)).write().run();
+        assertTrue(java.nio.file.Files.readString(catalog).contains("moon:"));
+        assertEquals("star-copy", YamlFields.freeId(YamlFields.ids(tags.source().values(plugin.getName()), List.of("tags")), "star"));
+
+        values = tags.source().values(plugin.getName());
+        WebEditorRuntime.InGame refused = runtime.inGame(tags,
+                YamlFields.with(values, YamlFields.child(star, "display"), new com.google.gson.JsonPrimitive("")));
+        assertTrue(String.valueOf(refused.problem()).contains("star has no display"));
+        assertNull(refused.write());
+
+        WebEditorRuntime.InGame priced = runtime.inGame(tags,
+                YamlFields.with(values, YamlFields.child(star, "price"), new com.google.gson.JsonPrimitive(9)));
+        assertEquals(1, priced.confirm().size(), "a sensitive path is confirmed first");
+
+        runtime.inGame(tags, YamlFields.with(values, List.of("tags", "moon"), null)).write().run();
+        written = java.nio.file.Files.readString(catalog);
+        assertTrue(!written.contains("moon:") && written.contains("display: '&6*'"), written);
+        assertEquals(3, reloaded.get());
+    }
+
     /** A store kept in memory, recording what it was asked to do. */
     private static final class Pits implements net.exylia.lib.web.EntryStore<Pit> {
         final Map<String, Pit> rows = new java.util.LinkedHashMap<>();

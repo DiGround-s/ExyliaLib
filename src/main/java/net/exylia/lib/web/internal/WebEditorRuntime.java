@@ -716,11 +716,97 @@ public final class WebEditorRuntime {
         return files;
     }
 
-    /** The enabled Exylia plugins with at least one settings file, by name. */
+    /**
+     * The content files of a plugin an admin may change in game: the YAML subjects it registered
+     * ({@code WebEditor.of(plugin).yaml(...)}), each with its own checker. Menus and the YAML files
+     * discovery found on its own are left to the web editor. Sorted by title.
+     *
+     * @param plugin the plugin
+     * @return its registered YAML subjects
+     */
+    @NotNull List<SubjectImpl> contentOf(@NotNull Plugin plugin) {
+        List<SubjectImpl> subjects = new ArrayList<>();
+        for (SubjectImpl subject : registry.getOrDefault(plugin.getName(), Map.of()).values()) {
+            if (subject instanceof YamlSubjectImpl && !Discovery.MENU_KIND.equals(subject.kind())) {
+                subjects.add(subject);
+            }
+        }
+        subjects.sort(Comparator.comparing(SubjectImpl::title, String.CASE_INSENSITIVE_ORDER));
+        return subjects;
+    }
+
+    /**
+     * One change made in game, read exactly as an applied web edit reads it: the source prepares
+     * it (a YAML subject runs its checker on the text about to be written), and what the web
+     * editor would hold for {@code confirm} (a sensitive path, a console line, a deletion) is
+     * listed for the menu to confirm.
+     *
+     * @param problem why it is refused; {@code null} when it may be written
+     * @param confirm what has to be confirmed first; empty when nothing
+     * @param write   writes it and runs what follows an applied edit; on the global thread
+     */
+    record InGame(@Nullable String problem, List<String> confirm, @Nullable Runnable write) {
+    }
+
+    /**
+     * Reads one in-game change to a subject. On the global thread, as an apply is.
+     *
+     * @param subject what is changed
+     * @param after   everything it should hold afterwards, in the shape {@code values} answers
+     * @return the change, read
+     */
+    @NotNull InGame inGame(@NotNull SubjectImpl subject, @NotNull JsonObject after) {
+        String pluginName = subject.plugin().getName();
+        JsonObject before;
+        Source.Prepared prepared;
+        try {
+            before = subject.source().values(pluginName);
+            prepared = subject.source().prepare(pluginName, after);
+        } catch (RuntimeException failure) {
+            return new InGame(describe(failure), List.of(), null);
+        }
+        if (prepared.problem() != null) {
+            return new InGame(prepared.problem(), List.of(), null);
+        }
+        List<String> confirm = new ArrayList<>();
+        for (String removed : prepared.holds()) {
+            confirm.add(EditorMessages.deleteReason(subject.title(), removed));
+        }
+        List<String> sensitive = subject.sensitive();
+        List<Diff.Change> changes = Diff.of(before, prepared.after());
+        for (Diff.Change change : changes) {
+            if (Diff.matchesAny(change.path(), sensitive)) {
+                confirm.add(EditorMessages.sensitiveReason(subject.title(), change.path()));
+            } else if (change.privileged()) {
+                confirm.add(EditorMessages.privilegedReason(subject.title(), change.path()));
+            }
+        }
+        if (changes.isEmpty()) {
+            return new InGame(null, List.of(), () -> { });
+        }
+        Supplier<CompletableFuture<Void>> write = prepared.write();
+        return new InGame(null, List.copyOf(confirm), () -> {
+            CompletableFuture<Void> done = write == null ? null : write.get();
+            if (done != null) {
+                done.join();
+            }
+            try {
+                subject.applied().run();
+            } catch (Throwable thrown) {
+                Debug.of(subject.plugin()).error("The editor wrote " + subject.title() + ", but applying it threw", thrown);
+            }
+            if (subject.isDiscovered()) {
+                ConfigFile<?> file = subject.file();
+                reloadWritten(subject.plugin(), file == null ? List.of() : List.of(file));
+            }
+        });
+    }
+
+    /** The enabled Exylia plugins with at least one settings or content file, by name. */
     public @NotNull List<Plugin> configurablePlugins() {
         List<Plugin> plugins = new ArrayList<>();
         for (Plugin plugin : Snapshot.exyliaPlugins()) {
-            if (!settingsOf(plugin).isEmpty()) {
+            if (!settingsOf(plugin).isEmpty() || !contentOf(plugin).isEmpty()) {
                 plugins.add(plugin);
             }
         }

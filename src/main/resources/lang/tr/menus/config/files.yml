@@ -39,6 +39,20 @@ pagination:
       - ''
     actions:
       - 'exylialib:config_file %cfg_file_id%'
+  content_template:
+    material: CHEST
+    name: '{primary}&l%cfg_file_name%'
+    lore:
+      - ''
+      - '%cfg_file_about%'
+      - '{secondary}Durum:'
+      - ' {letters_black}▎ {letters}İçerik {letters_black}» {info}%cfg_file_path%'
+      - ' {letters_black}▎ {letters}Girdiler {letters_black}» {info}%cfg_file_keys%'
+      - ''
+      - '{warning}➥ Açmak için tıkla'
+      - ''
+    actions:
+      - 'exylialib:config_yaml %cfg_file_id%'
   navigation:
     previous:
       slot: 48

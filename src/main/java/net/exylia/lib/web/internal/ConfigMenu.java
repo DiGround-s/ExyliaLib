@@ -1,5 +1,7 @@
 package net.exylia.lib.web.internal;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import net.exylia.lib.action.ActionResult;
 import net.exylia.lib.action.Actions;
@@ -49,6 +51,11 @@ import java.util.function.Supplier;
  * over {@code ConfigFile.get()}: a value the owner changes in the YAML and reloads shows up on
  * an open screen within a second.
  *
+ * <p>After the settings come a plugin's content files: the YAML subjects it registered, drawn
+ * from the schema {@link YamlSource} infers ({@link YamlFields}), a block of entries as a list
+ * with create, duplicate and delete. Each click is read and written by
+ * {@link WebEditorRuntime#inGame}, the path an applied web edit takes, checker included.
+ *
  * <p>Admin screens, rewritten from the jar on every start ({@link #FOLDER}).
  */
 public final class ConfigMenu {
@@ -56,11 +63,21 @@ public final class ConfigMenu {
     static final String PLUGINS = "config_plugins";
     static final String FILES = "config_files";
     static final String FIELDS = "config_fields";
+    static final String ENTRIES_MENU = "config_entries";
     static final String FOLDER = "menus/config";
 
     private static final String PLUGIN_KEY = "cfg_plugin";
     private static final String FILE_KEY = "cfg_file";
     private static final String PATH_KEY = "cfg_path";
+    /** Set instead of {@link #FILE_KEY} on a content file's screens: the YAML subject's id; the path is then {@link YamlFields#join}ed. */
+    private static final String YAML_KEY = "cfg_yaml";
+
+    /** What a content file held when last read, kept until the file changes on disk. */
+    private record Read(long modified, long length, JsonObject schema, JsonObject values) {
+    }
+
+    // ponytail: one cached read per content file, checked by modification time and length on each redraw.
+    private static final Map<String, Read> READS = new ConcurrentHashMap<>();
 
     /**
      * Where each viewer came in from a plugin's own hub: that plugin, the permission it accepts
@@ -106,6 +123,24 @@ public final class ConfigMenu {
             if (file != null) openFields(context.player(), target, file, "");
             return ActionResult.success();
         });
+        actions.registerSync("config_yaml", (context, arguments) -> {
+            UiSession session = context.require(UiKeys.SESSION);
+            Plugin target = plugin(session);
+            SubjectImpl subject = target == null ? null : content(context.player(), target, arguments.string(0, ""));
+            if (subject == null) return refused(context.player());
+            openYaml(context.player(), target, subject, List.of());
+            return ActionResult.success();
+        });
+        actions.registerSync("config_entry", (context, arguments) -> {
+            UiSession session = context.require(UiKeys.SESSION);
+            Plugin target = plugin(session);
+            SubjectImpl subject = target == null ? null
+                    : content(context.player(), target, session.context(YAML_KEY, String.class).orElse(""));
+            if (subject == null) return refused(context.player());
+            entry(context.player(), target, subject, YamlFields.split(session.context(PATH_KEY, String.class).orElse("")),
+                    arguments.string(0, "open"), arguments.string(1, ""));
+            return ActionResult.success();
+        });
         actions.registerSync("config_edit", (context, arguments) -> {
             UiSession session = context.require(UiKeys.SESSION);
             if (!allowed(context.player(), plugin(session))) return refused(context.player());
@@ -129,6 +164,7 @@ public final class ConfigMenu {
         target.load(PLUGINS, SettingsMenu.read(owner, FOLDER, "plugins"));
         target.load(FILES, SettingsMenu.read(owner, FOLDER, "files"));
         target.load(FIELDS, SettingsMenu.read(owner, FOLDER, "fields"));
+        target.load(ENTRIES_MENU, SettingsMenu.read(owner, FOLDER, "entries"));
         menus = target;
     }
 
@@ -146,6 +182,7 @@ public final class ConfigMenu {
         menus = null;
         library = null;
         ENTRIES.clear();
+        READS.clear();
     }
 
     // ------------------------------------------------------------------ opening
@@ -195,18 +232,20 @@ public final class ConfigMenu {
         PluginMenus current = menus;
         if (current == null) return;
         List<ConfigFile<?>> files = WebEditorRuntime.get().settingsOf(plugin);
-        if (files.isEmpty()) {
+        List<SubjectImpl> content = contentOf(viewer, plugin);
+        if (files.isEmpty() && content.isEmpty()) {
             Text.of(Phrases.tr("{warning}✘ {letters}{0} has no settings to change here.", plugin.getName())).send(viewer);
             return;
         }
-        if (files.size() == 1) {
-            openFields(viewer, plugin, files.get(0), "");
+        if (files.size() + content.size() == 1) {
+            if (files.isEmpty()) openYaml(viewer, plugin, content.get(0), List.of());
+            else openFields(viewer, plugin, files.get(0), "");
             return;
         }
         Map<String, Object> context = new LinkedHashMap<>();
         context.put(PLUGIN_KEY, plugin.getName());
         context.put("cfg_back_to", returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins"));
-        current.open(viewer, FILES, context, () -> fileRows(plugin));
+        current.open(viewer, FILES, context, () -> fileRows(viewer, plugin));
     }
 
     private static void openFields(Player viewer, Plugin plugin, ConfigFile<?> file, String path) {
@@ -222,11 +261,18 @@ public final class ConfigMenu {
         context.put(PATH_KEY, path);
         String where = Discovery.title(file.name()) + (path.isEmpty() ? "" : " › " + path);
         context.put("cfg_where", net.exylia.lib.text.Values.inert(where));
-        context.put("cfg_back_to", path.isEmpty()
-                ? (WebEditorRuntime.get().settingsOf(plugin).size() == 1
-                        ? (returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins")) : Phrases.tr("the files of {0}", plugin.getName()))
-                : Phrases.tr("the section above"));
+        context.put("cfg_back_to", backTo(viewer, plugin, path.isEmpty()));
         return context;
+    }
+
+    private static String backTo(Player viewer, Plugin plugin, boolean top) {
+        if (!top) return Phrases.tr("the section above");
+        if (count(viewer, plugin) > 1) return Phrases.tr("the files of {0}", plugin.getName());
+        return returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins");
+    }
+
+    private static int count(Player viewer, Plugin plugin) {
+        return WebEditorRuntime.get().settingsOf(plugin).size() + contentOf(viewer, plugin).size();
     }
 
     // ------------------------------------------------------------------ rows
@@ -243,7 +289,7 @@ public final class ConfigMenu {
         return rows;
     }
 
-    private static List<UiEntry> fileRows(Plugin plugin) {
+    private static List<UiEntry> fileRows(Player viewer, Plugin plugin) {
         List<UiEntry> rows = new ArrayList<>();
         for (ConfigFile<?> file : WebEditorRuntime.get().settingsOf(plugin)) {
             rows.add(UiEntry.of(file.name())
@@ -254,7 +300,24 @@ public final class ConfigMenu {
                     .withFormatted("cfg_file_about", ConfigFields.about(file.schema().comments()))
                     .build());
         }
+        for (SubjectImpl subject : contentOf(viewer, plugin)) {
+            Read read = read(subject);
+            rows.add(UiEntry.of("content:" + subject.id())
+                    .template("content")
+                    .with("cfg_file_id", subject.id())
+                    .with("cfg_file_name", subject.title().toUpperCase(java.util.Locale.ROOT))
+                    .with("cfg_file_path", subject.source().name() + ".yml")
+                    .with("cfg_file_keys", read == null ? 0 : read.values().size())
+                    .withFormatted("cfg_file_about", ConfigFields.about(read == null ? List.of() : comments(read.schema())))
+                    .build());
+        }
         return rows;
+    }
+
+    private static List<String> comments(JsonObject schema) {
+        List<String> lines = new ArrayList<>();
+        if (schema.has("comments")) schema.getAsJsonArray("comments").forEach(line -> lines.add(line.getAsString()));
+        return lines;
     }
 
     /** One section's buttons, read again on every redraw so the screen follows the file. */
@@ -285,6 +348,14 @@ public final class ConfigMenu {
 
     private static void edit(Player viewer, UiSession session, String click, String key) {
         Plugin plugin = plugin(session);
+        String yaml = session.context(YAML_KEY, String.class).orElse("");
+        if (!yaml.isEmpty()) {
+            SubjectImpl subject = plugin == null ? null : content(viewer, plugin, yaml);
+            if (subject != null) {
+                editYaml(viewer, plugin, subject, YamlFields.split(session.context(PATH_KEY, String.class).orElse("")), click, key);
+            }
+            return;
+        }
         ConfigFile<?> file = plugin == null ? null : file(plugin, session.context(FILE_KEY, String.class).orElse(""));
         if (file == null) return;
         ConfigFields.Field field = ConfigFields.field(file.schema(), key);
@@ -320,7 +391,7 @@ public final class ConfigMenu {
             }
             case MATERIAL -> ask(viewer, back, inputs(viewer).icon(viewer, prompt(field)).open(),
                     material -> write(viewer, plugin, file, field, material, back));
-            case LOCKED -> { }
+            case ENTRIES, LOCKED -> { }
         }
     }
 
@@ -410,6 +481,15 @@ public final class ConfigMenu {
             showPlugins(viewer);
             return;
         }
+        String yaml = session.context(YAML_KEY, String.class).orElse("");
+        if (!yaml.isEmpty()) {
+            List<String> path = YamlFields.split(session.context(PATH_KEY, String.class).orElse(""));
+            SubjectImpl subject = content(viewer, plugin, yaml);
+            if (subject != null && !path.isEmpty()) openYaml(viewer, plugin, subject, YamlFields.parent(path));
+            else if (count(viewer, plugin) > 1) showPlugin(viewer, plugin);
+            else top(viewer, plugin);
+            return;
+        }
         if (!session.menuId().endsWith(FIELDS)) {
             top(viewer, plugin);
             return;
@@ -421,7 +501,7 @@ public final class ConfigMenu {
             openFields(viewer, plugin, file, dot < 0 ? "" : path.substring(0, dot));
             return;
         }
-        if (WebEditorRuntime.get().settingsOf(plugin).size() > 1) showPlugin(viewer, plugin);
+        if (count(viewer, plugin) > 1) showPlugin(viewer, plugin);
         else top(viewer, plugin);
     }
 
@@ -448,6 +528,316 @@ public final class ConfigMenu {
     private static ActionResult refused(Player viewer) {
         viewer.closeInventory();
         return ActionResult.success();
+    }
+
+    // ------------------------------------------------------------------ content files
+
+    /** The content files the viewer may change: the plugin's registered YAML subjects, each behind its own permission too. */
+    private static List<SubjectImpl> contentOf(Player viewer, Plugin plugin) {
+        List<SubjectImpl> visible = new ArrayList<>();
+        for (SubjectImpl subject : WebEditorRuntime.get().contentOf(plugin)) {
+            String permission = subject.permission();
+            if (permission == null || viewer.hasPermission(permission) || viewer.hasPermission(ConfigMenus.PERMISSION)) {
+                visible.add(subject);
+            }
+        }
+        return visible;
+    }
+
+    private static @Nullable SubjectImpl content(Player viewer, Plugin plugin, String id) {
+        if (!allowed(viewer, plugin)) return null;
+        for (SubjectImpl subject : contentOf(viewer, plugin)) {
+            if (subject.id().equals(id)) return subject;
+        }
+        return null;
+    }
+
+    /** What a content file holds, read again only when it changed on disk; {@code null} when it cannot be read. */
+    private static @Nullable Read read(SubjectImpl subject) {
+        java.io.File disk = subject.source().disk();
+        long modified = disk == null ? 0 : disk.lastModified();
+        long length = disk == null ? 0 : disk.length();
+        Read known = READS.get(subject.key());
+        if (known != null && known.modified() == modified && known.length() == length) return known;
+        try {
+            String name = subject.plugin().getName();
+            Read fresh = new Read(modified, length, subject.source().schema(name), subject.source().values(name));
+            READS.put(subject.key(), fresh);
+            return fresh;
+        } catch (RuntimeException unreadable) {
+            return null;
+        }
+    }
+
+    /** A place in a content file: the list of entries for a block of them, the keys for anything else. */
+    private static void openYaml(Player viewer, Plugin plugin, SubjectImpl subject, List<String> path) {
+        PluginMenus current = menus;
+        Read read = read(subject);
+        if (current == null || read == null) return;
+        boolean entries = YamlFields.kind(YamlFields.type(read.schema(), path)) == ConfigFields.Kind.ENTRIES;
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put(PLUGIN_KEY, plugin.getName());
+        context.put(YAML_KEY, subject.id());
+        context.put(PATH_KEY, YamlFields.join(path));
+        String where = subject.title() + (path.isEmpty() ? "" : " › " + String.join(" › ", path));
+        context.put("cfg_where", net.exylia.lib.text.Values.inert(where));
+        context.put("cfg_back_to", backTo(viewer, plugin, path.isEmpty()));
+        if (entries) current.open(viewer, ENTRIES_MENU, context, entryRows(subject, path));
+        else current.open(viewer, FIELDS, context, yamlRows(subject, path));
+    }
+
+    /** One section of a content file; a row's key is its position, so any key a YAML file allows works. */
+    private static Supplier<List<UiEntry>> yamlRows(SubjectImpl subject, List<String> path) {
+        return () -> {
+            Read read = read(subject);
+            if (read == null) return List.of();
+            List<UiEntry> rows = new ArrayList<>();
+            List<YamlFields.Node> nodes = YamlFields.fields(YamlFields.type(read.schema(), path));
+            for (int i = 0; i < nodes.size(); i++) {
+                YamlFields.Node node = nodes.get(i);
+                ConfigFields.Kind kind = node.kind();
+                Object value = YamlFields.plain(kind, YamlFields.value(read.values(), YamlFields.child(path, node.key())));
+                boolean opens = kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.ENTRIES;
+                rows.add(UiEntry.of(node.key())
+                        .template(opens ? "section" : kind == ConfigFields.Kind.LOCKED ? "locked" : null)
+                        .with("cfg_key", String.valueOf(i))
+                        .with("cfg_name", ConfigFields.title(node.key()))
+                        .with("cfg_icon", yamlIcon(kind, value))
+                        .withFormatted("cfg_value", ConfigFields.plain(kind, value))
+                        .withFormatted("cfg_about", ConfigFields.about(node.comments()))
+                        .withFormatted("cfg_hint", ConfigFields.hint(kind))
+                        .build());
+            }
+            return rows;
+        };
+    }
+
+    private static String yamlIcon(ConfigFields.Kind kind, @Nullable Object value) {
+        return switch (kind) {
+            case SECTION -> "BOOKSHELF";
+            case ENTRIES -> "CHEST";
+            case TOGGLE -> Boolean.TRUE.equals(value) ? "LIME_DYE" : "GRAY_DYE";
+            case INTEGER, DECIMAL -> "PAPER";
+            case TEXT -> "NAME_TAG";
+            case LINES -> "WRITABLE_BOOK";
+            default -> "STRUCTURE_VOID";
+        };
+    }
+
+    /** The entries of a block, each drawn with the item it names when it names one. */
+    private static Supplier<List<UiEntry>> entryRows(SubjectImpl subject, List<String> path) {
+        return () -> {
+            Read read = read(subject);
+            if (read == null) return List.of();
+            List<UiEntry> rows = new ArrayList<>();
+            List<String> ids = YamlFields.ids(read.values(), path);
+            for (int i = 0; i < ids.size(); i++) {
+                JsonElement entry = YamlFields.value(read.values(), YamlFields.child(path, ids.get(i)));
+                rows.add(UiEntry.of(ids.get(i))
+                        .with("cfg_key", String.valueOf(i))
+                        .with("cfg_name", ids.get(i))
+                        .with("cfg_icon", entryIcon(entry))
+                        .withFormatted("cfg_value", Phrases.tr("{info}{0} {letters}keys",
+                                entry != null && entry.isJsonObject() ? entry.getAsJsonObject().size() : 0))
+                        .build());
+            }
+            return rows;
+        };
+    }
+
+    private static String entryIcon(@Nullable JsonElement entry) {
+        if (entry != null && entry.isJsonObject()) {
+            for (String key : List.of("material", "icon", "item", "display-item", "type")) {
+                JsonElement value = entry.getAsJsonObject().get(key);
+                if (value == null || !value.isJsonPrimitive()) continue;
+                org.bukkit.Material material = org.bukkit.Material.matchMaterial(value.getAsString());
+                if (material != null && material.isItem() && !material.isAir()) return material.name();
+            }
+        }
+        return "PAPER";
+    }
+
+    /** A click on a key of a content file. */
+    private static void editYaml(Player viewer, Plugin plugin, SubjectImpl subject, List<String> path,
+                                 String click, String index) {
+        Read read = read(subject);
+        if (read == null) return;
+        List<YamlFields.Node> nodes = YamlFields.fields(YamlFields.type(read.schema(), path));
+        int at = parse(index);
+        if (at < 0 || at >= nodes.size()) return;
+        YamlFields.Node node = nodes.get(at);
+        List<String> key = YamlFields.child(path, node.key());
+        JsonElement current = YamlFields.value(read.values(), key);
+        Runnable back = () -> openYaml(viewer, plugin, subject, path);
+        boolean big = click.startsWith("shift");
+        int direction = click.endsWith("right") ? -1 : 1;
+        String prompt = Phrases.tr("{primary}&lNEW {0}", ConfigFields.title(node.key()));
+        switch (node.kind()) {
+            case SECTION, ENTRIES -> openYaml(viewer, plugin, subject, key);
+            case TOGGLE -> set(viewer, plugin, subject, key,
+                    new JsonPrimitive(!(Boolean.TRUE.equals(YamlFields.plain(node.kind(), current)))), null);
+            case INTEGER -> {
+                long now = current != null && current.isJsonPrimitive() && current.getAsJsonPrimitive().isNumber() ? current.getAsLong() : 0;
+                if (click.equals("drop")) {
+                    ask(viewer, back, inputs(viewer).integer(viewer, prompt).defaultValue(now).open(),
+                            typed -> set(viewer, plugin, subject, key, new JsonPrimitive(typed), back));
+                } else {
+                    set(viewer, plugin, subject, key, new JsonPrimitive(now + (long) direction * (big ? 10 : 1)), null);
+                }
+            }
+            case DECIMAL -> {
+                BigDecimal now = current != null && current.isJsonPrimitive() && current.getAsJsonPrimitive().isNumber()
+                        ? current.getAsBigDecimal() : BigDecimal.ZERO;
+                if (click.equals("drop")) {
+                    ask(viewer, back, inputs(viewer).decimal(viewer, prompt).defaultValue(now.stripTrailingZeros()).open(),
+                            typed -> set(viewer, plugin, subject, key, new JsonPrimitive(typed.doubleValue()), back));
+                } else {
+                    BigDecimal next = now.add(new BigDecimal(big ? "1" : "0.1").multiply(BigDecimal.valueOf(direction)));
+                    set(viewer, plugin, subject, key, new JsonPrimitive(next.doubleValue()), null);
+                }
+            }
+            case TEXT -> {
+                String now = current == null ? "" : String.valueOf(YamlFields.plain(node.kind(), current));
+                ask(viewer, back, inputs(viewer).text(viewer, prompt).defaultValue(now).lines(now.length() > 30 ? 3 : 1).open(),
+                        typed -> set(viewer, plugin, subject, key, new JsonPrimitive(typed), back));
+            }
+            case LINES -> {
+                Object plain = YamlFields.plain(node.kind(), current);
+                List<String> now = plain instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of();
+                ask(viewer, back, inputs(viewer).text(viewer, prompt).defaultValue(String.join("\n", now))
+                                .lines(Math.max(4, Math.min(10, now.size() + 1))).hint(Phrases.tr("One entry per line")).open(),
+                        typed -> set(viewer, plugin, subject, key, YamlFields.lines(ConfigFields.lines(typed)), back));
+            }
+            default -> { }
+        }
+    }
+
+    /** A click on the list of entries: open, create, duplicate or delete one. */
+    private static void entry(Player viewer, Plugin plugin, SubjectImpl subject, List<String> path,
+                              String action, String index) {
+        Read read = read(subject);
+        if (read == null) return;
+        List<String> ids = YamlFields.ids(read.values(), path);
+        Runnable back = () -> openYaml(viewer, plugin, subject, path);
+        if (action.equals("create")) {
+            ask(viewer, back, inputs(viewer).text(viewer, Phrases.tr("{primary}&lNEW ENTRY")).open(), typed -> {
+                String id = typed.trim();
+                if (!YamlFields.ID.matcher(id).matches() || ids.contains(id)) {
+                    Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} cannot be used: letters, digits, - _ and . only, and not one already taken.",
+                            net.exylia.lib.text.Values.inert(id))).send(viewer);
+                    back.run();
+                    return;
+                }
+                change(viewer, plugin, subject, path, values -> YamlFields.added(values, path, id, null),
+                        () -> openYaml(viewer, plugin, subject, YamlFields.child(path, id)));
+            });
+            return;
+        }
+        int at = parse(index);
+        if (at < 0 || at >= ids.size()) return;
+        String id = ids.get(at);
+        switch (action) {
+            case "open" -> openYaml(viewer, plugin, subject, YamlFields.child(path, id));
+            case "duplicate" -> {
+                String copy = YamlFields.freeId(ids, id);
+                change(viewer, plugin, subject, path, values -> YamlFields.added(values, path, copy, id), back);
+            }
+            case "delete" -> ask(viewer, back, inputs(viewer).confirm(viewer,
+                            Phrases.tr("{error}Delete {0}? It is removed from the file.", net.exylia.lib.text.Values.inert(id))).dangerous().open(),
+                    yes -> {
+                        if (yes) change(viewer, plugin, subject, path, values -> YamlFields.with(values, YamlFields.child(path, id), null), back);
+                        else back.run();
+                    });
+            default -> { }
+        }
+    }
+
+    private static int parse(String index) {
+        try {
+            return Integer.parseInt(index);
+        } catch (NumberFormatException notIndex) {
+            return -1;
+        }
+    }
+
+    private static void set(Player viewer, Plugin plugin, SubjectImpl subject, List<String> key, JsonElement value,
+                            @Nullable Runnable reopen) {
+        change(viewer, plugin, subject, YamlFields.parent(key), values -> YamlFields.with(values, key, value), reopen);
+    }
+
+    /**
+     * Writes one change to a content file the way an applied web edit is written: on the global
+     * thread, from what the file holds then, through the subject's checker; a refusal is told
+     * and nothing is written, and what the web editor would hold for {@code confirm} is asked
+     * with a dangerous confirm first. Then the screen is redrawn in place, or reopened when a
+     * prompt had closed it.
+     */
+    private static void change(Player viewer, Plugin plugin, SubjectImpl subject, List<String> screen,
+                               java.util.function.UnaryOperator<JsonObject> edit, @Nullable Runnable reopen) {
+        Plugin owner = library;
+        if (owner == null) return;
+        Runnable shown = reopen != null ? reopen : () -> redraw(viewer);
+        // A confirm closes the screen, so after one it is opened again rather than redrawn.
+        Runnable reshown = reopen != null ? reopen : () -> openYaml(viewer, plugin, subject, screen);
+        Tasks.of(owner).run(() -> {
+            WebEditorRuntime.InGame change;
+            try {
+                change = WebEditorRuntime.get().inGame(subject, edit.apply(subject.source().values(plugin.getName())));
+            } catch (RuntimeException failure) {
+                change = new WebEditorRuntime.InGame(String.valueOf(failure.getMessage()), List.of(), null);
+            }
+            WebEditorRuntime.InGame read = change;
+            Tasks.of(owner).runAtEntity(viewer, () -> {
+                if (read.problem() != null || read.write() == null) {
+                    Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} was not saved: {1}",
+                            subject.title(), net.exylia.lib.text.Values.inert(String.valueOf(read.problem())))).send(viewer);
+                    shown.run();
+                    return;
+                }
+                if (read.confirm().isEmpty()) {
+                    commit(viewer, owner, subject, read.write(), shown);
+                    return;
+                }
+                ask(viewer, reshown, inputs(viewer).confirm(viewer,
+                                Phrases.tr("{error}Save this change? {0}", read.confirm().get(0))).dangerous().open(),
+                        yes -> {
+                            if (yes) commit(viewer, owner, subject, read.write(), reshown);
+                            else reshown.run();
+                        });
+            });
+        });
+    }
+
+    private static void commit(Player viewer, Plugin owner, SubjectImpl subject, Runnable write, Runnable shown) {
+        Tasks.of(owner).run(() -> {
+            String failed = null;
+            try {
+                write.run();
+            } catch (RuntimeException failure) {
+                failed = String.valueOf(failure.getMessage());
+            }
+            String reason = failed;
+            Tasks.of(owner).runAtEntity(viewer, () -> {
+                if (reason != null) {
+                    Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} was not saved: {1}",
+                            subject.title(), net.exylia.lib.text.Values.inert(reason))).send(viewer);
+                }
+                shown.run();
+            });
+        });
+    }
+
+    /** Redraws an open content screen in place, after a click that closed nothing. */
+    private static void redraw(Player viewer) {
+        PluginMenus current = menus;
+        UiSession session = current == null ? null : current.session(viewer).orElse(null);
+        if (session == null) return;
+        Plugin plugin = plugin(session);
+        String yaml = session.context(YAML_KEY, String.class).orElse("");
+        SubjectImpl subject = plugin == null || yaml.isEmpty() ? null : content(viewer, plugin, yaml);
+        if (subject == null) return;
+        List<String> path = YamlFields.split(session.context(PATH_KEY, String.class).orElse(""));
+        session.entries(UiSection.MAIN, session.menuId().endsWith(ENTRIES_MENU) ? entryRows(subject, path) : yamlRows(subject, path));
     }
 
     // ------------------------------------------------------------------ lookups

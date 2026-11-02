@@ -33,6 +33,8 @@ final class ConfigFields {
     enum Kind {
         /** A nested section: opens its own page. */
         SECTION,
+        /** A block of named entries in a YAML file: opens the list of entries. */
+        ENTRIES,
         /** {@code true} / {@code false}: a click flips it. */
         TOGGLE,
         /** An enum: left forward, right back. */
@@ -284,6 +286,30 @@ final class ConfigFields {
                     : "{letters}" + Values.inert(cut(value.toString()));
             case LINES -> Phrases.tr("{info}{0} {letters}lines", value instanceof List<?> list ? list.size() : 0);
             case LOCKED -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
+            case ENTRIES -> entries(value instanceof Number number ? number.intValue() : 0);
+        };
+    }
+
+    /** How many entries a block holds. */
+    static String entries(int count) {
+        return Phrases.tr("{info}{0} {letters}entries", count);
+    }
+
+    /**
+     * A value of a YAML file, which has no record to say more: toggles, numbers, text and lines
+     * read as a record's do.
+     */
+    static String plain(Kind kind, @Nullable Object value) {
+        return switch (kind) {
+            case TOGGLE -> Boolean.TRUE.equals(value) ? Phrases.tr("{success}Enabled") : Phrases.tr("{error}Disabled");
+            case INTEGER, DECIMAL -> value instanceof Number number
+                    ? "{info}" + new BigDecimal(number.toString()).stripTrailingZeros().toPlainString() : none();
+            case TEXT -> value == null || value.toString().isEmpty() ? Phrases.tr("{muted}Empty")
+                    : "{letters}" + Values.inert(cut(value.toString()));
+            case LINES -> Phrases.tr("{info}{0} {letters}lines", value instanceof List<?> list ? list.size() : 0);
+            case ENTRIES -> entries(value instanceof Number number ? number.intValue() : 0);
+            case SECTION -> Phrases.tr("{info}{0} {letters}settings", value instanceof Number number ? number.intValue() : 0);
+            default -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
         };
     }
 
@@ -291,6 +317,7 @@ final class ConfigFields {
     static String icon(Field field, @Nullable Object value) {
         return switch (field.kind()) {
             case SECTION -> "BOOKSHELF";
+            case ENTRIES -> "CHEST";
             case TOGGLE -> Boolean.TRUE.equals(value) ? "LIME_DYE" : "GRAY_DYE";
             case CHOICE -> "COMPARATOR";
             case INTEGER, DECIMAL -> "PAPER";
@@ -305,8 +332,13 @@ final class ConfigFields {
 
     /** What the clicks on a button do, one {@code ➥} line each. */
     static String hint(Field field) {
-        List<String> lines = switch (field.kind()) {
-            case SECTION -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}open"));
+        return hint(field.kind());
+    }
+
+    /** What the clicks on a button of this kind do. */
+    static String hint(Kind kind) {
+        List<String> lines = switch (kind) {
+            case SECTION, ENTRIES -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}open"));
             case TOGGLE -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}switch"));
             case CHOICE -> List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next"),
                     Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"));
