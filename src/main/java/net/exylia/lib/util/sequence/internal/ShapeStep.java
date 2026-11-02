@@ -121,14 +121,14 @@ final class ShapeStep implements SequenceStep {
 
         for (Frame frame : frames) {
             if (frame.delayMs() == 0L) {
-                drawFrame(resolved, frame, target, anchor, cos, sin);
+                drawFrame(resolved, frame, target, anchor, cos, sin, run);
                 continue;
             }
             TaskScheduler tasks = run.scheduler();
             TaskHandle handle = tasks.runAtLocationLater(anchor, frame.delayMs() / TICK_MS,
                     () -> {
                         if (!run.isCancelled()) {
-                            drawFrame(resolved, frame, target, anchor, cos, sin);
+                            drawFrame(resolved, frame, target, anchor, cos, sin, run);
                         }
                     });
             run.owns(handle);
@@ -166,11 +166,30 @@ final class ShapeStep implements SequenceStep {
      * cost of a shape quadratic in its detail.
      */
     private void drawFrame(Paint paint, Frame frame, SequenceTarget target, Location anchor,
-                           double cos, double sin) {
+                           double cos, double sin, SequenceRun run) {
         List<Player> observers = target.observers();
         if (observers.isEmpty()) {
             return;
         }
+        // What this frame shows belongs to the run: cancelled, it is taken down with it.
+        SequenceRun outer = DRAWING.get();
+        DRAWING.set(run);
+        try {
+            drawPoints(paint, frame, target, anchor, cos, sin);
+        } finally {
+            DRAWING.set(outer);
+        }
+    }
+
+    /**
+     * The run whose frame is being drawn on this thread, so a paint that shows displays can hand them to it.
+     * Since 1.456.0.
+     */
+    static final ThreadLocal<SequenceRun> DRAWING = new ThreadLocal<>();
+
+    private void drawPoints(Paint paint, Frame frame, SequenceTarget target, Location anchor,
+                            double cos, double sin) {
+        List<Player> observers = target.observers();
         // A scaled play draws the shape round the same anchor, every offset shrunk or grown with it.
         double scale = target.scale();
         for (Vector point : frame.points()) {

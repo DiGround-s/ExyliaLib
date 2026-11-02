@@ -634,6 +634,20 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per
   sequence, facing, zone and scale.
 
+**Since 1.457.0** (after the fourth client test):
+
+- **Every selection plays at once.** An effect not measured yet plays right away at the layout's `effect-scale`
+  while its rehearsal runs out of sight beside it; the plays after that are turned and sized from what it saw.
+  A rehearsal cut short (another selection, the menu closed) is simply started again next time; it never holds
+  the stage. A body waits at most a second for its skin.
+- **A switch leaves nothing behind.** The displays a sequence's shapes draw belong to its run
+  (`ShapeStep.DRAWING`), so `SequenceRun.cancel()` takes them down at once with its bodies and scheduled
+  frames, in a preview and in real kills alike; a run is finished once its last display has gone. Particles
+  already sent stay, but no frame runs after the cancel.
+- **The backdrop fades through at least 20 rings** (`MenuSession.MIN_RINGS`, up to 32), its alpha easing out
+  with the square of what is left: the outer steps are a few alpha apart and the last ring all but clear.
+- **The tour's arrow stops short of a row of icons** rather than landing on one of them.
+
 **Since 1.455.0** (after the third client test):
 
 - **Effects keep one size, from the first play on.** Before an effect is shown the first time, it is *rehearsed*:

@@ -183,8 +183,8 @@ final class DisplayPaint implements Paint {
             return;
         }
         if (carrier == null) {
-            DisplayRuntime.show(owner, model, motionAt(x, y, z),
-                    anchor.clone().add(x, y, z), observers);
+            owned(DisplayRuntime.show(owner, model, motionAt(x, y, z),
+                    anchor.clone().add(x, y, z), observers));
             return;
         }
         // Seated, the mount decides where it is, so the shape's own point and
@@ -197,7 +197,40 @@ final class DisplayPaint implements Paint {
                 anchor.getX() + x - seat.getX(),
                 anchor.getY() + y - seat.getY(),
                 anchor.getZ() + z - seat.getZ());
-        DisplayRuntime.show(owner, model, carried, seat, observers, carrier.getEntityId());
+        owned(DisplayRuntime.show(owner, model, carried, seat, observers, carrier.getEntityId()));
+    }
+
+    /**
+     * Hands a display to the run drawing it, so cancelling the run (a preview switched, a menu closed) takes it
+     * down at once instead of leaving it to its life. Its run is over once it has gone, as its trail says.
+     */
+    private static void owned(@org.jetbrains.annotations.Nullable net.exylia.lib.display.DisplayHandle shown) {
+        net.exylia.lib.util.sequence.SequenceRun run = ShapeStep.DRAWING.get();
+        if (shown == null || run == null) return;
+        run.owns(new net.exylia.lib.task.TaskHandle() {
+            private volatile boolean gone;
+
+            @Override
+            public void cancel() {
+                gone = true;
+                shown.remove();
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return gone;
+            }
+
+            @Override
+            public boolean isDone() {
+                return gone || !shown.isShowing();
+            }
+
+            @Override
+            public boolean isRepeating() {
+                return false;
+            }
+        });
     }
 
     @Override

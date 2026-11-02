@@ -180,7 +180,7 @@ public record SpatialLayout(
             tint = tint == null || tint.isBlank() ? "{primary}" : tint;
             alpha = Math.clamp(alpha, 0, 255);
             feather = Math.max(0, feather);
-            rings = Math.clamp(rings, 0, 8);
+            rings = Math.clamp(rings, 0, 32);
         }
 
         public boolean present() {
