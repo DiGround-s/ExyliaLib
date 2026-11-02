@@ -17,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
  * String weapon = PlainTextComponentSerializer.plainText().serialize(ItemNames.of(held));
  * }</pre>
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class ItemNames {
 

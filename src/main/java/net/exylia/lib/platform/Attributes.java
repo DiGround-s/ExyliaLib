@@ -31,7 +31,7 @@ import java.util.function.Function;
  * <p>Every constant here exists on every supported server (1.21.1 and newer),
  * so none is {@code null} there.
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class Attributes {
 

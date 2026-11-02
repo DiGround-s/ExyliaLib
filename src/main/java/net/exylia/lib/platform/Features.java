@@ -16,7 +16,7 @@ package net.exylia.lib.platform;
  * }</pre>
  *
  * @see RequiresServer
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class Features {
 

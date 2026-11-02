@@ -29,7 +29,7 @@ import java.util.List;
  * world's pearls, which is only done on Paper: Folia starts at 1.21.4 and
  * always takes the direct API.
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class EnderPearls {
 

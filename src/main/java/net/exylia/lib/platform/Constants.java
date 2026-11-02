@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>For a constant's key, ask its registry ({@code Registry.SOUNDS.getKey(sound)}),
  * never {@code sound.getKey()}, for the same reason.
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class Constants {
 

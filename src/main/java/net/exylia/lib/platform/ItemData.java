@@ -19,7 +19,7 @@ import java.util.function.Consumer;
  * ItemData.edit(item, pdc -> pdc.set(KEY, PersistentDataType.STRING, "marked"));
  * }</pre>
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 public final class ItemData {
 

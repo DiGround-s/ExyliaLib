@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
  * if (Features.itemModel()) ModernModels.apply(meta, key);
  * }</pre>
  *
- * @since 1.442.0
+ * @since 1.448.0
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
