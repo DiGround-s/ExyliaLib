@@ -58,7 +58,12 @@ public interface ArmorTrimService {
      * {@link #materials()}, and there are too many to list.
      *
      * @return all presets
+     * @deprecated ArmorTrims 1.5.0 removed presets, so this is always empty.
+     *             List the options with {@link #patterns()} and
+     *             {@link #materials()}, and resolve one with
+     *             {@link #trim(String)} and a {@code pattern/material} id.
      */
+    @Deprecated
     @NotNull
     @Unmodifiable
     List<ArmorTrim> trims();
@@ -80,7 +85,11 @@ public interface ArmorTrimService {
      *
      * @param trimId the preset id, case insensitive
      * @return {@code true} when it exists
+     * @deprecated ArmorTrims 1.5.0 removed presets, so this is always
+     *             {@code false}. Use {@link #trim(String)} with a
+     *             {@code pattern/material} id.
      */
+    @Deprecated
     boolean exists(@NotNull String trimId);
 
     /**
