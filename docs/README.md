@@ -65,7 +65,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
 | [Hooks](hooks.md) | Other plugins' mechanics turned off for a player in a minigame: skill experience, abilities and combat stats of AuraSkills and mcMMO, with nothing they store touched | 1.409.0 |
 | [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
-| [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent | 1.36.0 |
+| [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent; reading a chunk without a synchronous load (`Chunks`) since 1.466.0 | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server; and wiping tables (1.76.0) | 1.36.0 |
 | [Wipes](wipes.md) | New season, player data, one plugin or one player wiped by what tables hold (`DataKind`, `@Owner`), with backup, network lock and `Wipes.onPlayerReset` hooks | 1.439.0 |
 | [Schematics](schematics.md) | Saving a box of the world and pasting it back — arenas regenerated between matches, with their chests still full; FastAsyncWorldEdit, or a built-in engine where it cannot run | 1.48.0 |

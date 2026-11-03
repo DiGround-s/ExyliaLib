@@ -130,11 +130,34 @@ TemporaryWorld.reserve(width, depth).thenAccept(plot -> {
   own plots instead.
 - Creation goes through Worlds on Folia and `WorldCreator` elsewhere.
 
+## Reading a chunk (`Chunks`)
+
+`Chunks.snapshot(tasks, world, chunkX, chunkZ)` (1.466.0) hands back a
+`ChunkSnapshot` of one chunk, blocks only, without ever loading it on a server
+thread. `world.getBlockAt(...).getType()` on an unloaded chunk loads it
+synchronously, and on Folia a region waiting on that load is a region the
+watchdog reports as not responding.
+
+```java
+Chunks.snapshot(tasks, world, x >> 4, z >> 4).thenAccept(chunk ->
+        tasks.runAsync(() -> scan(chunk.getBlockType(x & 15, y, z & 15))));
+```
+
+- An unloaded chunk is loaded with `getChunkAtAsync`; the snapshot is taken on
+  the thread that owns the chunk, which is where the future completes. A
+  snapshot is immutable: scan a large area off that thread.
+- Fails, never hangs, when the load fails or the chunk unloads again before it
+  is read, three loads in a row.
+- Only a server without `getChunkAtAsync` (plain Spigot) loads synchronously.
+- Keeps nothing; reload not applicable.
+
 ## Source and tests
 
-- Public: `util/world/Worlds.java`, `util/world/TemporaryWorld.java`.
+- Public: `util/world/Worlds.java`, `util/world/TemporaryWorld.java`, `util/world/Chunks.java`.
 - Internal: `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`,
   `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`, `PlotGrid`).
 - Tests: `src/test/java/net/exylia/lib/util/world/WorldsTest.java` — the
   degradation contract, which is the path every server without Worlds takes.
+  `ChunksTest.java` — a loaded chunk is read as is, an unloaded one only
+  asynchronously, and a load that fails or never sticks fails the future.
   `PlotGridTest.java` — plots never overlap, keep their gap and stay compact.
