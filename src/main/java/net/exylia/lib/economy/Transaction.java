@@ -46,6 +46,20 @@ public record Transaction(@NotNull String reason, @Nullable UUID initiator) {
         return new Transaction(reason, null);
     }
 
+    /**
+     * The transaction a library call is carrying through Vault on this thread, or {@code null}.
+     *
+     * <p>Vault's API has no room for a reason, so a change made with {@code Economy.of("vault")}
+     * reaches the Vault backend bare. A backend or a pass-through in front of Vault calls this
+     * while handling the call to keep the caller's reason ({@code sell:shop}) instead of guessing
+     * one from the stack ({@code vault:<plugin>}).
+     *
+     * @since 1.460.0
+     */
+    public static @Nullable Transaction relayed() {
+        return net.exylia.lib.economy.internal.VaultCurrency.relayed();
+    }
+
     /** The same transaction, attributed to somebody. */
     public @NotNull Transaction by(@Nullable UUID initiator) {
         return new Transaction(reason, initiator);

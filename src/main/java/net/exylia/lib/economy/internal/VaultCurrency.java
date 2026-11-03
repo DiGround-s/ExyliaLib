@@ -2,6 +2,7 @@ package net.exylia.lib.economy.internal;
 
 import net.exylia.lib.economy.CurrencyProvider;
 import net.exylia.lib.economy.EconomyResponse;
+import net.exylia.lib.economy.Transaction;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.RegisteredServiceProvider;
@@ -174,6 +175,37 @@ public final class VaultCurrency implements CurrencyProvider {
             // worse than zero: zero blocks spending, a made-up balance lets a
             // purchase through that the backend may not honour.
             return BigDecimal.ZERO;
+        }
+    }
+
+    /** The transaction a library call is carrying into Vault on this thread, see {@link Transaction#relayed()}. */
+    private static final ThreadLocal<Transaction> RELAYED = new ThreadLocal<>();
+
+    public static @Nullable Transaction relayed() {
+        return RELAYED.get();
+    }
+
+    @Override
+    public @NotNull EconomyResponse deposit(@NotNull UUID player, @NotNull BigDecimal amount,
+                                            @NotNull Transaction transaction) {
+        Transaction outer = RELAYED.get();
+        RELAYED.set(transaction);
+        try {
+            return deposit(player, amount);
+        } finally {
+            RELAYED.set(outer);
+        }
+    }
+
+    @Override
+    public @NotNull EconomyResponse withdraw(@NotNull UUID player, @NotNull BigDecimal amount,
+                                             @NotNull Transaction transaction) {
+        Transaction outer = RELAYED.get();
+        RELAYED.set(transaction);
+        try {
+            return withdraw(player, amount);
+        } finally {
+            RELAYED.set(outer);
         }
     }
 

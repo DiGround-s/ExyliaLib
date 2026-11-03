@@ -684,6 +684,13 @@ announces its own changes. Before 1.184.0 it fired a second time as `vault`.
 A provider that keeps a ledger overrides the `Transaction` forms of
 `CurrencyProvider`; the library always calls those.
 
+Vault's API has no room for a reason, so a change made through `vault` reaches
+the Vault backend bare. While the library is inside that Vault call,
+`Transaction.relayed()` (since 1.460.0) returns the caller's transaction on that
+thread: a backend publishing a currency to Vault (ExyliaEconomy) or a
+pass-through in front of Vault (ExyliaAnalytics) keeps `sell:shop` instead of
+guessing `vault:<plugin>` from the stack. Outside such a call it is `null`.
+
 ### How a currency looks
 
 `Economy.info(id)` is a `CurrencyInfo`: name, plural, symbol, icon, decimals
