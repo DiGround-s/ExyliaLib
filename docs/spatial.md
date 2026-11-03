@@ -896,12 +896,20 @@ inspector, and the checks below run as it is edited. `/exylialib editor apply <c
   with a made-up offer, so `%catalog_*%` lines preview as players read them), `tabs`/`tabFormat`/`tabActiveFormat`,
   `sources` and `actions` (what the menu answers, so a button only offers those), `catalog`, `ranges` (bounds per
   dotted path) and `rules` (the numbers below).
+- **The plugin's own words** (since 1.465.0). What `values` fills (`%effect_about_1%`, `%replay_label%`) has no
+  player to be filled for on the web, so a menu hands samples: `menu.samples(layout -> Map)` (or
+  `catalog.samples(...)`), keys with or without the percent signs, read off the main thread at each upload from
+  memory. `layout.wrap(panel, text, lines)` breaks prose as the open menu breaks it (`ctx.wrap`), so a sample
+  description wraps as it will in game. A placeholder with no sample is drawn as a muted chip with its name.
 - **The checks** are `CentreStageLayoutTest`'s and `ReadabilityTest`'s, with their numbers: no two pieces in front of
   each other as the eyes see them (an icon row with its words, the pedestal and the body, each arc item over its
   disc), the board within 80° × 47° and its lowest piece 0.15 over the floor (eyes 1.62 above the feet; otherwise
   the library raises it, `liftOverFloor`), every line at least 1.06° tall from the eyes and whole at the floor (not
   cut with an ellipsis), every colour at 3:1 over sky (`#8ab4ff`) and deepslate (`#4d4d50`) seen through the
   backdrop, and every `%catalog_*%` word, action and source one the menu answers.
+- **Hiding a piece** (since 1.465.0): `visible: false` on a panel, the `preview` or the `carousel` keeps it in the
+  file and leaves it out in game (nothing drawn, nothing to click, not counted for the floor or the edit mode).
+  Every piece is shown unless its file says so; the editor's eye writes it, and its checks leave hidden pieces out.
 - **Applying** binds the browser's values through the record (the real reader), writes the file from it with its
   comments kept (an owner's comments inside `panels` too, since 1.464.0), and redraws every open copy of the menu
   on its viewer's thread: in place when it still stands where it stood (the same `anchor`, `hide-others` and
@@ -1038,7 +1046,7 @@ pointer.detach();                             // they walked off
   the only way that loses no notch at any ping; the hotbar shows nothing, so
   only its highlight moves, as in vanilla. The number keys arrive as notches too
   (key 5 from slot 1 is +4).
-- `onSneak`, `onLeave` (a deprecated `hotbar(item)`'s leave item), `onTick` (every poll), `onEnd`
+- `onSneak`, `onLeave` (a `hotbar(item)`'s leave item), `onTick` (every poll), `onEnd`
   (`QUIT`, `DEATH`, `WORLD`, `DISABLED`, `REPLACED`; not run for `detach()`),
   `mute(millis)`.
 - While attached, using blocks, breaking and placing them and hitting entities is
@@ -1047,9 +1055,13 @@ pointer.detach();                             // they walked off
 - `hotbar()` (since 1.463.0) is the overlay to show with it: `hideRest`, no
   pickup, nothing in any slot; the overlay swallows swings over its slots and
   hands them back through the plugin's `<plugin>_spatial:click` action, so clicks
-  arrive the same with or without it. `hotbar(item)` is deprecated: it adds a
-  leave item in slot 8 (right-click runs `onLeave`; `null` for none), which a
-  screen that owns the wheel never lets the player reach.
+  arrive the same with or without it. `hotbar(item)` adds a leave item in slot 8
+  (right-click runs `onLeave`; `null` for none). It is for a screen that does not
+  use the wheel (ExyliaCasino's tables, ExyliaTabletop's boards): the held slot
+  follows the wheel and the number keys, so the player reaches slot 8 and leaves
+  with it. A screen whose wheel moves something (a 3D menu's arc) takes `hotbar()`
+  and leaves through itself, since reaching slot 8 would scroll it. Deprecated in
+  1.463.0 and 1.464.0, undeprecated in 1.465.0.
 
 ## Contracts
 

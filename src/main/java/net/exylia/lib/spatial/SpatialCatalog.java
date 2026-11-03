@@ -481,7 +481,17 @@ public final class SpatialCatalog {
         return this;
     }
 
-    /** Answers {@code legacy}, an action name an older layout wrote, as {@code action}: {@code alias("primary", SAVE)}. */
+    /**
+     * Sample values for the plugin's own placeholders on the web editor's board: {@link SpatialMenu#samples}.
+     *
+     * @since 1.465.0
+     */
+    public @NotNull SpatialCatalog samples(@Nullable Function<SpatialLayout, Map<String, ?>> samples) {
+        menu.samples(samples);
+        return this;
+    }
+
+        /** Answers {@code legacy}, an action name an older layout wrote, as {@code action}: {@code alias("primary", SAVE)}. */
     public @NotNull SpatialCatalog alias(@NotNull String legacy, @NotNull String action) {
         aliases.put(Objects.requireNonNull(legacy, "legacy"), Objects.requireNonNull(action, "action"));
         return this;

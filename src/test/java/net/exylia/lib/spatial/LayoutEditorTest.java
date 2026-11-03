@@ -53,8 +53,9 @@ class LayoutEditorTest {
         menu.source("effects", ctx -> List.of()).action("replay", ctx -> { });
         menu.catalog = true;
         String text = centreStage();
+        menu.samples(layout -> Map.of("effect_about_1", "First line", "%replay_label%", "Replay"));
         Map<String, Object> details = LayoutEditor.details(plugin, menu,
-                () -> new java.io.ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                () -> new java.io.ByteArrayInputStream(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)), new SpatialLayout());
         JsonObject defaults = (JsonObject) details.get("defaults");
         assertEquals(4.5, defaults.getAsJsonObject("anchor").get("distance").getAsDouble(), 1e-9);
         assertTrue(defaults.getAsJsonObject("panels").has("action"), "the bundled panels, not the library's wardrobe");
@@ -63,6 +64,8 @@ class LayoutEditorTest {
         assertTrue(actions.containsAll(List.of("replay", "save", "revert", "undo", "leave", "intro")), actions.toString());
         @SuppressWarnings("unchecked") Map<String, String> samples = (Map<String, String>) details.get("samples");
         assertTrue(samples.get("%catalog_action%").contains("EQUIP"));
+        assertEquals("First line", samples.get("%effect_about_1%"), "the plugin's own, keyed with percent signs");
+        assertEquals("Replay", samples.get("%replay_label%"));
         assertTrue(samples.values().stream().noneMatch(value -> value.contains("%name%") || value.contains("%price%")),
                 "samples are filled: " + samples);
         // The whole thing is what Gson sends.
@@ -72,7 +75,7 @@ class LayoutEditorTest {
 
     @Test
     void aMenuWithNoBundledLayoutResetsToTheLibrarysWardrobe() {
-        Map<String, Object> details = LayoutEditor.details(plugin, new SpatialMenu("plain"), () -> null);
+        Map<String, Object> details = LayoutEditor.details(plugin, new SpatialMenu("plain"), () -> null, new SpatialLayout());
         JsonObject defaults = (JsonObject) details.get("defaults");
         assertTrue(defaults.getAsJsonObject("panels").has("header"));
     }
@@ -98,6 +101,36 @@ class LayoutEditorTest {
         layout.reload();
         assertEquals(120, layout.get().backdrop().alpha());
         assertEquals(-1.4, layout.get().panel("action").up(), 1e-9);
+    }
+
+    @Test
+    void aHiddenPieceReadsBackAndLeavesTheFloorAlone() throws Exception {
+        Path file = folder.resolve("spatial/stage.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, centreStage());
+        ConfigFile<SpatialLayout> layout = Configs.define(plugin, "spatial/stage", SpatialLayout.class).load();
+        assertTrue(layout.get().panels().values().stream().allMatch(SpatialLayout.Panel::visible), "shown unless the file says");
+        assertTrue(layout.get().preview().visible() && layout.get().carousel().present());
+        double before = layout.get().lowest();
+        SpatialLayout.Panel icons = layout.get().panel("icons");
+        SpatialLayout hidden = layout.get().withPanel("icons", new SpatialLayout.Panel(icons.at(), icons.turn(), icons.size(),
+                icons.title(), icons.hint(), icons.content(), icons.footer(), icons.footers(), icons.frame(), false));
+        assertTrue(hidden.lowest() > before, "the hidden icon row no longer counts for the floor");
+        layout.update(current -> hidden);
+        layout.reload();
+        assertTrue(!layout.get().panel("icons").visible());
+        assertTrue(Files.readString(file).contains("visible: false"));
+    }
+
+    @Test
+    void proseIsWrappedAsTheOpenMenuWrapsIt() throws Exception {
+        Path file = folder.resolve("spatial/stage.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, centreStage().replace("  title:\n", "  about:\n    at: [0, 0.3, 0.1]\n    size: [3.1, 0.58]\n    frame: false\n    content: {type: TEXT, lines: ['%a%', '%b%', '%c%']}\n  title:\n"));
+        SpatialLayout layout = Configs.define(plugin, "spatial/stage", SpatialLayout.class).load().get();
+        List<String> lines = layout.wrap("about", "The blast lifts them into a backflip, bounces them twice, and leaves them in pieces.", 3);
+        assertTrue(lines.size() >= 2 && lines.size() <= 3, lines.toString());
+        assertEquals(List.of("one", "two"), layout.wrap("nowhere", "one\ntwo", 3), "an unknown panel keeps the text's own lines");
     }
 
     /**
@@ -134,7 +167,7 @@ class LayoutEditorTest {
             } catch (java.io.IOException e) {
                 return null;
             }
-        })));
+        }, layout.get())));
         Files.writeString(Path.of(to), new GsonBuilder().setPrettyPrinting().create().toJson(subject));
     }
 }

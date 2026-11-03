@@ -40,6 +40,7 @@ public record SpatialLayout(
         @Comment("buttons, each a label and an action; one whose label reads blank is left out). source: the list")
         @Comment("the plugin fills it from. footer: an optional button along the bottom. footers: several buttons")
         @Comment("side by side along the bottom, each a label and an action (after footer, when both are given).")
+        @Comment("visible: false hides a panel in game without deleting it (also on the preview and the carousel).")
         Map<String, Panel> panels,
         @Comment("The piece in the middle, on a slowly turning pedestal. turn-speed in degrees a second.")
         @Comment("vanish-on-play: an effect's mannequin disappears while the effect plays, so a kill reads as a death.")
@@ -140,11 +141,12 @@ public record SpatialLayout(
     public double lowest() {
         double low = 0;
         for (Panel panel : panels.values()) {
+            if (!panel.visible()) continue;
             // An icon row writes the words of the icon looked at under it.
             double under = panel.content().wordsUnder(panel.height());
             low = Math.min(low, panel.up() - panel.height() / 2 - under);
         }
-        low = Math.min(low, preview.at().get(1) - 0.14);
+        if (preview.visible()) low = Math.min(low, preview.at().get(1) - 0.14);
         if (carousel.present()) {
             double up = carousel.at().get(1);
             if (carousel.arc()) low = Math.min(low, up - carousel.spacing() * 0.9 * 0.95 - 0.1);
@@ -162,6 +164,29 @@ public record SpatialLayout(
      */
     public double liftOverFloor(double eyes, double margin) {
         return Math.max(anchor.lift(), margin - eyes - lowest());
+    }
+
+    /**
+     * Prose broken into at most {@code lines} lines for the TEXT panel {@code panel}, as an open menu breaks it
+     * ({@link SpatialContext#wrap}): balanced, at the width a body line of that panel has from the eyes (90 % of
+     * the panel, the theme's {@code text-scale}, never under {@code min-glyph-degrees}), for a viewer on flat
+     * ground. Without a menu open: a sample for the web editor ({@link SpatialMenu#samples}), a preview. An
+     * unknown panel keeps the text's own lines. Since 1.465.0.
+     */
+    public List<String> wrap(String panel, String text, int lines) {
+        Panel part = panels.get(panel);
+        if (part == null || text == null) {
+            List<String> split = net.exylia.lib.text.Lines.split(text).stream().filter(l -> !l.isBlank()).toList();
+            return split.size() > lines ? split.subList(0, Math.max(0, lines)) : split;
+        }
+        double lift = liftOverFloor(1.62, 0.15);
+        double away = Math.sqrt(part.across() * part.across() + Math.pow(part.up() + lift, 2)
+                + Math.pow(anchor.distance() - part.forward(), 2));
+        boolean small = theme.smallCapsBody() && net.exylia.lib.text.internal.SmallText.enabled();
+        double floor = net.exylia.lib.spatial.internal.Geometry.readableScale(away, theme.minGlyphDegrees(),
+                small ? net.exylia.lib.spatial.internal.Geometry.SMALL_CAPITAL_PIXELS
+                        : net.exylia.lib.spatial.internal.Geometry.CAPITAL_PIXELS);
+        return net.exylia.lib.spatial.internal.Geometry.balanced(text, part.width() * 0.9 / Math.max(floor, theme.textScale()), lines);
     }
 
     /**
@@ -216,10 +241,16 @@ public record SpatialLayout(
      * accent: its words and buttons stand bare in the air (a tab row, a hint line, a column of quiet buttons).
      */
     public record Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
-                        Content content, Footer footer, List<Footer> footers, boolean frame) {
+                        Content content, Footer footer, List<Footer> footers, boolean frame, boolean visible) {
 
         public Panel() {
-            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer(), List.of(), true);
+            this(List.of(0.0, 0.0, 0.0), 0, List.of(1.4, 1.0), "", "", new Content(), new Footer(), List.of(), true, true);
+        }
+
+        /** A shown panel: the shape panels had before 1.465.0 ({@code visible} since then). */
+        public Panel(List<Double> at, double turn, List<Double> size, String title, String hint,
+                     Content content, Footer footer, List<Footer> footers, boolean frame) {
+            this(at, turn, size, title, hint, content, footer, footers, frame, true);
         }
 
         /** A framed panel with a row of footers: the shape layouts had before 1.452.0. */
@@ -280,7 +311,7 @@ public record SpatialLayout(
 
         public Panel moved(double across, double up, double forward, double turn, double width, double height) {
             return new Panel(List.of(across, up, forward), turn, List.of(width, height), title, hint, content, footer,
-                    footers, frame);
+                    footers, frame, visible);
         }
     }
 
@@ -387,7 +418,15 @@ public record SpatialLayout(
      */
     public record Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
                           double effectScale, List<String> skins, String facing, boolean turnControls, String turnHint,
-                          double turnPause, String effectFacing, List<Double> zone) {
+                          double turnPause, String effectFacing, List<Double> zone, boolean visible) {
+
+        /** A shown preview: the shape previews had before 1.465.0 ({@code visible} since then). */
+        public Preview(List<Double> at, double turnSpeed, boolean pedestal, double scale, boolean vanishOnPlay,
+                       double effectScale, List<String> skins, String facing, boolean turnControls, String turnHint,
+                       double turnPause, String effectFacing, List<Double> zone) {
+            this(at, turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins, facing, turnControls, turnHint,
+                    turnPause, effectFacing, zone, true);
+        }
 
         /** The hint under the pedestal when the file does not say. */
         public static final String TURN_HINT = "{muted}Click the body to turn it";
@@ -401,7 +440,7 @@ public record SpatialLayout(
         public Preview() {
             // Low and small enough that a body's head stays under the focus text, level with it, not nearer.
             this(List.of(0.0, -0.8, 0.2), 12, true, 0.8, true, EFFECT_SCALE, SKINS, "FRONT", false, TURN_HINT, 8,
-                    "AUTO", List.of(0.0, 0.0));
+                    "AUTO", List.of(0.0, 0.0), true);
         }
 
         /** Every key but the effect's facing and zone: the shape previews had before 1.454.0. */
@@ -502,7 +541,7 @@ public record SpatialLayout(
 
         public Preview moved(double across, double up, double forward) {
             return new Preview(List.of(across, up, forward), turnSpeed, pedestal, scale, vanishOnPlay, effectScale, skins,
-                    facing, turnControls, turnHint, turnPause, effectFacing, zone);
+                    facing, turnControls, turnHint, turnPause, effectFacing, zone, visible);
         }
     }
 
@@ -512,7 +551,13 @@ public record SpatialLayout(
      * {@code slots × rows} entries.
      */
     public record Carousel(String source, List<Double> at, int slots, double spacing, double centreGap, double curve,
-                           int rows, double rowGap, Style style) {
+                           int rows, double rowGap, Style style, boolean visible) {
+
+        /** A shown carousel: the shape carousels had before 1.465.0 ({@code visible} since then). */
+        public Carousel(String source, List<Double> at, int slots, double spacing, double centreGap, double curve,
+                        int rows, double rowGap, Style style) {
+            this(source, at, slots, spacing, centreGap, curve, rows, rowGap, style, true);
+        }
 
         /** How a carousel draws its entries. */
         /**
@@ -552,12 +597,14 @@ public record SpatialLayout(
             return style == Style.SHELF;
         }
 
+        /** Whether it is drawn: it reads a source and is not hidden ({@code visible: false}, since 1.465.0). */
         public boolean present() {
-            return !source.isBlank();
+            return !source.isBlank() && visible;
         }
 
         public Carousel moved(double across, double up, double forward, double spacing, double curve) {
-            return new Carousel(source, List.of(across, up, forward), slots, spacing, centreGap, curve, rows, rowGap, style);
+            return new Carousel(source, List.of(across, up, forward), slots, spacing, centreGap, curve, rows, rowGap, style,
+                    visible);
         }
     }
 

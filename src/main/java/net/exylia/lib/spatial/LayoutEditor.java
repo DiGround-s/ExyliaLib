@@ -52,7 +52,7 @@ final class LayoutEditor {
         try {
             WebEditor.of(plugin).subject(subjectId(id), file, KIND)
                     .title(title(id))
-                    .details(() -> details(plugin, menu, bundled))
+                    .details(() -> details(plugin, menu, bundled, file.get()))
                     .onApplied(() -> menus.relive(id));
         } catch (RuntimeException unavailable) {
             // No web editor in this runtime (a test without the library enabled): the layout stays editable in game.
@@ -66,11 +66,15 @@ final class LayoutEditor {
         return (words.isEmpty() ? id : Character.toUpperCase(words.charAt(0)) + words.substring(1)) + " (3D layout)";
     }
 
-    static Map<String, Object> details(Plugin plugin, SpatialMenu menu, @Nullable Supplier<InputStream> bundled) {
+    static Map<String, Object> details(Plugin plugin, SpatialMenu menu, @Nullable Supplier<InputStream> bundled,
+                                       SpatialLayout layout) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("menu", menu.id());
+        // What this library's board understands, for an editor drawing a layout from an older one.
+        out.put("features", List.of("visible", "samples"));
         out.put("defaults", defaults(plugin, bundled));
         Map<String, String> samples = samples();
+        samples.putAll(own(plugin, menu, layout));
         out.put("samples", samples);
         SpatialCatalog.Words words = new SpatialCatalog.Words();
         out.put("tabs", List.of("All", "Meme", "Void", "Cataclysm", "Lovestruck", "Cosmic", words.tabFavourites()));
@@ -85,6 +89,26 @@ final class LayoutEditor {
         out.put("catalog", menu.catalog);
         out.put("ranges", RANGES);
         out.put("rules", rules());
+        return out;
+    }
+
+    /** The plugin's samples for its own placeholders ({@link SpatialMenu#samples}), keyed {@code %name%}. */
+    private static Map<String, String> own(Plugin plugin, SpatialMenu menu, SpatialLayout layout) {
+        Map<String, String> out = new LinkedHashMap<>();
+        var supplier = menu.samples;
+        if (supplier == null) return out;
+        try {
+            Map<String, ?> given = supplier.apply(layout);
+            if (given == null) return out;
+            given.forEach((key, value) -> {
+                if (key == null || key.isBlank() || value == null) return;
+                String token = key.startsWith("%") && key.endsWith("%") && key.length() > 2 ? key : "%" + key + "%";
+                out.put(token, String.valueOf(value));
+            });
+        } catch (RuntimeException failure) {
+            net.exylia.lib.debug.Debug.of(plugin).warn("The samples of spatial menu " + menu.id()
+                    + " could not be read: " + failure.getMessage());
+        }
         return out;
     }
 

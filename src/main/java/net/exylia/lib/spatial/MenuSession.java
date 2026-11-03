@@ -381,6 +381,8 @@ final class MenuSession implements SpatialContext {
         if (layout.backdrop().present()) backdrop(layout.backdrop(), animated ? 0L : -1L);
         int index = 0;
         for (Map.Entry<String, SpatialLayout.Panel> panel : layout.panels().entrySet()) {
+            // Hidden in the layout (visible: false, since 1.465.0): not drawn, nothing to click.
+            if (!panel.getValue().visible()) continue;
             parts.add(new PanelPart(panel.getKey(), panel.getValue(), animated ? index++ * 70L : -1));
         }
         if (layout.carousel().present()) {
@@ -392,7 +394,7 @@ final class MenuSession implements SpatialContext {
         } else {
             pointer.onScroll(null);
         }
-        preview = new PreviewPart(animated ? 300L : -1);
+        preview = layout.preview().visible() ? new PreviewPart(animated ? 300L : -1) : null;
         if (edit != null) edit.hotspots();
     }
 

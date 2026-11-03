@@ -182,10 +182,11 @@ public final class SpatialInput {
      * The same hotbar with {@code leave} in the last slot, whose right-click runs the pointer's
      * {@link SpatialPointer#onLeave}; {@code null} for none.
      *
-     * @deprecated the screen owns the wheel and the number keys, so the player never reaches slot 8: the
-     * item cannot be used. Use {@link #hotbar()} and let players leave through the screen.
+     * <p>For a screen that does not use the wheel (a casino table, a board game): the held slot follows the wheel
+     * and the number keys, so the player reaches slot 8 and the item works. A screen whose wheel moves something
+     * (a 3D menu's arc) takes {@link #hotbar()} and lets players leave through the screen, since reaching slot 8
+     * would scroll it. Deprecated in 1.463.0 and 1.464.0, undeprecated in 1.465.0 for the screens that do not scroll.
      */
-    @Deprecated(since = "1.463.0")
     public @NotNull OverlayDefinition hotbar(@Nullable Item leave) {
         String ns = actions.namespace();
         ClickBindings blank = new ClickBindings.Builder()

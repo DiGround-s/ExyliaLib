@@ -49,6 +49,7 @@ public final class SpatialMenu {
     @Nullable Function<Player, String> guard;
     @Nullable Consumer<Player> fallback;
     @Nullable Function<SpatialContext, Map<String, ?>> saved;
+    @Nullable Function<SpatialLayout, Map<String, ?>> samples;
     @Nullable Function<SpatialContext, String> save;
     @Nullable Consumer<SpatialContext> discard;
     @Nullable Consumer<SpatialContext> onRevert;
@@ -155,6 +156,31 @@ public final class SpatialMenu {
      */
     public @NotNull SpatialMenu saved(@Nullable Function<SpatialContext, Map<String, ?>> saved) {
         this.saved = saved;
+        return this;
+    }
+
+    /**
+     * Sample values for the menu's own placeholders (what {@code values} fills: {@code %effect_about_1%},
+     * {@code %replay_label%}), for the web editor's board, which has no player to fill them for: it draws the
+     * layout with these words so their length and wrapping read as in game. Keys with or without the percent
+     * signs. Handed the layout being edited, so prose can be broken as the menu breaks it
+     * ({@link SpatialLayout#wrap}). Read off the main thread whenever the editor uploads: memory only (the first
+     * entry of a catalogue the plugin keeps, its lang file's words). Nothing in game reads it.
+     *
+     * <pre>{@code
+     * menu.samples(layout -> {
+     *     Map<String, String> out = new HashMap<>();
+     *     List<String> about = layout.wrap("about", first.description(), 3);
+     *     for (int i = 0; i < 3; i++) out.put("effect_about_" + (i + 1), i < about.size() ? about.get(i) : "");
+     *     out.put("replay_label", lines.replay());
+     *     return out;
+     * })
+     * }</pre>
+     *
+     * @since 1.465.0
+     */
+    public @NotNull SpatialMenu samples(@Nullable Function<SpatialLayout, Map<String, ?>> samples) {
+        this.samples = samples;
         return this;
     }
 

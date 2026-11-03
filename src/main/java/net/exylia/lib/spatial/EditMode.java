@@ -35,12 +35,14 @@ final class EditMode {
     /** One hotspot per piece, outlined while aimed at; a click starts moving it. */
     void hotspots() {
         for (Map.Entry<String, SpatialLayout.Panel> panel : session.layout.panels().entrySet()) {
+            if (!panel.getValue().visible()) continue;
             spot(panel.getKey(), panel.getValue().width(), panel.getValue().height());
         }
         if (session.layout.carousel().present()) {
             double[] size = session.pieceSize(CAROUSEL);
             spot(CAROUSEL, size[0], size[1]);
         }
+        if (!session.layout.preview().visible()) return;
         double[] body = session.pieceSize(PREVIEW);
         spot(PREVIEW, body[0], body[1]);
     }
