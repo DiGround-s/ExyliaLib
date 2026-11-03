@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -64,6 +65,12 @@ class IconInputTest {
         for (String other : new String[] {"DIAMOND_SWORD", "bytes:rO0ABXNy", "itemsadder:ruby"}) {
             assertFalse(IconInput.isHead(other), other);
         }
+    }
+
+    @Test
+    @DisplayName("an icon request opens when there is no current icon")
+    void opensWithoutCurrent() {
+        assertDoesNotThrow(() -> inputs.icon(player, "Pick").open());
     }
 
     @Test

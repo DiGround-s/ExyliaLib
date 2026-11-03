@@ -213,7 +213,7 @@ public final class IconInput {
                 .label(Way::label)
                 .key(Enum::name)
                 .icon(Way::icon)
-                .defaultValue(ways.contains(given) ? given : null))
+                .defaultValue(given != null && ways.contains(given) ? given : null))
                 .open()
                 .thenCompose(chosen -> chosen.completed()
                         ? ask(chosen.value())

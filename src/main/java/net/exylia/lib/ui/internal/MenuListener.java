@@ -195,6 +195,11 @@ public final class MenuListener implements Listener {
      * most common "the menu is broken" report.
      */
     private static void announce(Session session, Player viewer, ActionResult result) {
+        if (result.status() == ActionResult.Status.FAILED) {
+            // The sound is all the player gets; the console gets the reason.
+            session.runtime().plugin().getLogger().log(java.util.logging.Level.WARNING,
+                    "A menu button failed for " + viewer.getName() + ": " + result.reason(), result.error());
+        }
         UiSounds sounds = session.definition().sounds();
         String sound = switch (result.status()) {
             case DENIED -> sounds.denied();
