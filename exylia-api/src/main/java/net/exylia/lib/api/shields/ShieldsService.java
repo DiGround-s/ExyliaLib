@@ -133,6 +133,19 @@ public interface ShieldsService {
     int maxLayers();
 
     /**
+     * How many layers one of this player's designs may hold.
+     *
+     * <p>The highest {@code exyliashields.layers.<n>} they hold, or
+     * {@link #maxLayers()} when they hold none.
+     *
+     * @param player the player
+     * @return their layer limit
+     */
+    default int maxLayers(@NotNull Player player) {
+        return maxLayers();
+    }
+
+    /**
      * Whether a player is allowed to draw with a pattern.
      *
      * <p>Permissions are checked again whenever a player joins, and layers they
