@@ -116,4 +116,17 @@ public interface Subject {
     default @NotNull Subject details(@NotNull java.util.function.Supplier<? extends java.util.Map<String, ?>> details) {
         return this;
     }
+
+    /**
+     * The same, read for the sender who opened the session: a screen whose samples depend on who looks (a
+     * catalogue's first offer and words, read for that admin). Replaces a supplier given before.
+     *
+     * @param details what to send, read once per upload with the session's sender
+     * @return this subject
+     * @since 1.467.0
+     */
+    default @NotNull Subject details(@NotNull java.util.function.Function<? super org.bukkit.command.CommandSender,
+            ? extends java.util.Map<String, ?>> details) {
+        return this;
+    }
 }

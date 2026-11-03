@@ -87,6 +87,12 @@ public final class SpatialCatalog {
      */
     public static final String TABS = "catalog_tabs";
 
+    /**
+     * The states a catalogue's board can be in, as the web editor offers them (since 1.467.0): what is worn is
+     * saved, a draft waits to be saved, one waits to be bought, the purchase waits for its second click.
+     */
+    public static final List<String> STATES = List.of("saved", "unsaved", "buy", "confirm");
+
     // ── What a plugin declares ────────────────────────────────────────────
 
     /**
@@ -491,6 +497,12 @@ public final class SpatialCatalog {
         return this;
     }
 
+    /** Samples for one of {@link #STATES} only: {@link SpatialMenu#samples(String, Function)}. Since 1.467.0. */
+    public @NotNull SpatialCatalog samples(@NotNull String state, @NotNull Function<SpatialLayout, Map<String, ?>> samples) {
+        menu.samples(state, samples);
+        return this;
+    }
+
         /** Answers {@code legacy}, an action name an older layout wrote, as {@code action}: {@code alias("primary", SAVE)}. */
     public @NotNull SpatialCatalog alias(@NotNull String legacy, @NotNull String action) {
         aliases.put(Objects.requireNonNull(legacy, "legacy"), Objects.requireNonNull(action, "action"));
@@ -498,6 +510,27 @@ public final class SpatialCatalog {
     }
 
     /** The main list's source, once {@link #offers} has declared one. */
+    /** The main list's offers for {@code ctx}, as the menu would draw them; empty without one. Since 1.467.0. */
+    @NotNull List<Offer> sampleOffers(SpatialContext ctx) {
+        var list = offers.get(primarySource());
+        return list == null ? List.of() : List.copyOf(list.apply(ctx));
+    }
+
+    /** The words for {@code ctx}, from the plugin's lang files. Since 1.467.0. */
+    @NotNull Words sampleWords(SpatialContext ctx) {
+        return words.apply(ctx);
+    }
+
+    /** The filter steps' names for {@code ctx}, or none. Since 1.467.0. */
+    @NotNull List<String> sampleCategories(SpatialContext ctx) {
+        return categories == null ? List.of() : categories.apply(ctx).stream().map(Category::name).toList();
+    }
+
+    /** Whether one is worn at a time ({@link #equips}): the primary button reads EQUIP rather than SAVE. */
+    boolean wearsOne() {
+        return worn != null;
+    }
+
     @NotNull String primarySource() {
         return primary == null ? "" : primary;
     }

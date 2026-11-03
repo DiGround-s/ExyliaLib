@@ -77,7 +77,8 @@ One `ConfigFile`, described to the browser by its schema and its values.
   the schema and values: a default to reset to, sample words for its preview, the names an action may
   take. Read on every upload (off the main thread: memory and files only) and sent as the subject's
   `details`; a supplier that throws or answers `null` sends none, and a screen that does not know them
-  ignores them. Spatial menu layouts use it (kind `spatial/layout`, see [spatial](spatial.md#web-editor-since-1464)).
+  ignores them. `details(sender -> Map)` (since 1.467.0) reads them for the sender who opened the session.
+  Spatial menu layouts use it (kind `spatial/layout`, see [spatial](spatial.md#web-editor-since-1464)).
 
 Registering the same id twice replaces the earlier registration. A plugin's
 subjects are forgotten when it is disabled; `remove(id)` forgets one while the

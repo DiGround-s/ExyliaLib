@@ -121,13 +121,18 @@ final class Snapshot {
 
     /** One subject whole: its metadata, schema, values and hash. Reads the source. */
     static JsonObject subject(SubjectImpl subject) {
+        return subject(subject, null);
+    }
+
+    /** The same, its details read for the session's sender. */
+    static JsonObject subject(SubjectImpl subject, @Nullable CommandSender sender) {
         Described item = Described.of(subject);
         JsonObject entry = meta(subject);
         entry.addProperty("plugin", subject.plugin().getName());
         entry.add("schema", subject.source().schema(subject.plugin().getName()));
         entry.add("values", item.values());
         entry.addProperty("hash", item.hash());
-        Map<String, ?> details = subject.details();
+        Map<String, ?> details = subject.details(sender);
         if (details != null) {
             try {
                 entry.add("details", new com.google.gson.Gson().toJsonTree(details));

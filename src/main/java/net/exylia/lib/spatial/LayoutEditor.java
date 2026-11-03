@@ -4,6 +4,9 @@ import com.google.gson.JsonObject;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.internal.RecordJson;
 import net.exylia.lib.web.WebEditor;
+import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,7 +55,7 @@ final class LayoutEditor {
         try {
             WebEditor.of(plugin).subject(subjectId(id), file, KIND)
                     .title(title(id))
-                    .details(() -> details(plugin, menu, bundled, file.get()))
+                    .details(sender -> details(menus, menu, bundled, file.get(), sampleViewer(sender)))
                     .onApplied(() -> menus.relive(id));
         } catch (RuntimeException unavailable) {
             // No web editor in this runtime (a test without the library enabled): the layout stays editable in game.
@@ -66,20 +69,63 @@ final class LayoutEditor {
         return (words.isEmpty() ? id : Character.toUpperCase(words.charAt(0)) + words.substring(1)) + " (3D layout)";
     }
 
+    /** Whose eyes the board is sampled through: the admin who opened the session, else anyone online. */
+    private static @Nullable Player sampleViewer(@Nullable CommandSender sender) {
+        if (sender instanceof Player player && player.isOnline()) return player;
+        for (Player online : Bukkit.getOnlinePlayers()) return online;
+        return null;
+    }
+
+    /** For a test without a server: no viewer to sample through, so the library's own samples. */
     static Map<String, Object> details(Plugin plugin, SpatialMenu menu, @Nullable Supplier<InputStream> bundled,
                                        SpatialLayout layout) {
+        return details(plugin, null, menu, bundled, layout, null);
+    }
+
+    static Map<String, Object> details(SpatialMenus menus, SpatialMenu menu, @Nullable Supplier<InputStream> bundled,
+                                       SpatialLayout layout, @Nullable Player viewer) {
+        return details(menus.plugin(), menus, menu, bundled, layout, viewer);
+    }
+
+    private static Map<String, Object> details(Plugin plugin, @Nullable SpatialMenus menus, SpatialMenu menu,
+                                               @Nullable Supplier<InputStream> bundled, SpatialLayout layout,
+                                               @Nullable Player viewer) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("menu", menu.id());
         // What this library's board understands, for an editor drawing a layout from an older one.
-        out.put("features", List.of("visible", "samples"));
+        out.put("features", List.of("visible", "samples", "states"));
         out.put("defaults", defaults(plugin, bundled));
-        Map<String, String> samples = samples();
-        samples.putAll(own(plugin, menu, layout));
+        // Every word as the viewer would read it on opening the menu: the plugin's values and the catalogue's,
+        // over the plugin's samples, over the library's English.
+        Map<String, String> base = samples();
+        base.putAll(own(plugin, menu.samples, menu.id(), layout));
+        Live live = menus == null || viewer == null ? null : live(menus, menu, viewer, layout);
+        Map<String, Map<String, String>> states = new LinkedHashMap<>();
+        List<String> names = live != null && !live.states().isEmpty() ? new ArrayList<>(live.states().keySet())
+                : new ArrayList<>(menu.stateSamples.keySet());
+        for (String state : names) {
+            Map<String, String> words = new LinkedHashMap<>(base);
+            words.putAll(own(plugin, menu.stateSamples.get(state), menu.id(), layout));
+            if (live != null && live.states().containsKey(state)) words.putAll(live.states().get(state));
+            states.put(state, words);
+        }
+        Map<String, String> samples = states.isEmpty() ? base : states.values().iterator().next();
         out.put("samples", samples);
+        if (states.size() > 1) out.put("states", states);
+        out.put("sampledFor", live == null ? "" : "viewer");
+        if (live != null) out.put("preview", live.preview());
         SpatialCatalog.Words words = new SpatialCatalog.Words();
-        out.put("tabs", List.of("All", "Meme", "Void", "Cataclysm", "Lovestruck", "Cosmic", words.tabFavourites()));
-        out.put("tabFormat", words.tab());
-        out.put("tabActiveFormat", words.tabActive());
+        if (live != null && menu.catalog) {
+            // The real filter steps, already worded as tabs; none when the catalogue shows no row.
+            out.put("tabs", live.tabs());
+            out.put("tabOpen", live.tabOpen());
+            out.put("tabFormat", "%tab%");
+            out.put("tabActiveFormat", "%tab%");
+        } else {
+            out.put("tabs", List.of("All", "Meme", "Void", "Cataclysm", "Lovestruck", "Cosmic", words.tabFavourites()));
+            out.put("tabFormat", words.tab());
+            out.put("tabActiveFormat", words.tabActive());
+        }
         List<String> sources = new ArrayList<>(menu.sources.keySet());
         if (menu.catalog && !sources.contains(SpatialCatalog.TABS)) sources.add(SpatialCatalog.TABS);
         out.put("sources", sources);
@@ -92,10 +138,128 @@ final class LayoutEditor {
         return out;
     }
 
-    /** The plugin's samples for its own placeholders ({@link SpatialMenu#samples}), keyed {@code %name%}. */
-    private static Map<String, String> own(Plugin plugin, SpatialMenu menu, SpatialLayout layout) {
+    /**
+     * What the viewer would read on opening the menu, per state: the menu's own {@code values} (a catalogue's
+     * words and card for its first real offer, the plugin's placeholders) read through a {@link SampleContext}, on
+     * the viewer's thread. A catalogue is sampled in each of {@link SpatialCatalog#STATES} the offers can show:
+     * worn, a draft of one they own, one to buy, the purchase to confirm.
+     */
+    record Live(Map<String, Map<String, String>> states, List<String> tabs, int tabOpen, Map<String, String> preview) {
+    }
+
+    /** What stands on the pedestal for {@code ctx}: a body, an item (with its material), or nothing. */
+    private static Map<String, String> previewOf(SpatialMenu menu, SampleContext ctx) {
+        if (menu.preview == null) return Map.of("kind", "none");
+        SpatialPreview shown;
+        try {
+            shown = menu.preview.apply(ctx);
+        } catch (RuntimeException failure) {
+            return Map.of("kind", "body");
+        }
+        return switch (shown) {
+            case null -> Map.of("kind", "none");
+            case SpatialPreview.Item item -> Map.of("kind", "item", "item", item.item().getType().getKey().getKey());
+            case SpatialPreview.Flight flight -> Map.of("kind", "item", "item", flight.projectile().getType().getKey().getKey());
+            case SpatialPreview.None none -> Map.of("kind", "none");
+            default -> Map.of("kind", "body");
+        };
+    }
+
+    private static @Nullable Live live(SpatialMenus menus, SpatialMenu menu, Player viewer, SpatialLayout layout) {
+        java.util.concurrent.CompletableFuture<Live> read = new java.util.concurrent.CompletableFuture<>();
+        Runnable task = () -> {
+            try {
+                read.complete(liveNow(menu, viewer, layout));
+            } catch (RuntimeException failure) {
+                read.completeExceptionally(failure);
+            }
+        };
+        try {
+            if (menus.tasks().isOwnedBy(viewer)) task.run();
+            else menus.tasks().runAtEntity(viewer, task);
+            return read.get(3, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return null;
+        } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException | RuntimeException failure) {
+            net.exylia.lib.debug.Debug.of(menus.plugin()).warn("Spatial menu " + menu.id()
+                    + " could not be sampled for the web editor: " + failure);
+            return null;
+        }
+    }
+
+    private static Live liveNow(SpatialMenu menu, Player viewer, SpatialLayout layout) {
+        Map<String, Map<String, String>> states = new LinkedHashMap<>();
+        SpatialCatalog catalogue = menu.catalogue;
+        List<String> tabs = new ArrayList<>();
+        int tabOpen = 0;
+        if (catalogue == null) {
+            SampleContext open = new SampleContext(viewer, menu.id(), layout);
+            if (menu.values != null) states.put("default", read(menu, open));
+            return new Live(states, tabs, tabOpen, previewOf(menu, open));
+        }
+        String primary = catalogue.primarySource();
+        List<SpatialCatalog.Offer> offers = catalogue.sampleOffers(new SampleContext(viewer, menu.id(), layout));
+        if (offers.isEmpty()) return new Live(states, tabs, tabOpen, previewOf(menu, new SampleContext(viewer, menu.id(), layout)));
+        SpatialCatalog.Offer worn = offers.stream().filter(SpatialCatalog.Offer::equipped).findFirst().orElse(null);
+        SpatialCatalog.Offer first = offers.getFirst();
+        SpatialCatalog.Offer owned = offers.stream().filter(o -> o.owned() && !o.equipped()).findFirst().orElse(null);
+        SpatialCatalog.Offer buyable = offers.stream().filter(o -> !o.owned() && o.buyable()).findFirst().orElse(null);
+        SampleContext saved = sample(viewer, menu, layout, primary, worn != null ? worn : first, false, false);
+        states.put("saved", read(menu, saved));
+        if (owned != null || worn == null) {
+            states.put("unsaved", read(menu, sample(viewer, menu, layout, primary, owned != null ? owned : first, true, false)));
+        }
+        if (buyable != null) {
+            states.put("buy", read(menu, sample(viewer, menu, layout, primary, buyable, true, false)));
+            states.put("confirm", read(menu, sample(viewer, menu, layout, primary, buyable, true, true)));
+        }
+        SampleContext open = new SampleContext(viewer, menu.id(), layout);
+        var source = menu.sources.get(SpatialCatalog.TABS);
+        if (source != null) {
+            List<SpatialEntry> entries = source.apply(open);
+            for (int i = 0; i < entries.size(); i++) {
+                tabs.add(entries.get(i).name());
+                if (entries.get(i).state() == SpatialEntry.State.SELECTED) tabOpen = i;
+            }
+        }
+        // The page line: how many pages the main list really fills.
+        int perPage = 8;
+        for (Map<String, String> words : states.values()) {
+            words.putIfAbsent("%page%", "1");
+            words.put("%pages%", String.valueOf(Math.max(1, (offers.size() + perPage - 1) / perPage)));
+        }
+        return new Live(states, tabs, tabOpen, previewOf(menu, saved));
+    }
+
+    /** A sample with {@code chosen} picked in the main list, as worn or as a draft, a second click armed or not. */
+    private static SampleContext sample(Player viewer, SpatialMenu menu, SpatialLayout layout, String primary,
+                                        SpatialCatalog.Offer chosen,
+                                        boolean draft, boolean confirming) {
+        SampleContext ctx = new SampleContext(viewer, menu.id(), layout);
+        ctx.select(primary, chosen.id());
+        ctx.dirty = draft;
+        ctx.changed = draft ? java.util.Set.of(primary) : java.util.Set.of();
+        ctx.confirming = confirming;
+        return ctx;
+    }
+
+    /** The menu's words for {@code ctx}, keyed {@code %name%}. */
+    private static Map<String, String> read(SpatialMenu menu, SampleContext ctx) {
         Map<String, String> out = new LinkedHashMap<>();
-        var supplier = menu.samples;
+        if (menu.values == null) return out;
+        net.exylia.lib.text.Values values = menu.values.apply(ctx);
+        if (values == null) return out;
+        values.map().forEach((key, value) -> {
+            if (key != null && value != null) out.put("%" + key + "%", String.valueOf(value));
+        });
+        return out;
+    }
+
+    /** The plugin's samples for its own placeholders ({@link SpatialMenu#samples}), keyed {@code %name%}. */
+    private static Map<String, String> own(Plugin plugin, @Nullable java.util.function.Function<SpatialLayout,
+            Map<String, ?>> supplier, String id, SpatialLayout layout) {
+        Map<String, String> out = new LinkedHashMap<>();
         if (supplier == null) return out;
         try {
             Map<String, ?> given = supplier.apply(layout);
@@ -106,7 +270,7 @@ final class LayoutEditor {
                 out.put(token, String.valueOf(value));
             });
         } catch (RuntimeException failure) {
-            net.exylia.lib.debug.Debug.of(plugin).warn("The samples of spatial menu " + menu.id()
+            net.exylia.lib.debug.Debug.of(plugin).warn("The samples of spatial menu " + id
                     + " could not be read: " + failure.getMessage());
         }
         return out;

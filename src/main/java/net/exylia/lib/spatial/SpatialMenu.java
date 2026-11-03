@@ -50,6 +50,10 @@ public final class SpatialMenu {
     @Nullable Consumer<Player> fallback;
     @Nullable Function<SpatialContext, Map<String, ?>> saved;
     @Nullable Function<SpatialLayout, Map<String, ?>> samples;
+    /** Samples for one state of the menu only (since 1.467.0), over {@link #samples}. */
+    final Map<String, Function<SpatialLayout, Map<String, ?>>> stateSamples = new LinkedHashMap<>();
+    /** The catalogue declared on it, for the editor's samples. */
+    @Nullable SpatialCatalog catalogue;
     @Nullable Function<SpatialContext, String> save;
     @Nullable Consumer<SpatialContext> discard;
     @Nullable Consumer<SpatialContext> onRevert;
@@ -181,6 +185,23 @@ public final class SpatialMenu {
      */
     public @NotNull SpatialMenu samples(@Nullable Function<SpatialLayout, Map<String, ?>> samples) {
         this.samples = samples;
+        return this;
+    }
+
+    /**
+     * Samples for one state the board can be in (since 1.467.0), over the ones {@link #samples} gives: words that
+     * show only while something waits to be saved (a SAVE pill), or only once it is (EQUIP, MY SHIELDS). The web
+     * editor draws one state at a time, so the board never shows two things the game never shows together. A
+     * catalogue's states are {@code saved}, {@code unsaved}, {@code buy} and {@code confirm}
+     * ({@link SpatialCatalog#STATES}); a word blank in a state is left out there, as in game.
+     *
+     * <pre>{@code
+     * menu.samples(layout -> Map.of("designer_equip", lines.equip()))      // what reads in every state
+     *     .samples("unsaved", layout -> Map.of("designer_pill", lines.unsaved(), "designer_equip", ""));
+     * }</pre>
+     */
+    public @NotNull SpatialMenu samples(@NotNull String state, @NotNull Function<SpatialLayout, Map<String, ?>> samples) {
+        stateSamples.put(state, samples);
         return this;
     }
 

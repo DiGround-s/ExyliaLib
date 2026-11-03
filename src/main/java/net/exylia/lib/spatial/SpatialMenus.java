@@ -387,6 +387,7 @@ public final class SpatialMenus {
             catalog.accept(declared);
             declared.install();
             menu.catalog = true;
+            menu.catalogue = declared;
             // A plugin that ships no layout gets the library's centre stage rather than the generic wardrobe.
             if (!packaged(anchor, "spatial/" + id + ".yml")) {
                 menu.stageSource = declared.primarySource();

@@ -210,6 +210,13 @@ kept, rather than shrunk. Titles and buttons follow the server's `small-text`;
 body lines (TEXT lines, hints, entry names and state lines, the page line, the
 empty line, captions) are drawn as written unless `small-caps-body: true`.
 
+**Readable over the backdrop (since 1.467.0).** On a board with a `backdrop`, a colour in any word that reads under
+3:1 over the sky and over deepslate seen through it (`{neutral}`, `{muted}`, `{error}`, `&8`, a dark hex) gives way
+to the line's body colour, the first readable one it is written in, else `{letters}`
+(`spatial/internal/Legible`). A catalogue's description written for an inventory
+(`{letters}... {highlight}gets deleted{neutral}.`) then reads whole in 3D with no server's file edited. Boards
+without a backdrop draw colours as written.
+
 ## Words and translation
 
 Since 1.408.0 every theme line is filled like a title: the plugin's `values`,
@@ -896,10 +903,19 @@ inspector, and the checks below run as it is edited. `/exylialib editor apply <c
   with a made-up offer, so `%catalog_*%` lines preview as players read them), `tabs`/`tabFormat`/`tabActiveFormat`,
   `sources` and `actions` (what the menu answers, so a button only offers those), `catalog`, `ranges` (bounds per
   dotted path) and `rules` (the numbers below).
+- **Sampled through the admin's eyes** (since 1.467.0). The board's words are what the admin who opened the session
+  (else anyone online) would read on opening the menu: the menu's own `values`, the catalogue's card, words, tabs
+  and page count for its first real offer, read on that player's thread through a context with nothing open
+  (`SampleContext`). A catalogue is sampled in each state its offers can show (`SpatialCatalog.STATES`: `saved`
+  with the worn one, `unsaved` with a draft of one owned, `buy` and `confirm` with one for sale), and the editor
+  offers a state picker, so the board never shows two things the game never shows together (a SAVE pill and an
+  EQUIP button). The library's English samples (Lightning Strike, Epic) are only the fallback: nobody online, or
+  an empty catalogue. `Subject.details(sender -> Map)` is how a subject reads its details for the session's sender.
 - **The plugin's own words** (since 1.465.0). What `values` fills (`%effect_about_1%`, `%replay_label%`) has no
   player to be filled for on the web, so a menu hands samples: `menu.samples(layout -> Map)` (or
   `catalog.samples(...)`), keys with or without the percent signs, read off the main thread at each upload from
-  memory. `layout.wrap(panel, text, lines)` breaks prose as the open menu breaks it (`ctx.wrap`), so a sample
+  memory; `samples(state, layout -> Map)` (since 1.467.0) for one state only. They are the fallback under what the
+  menu's own `values` read for the viewer. `layout.wrap(panel, text, lines)` breaks prose as the open menu breaks it (`ctx.wrap`), so a sample
   description wraps as it will in game. A placeholder with no sample is drawn as a muted chip with its name.
 - **The checks** are `CentreStageLayoutTest`'s and `ReadabilityTest`'s, with their numbers: no two pieces in front of
   each other as the eyes see them (an icon row with its words, the pedestal and the body, each arc item over its

@@ -606,6 +606,9 @@ final class MenuSession implements SpatialContext {
      * server's small-text setting; body lines are drawn as written unless the theme says otherwise.
      */
     private Fitted fit(String filled, boolean body, double room, double max, Location at) {
+        // Over the backdrop, a colour too dark to read there takes the line's own readable colour (since 1.467.0).
+        if (layout.backdrop().present()) filled = net.exylia.lib.spatial.internal.Legible.over(filled,
+                layout.backdrop().alpha(), MenuSession::paletteRgb);
         boolean asWritten = body && !theme.smallCapsBody();
         boolean small = !asWritten && net.exylia.lib.text.internal.SmallText.enabled();
         double floor = Geometry.readableScale(at.distance(eyes()), theme.minGlyphDegrees(),
@@ -703,6 +706,12 @@ final class MenuSession implements SpatialContext {
         Stage drawnOn = stage;
         menus.tasks().runAtEntityLater(viewer, 5L, () -> going.forEach(drawnOn::remove),
                 () -> going.forEach(DisplayHandle::remove));
+    }
+
+    /** A palette token's colour, or {@code null} for one the palette lacks. */
+    private static Integer paletteRgb(String token) {
+        net.kyori.adventure.text.format.TextColor colour = net.exylia.lib.text.Colors.get(token);
+        return colour == null ? null : colour.value();
     }
 
     private int colour(String token, int fallback) {

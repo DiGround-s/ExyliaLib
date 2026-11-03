@@ -405,7 +405,7 @@ public final class WebEditorRuntime {
         try {
             for (int i = 0; i < described.length; i++) {
                 if (!subjects.get(i).source().global()) {
-                    described[i] = Snapshot.subject(subjects.get(i));
+                    described[i] = Snapshot.subject(subjects.get(i), sender);
                 }
             }
         } catch (RuntimeException failure) {
@@ -417,7 +417,7 @@ public final class WebEditorRuntime {
             try {
                 for (int i = 0; i < described.length; i++) {
                     if (described[i] == null) {
-                        described[i] = Snapshot.subject(subjects.get(i));
+                        described[i] = Snapshot.subject(subjects.get(i), sender);
                     }
                 }
                 placeholders = Snapshot.placeholders(List.of(described), sender);

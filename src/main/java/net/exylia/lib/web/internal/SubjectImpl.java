@@ -31,7 +31,7 @@ class SubjectImpl implements Subject {
     private volatile String permission;
     private final List<String> sensitive = new CopyOnWriteArrayList<>();
     private volatile Runnable applied = () -> { };
-    private volatile java.util.function.Supplier<? extends java.util.Map<String, ?>> details;
+    private volatile java.util.function.Function<? super CommandSender, ? extends java.util.Map<String, ?>> details;
 
     SubjectImpl(Plugin plugin, String id, ConfigFile<?> file, String kind) {
         this(plugin, id, new Source.RecordFile(file), kind);
@@ -135,16 +135,23 @@ class SubjectImpl implements Subject {
 
     @Override
     public @NotNull Subject details(@NotNull java.util.function.Supplier<? extends java.util.Map<String, ?>> details) {
+        this.details = sender -> details.get();
+        return this;
+    }
+
+    @Override
+    public @NotNull Subject details(@NotNull java.util.function.Function<? super CommandSender,
+            ? extends java.util.Map<String, ?>> details) {
         this.details = details;
         return this;
     }
 
-    /** What {@link #details} gives now, or {@code null}: none set, or it failed. */
-    @Nullable java.util.Map<String, ?> details() {
+    /** What {@link #details} gives now for {@code sender}, or {@code null}: none set, or it failed. */
+    @Nullable java.util.Map<String, ?> details(@Nullable CommandSender sender) {
         var supplier = details;
         if (supplier == null) return null;
         try {
-            return supplier.get();
+            return supplier.apply(sender);
         } catch (RuntimeException failure) {
             return null;
         }
