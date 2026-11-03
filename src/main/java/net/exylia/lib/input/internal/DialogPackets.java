@@ -25,6 +25,7 @@ import com.github.retrooper.packetevents.protocol.nbt.NBT;
 import com.github.retrooper.packetevents.protocol.nbt.NBTByte;
 import com.github.retrooper.packetevents.protocol.nbt.NBTCompound;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.protocol.player.ClientVersion;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.resources.ResourceLocation;
@@ -145,7 +146,11 @@ final class DialogPackets {
                 return false;
             }
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
-            if (user == null || !net.exylia.lib.packet.ClientVersions.atLeast(player, ClientVersion.V_1_21_6)) {
+            // Both ends need 1.21.6: PacketEvents encodes in the server's protocol, so a
+            // newer client behind ViaVersion on an older server never receives the dialog.
+            if (user == null
+                    || !PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_21_6)
+                    || !net.exylia.lib.packet.ClientVersions.atLeast(player, ClientVersion.V_1_21_6)) {
                 return false;
             }
             if (!supports(session.request())) {
