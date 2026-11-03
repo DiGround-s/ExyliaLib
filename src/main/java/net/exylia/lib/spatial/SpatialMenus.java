@@ -185,6 +185,7 @@ public final class SpatialMenus {
         }
         layouts.put(id, file);
         menus.put(id, menu);
+        LayoutEditor.register(this, id, file, menu, bundled(id, menu, shipped));
         SpatialSpots placed = spots;
         if (placed != null) placed.refresh();
         else if (new File(plugin.getDataFolder(), "spatial/spots.yml").isFile()) spots();
@@ -230,6 +231,51 @@ public final class SpatialMenus {
         BundledFiles.refresh(plugin, anchor, path);
         net.exylia.lib.debug.Debug.of(plugin).log(path + " held the library's default layout instead of "
                 + plugin.getName() + "'s, so it was replaced; the old file was kept as " + id + ".yml.library-default.");
+    }
+
+    /** Where the layout the plugin ships for menu {@code id} is read from: what "reset to default" brings back. */
+    private @Nullable java.util.function.Supplier<java.io.InputStream> bundled(String id, SpatialMenu menu,
+                                                                             @Nullable Class<?> shipped) {
+        String path = "spatial/" + id + ".yml";
+        if (shipped != null) {
+            return () -> net.exylia.lib.config.internal.BundledResources.open(shipped.getClassLoader(), path);
+        }
+        String source = menu.stageSource;
+        if (source != null) {
+            return () -> {
+                try (java.io.InputStream in = net.exylia.lib.config.internal.BundledResources.open(SpatialMenus.class.getClassLoader(), CENTRE_STAGE)) {
+                    if (in == null) return null;
+                    String layout = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                            .replace("  source: catalog\n", "  source: " + source + "\n");
+                    return new java.io.ByteArrayInputStream(layout.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                } catch (java.io.IOException unreadable) {
+                    return null;
+                }
+            };
+        }
+        return () -> plugin.getResource(path);
+    }
+
+    /**
+     * Draws every open copy of menu {@code id} again from its layout file, after the web editor wrote it: in place
+     * when it still stands where it stood (the same anchor, hiding and freezing), closed otherwise, since the space
+     * cleared and sealed for it was measured for the old one. Edit mode closes: its own copy of the layout is stale. Since 1.464.0.
+     */
+    void relive(String id) {
+        ConfigFile<SpatialLayout> file = layouts.get(id);
+        if (file == null) return;
+        for (MenuSession session : OPEN.values()) {
+            if (session.menus != this || !session.definition.id().equals(id)) continue;
+            run(session.viewer, () -> {
+                if (session.isClosed()) return;
+                SpatialLayout next = file.get();
+                SpatialLayout now = session.layout;
+                boolean stands = now.anchor().equals(next.anchor()) && now.hideOthers() == next.hideOthers()
+                        && now.freeze() == next.freeze();
+                if (stands && session.edit == null) session.rebuild(next);
+                else close(session, true);
+            });
+        }
     }
 
     /** A menu's layout file, for a plugin that edits it or reads it; {@code null} when not registered. */
@@ -340,8 +386,12 @@ public final class SpatialMenus {
             SpatialCatalog declared = new SpatialCatalog(this, menu);
             catalog.accept(declared);
             declared.install();
+            menu.catalog = true;
             // A plugin that ships no layout gets the library's centre stage rather than the generic wardrobe.
-            if (!packaged(anchor, "spatial/" + id + ".yml")) installCentreStage(id, declared.primarySource());
+            if (!packaged(anchor, "spatial/" + id + ".yml")) {
+                menu.stageSource = declared.primarySource();
+                installCentreStage(id, declared.primarySource());
+            }
         });
     }
 

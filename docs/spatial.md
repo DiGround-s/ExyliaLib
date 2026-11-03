@@ -881,6 +881,33 @@ preview), the boss bar reads `PIECE » axis » value`, and a click saves it to t
 layout file (comments kept: the file is written from the record) and redraws.
 Every notch redraws the menu as it would look. Sneak to leave.
 
+## Web editor (since 1.464.0)
+
+Every registered menu's layout is also a [web editor](web-editor.md) subject of kind `spatial/layout`, with no
+plugin code: `SpatialMenus.register` (and `registerCatalog`) registers `spatial-<id>` (title `<Id> (3D layout)`)
+for the plugin's `spatial/<id>.yml`. `/exylialib editor` uploads it; on utils.exylia.net it opens on a board drawn as
+the player sees it (the game's font, the palette's real colours, sizes from the eyes at the layout's distance), where
+pieces are dragged, resized, nudged with the arrow keys, snapped to each other and lined up, every value sits in an
+inspector, and the checks below run as it is edited. `/exylialib editor apply <code>` writes it.
+
+- **What the subject carries** besides the layout's values (`Subject.details`): `defaults` (the layout the plugin
+  ships, read as the record reads it, for per-piece and whole-menu "reset to default"; the library's wardrobe when
+  the plugin ships none, the centre stage for a catalogue without one), `samples` (the catalogue's words in English
+  with a made-up offer, so `%catalog_*%` lines preview as players read them), `tabs`/`tabFormat`/`tabActiveFormat`,
+  `sources` and `actions` (what the menu answers, so a button only offers those), `catalog`, `ranges` (bounds per
+  dotted path) and `rules` (the numbers below).
+- **The checks** are `CentreStageLayoutTest`'s and `ReadabilityTest`'s, with their numbers: no two pieces in front of
+  each other as the eyes see them (an icon row with its words, the pedestal and the body, each arc item over its
+  disc), the board within 80° × 47° and its lowest piece 0.15 over the floor (eyes 1.62 above the feet; otherwise
+  the library raises it, `liftOverFloor`), every line at least 1.06° tall from the eyes and whole at the floor (not
+  cut with an ellipsis), every colour at 3:1 over sky (`#8ab4ff`) and deepslate (`#4d4d50`) seen through the
+  backdrop, and every `%catalog_*%` word, action and source one the menu answers.
+- **Applying** binds the browser's values through the record (the real reader), writes the file from it with its
+  comments kept (an owner's comments inside `panels` too, since 1.464.0), and redraws every open copy of the menu
+  on its viewer's thread: in place when it still stands where it stood (the same `anchor`, `hide-others` and
+  `freeze`), closed otherwise, since the space cleared and sealed for it was measured for the old board. An admin in
+  edit mode is closed out, their copy of the layout being stale. The next open reads the new file either way.
+
 ## Crate openings (since 1.418.0)
 
 A crate opening in the world, built on these pieces (the pointer, the hiding rule, the theme, the
@@ -1060,7 +1087,8 @@ admin alone.
 - Public: `spatial/` — `SpatialMenus`, `SpatialMenu`, `SpatialContext`, `SpatialCatalog`,
   `SpatialEntry`, `SpatialPreview`, `SpatialLayout`, `SpatialTheme`,
   `SpatialSpots`, `SpatialInput`, `SpatialPointer`, `Hotspot`, `SpatialClick`.
-- Package-private: `MenuSession` (drawing, diffing, preview), `EditMode`.
+- Package-private: `MenuSession` (drawing, diffing, preview), `EditMode`, `LayoutEditor` (the web editor subject
+  and its details).
 - Internal: `spatial/internal/Geometry` (turned panels, carousel slots, pages,
   diffs, glass sizing, colour mixing, the readability floor and ellipsis cuts),
   `spatial/internal/Drafts` (drafts against the saved state),

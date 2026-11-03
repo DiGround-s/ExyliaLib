@@ -44,15 +44,19 @@ final class HttpEditorClient implements EditorClient {
     private final String base;
     private final String userAgent;
     private final String serverKey;
-    private final HttpClient http = HttpClient.newBuilder()
-            .connectTimeout(TIMEOUT)
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+    private final HttpClient http;
 
     HttpEditorClient(String base, String libraryVersion, String serverKey) {
         this.base = base;
         this.userAgent = "ExyliaLib/" + libraryVersion;
         this.serverKey = serverKey;
+        // Plain http (an editor run locally) speaks HTTP/1.1: the client's h2c upgrade is answered with nothing by
+        // Node's server, so no session ever opened against `next dev`. https still negotiates HTTP/2 (since 1.464.0).
+        HttpClient.Builder builder = HttpClient.newBuilder()
+                .connectTimeout(TIMEOUT)
+                .followRedirects(HttpClient.Redirect.NEVER);
+        if (base.startsWith("http://")) builder.version(HttpClient.Version.HTTP_1_1);
+        this.http = builder.build();
     }
 
     @Override

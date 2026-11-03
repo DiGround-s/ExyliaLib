@@ -75,6 +75,21 @@ public final class RecordJson {
     }
 
     /**
+     * A YAML text read as the record the way its file would be read (keys it lacks take {@code defaults}' values,
+     * unknown keys are dropped), then shaped as {@link #write} shapes values: a bundled default, as the editor
+     * compares a server's file with it. Since 1.464.0.
+     *
+     * @throws org.bukkit.configuration.InvalidConfigurationException when the text is not YAML
+     */
+    public static <T> JsonObject fromYaml(Class<?> type, String pluginName, String yaml, T defaults)
+            throws org.bukkit.configuration.InvalidConfigurationException {
+        org.bukkit.configuration.file.YamlConfiguration tree = new org.bukkit.configuration.file.YamlConfiguration();
+        tree.loadFromString(yaml);
+        T read = Binder.read(tree, SchemaCache.of(type, pluginName), defaults, "", "default", new ArrayList<>());
+        return write(type, pluginName, read);
+    }
+
+    /**
      * A record from values shaped as {@link #write} shapes them.
      *
      * @param current what the file holds now: the fallback for a key the values leave out

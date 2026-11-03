@@ -100,4 +100,20 @@ public interface Subject {
      * @return this subject
      */
     @NotNull Subject onApplied(@NotNull Runnable listener);
+
+    /**
+     * Extra facts the subject's {@link #kind() kind} screen reads besides the schema and values: a default to
+     * reset to, sample words for a preview, the names an action may take. Sent as {@code details} in the plugin
+     * payload, read afresh for every upload; a screen that does not know them ignores them.
+     *
+     * <p>The map is turned into JSON as Gson turns maps, lists, strings, numbers and booleans; a supplier that
+     * throws, or answers {@code null}, sends none. Read off the main thread, so it reads memory and files only.
+     *
+     * @param details what to send, read once per upload
+     * @return this subject
+     * @since 1.464.0
+     */
+    default @NotNull Subject details(@NotNull java.util.function.Supplier<? extends java.util.Map<String, ?>> details) {
+        return this;
+    }
 }

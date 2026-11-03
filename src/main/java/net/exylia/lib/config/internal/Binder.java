@@ -299,8 +299,34 @@ final class Binder {
      */
     private static void writeMap(ConfigurationSection section, SchemaNode.SchemaComponent component,
                                  Object value, String path) {
+        // The owner's comments inside the block (above an entry, or a key in one) outlive the rewrite wherever
+        // the same key is written again and the record has no comment of its own for it (since 1.464.0).
+        Map<String, List<String>> kept = new java.util.LinkedHashMap<>();
+        Map<String, List<String>> keptInline = new java.util.LinkedHashMap<>();
+        ConfigurationSection old = section.getConfigurationSection(path);
+        if (old != null) {
+            for (String key : old.getKeys(true)) {
+                List<String> above = old.getComments(key);
+                if (!above.isEmpty()) kept.put(key, new ArrayList<>(above));
+                List<String> inline = old.getInlineComments(key);
+                if (!inline.isEmpty()) keptInline.put(key, new ArrayList<>(inline));
+            }
+        }
         section.set(path, null);
         ConfigurationSection entries = section.createSection(path);
+        try {
+            writeEntries(entries, component, value);
+        } finally {
+            kept.forEach((key, lines) -> {
+                if (entries.contains(key) && entries.getComments(key).isEmpty()) entries.setComments(key, lines);
+            });
+            keptInline.forEach((key, lines) -> {
+                if (entries.contains(key) && entries.getInlineComments(key).isEmpty()) entries.setInlineComments(key, lines);
+            });
+        }
+    }
+
+    private static void writeEntries(ConfigurationSection entries, SchemaNode.SchemaComponent component, Object value) {
         if (!(value instanceof Map<?, ?> map)) {
             return;
         }

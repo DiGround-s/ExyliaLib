@@ -127,6 +127,14 @@ final class Snapshot {
         entry.add("schema", subject.source().schema(subject.plugin().getName()));
         entry.add("values", item.values());
         entry.addProperty("hash", item.hash());
+        Map<String, ?> details = subject.details();
+        if (details != null) {
+            try {
+                entry.add("details", new com.google.gson.Gson().toJsonTree(details));
+            } catch (RuntimeException unwritable) {
+                // A detail Gson cannot write sends none; the screen draws without it.
+            }
+        }
         return entry;
     }
 

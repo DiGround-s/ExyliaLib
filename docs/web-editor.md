@@ -73,6 +73,12 @@ One `ConfigFile`, described to the browser by its schema and its values.
   plugin refreshes what it draws from the file, exactly as after its own reload
   command. `update()` only writes.
 
+- **Details** (since 1.464.0). `details(() -> Map)` hands the kind's screen what it needs besides
+  the schema and values: a default to reset to, sample words for its preview, the names an action may
+  take. Read on every upload (off the main thread: memory and files only) and sent as the subject's
+  `details`; a supplier that throws or answers `null` sends none, and a screen that does not know them
+  ignores them. Spatial menu layouts use it (kind `spatial/layout`, see [spatial](spatial.md#web-editor-since-1464)).
+
 Registering the same id twice replaces the earlier registration. A plugin's
 subjects are forgotten when it is disabled; `remove(id)` forgets one while the
 plugin keeps running.
@@ -277,7 +283,9 @@ its own:
 Every request carries `Authorization: Bearer <secret>` and
 `User-Agent: ExyliaLib/<version>`; the open also carries
 `X-Exylia-Server-Key: <editor-key.txt>` (an editor that gets none scopes trust to
-that one session), and every body is gzip-compressed
+that one session), and an editor on plain `http://` (one run locally) is spoken to in HTTP/1.1 (since 1.464.0; the client's
+h2c upgrade got no answer from Node's server, so no session opened against `next dev`), and
+every body is gzip-compressed
 (`Content-Encoding: gzip`): at most 8 MiB compressed and 32 MiB decompressed.
 `404` or `410` on a session makes the server forget it. Answers over 8 MB are
 refused unread.
@@ -293,7 +301,8 @@ there. `file` is the path relative to the data folder without `.yml`
 **Plugin payload** (one PUT per plugin, one after another once the index was
 accepted, and again for every plugin a change touched once it is applied):
 `{subjects[{key, plugin, id, title, kind, group, file, sensitive[], schema,
-values, hash}], enums{Class: [values]}, placeholders{"%token%": value}}`. An
+values, hash, details?}], enums{Class: [values]}, placeholders{"%token%": value}}`.
+`details` (since 1.464.0) is present only for a subject that set it. An
 enum node in a schema that carries a `class` has its `values` moved into
 `enums[class]`, sent once per plugin; a class name another enum of the same
 plugin already took with different values keeps its own inline. `placeholders`
@@ -327,4 +336,5 @@ as it is built. `invalidateAll()` does not apply.
 apply, trust), `Discovery`, `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
 is the Lamp command. `net.exylia.lib.config.internal.RecordJson` is the
-schema-and-values bridge next to the binder.
+schema-and-values bridge next to the binder. `net.exylia.lib.spatial.LayoutEditor` registers every spatial
+menu's layout as a `spatial/layout` subject with its details.

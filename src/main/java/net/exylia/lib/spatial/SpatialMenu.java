@@ -35,6 +35,10 @@ public final class SpatialMenu {
 
     private final String id;
     final Map<String, Function<SpatialContext, List<SpatialEntry>>> sources = new LinkedHashMap<>();
+    /** Declared through {@link SpatialMenus#registerCatalog}: its layout answers the catalogue's words and actions. */
+    boolean catalog;
+    /** The source the library's centre stage reads when the plugin ships no layout of its own; {@code null} otherwise. */
+    @org.jetbrains.annotations.Nullable String stageSource;
     final Map<String, Consumer<SpatialContext>> actions = new LinkedHashMap<>();
     final Map<String, BiConsumer<SpatialContext, SpatialEntry>> selects = new LinkedHashMap<>();
     @Nullable Function<SpatialContext, SpatialPreview> preview;
