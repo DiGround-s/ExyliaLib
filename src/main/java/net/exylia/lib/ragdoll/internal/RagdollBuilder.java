@@ -158,6 +158,12 @@ public final class RagdollBuilder {
             // have kept: thinning leaves each piece a different last pose, and
             // pieces that came round on their own beats would drift apart.
             DisplayMotion drawnMotion = DisplayMotion.of(piece.poses(), motion.lifeMillis()).magnified(magnify);
+            if (magnify != 1.0) {
+                // A miniature (a menu's preview) stands on a pedestal over whatever is there, the void included:
+                // its floor is where it was played, and nothing of it sinks or falls through. Real kills keep
+                // the world's ground, choreography that sinks into it included.
+                drawnMotion = drawnMotion.resting(0);
+            }
             if (motion.loop()) {
                 drawnMotion = drawnMotion.looping(
                         motion.intactMillis() + motion.loopFromMillis(), motion.finishAt(),

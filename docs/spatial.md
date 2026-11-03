@@ -634,6 +634,17 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per
   sequence, facing, zone and scale.
 
+**Since 1.459.0** (a preview opened over the void):
+
+- **A preview's floor is its pedestal.** A scaled play (`SequenceTarget.scale`) stands on where it is played,
+  whatever is under it: every `[RAGDOLL]` piece and every display a shape draws rests on that height, kept up by
+  half its own height as it turns (`DisplayMotion.resting`), so nothing falls through the menu, choreography
+  that sinks into the ground included. A play at scale 1 (a real kill) keeps the world's ground.
+- **Particles at a preview's size.** A shrunk play also sends fewer of each particle (the count times the scale,
+  at least one), and the big dark ones come as their small kin (`SQUID_INK`, `LARGE_SMOKE` and the campfire
+  smokes as `SMOKE`, `GLOW_SQUID_INK` as `GLOW`, explosions and `SONIC_BOOM` as `POOF`), so ink does not cover
+  the board in black squares. Their spread and speed were already scaled.
+
 **Since 1.457.0** (after the fourth client test):
 
 - **Every selection plays at once.** An effect not measured yet plays right away at the layout's `effect-scale`

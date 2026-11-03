@@ -780,6 +780,36 @@ public final class DisplayMotion {
     }
 
     /**
+     * The same motion with no part of a pose lower than {@code lowest}: as {@link #above(double)}, but each pose is
+     * also kept up by half its own height as it is turned and sized, so a spinning block or a tumbling head rests
+     * on the floor instead of dipping a corner through it.
+     *
+     * @param lowest the floor, as an offset up from where the motion is drawn, in blocks
+     * @return the motion, itself when nothing reaches below the floor
+     * @since 1.459.0
+     */
+    public @NotNull DisplayMotion resting(double lowest) {
+        List<DisplayKeyframe> held = new ArrayList<>(poses.size());
+        boolean moved = false;
+        for (DisplayKeyframe pose : poses) {
+            float[] ex = pose.rotation().apply(new float[]{1f, 0f, 0f});
+            float[] ey = pose.rotation().apply(new float[]{0f, 1f, 0f});
+            float[] ez = pose.rotation().apply(new float[]{0f, 0f, 1f});
+            double half = 0.5 * (Math.abs(ex[1] * pose.scaleX()) + Math.abs(ey[1] * pose.scaleY())
+                    + Math.abs(ez[1] * pose.scaleZ()));
+            double floor = lowest + half;
+            if (pose.y() < floor) {
+                held.add(pose.movedBy(0.0, floor - pose.y(), 0.0));
+                moved = true;
+            } else {
+                held.add(pose);
+            }
+        }
+        return moved ? new DisplayMotion(held, lifeMillis, loopFromMillis, cycleMillis, accel, maxSpeed, startSpeed)
+                : this;
+    }
+
+    /**
      * The same motion starting somewhere else.
      *
      * @param dx east

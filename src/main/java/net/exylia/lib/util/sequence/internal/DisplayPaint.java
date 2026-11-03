@@ -278,7 +278,7 @@ final class DisplayPaint implements Paint {
         }
         if (floored) {
             // Drawn at the anchor plus this point, so the anchor's floor is -y below it.
-            built = built.above(-y);
+            built = built.resting(-y);
         }
         return built;
     }

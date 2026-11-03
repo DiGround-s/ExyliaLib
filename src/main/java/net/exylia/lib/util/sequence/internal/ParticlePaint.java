@@ -90,16 +90,33 @@ final class ParticlePaint implements Paint {
         // A scaled play spreads and throws its particles that much less (or more). With a count of 0
         // the offsets are a direction or a colour, not a spread, so they are left as written.
         double scale = target.isScaled() && count > 0 ? target.scale() : 1.0;
+        // A particle is drawn at its own size whatever the play's: shrunk, an effect sends fewer of them, and the
+        // big dark ones that would read as blocks over a small stage come as their small kin.
+        int shown = scale < 1.0 ? Math.max(1, (int) Math.round(count * scale)) : count;
+        Particle drawn = scale < 1.0 ? smaller(particle) : particle;
         if (tint == null) {
-            return scale == 1.0 ? this : new ParticlePaint(particle, data, count, spreadX * scale,
-                    spreadY * scale, spreadZ * scale, speed * scale);
+            return scale == 1.0 ? this : new ParticlePaint(drawn, drawn == particle ? data : null, shown,
+                    spreadX * scale, spreadY * scale, spreadZ * scale, speed * scale);
         }
         Object filled = dataFor(particle,
                 Args.colourFor(target, tint.colourRaw(), tint.colour()),
                 Args.colourFor(target, tint.fadeRaw(), tint.fade()),
                 tint.size(), tint.material());
-        return new ParticlePaint(particle, filled, count, spreadX * scale, spreadY * scale, spreadZ * scale,
+        return new ParticlePaint(particle, filled, shown, spreadX * scale, spreadY * scale, spreadZ * scale,
                 speed * scale);
+    }
+
+    /**
+     * The small kin of a particle drawn large: what a shrunk play shows instead, so a cloud of ink or smoke at a
+     * menu's preview size does not cover the menu in black squares. Every other particle is itself. Since 1.459.0.
+     */
+    static Particle smaller(Particle particle) {
+        return switch (particle) {
+            case SQUID_INK, LARGE_SMOKE, CAMPFIRE_COSY_SMOKE, CAMPFIRE_SIGNAL_SMOKE -> Particle.SMOKE;
+            case GLOW_SQUID_INK -> Particle.GLOW;
+            case EXPLOSION, EXPLOSION_EMITTER, SONIC_BOOM -> Particle.POOF;
+            default -> particle;
+        };
     }
 
     /**
