@@ -1470,7 +1470,8 @@ final class MenuSession implements SpatialContext {
     /**
      * A {@code PALETTE} content (since 1.461.0): a compact grid of a source's entries, each its name as written (a
      * word, or a glyph in its colour), no plates. The chosen one (marked {@code SELECTED}, else the selection) has a
-     * thin accent line under it; the one under the crosshair is drawn larger and bold, its subtitle (else its name)
+     * thin accent line under it; the one under the crosshair grows in place (no display is made or taken down for a
+     * hover, so a click that redraws the grid under the crosshair leaves nothing behind), its subtitle (else its name)
      * and price written once under the grid. A locked entry is drawn smaller. A click chooses it, also when it is
      * chosen already, so a plugin can toggle (edit a layer, stop editing it).
      */
@@ -1533,14 +1534,27 @@ final class MenuSession implements SpatialContext {
             return new double[]{(column - (inRow - 1) / 2.0) * pitchX, ((down - 1) / 2.0 - row) * pitchY, pitchX, pitchY};
         }
 
-        private @Nullable DisplayHandle entry(SpatialEntry entry, double[] at, boolean lit, long wait) {
+        /** The largest an entry is drawn: a glyph (a swatch, a mark) as large as a title, words as a body line. */
+        private double max(SpatialEntry entry) {
             String plain = plain(Text.verbatim(fill(entry.name()))).strip();
-            // A glyph (a swatch, a mark) is drawn as large as a title; words as a body line.
             double max = plain.codePointCount(0, plain.length()) <= 2 ? theme.titleScale() * 1.2 : theme.textScale();
-            if (entry.state() == SpatialEntry.State.LOCKED) max *= 0.75;
-            if (lit) max *= 1.25;
-            return write((lit ? "&l" : "") + entry.name(), true, panel.plane, panel.rotation, at[0], at[1], 0.016,
-                    at[2] * 0.92, max, true, wait);
+            return entry.state() == SpatialEntry.State.LOCKED ? max * 0.75 : max;
+        }
+
+        private @Nullable DisplayHandle entry(SpatialEntry entry, double[] at, long wait) {
+            return write(entry.name(), true, panel.plane, panel.rotation, at[0], at[1], 0.016, at[2] * 0.92, max(entry),
+                    true, wait);
+        }
+
+        /** Grows the entry's glyph in place while it is looked at, and back: the same display, only its scale. */
+        private void grow(@Nullable DisplayHandle glyph, SpatialEntry entry, double[] at, boolean lit) {
+            if (glyph == null) return;
+            DisplayKeyframe here = glyph.pose();
+            if (here == null) return;
+            double base = fit(fill(entry.name()), true, at[2] * 0.92, max(entry), panel.plane.point(at[0], at[1], 0.016)).scale();
+            float size = (float) (lit ? base * 1.25 : base);
+            glyph.then(DisplayMotion.of(List.of(here.at(0), new DisplayKeyframe(90, here.x(), here.y(), here.z(),
+                    here.rotation(), size, size, size)), LIFE));
         }
 
         private void draw() {
@@ -1556,8 +1570,8 @@ final class MenuSession implements SpatialContext {
             for (int i = 0; i < count; i++) {
                 SpatialEntry entry = shown.get(i);
                 double[] at = cell(i, count);
-                DisplayHandle[] glyph = {entry(entry, at, false, wait < 0 ? wait : wait + i * 25L)};
-                if (glyph[0] != null) drawn.add(glyph[0]);
+                DisplayHandle glyph = entry(entry, at, wait < 0 ? wait : wait + i * 25L);
+                if (glyph != null) drawn.add(glyph);
                 if (i == active) {
                     double width = Math.min(at[2] * 0.7, 0.3);
                     DisplayHandle line = sheet(panel.plane.point(at[0], at[1] - at[3] * 0.42, 0.016), panel.rotation, width,
@@ -1568,10 +1582,7 @@ final class MenuSession implements SpatialContext {
                 spots.add(pointer.add(Hotspot.rect(panel.plane, at[0], at[1], at[2] * 0.95, at[3] * 0.95).priority(2)
                         .onHover(on -> {
                             if (drawing != generation) return;
-                            drawn.remove(glyph[0]);
-                            drop(glyph[0]);
-                            glyph[0] = entry(entry, at, on, -1);
-                            if (glyph[0] != null) drawn.add(glyph[0]);
+                            grow(glyph, entry, at, on);
                             drop(words);
                             words = on ? describe(entry) : null;
                         })
