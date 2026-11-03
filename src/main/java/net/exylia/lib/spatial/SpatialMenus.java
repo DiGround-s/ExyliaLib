@@ -3,7 +3,6 @@ package net.exylia.lib.spatial;
 import net.exylia.lib.config.BundledFiles;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.Configs;
-import net.exylia.lib.item.Item;
 import net.exylia.lib.overlay.Overlays;
 import net.exylia.lib.overlay.PluginOverlays;
 import net.exylia.lib.packet.Packets;
@@ -591,8 +590,9 @@ public final class SpatialMenus {
                 .onTick(session::tick)
                 .onEnd(end -> close(session, false));
         if (layout.freeze()) Packets.of(plugin).movement().freeze(player);
-        Overlays.of(plugin).show(player, input.hotbar(Item.of(theme.leaveMaterial()).name(session.fill(theme.leaveName()))
-                .lore(theme.leaveLore().stream().map(session::fill).toList()).build()));
+        // Nothing in the hotbar: the menu owns the wheel and the number keys, so a leave item there could
+        // never be reached. The exit icon and sneaking leave.
+        Overlays.of(plugin).show(player, input.hotbar());
         if (layout.hideOthers()) hide(player);
         state.forEach(session::set);
         session.open();

@@ -40,7 +40,7 @@ theme:
   intro-outline: '{secondary_light}'
   open-motion: RISE
 panels:
-  # The categories as plain words; the open one has a thin accent line under it. The wheel steps through them.
+  # The categories as plain words; the open one has a thin accent line under it. A click opens one.
   tabs:
     at: [0, 1.288, 0]
     size: [5.6, 0.246]
@@ -104,8 +104,8 @@ preview:
   turn-controls: false
   turn-hint: ''
   turn-pause: 8
-# The arc: 4 items either side of the preview, at eye level, bending round you. The wheel or the arrows
-# turn it a page.
+# The arc: 4 items either side of the preview, at eye level, bending round you. The wheel moves it an
+# item a notch, the arrows a page.
 carousel:
   source: catalog
   style: ARC

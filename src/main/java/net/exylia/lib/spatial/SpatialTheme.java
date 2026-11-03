@@ -56,7 +56,7 @@ public record SpatialTheme(
         String emptyLine,
         @Comment("The hologram over a placed spot. %title% is the menu's title.")
         List<String> spotLines,
-        @Comment("The leave item in the last hotbar slot.")
+        @Comment("Unused since 1.463.0: the hotbar stays empty while a menu is open (the exit icon and sneaking leave).")
         String leaveMaterial,
         String leaveName,
         List<String> leaveLore,

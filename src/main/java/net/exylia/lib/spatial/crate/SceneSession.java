@@ -7,7 +7,6 @@ import net.exylia.lib.display.DisplayMotion;
 import net.exylia.lib.display.Displays;
 import net.exylia.lib.display.PluginDisplays;
 import net.exylia.lib.display.Rotation;
-import net.exylia.lib.item.Item;
 import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
@@ -147,9 +146,8 @@ final class SceneSession {
                     else close(false);
                 });
         if (layout.freeze()) Packets.of(owner.plugin).movement().freeze(viewer);
-        CrateSceneLayout.SkipItem skip = layout.skipItem();
-        net.exylia.lib.overlay.OverlayDefinition hotbar = input.hotbar(Item.of(skip.material())
-                .name(fill(skip.name())).lore(skip.lore().stream().map(this::fill).toList()).build());
+        // An empty hotbar: sneaking skips, as the hint says (the skip item is unused since 1.463.0).
+        net.exylia.lib.overlay.OverlayDefinition hotbar = input.hotbar();
         hotbarId = hotbar.id();
         Overlays.of(owner.plugin).show(viewer, hotbar);
         if (layout.hideOthers()) SpatialMenus.hideOthers(viewer, true);

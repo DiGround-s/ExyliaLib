@@ -33,7 +33,8 @@ import java.util.function.IntConsumer;
  * }</pre>
  *
  * <p>Clicks on nothing go to {@link #onClick}; {@link #onAnyClick} hears every click first. The wheel
- * goes to the hovered hotspot when it scrolls, else to {@link #onScroll}. The newest pointer a player
+ * goes to the hovered hotspot when it scrolls, else to {@link #onScroll}, always one notch (-1 or +1)
+ * at a time: a flick the client sent as one jump arrives as that many calls. The newest pointer a player
  * has takes their input; when it is detached the one under it (a game they left the menu of) gets it
  * back. It lives on the player's thread, or on a region's after {@link #deliverOn}: polls, pickers and
  * every callback run there. Hotspots may be added and removed from any thread.
@@ -62,8 +63,6 @@ public final class SpatialPointer {
 
     /** A swing and the interaction it causes arrive together; one click is one press. */
     static final long CLICK_GAP_MS = 120L;
-    /** How long after the last notch the hotbar slot is put back where it was. */
-    static final long SLOT_REST_MS = 450L;
 
     final SpatialInput input;
     final Player viewer;
@@ -84,7 +83,6 @@ public final class SpatialPointer {
     private @Nullable Consumer<End> onEnd;
     private long lastClick;
     private volatile long mutedUntil;
-    private volatile long lastNotch;
     private final int originSlot;
     private volatile boolean slotMoved;
     private volatile @Nullable TaskHandle timer;
@@ -230,7 +228,10 @@ public final class SpatialPointer {
         return this;
     }
 
-    /** The {@linkplain SpatialInput#hotbar overlay hotbar}'s leave item was right-clicked. */
+    /**
+     * The {@linkplain SpatialInput#hotbar(net.exylia.lib.item.Item) overlay hotbar}'s leave item was right-clicked. Only a
+     * hotbar made with a leave item has one; {@link SpatialInput#hotbar()} has none since 1.463.0.
+     */
     public @NotNull SpatialPointer onLeave(@Nullable Runnable onLeave) {
         this.onLeave = onLeave;
         return this;
@@ -275,10 +276,6 @@ public final class SpatialPointer {
     /** One poll: what is under the crosshair now. */
     void poll() {
         if (ended) return;
-        if (slotMoved && System.currentTimeMillis() - lastNotch > SLOT_REST_MS) {
-            slotMoved = false;
-            restoreSlot();
-        }
         if (observing && (SpatialInput.active(viewer).isPresent() || Tuner.active(viewer).isPresent())) {
             // An attached pointer (a game, a menu) or the tuner has the player: the board is not theirs now.
             setHovered(null, -1);
@@ -349,16 +346,18 @@ public final class SpatialPointer {
         return hovered != null;
     }
 
-    void scroll(int notch) {
-        if (ended || !enabled || notch == 0) return;
-        if (!observing) {
-            lastNotch = System.currentTimeMillis();
-            slotMoved = true;
-        }
+    /** {@code notches} of the wheel at once (a flick the client sent in one tick), handed over one at a time. */
+    void scroll(int notches) {
+        if (ended || !enabled || notches == 0) return;
+        if (!observing) slotMoved = true;
+        int one = Integer.signum(notches);
+        int count = Math.abs(notches);
         deliver(() -> {
-            Hotspot target = hovered;
-            if (target != null && target.scrolls()) target.scroll(notch);
-            else if (onScroll != null && !observing) onScroll.accept(notch);
+            for (int i = 0; i < count && !ended; i++) {
+                Hotspot target = hovered;
+                if (target != null && target.scrolls()) target.scroll(one);
+                else if (onScroll != null && !observing) onScroll.accept(one);
+            }
         });
     }
 
@@ -396,10 +395,12 @@ public final class SpatialPointer {
         return best;
     }
 
-    /** Which way one notch went, from the slot before to the slot after: -1, +1 or 0. */
+    /**
+     * How many notches the wheel turned, from the slot before to the slot after, the short way round the
+     * nine slots: -4 to +4, 0 for none. Several notches in one client tick arrive as one jump.
+     */
     static int notch(int before, int after) {
         int delta = Math.floorMod(after - before, 9);
-        if (delta == 0) return 0;
-        return delta <= 4 ? 1 : -1;
+        return delta <= 4 ? delta : delta - 9;
     }
 }

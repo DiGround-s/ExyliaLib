@@ -148,6 +148,27 @@ public final class Geometry {
     }
 
     /**
+     * Where the first item shown lands once the wheel moved it to {@code first}: round the ring of {@code total}
+     * entries either way, or 0 when they all fit in {@code perPage} slots.
+     */
+    public static int wrapItem(int first, int total, int perPage) {
+        return total > perPage ? Math.floorMod(first, total) : 0;
+    }
+
+    /**
+     * {@code perPage} entries from {@code first} on, carrying on from the start past the end: the window a
+     * list moved item by item shows. All of them, in order, when they fit.
+     */
+    public static <T> List<T> ring(List<T> all, int first, int perPage) {
+        if (perPage <= 0) return List.of();
+        if (all.size() <= perPage) return List.copyOf(all);
+        List<T> window = new ArrayList<>(perPage);
+        int start = Math.floorMod(first, all.size());
+        for (int i = 0; i < perPage; i++) window.add(all.get((start + i) % all.size()));
+        return List.copyOf(window);
+    }
+
+    /**
      * The slots that differ between two redraws of the same {@code slots} places: a slot whose entry
      * is equal before and after keeps what it drew.
      */

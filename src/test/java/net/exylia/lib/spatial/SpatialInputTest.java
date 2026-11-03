@@ -63,6 +63,14 @@ class SpatialInputTest {
     }
 
     @Test
+    void aFlickInOneTickCountsEveryNotch() {
+        assertEquals(3, SpatialPointer.notch(4, 7));
+        assertEquals(-2, SpatialPointer.notch(1, 8));
+        assertEquals(4, SpatialPointer.notch(0, 4));
+        assertEquals(-4, SpatialPointer.notch(0, 5), "past half-way round it went the other way");
+    }
+
+    @Test
     void aCustomPickerAnswersFromTheGamesState() {
         boolean[] rolling = {false};
         // Columns including the gaps: the hit's across alone decides, -1 while the dice roll.

@@ -58,7 +58,7 @@ public record SpatialLayout(
         Preview preview,
         @Comment("The row of plinths along the bottom: how many on a page, how far apart, the gap left in the")
         @Comment("middle for the preview, and how far the outermost come towards the viewer. Leave source empty")
-        @Comment("for none. The mouse wheel pages it. rows: how many rows a page holds, row-gap blocks apart.")
+        @Comment("for none. The mouse wheel turns it an item a notch, the arrows a page. rows: how many rows a page holds, row-gap blocks apart.")
         @Comment("style: PLINTHS (each item on a plinth, its name under it) or SHELF (icons on small tiles, no")
         @Comment("names: a card beside the preview describes what is looked at), with page arrows at the row ends.")
         Carousel carousel,

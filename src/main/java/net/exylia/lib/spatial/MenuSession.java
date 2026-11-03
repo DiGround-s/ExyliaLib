@@ -16,6 +16,7 @@ import net.exylia.lib.spatial.internal.Confirm;
 import net.exylia.lib.spatial.internal.Drafts;
 import net.exylia.lib.spatial.internal.Flights;
 import net.exylia.lib.spatial.internal.Geometry;
+import net.exylia.lib.spatial.internal.WheelSteps;
 import net.exylia.lib.spatial.internal.UndoHistory;
 import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
@@ -81,6 +82,8 @@ final class MenuSession implements SpatialContext {
     private final List<Part> parts = new ArrayList<>();
     private final Map<String, Object> state = new HashMap<>();
     private final Map<String, Integer> pages = new HashMap<>();
+    /** The first item shown, per source, once the wheel moved it off a page's start (since 1.463.0). */
+    private final Map<String, Integer> offsets = new HashMap<>();
     private final Map<String, String> selected = new HashMap<>();
     private final Map<String, String> hovers = new HashMap<>();
     /** When the crosshair came to rest on each source's hovered entry, and whether a redraw already said so. */
@@ -161,6 +164,7 @@ final class MenuSession implements SpatialContext {
     @Override
     public void page(@NotNull String source, int page) {
         pages.put(source, page);
+        offsets.remove(source);
         refresh();
     }
 
@@ -382,7 +386,9 @@ final class MenuSession implements SpatialContext {
         if (layout.carousel().present()) {
             carousel = new Slots(layout.carousel(), animated ? 420L : -1);
             parts.add(carousel);
-            pointer.onScroll(notch -> turnPage(carousel, notch));
+            // Edit mode keeps paging as it always did; a player's wheel moves the carousel an item a notch.
+            if (edit != null) pointer.onScroll(notch -> turnPage(carousel, notch));
+            else pointer.onScroll(notch -> wheel(carousel, notch));
         } else {
             pointer.onScroll(null);
         }
@@ -752,10 +758,38 @@ final class MenuSession implements SpatialContext {
         if (slots == null) return;
         confirm.disarm();
         StageLook.play(viewer, theme.pageSound());
+        // A whole page from the page the first item shown is on, whatever the wheel did before.
+        slots.wheel.clear();
+        offsets.remove(slots.source);
         pages.put(slots.source, page(slots.source) + notch);
         slots.step = notch;
         refresh();
         slots.step = 0;
+    }
+
+    /**
+     * A notch of the wheel over a list: it moves one item (since 1.463.0). Notches that come faster than a
+     * step plays wait their turn and play a beat apart, so a flick slides item by item instead of jumping.
+     */
+    private void wheel(Slots slots, int notch) {
+        // A list that fits in its slots has nowhere to go.
+        if (slots == null || closed || slots.total <= slots.perPage) return;
+        if (slots.wheel.add(notch)) playStep(slots);
+    }
+
+    private void playStep(Slots slots) {
+        if (closed) return;
+        int step = slots.wheel.next();
+        if (step == 0) return;
+        confirm.disarm();
+        StageLook.play(viewer, theme.pageSound());
+        offsets.put(slots.source, slots.offset + step);
+        slots.step = step;
+        slots.gliding = true;
+        refresh();
+        slots.step = 0;
+        slots.gliding = false;
+        menus.tasks().runAtEntityLater(viewer, slots.wheel.beat(), () -> playStep(slots), () -> { });
     }
 
     private void act(String action) {
@@ -1242,7 +1276,7 @@ final class MenuSession implements SpatialContext {
      * source marks {@code SELECTED}, else the selection) with a thin accent line under it (since 1.453.0; a lit
      * plate before). Tabs are as wide as their words, never
      * cut; when they do not all fit the row shows as many as fit round the chosen one. A click chooses a tab
-     * (the source's {@code onSelect} runs), the wheel over the row steps to the next. Nothing is drawn while
+     * (the source's {@code onSelect} runs); the wheel over the row turns the carousel. Nothing is drawn while
      * the source is empty.
      */
     private final class Tabs {
@@ -1261,10 +1295,6 @@ final class MenuSession implements SpatialContext {
             this.panel = panel;
             this.source = source;
             this.delay = delay;
-            if (edit == null) {
-                spots.add(pointer.add(Hotspot.rect(panel.plane, 0, 0, panel.panel.width(), panel.panel.height())
-                        .priority(-1).silent(true).onScroll(notch -> step(notch))));
-            }
         }
 
         private List<SpatialEntry> entries() {
@@ -1291,8 +1321,8 @@ final class MenuSession implements SpatialContext {
         private void draw() {
             for (DisplayHandle handle : drawn) drop(handle);
             drawn.clear();
-            // The row's own wheel hotspot stays; the tabs' are drawn again with them.
-            while (spots.size() > (edit == null ? 1 : 0)) pointer.remove(spots.removeLast());
+            // The wheel over the row turns the carousel (since 1.463.0): tabs change only by click.
+            while (!spots.isEmpty()) pointer.remove(spots.removeLast());
             if (shown.isEmpty()) return;
             double w = panel.panel.width();
             double h = panel.panel.height();
@@ -1343,12 +1373,6 @@ final class MenuSession implements SpatialContext {
             }
             // Only the first draw comes in; later ones (a tab chosen) appear in place.
             delay = REPOP;
-        }
-
-        private void step(int notch) {
-            if (shown.isEmpty()) return;
-            StageLook.play(viewer, theme.pageSound());
-            choose(Math.floorMod(active + Integer.signum(notch), shown.size()));
         }
 
         private void choose(int tab) {
@@ -1650,7 +1674,14 @@ final class MenuSession implements SpatialContext {
         private final double captionUp;
         private final long delay;
         private boolean first = true;
-        private int lastPage;
+        /** The first item shown: a page's start, or any item once the wheel moved it. */
+        int offset;
+        /** How many entries the list had at its last redraw. */
+        int total;
+        /** The notches of the wheel still to play, one item each. */
+        final WheelSteps wheel = new WheelSteps(WHEEL_QUEUE);
+        /** While a wheel step redraws: every item slides one place over instead of a page sliding away. */
+        boolean gliding;
         /** Where the page line stands across the carousel's plane: an arc's under its right arrow. */
         private double pageAcross;
         /** The notch a page turn came from, for the side the next page slides in from; 0 otherwise. */
@@ -1825,9 +1856,9 @@ final class MenuSession implements SpatialContext {
 
         private void hotspots(double panelWidth, double panelHeight) {
             if (edit != null) return;
-            IntConsumer scroll = notch -> turnPage(this, notch);
+            IntConsumer scroll = notch -> wheel(this, notch);
             if (kind == Kind.ROW || kind == Kind.CELL) {
-                // The whole panel pages its list under the wheel, not only its slots.
+                // The whole panel moves its list under the wheel, not only its slots.
                 pointer.add(Hotspot.rect(plane, 0, 0, panelWidth, panelHeight).priority(-1).silent(true).onScroll(scroll));
             }
             for (int i = 0; i < perPage; i++) {
@@ -1853,15 +1884,31 @@ final class MenuSession implements SpatialContext {
             var supplier = definition.sources.get(source);
             List<SpatialEntry> all = supplier == null ? List.of() : List.copyOf(supplier.apply(MenuSession.this));
             int pageCount = Geometry.pages(all.size(), perPage);
-            int page = Geometry.wrap(page(source), pageCount);
+            total = all.size();
+            // The wheel moves the first item shown anywhere round the ring; a page turn puts it on a page's start.
+            Integer free = offsets.get(source);
+            int from;
+            List<SpatialEntry> now;
+            if (free != null && all.size() > perPage) {
+                from = Geometry.wrapItem(free, all.size(), perPage);
+                offsets.put(source, from);
+                now = Geometry.ring(all, from, perPage);
+            } else {
+                offsets.remove(source);
+                from = Geometry.wrap(page(source), pageCount) * perPage;
+                now = Geometry.page(all, from / perPage, perPage);
+            }
+            // The page counter reads the page the first item shown is on.
+            int page = from / perPage;
             pages.put(source, page);
-            List<SpatialEntry> now = Geometry.page(all, page, perPage);
             List<Integer> changed = Geometry.changed(shown, now, perPage);
             // A page turn on the carousel: the old page slides off one side, the new comes in from the other.
-            boolean turning = (kind == Kind.PEDESTAL || kind == Kind.SHELF || kind == Kind.ARC) && !first && page != lastPage;
-            int side = step != 0 ? Integer.signum(step) : Integer.signum(page - lastPage);
+            // A wheel step: every item slides one place over, all at once.
+            boolean turning = (kind == Kind.PEDESTAL || kind == Kind.SHELF || kind == Kind.ARC) && !first && from != offset;
+            int side = step != 0 ? Integer.signum(step) : Integer.signum(from - offset);
+            boolean glide = turning && gliding && places.size() > 1;
             double[] across = offset(plane, 1, 0, 0);
-            lastPage = page;
+            offset = from;
             if (turning) {
                 List<Integer> order = new ArrayList<>(changed);
                 if (side > 0) java.util.Collections.reverse(order);
@@ -1872,7 +1919,7 @@ final class MenuSession implements SpatialContext {
             for (int slot : changed) {
                 if (turning) {
                     grow(slot);
-                    slideOut(new ArrayList<>(drawn.get(slot)), scaled(across, -side * 0.55));
+                    slideOut(new ArrayList<>(drawn.get(slot)), glide ? shift(slot, -side) : scaled(across, -side * 0.55));
                     drawn.get(slot).clear();
                     icons.set(slot, null);
                     plates.set(slot, null);
@@ -1885,8 +1932,8 @@ final class MenuSession implements SpatialContext {
                 SpatialEntry entry = slot < now.size() ? now.get(slot) : null;
                 set(slot, entry);
                 if (entry != null) {
-                    long at = first ? (delay < 0 ? -1 : delay + slot * 45L) : wave++ * 35L;
-                    slideFrom = turning ? scaled(across, side * 0.55) : null;
+                    long at = first ? (delay < 0 ? -1 : delay + slot * 45L) : glide ? 0L : wave++ * 35L;
+                    slideFrom = !turning ? null : glide ? shift(slot, side) : scaled(across, side * 0.55);
                     boolean isChosen = id != null ? entry.id().equals(id) : entry.state() == SpatialEntry.State.SELECTED;
                     draw(slot, entry, at, isChosen ? Pose.CHOSEN : slot == hovered ? Pose.HOVER : Pose.IDLE);
                     slideFrom = null;
@@ -1894,6 +1941,15 @@ final class MenuSession implements SpatialContext {
                 if (slot < spots.size()) spots.get(slot).enabled(entry != null);
             }
             first = false;
+            // The crosshair stayed on a slot whose item changed under it: the words follow the new item.
+            SpatialEntry under = turning && hovered >= 0 ? at(hovered) : null;
+            if (under != null && !under.id().equals(hovers.get(source))) {
+                hovers.put(source, under.id());
+                hoverSince.put(source, System.currentTimeMillis());
+                dwellTold.remove(source);
+                wordsStale = false;
+                refreshWords();
+            }
             // Empty: one line that says so, in the middle.
             if (now.isEmpty() && empty == null) {
                 empty = write(fill(theme.emptyLine()), true, plane, rotation, 0, emptyUp, 0.012,
@@ -1910,6 +1966,17 @@ final class MenuSession implements SpatialContext {
 
         private double[] scaled(double[] v, double k) {
             return new double[]{v[0] * k, v[1] * k, v[2] * k};
+        }
+
+        /** From a slot to the place {@code dir} slots along (world axes); past either end, one more step the same way. */
+        private double[] shift(int slot, int dir) {
+            int to = slot + dir;
+            boolean inside = to >= 0 && to < places.size();
+            Location here = places.get(slot).at();
+            Location there = places.get(inside ? to : slot - dir).at();
+            double k = inside ? 1 : -1;
+            return new double[]{(there.getX() - here.getX()) * k, (there.getY() - here.getY()) * k,
+                    (there.getZ() - here.getZ()) * k};
         }
 
         private void set(int slot, @Nullable SpatialEntry entry) {
@@ -2847,6 +2914,9 @@ final class MenuSession implements SpatialContext {
     /** The preview's arrows: how far either side of the pedestal's middle, and how high over its top. */
     private static final double ARROW_ACROSS = 0.56;
     private static final double ARROW_UP = 0.2;
+    /** How many notches of the wheel a list keeps waiting at most; more in one flick are dropped. */
+    static final int WHEEL_QUEUE = 12;
+
     /** How far one notch of the wheel over the body turns it. */
     private static final double WHEEL_DEGREES = 30;
 

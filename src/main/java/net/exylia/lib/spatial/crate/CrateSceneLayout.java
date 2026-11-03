@@ -43,8 +43,8 @@ public record CrateSceneLayout(
         Preview preview,
         @Comment("The two buttons after the last reveal. OPEN ANOTHER shows only while the player still has a key.")
         Buttons buttons,
-        @Comment("The only item in the hotbar while it plays: right-clicking it, like sneaking, skips to the end")
-        @Comment("and hands every prize over at once.")
+        @Comment("Unused since 1.463.0: the hotbar stays empty while it plays; sneaking skips to the end and hands")
+        @Comment("every prize over at once.")
         SkipItem skipItem,
         @Comment("The blocks standing between the viewer and the board (walls, trunks, leaves) are shown to them as")
         @Comment("air while it plays, the ground they stand on kept; off brings the board nearer to a wall instead.")

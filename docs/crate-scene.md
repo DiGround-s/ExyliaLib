@@ -58,13 +58,14 @@ return SpatialPreview.item(shield);
   opening does. The reel is built round it afterwards: random faces, the prize where the reel stops and,
   with `near-miss`, a face of the best rarity right after it. Presentation only.
 - **Granting.** Each prize is handed over once, through the same payout as the inventory reels: as its
-  reel lands, or at once when the player skips. Sneaking, the SKIP item, death, a world change, a menu
+  reel lands, or at once when the player skips. Sneaking, death, a world change, a menu
   opened over it and the plugin being disabled all hand every prize not yet revealed over at once. A
   quit is paid by the crate's quit path (unlocked on the row, tokens kept for the next join).
 - **One at a time.** The player cannot open another crate until the scene has handed everything over.
 
 While it plays the player is held still (`freeze`), sees nobody and is seen by nobody (`hide-others`),
-and holds only the SKIP item, as in a [spatial menu](spatial.md). One scene per player; opening it
+and wears an empty hotbar, as in a [spatial menu](spatial.md) (the SKIP item of 1.462.x and before is
+gone; sneaking skips). One scene per player; opening it
 closes this plugin's open spatial menu (the wardrobe it was opened from).
 
 ## The layout
@@ -90,7 +91,7 @@ reveal: {up: 0.2, name: '%name%', rarity: '%rarity%', won: '{success}✔ New to 
 backdrop: {at: [0, -0.1, -0.3], size: [4.4, 3.3], tint: '{primary}', alpha: 150, feather: 0.9, rings: 10}
 preview: {scale: 0.7, turn-speed: 14, effect-scale: 0.35}
 buttons: {up: -0.75, spread: 1.35, width: 1.05, again: '{success}&lOPEN ANOTHER', done: '{highlight}&lDONE'}
-skip-item: {material: CLOCK, name: '{warning}&lSKIP', lore: [...]}
+skip-item: {material: CLOCK, name: '{warning}&lSKIP', lore: [...]}   # unused since 1.463.0
 ```
 
 Coordinates are blocks on the board, a plane `distance` ahead of the eyes: `up` from eye height,

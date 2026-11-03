@@ -175,8 +175,10 @@ one text display (name, then state line) with no backing at all since 1.415.0
 over anything; 1.414.0 drew it on a dark solid backing), its top
 0.04 under the plinth's bottom and its face 0.09 nearer the eyes than the
 plinth's front face, so seen from the eyes no part of any plinth is before it.
-A page turn slides the old page off sideways (200 ms, shrinking) and brings the
-new one in from the side the wheel turned to, slot by slot.
+A page turn (the arrows) slides the old page off sideways (200 ms, shrinking) and
+brings the new one in from the side it turned to, slot by slot. A wheel step
+(since 1.463.0) is the same slide by one place: every item leaves towards its
+neighbour's place and comes in from the other one, all at once.
 
 **The panels' icons** are GUI-context too, bobbing 0.008 on a 4 s cycle. `LOCKED` entries are drawn dimmer and read the theme's
 `locked-line` (or their `price`); `EQUIPPED` reads `equipped-line`; `OWNED` reads
@@ -213,18 +215,17 @@ empty line, captions) are drawn as written unless `small-caps-body: true`.
 Since 1.408.0 every theme line is filled like a title: the plugin's `values`,
 then the menu's state as `%key%`. That covers `locked-line`, `owned-line`,
 `equipped-line`, `equipped-marker` and `locked-marker` (which also read the entry's `%name%`,
-`%subtitle%` and `%price%`), `page-line`, the arrows, `empty-line`, and the leave
-item's `leave-name` and `leave-lore`. To translate them per viewer, write a
-placeholder in the layout and give it from the plugin's lang files:
+`%subtitle%` and `%price%`), `page-line`, the arrows and `empty-line`. To
+translate them per viewer, write a placeholder in the layout and give it from the
+plugin's lang files:
 
 ```yaml
 theme:
   locked-line: '%wardrobe_locked%'
-  leave-name: '%wardrobe_leave%'
 ```
 
 ```java
-.values(ctx -> Values.of().put("wardrobe_locked", lines.locked()).put("wardrobe_leave", lines.leave()))
+.values(ctx -> Values.of().put("wardrobe_locked", lines.locked()))
 ```
 
 No second hook: `values` already runs per viewer on every redraw. An entry's
@@ -247,8 +248,16 @@ open menu to read `values` from: each viewer gets their own copy, so a
 placeholder registered with [Placeholders](placeholders.md)
 (`%myplugin_wardrobe_title%`) resolves for whoever looks at it.
 
-The mouse wheel pages the list or grid under the crosshair, or the carousel
-anywhere else; the carousel's arrows page it too. Pages wrap round.
+The mouse wheel moves one item a notch (since 1.463.0; a page before): the list or
+grid under the crosshair, or the carousel anywhere else, the tab row included
+(tabs change only by click). Over the preview's body with `turn-controls` it turns
+the body instead (its `↺` `↻` arrows say so). Notches that come faster than a step
+plays wait their turn and play a beat apart (one tick while more wait, two for the
+last, at most 12 waiting), so a flick of five slides five items, never a page. The
+ends wrap round: past the last item comes the first. The arrows `‹ ›` still turn a
+whole page, from the page the first item shown is on to the next page's start.
+The page line reads the page of the first item shown. Edit mode and the Tuner keep
+their own wheel.
 
 Previews: `SpatialPreview.npc(player)` (their skin, wearing what they wear),
 `npc(player, equipment)` (re-dressed in place when only the equipment changes),
@@ -593,7 +602,7 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
 | Tabs | `frame: false`, `content: {type: TABS, source: catalog_tabs}` | The filter steps as plain words (`tab` muted, `tab-active` light), a thin accent line under the open one, a faint one under the one looked at. Never cut; a window round the open one when they do not fit |
 | Title | `frame: false`, no content, `title: '%catalog_card_title%'`, `hint: '%catalog_card_meta%'` | The name of what is looked at, else chosen, in one light colour (its own colours dropped), and one quiet line: its subtitle (a rarity, in its colour) `·` where the player stands (`card-owned`, `card-equipped`, the price, or `🔒 ` and its unlock line) |
 | Description | `frame: false`, a `TEXT` panel of up to three lines | The plugin's, through `SpatialCatalog.described(ctx, source)`: the entry the crosshair has **rested on** (`SpatialContext.dwelled`, 0.7 s), else the chosen one while the crosshair is on nothing; nothing during a quick look, so a sweep along the arc stays calm |
-| Arc | `carousel: {style: ARC, slots: 8, spacing, centre-gap, curve}` | The page's items either side of the preview, at eye level, bending towards the viewer like an orbit, each turned to the eyes over a soft disc of light, no tiles, no names, bobbing gently. Under the crosshair an item comes 0.28 forward, grows ×1.3 and glows in its own colour (the first colour of its subtitle: a rarity); the chosen one's disc takes the accent and it turns slowly. `‹ ›` past the ends (muted, light under the crosshair) and `1 / 14` under the right one; the wheel turns it too, the page sliding sideways |
+| Arc | `carousel: {style: ARC, slots: 8, spacing, centre-gap, curve}` | The page's items either side of the preview, at eye level, bending towards the viewer like an orbit, each turned to the eyes over a soft disc of light, no tiles, no names, bobbing gently. Under the crosshair an item comes 0.28 forward, grows ×1.3 and glows in its own colour (the first colour of its subtitle: a rarity); the chosen one's disc takes the accent and it turns slowly. `‹ ›` past the ends (muted, light under the crosshair) and `1 / 14` under the right one; the wheel moves it an item a notch, sliding (a page before 1.463.0) |
 | Primary action | `frame: false`, `content: {type: ACTION}` | The only filled thing: a translucent accent plate while there is something to do (`EQUIP`, `BUY · $500`, `CONFIRM · $500`), no fill and muted words while not (`EQUIPPED ✔`, `LOCKED`). Its words are drawn bold in one colour whatever colours the words carry |
 | Icons | `frame: false`, `content: {type: ICONS, buttons: [...]}` | A row of muted glyphs, light under the crosshair. A button's label is `'<glyph>\|<words>'` or words starting with their glyph (`☆ FAVOURITE`); the words show only under the crosshair, in the hint line (the menu's `%icon_label%`). Blank words leave it out |
 | Hint | `frame: false`, a `TEXT` line `%catalog_hint%` | One short muted line: what to do next, or what the icon under the crosshair does |
@@ -769,10 +778,11 @@ deflates everything in 170 ms. A `refresh()` pops nothing: only the slots whose
 entries changed are drawn again.
 
 While open: the player is held still (`freeze`, `Movement.freeze`; they can
-look round and sneak), wears a hotbar of nothing but the leave item
-([overlay](overlays.md), `hideRest`), and with `hide-others` sees nobody and is
-seen by nobody. Sneaking or right-clicking the leave item closes it (there is
-no ESC in the world, so the header's hint says so). One spatial menu per
+look round and sneak), wears an empty hotbar ([overlay](overlays.md), `hideRest`:
+their items hidden, nothing in any slot; 1.462.x and before put a leave item in the
+last slot, which the menu's wheel never let anyone reach), and with `hide-others`
+sees nobody and is seen by nobody. The `✕` icon or sneaking closes it (there is no
+ESC in the world, so the hint line says so). One spatial menu per
 player across every plugin: opening another closes the first.
 `SpatialMenus.inMenu(player)` asks across plugins.
 
@@ -829,7 +839,7 @@ library's look:
 | `locked-line`, `owned-line`, `equipped-line`, `equipped-marker`, `locked-marker` | `{error}✘ Locked`, `{muted}Owned`, `{success}✔ Equipped`, `{success}✔`, `{error}🔒` (since 1.415.0) |
 | `page-line`, `previous-arrow`, `next-arrow`, `empty-line` | `{muted}PAGE {letters}%page% {letters_black}/ {letters}%pages%`, `←`, `→`, `{muted}Nothing here yet` |
 | `spot-lines` | `%title%`, `{warning}➥ Click to open` |
-| `leave-material`, `leave-name`, `leave-lore` | `BARRIER`, `{error}&lLEAVE`, the Exylia lore pattern |
+| `leave-material`, `leave-name`, `leave-lore` | Unused since 1.463.0 (the hotbar is empty); still read so older files load |
 | `intro-line`, `intro-outline` | `{muted}Click to continue · Sneak to skip » %step%/%steps%`, `{highlight}` (since 1.452.0) |
 | `hover-sound`, `select-sound`, `page-sound`, `open-sound`, `close-sound`, `error-sound` | note-block hat at 0.35, note-block hat at 0.7, `item.book.page_turn`, `block.ender_chest.open\|0.6\|1.4`, `item.bundle.remove_one\|1.0\|0.5`, `entity.villager.no\|0.6` (select and open at 1.0 before 1.428.0) |
 
@@ -899,8 +909,8 @@ void click(Player player) {                       // from HouseListener: swing +
 SpatialPointer pointer = SpatialInput.of(plugin).attach(player)
         .sounds(sounds.hover(), "")                // the game plays its own press sounds
         .onEnd(end -> leave(player));              // quit, death, world change, disable
-Overlays.of(plugin).show(player, SpatialInput.of(plugin).hotbar(leaveItem));
-pointer.onLeave(() -> askToLeave(player));
+Overlays.of(plugin).show(player, SpatialInput.of(plugin).hotbar());
+pointer.onSneak(() -> askToLeave(player));
 
 void buttons(List<Move> moves) {                  // a new set of buttons for this move
     pointer.clear();
@@ -924,7 +934,7 @@ pointer.detach();                                  // the round is over
 - The pointer plays its hover sound once per change (entering a hotspot or a new
   cell) and its press sound on a press, unless the hotspot is silent.
 - `SpatialClick(kind, sneaking, cell)`: LEFT is a swing (air, block or entity);
-  RIGHT a use on a block or entity, or a right-click with the hotbar's leave item.
+  RIGHT a use on a block or entity, or a right-click on the overlay hotbar.
   A swing and the interaction it causes are one click (120 ms). A click on no
   hotspot goes to `onClick`; `onAnyClick` (since 1.410.0) hears every click first,
   on a hotspot or not, a refused press included: an idle clock, stopping AUTO.
@@ -964,7 +974,7 @@ pointer.deliverOn(match.spot(0));                         // the round's region:
   (on Folia, its region): it polls there, and pickers, `accepts`, button visuals
   and every callback run there, so a round that lives on one region needs no hop
   of its own. Clicks are heard on the player's thread and handed over; the hotbar
-  slot is put back on the player's. `deliverOn(null)` brings it back; the same
+  slot is put back on the player's when the pointer ends. `deliverOn(null)` brings it back; the same
   place again does nothing. Hotspots may be added and removed from any thread.
 
 ### Observing pointers (since 1.410.0)
@@ -990,18 +1000,29 @@ pointer.detach();                             // they walked off
 - Callable from any thread; it polls on the player's. Ends on `detach()`, quit,
   death, world change and the plugin's disable.
 - The wheel: `onScroll` of the hotspot under the crosshair, else the pointer's;
-  -1 / +1 a notch. The slot follows the wheel (no notch lost at any ping) and is
-  put back 450 ms after the last notch.
-- `onSneak`, `onLeave` (the hotbar's leave item), `onTick` (every poll), `onEnd`
+  always -1 / +1, one call per notch. Several notches the client sends in one
+  tick (a flick) arrive as that many calls (1.463.0; one before). The held slot
+  follows the wheel and is put back only when the pointer ends (1.463.0; 450 ms
+  after the last notch before, which showed as the hotbar jumping back). The
+  client moves its slot before the server hears of it and reports only where it
+  is now, so a slot put back while it keeps scrolling races it: notches sent
+  meanwhile count from the wrong slot, and a scroll that lands on the slot it
+  last reported sends nothing at all. Leaving the slot where the wheel left it is
+  the only way that loses no notch at any ping; the hotbar shows nothing, so
+  only its highlight moves, as in vanilla. The number keys arrive as notches too
+  (key 5 from slot 1 is +4).
+- `onSneak`, `onLeave` (a deprecated `hotbar(item)`'s leave item), `onTick` (every poll), `onEnd`
   (`QUIT`, `DEATH`, `WORLD`, `DISABLED`, `REPLACED`; not run for `detach()`),
   `mute(millis)`.
 - While attached, using blocks, breaking and placing them and hitting entities is
   cancelled. Protection against damage, hunger, drops and commands stays the
   game's.
-- `hotbar(item)` is the overlay to show with it: `hideRest`, no pickup, the item in
-  slot 8; the overlay swallows swings over its slots and hands them back through
-  the plugin's `<plugin>_spatial:click` / `:leave` actions, so clicks arrive the
-  same with or without it.
+- `hotbar()` (since 1.463.0) is the overlay to show with it: `hideRest`, no
+  pickup, nothing in any slot; the overlay swallows swings over its slots and
+  hands them back through the plugin's `<plugin>_spatial:click` action, so clicks
+  arrive the same with or without it. `hotbar(item)` is deprecated: it adds a
+  leave item in slot 8 (right-click runs `onLeave`; `null` for none), which a
+  screen that owns the wheel never lets the player reach.
 
 ## Contracts
 
@@ -1045,13 +1066,14 @@ admin alone.
   `spatial/internal/Drafts` (drafts against the saved state),
   `spatial/internal/Confirm` (confirm in place), `spatial/internal/Catalogs`
   (basket totals, owned-first order, the filter cycle), `spatial/internal/UndoHistory`
-  (the undo steps).
+  (the undo steps), `spatial/internal/WheelSteps` (wheel notches queued as item steps).
 - Lifecycle: `SpatialMenus.init` in `ExyliaLib.onEnable` (the input listener and the
   hiding rule), `SpatialMenus.release(plugin)` first in `onPluginDisable`,
   `releaseAll` in `onDisable`.
 - Tests: `spatial/internal/GeometryTest` (turned panels facing the eyes, hits on a
   turned panel, the carousel's symmetry, gap and curve, pagination, diffs, glass
-  sizing, footers side by side, prose wrapped into a panel's lines), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
+  sizing, footers side by side, prose wrapped into a panel's lines, the item ring), `spatial/internal/WheelStepsTest`
+  (a notch is one item, a flick plays in turn, reversing, the cap), `spatial/SpatialInputTest` (nearest and priority, disabled hotspots,
   cell picking and the gap, hover reported once, wheel wrap, custom pickers from
   state, refused cells falling through, hotspots that do not hover, press guards),
   `spatial/internal/ReadabilityTest` (the floor's angle, the default theme readable

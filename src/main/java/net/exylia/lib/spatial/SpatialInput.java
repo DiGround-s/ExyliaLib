@@ -53,13 +53,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * SpatialInput input = SpatialInput.of(this);
  * SpatialPointer pointer = input.attach(player);                 // on the player's thread
  * pointer.add(Hotspot.cells(plane).onPress(click -> play(click.cell())));
- * Overlays.of(this).show(player, input.hotbar(leaveItem));       // clicks keep arriving under the overlay
+ * Overlays.of(this).show(player, input.hotbar());               // clicks keep arriving under the overlay
  * }</pre>
  *
  * <p>While a pointer is attached the library cancels what the player's clicks would do to the world
  * (using a block, breaking one, hitting an entity) and hands each click over once: a swing and the
- * interaction it causes are one press. The wheel arrives as -1 or +1 a notch; the hotbar slot follows
- * the wheel, so no notch is lost at any ping, and is put back once it rests. Quitting, dying, changing
+ * interaction it causes are one press. The wheel arrives as -1 or +1 a notch, one call per notch even when
+ * the client sends a flick as one jump. The hotbar slot follows the wheel and is put back only when the
+ * pointer ends: a change that is cancelled or undone while the client keeps scrolling loses the notches
+ * it sent meanwhile, so no notch is lost at any ping and the slot never snaps back. Quitting, dying, changing
  * worlds and the plugin's disable end a pointer, each with its own {@link SpatialPointer.End}. While a
  * {@link Tuner} session runs for the player, the tuner has their gestures and pointers hear nothing.
  *
@@ -166,24 +168,39 @@ public final class SpatialInput {
     }
 
     /**
-     * The hotbar to show while a pointer is attached ({@code Overlays.of(plugin).show(player, ...)}):
-     * the player's own items hidden, nothing picked up, {@code leave} in the last slot. Left-clicking
-     * anywhere is a left click on the screen; right-clicking a blank slot is a right click; the leave
-     * item's right-click runs the pointer's {@link SpatialPointer#onLeave}.
+     * The hotbar to show while a pointer is attached ({@code Overlays.of(plugin).show(player, ...)}): the
+     * player's own items hidden, nothing in any slot, nothing picked up. Every click on it is a click on the
+     * screen (left or right). Players leave through the screen itself (its exit button, sneaking).
+     *
+     * @since 1.463.0
      */
-    public @NotNull OverlayDefinition hotbar(@NotNull Item leave) {
+    public @NotNull OverlayDefinition hotbar() {
+        return hotbar((Item) null);
+    }
+
+    /**
+     * The same hotbar with {@code leave} in the last slot, whose right-click runs the pointer's
+     * {@link SpatialPointer#onLeave}; {@code null} for none.
+     *
+     * @deprecated the screen owns the wheel and the number keys, so the player never reaches slot 8: the
+     * item cannot be used. Use {@link #hotbar()} and let players leave through the screen.
+     */
+    @Deprecated(since = "1.463.0")
+    public @NotNull OverlayDefinition hotbar(@Nullable Item leave) {
         String ns = actions.namespace();
         ClickBindings blank = new ClickBindings.Builder()
                 .add("left,shift_left,right,shift_right: " + ns + ":click", actions::template).build();
-        ClickBindings exit = new ClickBindings.Builder()
-                .add("left,shift_left: " + ns + ":click", actions::template)
-                .add("right,shift_right: " + ns + ":leave", actions::template).build();
         // Its own click sound would talk over the screen's.
         UiSounds sounds = new UiSounds(UiSounds.DEFAULTS.open(), UiSounds.DEFAULTS.close(), null,
                 UiSounds.DEFAULTS.denied(), UiSounds.DEFAULTS.failed());
-        return OverlayDefinition.of(HOTBAR_ID).hideRest().pickup(false).sounds(sounds).emptyHand(blank)
-                .slot(8, UiItem.of(leave).bindings(exit).build())
-                .build();
+        var hotbar = OverlayDefinition.of(HOTBAR_ID).hideRest().pickup(false).sounds(sounds).emptyHand(blank);
+        if (leave != null) {
+            ClickBindings exit = new ClickBindings.Builder()
+                    .add("left,shift_left: " + ns + ":click", actions::template)
+                    .add("right,shift_right: " + ns + ":leave", actions::template).build();
+            hotbar.slot(8, UiItem.of(leave).bindings(exit).build());
+        }
+        return hotbar.build();
     }
 
     void forget(SpatialPointer pointer) {
@@ -332,8 +349,11 @@ public final class SpatialInput {
             Player player = event.getPlayer();
             int notch = SpatialPointer.notch(event.getPreviousSlot(), event.getNewSlot());
             SpatialPointer pointer = top(player);
-            // Let the slot follow the wheel: a cancelled change loses the notches sent before the client
-            // hears of it. The pointer puts the slot back once the wheel rests.
+            // Let the slot follow the wheel and leave it there: the client reports where its slot is now, so
+            // the jump from the last report counts every notch, a flick in one tick too. A cancelled or
+            // undone change would race the client, which keeps scrolling from where it was and never
+            // reports a slot equal to the last one: those notches are lost. The pointer puts the slot back
+            // when it ends.
             if (pointer != null) pointer.scroll(notch);
             else observers(player).forEach(observer -> observer.scroll(notch));
         }

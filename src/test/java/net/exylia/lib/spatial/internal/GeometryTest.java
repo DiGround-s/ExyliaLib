@@ -166,4 +166,16 @@ class GeometryTest {
                 "breaks that would overflow give way to one flowing paragraph");
         assertTrue(Geometry.visibleWidth(flowed.get(flowed.size() - 1)) <= 3.6, "and then it fits: " + flowed);
     }
+
+    @Test
+    void aRingCarriesOnFromTheStart() {
+        List<Integer> all = List.of(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+        assertEquals(List.of(0, 1, 2, 3), Geometry.ring(all, 0, 4));
+        assertEquals(List.of(8, 9, 0, 1), Geometry.ring(all, 8, 4));
+        assertEquals(List.of(9, 0, 1, 2), Geometry.ring(all, -1, 4));
+        assertEquals(List.of(0, 1, 2), Geometry.ring(List.of(0, 1, 2), 2, 4), "a list that fits does not turn");
+        assertEquals(9, Geometry.wrapItem(-1, 10, 4));
+        assertEquals(0, Geometry.wrapItem(10, 10, 4));
+        assertEquals(0, Geometry.wrapItem(2, 3, 4));
+    }
 }
