@@ -479,6 +479,9 @@ payout, duplicates and the quit path are the ones described here, unchanged. The
 prize is tried on with `preview(reward, viewer)` and `previewVanishes()`. `CrateSettings` gained the
 component `opening` (INVENTORY by default); the 13-argument constructor plugins already call stays.
 
+Since 1.462.0 a spatial menu's crate button always opens the scene (`spinSpatial`), whatever
+`opening` says; `opening` still decides for the commands, the inventory menus, the blocks and key items.
+
 ## The admin menu
 
 Since 1.342.0 every crate comes with an admin menu, the same in every plugin,
@@ -544,6 +547,7 @@ move while open (players, unlocks, places, the counts) are lambdas over memory.
 | `fetchKeys(uuid)` | The keys of a player here or not |
 | `unlock`, `lock`, `clearUnlocks`, `addKeys`, `setKeys` | For a player here or not; answer whether it was new, whether they had it, how many there were, the keys afterwards |
 | `open(player)`, `spin(player, amount)` | The question, or the reels with keys from the account |
+| `spinSpatial(player, back)` | One crate in the 3D scene whatever `opening` says, keys from the account else a key item in the hand; `back` runs once the scene is over, every prize handed over (not on a quit, and after the last scene OPEN ANOTHER chained). `false`: refused at once, the crate's line sent. What a spatial menu's crate button calls (1.462.0) |
 | `keyItem(viewer)`, `isKey(item)`, `giveKeyItems(player, amount)` | Key items that can be held, traded and dropped |
 | `tierIds()`, `tierId(written)`, `tier(id)`, `count(tierId)`, `odds(tierId)` | The rarities, how many rewards each holds, and the odds an opening honours |
 | `bindBlock(block)`, `unbindBlock(block)`, `boundBlocks()`, `clearBlocks()` | The blocks that open it, saved through `saveBlocks` |

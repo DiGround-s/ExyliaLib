@@ -23,6 +23,13 @@ crate:
 The crate's question (how many) is still `menus/crate.yml`; the choice opens the scene. Without
 PacketEvents, or while another plugin's spatial menu is open, the inventory reels play instead.
 
+**From a spatial menu (since 1.462.0).** A catalogue's crate button (`SpatialCatalog#crate`) always
+plays this scene for a player who can see it, whatever `opening` says: one crate, no question, a key
+from the account else a key item in the hand (`PluginCrates#spinSpatial`). DONE, sneaking or a skip
+hands every prize over and then reopens the menu on the filter and page it was left on; OPEN ANOTHER
+chains scenes and the last one goes back. No key keeps the menu open with the theme's error sound and
+the crate's `no-keys` line.
+
 **Minimum client 1.21.4 (since 1.431.0).** A player whose client is older (joining through
 ViaBackwards, as PacketEvents saw it at login) always gets the inventory reels, whatever `opening`
 says; `CrateScene#available(player)` answers it and `play` returns `false` for them. An unknown

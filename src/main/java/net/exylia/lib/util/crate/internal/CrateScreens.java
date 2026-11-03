@@ -248,7 +248,7 @@ public final class CrateScreens<T> implements Listener {
             return;
         }
         if (click.button() == BlockButton.RIGHT && isKey.test(player.getInventory().getItemInMainHand())) {
-            whenLoaded(player, () -> spin(player, 1, true));
+            whenLoaded(player, () -> spin(player, 1, true, null));
             return;
         }
         open(player);
@@ -256,7 +256,31 @@ public final class CrateScreens<T> implements Listener {
 
     /** Spends keys from the account and opens the screen the reels run on. */
     public void spin(@NotNull Player player, int requested) {
-        whenLoaded(player, () -> spin(player, requested, false));
+        whenLoaded(player, () -> spin(player, requested, false, null));
+    }
+
+    /**
+     * One crate in the 3D scene, whatever {@code opening} says: a spatial menu's crate button. Keys on
+     * the account first, else a key item in the hand.
+     *
+     * @param back runs on the player's thread once the scene is over and every prize handed over
+     * @return {@code false} when it was refused at once (no key, busy, empty...), the line already sent
+     */
+    public boolean spinSpatial(@NotNull Player player, @NotNull Runnable back) {
+        if (!prizes.enabled()) {
+            say(player, messages.get().disabled());
+            return false;
+        }
+        if (!store.isLoaded(player.getUniqueId())) {
+            whenLoaded(player, () -> spin(player, 1, heldKeys(player) > 0 && keysOf(player) < 1, back));
+            return true;
+        }
+        return spin(player, 1, heldKeys(player) > 0 && keysOf(player) < 1, back);
+    }
+
+    /** Whether an opening plays as the 3D scene: forced from a spatial menu, or as the settings say. */
+    static boolean spatial(@NotNull CrateOpening configured, boolean forced, boolean available) {
+        return available && (forced || configured == CrateOpening.SPATIAL);
     }
 
     /**
@@ -264,16 +288,18 @@ public final class CrateScreens<T> implements Listener {
      * refusal says which one it was.
      *
      * @param held whether the keys are items in the hand rather than the number on the account
+     * @param back  non-null: the 3D scene whatever the settings say, and this runs once it is over
+     * @return whether anything was opened
      */
-    private void spin(Player player, int requested, boolean held) {
-        if (!access.test(player)) return;
+    private boolean spin(Player player, int requested, boolean held, @Nullable Runnable back) {
+        if (!access.test(player)) return false;
         CrateMessages lines = messages.get();
         int amount = Math.min(mostAtOnce(player), Math.max(1, requested));
         UUID uuid = player.getUniqueId();
 
         if (spinning.asMap().putIfAbsent(uuid, Boolean.TRUE) != null) {
             say(player, lines.busy());
-            return;
+            return false;
         }
 
         int keys = held ? heldKeys(player) : keysOf(player);
@@ -282,7 +308,7 @@ public final class CrateScreens<T> implements Listener {
             if (!lines.noKeys().isBlank()) {
                 Text.from(plugin, lines.noKeys()).with("%amount%", amount).with("%keys%", keys).send(player);
             }
-            return;
+            return false;
         }
 
         // Every key is spent before any reel is drawn, so the window cannot be
@@ -305,7 +331,7 @@ public final class CrateScreens<T> implements Listener {
                 if (bought.isEmpty()) {
                     spinning.invalidate(uuid);
                     say(player, draw.status() == Prizes.Status.EMPTY ? lines.empty() : lines.disabled());
-                    return;
+                    return false;
                 }
                 break;
             }
@@ -313,20 +339,21 @@ public final class CrateScreens<T> implements Listener {
         }
         if (bought.isEmpty()) {
             spinning.invalidate(uuid);
-            return;
+            return false;
         }
 
-        if (settings.get().opening() == CrateOpening.SPATIAL && CrateScene.of(plugin).available(player)) {
+        if (spatial(settings.get().opening(), back != null, CrateScene.of(plugin).available(player))) {
             // Held from now, so a quit in the tick before the scene opens still pays them out.
             List<Reel<T>> reels = new ArrayList<>(bought.size());
             for (T prize : bought) reels.add(Reel.of(0, prize, 1, () -> null));
             Spin<T> spin = new Spin<>(player, reels);
             running.put(uuid, spin);
             // A tick later, out of the click on the button that asked for it.
-            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin));
-            return;
+            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin, back));
+            return true;
         }
         inventory(player, bought);
+        return true;
     }
 
     /** The reels in the opening menu, or the prizes at once when that menu is not loaded. */
@@ -350,7 +377,7 @@ public final class CrateScreens<T> implements Listener {
      * is only the guard that hands its prize over once, when the scene reveals it or when it ends early.
      * A quit is paid by {@link #onQuit}, as with the inventory reels.
      */
-    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin) {
+    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin, @Nullable Runnable back) {
         UUID uuid = player.getUniqueId();
         if (!player.isOnline() || running.get(uuid) != spin) return;
         List<Reel<T>> reels = spin.reels;
@@ -362,6 +389,9 @@ public final class CrateScreens<T> implements Listener {
         List<CrateFace> shown = bought.stream().map(face).toList();
 
         CrateShow show = new CrateShow() {
+            /** OPEN ANOTHER was pressed: the next scene goes back instead of this one. */
+            boolean again;
+
             @Override
             public @NotNull List<CrateFace> faces() {
                 return faces;
@@ -402,7 +432,10 @@ public final class CrateScreens<T> implements Listener {
 
             @Override
             public void openAnother() {
-                tasks.runAtEntityLater(player, 1, () -> whenLoaded(player, () -> spin(player, 1, held)));
+                again = true;
+                tasks.runAtEntityLater(player, 1, () -> whenLoaded(player, () -> {
+                    if (!spin(player, 1, held, back) && back != null) back.run();
+                }));
             }
 
             @Override
@@ -410,6 +443,11 @@ public final class CrateScreens<T> implements Listener {
                 if (quit) return;
                 running.remove(uuid, spin);
                 spinning.invalidate(uuid);
+                // Every prize is handed over by now. After the scene's 170 ms deflate, and only once
+                // openAnother (called right after this) has had its say.
+                if (back != null) tasks.runAtEntityLater(player, 5L, () -> {
+                    if (!again && player.isOnline()) back.run();
+                });
             }
         };
         if (!CrateScene.of(plugin).play(player, show)) {

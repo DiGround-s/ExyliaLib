@@ -9,6 +9,7 @@ import net.exylia.lib.stage.StageLook;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.text.Values;
+import net.exylia.lib.spatial.crate.CrateScene;
 import net.exylia.lib.util.crate.PluginCrates;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -74,6 +75,9 @@ public final class SpatialCatalog {
 
     /** The menu's state key holding the open filter. */
     static final String FILTER_KEY = "catalog_filter";
+
+    /** The state key a menu reopened after a crate scene carries its main list's page in. */
+    static final String RETURN_PAGE_KEY = "catalog_return_page";
 
     /**
      * The source a {@code TABS} panel reads to show the filter steps as tabs: every offer (when the catalogue
@@ -542,6 +546,17 @@ public final class SpatialCatalog {
                 if (opened != null) opened.accept(ctx);
             });
         }
+        if (crates != null) {
+            Consumer<SpatialContext> opened = menu.onOpen;
+            menu.onOpen(ctx -> {
+                if (opened != null) opened.accept(ctx);
+                // Back from a crate scene: on the page it was left on, not the worn one's.
+                if (ctx.get(RETURN_PAGE_KEY) instanceof Integer page) {
+                    ctx.set(RETURN_PAGE_KEY, null);
+                    ctx.page(primary, page);
+                }
+            });
+        }
         action(SAVE, this::save);
         if (unequip != null) action(UNEQUIP, this::takeOff);
         if (starred != null) action(FAVOURITE, this::favourite);
@@ -990,6 +1005,14 @@ public final class SpatialCatalog {
         Player player = ctx.viewer();
         if (crate == null) {
             refuse(player, null);
+            return;
+        }
+        if (CrateScene.of(menus.plugin()).available(player)) {
+            // One crate straight into the 3D scene, which closes this menu; DONE comes back to it, on the
+            // same filter and page. Refused (no key): the menu stays, the crate's line says why.
+            Map<String, Object> back = Map.of(FILTER_KEY, current(ctx), RETURN_PAGE_KEY, ctx.page(primary));
+            String id = menu.id();
+            if (!crate.spinSpatial(player, () -> menus.open(player, id, back))) refuse(player, null);
             return;
         }
         ctx.close();

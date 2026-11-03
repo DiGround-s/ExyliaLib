@@ -527,6 +527,24 @@ public final class PluginCrates {
     }
 
     /**
+     * Opens one crate in the 3D scene ({@code net.exylia.lib.spatial.crate.CrateScene}) whatever
+     * {@link CrateSettings#opening()} says, with no question first: what a spatial menu's crate button
+     * does. Spends a key on the account, else a key item in the hand; OPEN ANOTHER keeps going the same
+     * way. Check {@code CrateScene.of(plugin).available(player)} first: a player who cannot see the
+     * scene gets the inventory reels. On the player's thread.
+     *
+     * @param back runs on the player's thread once the scene is over (DONE, sneak, a skip), every
+     *             prize already handed over; not when they quit, and only after the last of several
+     *             scenes OPEN ANOTHER chained
+     * @return {@code false} when nothing opens (no key, a crate still opening, an empty crate): the
+     *         crate's own line was sent, and {@code back} never runs
+     * @since 1.462.0
+     */
+    public boolean spinSpatial(@NotNull Player player, @NotNull Runnable back) {
+        return require().screens().spinSpatial(player, back);
+    }
+
+    /**
      * One crate key that can be held, traded and dropped, drawn as
      * {@link CrateSettings#keyItem()} says. On the viewer's thread.
      *

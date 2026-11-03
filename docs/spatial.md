@@ -495,7 +495,7 @@ List<SpatialCatalog.Offer> offers(SpatialContext ctx) {
 | `categories(ctx -> List<Category>, all)` | The `filter` action's steps, each offer under its `category`; `all` puts every offer first, else the first category opens |
 | `favourites(starred, toggle)` | The `favourite` action stars the offer looked at (else the chosen one); the filter gains a favourites step, in catalogue order, which shows starred offers even where a plugin hides locked ones (read `SpatialCatalog.filter(ctx)`) |
 | `basket(ctx -> List<Offer>)` | The parts the draft needs and the player lacks. Default: each list whose selection is drafted, its chosen offer when not owned. A look of several parts gives its own (each part once) |
-| `crate(() -> crates)` | The `crate` button: closes the menu, opens the crate |
+| `crate(() -> crates)` | The `crate` button. A player who can see the [crate scene](crate-scene.md) opens one crate straight in it, whatever `opening` says (no "how many" question; OPEN ANOTHER opens more), and DONE brings the menu back on the same filter and page (since 1.462.0). No key: the menu stays, with the theme's error sound and the crate's `no-keys` line. Anyone else: the menu closes and the inventory question opens, as before |
 | `words(ctx -> Words)` | Every word below; `new Words()` is the English. A record a lang file can nest (`@Key("catalog") SpatialCatalog.Words catalog`) |
 | `values(ctx -> Values)` | The plugin's placeholders (use this, not `menu.values`); filled first, so one may read `%catalog_save%` (an old layout's name for it) |
 | `alias(legacy, action)` | An action name an older layout wrote: `alias("primary", SpatialCatalog.SAVE)` |
