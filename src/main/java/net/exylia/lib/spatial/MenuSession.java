@@ -391,7 +391,7 @@ final class MenuSession implements SpatialContext {
     }
 
     /** The fewest rings a feathered backdrop fades through: fewer show as steps against the sky. */
-    static final int MIN_RINGS = 20;
+    static final int MIN_RINGS = Geometry.MIN_RINGS;
     /** How far behind the one before each backdrop ring stands. */
     private static final double RING_STEP = 0.012;
 
@@ -407,16 +407,9 @@ final class MenuSession implements SpatialContext {
         int rgb = Geometry.mix(0x000000, colour(look.tint(), 0x8A51C4), 0.12);
         double w = look.size().get(0);
         double h = look.size().get(1);
-        // Enough rings that no step shows, the fade easing out so the outer steps are a few alpha apart and the
-        // last ring all but clear: a vignette, not a stack of frames.
-        int rings = look.rings() == 0 || look.feather() <= 0 ? 0 : Math.max(look.rings(), MIN_RINGS);
-        for (int ring = rings; ring >= 0; ring--) {
-            double grow = rings == 0 ? 0 : look.feather() * 2 * ring / rings;
-            double left = 1 - ring / (double) (rings + 1);
-            int alpha = (int) Math.round(look.alpha() * left * left);
-            if (alpha <= 0) continue;
-            sheet(board.point(look.at().get(0), look.at().get(1), look.at().get(2) - ring * RING_STEP), facing(board),
-                    w + grow, h + grow, Geometry.argb(alpha, rgb), delay < 0 ? -1 : delay);
+        for (Geometry.Ring ring : Geometry.vignette(look.alpha(), look.rings(), look.feather())) {
+            sheet(board.point(look.at().get(0), look.at().get(1), look.at().get(2) - ring.back() * RING_STEP), facing(board),
+                    w + ring.grow(), h + ring.grow(), Geometry.argb(ring.alpha(), rgb), delay < 0 ? -1 : delay);
         }
     }
 
@@ -918,6 +911,7 @@ final class MenuSession implements SpatialContext {
         private @Nullable Column column;
         private @Nullable Tabs tabs;
         private @Nullable Icons icons;
+        private @Nullable Palette palette;
 
         PanelPart(String name, SpatialLayout.Panel panel, long delay) {
             this.name = name;
@@ -1007,6 +1001,7 @@ final class MenuSession implements SpatialContext {
                         content.action().isBlank() ? SAVE : content.action(), inner, true, true));
                 case TABS -> tabs = new Tabs(this, content.source(), inner);
                 case ICONS -> icons = new Icons(this, content.buttons(), inner);
+                case PALETTE -> palette = new Palette(this, content, inner);
                 case NONE -> { }
             }
             // The bottom row: one footer the panel's width, several side by side.
@@ -1033,6 +1028,7 @@ final class MenuSession implements SpatialContext {
             refreshWords();
             if (slots != null) slots.refresh();
             if (tabs != null) tabs.refresh();
+            if (palette != null) palette.refresh();
         }
     }
 
@@ -1378,6 +1374,8 @@ final class MenuSession implements SpatialContext {
         private final List<Hotspot> spots = new ArrayList<>();
         private List<IconButton> shown = List.of();
         private long delay;
+        /** Which draw the hotspots belong to: a hotspot taken down while hovered still says so, too late. */
+        private int generation;
 
         /** {@code colour}: the markup an icon is drawn in (its meaning), blank for the board's light colour. */
         private record IconButton(String glyph, String words, String action, String colour) {
@@ -1424,6 +1422,7 @@ final class MenuSession implements SpatialContext {
             drawn.clear();
             spots.forEach(pointer::remove);
             spots.clear();
+            int drawing = ++generation;
             int count = shown.size();
             double pitch = Math.min(panel.panel.height() * ICON_PITCH, panel.panel.width() / Math.max(1, count));
             for (int i = 0; i < count; i++) {
@@ -1435,6 +1434,11 @@ final class MenuSession implements SpatialContext {
                 if (edit != null) continue;
                 spots.add(pointer.add(Hotspot.rect(panel.plane, across, 0, pitch * 0.9, panel.panel.height()).priority(2)
                         .onHover(on -> {
+                            if (drawing != generation) {
+                                // Taken down already (its glyph and words with it): only its words in the hint go.
+                                if (!on && ("{letters}" + button.words()).equals(get(ICON_LABEL))) set(ICON_LABEL, null);
+                                return;
+                            }
                             drawn.remove(glyph[0]);
                             drop(glyph[0]);
                             glyph[0] = glyph(button, across, on, -1);
@@ -1460,6 +1464,138 @@ final class MenuSession implements SpatialContext {
             double size = theme.titleScale() * (lit ? 1.5 : 1.3);
             return write(text, true, panel.plane, panel.rotation, across, 0, 0.016, panel.panel.height() * ICON_PITCH,
                     size, true, delay);
+        }
+    }
+
+    /**
+     * A {@code PALETTE} content (since 1.461.0): a compact grid of a source's entries, each its name as written (a
+     * word, or a glyph in its colour), no plates. The chosen one (marked {@code SELECTED}, else the selection) has a
+     * thin accent line under it; the one under the crosshair is drawn larger and bold, its subtitle (else its name)
+     * and price written once under the grid. A locked entry is drawn smaller. A click chooses it, also when it is
+     * chosen already, so a plugin can toggle (edit a layer, stop editing it).
+     */
+    private final class Palette {
+        private static final double UNDERLINE = 0.014;
+        private final PanelPart panel;
+        private final String source;
+        private final int columns;
+        private final int rows;
+        private final List<DisplayHandle> drawn = new ArrayList<>();
+        private final List<Hotspot> spots = new ArrayList<>();
+        private List<SpatialEntry> shown = List.of();
+        private int active = -1;
+        private long delay;
+        private @Nullable DisplayHandle words;
+        /** Which draw the hotspots belong to: a hotspot taken down while hovered still says so, too late. */
+        private int generation;
+
+        Palette(PanelPart panel, SpatialLayout.Content content, long delay) {
+            this.panel = panel;
+            this.source = content.source();
+            this.columns = content.columns();
+            this.rows = content.rows();
+            this.delay = delay;
+            refresh();
+        }
+
+        private List<SpatialEntry> entries() {
+            var supplier = definition.sources.get(source);
+            List<SpatialEntry> all = supplier == null ? List.of() : List.copyOf(supplier.apply(MenuSession.this));
+            return all.size() > columns * rows ? all.subList(0, columns * rows) : all;
+        }
+
+        /** The chosen entry: marked {@code SELECTED}, else the selection; {@code -1} for none. */
+        private int activeOf(List<SpatialEntry> entries) {
+            for (int i = 0; i < entries.size(); i++) if (entries.get(i).state() == SpatialEntry.State.SELECTED) return i;
+            String id = selected.get(source);
+            for (int i = 0; i < entries.size(); i++) if (entries.get(i).id().equals(id)) return i;
+            return -1;
+        }
+
+        void refresh() {
+            List<SpatialEntry> now = entries();
+            int at = activeOf(now);
+            if (now.equals(shown) && at == active) return;
+            shown = now;
+            active = at;
+            draw();
+        }
+
+        private double[] cell(int index, int count) {
+            int across = Math.min(columns, count);
+            int down = (count + columns - 1) / columns;
+            double pitchX = panel.panel.width() / Math.max(1, across);
+            double pitchY = panel.panel.height() / Math.max(1, down);
+            int column = index % columns;
+            int row = index / columns;
+            // A last row with fewer entries stands centred under the full ones.
+            int inRow = row == down - 1 ? count - row * columns : across;
+            return new double[]{(column - (inRow - 1) / 2.0) * pitchX, ((down - 1) / 2.0 - row) * pitchY, pitchX, pitchY};
+        }
+
+        private @Nullable DisplayHandle entry(SpatialEntry entry, double[] at, boolean lit, long wait) {
+            String plain = plain(Text.verbatim(fill(entry.name()))).strip();
+            // A glyph (a swatch, a mark) is drawn as large as a title; words as a body line.
+            double max = plain.codePointCount(0, plain.length()) <= 2 ? theme.titleScale() * 1.2 : theme.textScale();
+            if (entry.state() == SpatialEntry.State.LOCKED) max *= 0.75;
+            if (lit) max *= 1.25;
+            return write((lit ? "&l" : "") + entry.name(), true, panel.plane, panel.rotation, at[0], at[1], 0.016,
+                    at[2] * 0.92, max, true, wait);
+        }
+
+        private void draw() {
+            drawn.forEach(MenuSession.this::drop);
+            drawn.clear();
+            spots.forEach(pointer::remove);
+            spots.clear();
+            drop(words);
+            words = null;
+            int drawing = ++generation;
+            int count = shown.size();
+            long wait = delay;
+            for (int i = 0; i < count; i++) {
+                SpatialEntry entry = shown.get(i);
+                double[] at = cell(i, count);
+                DisplayHandle[] glyph = {entry(entry, at, false, wait < 0 ? wait : wait + i * 25L)};
+                if (glyph[0] != null) drawn.add(glyph[0]);
+                if (i == active) {
+                    double width = Math.min(at[2] * 0.7, 0.3);
+                    DisplayHandle line = sheet(panel.plane.point(at[0], at[1] - at[3] * 0.42, 0.016), panel.rotation, width,
+                            UNDERLINE, Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), wait < 0 ? -1 : wait + 120);
+                    if (line != null) drawn.add(line);
+                }
+                if (edit != null) continue;
+                spots.add(pointer.add(Hotspot.rect(panel.plane, at[0], at[1], at[2] * 0.95, at[3] * 0.95).priority(2)
+                        .onHover(on -> {
+                            if (drawing != generation) return;
+                            drawn.remove(glyph[0]);
+                            drop(glyph[0]);
+                            glyph[0] = entry(entry, at, on, -1);
+                            if (glyph[0] != null) drawn.add(glyph[0]);
+                            drop(words);
+                            words = on ? describe(entry) : null;
+                        })
+                        .onPress(click -> choose(entry))));
+            }
+            delay = REPOP;
+        }
+
+        /** The words of the entry looked at, once, under the grid: its subtitle (else its name), then its price. */
+        private @Nullable DisplayHandle describe(SpatialEntry entry) {
+            String about = entry.subtitle().isBlank() ? entry.name() : entry.subtitle();
+            String price = entry.state() == SpatialEntry.State.LOCKED && entry.price() != null && !entry.price().isBlank()
+                    ? " {letters_black}· " + entry.price() : "";
+            double under = -panel.panel.height() / 2 - SpatialLayout.Content.PALETTE_WORDS / 2;
+            return write("{letters}" + about + price, true, panel.plane, panel.rotation, 0, under, 0.016,
+                    Math.max(panel.panel.width(), 1.6), theme.smallScale(), true, -1);
+        }
+
+        private void choose(SpatialEntry entry) {
+            confirm.disarm();
+            selected.put(source, entry.id());
+            var select = definition.selects.get(source);
+            if (select != null) select.accept(MenuSession.this, entry);
+            MenuSession.this.refresh();
         }
     }
 
@@ -3105,7 +3241,7 @@ final class MenuSession implements SpatialContext {
                 // Faded while the tour shows: its room is free for a caption.
                 if (fades(panel)) continue;
                 if (named.getKey().equals(except)) continue;
-                double under = panel.content().type() == SpatialLayout.Content.Type.ICONS ? panel.height() * 0.95 : 0;
+                double under = panel.content().wordsUnder(panel.height());
                 project(out, panel.across(), panel.up() - under / 2, panel.forward(), panel.width() / 2, (panel.height() + under) / 2);
             }
             SpatialLayout.Preview look = layout.preview();

@@ -141,7 +141,7 @@ public record SpatialLayout(
         double low = 0;
         for (Panel panel : panels.values()) {
             // An icon row writes the words of the icon looked at under it.
-            double under = panel.content().type() == Content.Type.ICONS ? panel.height() * 0.95 : 0;
+            double under = panel.content().wordsUnder(panel.height());
             low = Math.min(low, panel.up() - panel.height() / 2 - under);
         }
         low = Math.min(low, preview.at().get(1) - 0.14);
@@ -300,9 +300,28 @@ public record SpatialLayout(
          * something to do and dimmed (it still answers) while there is not. {@code ICONS} (since 1.453.0): a row of
          * glyphs, one per entry of {@code buttons}, no plates; a button's label is {@code "<glyph>|<words>"} or
          * words whose first glyph is the icon ({@code ☆ FAVOURITE}); the words show only under the crosshair, in
-         * the hint line ({@code %catalog_hint%}). One whose words read blank is left out.
+         * the hint line ({@code %catalog_hint%}). One whose words read blank is left out. {@code PALETTE} (since
+         * 1.461.0): a compact grid of {@code source}'s entries as plain words or glyphs, {@code columns} across and
+         * at most {@code rows} down, no plates (dyes as coloured swatches, a stack of layers, a piece picker); the
+         * chosen one underlined, the one looked at larger with its subtitle (else its name) and price written
+         * under the grid. A click chooses it, also when it is chosen already (the source's {@code onSelect} runs).
          */
-        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS, TABS, ACTION, ICONS }
+        public enum Type { NONE, TEXT, LIST, GRID, BUTTON, BUTTONS, TABS, ACTION, ICONS, PALETTE }
+
+        /**
+         * How far under the panel its words reach while something in it is looked at: an icon row's and a
+         * palette's hover words. Since 1.461.0.
+         */
+        public double wordsUnder(double height) {
+            return switch (type) {
+                case ICONS -> height * 0.95;
+                case PALETTE -> PALETTE_WORDS;
+                default -> 0;
+            };
+        }
+
+        /** How far under a {@code PALETTE} the words of the entry looked at reach. */
+        public static final double PALETTE_WORDS = 0.22;
 
         public Content() {
             this(Type.NONE, "", 1, 1, List.of(), "", "", List.of());

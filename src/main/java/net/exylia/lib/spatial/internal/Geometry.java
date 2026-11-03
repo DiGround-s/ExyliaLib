@@ -405,6 +405,29 @@ public final class Geometry {
     }
 
     /** An 0xRRGGBB colour with an alpha, as a text display background wants it. */
+    /** One ring of a soft backdrop: how much larger than the sheet, how far behind it, and its alpha. */
+    public record Ring(double grow, int back, int alpha) {
+    }
+
+    /** The fewest rings a feathered backdrop fades through: fewer show as steps against the sky. */
+    public static final int MIN_RINGS = 20;
+
+    /**
+     * The rings of a soft backdrop, outermost first: enough that no step shows, the fade easing out so the outer
+     * steps are a few alpha apart and the last ring all but clear. {@code rings} or {@code feather} 0: the sheet alone.
+     */
+    public static List<Ring> vignette(int alpha, int rings, double feather) {
+        int count = rings == 0 || feather <= 0 ? 0 : Math.max(rings, MIN_RINGS);
+        List<Ring> out = new java.util.ArrayList<>();
+        for (int ring = count; ring >= 0; ring--) {
+            double grow = count == 0 ? 0 : feather * 2 * ring / count;
+            double left = 1 - ring / (double) (count + 1);
+            int shown = (int) Math.round(alpha * left * left);
+            if (shown > 0) out.add(new Ring(grow, ring, shown));
+        }
+        return out;
+    }
+
     public static int argb(int alpha, int rgb) {
         return (Math.clamp(alpha, 0, 255) << 24) | (rgb & 0xFFFFFF);
     }

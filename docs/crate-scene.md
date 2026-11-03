@@ -70,7 +70,7 @@ distance: 3.2             # brought nearer (never under 2) when a wall is close
 hide-others: true
 freeze: true
 theme: {}                 # SpatialTheme: glass, plates, text sizes, readability floor, sounds
-header: {up: 1.45, title: '{primary}&lCRATE OPENING', counter: '{muted}Crate {letters}%current% {letters_black}/ {letters}%total%', hint: '{muted}Sneak to skip'}
+header: {up: 1.45, title: '{secondary_light}&lCRATE OPENING', counter: '{letters_black}Crate {letters}%current% {letters_black}/ {letters}%total%', hint: '{letters_black}Sneak to skip'}
 reel: {up: 0.72, slots: 7, spacing: 0.46, icon: 0.34, seconds: 4.6, faces: 32, pause-seconds: 0.6,
        near-miss: true, marker: '{highlight}', tick-sound: 'minecraft:block.note_block.hat|0.4|1.6'}
 crate: {up: -1.5, width: 0.9, height: 0.5, body: POLISHED_BLACKSTONE, lid: POLISHED_BLACKSTONE_BRICKS,
@@ -78,6 +78,9 @@ crate: {up: -1.5, width: 0.9, height: 0.5, body: POLISHED_BLACKSTONE, lid: POLIS
 reveal: {up: 0.2, name: '%name%', rarity: '%rarity%', won: '{success}✔ New to your collection',
          duplicate: '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back',
          hold-seconds: 3.5, burst: true, sounds: [orb pickup, note-block chime, bell, amethyst chime]}
+# Since 1.461.0: one soft vignette behind the whole scene, as the menus' centre stage; with it the reel has no
+# glass box. alpha: 0 brings the glass back. OPEN ANOTHER (DONE once no key is left) is the one filled button.
+backdrop: {at: [0, -0.1, -0.3], size: [4.4, 3.3], tint: '{primary}', alpha: 150, feather: 0.9, rings: 10}
 preview: {scale: 0.7, turn-speed: 14, effect-scale: 0.35}
 buttons: {up: -0.75, spread: 1.35, width: 1.05, again: '{success}&lOPEN ANOTHER', done: '{highlight}&lDONE'}
 skip-item: {material: CLOCK, name: '{warning}&lSKIP', lore: [...]}

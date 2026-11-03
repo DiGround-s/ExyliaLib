@@ -634,6 +634,24 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per
   sequence, facing, zone and scale.
 
+**Since 1.461.0** (the wardrobes and designers move to the centre stage):
+
+- **`PALETTE`**, a compact picker for a look made of parts: `content: {type: PALETTE, source: dyes, columns: 8, rows: 2}`
+  draws a source's entries as plain words or glyphs in a small grid, no plates. Name an entry `'<#b02e26>■'` for a
+  colour swatch, or a word for a piece or a layer (`columns: 1` stacks them). The chosen one (marked `SELECTED`,
+  else the source's selection) has a thin accent line under it; the one under the crosshair is drawn larger and
+  bold, its subtitle (else its name) and price written once under the grid; a locked one is drawn smaller. A click
+  chooses it, also when it is chosen already, so `onSelect` can toggle (edit a layer, stop editing it). Its words
+  under it count for `lowest()` and the tour's free room (`Content.wordsUnder`).
+- **A plain-word selector by the preview** is a `TABS` panel with the plugin's own source (the piece edited, the
+  armour tried on, the step of a look): any source works, not only `catalog_tabs`. The catalogue's own tabs stay
+  hidden while it has no categories or favourites, so a wardrobe can put its steps on top
+  (ExyliaArmorTrims: `Pattern  Material`).
+- **The crate scene** stands on the same soft vignette (`backdrop` in `spatial/crate.yml`, added to every file);
+  with it the reel has no glass box, only its marker. OPEN ANOTHER (DONE when no key is left) is the one filled
+  button, the other its words alone; the header reads in the centre stage's colours. `backdrop.alpha: 0` brings
+  the glass back.
+
 **Since 1.459.0** (a preview opened over the void):
 
 - **A preview's floor is its pedestal.** A scaled play (`SequenceTarget.scale`) stands on where it is played,

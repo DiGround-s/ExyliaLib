@@ -1417,8 +1417,11 @@ x, y or z: x, y o z
 
 # The in-world crate opening (spatial/crate.yml)
 '{primary}&lCRATE OPENING': '{primary}&lABRIENDO CAJA'
+'{secondary_light}&lCRATE OPENING': '{secondary_light}&lABRIENDO CAJA'
 '{muted}Crate {letters}%current% {letters_black}/ {letters}%total%': '{muted}Caja {letters}%current% {letters_black}/ {letters}%total%'
+'{letters_black}Crate {letters}%current% {letters_black}/ {letters}%total%': '{letters_black}Caja {letters}%current% {letters_black}/ {letters}%total%'
 '{muted}Sneak to skip': '{muted}Agáchate para saltar'
+'{letters_black}Sneak to skip': '{letters_black}Agáchate para saltar'
 '{success}✔ New to your collection': '{success}✔ Nuevo en tu colección'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Ya lo tenías {letters_black}» {highlight}+%refund% {letters}llaves devueltas'
 '{success}&lOPEN ANOTHER': '{success}&lABRIR OTRA'

@@ -1,6 +1,7 @@
 package net.exylia.lib.spatial.crate;
 
 import net.exylia.lib.config.Comment;
+import net.exylia.lib.spatial.SpatialLayout;
 import net.exylia.lib.spatial.SpatialTheme;
 
 import java.util.List;
@@ -47,11 +48,27 @@ public record CrateSceneLayout(
         SkipItem skipItem,
         @Comment("The blocks standing between the viewer and the board (walls, trunks, leaves) are shown to them as")
         @Comment("air while it plays, the ground they stand on kept; off brings the board nearer to a wall instead.")
-        boolean clearView) {
+        boolean clearView,
+        @Comment("One soft dark sheet behind the whole scene, its edge fading out over 'feather' blocks, so every word")
+        @Comment("reads on sky and ground alike (as the spatial menus' centre stage). With it the reel has no glass box;")
+        @Comment("alpha 0 takes it away and brings the glass back. Since 1.461.0.")
+        SpatialLayout.Backdrop backdrop) {
+
+    /** The backdrop a scene gets when its file does not say: behind the header, the reel and the crate. */
+    public static final SpatialLayout.Backdrop BACKDROP =
+            new SpatialLayout.Backdrop(List.of(0.0, -0.1, -0.3), List.of(4.4, 3.3), "{primary}", 150, 0.9, 10);
 
     public CrateSceneLayout() {
         this(3.2, true, true, new SpatialTheme(), new Header(), new Reel(), new Crate(), new Reveal(), new Preview(),
-                new Buttons(), new SkipItem(), true);
+                new Buttons(), new SkipItem(), true, BACKDROP);
+    }
+
+    /** Every key but the backdrop: the shape layouts had before 1.461.0. */
+    public CrateSceneLayout(double distance, boolean hideOthers, boolean freeze, SpatialTheme theme, Header header,
+                            Reel reel, Crate crate, Reveal reveal, Preview preview, Buttons buttons, SkipItem skipItem,
+                            boolean clearView) {
+        this(distance, hideOthers, freeze, theme, header, reel, crate, reveal, preview, buttons, skipItem, clearView,
+                BACKDROP);
     }
 
     /** @deprecated since 1.442.0; use the constructor with {@code clearView}. */
@@ -71,6 +88,7 @@ public record CrateSceneLayout(
         preview = preview == null ? new Preview() : preview;
         buttons = buttons == null ? new Buttons() : buttons;
         skipItem = skipItem == null ? new SkipItem() : skipItem;
+        backdrop = backdrop == null ? BACKDROP : backdrop;
     }
 
     public record SkipItem(String material, String name, List<String> lore) {
@@ -89,8 +107,10 @@ public record CrateSceneLayout(
 
     public record Header(double up, String title, String counter, String hint) {
         public Header() {
-            this(1.45, "{primary}&lCRATE OPENING", "{muted}Crate {letters}%current% {letters_black}/ {letters}%total%",
-                    "{muted}Sneak to skip");
+            // The centre stage's words: light on the backdrop, the quiet ones in letters_black (muted reads under 3:1).
+            this(1.45, "{secondary_light}&lCRATE OPENING",
+                    "{letters_black}Crate {letters}%current% {letters_black}/ {letters}%total%",
+                    "{letters_black}Sneak to skip");
         }
 
         public Header {

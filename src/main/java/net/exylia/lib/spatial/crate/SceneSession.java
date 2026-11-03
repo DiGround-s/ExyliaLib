@@ -19,6 +19,7 @@ import net.exylia.lib.ragdoll.RagdollModel;
 import net.exylia.lib.ragdoll.internal.SkinCache;
 import net.exylia.lib.spatial.Hotspot;
 import net.exylia.lib.spatial.SpatialInput;
+import net.exylia.lib.spatial.SpatialLayout;
 import net.exylia.lib.spatial.SpatialMenus;
 import net.exylia.lib.spatial.SpatialPointer;
 import net.exylia.lib.spatial.SpatialPreview;
@@ -153,6 +154,7 @@ final class SceneSession {
         Overlays.of(owner.plugin).show(viewer, hotbar);
         if (layout.hideOthers()) SpatialMenus.hideOthers(viewer, true);
 
+        drawBackdrop();
         drawHeader();
         drawReelFrame();
         drawCrate(120L);
@@ -476,13 +478,14 @@ final class SceneSession {
         phase = Phase.DONE;
         CrateSceneLayout.Buttons look = layout.buttons();
         boolean again = show.canOpenAnother() && !look.again().isBlank();
+        // One primary button, filled: OPEN ANOTHER while there is a key, else DONE; the other is words alone.
         if (again) {
-            button(fill(look.again()), -look.spread(), look.up(), look.width(), () -> {
+            button(fill(look.again()), -look.spread(), look.up(), look.width(), true, () -> {
                 close(true);
                 show.openAnother();
             });
         }
-        button(fill(look.done()), again ? look.spread() : 0, look.up(), look.width(), () -> close(true));
+        button(fill(look.done()), again ? look.spread() : 0, look.up(), look.width(), !again, () -> close(true));
     }
 
     // ── The pieces ────────────────────────────────────────────────────────
@@ -499,20 +502,40 @@ final class SceneSession {
         return write(fill(layout.header().counter()), true, 0, layout.header().up() - 0.19, 0, 3.0, theme.textScale(), delay);
     }
 
-    /** The reel's glass, its accent bar and the marker at its middle. */
+    /** The soft vignette behind the whole scene, as the centre stage's: no box anywhere. */
+    private void drawBackdrop() {
+        SpatialLayout.Backdrop look = layout.backdrop();
+        if (!look.present()) return;
+        int rgb = Geometry.mix(0x000000, rgb(look.tint()), 0.12);
+        for (Geometry.Ring ring : Geometry.vignette(look.alpha(), look.rings(), look.feather())) {
+            sheet(board.point(look.at().get(0), look.at().get(1), look.at().get(2) - ring.back() * 0.012),
+                    look.size().get(0) + ring.grow(), look.size().get(1) + ring.grow(), Geometry.argb(ring.alpha(), rgb), 0L);
+        }
+    }
+
+    /** The reel's glass and accent bar (only without a backdrop), and the marker at its middle. */
     private void drawReelFrame() {
         CrateSceneLayout.Reel look = layout.reel();
         double width = look.slots() * look.spacing() + 0.24;
         double height = look.icon() * 1.95;
+        if (layout.backdrop().present()) {
+            drawMarker(look, height, 0);
+            return;
+        }
         int glass = Geometry.mix(0x000000, rgb(theme.glassTint()), theme.glassTintStrength());
         sheet(board.point(0, look.up(), -0.02), width + theme.backingReach() * 2, height + theme.backingReach() * 2,
                 Geometry.argb(theme.backingAlpha(), Geometry.mix(0x000000, glass, 0.5)), 0L);
         sheet(board.point(0, look.up(), 0), width, height, Geometry.argb(theme.glassAlpha(), glass), 0L);
         sheet(board.point(0, look.up() + height / 2 - theme.accentHeight() / 2, 0.004), width, theme.accentHeight(),
                 Geometry.argb(255, rgb(theme.accent())), 90L);
+        drawMarker(look, height, theme.accentHeight());
+    }
+
+    /** The two short ticks over and under the reel's middle that the prize stops between. */
+    private void drawMarker(CrateSceneLayout.Reel look, double height, double bar) {
         int marker = Geometry.argb(255, rgb(look.marker()));
         double tick = height * 0.2;
-        markers.add(sheet(board.point(0, look.up() + height / 2 - tick / 2 - theme.accentHeight(), 0.006), 0.035, tick, marker, 160L));
+        markers.add(sheet(board.point(0, look.up() + height / 2 - tick / 2 - bar, 0.006), 0.035, tick, marker, 160L));
         markers.add(sheet(board.point(0, look.up() - height / 2 + tick / 2, 0.006), 0.035, tick, marker, 160L));
         markers.removeIf(java.util.Objects::isNull);
     }
@@ -610,24 +633,40 @@ final class SceneSession {
         String shown = width * scale > room + 1e-6 ? Geometry.truncate(filled, room / scale) : filled;
         Component text = asWritten ? Text.verbatim(shown) : Text.component(shown);
         DisplayModel model = Stage.textModel(text).background(0).seeThrough(false).textShadow(true).lineWidth(1000);
-        return track(displays.show(model, StageLook.pop(facing, scale, scale, scale, delay, LIFE),
+        float size = (float) scale;
+        // A negative delay: there at once (a word redrawn under the crosshair), not popping in.
+        DisplayMotion motion = delay < 0
+                ? DisplayMotion.of(List.of(new DisplayKeyframe(0L, 0f, 0f, 0f, facing, size, size, size)), LIFE)
+                : StageLook.pop(facing, scale, scale, scale, delay, LIFE);
+        return track(displays.show(model, motion,
                 board.point(across, up - Stage.TEXT_HEIGHT * scale / 2, forward), List.of(viewer)));
     }
 
-    /** A plate with a label that lights under the crosshair and runs {@code action} when clicked. */
-    private void button(String label, double across, double up, double width, Runnable action) {
+    /**
+     * A button as the centre stage draws them: the primary one a soft translucent accent plate with its words bold
+     * in one light colour (a little brighter under the crosshair), the other its words alone, quiet until looked at.
+     */
+    private void button(String label, double across, double up, double width, boolean primary, Runnable action) {
         double height = 0.24;
         StagePlane plane = Geometry.panel(board.point(0, 0, 0).getWorld(), board, 0, 0, 0.2, 0);
-        int idle = Geometry.argb(255, Geometry.mix(0x000000, rgb(theme.plateIdle()), theme.glassTintStrength() * 1.6));
-        int lit = Geometry.argb(255, Geometry.mix(Geometry.mix(0x000000, rgb(theme.plateIdle()), theme.glassTintStrength() * 1.6),
-                rgb(theme.plateHover()), 0.45));
-        DisplayHandle plate = sheet(plane.point(across, up, 0), width, height, idle, 0L);
-        write(label, false, across, up, 0.21, width - 0.12, theme.textScale(), 80L);
+        int accent = rgb(theme.accent());
+        int idle = Geometry.argb(190, Geometry.mix(0x000000, accent, 0.62));
+        int lit = Geometry.argb(225, Geometry.mix(0x000000, accent, 0.78));
+        DisplayHandle plate = primary ? sheet(plane.point(across, up, 0), width, height, idle, 0L) : null;
+        String words = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(net.exylia.lib.text.Text.component(label)).strip();
+        String calm = primary ? "{letters}&l" + words : "{letters_black}&l" + words;
+        DisplayHandle[] shown = {write(calm, false, across, up, 0.21, width - 0.12, theme.textScale(), 80L)};
         Hotspot hotspot = Hotspot.rect(plane, across, up, width, height)
                 .onHover(on -> {
-                    if (plate != null) {
-                        plate.restyle(sheetModel(on ? lit : idle));
-                        plate.glow(on ? rgb(theme.hoverGlow()) : -1);
+                    if (plate != null) plate.restyle(sheetModel(on ? lit : idle));
+                    if (!primary) {
+                        if (shown[0] != null) {
+                            pieces.remove(shown[0]);
+                            shown[0].remove();
+                        }
+                        shown[0] = write(on ? "{letters}&l" + words : calm, false, across, up, 0.21, width - 0.12,
+                                theme.textScale(), -1L);
                     }
                 })
                 .onPress(click -> action.run());

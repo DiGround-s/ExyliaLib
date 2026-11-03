@@ -1405,8 +1405,11 @@
 
 # The in-world crate opening (spatial/crate.yml)
 '{primary}&lCRATE OPENING': '{primary}&lOUVERTURE DE CAISSE'
+'{secondary_light}&lCRATE OPENING': '{secondary_light}&lOUVERTURE DE CAISSE'
 '{muted}Crate {letters}%current% {letters_black}/ {letters}%total%': '{muted}Caisse {letters}%current% {letters_black}/ {letters}%total%'
+'{letters_black}Crate {letters}%current% {letters_black}/ {letters}%total%': '{letters_black}Caisse {letters}%current% {letters_black}/ {letters}%total%'
 '{muted}Sneak to skip': '{muted}Accroupis-toi pour passer'
+'{letters_black}Sneak to skip': '{letters_black}Accroupis-toi pour passer'
 '{success}✔ New to your collection': '{success}✔ Nouveau dans ta collection'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Déjà possédé {letters_black}» {highlight}+%refund% {letters}clés rendues'
 '{success}&lOPEN ANOTHER': '{success}&lEN OUVRIR UNE AUTRE'
