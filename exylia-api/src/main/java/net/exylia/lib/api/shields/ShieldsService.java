@@ -95,7 +95,7 @@ public interface ShieldsService {
      *
      * <p>Counted down from the highest {@code exyliashields.max_slots.<n>} they
      * hold, so a rank grants more slots without having to revoke the lower
-     * ones. A player holding none may use no slots at all.
+     * ones. A player holding none gets a single slot.
      *
      * @param player the player
      * @return the number of slots they may use

@@ -30,7 +30,7 @@ import java.util.List;
  * library cannot guess that, and guessing wrong puts the player inside terrain
  * or in an unbuilt corner of the map. So an unset {@link #location()} means the
  * plugin has no stage yet and must not preview at all; each plugin gives its
- * admins a {@code setpreviewlocation} command to fill it in.
+ * admins a {@code /<plugin>admin preview location} command to fill it in.
  *
  * @param location     where the player stands during a preview, in the stored
  *                     {@link ExyliaLocation} form, or empty for none
@@ -54,7 +54,7 @@ public record PreviewSettings(
 
         @Comment("Where the player stands while a preview plays, as")
         @Comment("server,world,x,y,z,yaw,pitch. Leave empty and set it in game")
-        @Comment("with this plugin's setpreviewlocation admin command.")
+        @Comment("with /<plugin>admin preview location (for example /killeffectadmin preview location).")
         @Comment("Only the position is used: a preview always faces north, so")
         @Comment("every effect is seen from the side it was drawn for. Build")
         @Comment("the room around that, and leave the north side open.")
