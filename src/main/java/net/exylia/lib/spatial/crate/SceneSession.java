@@ -646,16 +646,20 @@ final class SceneSession {
      * A button as the centre stage draws them: the primary one a soft translucent accent plate with its words bold
      * in one light colour (a little brighter under the crosshair), the other its words alone, quiet until looked at.
      */
-    private void button(String label, double across, double up, double width, boolean primary, Runnable action) {
+    private void button(String label, double across, double up, double asked, boolean primary, Runnable action) {
         double height = 0.24;
         StagePlane plane = Geometry.panel(board.point(0, 0, 0).getWorld(), board, 0, 0, 0.2, 0);
         int accent = rgb(theme.accent());
         int idle = Geometry.argb(190, Geometry.mix(0x000000, accent, 0.62));
         int lit = Geometry.argb(225, Geometry.mix(0x000000, accent, 0.78));
-        DisplayHandle plate = primary ? sheet(plane.point(across, up, 0), width, height, idle, 0L) : null;
         String words = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                 .serialize(net.exylia.lib.text.Text.component(label)).strip();
         String calm = primary ? "{letters}&l" + words : "{letters_black}&l" + words;
+        // As wide as its words at the size they are drawn (bold, never under the readability floor), so none is cut.
+        double floor = Geometry.readableScale(board.point(across, up, 0.21).distance(eyes()), theme.minGlyphDegrees(),
+                Geometry.CAPITAL_PIXELS);
+        double width = Math.max(asked, Geometry.visibleWidth(calm) * Math.max(floor, theme.textScale()) + 0.2);
+        DisplayHandle plate = primary ? sheet(plane.point(across, up, 0), width, height, idle, 0L) : null;
         DisplayHandle[] shown = {write(calm, false, across, up, 0.21, width - 0.12, theme.textScale(), 80L)};
         Hotspot hotspot = Hotspot.rect(plane, across, up, width, height)
                 .onHover(on -> {
