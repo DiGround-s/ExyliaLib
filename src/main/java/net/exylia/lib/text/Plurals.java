@@ -22,6 +22,10 @@ import org.jetbrains.annotations.Nullable;
  * many as Russian and Ukrainian count them (1, 21, 31 / 2-4, 22-24 / 0, 5-20, 25-30...). A line with no
  * {@code %name:...%} only gets its count, so a server's older wording keeps working.
  *
+ * <p>Since 1.473.0 a {@link Text} does this by itself for a whole number given through {@code with("%name%", n)}
+ * or {@link Values}, and so does a menu for its row and context values: {@code apply} is for a line filled
+ * any other way.
+ *
  * @since 1.472.0
  */
 public final class Plurals {
@@ -62,6 +66,24 @@ public final class Plurals {
      * @return the line with the count and its words in it
      */
     public static @NotNull String apply(@Nullable String line, @NotNull String name, long count) {
+        return words(line, name, count).replace("%" + name + "%", String.valueOf(count));
+    }
+
+    /**
+     * {@link #words(String, String, long)} for a value given to {@link Text} or {@link Values}: a whole number picks
+     * the words, anything else leaves the line as it is.
+     */
+    static @NotNull String wordsFor(@NotNull String line, @NotNull String name, @Nullable Object value) {
+        if (!line.contains("%" + name + ":")) return line;
+        try {
+            return words(line, name, Long.parseLong(String.valueOf(value).strip()));
+        } catch (NumberFormatException notACount) {
+            return line;
+        }
+    }
+
+    /** {@link #apply} without the count, for {@link Text}, which puts the count in on the component tree. */
+    static @NotNull String words(@Nullable String line, @NotNull String name, long count) {
         if (line == null) return "";
         String open = "%" + name + ":";
         StringBuilder out = new StringBuilder(line.length());
@@ -72,6 +94,6 @@ public final class Plurals {
             out.append(line, from, at).append(form(count, line.substring(at + open.length(), end)));
             from = end + 1;
         }
-        return out.append(line, from, line.length()).toString().replace("%" + name + "%", String.valueOf(count));
+        return out.append(line, from, line.length()).toString();
     }
 }

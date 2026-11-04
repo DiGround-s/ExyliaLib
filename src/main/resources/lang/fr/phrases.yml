@@ -1412,6 +1412,7 @@
 '{letters_black}Sneak to skip': '{letters_black}Accroupis-toi pour passer'
 '{success}✔ New to your collection': '{success}✔ Nouveau dans ta collection'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Déjà possédé {letters_black}» {highlight}+%refund% {letters}clés rendues'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back': '{warning}Déjà possédé {letters_black}» {highlight}+%refund% {letters}%refund:clé rendue|clés rendues%'
 '{success}&lOPEN ANOTHER': '{success}&lEN OUVRIR UNE AUTRE'
 '{highlight}&lDONE': '{highlight}&lTERMINÉ'
 '{warning}&lSKIP': '{warning}&lPASSER'

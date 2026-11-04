@@ -1412,6 +1412,7 @@
 '{letters_black}Sneak to skip': '{letters_black}Присядь, чтобы пропустить'
 '{success}✔ New to your collection': '{success}✔ Новое в коллекции'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Уже есть {letters_black}» {highlight}+%refund% {letters}ключей возвращено'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back': '{warning}Уже есть {letters_black}» {highlight}+%refund% {letters}%refund:ключ возвращён|ключа возвращено|ключей возвращено%'
 '{success}&lOPEN ANOTHER': '{success}&lОТКРЫТЬ ЕЩЁ'
 '{highlight}&lDONE': '{highlight}&lГОТОВО'
 '{warning}&lSKIP': '{warning}&lПРОПУСТИТЬ'

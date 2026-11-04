@@ -233,4 +233,15 @@ class RenderedTextTest {
         assertTrue(drawn.get(1).contains("Second line"), drawn.toString());
         assertFalse(drawn.toString().contains("\\n"), "no raw marker survives: " + drawn);
     }
+
+    @Test
+    @DisplayName("a count picks its word, and a value that is not a count leaves the line alone")
+    void countsPickTheirWords() {
+        assertEquals("1 key of your 3 keys", legacy("%amount% %amount:key|keys% of your %keys% %keys:key|keys%",
+                Map.of("amount", "1", "keys", "3"), Set.of()));
+        assertEquals("Price: Steve %name:a|b%", legacy("Price: %name% %name:a|b%", Map.of("name", "Steve"), Set.of()));
+        assertEquals("1 key back, 2 keys left", LegacyComponentSerializer.legacySection().serialize(
+                net.exylia.lib.text.Text.of("%refund% %refund:key|keys% back, %keys% %keys:key|keys% left")
+                        .with("%refund%", 1).with("%keys%", "2").build()));
+    }
 }

@@ -114,7 +114,9 @@ public final class Values {
         if (text == null) return "";
         String filled = text;
         for (Map.Entry<String, Object> value : values.entrySet()) {
-            filled = filled.replace("%" + value.getKey() + "%", String.valueOf(value.getValue()));
+            // A count picks its words first, %amount:key|keys% (since 1.473.0).
+            filled = Plurals.wordsFor(filled, value.getKey(), value.getValue())
+                    .replace("%" + value.getKey() + "%", String.valueOf(value.getValue()));
         }
         return filled;
     }

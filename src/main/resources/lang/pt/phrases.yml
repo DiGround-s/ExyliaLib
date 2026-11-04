@@ -1424,6 +1424,7 @@ x, y or z: x, y ou z
 '{letters_black}Sneak to skip': '{letters_black}Agache para pular'
 '{success}✔ New to your collection': '{success}✔ Novo na sua coleção'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Você já tinha {letters_black}» {highlight}+%refund% {letters}chaves devolvidas'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back': '{warning}Você já tinha {letters_black}» {highlight}+%refund% {letters}%refund:chave devolvida|chaves devolvidas%'
 '{success}&lOPEN ANOTHER': '{success}&lABRIR OUTRA'
 '{highlight}&lDONE': '{highlight}&lPRONTO'
 '{warning}&lSKIP': '{warning}&lPULAR'

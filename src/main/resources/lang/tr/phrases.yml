@@ -1424,6 +1424,7 @@ x, y or z: x, y veya z
 '{letters_black}Sneak to skip': '{letters_black}Geçmek için eğil'
 '{success}✔ New to your collection': '{success}✔ Koleksiyonunda yeni'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Zaten sende vardı {letters_black}» {highlight}+%refund% {letters}anahtar iade'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back': '{warning}Zaten sende vardı {letters_black}» {highlight}+%refund% {letters}anahtar iade'
 '{success}&lOPEN ANOTHER': '{success}&lBİR TANE DAHA AÇ'
 '{highlight}&lDONE': '{highlight}&lTAMAM'
 '{warning}&lSKIP': '{warning}&lGEÇ'

@@ -41,4 +41,11 @@ class PluralsTest {
         assertEquals("%other:a|b% 1", Plurals.apply("%other:a|b% %layers%", "layers", 1), "another name is left alone");
         assertEquals("", Plurals.apply(null, "layers", 1));
     }
+
+    @Test
+    void valuesPickTheWordsForACount() {
+        assertEquals("1 crate no longer takes it, 2 keys", Values.of().put("crates", 1).put("keys", "2")
+                .apply("%crates% %crates:crate no longer takes|crates no longer take% it, %keys% %keys:key|keys%"));
+        assertEquals("Steve %name:a|b%", Values.of().put("name", "Steve").apply("%name% %name:a|b%"));
+    }
 }

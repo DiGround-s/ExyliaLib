@@ -33,11 +33,11 @@ public record CrateMessages(
         @Comment("%reward% is what came out, %tier% its rarity.")
         String won,
 
-        @Comment("%reward% and %tier% as above, %refund% the keys handed back.")
+        @Comment("%reward% and %tier% as above, %refund% the keys handed back; %refund:key|keys% is the word for that many.")
         String duplicate,
 
         @Key("no-keys")
-        @Comment("%amount% is what the opening costs, %keys% what the player holds.")
+        @Comment("%amount% is what the opening costs, %keys% what the player holds; %amount:key|keys% the word for that many.")
         String noKeys,
 
         String busy,
@@ -47,22 +47,22 @@ public record CrateMessages(
         String disabled,
 
         @Key("keys-received")
-        @Comment("%amount% is how many key items were handed over.")
+        @Comment("%amount% is how many key items were handed over, %amount:key|keys% the word for that many.")
         String keysReceived,
 
         @Key("rewards-claimed")
-        @Comment("%amount% is how many kept rewards were handed over.")
+        @Comment("%amount% is how many kept rewards were handed over, %amount:reward was|rewards were% the words for that many.")
         String rewardsClaimed) {
 
     public CrateMessages() {
         this("%prefix%{success}You unboxed %tier% {highlight}%reward%{success}.",
-                "%prefix%{warning}%tier% {highlight}%reward% {warning}again. {highlight}%refund% {warning}key back.",
-                "%prefix%{error}That costs {highlight}%amount% {error}keys and you have {highlight}%keys%{error}.",
+                "%prefix%{warning}%tier% {highlight}%reward% {warning}again. {highlight}%refund% {warning}%refund:key|keys% back.",
+                "%prefix%{error}That costs {highlight}%amount% {error}%amount:key|keys% and you have {highlight}%keys%{error}.",
                 "%prefix%{warning}Your crate is still opening.",
                 "%prefix%{error}There is nothing in the crate yet.",
                 "%prefix%{error}The crate is off on this server.",
-                "%prefix%{success}You received {highlight}%amount% {success}crate keys.",
-                "%prefix%{success}{highlight}%amount% {success}rewards were waiting for you.");
+                "%prefix%{success}You received {highlight}%amount% {success}crate %amount:key|keys%.",
+                "%prefix%{success}{highlight}%amount% {success}%amount:reward was|rewards were% waiting for you.");
     }
 
     public CrateMessages {

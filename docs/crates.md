@@ -80,13 +80,13 @@ crate:
 ```yaml
 crate:
   won: '%prefix%{success}You unboxed %tier% {highlight}%reward%{success}.'
-  duplicate: '%prefix%{warning}%tier% {highlight}%reward% {warning}again. {highlight}%refund% {warning}key back.'
-  no-keys: '%prefix%{error}That costs {highlight}%amount% {error}keys and you have {highlight}%keys%{error}.'
+  duplicate: '%prefix%{warning}%tier% {highlight}%reward% {warning}again. {highlight}%refund% {warning}%refund:key|keys% back.'
+  no-keys: '%prefix%{error}That costs {highlight}%amount% {error}%amount:key|keys% and you have {highlight}%keys%{error}.'
   busy: '%prefix%{warning}Your crate is still opening.'
   empty: '%prefix%{error}There is nothing in the crate yet.'
   disabled: '%prefix%{error}The crate is off on this server.'
-  keys-received: '%prefix%{success}You received {highlight}%amount% {success}crate keys.'
-  rewards-claimed: '%prefix%{success}{highlight}%amount% {success}rewards were waiting for you.'
+  keys-received: '%prefix%{success}You received {highlight}%amount% {success}crate %amount:key|keys%.'
+  rewards-claimed: '%prefix%{success}{highlight}%amount% {success}%amount:reward was|rewards were% waiting for you.'
 ```
 
 `%prefix%` is the plugin's own, as `Prefixes` holds it. A line left blank is not
@@ -219,7 +219,7 @@ sections:
       name: "{primary}&lOPEN %amount%"
       lore:
         - "{secondary}Cost:"
-        - " {letters_black}▎ {highlight}%amount% {letters}keys of your {info}%keys%"
+        - " {letters_black}▎ {highlight}%amount% {letters}%amount:key|keys% of your {info}%keys%"
         - ""
         - "{warning}➥ Click to open"
         - ""
@@ -232,9 +232,9 @@ sections:
       name: "{muted}&lOPEN %amount%"
       lore:
         - "{secondary}Cost:"
-        - " {letters_black}▎ {highlight}%amount% {letters}keys of your {info}%keys%"
+        - " {letters_black}▎ {highlight}%amount% {letters}%amount:key|keys% of your {info}%keys%"
         - ""
-        - "{error}🔒 %missing% more keys needed"
+        - "{error}🔒 %missing% more %missing:key|keys% needed"
         - ""
 
     blank_template:
@@ -250,7 +250,7 @@ items:
     name: "{primary}&lYOUR KEYS"
     lore:
       - "{secondary}Holding:"
-      - " {letters_black}▎ {highlight}%keys% {letters}keys"
+      - " {letters_black}▎ {highlight}%keys% {letters}%keys:key|keys%"
       - ""
       - "{secondary}Collection:"
       - " {letters_black}▎ {success}%unlocked_count%{letters_black}/{info}%catalogue_count% {letters}unboxed"
@@ -382,7 +382,7 @@ sections:
         - " {letters_black}▎ %reward_description%"
         - ""
         - "{warning}You already owned this one"
-        - " {letters_black}▎ {highlight}%refund% {letters}keys came back"
+        - " {letters_black}▎ {highlight}%refund% {letters}%refund:key came|keys came% back"
         - ""
         - "{warning}➥ Left click to wear it"
         - "{muted}➥ Right click to preview"
@@ -463,7 +463,7 @@ items:
     name: "{primary}&lYOUR KEYS"
     lore:
       - "{secondary}Holding:"
-      - " {letters_black}▎ {highlight}%keys% {letters}keys"
+      - " {letters_black}▎ {highlight}%keys% {letters}%keys:key|keys%"
       - ""
       - "{secondary}Collection:"
       - " {letters_black}▎ {success}%unlocked_count%{letters_black}/{info}%catalogue_count% {letters}unboxed"

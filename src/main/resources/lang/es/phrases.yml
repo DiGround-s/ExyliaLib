@@ -1424,6 +1424,7 @@ x, y or z: x, y o z
 '{letters_black}Sneak to skip': '{letters_black}Agáchate para saltar'
 '{success}✔ New to your collection': '{success}✔ Nuevo en tu colección'
 '{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back': '{warning}Ya lo tenías {letters_black}» {highlight}+%refund% {letters}llaves devueltas'
+'{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back': '{warning}Ya lo tenías {letters_black}» {highlight}+%refund% {letters}%refund:llave devuelta|llaves devueltas%'
 '{success}&lOPEN ANOTHER': '{success}&lABRIR OTRA'
 '{highlight}&lDONE': '{highlight}&lLISTO'
 '{warning}&lSKIP': '{warning}&lSALTAR'

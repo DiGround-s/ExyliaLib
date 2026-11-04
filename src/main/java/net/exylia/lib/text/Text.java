@@ -357,6 +357,15 @@ public final class Text {
      * @return a new prepared text; the original is unchanged
      */
     public @NotNull Text with(@NotNull String placeholder, Object value) {
+        int last = placeholder.length() - 1;
+        if (last >= 2 && placeholder.charAt(0) == '%' && placeholder.charAt(last) == '%') {
+            // A count: %name:key|keys% in the line becomes the word for it (since 1.473.0).
+            String words = Plurals.wordsFor(raw, placeholder.substring(1, last), value);
+            if (!words.equals(raw)) {
+                return new Text(words, substitutions, viewer, owner, resolveFormatted, verbatim)
+                        .substitute(placeholder, value, false);
+            }
+        }
         return substitute(placeholder, value, false);
     }
 
@@ -516,7 +525,20 @@ public final class Text {
                     entry.getValue() == null ? "" : entry.getValue(),
                     parsed, parsed && verbatim.contains(entry.getKey())));
         }
-        return new Text(raw, updated, viewer, owner, resolveFormatted, this.verbatim);
+        // The words a count picks, %keys:key|keys%: only a name some value holds, so a line without one is
+        // read once and never copied.
+        String text = raw;
+        for (int colon = text.indexOf(':'); colon > 0; colon = text.indexOf(':', colon + 1)) {
+            int open = text.lastIndexOf('%', colon - 1);
+            String value = open < 0 ? null : values.get(text.substring(open + 1, colon));
+            if (value == null) continue;
+            String words = Plurals.wordsFor(text, text.substring(open + 1, colon), value);
+            if (!words.equals(text)) {
+                text = words;
+                colon = open;
+            }
+        }
+        return new Text(text, updated, viewer, owner, resolveFormatted, this.verbatim);
     }
 
     private Text substitute(String placeholder, Object value, boolean formatted) {

@@ -159,7 +159,7 @@ public record CrateSceneLayout(
                          boolean burst, List<String> sounds) {
         public Reveal() {
             this(0.2, "%name%", "%rarity%", "{success}✔ New to your collection",
-                    "{warning}Already owned {letters_black}» {highlight}+%refund% {letters}keys back", 3.5, true,
+                    "{warning}Already owned {letters_black}» {highlight}+%refund% {letters}%refund:key|keys% back", 3.5, true,
                     List.of("minecraft:entity.experience_orb.pickup|0.6|1.2",
                             "minecraft:block.note_block.chime|0.6|1.2",
                             "minecraft:block.note_block.bell|0.6|1.4",

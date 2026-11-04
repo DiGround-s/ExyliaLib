@@ -137,6 +137,9 @@ String line = Plurals.apply(text.slotLine(), "layers", design.layerCount());
 - `form(count, forms)` is the word alone. The number of forms picks the rule: one is every count's; two are one
   and other (the first for exactly 1: English, Spanish, Portuguese, French); three are Russian's and Ukrainian's
   one, few and many (1, 21 / 2-4, 22-24 / 0, 5-20, 11-14).
+- `Text` and `Values` do it by themselves (since 1.473.0): `Text.from(plugin, line).with("%amount%", amount)`,
+  `Values.of("amount", n)` and a menu's row and context values pick the words for a whole number, so
+  `%keys% %keys:key|keys%` in a message or a menu needs no code. `apply` is for a line filled any other way.
 
 ## Effects inside a message
 

@@ -28,6 +28,7 @@ import net.exylia.lib.stage.Stage;
 import net.exylia.lib.stage.StageLook;
 import net.exylia.lib.stage.StagePlane;
 import net.exylia.lib.text.Phrases;
+import net.exylia.lib.text.Plurals;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.sequence.SequenceRun;
 import net.exylia.lib.util.sequence.SequenceTarget;
@@ -710,8 +711,8 @@ final class SceneSession {
     }
 
     private String fill(String raw, CrateFace prize, CrateReveal outcome) {
-        return fill(raw).replace("%name%", prize.name()).replace("%rarity%", prize.rarity())
-                .replace("%refund%", String.valueOf(outcome.refund()));
+        return Plurals.apply(fill(raw).replace("%name%", prize.name()).replace("%rarity%", prize.rarity()),
+                "refund", outcome.refund());
     }
 
     // ── The preview ───────────────────────────────────────────────────────
