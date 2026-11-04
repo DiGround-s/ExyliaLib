@@ -50,3 +50,35 @@ stay with `Stays.of(plugin).holdSkillsBack()` (since 1.411.0), without calling
 Code: `hook/skill/SkillHooks` (API), `hook/skill/internal/SkillHookRuntime`
 (suspensions and the listened events). Adding a skill plugin is one line in
 `SkillHookRuntime.SOURCES`.
+
+## Permission groups
+
+*Since 1.469.0.* Entry point: `net.exylia.lib.hook.group.PermissionGroups`.
+
+Rules written by rank ("staff never play events", "VIP arenas") need to know
+which groups a player is in, and a menu that offers those ranks needs the list:
+
+```java
+PermissionGroups.isIn(player, "staff");          // inherited groups count
+PermissionGroups.isInAny(player, blockedRanks);
+PermissionGroups.of(player);                     // ["default", "vip"]
+PermissionGroups.all();                          // every group, for a picker
+PermissionGroups.canList();                      // false: offer typing a name instead
+```
+
+### Behavior
+
+- **Vault first.** With Vault and a permission plugin that has groups
+  (LuckPerms, PermissionsEx, GroupManager...), every answer comes from Vault's
+  permission service, reached by reflection: no compile dependency, and a
+  server without Vault loads the class fine.
+- **Without Vault** membership falls back to the `group.<name>` node LuckPerms
+  and most permission plugins grant, counted only when it is explicitly set.
+  An operator, who holds every unset node, is never taken as a member of every
+  group. `all()` is empty there, so a picker falls back to a typed name.
+- Names are lower-cased; comparisons are case-insensitive.
+- **Threads:** whatever the permission plugin allows (LuckPerms: any).
+- **Reload:** nothing is cached but the reflected method handles; the service
+  is asked for on every call, so a permission plugin swapped at runtime is seen.
+
+Code: `hook/group/PermissionGroups`.
