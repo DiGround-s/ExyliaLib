@@ -426,11 +426,22 @@ public final class ItemRenderer {
             // Air, and a few oddities. Nothing to write on.
             return;
         }
-        if (definition.name() != null) {
+        boolean own = definition.appearance().keepOwnText();
+        // A player's real item keeps the name it was given, and an unnamed one
+        // the name the client translates, rather than wearing the file's.
+        if (definition.name() != null && !own) {
             meta.displayName(text(definition.name(), viewer, values, formatted, verbatim));
         }
         if (!definition.lore().isEmpty()) {
-            meta.lore(lore(definition.lore(), viewer, values, formatted, verbatim));
+            List<Component> written = lore(definition.lore(), viewer, values, formatted, verbatim);
+            List<Component> carried = own ? meta.lore() : null;
+            if (carried != null && !carried.isEmpty()) {
+                List<Component> both = new ArrayList<>(carried.size() + written.size());
+                both.addAll(carried);
+                both.addAll(written);
+                written = both;
+            }
+            meta.lore(written);
         }
         enchantments(meta, definition.enchantments(), resolve, problems);
         appearance(meta, definition.appearance(), resolve, problems);

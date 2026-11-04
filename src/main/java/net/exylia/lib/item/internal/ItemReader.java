@@ -109,6 +109,7 @@ public final class ItemReader {
                 .flags(lines(section, "flags", "item-flags", "item_flags"))
                 .model(first(section, "item_model", "item-model"))
                 .tooltipStyle(first(section, "tooltip_style", "tooltip-style"))
+                .keepOwnText(flag(section, "keep_own_text", "keep-own-text"))
                 .build();
         return built.equals(DEFAULT) ? DEFAULT : built;
     }

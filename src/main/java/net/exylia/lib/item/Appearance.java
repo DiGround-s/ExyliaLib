@@ -31,6 +31,11 @@ import java.util.List;
  * @param flags          {@link org.bukkit.inventory.ItemFlag} names to hide
  * @param model          an item model key, {@code namespace:key}, or {@code null}
  * @param tooltipStyle   a tooltip style key, {@code namespace:key}, or {@code null}
+ * @param keepOwnText    draws the item as itself: the name it carries stays, the
+ *                       file's {@code name} is not written, and the file's lore
+ *                       goes beneath the lore it carries rather than replacing
+ *                       it. For screens that show a player's real item, such as
+ *                       a market listing; since 1.470.0
  * @since 1.22.0
  */
 public record Appearance(
@@ -42,7 +47,8 @@ public record Appearance(
         int maxStackSize,
         @NotNull List<String> flags,
         @Nullable String model,
-        @Nullable String tooltipStyle) {
+        @Nullable String tooltipStyle,
+        boolean keepOwnText) {
 
     /**
      * An item with nothing special about it.
@@ -55,6 +61,15 @@ public record Appearance(
 
     public Appearance {
         flags = List.copyOf(flags);
+    }
+
+    /** The appearance as it was before {@code keepOwnText}, which stays off. */
+    public Appearance(@Nullable String glow, boolean hideTooltip, boolean hideAttributes,
+                      boolean unbreakable, int modelData, int maxStackSize,
+                      @NotNull List<String> flags, @Nullable String model,
+                      @Nullable String tooltipStyle) {
+        this(glow, hideTooltip, hideAttributes, unbreakable, modelData, maxStackSize,
+                flags, model, tooltipStyle, false);
     }
 
     /** Returns whether this is the default appearance. */
@@ -78,6 +93,7 @@ public record Appearance(
         private List<String> flags = List.of();
         private String model;
         private String tooltipStyle;
+        private boolean keepOwnText;
 
         private Builder() {
         }
@@ -138,10 +154,16 @@ public record Appearance(
             return this;
         }
 
+        /** @since 1.470.0 */
+        public @NotNull Builder keepOwnText(boolean keepOwnText) {
+            this.keepOwnText = keepOwnText;
+            return this;
+        }
+
         /** Builds it, returning the shared {@link #PLAIN} when nothing was set. */
         public @NotNull Appearance build() {
             Appearance built = new Appearance(glow, hideTooltip, hideAttributes, unbreakable,
-                    modelData, maxStackSize, flags, model, tooltipStyle);
+                    modelData, maxStackSize, flags, model, tooltipStyle, keepOwnText);
             return built.equals(PLAIN) ? PLAIN : built;
         }
     }

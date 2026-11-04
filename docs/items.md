@@ -269,6 +269,13 @@ legacy codes all work, and italics are off unless asked for.
 | `item_model`, `item-model` | an item model key, `namespace:key` |
 | `tooltip_style`, `tooltip-style` | a tooltip style key |
 | `enchantments` | a section of `NAME: level`, or a list of `NAME:level` |
+| `keep_own_text`, `keep-own-text` | draws a real item as itself: its own name stays (the file's `name` is ignored) and the file's lore goes beneath its own lore (1.470.0+) |
+
+`keep_own_text` is for screens that show a player's actual item, such as a
+market listing drawn from `Source.whole`: enchantments, a renamed name and the
+item's lore read exactly as in the inventory, with the screen's lines added
+underneath. Pair it with `hide_attributes: false` so damage, potion effects and
+trims stay too.
 
 `hide-attributes` is on unless a file writes `false`, and covers the whole of
 what the client writes on its own: the damage and speed lines on a tool, and the block a smithing template, a potion, a
