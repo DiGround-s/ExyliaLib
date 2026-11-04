@@ -35,6 +35,17 @@ class GeometryTest {
         assertEquals(-left.yaw(), right.yaw(), 1e-6, "mirrored");
     }
 
+    /** Where a tour arrow must stop: the first point of a panel's box along its way, nothing when it misses. */
+    @Test
+    void aRayEntersABoxAtItsNearEdge() {
+        assertEquals(1.0, Geometry.entry(0, 0, 1, 0, 2, 0, 1, 0.5), 1e-9);
+        double diagonal = Math.sqrt(0.5);
+        assertEquals(Math.hypot(1, 1), Geometry.entry(0, 0, diagonal, diagonal, 2, 2, 1, 1), 1e-9);
+        assertTrue(Double.isNaN(Geometry.entry(0, 0, 1, 0, 2, 2, 1, 0.5)), "passes over it");
+        assertTrue(Double.isNaN(Geometry.entry(0, 0, -1, 0, 2, 0, 1, 0.5)), "points away from it");
+        assertTrue(Double.isNaN(Geometry.entry(2, 0, 1, 0, 2, 0, 1, 0.5)), "starts inside it");
+    }
+
     @Test
     void raysHitATurnedPanelOnlyInsideIt() {
         StagePlane panel = Geometry.panel(null, board(), -2.05, 0.45, 0.45, 24);

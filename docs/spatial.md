@@ -629,6 +629,17 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
 | Hint | `frame: false`, a `TEXT` line `%catalog_hint%` | One short muted line: what to do next, or what the icon under the crosshair does |
 | Tour | `intro.steps` | Coach marks; see below |
 
+**Since 1.472.0** (after the Shields bot run):
+
+- **An icon's words stand clear of its glyph.** They were written 0.78 of the row's height under its middle,
+  whatever size the theme drew the glyph and the readable floor drew the words, so a grown `?` touched its `Help`
+  in every menu. They now stand at least that low and always 0.03 under the grown glyph's box, from the sizes both
+  are drawn at (`Geometry.iconWordsDrop`, `CentreStageLayoutTest`).
+- **The tour's arrow stops short of any panel it points at**, not only of a row of icons: it stands in the room
+  between its caption and the panel's box as the eyes see it, its nudge included, smaller to fit (never under
+  60 %), and a caption with less room than that is set elsewhere (a row of icons keeps its 1.457.0 rule). The arrow
+  of a designer's layer stack no longer touches its top row.
+
 **Since 1.454.0** (after the second client test):
 
 - **Readable on any sky or ground.** `backdrop: {at, size, tint, alpha, feather, rings}` draws one soft dark

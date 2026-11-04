@@ -327,6 +327,42 @@ class CentreStageLayoutTest {
         assertEquals(String.join(" ", lines), text, "every word kept, in order");
     }
 
+    /**
+     * The words under an icon looked at never touch its glyph, grown under the crosshair: the bot read "?" over its
+     * "Help" in every menu, because the words stood 0.78 of the row's height down whatever size the theme drew the
+     * glyph and the readable floor drew the words. Boxes as the client draws a line: from its origin (half a line
+     * under where it is written) up ten pixels and one more.
+     */
+    @Test
+    void anIconsWordsStandClearOfItsGrownGlyph() throws Exception {
+        SpatialLayout layout = read(plugin, folder, SpatialMenus.CENTRE_STAGE);
+        SpatialLayout.Panel row = layout.panel("icons");
+        double far = Math.hypot(layout.anchor().distance() - row.forward(), row.up());
+        double floor = Geometry.readableScale(far, layout.theme().minGlyphDegrees(), Geometry.CAPITAL_PIXELS);
+        double glyph = layout.theme().titleScale() * 1.5;
+        double words = Math.max(floor, layout.theme().smallScale());
+        double before = clearance(row.height() * 0.78, glyph, words);
+        assertTrue(before < 0, "the shipped row overlapped before: " + before);
+        for (double height : new double[]{0.12, 0.246, 0.4}) {
+            for (double title : new double[]{0.6, 0.9, 1.2}) {
+                for (double small : new double[]{0.3, words, 0.7}) {
+                    double drop = Geometry.iconWordsDrop(height, title * 1.5, small);
+                    assertTrue(clearance(drop, title * 1.5, small) >= 0.02,
+                            "row " + height + ", glyph " + title * 1.5 + ", words " + small + ": " + clearance(drop, title * 1.5, small));
+                    assertTrue(drop >= height * 0.78 - 1e-9, "never higher than before");
+                }
+            }
+        }
+    }
+
+    /** Between the bottom of a glyph's box written at 0 and the top of its words' box written {@code drop} under it. */
+    private static double clearance(double drop, double glyph, double words) {
+        double line = Geometry.PIXEL * 10;
+        double glyphBottom = -line * glyph / 2;
+        double wordsTop = -drop - line * words / 2 + (line + Geometry.PIXEL) * words;
+        return glyphBottom - wordsTop;
+    }
+
     @Test
     void anEffectIsTurnedToShowItsMotionAcrossTheView() {
         // A body thrown straight away from the viewer when played facing them: seen end-on, it shows nothing.

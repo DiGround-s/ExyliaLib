@@ -116,6 +116,28 @@ inputs.confirm(player, values.apply(config.deletePrompt())); // spliced into a r
   bar and boss bar before they are parsed.
 
 
+## Counts and their words: `Plurals` (since 1.472.0)
+
+A line names a count as `%name%` and the word after it as `%name:forms%`, the forms split by bars, so each
+translation writes its own words and order:
+
+```yaml
+slot-line: '{info}%layers% %layers:layer|layers%'      # en: 1 layer, 2 layers
+slot-line: '{info}%layers% %layers:слой|слоя|слоёв%'   # ru: 1 слой, 3 слоя, 5 слоёв
+slot-line: '{info}%layers% katman'                     # tr: one form, no placeholder needed
+```
+
+```java
+String line = Plurals.apply(text.slotLine(), "layers", design.layerCount());
+```
+
+- `apply(line, name, count)` writes the count into `%name%` and the form that goes with it into every
+  `%name:forms%`; run it before the line is parsed. A line without `%name:...%` only gets its count, so an older
+  wording in a server's file keeps working.
+- `form(count, forms)` is the word alone. The number of forms picks the rule: one is every count's; two are one
+  and other (the first for exactly 1: English, Spanish, Portuguese, French); three are Russian's and Ukrainian's
+  one, few and many (1, 21 / 2-4, 22-24 / 0, 5-20, 11-14).
+
 ## Effects inside a message
 
 A message can ask for a sound, particles or a firework, in the notation

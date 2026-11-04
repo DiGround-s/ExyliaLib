@@ -188,6 +188,43 @@ public final class Geometry {
     public static final int CAPITAL_PIXELS = 7;
     public static final int SMALL_CAPITAL_PIXELS = 5;
 
+    /** The room kept between an icon row's grown glyph and the words written under it, in blocks. */
+    public static final double ICON_WORDS_GAP = 0.03;
+
+    /**
+     * How far under an icon row's middle the words of the icon looked at are centred: 0.78 of the row's
+     * {@code height}, or lower when the glyph, grown under the crosshair to {@code glyphScale}, would reach its
+     * words at {@code wordsScale}. A line centred where it is written reaches half its ten pixels under that
+     * and one pixel more over it (the client's padding), so this keeps {@link #ICON_WORDS_GAP} between the two.
+     * The row's height alone said nothing about the glyph, whose size is the theme's.
+     */
+    public static double iconWordsDrop(double height, double glyphScale, double wordsScale) {
+        double line = PIXEL * 10;
+        return Math.max(height * 0.78, line * glyphScale / 2 + (line / 2 + PIXEL) * wordsScale + ICON_WORDS_GAP);
+    }
+
+    /**
+     * How far along the direction {@code (ux, uy)} from {@code (x, y)} a ray first meets the box centred on
+     * {@code (cx, cy)} with half sizes {@code (halfWidth, halfHeight)}; {@code NaN} when it misses it or starts
+     * inside it.
+     */
+    public static double entry(double x, double y, double ux, double uy, double cx, double cy,
+                               double halfWidth, double halfHeight) {
+        double near = 0;
+        double far = Double.MAX_VALUE;
+        for (double[] axis : new double[][]{{x, ux, cx, halfWidth}, {y, uy, cy, halfHeight}}) {
+            if (Math.abs(axis[1]) < 1e-9) {
+                if (Math.abs(axis[0] - axis[2]) > axis[3]) return Double.NaN;
+                continue;
+            }
+            double a = (axis[2] - axis[3] - axis[0]) / axis[1];
+            double b = (axis[2] + axis[3] - axis[0]) / axis[1];
+            near = Math.max(near, Math.min(a, b));
+            far = Math.min(far, Math.max(a, b));
+        }
+        return near > 0 && near <= far ? near : Double.NaN;
+    }
+
     /**
      * The smallest text scale whose glyphs, {@code pixels} tall, look at least {@code degrees} tall from
      * {@code distance} blocks away: the readability floor every line of a spatial menu is drawn above.

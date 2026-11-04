@@ -1484,13 +1484,14 @@ final class MenuSession implements SpatialContext {
                             }
                             drawn.remove(glyph[0]);
                             drop(glyph[0]);
-                            glyph[0] = glyph(button, across, on, -1);
+                            Fitted look = glyphLine(button, across, on);
+                            glyph[0] = text(look, panel.plane, panel.rotation, across, 0, 0.016, true, -1);
                             if (glyph[0] != null) drawn.add(glyph[0]);
-                            // Its words, right under it, only while it is looked at.
+                            // Its words, right under it, only while it is looked at: clear of the glyph as it is
+                            // drawn now (grown), at the size they are drawn (the readable floor may beat small-scale).
                             drawn.remove(words[0]);
                             drop(words[0]);
-                            words[0] = on ? write("{letters}" + button.words(), true, panel.plane, panel.rotation, across,
-                                    -panel.panel.height() * 0.78, 0.016, 2.4, theme.smallScale(), true, -1) : null;
+                            words[0] = on ? words(button, across, look.scale()) : null;
                             if (words[0] != null) drawn.add(words[0]);
                             if (on) set(ICON_LABEL, "{letters}" + button.words());
                             else if (("{letters}" + button.words()).equals(get(ICON_LABEL))) set(ICON_LABEL, null);
@@ -1501,12 +1502,23 @@ final class MenuSession implements SpatialContext {
         }
 
         private @Nullable DisplayHandle glyph(IconButton button, double across, boolean lit, long delay) {
+            return text(glyphLine(button, across, lit), panel.plane, panel.rotation, across, 0, 0.016, true, delay);
+        }
+
+        private Fitted glyphLine(IconButton button, double across, boolean lit) {
             // In its own colour when it has one, brighter and bolder under the crosshair.
             String colour = button.colour().isBlank() ? (lit ? "{secondary_light}" : "{letters}") : button.colour();
             String text = colour + (lit ? "&l" : "") + button.glyph();
             double size = theme.titleScale() * (lit ? 1.5 : 1.3);
-            return write(text, true, panel.plane, panel.rotation, across, 0, 0.016, panel.panel.height() * ICON_PITCH,
-                    size, true, delay);
+            return fit(text, true, panel.panel.height() * ICON_PITCH, size, panel.plane.point(across, 0, 0.016));
+        }
+
+        private @Nullable DisplayHandle words(IconButton button, double across, double glyphScale) {
+            double height = panel.panel.height();
+            Fitted line = fit("{letters}" + button.words(), true, 2.4, theme.smallScale(),
+                    panel.plane.point(across, -height * 0.78, 0.016));
+            return text(line, panel.plane, panel.rotation, across, -Geometry.iconWordsDrop(height, glyphScale, line.scale()),
+                    0.016, true, -1);
         }
     }
 
@@ -3112,6 +3124,8 @@ final class MenuSession implements SpatialContext {
     /** The room between a tour caption's box and its arrow, the arrow's own half size, a caption's own margin. */
     private static final double ARROW_GAP = 0.3;
     private static final double ARROW_RADIUS = 0.16;
+    /** How far the arrow nudges towards its piece, over and over. */
+    private static final double ARROW_NUDGE = 0.08;
     /** How far round the point an arrow aims at it stays: it points at a piece, it never sits on it. */
     private static final double TARGET_CLEAR = 0.3;
     private static final double CAPTION_MARGIN = 0.03;
@@ -3262,10 +3276,17 @@ final class MenuSession implements SpatialContext {
                     if (y - halfHeight < layout.lowest() - 0.05 || box[3] > VIEW_TOP) continue;
                     if (hits(box, taken)) continue;
                     // The arrow, between the box and the piece, must not land on anything but the piece.
-                    double[] arrow = arrowAt(new double[]{x, y, depth, halfWidth - CAPTION_MARGIN, halfHeight - CAPTION_MARGIN}, target);
+                    double[] caption = {x, y, depth, halfWidth - CAPTION_MARGIN, halfHeight - CAPTION_MARGIN};
+                    double[] arrow = arrowAt(caption, target);
                     double half = ARROW_RADIUS;
                     double[] arrowBox = {(arrow[0] - half) * k, (arrow[1] - half) * k, (arrow[0] + half) * k, (arrow[1] + half) * k};
                     if (hits(arrowBox, others)) continue;
+                    // Nor on the panel it points at: there must be room for it before the panel, at 60 % at least
+                    // (a row of icons keeps its own rule, where the arrow may come close to the glyph).
+                    if (!iconRow(name)) {
+                        double[] room = roomBefore(name, caption, target);
+                        if (room != null && room[1] - room[0] < ARROW_RADIUS * 2 * 0.6) continue;
+                    }
                     double turn = Math.abs(Math.atan2(Math.sin(angle - prefer), Math.cos(angle - prefer)));
                     double cost = reach + turn * 0.35;
                     if (cost < bestCost) {
@@ -3363,7 +3384,7 @@ final class MenuSession implements SpatialContext {
             // A gentle nudge towards the piece, over and over.
             long cycle = 900L;
             for (int i = 0; i <= 2; i++) {
-                double push = i == 1 ? 0.08 : 0;
+                double push = i == 1 ? ARROW_NUDGE : 0;
                 frames.add(new DisplayKeyframe(lead + cycle * i / 2, (float) (towards[0] * push), (float) (towards[1] * push),
                         (float) (towards[2] * push), turn, s, s, s));
             }
@@ -3403,15 +3424,30 @@ final class MenuSession implements SpatialContext {
 
         /**
          * The arrow's spot and size, {across, up, forward, size}: outside its caption at its usual size, or, pointing
-         * at a row of icons with little room before it, set in the middle of what room there is between the caption
-         * and the glyph and made smaller to fit (never under 60 %), so it covers neither.
+         * at a panel with little room before it, set in the middle of what room there is between the caption and the
+         * panel and made smaller to fit (never under 60 %), so it covers neither. A row of icons is met at its glyph;
+         * any other panel at its box as the eyes see it, with room for the arrow's nudge (since 1.472.0: the arrow
+         * pointing at a layer stack touched its top row).
          */
         private double[] shortOfGlyphs(String target, double[] caption, double[] aim) {
             double[] spot = arrowAt(caption, aim, ARROW_GAP);
+            double[] room = roomBefore(target, caption, aim);
+            if (room == null) return new double[]{spot[0], spot[1], spot[2], 1};
+            double from = room[0];
+            double free = room[1] - from;
+            double size = Math.clamp(free / (ARROW_RADIUS * 2), 0.6, 1);
+            double mid = free >= ARROW_RADIUS * 2 + ARROW_GAP ? from + ARROW_GAP + ARROW_RADIUS : from + free / 2;
+            return new double[]{caption[0] + room[2] * mid, caption[1] + room[3] * mid, spot[2], size};
+        }
+
+        /**
+         * Along the line from a caption box towards {@code aim}: {from, to, ux, uy}, where the room for the arrow
+         * starts (the caption's edge) and ends (the panel it points at), a little kept clear at both ends; {@code null}
+         * when the step points at no panel.
+         */
+        private double @Nullable [] roomBefore(String target, double[] caption, double[] aim) {
             SpatialLayout.Panel panel = layout.panel(target);
-            if (panel == null || panel.content().type() != SpatialLayout.Content.Type.ICONS) {
-                return new double[]{spot[0], spot[1], spot[2], 1};
-            }
+            if (panel == null) return null;
             double dx = aim[0] - caption[0];
             double dy = aim[1] - caption[1];
             double length = Math.max(1e-6, Math.hypot(dx, dy));
@@ -3419,13 +3455,24 @@ final class MenuSession implements SpatialContext {
             double uy = dy / length;
             double exit = Math.min(Math.abs(ux) < 1e-6 ? Double.MAX_VALUE : caption[3] / Math.abs(ux),
                     Math.abs(uy) < 1e-6 ? Double.MAX_VALUE : caption[4] / Math.abs(uy));
-            // From the caption's edge to the near edge of the glyph, a little kept clear at both ends.
-            double from = exit + 0.01;
-            double to = length - panel.height() * 0.45 - 0.01;
-            double room = to - from;
-            double size = Math.clamp(room / (ARROW_RADIUS * 2), 0.6, 1);
-            double mid = room >= ARROW_RADIUS * 2 + ARROW_GAP ? from + ARROW_GAP + ARROW_RADIUS : (from + to) / 2;
-            return new double[]{caption[0] + ux * mid, caption[1] + uy * mid, spot[2], size};
+            double to;
+            if (iconRow(target)) {
+                to = length - panel.height() * 0.45;
+            } else {
+                // The panel stands further back than the arrow, so it looks smaller from the eyes: its box as seen
+                // from the arrow's depth.
+                double seen = Math.max(0.5, distance - caption[2] - 0.02) / Math.max(0.5, distance - panel.forward());
+                double enter = Geometry.entry(caption[0], caption[1], ux, uy, panel.across() * seen, panel.up() * seen,
+                        panel.width() / 2 * seen, panel.height() / 2 * seen);
+                if (Double.isNaN(enter)) return null;
+                to = enter - ARROW_NUDGE;
+            }
+            return new double[]{exit + 0.01, to - 0.01, ux, uy};
+        }
+
+        private boolean iconRow(String target) {
+            SpatialLayout.Panel panel = layout.panel(target);
+            return panel != null && panel.content().type() == SpatialLayout.Content.Type.ICONS;
         }
 
         private double[] arrowAt(double[] caption, double[] target) {
