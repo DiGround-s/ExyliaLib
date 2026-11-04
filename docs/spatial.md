@@ -217,6 +217,12 @@ to the line's body colour, the first readable one it is written in, else `{lette
 (`{letters}... {highlight}gets deleted{neutral}.`) then reads whole in 3D with no server's file edited. Boards
 without a backdrop draw colours as written.
 
+**Only grey words give way (since 1.470.1).** A hue carries meaning and is kept as written (`{primary}`, `{error}`, a
+rarity's blue): only a grey (HSV saturation under a quarter: `&8`, `{neutral}`, `{muted}`) gives way. A colour written
+on symbols alone (a dye's `■` swatch, an icon's `↶`, a `✔` marker) is content, not words, and is never touched; nor is
+a dark swatch taken for the line's body colour. Before 1.470.1 every dark dye swatch, `{primary}` title and `{error}`
+line read lavender.
+
 ## Words and translation
 
 Since 1.408.0 every theme line is filled like a title: the plugin's `values`,
@@ -346,6 +352,14 @@ side panels and under the header; an effect that flies 20 blocks up does not
 fit at any readable size. Before 1.413.0 the effect played full size from 0.8
 above the pedestal, so a body towered over the header and floor rings drew at
 eye height, edge-on, as a thin bar across the middle.
+
+**An item on the pedestal (since 1.470.1).** `SpatialPreview.item(...)` is drawn in the item frame's display
+context, so a shield or a banner shows its front, centred, never its edge or back. At `turn-speed: 0` it faces the
+viewer (`facing`), swaying a few degrees; any other speed turns it round, and `turn-controls` turn it as a body.
+On shelves, arcs, plinths and the crate reel a shield or a banner is drawn the same way and never spins round when
+chosen (it sways), nor as a crate scene's prize whatever its `turn-speed`; every other item keeps its inventory icon
+(`spatial/internal/ItemFacing`). Before 1.470.1 an
+item preview always span full circle and a shield or banner opened edge-on or from behind.
 
 **Facing and turning the body (since 1.442.0).** `preview.facing` is the side a
 body (`npc(...)`, the mannequin) shows when it stands: `FRONT` (towards the
@@ -659,6 +673,11 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   bold, its subtitle (else its name) and price written once under the grid; a locked one is drawn smaller. A click
   chooses it, also when it is chosen already, so `onSelect` can toggle (edit a layer, stop editing it). Its words
   under it count for `lowest()` and the tour's free room (`Content.wordsUnder`).
+  Since 1.470.1 an entry whose name starts with a swatch (a colour on `■`) is drawn as a tile of exactly that colour
+  in a thin `{letters_black}` rim (lit in `hover-glow` under the crosshair, the tile growing a little), so black and
+  navy read on the dark backdrop; words after the `■` are drawn beside it (`'<#3c44aa>■ {letters}Stripe Left'`).
+  `columns: 1` is a stack with a fixed pitch (`height / rows`, from the top): each row its tile at the left and its
+  words after it, the chosen row on a soft accent plate, the row under the crosshair in `hover-glow`.
 - **A plain-word selector by the preview** is a `TABS` panel with the plugin's own source (the piece edited, the
   armour tried on, the step of a look): any source works, not only `catalog_tabs`. The catalogue's own tabs stay
   hidden while it has no categories or favourites, so a wardrobe can put its steps on top

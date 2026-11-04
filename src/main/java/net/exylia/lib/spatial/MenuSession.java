@@ -488,7 +488,6 @@ final class MenuSession implements SpatialContext {
     /** A delay meaning "drawn again because its words changed": a soft re-pop instead of the entry pop. */
     private static final long REPOP = -2L;
     /** The display context an icon is drawn in: the GUI's, so every item looks like its inventory icon. */
-    private static final int GUI_CONTEXT = 6;
     /** A plinth, in its slot's own terms: its centre's height, its size, and its top. */
     private static final double PLINTH_UP = -0.17;
     private static final double PLINTH_SIZE = 0.44;
@@ -878,9 +877,17 @@ final class MenuSession implements SpatialContext {
         return iconMotion(plinth, shelf, SHELF_HOVER_AHEAD, theme.hoverGrow(), slot, turn, size, depth, pose, towards, delay);
     }
 
-    /** As above, coming {@code hoverAhead} forward and growing {@code hoverGrow} under the crosshair. */
     private DisplayMotion iconMotion(boolean plinth, boolean shelf, double hoverAhead, double hoverGrow, int slot, Rotation turn,
                                      double size, double depth, Pose pose, double[] towards, long delay) {
+        return iconMotion(plinth, shelf, hoverAhead, hoverGrow, slot, turn, size, depth, pose, towards, delay, false);
+    }
+
+    /**
+     * As above, coming {@code hoverAhead} forward and growing {@code hoverGrow} under the crosshair. A {@code flat}
+     * item (a shield, a banner) never turns round to its back: chosen, it sways as when resting.
+     */
+    private DisplayMotion iconMotion(boolean plinth, boolean shelf, double hoverAhead, double hoverGrow, int slot, Rotation turn,
+                                     double size, double depth, Pose pose, double[] towards, long delay, boolean flat) {
         double grow = pose == Pose.IDLE ? 1.0 : pose == Pose.HOVER ? hoverGrow : 1.1;
         double lift = shelf ? (pose == Pose.HOVER ? 0.05 : 0)
                 : !plinth ? 0 : pose == Pose.CHOSEN ? 0.07 : pose == Pose.HOVER ? 0.035 : 0;
@@ -891,17 +898,18 @@ final class MenuSession implements SpatialContext {
         double phase = slot * 0.37;
         List<DisplayKeyframe> loop = new ArrayList<>();
         long cycle;
-        if (plinth && pose == Pose.CHOSEN) {
+        if (plinth && pose == Pose.CHOSEN && !flat) {
             cycle = 2400L;
             for (int i = 0; i <= 8; i++) {
                 loop.add(frame(cycle * i / 8, towards, ahead, lift, Rotation.around(Rotation.Axis.Y, Math.PI * 2 * i / 8).then(turn), sx, sz));
             }
         } else if (plinth) {
             cycle = 3600L;
+            double sway = Math.toRadians(flat ? 6 : 16);
             for (int i = 0; i <= 6; i++) {
                 double wave = Math.sin(Math.PI * 2 * (i / 6.0 + phase));
                 loop.add(frame(cycle * i / 6, towards, ahead, lift + 0.012 * wave,
-                        Rotation.around(Rotation.Axis.Y, Math.toRadians(16) * wave).then(turn), sx, sz));
+                        Rotation.around(Rotation.Axis.Y, sway * wave).then(turn), sx, sz));
             }
         } else {
             cycle = 4000L;
@@ -1509,9 +1517,14 @@ final class MenuSession implements SpatialContext {
      * hover, so a click that redraws the grid under the crosshair leaves nothing behind), its subtitle (else its name)
      * and price written once under the grid. A locked entry is drawn smaller. A click chooses it, also when it is
      * chosen already, so a plugin can toggle (edit a layer, stop editing it).
+     *
+     * <p>Since 1.470.1 an entry whose name starts with a swatch (a colour on a {@code ■}) is drawn as a tile of
+     * exactly that colour in a thin light rim, never recoloured, the rim lit under the crosshair. One column is a
+     * stack: each row its tile at the left and its words after it, the chosen row on a soft accent plate.
      */
     private final class Palette {
         private static final double UNDERLINE = 0.014;
+        private static final double RIM = 0.012;
         private final PanelPart panel;
         private final String source;
         private final int columns;
@@ -1532,6 +1545,10 @@ final class MenuSession implements SpatialContext {
             this.rows = content.rows();
             this.delay = delay;
             refresh();
+        }
+
+        private boolean stack() {
+            return columns == 1;
         }
 
         private List<SpatialEntry> entries() {
@@ -1558,6 +1575,11 @@ final class MenuSession implements SpatialContext {
         }
 
         private double[] cell(int index, int count) {
+            if (stack()) {
+                // A stack keeps its pitch: a short one stands at the top, not spread over the panel.
+                double pitchY = panel.panel.height() / Math.max(1, rows);
+                return new double[]{0, panel.panel.height() / 2 - pitchY * (index + 0.5), panel.panel.width(), pitchY};
+            }
             int across = Math.min(columns, count);
             int down = (count + columns - 1) / columns;
             double pitchX = panel.panel.width() / Math.max(1, across);
@@ -1577,7 +1599,7 @@ final class MenuSession implements SpatialContext {
         }
 
         private @Nullable DisplayHandle entry(SpatialEntry entry, double[] at, long wait) {
-            return write(entry.name(), true, panel.plane, panel.rotation, at[0], at[1], 0.016, at[2] * 0.92, max(entry),
+            return write(fill(entry.name()), true, panel.plane, panel.rotation, at[0], at[1], 0.016, at[2] * 0.92, max(entry),
                     true, wait);
         }
 
@@ -1590,6 +1612,19 @@ final class MenuSession implements SpatialContext {
             float size = (float) (lit ? base * 1.25 : base);
             glyph.then(DisplayMotion.of(List.of(here.at(0), new DisplayKeyframe(90, here.x(), here.y(), here.z(),
                     here.rotation(), size, size, size)), LIFE));
+        }
+
+        /** A sheet grown to {@code grow} of its size in place, and back: the same display. */
+        private void grow(@Nullable DisplayHandle sheet, double side, double grow) {
+            if (sheet == null) return;
+            DisplayKeyframe here = sheet.pose();
+            if (here == null) return;
+            sheet.then(DisplayMotion.of(List.of(here.at(0), Geometry.glass(90, panel.rotation, side, side, grow, 0, 0, 0)),
+                    LIFE));
+        }
+
+        private int rimColour(boolean lit) {
+            return Geometry.argb(255, lit ? colour(theme.hoverGlow(), 0xFFD700) : colour("{letters_black}", 0xA89AB5));
         }
 
         private void draw() {
@@ -1605,19 +1640,88 @@ final class MenuSession implements SpatialContext {
             for (int i = 0; i < count; i++) {
                 SpatialEntry entry = shown.get(i);
                 double[] at = cell(i, count);
-                DisplayHandle glyph = entry(entry, at, wait < 0 ? wait : wait + i * 25L);
-                if (glyph != null) drawn.add(glyph);
-                if (i == active) {
-                    double width = Math.min(at[2] * 0.7, 0.3);
-                    DisplayHandle line = sheet(panel.plane.point(at[0], at[1] - at[3] * 0.42, 0.016), panel.rotation, width,
-                            UNDERLINE, Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), wait < 0 ? -1 : wait + 120);
+                long when = wait < 0 ? wait : wait + i * 25L;
+                String name = fill(entry.name());
+                net.exylia.lib.spatial.internal.Legible.Swatch swatch =
+                        net.exylia.lib.spatial.internal.Legible.swatch(name, MenuSession::paletteRgb);
+                if (stack() && i == active) {
+                    // The chosen row on a soft plate of the accent, as an editor marks its chosen layer.
+                    DisplayHandle plate = sheet(panel.plane.point(0, at[1], 0.008), panel.rotation, at[2], at[3] * 0.92,
+                            Geometry.argb(80, colour(theme.accent(), 0x8A51C4)), when);
+                    if (plate != null) drawn.add(plate);
+                }
+                DisplayHandle glyph = null;
+                DisplayHandle rim = null;
+                DisplayHandle tile = null;
+                DisplayHandle line = null;
+                double side = 0;
+                double tileAcross = at[0];
+                String lineText = null;
+                double lineLeft = 0;
+                double lineRoom = 0;
+                if (swatch != null) {
+                    side = (stack() ? at[3] * 0.56 : Math.min(at[2], at[3]) * 0.6) * (entry.locked() ? 0.75 : 1);
+                    tileAcross = stack() ? -at[2] / 2 + at[3] * 0.4 : at[0];
+                    // A thin light rim, so a black or a navy tile reads on the dark backdrop too.
+                    rim = sheet(panel.plane.point(tileAcross, at[1], 0.012), panel.rotation, side + RIM * 2, side + RIM * 2,
+                            rimColour(false), when);
+                    tile = sheet(panel.plane.point(tileAcross, at[1], 0.016), panel.rotation, side, side,
+                            Geometry.argb(255, swatch.rgb()), when);
+                    if (rim != null) drawn.add(rim);
+                    if (tile != null) drawn.add(tile);
+                    if (!swatch.words().isBlank()) {
+                        lineLeft = tileAcross + side / 2 + RIM + 0.06;
+                        lineRoom = at[2] / 2 - lineLeft - 0.02;
+                        lineText = swatch.words();
+                        line = writeFrom(lineText, true, panel.plane, panel.rotation, lineLeft, at[1], 0.016, lineRoom,
+                                theme.textScale(), when < 0 ? when : when + 40);
+                        if (line != null) drawn.add(line);
+                    }
+                } else if (stack()) {
+                    // Words where a swatch row's words start, so the stack reads as one aligned list.
+                    lineLeft = -at[2] / 2 + at[3] * 0.4 + at[3] * 0.28 + RIM + 0.06;
+                    lineRoom = at[2] / 2 - lineLeft - 0.02;
+                    lineText = name;
+                    line = writeFrom(lineText, true, panel.plane, panel.rotation, lineLeft, at[1], 0.016, lineRoom,
+                            theme.textScale(), when);
                     if (line != null) drawn.add(line);
+                } else {
+                    glyph = entry(entry, at, when);
+                    if (glyph != null) drawn.add(glyph);
+                }
+                if (i == active && !stack()) {
+                    double width = Math.min(at[2] * 0.7, 0.3);
+                    DisplayHandle under = sheet(panel.plane.point(at[0], at[1] - at[3] * 0.42, 0.016), panel.rotation, width,
+                            UNDERLINE, Geometry.argb(255, colour(theme.accent(), 0x8A51C4)), wait < 0 ? -1 : wait + 120);
+                    if (under != null) drawn.add(under);
                 }
                 if (edit != null) continue;
-                spots.add(pointer.add(Hotspot.rect(panel.plane, at[0], at[1], at[2] * 0.95, at[3] * 0.95).priority(2)
+                DisplayHandle shownGlyph = glyph;
+                DisplayHandle shownRim = rim;
+                DisplayHandle shownTile = tile;
+                DisplayHandle shownLine = line;
+                double tileSide = side;
+                String text = lineText;
+                double room = lineRoom;
+                double left = lineLeft;
+                double spotAcross = stack() ? 0 : at[0];
+                spots.add(pointer.add(Hotspot.rect(panel.plane, spotAcross, at[1], at[2] * 0.95, at[3] * 0.95).priority(2)
                         .onHover(on -> {
                             if (drawing != generation) return;
-                            grow(glyph, entry, at, on);
+                            if (shownGlyph != null) grow(shownGlyph, entry, at, on);
+                            if (shownRim != null) {
+                                shownRim.restyle(sheetModel(rimColour(on)));
+                                if (!stack()) {
+                                    grow(shownRim, tileSide + RIM * 2, on ? 1.2 : 1);
+                                    grow(shownTile, tileSide, on ? 1.2 : 1);
+                                }
+                            }
+                            if (shownLine != null && text != null) {
+                                // The words lit in the hover colour: the same width, so the same display.
+                                String lit = on ? theme.hoverGlow() + plain(Text.component(text)) : text;
+                                shownLine.text(fit(lit, true, room, theme.textScale(),
+                                        panel.plane.point(left + room / 2, at[1], 0.016)).text());
+                            }
                             drop(words);
                             words = on ? describe(entry) : null;
                         })
@@ -2032,7 +2136,15 @@ final class MenuSession implements SpatialContext {
             ItemStack item = entry.icon() == null ? new ItemStack(Material.BARRIER) : entry.icon();
             // The GUI's display context: a trident, a cake or a totem each look like their inventory
             // icon, at one size, centred, instead of a held model standing beside the plinth.
-            return DisplayModel.item(item).held(GUI_CONTEXT).light(entry.locked() ? 7 : 15);
+            // A shield or a banner in the item frame's instead, so its front faces the viewer (since 1.470.1).
+            return DisplayModel.item(item).held(net.exylia.lib.spatial.internal.ItemFacing.context(item.getType().name()))
+                    .light(entry.locked() ? 7 : 15);
+        }
+
+        /** Whether an entry's icon has a front and a back (a shield, a banner): never turned round. */
+        private boolean faced(@Nullable SpatialEntry entry) {
+            return entry != null && entry.model() == null && entry.icon() != null
+                    && net.exylia.lib.spatial.internal.ItemFacing.flat(entry.icon().getType().name());
         }
 
         private void draw(int slot, SpatialEntry entry, long at, Pose pose) {
@@ -2085,7 +2197,7 @@ final class MenuSession implements SpatialContext {
                     keep(slot, disc);
                     plates.set(slot, disc);
                     DisplayHandle icon = show(iconModel, iconMotion(true, true, ARC_HOVER_AHEAD, ARC_HOVER_GROW, slot, turn,
-                            iconScale, iconScale, pose, towards, at < 0 ? -1 : at + 40), own.point(0, 0, 0));
+                            iconScale, iconScale, pose, towards, at < 0 ? -1 : at + 40, faced(entry)), own.point(0, 0, 0));
                     keep(slot, icon);
                     icons.set(slot, icon);
                     String marker = switch (entry.state()) {
@@ -2107,8 +2219,8 @@ final class MenuSession implements SpatialContext {
                             Geometry.argb(255, tileColour(false, false)), at);
                     keep(slot, tile);
                     plates.set(slot, tile);
-                    DisplayHandle icon = show(iconModel, iconMotion(true, true, slot, turn, iconScale, iconScale, pose, towards,
-                            at < 0 ? -1 : at + 60), own.point(0, 0, 0));
+                    DisplayHandle icon = show(iconModel, iconMotion(true, true, SHELF_HOVER_AHEAD, theme.hoverGrow(), slot, turn,
+                            iconScale, iconScale, pose, towards, at < 0 ? -1 : at + 60, faced(entry)), own.point(0, 0, 0));
                     keep(slot, icon);
                     icons.set(slot, icon);
                     // Its state in the tile's top corner: worn, or not theirs yet.
@@ -2133,8 +2245,8 @@ final class MenuSession implements SpatialContext {
                             Geometry.argb(255, plateColour(false, false)), at < 0 ? -1 : at + 40);
                     keep(slot, plate);
                     plates.set(slot, plate);
-                    DisplayHandle icon = show(iconModel, iconMotion(true, slot, turn, iconScale, iconScale, pose, towards,
-                            at < 0 ? -1 : at + 80), own.point(0, ICON_UP, 0));
+                    DisplayHandle icon = show(iconModel, iconMotion(true, false, SHELF_HOVER_AHEAD, theme.hoverGrow(), slot, turn,
+                            iconScale, iconScale, pose, towards, at < 0 ? -1 : at + 80, faced(entry)), own.point(0, ICON_UP, 0));
                     keep(slot, icon);
                     icons.set(slot, icon);
                     DisplayHandle label = plinthLabel(slot, entry, status, own, turn, at < 0 ? -1 : at + 100);
@@ -2240,11 +2352,12 @@ final class MenuSession implements SpatialContext {
             if (icon != null && poses.get(slot) != pose) {
                 poses.set(slot, pose);
                 boolean plinth = kind == Kind.PEDESTAL || shelf;
+                boolean flat = faced(at(slot));
                 icon.then(kind == Kind.ARC
                         ? iconMotion(true, true, ARC_HOVER_AHEAD, ARC_HOVER_GROW, slot, place.rotation(), iconScale, iconScale,
-                                pose, offset(place.plane(), 0, 0, 1), REPOP)
-                        : iconMotion(plinth, shelf, slot, place.rotation(), iconScale, plinth ? iconScale : iconScale * 0.3,
-                                pose, offset(place.plane(), 0, 0, 1), REPOP));
+                                pose, offset(place.plane(), 0, 0, 1), REPOP, flat)
+                        : iconMotion(plinth, shelf, SHELF_HOVER_AHEAD, theme.hoverGrow(), slot, place.rotation(), iconScale,
+                                plinth ? iconScale : iconScale * 0.3, pose, offset(place.plane(), 0, 0, 1), REPOP, flat));
             }
             if (kind == Kind.ARC) {
                 // Under the crosshair it glows in its own colour (its subtitle's: a rarity), and its disc lights.
@@ -2501,11 +2614,20 @@ final class MenuSession implements SpatialContext {
 
         /** With the controls: the body turned to where the table faces now, when that moved. */
         private void face() {
-            if (table == null || npc == null) return;
-            float yaw = (float) (board.yaw() + 180 + table.angle(System.currentTimeMillis()));
+            if (table == null || (npc == null && item == null)) return;
+            double angle = table.angle(System.currentTimeMillis());
+            float yaw = (float) (board.yaw() + 180 + angle);
             if (!Float.isNaN(sentYaw) && Math.abs(yaw - sentYaw) < 0.25f) return;
             sentYaw = yaw;
-            npc.look(yaw, 0);
+            if (npc != null) {
+                npc.look(yaw, 0);
+                return;
+            }
+            DisplayKeyframe here = item.pose();
+            if (here == null) return;
+            item.then(DisplayMotion.of(List.of(here.at(0), new DisplayKeyframe(100L, here.x(), here.y(), here.z(),
+                    net.exylia.lib.spatial.internal.ItemFacing.pose(rotation, angle), here.scaleX(), here.scaleY(),
+                    here.scaleZ())), LIFE));
         }
 
         // A click (on the input's thread) and the poll (on the viewer's) both drive the stage: one at a time, so a
@@ -2557,17 +2679,14 @@ final class MenuSession implements SpatialContext {
                     nextPlay = 0;
                 }
                 case SpatialPreview.Item shown -> {
+                    // The item frame's context: a shield or a banner shows its front, centred. Still at turn-speed 0,
+                    // a sway of a few degrees; turned by the viewer with turn-controls (since 1.470.1).
                     double size = 0.62 * look.scale();
-                    List<DisplayKeyframe> frames = new ArrayList<>();
-                    long cycle = (long) (360_000 / Math.max(1, Math.abs(look.turnSpeed())));
-                    for (int pose = 0; pose <= 12; pose++) {
-                        double angle = Math.PI * 2 * pose / 12 * Math.signum(look.turnSpeed() == 0 ? 1 : look.turnSpeed());
-                        frames.add(new DisplayKeyframe(cycle * pose / 12, 0f, 0f, 0f,
-                                Rotation.around(Rotation.Axis.Y, angle).then(rotation), (float) size, (float) size, (float) size));
-                    }
-                    DisplayMotion spin = DisplayMotion.of(frames, cycle);
-                    if (LIFE > cycle) spin = DisplayMotion.chain(spin, DisplayMotion.still(LIFE - cycle)).looping(cycle, 1, 1);
-                    item = show(DisplayModel.item(shown.item()).light(15), spin, base.clone().add(0, 0.42 * look.scale(), 0));
+                    double speed = table != null ? 0 : look.turnSpeed();
+                    item = show(DisplayModel.item(shown.item()).held(net.exylia.lib.spatial.internal.ItemFacing.FIXED).light(15),
+                            net.exylia.lib.spatial.internal.ItemFacing.stand(rotation, look.facingDegrees(), speed, size, LIFE),
+                            base.clone().add(0, 0.33 * look.scale(), 0));
+                    sentYaw = Float.NaN;
                 }
                 case SpatialPreview.Effect effect -> {
                     mannequin(effect);

@@ -56,7 +56,6 @@ final class SceneSession {
     static final double EYES = 1.62;
     /** The longest any piece lives; a scene nobody ends still goes by itself. */
     private static final long LIFE = 10 * 60_000L;
-    private static final int GUI_CONTEXT = 6;
     private static final long POP_MILLIS = 450L;
     private static final long PREVIEW_AFTER = 700L;
     /** How far in front of the board the crate stands, and the reel's faces. */
@@ -287,7 +286,7 @@ final class SceneSession {
         Location centre = board.point(0, look.up(), 0);
         for (int i = 0; i < strip.size(); i++) {
             CrateFace face = from.get(strip.get(i));
-            DisplayModel model = DisplayModel.item(face.icon()).held(GUI_CONTEXT).light(15).glow(rgb(face.colour()));
+            DisplayModel model = DisplayModel.item(face.icon()).held(net.exylia.lib.spatial.internal.ItemFacing.context(face.icon().getType().name())).light(15).glow(rgb(face.colour()));
             reel.add(track(displays.show(model, DisplayMotion.of(facePath(i), LIFE), centre, List.of(viewer))));
         }
         // The strip's faces as the marker reads them, wherever they came from.
@@ -759,17 +758,14 @@ final class SceneSession {
                     }
                 }
                 case SpatialPreview.Item shown -> {
-                    double size = 0.62 * look.scale();
-                    long cycle = (long) (360_000 / Math.max(1, Math.abs(look.turnSpeed())));
-                    List<DisplayKeyframe> frames = new ArrayList<>();
-                    for (int pose = 0; pose <= 12; pose++) {
-                        frames.add(new DisplayKeyframe(cycle * pose / 12, 0f, 0f, 0f,
-                                Rotation.around(Rotation.Axis.Y, Math.PI * 2 * pose / 12).then(facing),
-                                (float) size, (float) size, (float) size));
-                    }
-                    item = track(displays.show(DisplayModel.item(shown.item()).light(15),
-                            DisplayMotion.of(frames, LIFE).looping(0, cycle, 1.0, 1.0),
-                            base().add(0, 0.42 * look.scale(), 0), List.of(viewer)));
+                    // The item frame's context: a shield or a banner shows its front, and never turns round to
+                    // its back: it sways instead (since 1.470.1).
+                    boolean flat = net.exylia.lib.spatial.internal.ItemFacing.flat(shown.item().getType().name());
+                    item = track(displays.show(DisplayModel.item(shown.item())
+                                    .held(net.exylia.lib.spatial.internal.ItemFacing.FIXED).light(15),
+                            net.exylia.lib.spatial.internal.ItemFacing.stand(facing, 0, flat ? 0 : look.turnSpeed(),
+                                    0.62 * look.scale(), LIFE),
+                            base().add(0, 0.33 * look.scale(), 0), List.of(viewer)));
                 }
                 case SpatialPreview.Effect effect -> {
                     // Seen standing first, so a kill that takes it down reads as a death.

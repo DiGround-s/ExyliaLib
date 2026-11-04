@@ -10,6 +10,10 @@ import java.util.regex.Pattern;
  * readable colour before it, else {@code {letters}}. A description written {@code {letters}A ... {neutral}.} in a
  * plugin's catalogue then reads whole in a 3D menu, with no server's file edited. Since 1.467.0.
  *
+ * <p>Only words: a colour written on symbols alone (a dye's {@code ■} swatch, an icon's {@code ↶}, a {@code ✔}
+ * marker) carries meaning and is left as written, and so does a hue ({@code {error}}, {@code {primary}}, a rarity's
+ * blue): only a grey (an inventory's {@code &8}, {@code {neutral}}) gives way. Since 1.470.1.
+ *
  * <p>Internal: free to change without notice.
  */
 public final class Legible {
@@ -42,8 +46,8 @@ public final class Legible {
         while (m.find()) {
             Integer rgb = colourOf(m, token);
             String written = m.group();
-            if (rgb == null || readable(rgb, alpha)) {
-                if (rgb != null && base == null) base = written;
+            if (rgb == null || readable(rgb, alpha) || hued(rgb) || symbolsOnly(raw, m.end())) {
+                if (rgb != null && base == null && readable(rgb, alpha)) base = written;
                 m.appendReplacement(out, Matcher.quoteReplacement(written));
             } else {
                 m.appendReplacement(out, Matcher.quoteReplacement(base == null ? "{letters}" : base));
@@ -51,6 +55,50 @@ public final class Legible {
         }
         m.appendTail(out);
         return out.toString();
+    }
+
+    /** A swatch: a colour, and the words after it. */
+    public record Swatch(int rgb, String words) {
+    }
+
+    private static final Pattern SWATCH = Pattern.compile("^((?:[&§][k-orK-OR])*(?:\\{[a-z_]+}|<#[0-9a-fA-F]{6}>|&#[0-9a-fA-F]{6}|[&§][0-9a-fA-F])(?:[&§][k-orK-OR])*)■\\s*(.*)$", Pattern.DOTALL);
+
+    /**
+     * The swatch {@code raw} starts with, a colour written on a {@code ■}, with the words after it; {@code null}
+     * when it starts with none, or with a token {@code token} does not know. Since 1.470.1.
+     */
+    public static Swatch swatch(String raw, Function<String, Integer> token) {
+        if (raw == null) return null;
+        Matcher m = SWATCH.matcher(raw.strip());
+        if (!m.matches()) return null;
+        Matcher colour = COLOUR.matcher(m.group(1));
+        Integer rgb = null;
+        while (colour.find()) rgb = colourOf(colour, token);
+        return rgb == null ? null : new Swatch(rgb, m.group(2));
+    }
+
+    /** Whether {@code rgb} is a colour rather than a grey: an HSV saturation of a quarter or more. */
+    static boolean hued(int rgb) {
+        int r = (rgb >> 16) & 255, g = (rgb >> 8) & 255, b = rgb & 255;
+        int max = Math.max(r, Math.max(g, b));
+        return max > 0 && (max - Math.min(r, Math.min(g, b))) / (double) max >= 0.25;
+    }
+
+    /** Whether the run from {@code from} to the next colour holds a symbol and no letter or digit. */
+    static boolean symbolsOnly(String raw, int from) {
+        Matcher next = COLOUR.matcher(raw);
+        int end = next.find(from) ? next.start() : raw.length();
+        // Format codes (&l) and tags (<bold>) take no room: their letters are not words.
+        String run = raw.substring(from, end).replaceAll("[&§][k-orK-OR]|<[^>]*>", "");
+        boolean symbol = false;
+        for (int i = 0; i < run.length(); ) {
+            int c = run.codePointAt(i);
+            if (Character.isLetterOrDigit(c)) return false;
+            int type = Character.getType(c);
+            if (type == Character.OTHER_SYMBOL || type == Character.MATH_SYMBOL) symbol = true;
+            i += Character.charCount(c);
+        }
+        return symbol;
     }
 
     private static Integer colourOf(Matcher m, Function<String, Integer> token) {
