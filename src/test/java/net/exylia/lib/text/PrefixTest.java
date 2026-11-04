@@ -152,4 +152,60 @@ class PrefixTest {
 
         assertEquals("CLASSES > You are now Warrior", out);
     }
+
+    @Test
+    @DisplayName("a prefix without a reset does not bold the message")
+    void prefixFormattingStopsAtTheMessage() {
+        // ExyliaShields shipped "{primary}&lSHIELDS {muted}» " and every line it
+        // sent came out bold.
+        Prefixes.set(plugin, "&lSHIELDS »");
+
+        String legacy = Text.from(plugin, "%prefix% hello").legacy();
+
+        assertTrue(legacy.matches("(?s).*»(§r|&r).*hello"), "the message should start unbolded: " + legacy);
+        assertEquals("&lSHIELDS »<reset>", Prefixes.get(plugin));
+    }
+
+    @Test
+    @DisplayName("a prefix that already resets is kept as written")
+    void prefixWithResetIsKept() {
+        Prefixes.set(plugin, "&lSTAFF &8•&r");
+        assertEquals("&lSTAFF &8•&r", Prefixes.get(plugin));
+
+        Prefixes.set(plugin, "{primary}&lMARKET {letters_black}•<reset>");
+        assertEquals("{primary}&lMARKET {letters_black}•<reset>", Prefixes.get(plugin));
+    }
+
+    @Test
+    @DisplayName("an empty prefix stays empty")
+    void emptyPrefixStaysEmpty() {
+        Prefixes.set(plugin, "  ");
+
+        assertEquals("", Prefixes.get(plugin));
+        assertEquals("hi", Text.from(plugin, "%prefix% hi").plain());
+    }
+
+    @Test
+    @DisplayName("one space follows the prefix however the line and the prefix are written")
+    void oneSpaceAfterThePrefix() {
+        Prefixes.set(plugin, "MARKET •");
+        assertEquals("MARKET • hi", Text.from(plugin, "%prefix% hi").plain());
+        assertEquals("MARKET • hi", Text.from(plugin, "%prefix%hi").plain());
+        assertEquals("MARKET • hi", Text.from(plugin, "%prefix%   hi").plain());
+
+        // A prefix shipped with its own space, by plugins that write %prefix%text.
+        Prefixes.set(plugin, "E-SKINS • ");
+        assertEquals("E-SKINS • hi", Text.from(plugin, "%prefix%hi").plain());
+        assertEquals("E-SKINS • hi", Text.from(plugin, "%prefix% hi").plain());
+    }
+
+    @Test
+    @DisplayName("nothing is added after a prefix that ends the line")
+    void noSpaceBeforeALineBreak() {
+        assertEquals("X •<reset>", Prefixes.fill("%prefix%", "X •"));
+        assertEquals("X •<reset>\nhi", Prefixes.fill("%prefix% \nhi", "X •"));
+        assertEquals("%prefix% hi", Prefixes.fill("%prefix% hi", null));
+        // A prefix handed in by hand is sealed the same way.
+        assertEquals("&lX »<reset> hi", Prefixes.fill("%prefix%hi", "&lX » "));
+    }
 }

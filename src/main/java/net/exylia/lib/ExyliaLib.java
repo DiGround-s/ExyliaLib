@@ -939,7 +939,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         if (readyPlugins > 0 && player.hasPermission("exylialib.admin")
                 && !Integer.valueOf(readyPlugins).equals(pluginUpdatesTold.put(id, readyPlugins))) {
             Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> net.exylia.lib.text.Text.of(
-                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) ready. {warning}Restart to apply them {muted}(/exylialib plugins)",
+                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB {letters_black}•<reset> {info}{0} {letters}plugin update(s) ready. {warning}Restart to apply them {muted}(/exylialib plugins)",
                             readyPlugins)).send(player));
         }
         // Newer releases nobody installed yet: only an admin's command downloads them.
@@ -947,7 +947,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         if (availablePlugins > 0 && player.hasPermission("exylialib.admin")
                 && !Integer.valueOf(availablePlugins).equals(pluginUpdatesAnnounced.put(id, availablePlugins))) {
             Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> net.exylia.lib.text.Text.of(
-                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB&r {letters_black}» {info}{0} {letters}plugin update(s) available. {warning}Run /exylialib plugins to install them",
+                    net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB {letters_black}•<reset> {info}{0} {letters}plugin update(s) available. {warning}Run /exylialib plugins to install them",
                             availablePlugins)).send(player));
         }
         if (player.hasPermission(net.exylia.lib.config.internal.DefaultUpdates.PERMISSION)

@@ -241,7 +241,9 @@ Text.of("{primary}&lWELCOME").send(player);
   fighting over it. `Text.of` leaves it untouched on purpose — text that doesn't
   say which plugin it comes from has no prefix to use. It is substituted before
   parsing and before centering, because it carries its own colors and its width
-  counts.
+  counts. It is sealed on `set` (trailing spaces dropped, a `<reset>`
+  added when missing) and followed by exactly one space, so neither a bold
+  prefix nor `%prefix%text` versus `%prefix% text` changes how the line reads.
 - **Centering is measured in pixels, not characters.** The Minecraft font is not
   monospaced. The width table is the one from commons so that a line centered
   there stays centered here; formatting (tags, legacy codes, palette tokens)

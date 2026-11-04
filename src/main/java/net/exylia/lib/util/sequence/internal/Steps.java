@@ -435,10 +435,8 @@ final class Steps {
             String line = target.fill(text);
             // The prefix of the plugin whose file the line is in, as Text.from
             // would give it: a journey's "[MESSAGE] %prefix% ..." is that plugin's.
-            String prefix = owner == null || !line.contains("%prefix%")
-                    ? null : net.exylia.lib.text.Prefixes.get(owner);
-            if (prefix != null) {
-                line = line.replace("%prefix%", prefix);
+            if (owner != null) {
+                line = net.exylia.lib.text.Prefixes.fill(line, net.exylia.lib.text.Prefixes.get(owner));
             }
             for (Player reader : who.of(target)) {
                 reader.sendMessage(Text.of(line).forPlayer(reader).build());

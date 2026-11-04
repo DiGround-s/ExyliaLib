@@ -1173,8 +1173,7 @@ public final class Text {
         if (owner == null || message.indexOf(PREFIX_TOKEN) < 0) {
             return message;
         }
-        String prefix = Prefixes.get(owner);
-        return prefix == null ? message : message.replace(PREFIX_TOKEN, prefix);
+        return Prefixes.fill(message, Prefixes.get(owner));
     }
 
     /**

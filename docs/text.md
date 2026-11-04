@@ -65,7 +65,8 @@ Text.from(this, messages.warmup().ready()).send(player);     // %prefix% resolve
 | Method | Contract |
 | --- | --- |
 | `Prefixes.set(plugin, prefix)` | set it; call again after a reload |
-| `Prefixes.get(plugin)` | the prefix, or `null` |
+| `Prefixes.get(plugin)` | the prefix as stored (sealed with a reset), or `null` |
+| `Prefixes.fill(message, prefix)` | the message with each `%prefix%` and the spaces after it replaced by the prefix, sealed as `set` seals it, and one space; `null` leaves it (since 1.471.0) |
 | `Prefixes.release(name)` | forget it; done for you when the plugin disables |
 
 Contracts:
@@ -77,6 +78,16 @@ Contracts:
   obvious rather than silent.
 - The prefix is substituted **before** parsing and **before** centring: it
   carries its own colours, and its width counts towards a centred line.
+- A prefix never styles the message after it. `set` drops trailing spaces and
+  adds a `<reset>` when the prefix does not end in one (`<reset>`, `&r`, `§r`),
+  so an owner's `{primary}&lX »` cannot bold every line (since 1.471.0).
+- Exactly one space follows the prefix: `%prefix% text`, `%prefix%text` and a
+  prefix that ends in its own space all read `X • text`. Nothing is added
+  before a line break, and an empty prefix takes its space with it.
+  `Prefixes.fill(message, prefix)` does the same for code that substitutes by
+  hand (since 1.471.0).
+- The house prefix is `{primary}&lNAME {letters_black}•<reset>`, and lines are
+  written `%prefix% text`.
 
 ## A plugin's own lines: `PluginMessages` and `Values` (since 1.266.0)
 
