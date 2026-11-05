@@ -1102,6 +1102,23 @@ public final class SqlBackend implements AutoCloseable {
             statement.setNull(slot, sqlTypeOf(column));
             return;
         }
+        setValue(statement, slot, value);
+    }
+
+    /**
+     * Binds a value through the setter for its type rather than {@code setObject}.
+     *
+     * @param statement the statement
+     * @param slot      the parameter, from 1
+     * @param value     the value; {@code null} is bound with {@code setObject}
+     * @throws SQLException if the driver refuses it
+     */
+    public static void setValue(@NotNull PreparedStatement statement, int slot, @Nullable Object value)
+            throws SQLException {
+        if (value == null) {
+            statement.setObject(slot, null);
+            return;
+        }
         // setString rather than setObject for text: a codec-encoded value is a
         // String and every driver has a direct path for it, while setObject
         // dispatches on the runtime class first.
@@ -1109,14 +1126,19 @@ public final class SqlBackend implements AutoCloseable {
             statement.setString(slot, text);
             return;
         }
-        // Numbers and flags too: MariaDB's setObject finds its encoder in a service-loaded codec
-        // table, and a server where another copy of the driver won the class lookup was seen
-        // answering "Type java.lang.Long not supported type" for every long.
+        // Every stored type too: MariaDB's setObject finds its encoder in a service-loaded codec
+        // table, which comes up empty when the driver sits in a module layer (a NeoForge hybrid
+        // whose mod ships it), and then every value fails with "Type java.lang.Long not supported type".
         switch (value) {
             case Long number -> statement.setLong(slot, number);
             case Integer number -> statement.setInt(slot, number);
             case Double number -> statement.setDouble(slot, number);
             case Boolean flag -> statement.setBoolean(slot, flag);
+            case Short number -> statement.setShort(slot, number);
+            case Byte number -> statement.setByte(slot, number);
+            case Float number -> statement.setFloat(slot, number);
+            case BigDecimal number -> statement.setBigDecimal(slot, number);
+            case byte[] bytes -> statement.setBytes(slot, bytes);
             default -> statement.setObject(slot, value);
         }
     }

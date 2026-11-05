@@ -182,7 +182,9 @@ public final class ForeignDatabase implements AutoCloseable {
     public @NotNull List<Map<String, Object>> query(@NotNull String sql, Object... parameters) throws SQLException {
         List<Map<String, Object>> rows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            for (int index = 0; index < parameters.length; index++) statement.setObject(index + 1, parameters[index]);
+            for (int index = 0; index < parameters.length; index++) {
+                net.exylia.lib.database.internal.SqlBackend.setValue(statement, index + 1, parameters[index]);
+            }
             try (ResultSet result = statement.executeQuery()) {
                 ResultSetMetaData meta = result.getMetaData();
                 while (result.next()) {
