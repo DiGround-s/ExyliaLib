@@ -15,12 +15,15 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
+import net.exylia.lib.task.Tasks;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -43,11 +46,51 @@ public final class PlacedBlockTracker implements Listener {
     private static final int[] NONE = new int[0];
 
     private static final Map<String, Set<Material>> BY_PLUGIN = new ConcurrentHashMap<>();
+    private static final Map<String, Set<String>> CUSTOM_BY_PLUGIN = new ConcurrentHashMap<>();
     private static volatile Set<Material> tracked = Set.of();
+    private static volatile Set<String> trackedCustom = Set.of();
     private static volatile NamespacedKey key;
 
     public PlacedBlockTracker(@NotNull Plugin library) {
         key = new NamespacedKey(library, "placed_blocks");
+        // A provider places its block itself and may never fire the vanilla
+        // event; its own event can fire before the block is written, so the
+        // check waits a tick.
+        CustomBlockIds.listenPlacements(library, block -> {
+            if (trackedCustom.isEmpty()) return;
+            Tasks.of(library).runAtLocationLater(block.getLocation(), 1L, () -> recordCustom(block));
+        });
+    }
+
+    /** Starts recording these custom block ids for a plugin, replacing what it asked for before. */
+    public static synchronized void trackCustom(@NotNull String pluginName, @NotNull Collection<String> ids) {
+        Set<String> normalized = new HashSet<>();
+        for (String id : ids) {
+            if (id != null && !id.isBlank()) normalized.add(normalize(id));
+        }
+        if (normalized.isEmpty()) {
+            CUSTOM_BY_PLUGIN.remove(pluginName);
+        } else {
+            CUSTOM_BY_PLUGIN.put(pluginName, Set.copyOf(normalized));
+        }
+        rebuild();
+    }
+
+    /** An id as it is compared: lower case, with the {@code ia:} and {@code ce:} aliases spelled out. */
+    static String normalize(String id) {
+        String lower = id.trim().toLowerCase(Locale.ROOT);
+        if (lower.startsWith("ia:")) return "itemsadder:" + lower.substring(3);
+        if (lower.startsWith("ce:")) return "craftengine:" + lower.substring(3);
+        return lower;
+    }
+
+    private static void recordCustom(Block block) {
+        Set<String> ids = trackedCustom;
+        if (ids.isEmpty()) return;
+        String id = CustomBlockIds.id(block);
+        if (id != null && ids.contains(normalize(id))) {
+            change(block, true);
+        }
     }
 
     public static synchronized void track(@NotNull String pluginName, @NotNull Collection<Material> materials) {
@@ -60,7 +103,9 @@ public final class PlacedBlockTracker implements Listener {
     }
 
     public static synchronized void release(@NotNull String pluginName) {
-        if (BY_PLUGIN.remove(pluginName) != null) {
+        boolean materials = BY_PLUGIN.remove(pluginName) != null;
+        boolean custom = CUSTOM_BY_PLUGIN.remove(pluginName) != null;
+        if (materials || custom) {
             rebuild();
         }
     }
@@ -69,6 +114,14 @@ public final class PlacedBlockTracker implements Listener {
         Set<Material> union = EnumSet.noneOf(Material.class);
         BY_PLUGIN.values().forEach(union::addAll);
         tracked = union.isEmpty() ? Set.of() : union;
+        Set<String> custom = new HashSet<>();
+        CUSTOM_BY_PLUGIN.values().forEach(custom::addAll);
+        trackedCustom = custom.isEmpty() ? Set.of() : Set.copyOf(custom);
+    }
+
+    /** Whether this block's records can matter: a tracked material, or any custom id tracked. */
+    private static boolean watched(Block block) {
+        return tracked.contains(block.getType()) || !trackedCustom.isEmpty();
     }
 
     public static boolean placed(@NotNull Block block) {
@@ -81,13 +134,15 @@ public final class PlacedBlockTracker implements Listener {
         Block block = event.getBlockPlaced();
         if (tracked.contains(block.getType())) {
             change(block, true);
+        } else if (!trackedCustom.isEmpty()) {
+            recordCustom(block);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (tracked.contains(block.getType())) {
+        if (watched(block)) {
             change(block, false);
         }
     }
@@ -109,10 +164,10 @@ public final class PlacedBlockTracker implements Listener {
      * the place another just left would be erased by that one's removal.
      */
     private void move(List<Block> blocks, BlockFace direction) {
-        if (tracked.isEmpty() || blocks.isEmpty()) return;
+        if ((tracked.isEmpty() && trackedCustom.isEmpty()) || blocks.isEmpty()) return;
         List<Block> recorded = new ArrayList<>(0);
         for (Block block : blocks) {
-            if (tracked.contains(block.getType()) && placed(block)) {
+            if (watched(block) && placed(block)) {
                 recorded.add(block);
             }
         }

@@ -242,6 +242,9 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.block.internal.PlacedBlockTracker(this), this);
         getServer().getPluginManager().registerEvents(new HarmlessFireworks(), this);
+        // Spawn origins carried over splits and conversions: one PDC read per transform.
+        getServer().getPluginManager().registerEvents(
+                new net.exylia.lib.util.internal.SpawnOriginListener(), this);
         // Effects plugins keep through a totem: dormant until one registers a rule.
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.util.internal.TotemEffectsListener(), this);
@@ -776,6 +779,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes everybody's time while the database is still open: on a full
         // stop the players are still online when plugins are disabled.
         net.exylia.lib.playtime.Playtime.releaseAll();
+        // Writes the counted money while the database is still open.
+        net.exylia.lib.ledger.Ledger.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
         // thread must stop before the pool that feeds it is closed.
         Channels.releaseAll();
@@ -1231,6 +1236,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes the host's players' time through its database before it closes,
         // then hands hosting to the next plugin that opened it.
         net.exylia.lib.playtime.Playtime.release(plugin);
+        // Writes the host's ledger counts through its database, then hands hosting on.
+        net.exylia.lib.ledger.Ledger.release(plugin);
         // Here rather than in the event, so a plugin can still announce its
         // own shutdown from onDisable; before the datasources it shares a
         // client with.

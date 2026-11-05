@@ -249,6 +249,9 @@ public final class Modifiers {
      * Pays money a player earned in the default currency, boosted.
      *
      * <p>Never for a refund or a transfer: those give back exactly what was taken.
+     * What is deposited is recorded in the economy {@link net.exylia.lib.ledger.Ledger}
+     * as money created, under the calling plugin and {@code source}, once a
+     * plugin opened it.
      *
      * @return what was paid, zero when nothing was (no amount, no economy, the deposit refused)
      */
@@ -264,7 +267,9 @@ public final class Modifiers {
                                           @Nullable BigDecimal amount) {
         if (amount == null || amount.signum() <= 0 || !Economy.isAvailable()) return BigDecimal.ZERO;
         BigDecimal paid = money(player, source, scope, amount);
-        return Economy.pay(player, paid) ? paid : BigDecimal.ZERO;
+        if (!Economy.pay(player, paid)) return BigDecimal.ZERO;
+        net.exylia.lib.ledger.Ledger.paid(source, player, null, paid);
+        return paid;
     }
 
     /**
@@ -278,7 +283,9 @@ public final class Modifiers {
         if (currency == null || currency.isBlank()) return pay(player, source, scope, amount);
         if (amount == null || amount.signum() <= 0) return BigDecimal.ZERO;
         BigDecimal paid = money(player, source, scope, currency, amount);
-        return paid.signum() > 0 && Economy.of(currency).pay(player, paid) ? paid : BigDecimal.ZERO;
+        if (paid.signum() <= 0 || !Economy.of(currency).pay(player, paid)) return BigDecimal.ZERO;
+        net.exylia.lib.ledger.Ledger.paid(source, player, currency, paid);
+        return paid;
     }
 
     // ------------------------------------------------------------------ xp and drops

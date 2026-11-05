@@ -71,7 +71,7 @@ public final class PlacedBlocks {
     }
 
     /**
-     * Whether a player placed this block, for a tracked material.
+     * Whether a player placed this block, for a tracked material or custom block id.
      *
      * @param block the block
      * @return {@code true} when a player placed a tracked block at this position
@@ -81,7 +81,27 @@ public final class PlacedBlocks {
         return PlacedBlockTracker.placed(Objects.requireNonNull(block, "block"));
     }
 
-    /** Forgets what a plugin asked to track. What was recorded stays. */
+    /**
+     * Starts recording the placements of these resource-pack blocks for a
+     * plugin, replacing the custom ids it asked for before.
+     *
+     * <p>Ids are those {@link CustomBlocks#id(Block)} answers ({@code nexo:ruby_ore},
+     * {@code itemsadder:ns:ruby_ore}, {@code ia:} and {@code ce:} accepted),
+     * compared without case. A placement is recorded from the vanilla place
+     * event and from the provider's own one, a tick later, once the block is
+     * written; breaks and pistons are handled as for materials. Furniture is
+     * not recorded: no world generator makes it, so a plugin treats it as
+     * placed. An empty collection stops recording for that plugin.
+     *
+     * @param plugin the plugin asking
+     * @param ids    the custom block ids whose placement it needs to know about
+     * @since 1.478.0
+     */
+    public static void trackCustom(@NotNull Plugin plugin, @NotNull Collection<String> ids) {
+        PlacedBlockTracker.trackCustom(Objects.requireNonNull(plugin, "plugin").getName(),
+                Objects.requireNonNull(ids, "ids"));
+    }
+
     /**
      * Asks to be told when a block placed with a lifetime is cleared.
      *
@@ -99,6 +119,7 @@ public final class PlacedBlocks {
         net.exylia.lib.region.internal.PlacedBlockRuntime.watch(watcher);
     }
 
+    /** Forgets what a plugin asked to track, materials and custom ids. What was recorded stays. */
     public static void release(@NotNull String pluginName) {
         PlacedBlockTracker.release(pluginName);
     }

@@ -475,6 +475,9 @@ parser inside a plugin.
   a changed API reported once and treated as absent. Ids go through the
   existing `material` grammar as `OfMaterial`: a new `Source` case would break
   every consumer's exhaustive switch.
+  `block/internal/CustomBlockIds` is the same exception for the blocks and
+  furniture those plugins place, under the same rules, so a placed block's id
+  is spelled exactly like the item's.
 - **Registries go through `Registry`, never `valueOf`.** Several of those types
   stopped being enums in 1.21: `values()` compiles and blows up at runtime with
   `IncompatibleClassChangeError`.
@@ -1800,6 +1803,9 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | an answer back on the player's thread | `input/PluginInputs.answered` | — | [docs/input.md](docs/input.md) | 1.163.0 |
 | compound durations in `Ticks.parse` | `effect/Ticks.parse` (falls through to `InputParser.duration()`) | — | [docs/effects.md](docs/effects.md) | 1.163.0 |
 | persistent placed-block record | `block/PlacedBlocks` | `block/internal/PlacedBlockTracker` (chunk PDC `exylialib:placed_blocks`) | [docs/blocks.md](docs/blocks.md) | 1.163.0 |
+| custom block identity (Nexo, Oraxen, ItemsAdder, CraftEngine blocks and furniture) and their placement records | `block/CustomBlocks`, `PlacedBlocks.trackCustom` | `block/internal/CustomBlockIds` (reflection, provider place events), `PlacedBlockTracker` (same PDC record) | [docs/blocks.md](docs/blocks.md) | 1.478.0 |
+| economy ledger (money created and sunk per hour, plugin, source; per player tops) | `ledger/Ledger` | `ledger/internal/LedgerRow` (`exylia_ledger`), `LedgerPlayerRow` (`exylia_ledger_players`) in the host plugin's database; fed by `Modifiers.pay`; `release` in `releaseAfterDisable`, `releaseAll` on shutdown | [docs/ledger.md](docs/ledger.md) | 1.478.0 |
+| util (decaying counters, spawn origins) | `util/DecayingCounter`, `util/SpawnOrigin` | `util/internal/SpawnOriginListener` (PDC `exylialib:spawn_origin` on transforms) | [docs/util.md](docs/util.md) | 1.478.0 |
 | walls (temporary blocks that survive a crash) | `block/Walls`, `Wall` | `block/internal/WallFile` (`<data folder>/walls/*.wall`) | [docs/blocks.md](docs/blocks.md) | 1.458.0 |
 | item and experience currencies | `economy/ItemCurrency`, `ExperienceCurrency` | `economy/internal/PlayerThreadBalances` | [docs/economy.md](docs/economy.md) | 1.163.0 |
 | network cooldowns (database-backed, relog and hop proof, unknown refuses) | `util/NetworkCooldowns` | `util/internal/NetworkCooldownRow` (`exylia_network_cooldowns`); `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable` | [docs/cooldowns.md](docs/cooldowns.md) | 1.184.0 |

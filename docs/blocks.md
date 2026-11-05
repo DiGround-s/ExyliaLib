@@ -54,6 +54,40 @@ if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
   ([regions.md](regions.md)) instead: that record lives exactly as long as the
   region, which is what an arena re-registered for its next match needs.
 
+## Custom blocks (since 1.478.0)
+
+`CustomBlocks` answers which Nexo, Oraxen, ItemsAdder or CraftEngine block a
+world block is. Underneath they are note blocks, tripwire, chorus or mushroom
+states, or furniture entities, so `getType()` cannot tell them apart.
+
+```java
+String id = CustomBlocks.id(event.getBlock());   // "nexo:ruby_ore", or null
+String furniture = CustomBlocks.id(entity);      // a furniture's display, seat or hitbox entity
+
+PlacedBlocks.trackCustom(this, List.of("nexo:ruby_ore", "itemsadder:ores:topaz_ore"));
+if (!PlacedBlocks.placedByPlayer(event.getBlock())) reward(player);
+```
+
+- **Ids are the item ids** a `material` already writes ([items.md](items.md)):
+  `nexo:<id>`, `oraxen:<id>`, `itemsadder:<namespace>:<id>`,
+  `craftengine:<namespace>:<id>`. `trackCustom` also accepts `ia:` and `ce:` and
+  compares without case.
+- `id(Block)` asks for a custom block first, then for furniture anchored at
+  that block (Nexo, Oraxen, ItemsAdder). `id(Entity)` asks for furniture.
+- **None of the providers is a dependency.** Each is reached by reflection once
+  it is enabled (`block/internal/CustomBlockIds`, the same rules as the item
+  resolver): one not installed or not enabled yet answers `null`, and a
+  lookup whose API changed is reported once and skipped.
+- **Placements are recorded from both doors**: the vanilla `BlockPlaceEvent`,
+  and the provider's own place event, checked a tick later once the block is
+  written. A break forgets it at `MONITOR` and a piston moves it, as for
+  materials; one record per position, shared with the material record.
+- **Furniture is not recorded.** No world generator makes it, so a plugin
+  treats furniture as placed.
+- A provider that removes its block without a `BlockBreakEvent` leaves the
+  record behind; like every other ending, that errs on "placed".
+- Ask from the thread that owns the block or entity.
+
 ## API
 
 ### `Blocks`
@@ -206,6 +240,10 @@ moment ago: a Caffeine cache, five seconds, two thousand entries.
 - Tests since 1.458.0: `DoubleChestHalfTest` (which way each half joins),
   `WallFileTest` (a wall's file reads back exactly, damage costs one block).
 - Public since 1.163.0: `block/PlacedBlocks`.
+- Public since 1.478.0: `block/CustomBlocks`, `PlacedBlocks.trackCustom`; internal
+  `block/internal/CustomBlockIds` (the providers' reflection and place events).
+  `PlacedBlockTrackerTest` covers how custom ids are compared; the providers
+  themselves need a server.
 - Internal: `block/internal/` — `BlockRuntime`, `BlockListener`, `PlacedBlockTracker`.
 - Tests: `PlacedBlockTrackerTest` covers position packing, the per-chunk cap and
   what a chunk records; the persistent data itself needs a server.

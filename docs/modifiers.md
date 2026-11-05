@@ -85,7 +85,7 @@ player online on this server has permission modifiers.
 | `apply(uuid, type, source[, scope], amount)` | `amount × factor`, for a plugin's own type |
 | `moneyFactor(uuid, source, currency)` | the money factor for a price in that currency: `1.0` unless it is the default |
 | `money(uuid \| player, source[, scope], amount)` | money in the default currency, boosted, rounded down to its decimals |
-| `pay(player, source, amount)`, `pay(uuid, source, scope, amount)` | deposits the boosted amount in the default currency; answers what was paid, zero when nothing was |
+| `pay(player, source, amount)`, `pay(uuid, source, scope, amount)` | deposits the boosted amount in the default currency; answers what was paid, zero when nothing was. Since 1.478.0 a deposit is recorded in the [Ledger](ledger.md) as money created, under the calling plugin and `source`, once a plugin opened it |
 | `xp(uuid, source[, scope], points)` | points, boosted, fraction rolled (`Multipliers.scale`) |
 | `drops(uuid, source, items[, scope])` | items, boosted, fraction rolled, cut to stack size; never changes the input |
 | `rewards(uuid, source[, scope], entries)` | a `RewardEntry` list: `ECONOMY` lines in the default currency by money, `EXPERIENCE` by xp, `ITEM` by drops, ranged amounts on both ends; commands and the rest untouched. The scope (1.265.0+, such as `event:koth`) reaches providers like every other call's |

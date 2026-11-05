@@ -60,4 +60,13 @@ class PlacedBlockTrackerTest {
         assertEquals(-1, PlacedBlockTracker.indexOf(positions, 0), "the oldest is gone");
         assertEquals(PlacedBlockTracker.MAX_PER_CHUNK - 1, PlacedBlockTracker.indexOf(positions, -1));
     }
+
+    @Test
+    @DisplayName("custom ids compare without case, with the ia: and ce: aliases spelled out")
+    void customIdsNormalize() {
+        assertEquals("nexo:ruby_ore", PlacedBlockTracker.normalize(" Nexo:Ruby_Ore "));
+        assertEquals("itemsadder:ns:ruby", PlacedBlockTracker.normalize("ia:ns:ruby"));
+        assertEquals("craftengine:ns:ruby", PlacedBlockTracker.normalize("CE:ns:ruby"));
+        assertEquals("oraxen:ruby", PlacedBlockTracker.normalize("oraxen:ruby"));
+    }
 }

@@ -129,6 +129,10 @@ icon:
   read before ItemsAdder finished loading still works.
 - Ids are tried as written, then lower case, since loot and rewards upper-case
   what they store. `Source.OfMaterial.isCustom()` tells one apart.
+- **The same id names the placed block.** `CustomBlocks.id(block)` answers
+  which of these blocks (or furniture) sits in the world, spelled exactly as
+  above, and `PlacedBlocks.trackCustom` records who placed them, since 1.478.0
+  ([blocks.md](blocks.md#custom-blocks-since-14780)).
 
 Glyphs and emojis need nothing from here: their PlaceholderAPI placeholders
 (`%img_…%`, `%nexo_…%`, `%oraxen_…%`) resolve in every `Text` render, async

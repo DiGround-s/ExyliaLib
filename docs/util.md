@@ -592,11 +592,72 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
       '5': { cost: '64', currency: diamonds, permission: 'myplugin.speed.max', requirements: {}, values: { delay: 100 } }
   ```
 
+## DecayingCounter — volumes with a half-life
+
+Since 1.478.0. How much of something happened *recently*: a market that pays
+less for a flooded target and recovers when it is left alone, a spam score, a
+trending list.
+
+```java
+DecayingCounter mined = DecayingCounter.local(Duration.ofHours(2));
+mined.add("diamond_ore", 1);
+double recent = mined.value("diamond_ore");   // halves every two hours without adds
+Map<String, Double> all = mined.values();      // every key, decayed to now
+
+DecayingCounter market = DecayingCounter.shared(this, "jobs-market", Duration.ofHours(2));
+```
+
+- Each key keeps one value and the instant of its last add; a read decays it
+  to now: `value * 2^(-elapsed / halfLife)` (`DecayingCounter.decay`, public and
+  pure). There is no timer.
+- A negative `add` takes away; a value never goes below zero.
+- An untouched key is dropped after 32 half-lives (under a billionth of what it
+  was). At most 100,000 keys.
+- **`shared`** sends what this server added every five seconds on a
+  [`Channels`](redis.md) channel named `decaying:<name>` and adds what peers
+  send, aged by the batch's timestamp. Without Redis it is local. A server
+  that starts later counts from then on, and a batch lost during a restart is
+  forgiven within a few half-lives. Keys with a line break stay local. It stops
+  with its plugin or on `close()`.
+- Safe from any thread, memory only.
+
+## SpawnOrigin — where a mob came from
+
+Since 1.478.0. Whether a mob came from a spawner, an egg, breeding or the world,
+for rules that pay less for farms.
+
+```java
+if (SpawnOrigin.of(entity).playerMade()) return;   // SPAWNER, EGG or BREEDING
+```
+
+| Origin | Spawn reasons |
+| --- | --- |
+| `NATURAL` | natural spawns, chunk generation, jockeys, raids, patrols, reinforcements, portals, beehives, conversions and splits |
+| `SPAWNER` | `SPAWNER`, `TRIAL_SPAWNER`, `OMINOUS_ITEM_SPAWNER` |
+| `EGG` | `SPAWNER_EGG`, `DISPENSE_EGG`, `EGG` (thrown), `BUCKET` |
+| `BREEDING` | `BREEDING`, `DUPLICATION` (allays) |
+| `BUILT` | snow golems, iron golems, withers |
+| `PLUGIN` | `CUSTOM`, `COMMAND`, `DEFAULT` |
+| `OTHER` | anything else (pearls, shoulders, effects, enchantments, a reason newer than the table) |
+
+- **Read from Paper's spawn reason**, which Paper saves with the entity, so
+  the answer survives restarts and unloads. No tag is written for that.
+- **Conversions inherit.** A mob made from another (slime split, drowned,
+  witch, zombie villager, sheared mooshroom: `EntityTransformEvent`) gets the
+  parent's origin in its persistent data (`exylialib:spawn_origin`), so the
+  children of a spawner slime stay `SPAWNER`. Only non-natural parents write
+  the tag. A conversion that happened before the library ran falls back to the
+  child's own reason.
+- `SpawnOrigin.ofReason(String)` maps a reason by name, so a reason newer than
+  1.21.4 is read without breaking older servers.
+- Ask from the thread that owns the entity.
+
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java` (and `util/BuildZones.java`, on its [own page](build-zones.md)), `util/Totp.java`, `util/QrCodes.java` (plus the cooldown classes on their own page).
-- Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/internal/ClaimHooks.java` (their hook cache, shared with `ClaimBuild`), `util/worldguard/internal/WorldGuardAccess.pvpDenied`.
+  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java` (and `util/BuildZones.java`, on its [own page](build-zones.md)), `util/Totp.java`, `util/QrCodes.java`, `util/DecayingCounter.java`, `util/SpawnOrigin.java` (plus the cooldown classes on their own page).
+- Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/internal/ClaimHooks.java` (their hook cache, shared with `ClaimBuild`), `util/worldguard/internal/WorldGuardAccess.pvpDenied`, `util/internal/SpawnOriginListener.java` (origin carried over transforms).
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `ConditionTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
+  `DecayingCounterTest.java`, `SpawnOriginTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).
