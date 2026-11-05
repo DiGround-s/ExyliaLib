@@ -24,6 +24,7 @@ public final class LibCommands {
      * @param plugin the running library
      */
     public static void register(ExyliaLib plugin) {
+        ExecuteRun.install(plugin);
         Lamp<BukkitCommandActor> lamp = BukkitLamp.builder(plugin)
                 .suggestionProviders(providers -> providers.addProviderFactory(Suggestions.filtering()))
                 .build();

@@ -283,9 +283,11 @@ replaced by `pose()`, its clock, loop and life start now. `moveTo(pose, millis,
 easing)` glides to one pose and keeps the life that was left.
 
 ```java
-// A reel spinning freely, looped, while the reward is rolled...
-DisplayHandle reel = displays.show(strip, DisplayMotion.builder().life(500)
-        .spin(Rotation.Axis.X, 1).build().looping(500, 1.0, 1.0), at, 24);
+// A reel spinning freely, looped, while the reward is rolled: one turn's poses,
+// kept up for ten seconds at most...
+DisplayMotion turn = DisplayMotion.builder().life(500).spin(Rotation.Axis.X, 1).build();
+DisplayHandle reel = displays.show(strip, DisplayMotion.of(turn.poses(), 10_000)
+        .looping(500, 1.0, 1.0), at, 24);
 // ...and decelerating onto the face the server chose.
 DisplayKeyframe here = reel.pose();
 reel.then(DisplayMotion.builder().life(4000)
@@ -294,6 +296,10 @@ reel.then(DisplayMotion.builder().life(4000)
         .ease(DisplayMotion.Easing.QUART_OUT)
         .build());
 ```
+
+A loop still ends at its motion's life: `looping` repeats the poses, it does
+not keep the display up. Give a loop the whole stay as its life, as above; a
+loop built with `life(cycle)` is gone after one cycle.
 
 `turnsToStop` is the caller's: it knows the angle each face sits at and the
 angle the reel has reached (a loop of one turn per cycle is at

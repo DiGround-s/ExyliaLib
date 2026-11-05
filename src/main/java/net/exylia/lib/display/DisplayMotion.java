@@ -506,6 +506,11 @@ public final class DisplayMotion {
      * {@code maxSpeed} is where it stops climbing. Both {@code 1} is a loop
      * that keeps its tempo.
      *
+     * <p>A loop still ends at the motion's {@link #lifeMillis() life}, which is
+     * how a reel or a dance is bounded. A loop that must stay up longer than
+     * one cycle keeps the cycle's poses and is given the whole stay as its
+     * life: {@code DisplayMotion.of(cycle.poses(), stayMillis).looping(...)}.
+     *
      * @param cycleMillis how long one cycle lasts; the pose list must cover it
      * @param accel       what the speed is multiplied by each cycle, at least 1
      * @param maxSpeed    the fastest it may get, at least 1

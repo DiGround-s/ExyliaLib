@@ -282,6 +282,15 @@ add to any of them.
 The answer is a name rather than an object because a name is what goes in a
 config column, and a caller that wants the object looks it up once.
 
+A `colour` answer is read back with `Pickers.rgb(stored, fallback)` (since
+1.481.0), as `0xRRGGBB` for a display's glow or anything else drawn in any RGB.
+Adventure's `NamedTextColor` is not that reader: silver, maroon, olive, lime,
+teal, navy, fuchsia, purple and orange are not among its names.
+
+```java
+model.glow(Pickers.rgb(entry.getGlowColor(), 0xFFFFFF));
+```
+
 ## The icon picker
 
 It is not here: an icon is a question, and questions live in the input module.

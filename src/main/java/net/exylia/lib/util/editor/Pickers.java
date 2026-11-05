@@ -1,6 +1,7 @@
 package net.exylia.lib.util.editor;
 
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.item.internal.Registries;
 import net.exylia.lib.text.Phrases;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -15,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -52,7 +54,7 @@ public final class Pickers {
     private static final String CUSTOM = " custom";
 
     /** The colour names every colour key in the ecosystem already accepts. */
-    private static final List<String> COLOUR_NAMES = List.of(
+    static final List<String> COLOUR_NAMES = List.of(
             "white", "silver", "gray", "black", "red", "maroon", "yellow", "olive",
             "lime", "green", "aqua", "teal", "blue", "navy", "fuchsia", "purple", "orange");
 
@@ -180,6 +182,23 @@ public final class Pickers {
                 });
     }
 
+    /**
+     * Reads what {@link #colour} answered: one of its names or a {@code #rrggbb}.
+     *
+     * <p>The parser leather and potion colours go through, so a value written
+     * into a config by hand reads the same way. For a display's glow, a
+     * particle or anything else drawn in any RGB.
+     *
+     * @param colour   the stored answer, or {@code null}
+     * @param fallback what to answer when it is not a colour
+     * @return the colour as {@code 0xRRGGBB}, or {@code fallback}
+     * @since 1.481.0
+     */
+    public static int rgb(@Nullable String colour, int fallback) {
+        Color read = colour == null ? null : Registries.colour(colour);
+        return read == null ? fallback : read.asRGB();
+    }
+
     private CompletionStage<Optional<String>> hex(Player viewer) {
         return Inputs.of(plugin).text(viewer, Phrases.tr("{primary}Type a colour as #rrggbb"))
                 .validate(Pickers::isHex, Phrases.tr("Write it as #rrggbb, such as #8a51c4."))
@@ -225,8 +244,19 @@ public final class Pickers {
         }
     }
 
-    private static Material dye(String name) {
-        Material dye = Material.matchMaterial(name.toUpperCase(Locale.ROOT) + "_DYE");
+    /** The dye nearest a colour name: nine of them have no dye of their own and drew as white. */
+    static Material dye(String name) {
+        String nearest = switch (name) {
+            case "silver" -> "light_gray";
+            case "maroon" -> "brown";
+            case "olive" -> "green";
+            case "aqua" -> "light_blue";
+            case "teal" -> "cyan";
+            case "navy" -> "blue";
+            case "fuchsia" -> "magenta";
+            default -> name;
+        };
+        Material dye = Material.matchMaterial(nearest.toUpperCase(Locale.ROOT) + "_DYE");
         return dye != null ? dye : Material.WHITE_DYE;
     }
 

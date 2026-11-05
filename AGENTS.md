@@ -1262,6 +1262,12 @@ so the server downloads it from Maven Central. Never `onCommand`, never a
 `CommandExecutor` of your own, never a version other than the one the rest of the
 plugins use.
 
+Lamp's brigadier action parses the whole input line, so under
+`execute as <player> run <command>` (command blocks, NPC plugins) it would read
+`execute` as the command and refuse. Since 1.481.0 the library wraps every Lamp
+action in the server's tree once the commands are registered
+(`internal/ExecuteRun`); a plugin needs nothing for it.
+
 ### Players — one type, five tiers, and never the name overload
 
 A player a command is pointed at goes through `net.exylia.lib.player`. Never a
