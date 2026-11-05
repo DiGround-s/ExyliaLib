@@ -454,6 +454,14 @@ parser inside a plugin.
 - **A test that asks about the flag doesn't prove this.** The flag was set the
   whole time while the player saw the opposite; what is verified is that the
   component is requested, not that the flag is added.
+- **Up to 1.21.4 `HIDE_ATTRIBUTES` lives inside `attribute_modifiers`.** A
+  sword or a chestplate with only its type's modifiers has no such component,
+  so the flag is dropped by the very `setItemMeta` that writes it and every menu
+  icon read "When in Main Hand: 7 Attack Damage". `platform/AttributeLines`
+  writes the type's own modifiers first (same stats), and the renderer calls it
+  after the traits, because file `attributes` arrive through the data component
+  with their lines shown. Anything that builds an item by hand uses it instead of
+  the bare flag.
 - **But it doesn't hide enchantments.** Commons applied `ItemFlag.values()`, so
   an item asking to hide attributes lost the enchantment lines it wanted to show.
   Hiding those is still something the file asks for, via `flags`.

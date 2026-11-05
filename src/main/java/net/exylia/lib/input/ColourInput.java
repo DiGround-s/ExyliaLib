@@ -1,5 +1,6 @@
 package net.exylia.lib.input;
 
+import net.exylia.lib.platform.AttributeLines;
 import net.exylia.lib.text.Colors;
 import net.exylia.lib.text.Phrases;
 import net.kyori.adventure.text.format.TextColor;
@@ -132,7 +133,8 @@ public final class ColourInput {
         ItemStack item = new ItemStack(Material.LEATHER_CHESTPLATE);
         if (item.getItemMeta() instanceof LeatherArmorMeta meta) {
             meta.setColor(Color.fromRGB(colour.value()));
-            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_DYE);
+            meta.addItemFlags(ItemFlag.HIDE_DYE);
+            AttributeLines.hide(meta, item.getType());
             item.setItemMeta(meta);
         }
         return item;

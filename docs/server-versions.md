@@ -47,6 +47,7 @@ which version the server reports, and is computed once into a
 | `playerInput()` | `PlayerInputEvent` | 1.21.3 |
 | `menuBuilders()` | `MenuType` view builders | 1.21.4 |
 | `equipmentEvent()` | `EntityEquipmentChangedEvent` | 1.21.4 |
+| `tooltipDisplay()` | `tooltip_display`, one component hiding the others (since 1.475.0) | 1.21.5 |
 
 ## `Attributes`
 

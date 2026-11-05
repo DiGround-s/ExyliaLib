@@ -34,6 +34,8 @@ public final class Features {
             hasClass("org.bukkit.inventory.view.builder.LocationInventoryViewBuilder");
     private static final boolean EQUIPMENT_EVENT =
             hasClass("io.papermc.paper.event.entity.EntityEquipmentChangedEvent");
+    private static final boolean TOOLTIP_DISPLAY =
+            hasClass("io.papermc.paper.datacomponent.item.TooltipDisplay");
 
     private Features() {
     }
@@ -71,6 +73,16 @@ public final class Features {
     /** {@code EntityEquipmentChangedEvent} (1.21.4). */
     public static boolean equipmentEvent() {
         return EQUIPMENT_EVENT;
+    }
+
+    /**
+     * {@code tooltip_display}: one component that hides the others (1.21.5).
+     * Before it, each component carried its own {@code show_in_tooltip}.
+     *
+     * @since 1.475.0
+     */
+    public static boolean tooltipDisplay() {
+        return TOOLTIP_DISPLAY;
     }
 
     private static boolean hasClass(String name) {

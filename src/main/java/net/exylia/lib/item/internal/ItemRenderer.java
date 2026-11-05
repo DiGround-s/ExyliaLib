@@ -1,5 +1,6 @@
 package net.exylia.lib.item.internal;
 
+import net.exylia.lib.platform.AttributeLines;
 import net.exylia.lib.platform.Features;
 
 import net.exylia.lib.item.Appearance;
@@ -207,6 +208,7 @@ public final class ItemRenderer {
         }
         write(item, definition, viewer, values, formatted, verbatim, resolve, problems);
         TraitApplier.apply(item, definition.traits(), owner, resolve, problems);
+        hideAttributeLines(item, definition.appearance());
         // Last of all, and that is the whole point: every setItemMeta replaces
         // the item's component map, and TraitApplier calls it six times. Writing
         // this inside write() set the component and then had it wiped a moment
@@ -503,6 +505,42 @@ public final class ItemRenderer {
         if (appearance.hideAttributes()) {
             components.hideAdditionalTooltip(item, problems);
         }
+    }
+
+    /**
+     * Makes {@code hide-attributes} stick on the servers where the flag alone
+     * does not (up to 1.21.4).
+     *
+     * <p>There the flag is a field of the {@code attribute_modifiers}
+     * component, and a sword or a chestplate that only has its type's
+     * modifiers carries no such component: the flag set in {@link #write} was
+     * dropped by the very {@code setItemMeta} that wrote it, and every menu
+     * icon kept "When in Main Hand: 7 Attack Damage". Modifiers a file adds
+     * arrive later, through the data component, with their lines shown. So
+     * this runs after the traits, and {@link AttributeLines} writes the type's
+     * own modifiers where the item has none, which leaves its stats as they were.
+     */
+    private static void hideAttributeLines(ItemStack item, Appearance appearance) {
+        if (Features.tooltipDisplay() || !asksToHideAttributes(appearance)) {
+            return;
+        }
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null && AttributeLines.hide(meta, item.getType())) {
+            item.setItemMeta(meta);
+        }
+    }
+
+    /** Whether an appearance hides the attribute lines, by the key or by naming the flag. */
+    static boolean asksToHideAttributes(Appearance appearance) {
+        if (appearance.hideAttributes()) {
+            return true;
+        }
+        for (String written : appearance.flags()) {
+            if (Registries.flag(written) == ItemFlag.HIDE_ATTRIBUTES) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

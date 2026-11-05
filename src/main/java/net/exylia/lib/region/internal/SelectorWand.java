@@ -1,6 +1,7 @@
 package net.exylia.lib.region.internal;
 
 import net.exylia.lib.packet.internal.PacketRuntime;
+import net.exylia.lib.platform.AttributeLines;
 import net.exylia.lib.region.SelectionMode;
 import net.exylia.lib.region.SelectionOptions;
 import net.exylia.lib.text.LibraryMessages;
@@ -163,7 +164,8 @@ public interface SelectorWand {
             // An admin tool should not wear out, and should not look enchanted
             // either. The glint is the only thing the enchantment is for.
             meta.setUnbreakable(true);
-            meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+            meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE, ItemFlag.HIDE_ENCHANTS);
+            AttributeLines.hide(meta, wand.getType());
             Enchantment glint = glint();
             if (glint != null) {
                 meta.addEnchant(glint, 1, true);

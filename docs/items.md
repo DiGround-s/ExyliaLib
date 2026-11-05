@@ -283,6 +283,15 @@ firework or a banner adds to describe itself. A menu asking for a clean tooltip
 means all of it — a smithing template in a list otherwise still says *"Applies
 to: Armor"*.
 
+Up to 1.21.4 the damage and armour lines need one more step. There
+`HIDE_ATTRIBUTES` is a field of the `attribute_modifiers` component, and a sword
+or a chestplate that only has its type's modifiers carries no such component,
+so the flag was dropped and menus kept "When in Main Hand: 7 Attack Damage". The
+renderer writes the type's own modifiers onto the item first (the stats stay as
+they were), after any `attributes` the file adds. Code that builds its own items
+calls `net.exylia.lib.platform.AttributeLines.hide(meta, type)` (since 1.475.0)
+instead of adding the flag by hand.
+
 That needs both an item flag and a data component, and the flag alone is not
 enough: an `ItemFlag` is only persisted alongside the data it hides, and a
 smithing template holds none — its block comes from the item *type*. So the
