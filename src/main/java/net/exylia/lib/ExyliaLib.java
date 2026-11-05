@@ -191,6 +191,12 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.util.world.TemporaryWorld.start(this);
 
         getServer().getPluginManager().registerEvents(this, this);
+        // Optional since plugins stopped hard-depending on it: say once what goes missing.
+        if (getServer().getPluginManager().getPlugin("packetevents") == null) {
+            getLogger().warning("PacketEvents is not installed. Every plugin still runs, but holograms, NPCs,");
+            getLogger().warning("custom models, nametags, overlays, replays and packet glow are not drawn.");
+            getLogger().warning("Install PacketEvents and restart to turn them on.");
+        }
         // Nodes an auto-updated plugin added after its loader jar was installed.
         net.exylia.lib.internal.DeclaredPermissions declared = new net.exylia.lib.internal.DeclaredPermissions(this);
         getServer().getPluginManager().registerEvents(declared, this);
