@@ -33,9 +33,10 @@ import org.jetbrains.annotations.NotNull;
  *
  * <h2>What is needed</h2>
  * PacketEvents. Without it {@link #isAvailable()} is {@code false} and every
- * helper is a silent no-op — one warning per plugin, then nothing. The only
- * exception is {@link SilentContainer}, which is plain Bukkit and works
- * anywhere.
+ * helper is a silent no-op — one warning per plugin, then nothing — except
+ * what Bukkit can do alone: {@link SilentContainer} is plain Bukkit,
+ * {@link Visibility} hides with {@code hidePlayer} (nothing other plugins send
+ * is filtered), and {@link Movement} pins players with move checks.
  *
  * <h2>Threading</h2>
  * Every method is safe from any thread; anything that touches an entity hops

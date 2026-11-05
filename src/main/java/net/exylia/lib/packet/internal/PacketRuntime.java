@@ -280,7 +280,8 @@ public final class PacketRuntime {
 
     public static PluginPackets of(Plugin plugin) {
         if (sink() == null && WARNED.add(plugin.getName())) {
-            Debug.of(plugin).warn("PacketEvents is not installed: packet helpers do nothing.");
+            Debug.of(plugin).warn("PacketEvents is not available: vanish falls back to hidePlayer, freezing to"
+                    + " movement checks, and the other packet helpers do nothing.");
         }
         return BY_PLUGIN.computeIfAbsent(plugin.getName(), name -> new Impl(plugin));
     }
@@ -955,10 +956,9 @@ public final class PacketRuntime {
 
         @Override
         public void refresh(@NotNull Player target) {
+            // Without packets the hide is Bukkit's hidePlayer alone: the target vanishes from the
+            // world and the tab list, but what other plugins send about them is not filtered.
             PacketSink out = sink();
-            if (out == null) {
-                return;
-            }
             UUID targetId = target.getUniqueId();
             ENTITY_IDS.put(target.getEntityId(), targetId);
             for (Player viewer : Bukkit.getOnlinePlayers()) {
@@ -973,7 +973,7 @@ public final class PacketRuntime {
                     // is filtered before the despawn even arrives.
                     Tasks.of(plugin).runAtEntity(viewer, () -> {
                         viewer.hidePlayer(handle(), target);
-                        out.despawn(viewer, target.getEntityId(), targetId);
+                        if (out != null) out.despawn(viewer, target.getEntityId(), targetId);
                     });
                 } else if (allowed && (hidden.remove(targetId) | !viewer.canSee(target))) {
                     // Not only when the record says hidden. The record is
