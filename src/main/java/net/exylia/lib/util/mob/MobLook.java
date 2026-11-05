@@ -105,7 +105,7 @@ public record MobLook(@NotNull String variant, @NotNull String body, @NotNull St
 
     /**
      * How it leaves: a humanoid's body thrown apart, blocks of its colours
-     * shattering, or a piñata bursting into candies and fireworks. AUTO breaks
+     * shattering, or a piñata bursting into candies and confetti. AUTO breaks
      * a hits-mode mob like a piñata, throws a humanoid apart and shatters the rest.
      *
      * @since 1.199.0
@@ -145,7 +145,7 @@ public record MobLook(@NotNull String variant, @NotNull String body, @NotNull St
                 "[CIRCLE] DUST;color:{info};size:1.2;radius:1.1;points:1;y:1.3;rotate:%angle3%",
                 "[PARTICLE] DUST;color:{success};size:0.8;count:1;offset:0.6,0.5,0.6;y:1.5"));
         auras.put("sparks", List.of(
-                "[CIRCLE] FIREWORK;radius:1.0;points:3;y:1.4;rotate:%angle%",
+                "[CIRCLE] ELECTRIC_SPARK;radius:1.0;points:3;y:1.4;rotate:%angle%",
                 "[PARTICLE] END_ROD;count:1;offset:0.5,0.6,0.5;speed:0.01;y:1.4"));
         auras.put("galaxy", List.of(
                 "[CIRCLE] DUST;color:{primary};size:1.1;radius:1.2;points:2;y:0.3;rotate:%angle%",

@@ -277,6 +277,27 @@ class MobStylesTest {
     }
 
     @Test
+    @DisplayName("no style, reaction or stock aura uses a firework: heavy, and seen by everyone nearby")
+    void noFireworks() throws java.io.IOException {
+        for (MobStyle style : MobStyle.values()) build(style, false);
+        for (String name : sounds) assertFalse(name.contains("FIREWORK"), name);
+        for (java.util.Map.Entry<String, List<String>> aura : net.exylia.lib.util.mob.MobLook.STOCK_AURAS.entrySet()) {
+            for (String line : aura.getValue()) assertFalse(line.contains("FIREWORK"), aura.getKey() + ": " + line);
+        }
+        // Particles and Sound constants are not visible on a built effect, so
+        // the drawing code itself is read: starfall, smite, supernova, prism,
+        // hop and the piñata's death all used to burst like a rocket.
+        try (java.util.stream.Stream<java.nio.file.Path> files =
+                     java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java/net/exylia/lib/util/mob"))) {
+            for (java.nio.file.Path file : files.filter(f -> f.toString().endsWith(".java")).toList()) {
+                String source = java.nio.file.Files.readString(file);
+                assertFalse(source.contains("Particle.FIREWORK"), file + " draws firework particles");
+                assertFalse(source.contains("FIREWORK_ROCKET_"), file + " plays a rocket sound");
+            }
+        }
+    }
+
+    @Test
     @DisplayName("each type draws in the style that suits it, and a skill with its own lines keeps them")
     void autoStyles() {
         for (MobSkill.Type type : MobSkill.Type.values()) {

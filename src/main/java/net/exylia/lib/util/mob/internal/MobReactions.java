@@ -655,7 +655,10 @@ final class MobReactions {
                 .sound(0, MobBodies.block(first).getSoundGroup().getBreakSound(), 1.0f, 0.85f);
     }
 
-    /** The piñata's own finish: a fountain of candies, confetti, fireworks and a jolt. */
+    /**
+     * The piñata's own finish: a fountain of candies, confetti, a shattering
+     * pot and a jolt. No fireworks: they are heavy and everybody nearby sees them.
+     */
     private void burst(Vfx vfx, LivingEntity entity, Location at) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         double width = Math.max(0.6, entity.getWidth());
@@ -672,10 +675,10 @@ final class MobReactions {
         Location centre = at.clone().add(0, height * 0.6, 0);
         confetti(vfx, 0, centre, width * 1.5, 14);
         confetti(vfx, 150, centre.clone().add(0, 1.2, 0), width * 2, 10);
-        vfx.particle(0, Particle.FIREWORK, centre, 40, 0.2, 0.2, 0.2, 0.22, null)
-                .particle(250, Particle.FIREWORK, centre.clone().add(0, 1.5, 0), 25, 0.3, 0.3, 0.3, 0.15, null)
-                .sound(0, Sound.ENTITY_FIREWORK_ROCKET_BLAST, 1.0f, 1.0f)
-                .sound(250, Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 0.9f, 1.2f)
+        confetti(vfx, 250, centre.clone().add(0, 1.5, 0), width * 1.2, 10);
+        vfx.particle(0, Particle.END_ROD, centre, 20, 0.2, 0.2, 0.2, 0.18, null)
+                .sound(0, Sound.BLOCK_DECORATED_POT_SHATTER, 1.0f, 1.0f)
+                .sound(250, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.9f, 1.2f)
                 .sound(450, Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.6f);
         int beats = visuals.shakes(1);
         if (beats > 0) vfx.shake(0, 6, beats, 100L);

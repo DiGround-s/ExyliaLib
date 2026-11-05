@@ -532,11 +532,11 @@ final class MobShows {
                     0.08, 0.01, null);
         }
         Location impact = point.clone().add(0, 0.3, 0);
-        vfx.particle(lands, Particle.FIREWORK, impact, 14, 0.15, 0.15, 0.15, 0.2, null)
+        vfx.particle(lands, Particle.END_ROD, impact, 14, 0.15, 0.15, 0.15, 0.2, null)
                 .particle(lands, Particle.DUST, impact, 12, 0.5, 0.2, 0.5, 0, Shapes.dust(stage.main(), 1.4f))
                 .particle(lands, Particle.BLOCK, impact, 6, 0.3, 0.05, 0.3, 0.05, MobStyle.groundOf(point));
-        Shapes.sound(vfx, start, point, "ENTITY_FIREWORK_ROCKET_LAUNCH", 0.4f, 1.6f);
-        Shapes.sound(vfx, lands, point, "ENTITY_FIREWORK_ROCKET_BLAST", 1.0f, 0.8f);
+        Shapes.sound(vfx, start, point, "ITEM_TRIDENT_RIPTIDE_1", 0.4f, 1.6f);
+        Shapes.sound(vfx, lands, point, "BLOCK_AMETHYST_CLUSTER_BREAK", 1.0f, 0.8f);
         Shapes.sound(vfx, lands, point, "BLOCK_AMETHYST_BLOCK_BREAK", 1.0f, 1.2f);
     }
 

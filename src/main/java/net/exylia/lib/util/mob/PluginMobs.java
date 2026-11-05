@@ -281,7 +281,7 @@ public final class PluginMobs {
      *
      * <pre>{@code
      * mobs.auras(Map.of("sparks", List.of(
-     *         "[CIRCLE] FIREWORK;radius:1.0;points:3;y:1.4;rotate:%angle%",
+     *         "[CIRCLE] ELECTRIC_SPARK;radius:1.0;points:3;y:1.4;rotate:%angle%",
      *         "[PARTICLE] END_ROD;count:1;offset:0.5,0.6,0.5;speed:0.01;y:1.4")));
      * }</pre>
      *

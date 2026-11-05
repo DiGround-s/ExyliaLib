@@ -1158,8 +1158,8 @@ enum MobStyle {
             quake(s, v, 60, r + 0.5, new double[]{0.8}, 10);
             Shapes.circle(v, 0, Particle.ELECTRIC_SPARK, at.clone().add(0, 0.2, 0), r, s.count(16, 8), 0.4, null);
             v.particle(0, Particle.END_ROD, at.clone().add(0, 1, 0), s.count(20, 10), 0.3, 1.0, 0.3, 0.15, null)
-                    .particle(0, Particle.FIREWORK, at.clone().add(0, 0.5, 0), s.count(10, 5), r * 0.3, 0.2, r * 0.3,
-                            0.1, null);
+                    .particle(0, Particle.ELECTRIC_SPARK, at.clone().add(0, 0.5, 0), s.count(10, 5), r * 0.3, 0.2,
+                            r * 0.3, 0.25, null);
             Shapes.sound(v, 0, "ENTITY_LIGHTNING_BOLT_IMPACT", 1.0f, 0.8f);
             Shapes.sound(v, 0, "ITEM_TRIDENT_THUNDER", 0.8f, 1.3f);
             shake(s, v, 0, r + 8, 2);
@@ -1345,11 +1345,11 @@ enum MobStyle {
             v.particle(0, Particle.EXPLOSION_EMITTER, core, 1)
                     .particle(0, Particle.FLAME, core, s.count(60, 30), 0.3, 0.3, 0.3, 0.45, null)
                     .particle(0, Particle.LAVA, at.clone().add(0, 0.5, 0), s.count(14, 7), r * 0.4, 0.3, r * 0.4, 0, null)
-                    .particle(150, Particle.FIREWORK, core, s.count(30, 15), 0.5, 0.5, 0.5, 0.35, null);
+                    .particle(150, Particle.END_ROD, core, s.count(30, 15), 0.5, 0.5, 0.5, 0.35, null);
             Shapes.sound(v, 0, "ENTITY_GENERIC_EXPLODE", 1.2f, 0.5f);
             Shapes.sound(v, 0, "ENTITY_DRAGON_FIREBALL_EXPLODE", 1.0f, 0.6f);
             Shapes.sound(v, 80, "ENTITY_LIGHTNING_BOLT_THUNDER", 0.7f, 0.7f);
-            Shapes.sound(v, 200, "ENTITY_FIREWORK_ROCKET_TWINKLE", 0.8f, 0.8f);
+            Shapes.sound(v, 200, "BLOCK_AMETHYST_BLOCK_CHIME", 0.8f, 0.8f);
             shake(s, v, 0, r + 12, 3);
         }
 
@@ -1476,14 +1476,14 @@ enum MobStyle {
                 v.particle(beat, Particle.END_ROD, hands, 0, 0, 1, 0, 0.3, null);
             }
             Shapes.sound(v, 0, "BLOCK_BEACON_POWER_SELECT", 0.8f, 1.5f);
-            Shapes.sound(v, Math.max(0, w - 200), "ENTITY_FIREWORK_ROCKET_LAUNCH", 1.0f, 0.6f);
+            Shapes.sound(v, Math.max(0, w - 200), "ITEM_TRIDENT_RIPTIDE_1", 0.8f, 1.2f);
         }
 
         @Override
         void impact(Stage s, Vfx v, Location at) {
             Location hands = hands(s);
             v.particle(0, Particle.END_ROD, hands, s.count(12, 6), 0.2, 0.2, 0.2, 0.15, null)
-                    .particle(0, Particle.FIREWORK, hands, s.count(8, 4), 0.1, 0.1, 0.1, 0.1, null);
+                    .particle(0, Particle.WAX_OFF, hands, s.count(8, 4), 0.2, 0.2, 0.2, 0.1, null);
             Shapes.sound(v, 0, "ENTITY_ILLUSIONER_CAST_SPELL", 1.0f, 1.2f);
         }
     },
@@ -1555,7 +1555,7 @@ enum MobStyle {
                         .particle(when, Particle.END_ROD, on, 1, 0.05, 0.05, 0.05, 0.05, null);
             }
             v.particle(0, Particle.EXPLOSION, far, 1)
-                    .particle(0, Particle.FIREWORK, far, s.count(16, 8), 0.3, 0.3, 0.3, 0.2, null)
+                    .particle(0, Particle.ELECTRIC_SPARK, far, s.count(16, 8), 0.3, 0.3, 0.3, 0.2, null)
                     .particle(0, Particle.CLOUD, hands, s.count(6, 3), 0.1, 0.1, 0.1, 0.08, null);
             for (LivingEntity body : s.reached()) {
                 v.particle(0, Particle.CRIT, chest(body), s.count(12, 6), 0.3, 0.4, 0.3, 0.3, null);
@@ -1613,11 +1613,11 @@ enum MobStyle {
                         Math.cos(angle) * out, Math.sin(angle) * out, size, random.nextLong(350, 480), random, 200L));
             }
             for (int spark = 1; spark <= 3; spark++) {
-                v.particle(spark * 100L, Particle.FIREWORK, at.clone().add(0, 0.4 + spark * 0.7, 0), 2, 0.15, 0.1,
+                v.particle(spark * 100L, Particle.END_ROD, at.clone().add(0, 0.4 + spark * 0.7, 0), 2, 0.15, 0.1,
                         0.15, 0.01, null);
             }
             Shapes.sound(v, 0, "ENTITY_RABBIT_JUMP", 1.0f, 0.8f);
-            Shapes.sound(v, 0, "ENTITY_FIREWORK_ROCKET_LAUNCH", 0.4f, 1.5f);
+            Shapes.sound(v, 0, "ENTITY_BREEZE_JUMP", 0.4f, 1.5f);
         }
     },
 
