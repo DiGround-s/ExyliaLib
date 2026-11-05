@@ -56,6 +56,20 @@ class FieldEffectsTest {
         assertEquals(Material.BEETROOT_SEEDS, FieldEffects.SEEDS.get(Material.BEETROOTS));
     }
 
+    @Test
+    void itemsTakeTheWoodOrColourOfTheirMatch() {
+        assertEquals("DARK_OAK", FieldEffects.variantOf("STRIPPED_DARK_OAK_LOG"));
+        assertEquals("LIGHT_BLUE", FieldEffects.variantOf("LIGHT_BLUE_WOOL"));
+        assertNull(FieldEffects.variantOf("STONE"));
+        assertEquals(Material.SPRUCE_SAPLING, FieldEffects.variant(Material.OAK_SAPLING, "SPRUCE"));
+        assertEquals(Material.MANGROVE_PROPAGULE, FieldEffects.variant(Material.OAK_SAPLING, "MANGROVE"));
+        assertEquals(Material.CRIMSON_FUNGUS, FieldEffects.variant(Material.OAK_SAPLING, "CRIMSON"));
+        assertEquals(Material.RED_WOOL, FieldEffects.variant(Material.WHITE_WOOL, "RED"));
+        assertEquals(Material.OAK_SAPLING, FieldEffects.variant(Material.OAK_SAPLING, "RED"), "no red sapling");
+        assertEquals(Material.WHITE_WOOL, FieldEffects.variant(Material.WHITE_WOOL, null));
+        assertEquals(Material.DIAMOND, FieldEffects.variant(Material.DIAMOND, "OAK"));
+    }
+
     private static final class Stub extends ItemStack {
         private final Material type;
         private final boolean meta;

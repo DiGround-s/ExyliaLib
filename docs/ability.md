@@ -182,7 +182,7 @@ pets. Armour stands are never `nearby` targets.
 | `replant` | — | on `BLOCK_BREAK` of a ripe wheat, carrot, potato, beetroot, nether wart or cocoa: takes one plain seed from the final drops (after every multiplier) and plants the crop again, age 0, a tick later; no seed or no free supported spot plants nothing (and gives the seed back at the block) (*1.480.0*) |
 | `grow` | `radius` formula (4, at most 8), `stages` formula (1), `max` formula (16) | advances up to `max` crops (wheat, carrots, potatoes, beetroots, nether wart, cocoa, stems, sweet berries, torchflower) around the trigger's place by `stages` ages, never past ripe, where the region policy `build` allows (*1.480.0*) |
 | `fish-hook` | `wait-multiplier` formula (1) | on `CAST`: scales the hook's minimum and maximum wait for a bite (below 1 is faster, at least a tick) (*1.480.0*) |
-| `item` | `material` (required: a material or a Nexo/Oraxen/ItemsAdder/CraftEngine id), `amount` formula (1; a fraction is a chance of one more), `to` `inventory \| drop` (inventory) | gives the item; what does not fit, and `drop`, lands at the holder's feet / the trigger's place (*1.480.0*) |
+| `item` | `material` (required: a material or a Nexo/Oraxen/ItemsAdder/CraftEngine id), `amount` formula (1; a fraction is a chance of one more), `to` `inventory \| drop` (inventory), `match` `block \| victim` (none; *1.482.0*) | gives the item; `match` swaps its wood or colour for the trigger's block's or victim's ([below](#matching-items)); what does not fit goes to the plugin's reward queue when it set `Rewards.of(plugin).overflow(QUEUE)` (*1.482.0*), else lands at the holder's feet; `drop` lands at the trigger's place (*1.480.0*) |
 
 Effects that work out an amount multiply it by the gate's factor
 (`ctx.scale()`): damage, heal, absorption, lifesteal, knockback, pull, launch,
@@ -192,6 +192,27 @@ scaled.
 `potion` resolves its type through the server's registry; with no server (a
 unit test) it compiles anyway and resolves on its first proc (*1.387.0*). On a
 server an unknown type is still reported at load.
+
+### Matching items
+
+*1.482.0.* `item: { material: OAK_SAPLING, match: block }` gives the sapling of
+the wood just broken; `item: { material: WHITE_WOOL, match: victim }` gives
+wool in the sheared sheep's colour. The `material` is the template and the
+fallback.
+
+- **Variants** are the wood types (`oak`, `spruce`, `birch`, `jungle`,
+  `acacia`, `dark_oak`, `pale_oak`, `mangrove`, `cherry`, `crimson`, `warped`,
+  `bamboo`) and the sixteen dye colours. A block's variant is the one its name
+  starts with (`STRIPPED_DARK_OAK_LOG` is `dark_oak`); a victim's is its colour
+  (a sheep, a shulker) or else its type's name.
+- **The swap** replaces the template's own variant: `OAK_SAPLING` for
+  `spruce` is `SPRUCE_SAPLING`, `WHITE_CARPET` for `red` is `RED_CARPET`.
+  Names the game spells otherwise come from a small table
+  (`crimson`/`warped` saplings are fungi, `mangrove` is the propagule,
+  `bamboo` is bamboo); extend it in `FieldEffects.VARIANT_NAMES`.
+- **No match keeps the template**: a trigger with no block or victim, one
+  without a variant, a template without one, or a result the server does not
+  know (`PALE_OAK_SAPLING` on 1.21.1). Only vanilla materials are swapped.
 
 ### Gathering
 

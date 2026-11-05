@@ -12,6 +12,9 @@ import net.exylia.lib.region.CommonRegionPolicies;
 import net.exylia.lib.region.Regions;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.Formula;
+import net.exylia.lib.util.reward.OverflowPolicy;
+import net.exylia.lib.util.reward.PluginRewards;
+import net.exylia.lib.util.reward.Rewards;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Location;
@@ -261,37 +264,112 @@ final class FieldEffects {
     // ------------------------------------------------------------------ items
 
     /**
-     * {@code item: { material, amount: 1, to: inventory | drop }}: gives an item,
-     * vanilla or a resource-pack plugin's id. What does not fit drops at the
-     * holder's feet.
+     * {@code item: { material, amount: 1, to: inventory | drop, match: block | victim }}:
+     * gives an item, vanilla or a resource-pack plugin's id. With {@code match},
+     * the material takes the wood or colour of the trigger's block or victim
+     * ({@link #variant}). What does not fit goes to the plugin's reward queue
+     * when it chose {@link OverflowPolicy#QUEUE}, else drops at the holder's feet.
      */
     private static AbilityEffect item(AbilityArgs args) {
         String material = args.string("material", "").trim();
         Formula amount = args.formula("amount", "1");
         boolean drop = args.string("to", "inventory").equalsIgnoreCase("drop");
+        String match = args.string("match", "").trim().toLowerCase(Locale.ROOT);
         if (material.isEmpty()) throw new IllegalArgumentException("item needs a 'material'");
         if (!CustomItems.isCustom(material) && Material.matchMaterial(material) == null) {
             throw new IllegalArgumentException("unknown material '" + material + "'");
         }
+        if (!match.isEmpty() && !match.equals("block") && !match.equals("victim") && !match.equals("entity")) {
+            throw new IllegalArgumentException("item 'match' is block or victim, not '" + match + "'");
+        }
+        Material plain = Material.matchMaterial(material);
         return (ctx, report) -> {
             int count = BuiltinEffects.roll(amount.applyOr(0, ctx.level()) * ctx.scale());
             if (count <= 0) return;
             // Built on each proc: a pack plugin may load its items after this compiled.
-            ItemStack base = Items.icon(material);
+            ItemStack base = plain != null && !match.isEmpty()
+                    ? new ItemStack(variant(plain, variantOf(ctx, match)))
+                    : Items.icon(material);
             int stack = Math.max(1, base.getMaxStackSize());
             Player holder = ctx.holder();
             Location where = drop ? ctx.location() : holder.getLocation();
+            PluginRewards queue = drop ? null : queueOf(ctx);
             report.drops(count);
             for (int left = count; left > 0; left -= stack) {
                 ItemStack one = base.clone();
                 one.setAmount(Math.min(stack, left));
                 if (drop) {
                     dropAt(ctx, where, one);
+                } else if (queue != null) {
+                    queue.giveItem(holder, one);
                 } else {
                     holder.getInventory().addItem(one).values().forEach(over -> dropAt(ctx, where, over));
                 }
             }
         };
+    }
+
+    /** The owning plugin's rewards, when it asked to queue what does not fit. */
+    private static @Nullable PluginRewards queueOf(AbilityContext ctx) {
+        String owner = ctx.abilities().plugin().getName();
+        for (PluginRewards rewards : Rewards.all()) {
+            if (rewards.plugin().getName().equals(owner) && rewards.overflow() == OverflowPolicy.QUEUE) return rewards;
+        }
+        return null;
+    }
+
+    /** Wood types and dye colours, longest first so {@code DARK_OAK} wins over {@code OAK}. */
+    static final List<String> VARIANTS;
+
+    static {
+        List<String> names = new java.util.ArrayList<>(List.of("OAK", "SPRUCE", "BIRCH", "JUNGLE", "ACACIA",
+                "DARK_OAK", "PALE_OAK", "MANGROVE", "CHERRY", "CRIMSON", "WARPED", "BAMBOO"));
+        for (org.bukkit.DyeColor colour : org.bukkit.DyeColor.values()) names.add(colour.name());
+        names.sort(java.util.Comparator.comparingInt(String::length).reversed());
+        VARIANTS = List.copyOf(names);
+    }
+
+    /** Names the swap builds that the game spells differently. */
+    static final Map<String, String> VARIANT_NAMES = Map.of(
+            "CRIMSON_SAPLING", "CRIMSON_FUNGUS",
+            "WARPED_SAPLING", "WARPED_FUNGUS",
+            "MANGROVE_SAPLING", "MANGROVE_PROPAGULE",
+            "BAMBOO_SAPLING", "BAMBOO");
+
+    /** The wood or colour of the trigger's block or victim, {@code null} when it has none. */
+    private static @Nullable String variantOf(AbilityContext ctx, String match) {
+        if (match.equals("block")) {
+            Block block = ctx.block();
+            return block == null ? null : variantOf(block.getType().name());
+        }
+        if (ctx.victim() instanceof org.bukkit.material.Colorable colourful && colourful.getColor() != null) {
+            return colourful.getColor().name();
+        }
+        return ctx.victim() == null ? null : variantOf(ctx.victim().getType().name());
+    }
+
+    /** The variant a name starts with ({@code STRIPPED_DARK_OAK_LOG} is {@code DARK_OAK}), or {@code null}. */
+    static @Nullable String variantOf(String name) {
+        String bare = name.startsWith("STRIPPED_") ? name.substring("STRIPPED_".length()) : name;
+        for (String variant : VARIANTS) {
+            if (bare.equals(variant) || bare.startsWith(variant + "_")) return variant;
+        }
+        return null;
+    }
+
+    /**
+     * {@code material} in another variant: {@code OAK_SAPLING} for {@code SPRUCE}
+     * is {@code SPRUCE_SAPLING}, {@code WHITE_WOOL} for {@code RED} is
+     * {@code RED_WOOL}. The material itself when either has no variant or the
+     * result is not a material on this server.
+     */
+    static Material variant(Material material, @Nullable String variant) {
+        String own = variantOf(material.name());
+        if (variant == null || own == null || own.equals(variant)) return material;
+        String name = variant + material.name().substring(material.name().indexOf(own) + own.length());
+        Material found = Material.matchMaterial(VARIANT_NAMES.getOrDefault(name, name));
+        // Every swap of an item name is an item; the few the game spells otherwise are in VARIANT_NAMES.
+        return found != null ? found : material;
     }
 
     private static void dropAt(AbilityContext ctx, Location where, ItemStack item) {

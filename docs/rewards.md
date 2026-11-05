@@ -288,6 +288,9 @@ rewards.overflow(OverflowPolicy.DROP);   // the default
 | `QUEUE` | keeps it until there is room; needs a `PendingRewards` store, and drops it if that store refuses or is full |
 | `FAIL` | gives up and reports `NO_ROOM` |
 
+`rewards.overflow()` reads the policy back (1.482.0); the ability `item`
+effect queues through it when it is `QUEUE`.
+
 What is queued is **what was left over**, not the original: a player who
 received four of six is owed two, at a fixed amount and with `chance` forced to
 `100`, because the roll that earned them already happened and must not be rolled

@@ -126,6 +126,17 @@ public final class PluginRewards {
     }
 
     /**
+     * What happens to an item a player has no room for, as
+     * {@link #overflow(OverflowPolicy)} set it.
+     *
+     * @return the policy; {@link OverflowPolicy#DROP} unless told otherwise
+     * @since 1.482.0
+     */
+    public @NotNull OverflowPolicy overflow() {
+        return overflow;
+    }
+
+    /**
      * Where rewards wait for a player who is not here.
      *
      * <p>Required by {@link #giveLater} and by {@link OverflowPolicy#QUEUE};

@@ -141,7 +141,7 @@ public final class Ledger {
     record SourceKey(long hour, String plugin, String source, String currency, Flow flow) {
     }
 
-    record PlayerKey(long hour, UUID player, String currency, Flow flow) {
+    record PlayerKey(long hour, UUID player, String plugin, String currency, Flow flow) {
     }
 
     final ConcurrentMap<SourceKey, long[]> sources = new ConcurrentHashMap<>();
@@ -287,7 +287,7 @@ public final class Ledger {
                     return old;
                 });
         if (player != null) {
-            players.merge(new PlayerKey(hour, player, cut(currency, 32), flow), new long[]{cents},
+            players.merge(new PlayerKey(hour, player, cut(plugin, 64), cut(currency, 32), flow), new long[]{cents},
                     (old, more) -> {
                         old[0] += more[0];
                         return old;
@@ -323,9 +323,10 @@ public final class Ledger {
         for (PlayerKey key : players.keySet()) {
             long[] counted = players.remove(key);
             if (counted == null) continue;
-            String id = key.hour() + "|" + key.player() + "|" + key.currency() + "|" + key.flow().name();
+            String id = key.hour() + "|" + key.player() + "|" + key.currency() + "|" + key.flow().name()
+                    + "|" + key.plugin();
             writes.add(playerRepo.increment(new LedgerPlayerRow(cut(id, 128), key.hour(), key.hour() / 24,
-                    key.player().toString(), key.currency(), key.flow().name(), counted[0]), "cents"));
+                    key.player().toString(), key.currency(), key.flow().name(), counted[0], key.plugin()), "cents"));
         }
         if (writes.isEmpty()) return CompletableFuture.completedFuture(null);
         return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new)).exceptionally(failure -> {
@@ -466,6 +467,40 @@ public final class Ledger {
         String wanted = currencyOf(currency);
         return flush().thenCompose(done -> repo.where("player", player.toString())
                         .where("flow", flow.name()).where("currency", wanted).find())
+                .thenApply(found -> sum(found, fromHour, toHourExclusive));
+    }
+
+    /**
+     * How much one player received (created) or spent (sunk) over a span
+     * through one plugin, every server and source together: a plugin capping
+     * its own payouts reads this, not the total from every plugin.
+     *
+     * <pre>{@code
+     * long now = Ledger.currentHour();
+     * ledger.player(uuid, plugin, Ledger.Flow.CREATED, null, now, now + 1)
+     *       .thenAccept(earned -> ...); // what this plugin paid them this hour
+     * }</pre>
+     *
+     * <p>Rows written before 1.482.0 carry no plugin and are not counted here.
+     *
+     * @param player          the player
+     * @param plugin          the plugin that recorded it
+     * @param flow            which way
+     * @param currency        the currency id; {@code null} for the default one
+     * @param fromHour        first UTC hour, inclusive
+     * @param toHourExclusive last UTC hour, exclusive
+     * @return the total, {@code 0.00} when nothing was recorded; completes off the server thread
+     * @since 1.482.0
+     */
+    public @NotNull CompletableFuture<BigDecimal> player(@NotNull UUID player, @NotNull Plugin plugin,
+                                                         @NotNull Flow flow, @Nullable String currency,
+                                                         long fromHour, long toHourExclusive) {
+        Repository<LedgerPlayerRow> repo = playerRows;
+        if (repo == null || toHourExclusive <= fromHour) return CompletableFuture.completedFuture(amount(0));
+        String wanted = currencyOf(currency);
+        String name = cut(plugin.getName(), 64);
+        return flush().thenCompose(done -> repo.where("player", player.toString())
+                        .where("flow", flow.name()).where("currency", wanted).where("plugin", name).find())
                 .thenApply(found -> sum(found, fromHour, toHourExclusive));
     }
 

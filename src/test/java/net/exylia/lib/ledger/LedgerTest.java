@@ -57,9 +57,19 @@ class LedgerTest {
     }
 
     @Test
+    void playerRowsArePerPlugin() {
+        Ledger ledger = new Ledger(() -> 10 * HOUR);
+        ledger.add("Jobs", "jobs", Ledger.Flow.CREATED, ALICE, "vault", BigDecimal.ONE);
+        ledger.add("Jobs", "orders", Ledger.Flow.CREATED, ALICE, "vault", BigDecimal.ONE);
+        ledger.add("Quests", "quests", Ledger.Flow.CREATED, ALICE, "vault", BigDecimal.ONE);
+        assertEquals(2, ledger.players.size(), "one row per plugin, sources of one plugin together");
+        assertTrue(ledger.players.keySet().stream().anyMatch(key -> key.plugin().equals("Quests")));
+    }
+
+    @Test
     void topSumsEveryRowOfAPlayer() {
         List<Ledger.PlayerTotal> top = Ledger.top(List.of(
-                row(ALICE, 100), row(BOB, 150), row(ALICE, 100), new LedgerPlayerRow("x", 1, 0, "nope", "vault", "CREATED", 999)
+                row(ALICE, 100), row(BOB, 150), row(ALICE, 100), new LedgerPlayerRow("x", 1, 0, "nope", "vault", "CREATED", 999, "Jobs")
         ), 5);
         assertEquals(2, top.size());
         assertEquals(new Ledger.PlayerTotal(ALICE, new BigDecimal("2.00")), top.get(0));
@@ -70,15 +80,15 @@ class LedgerTest {
     @Test
     void playerSumOnlyCountsHoursInTheSpan() {
         List<LedgerPlayerRow> rows = List.of(
-                new LedgerPlayerRow("a", 9, 0, ALICE.toString(), "vault", "CREATED", 100),
-                new LedgerPlayerRow("b", 10, 0, ALICE.toString(), "vault", "CREATED", 250),
-                new LedgerPlayerRow("c", 12, 0, ALICE.toString(), "vault", "CREATED", 7),
-                new LedgerPlayerRow("d", 13, 0, ALICE.toString(), "vault", "CREATED", 1000));
+                new LedgerPlayerRow("a", 9, 0, ALICE.toString(), "vault", "CREATED", 100, "Jobs"),
+                new LedgerPlayerRow("b", 10, 0, ALICE.toString(), "vault", "CREATED", 250, "Jobs"),
+                new LedgerPlayerRow("c", 12, 0, ALICE.toString(), "vault", "CREATED", 7, "Jobs"),
+                new LedgerPlayerRow("d", 13, 0, ALICE.toString(), "vault", "CREATED", 1000, "Jobs"));
         assertEquals(new BigDecimal("2.57"), Ledger.sum(rows, 10, 13), "from inclusive, to exclusive");
         assertEquals(new BigDecimal("0.00"), Ledger.sum(List.of(), 0, 100));
     }
 
     private static LedgerPlayerRow row(UUID player, long cents) {
-        return new LedgerPlayerRow("id", 1, 0, player.toString(), "vault", "CREATED", cents);
+        return new LedgerPlayerRow("id", 1, 0, player.toString(), "vault", "CREATED", cents, "Jobs");
     }
 }

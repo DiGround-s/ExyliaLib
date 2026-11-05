@@ -46,6 +46,7 @@ with `Ledger.created`.
 | `ledger.hour(long hour)` | Every `Entry` of one UTC hour |
 | `ledger.top(flow, currency, fromHour, toHour, limit)` | `PlayerTotal`s, highest first, `toHour` exclusive, at most 31 days |
 | `ledger.player(uuid, flow, currency, fromHour, toHour)` | One player's `BigDecimal` total over a span, every server and source, `toHour` exclusive (1.480.0) |
+| `ledger.player(uuid, plugin, flow, currency, fromHour, toHour)` | The same through one plugin only, every server and source: what a plugin caps its own payouts on (1.482.0) |
 | `ledger.flush()` | Writes what is counted in memory (runs every minute and before every read) |
 | `Ledger.hourOf(millis)`, `dayOf(millis)`, `currentHour()`, `currentDay()` | UTC hours and days since the epoch |
 
@@ -59,7 +60,7 @@ is how many records made the amount. Group and sum entries as the screen needs
   record costs one volatile read, `Modifiers.pay` included.
 - **Counted in memory, written every minute.** A record adds to a counter per
   hour, server, plugin, source, currency and flow, and one per player, hour,
-  currency and flow. The flush writes them with atomic increments
+  plugin, currency and flow. The flush writes them with atomic increments
   (`Repository.increment`), so servers sharing a database add up instead of
   overwriting each other. A write that fails is reported and dropped: this is
   a statistic, not a balance.
@@ -80,7 +81,11 @@ is how many records made the amount. Group and sum entries as the screen needs
 | Table | Kind | Holds |
 | --- | --- | --- |
 | `exylia_ledger` | `HISTORY` | one row per hour, server, plugin, source, currency, flow: `cents`, `times` |
-| `exylia_ledger_players` | `HISTORY`, `@Owner player` | one row per hour, player, currency, flow: `cents` |
+| `exylia_ledger_players` | `HISTORY`, `@Owner player` | one row per hour, player, plugin, currency, flow: `cents` |
+
+The `plugin` column arrived in 1.482.0 (added on start like any new record
+component). Older rows have none: they still count in `player(uuid, flow, ...)`
+and `top`, never in the per-plugin total.
 
 Both are covered by `/exylialib wipe`; a player reset deletes that player's
 rows.
