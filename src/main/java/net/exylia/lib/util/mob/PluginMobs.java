@@ -779,7 +779,7 @@ public final class PluginMobs {
             case "pop" -> Material.COOKIE;
             case "ragdoll" -> Material.ARMOR_STAND;
             case "shatter" -> Material.GLASS;
-            case "pinata" -> Material.FIREWORK_ROCKET;
+            case "pinata" -> Material.CAKE;
             case "wounded" -> Material.REDSTONE;
             case "frantic" -> Material.WATER_BUCKET;
             default -> fallback;

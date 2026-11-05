@@ -73,7 +73,7 @@ public final class Pickers {
         for (org.bukkit.Particle particle : org.bukkit.Particle.values()) {
             names.add(particle.name());
         }
-        return search(viewer, Phrases.tr("{primary}&lWHICH PARTICLE?"), names, Material.FIREWORK_ROCKET);
+        return search(viewer, Phrases.tr("{primary}&lWHICH PARTICLE?"), names, Material.BLAZE_POWDER);
     }
 
     /**

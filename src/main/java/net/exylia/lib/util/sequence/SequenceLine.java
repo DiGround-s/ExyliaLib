@@ -187,7 +187,7 @@ final class SequenceLine {
     static @NotNull String icon(@NotNull String token) {
         return switch (token) {
             case "SOUND" -> "NOTE_BLOCK";
-            case "PARTICLE" -> "FIREWORK_ROCKET";
+            case "PARTICLE" -> "BLAZE_POWDER";
             case "POTION" -> "POTION";
             case "FIREWORK" -> "FIREWORK_STAR";
             case "TITLE" -> "OAK_SIGN";
