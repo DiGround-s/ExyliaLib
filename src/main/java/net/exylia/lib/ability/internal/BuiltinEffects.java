@@ -397,11 +397,12 @@ public final class BuiltinEffects {
             Player holder = ctx.holder();
             String source = ctx.abilities().plugin().getName().toLowerCase(Locale.ROOT);
             ctx.transformDrops(items -> {
+                List<ItemStack> gear = gearOf(ctx.victim());
                 for (ItemStack item : items) {
-                    if (item == null) continue;
+                    if (item == null || !multipliable(item.getMaxStackSize(), item.hasItemMeta(), isGear(item, gear))) continue;
                     double boosted = Modifiers.apply(holder.getUniqueId(), Modifiers.DROPS, source,
                             item.getAmount() * factor);
-                    item.setAmount(roll(boosted));
+                    item.setAmount(capAmount(roll(boosted), item.getMaxStackSize()));
                 }
                 items.removeIf(item -> item == null || item.getAmount() <= 0);
             });
@@ -717,6 +718,26 @@ public final class BuiltinEffects {
             if (registryFailure != null) noServer.addSuppressed(registryFailure);
             throw noServer;
         }
+    }
+
+    /** Only plain stackable items multiply: a tool, armor or anything with meta (a mob's gear) never does. */
+    static boolean multipliable(int maxStack, boolean hasMeta, boolean gear) {
+        return maxStack > 1 && !hasMeta && !gear;
+    }
+
+    /** A multiplied stack never exceeds its max stack size. */
+    static int capAmount(int amount, int maxStack) {
+        return Math.min(amount, Math.max(1, maxStack));
+    }
+
+    private static List<ItemStack> gearOf(@Nullable org.bukkit.entity.LivingEntity victim) {
+        if (victim == null || victim.getEquipment() == null) return List.of();
+        return java.util.Arrays.stream(victim.getEquipment().getArmorContents()).filter(java.util.Objects::nonNull).toList();
+    }
+
+    private static boolean isGear(ItemStack item, List<ItemStack> gear) {
+        for (ItemStack worn : gear) if (worn.isSimilar(item)) return true;
+        return false;
     }
 
     static int roll(double amount) {

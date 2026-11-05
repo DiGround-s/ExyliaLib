@@ -1,6 +1,9 @@
 package net.exylia.lib.ability;
 
 import net.exylia.lib.ability.internal.ChainGuard;
+import net.exylia.lib.ability.internal.RewardQueues;
+import net.exylia.lib.util.reward.PluginRewards;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -310,6 +313,12 @@ public final class AbilityContext {
         if (!ownsDrops) {
             // Not ours to deliver: the plain transforms already ran; the last ones run now.
             if (drops != null && !lastTransforms.isEmpty()) lastTransforms.forEach(transform -> transform.accept(drops));
+            if (drops != null && event instanceof EntityDeathEvent && Boolean.TRUE.equals(get(ContextKey.DROPS_TO_INVENTORY))) {
+                // A death's list is the event's: move what it holds to the killer instead of the ground.
+                List<ItemStack> moved = new ArrayList<>(drops);
+                drops.clear();
+                spawn(moved);
+            }
             return;
         }
         if (drops == null || drops.isEmpty()) return;
@@ -319,13 +328,17 @@ public final class AbilityContext {
     }
 
     private void spawn(List<ItemStack> items) {
-        Location where = block != null ? block.getLocation().add(0.5, 0.5, 0.5) : location();
+        Location where = block != null ? block.getLocation().add(0.5, 0.5, 0.5)
+                : victim != null && event instanceof EntityDeathEvent ? victim.getLocation() : location();
         boolean toInventory = Boolean.TRUE.equals(get(ContextKey.DROPS_TO_INVENTORY)) && holder.isOnline();
         for (ItemStack item : items) {
             if (item == null || item.getType() == Material.AIR || item.getAmount() <= 0) continue;
             if (toInventory) {
-                holder.getInventory().addItem(item).values()
-                        .forEach(overflow -> where.getWorld().dropItemNaturally(where, overflow));
+                PluginRewards queue = RewardQueues.of(abilities.plugin());
+                holder.getInventory().addItem(item).values().forEach(overflow -> {
+                    if (queue != null) queue.giveItem(holder, overflow);
+                    else where.getWorld().dropItemNaturally(where, overflow);
+                });
             } else if (where.getWorld() != null) {
                 where.getWorld().dropItemNaturally(where, item);
             }

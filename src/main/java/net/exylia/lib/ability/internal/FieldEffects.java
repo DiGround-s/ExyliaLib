@@ -311,11 +311,7 @@ final class FieldEffects {
 
     /** The owning plugin's rewards, when it asked to queue what does not fit. */
     private static @Nullable PluginRewards queueOf(AbilityContext ctx) {
-        String owner = ctx.abilities().plugin().getName();
-        for (PluginRewards rewards : Rewards.all()) {
-            if (rewards.plugin().getName().equals(owner) && rewards.overflow() == OverflowPolicy.QUEUE) return rewards;
-        }
-        return null;
+        return RewardQueues.of(ctx.abilities().plugin());
     }
 
     /** Wood types and dye colours, longest first so {@code DARK_OAK} wins over {@code OAK}. */
