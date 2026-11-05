@@ -28,7 +28,11 @@ animations play the way Blockbench plays them.
 
 The entity underneath, the carrier, is still the mob. Its AI, health, hitbox,
 pathfinding and drops are untouched. It is made invisible, and its armour and
-name are kept from every client by rewriting those two packets. The model is
+name are kept from every client by rewriting those two packets. A spectator, or
+anybody in a camera view (killcam, replay, cinematic), draws an invisible
+entity see-through, so those clients are never sent the carrier at all, and get
+it back when they leave that view (since 1.475.0). A replay records a carrier as
+absent: the model is packets the recording does not keep. The model is
 drawn where the carrier is, turns with its body and walks when it walks.
 
 A custom mob wears one by setting `MobTemplate.model` (see

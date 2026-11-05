@@ -95,6 +95,9 @@ public final class PacketRuntime {
     private static final Map<UUID, Revealing> REVEALING = new ConcurrentHashMap<>();
     /** faked spectator -> real game mode at the time. */
     private static final Map<UUID, GameMode> SPECTATING = new ConcurrentHashMap<>();
+    /** Told when a client starts ({@code true}) or stops drawing a camera view. */
+    private static final List<java.util.function.BiConsumer<Player, Boolean>> CAMERA_VIEW_HOOKS =
+            new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
 
     private static volatile Plugin lib;
@@ -127,6 +130,29 @@ public final class PacketRuntime {
     /** The library plugin, once {@link #init} ran. */
     static @Nullable Plugin lib() {
         return lib;
+    }
+
+    /**
+     * Whether any plugin draws this player's client as a spectator: such a client
+     * draws invisible entities see-through.
+     */
+    public static boolean inCameraView(UUID player) {
+        return SPECTATING.containsKey(player);
+    }
+
+    /** Registers what to tell when a client starts or stops drawing a camera view. */
+    public static void onCameraView(java.util.function.BiConsumer<Player, Boolean> hook) {
+        CAMERA_VIEW_HOOKS.add(hook);
+    }
+
+    private static void cameraViewChanged(Player player, boolean enabled) {
+        for (java.util.function.BiConsumer<Player, Boolean> hook : CAMERA_VIEW_HOOKS) {
+            try {
+                hook.accept(player, enabled);
+            } catch (RuntimeException failed) {
+                // A module's bookkeeping is not worth a camera that never ends.
+            }
+        }
     }
 
     public static boolean isAvailable() {
@@ -1180,13 +1206,15 @@ public final class PacketRuntime {
             }
             UUID id = player.getUniqueId();
             if (enabled) {
-                SPECTATING.putIfAbsent(id, player.getGameMode());
+                boolean started = SPECTATING.putIfAbsent(id, player.getGameMode()) == null;
                 out.gameMode(player, GameMode.SPECTATOR.getValue());
                 out.abilities(player, true, true, true, player.getFlySpeed());
+                if (started) cameraViewChanged(player, true);
             } else if (SPECTATING.remove(id) != null) {
                 out.gameMode(player, player.getGameMode().getValue());
                 out.abilities(player, player.isInvulnerable(), player.isFlying(),
                         player.getAllowFlight(), player.getFlySpeed());
+                cameraViewChanged(player, false);
             }
         }
 

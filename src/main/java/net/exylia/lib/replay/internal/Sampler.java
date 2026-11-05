@@ -1,5 +1,6 @@
 package net.exylia.lib.replay.internal;
 
+import net.exylia.lib.model.internal.ModelRuntime;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
@@ -64,8 +65,12 @@ final class Sampler {
             // An API without it: the arm simply does not rise.
         }
         boolean sprinting = entity instanceof Player player && player.isSprinting();
+        // A model's carrier is recorded as absent. Its model is drawn with
+        // packets the recording does not keep, so all a replay could show is
+        // the carrier, and a camera view draws an invisible body see-through:
+        // a ghost pig where the golem stood.
         return MotionTrack.flagsOf(pose, sprinting, onGround, main, off, fire,
-                living.isInvisible(), glowing, true);
+                living.isInvisible(), glowing, ModelRuntime.of(living) == null);
     }
 
     /** Health, or zero for anything that has none. */

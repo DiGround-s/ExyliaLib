@@ -7,9 +7,16 @@ import net.exylia.lib.model.ModelInstance;
 import net.exylia.lib.model.ModelOptions;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.packet.internal.PacketRuntime;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
@@ -60,6 +67,7 @@ public final class ModelRuntime {
 
     private static volatile int ceiling = 30_000;
     private static volatile Logger logger = Logger.getLogger("ExyliaLib");
+    private static volatile Plugin library;
     private static Object listener;
     private static TaskHandle sweep;
 
@@ -69,8 +77,19 @@ public final class ModelRuntime {
     /** Wires the module. Called by ExyliaLib once displays are. */
     public static synchronized void init(Plugin library) {
         logger = library.getLogger();
+        ModelRuntime.library = library;
         if (listener == null && ModelPackets.ready()) {
-            listener = ModelPackets.listen(CARRIERS::containsKey, BOXES::containsKey, ModelRuntime::clicked);
+            listener = ModelPackets.listen(CARRIERS::containsKey, BOXES::containsKey, ModelRuntime::seesThrough,
+                    ModelRuntime::clicked);
+            PacketRuntime.onCameraView((viewer, started) -> seeingThrough(viewer));
+            Bukkit.getPluginManager().registerEvents(new Listener() {
+                @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+                public void onMode(PlayerGameModeChangeEvent event) {
+                    // Read a tick later: the event comes before the mode changes.
+                    Player viewer = event.getPlayer();
+                    Tasks.of(library).runAtEntityLater(viewer, 1L, () -> seeingThrough(viewer));
+                }
+            }, library);
         }
         if (sweep != null) {
             sweep.cancel();
@@ -153,8 +172,56 @@ public final class ModelRuntime {
         LiveModel live = new LiveModel(owner, carrier, model, options, sink);
         BY_UUID.put(carrier.getUniqueId(), live);
         CARRIERS.put(carrier.getEntityId(), live);
+        // The carrier may have reached a see-through client before it carried anything.
+        ModelPackets.destroy(seeThrough(), new int[]{carrier.getEntityId()});
         live.start();
         return live;
+    }
+
+    /**
+     * Whether this player's client draws an invisible entity see-through, as a
+     * ghost: a spectator, or anybody in a camera view (killcam, replay,
+     * cinematic). Those clients are never sent a carrier.
+     */
+    static boolean seesThrough(Player viewer) {
+        return viewer.getGameMode() == GameMode.SPECTATOR || PacketRuntime.inCameraView(viewer.getUniqueId());
+    }
+
+    private static List<Player> seeThrough() {
+        List<Player> viewers = new ArrayList<>(0);
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            if (seesThrough(online)) viewers.add(online);
+        }
+        return viewers;
+    }
+
+    /**
+     * A client started or stopped drawing invisible entities see-through: the
+     * carriers it holds are taken off it, or sent again by the server's own
+     * tracker, which only resends what it believes the client lost.
+     */
+    private static void seeingThrough(Player viewer) {
+        if (!viewer.isOnline() || CARRIERS.isEmpty()) return;
+        if (seesThrough(viewer)) {
+            int[] ids = CARRIERS.keySet().stream().mapToInt(Integer::intValue).toArray();
+            ModelPackets.destroy(List.of(viewer), ids);
+            return;
+        }
+        Plugin owner = library;
+        if (owner == null) return;
+        Tasks.of(owner).runAtEntity(viewer, () -> {
+            for (LiveModel live : CARRIERS.values()) {
+                LivingEntity body = live.carrier();
+                if (body == null || !body.isValid() || body.getWorld() != viewer.getWorld()) continue;
+                try {
+                    viewer.hideEntity(owner, body);
+                    viewer.showEntity(owner, body);
+                } catch (RuntimeException otherRegion) {
+                    // Folia: a carrier owned by another region is sent again
+                    // once the viewer walks out of its range and back.
+                }
+            }
+        });
     }
 
     /** The model a carrier wears, or {@code null}. */

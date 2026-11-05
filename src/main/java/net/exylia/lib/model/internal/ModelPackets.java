@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.IntPredicate;
+import java.util.function.Predicate;
 
 /**
  * The model module's packets: the only class in it that names PacketEvents.
@@ -75,14 +76,25 @@ final class ModelPackets {
      * @param clicks   where a hit on one goes
      * @return what to hand to {@link #stop}
      */
-    static Object listen(IntPredicate carriers, IntPredicate boxes, Clicks clicks) {
+    static Object listen(IntPredicate carriers, IntPredicate boxes, Predicate<Player> seesThrough,
+                         Clicks clicks) {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketSend(PacketSendEvent event) {
                 // The id is peeked before any wrapper is built: these go out for
                 // every entity to every player, and decoding one means decoding
                 // every item's components or every metadata entry.
-                if (event.getPacketType() == PacketType.Play.Server.ENTITY_EQUIPMENT) {
+                if (event.getPacketType() == PacketType.Play.Server.SPAWN_ENTITY) {
+                    // A spectator's client, or one in a camera view, draws an
+                    // invisible entity see-through: the carrier showed as a
+                    // ghost under its model. Those clients never get it at all;
+                    // nobody there hits it, and the model rides its own root.
+                    if (carriers.test(PacketPeek.entityId(event,
+                            e -> new WrapperPlayServerSpawnEntity(e).getEntityId()))
+                            && event.getPlayer() instanceof Player viewer && seesThrough.test(viewer)) {
+                        event.setCancelled(true);
+                    }
+                } else if (event.getPacketType() == PacketType.Play.Server.ENTITY_EQUIPMENT) {
                     if (!carriers.test(PacketPeek.entityId(event,
                             e -> new WrapperPlayServerEntityEquipment(e).getEntityId()))) {
                         return;
