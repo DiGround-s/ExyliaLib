@@ -423,6 +423,8 @@ public final class SpatialMenus {
      * @since 1.431.0
      */
     public static boolean supports(@NotNull Player player) {
+        // A spatial menu is drawn with packets; without PacketEvents every menu takes its fallback.
+        if (!net.exylia.lib.packet.Packets.isAvailable()) return false;
         return net.exylia.lib.packet.ClientVersions.atLeast(player,
                 com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_4);
     }
