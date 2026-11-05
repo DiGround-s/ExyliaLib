@@ -119,6 +119,10 @@ completes exceptionally; a failed regeneration is logged and completes `false`.
   left alone. Call it once after registering on start: a crash mid-match left the
   original with the blocks that match placed, and nothing in memory remembers it
   was taken. Completes with how many came back, never exceptionally.
+- A lease released while the plugin is being disabled (a match ended by the
+  shutdown) completes `false` at once without touching the blocks (1.476.2):
+  nothing can be written while the plugin stops, and `regenerateIdle()` on the
+  next start puts the arena back.
 - `usage(id)` answers `Optional<Usage(busy, copies, maxCopies)>` from memory —
   `busy` counts instances in a match or regenerating — cheap enough for a menu
   `Supplier`.

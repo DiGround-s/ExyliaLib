@@ -159,6 +159,9 @@ public final class SchematicRuntime {
         if (!Engines.isSupported()) {
             return owner.finish(future, SchematicResult.unsupported(name, Engines.reason()));
         }
+        if (!plugin.isEnabled()) {
+            return owner.finish(future, stopping(plugin, name));
+        }
         World target = resolve(world);
         if (target == null) {
             return owner.finish(future,
@@ -195,6 +198,9 @@ public final class SchematicRuntime {
         }
         if (!Engines.isSupported()) {
             return owner.finish(future, SchematicResult.unsupported(name, Engines.reason()));
+        }
+        if (!plugin.isEnabled()) {
+            return owner.finish(future, stopping(plugin, name));
         }
         World target = at.getWorld();
         if (target == null) {
@@ -248,6 +254,9 @@ public final class SchematicRuntime {
         }
         if (!Engines.isSupported()) {
             return owner.finish(future, SchematicResult.unsupported(name, Engines.reason()));
+        }
+        if (!plugin.isEnabled()) {
+            return owner.finish(future, stopping(plugin, name));
         }
         World target = resolve(world);
         if (target == null) {
@@ -510,6 +519,20 @@ public final class SchematicRuntime {
      * <p>By id first, then by the fallback name: the id is authoritative, and
      * the name is what survives a world that was unloaded and loaded again.
      */
+    /**
+     * The answer for a plugin that is shutting down.
+     *
+     * <p>A disabled plugin's scheduler runs async work on the thread that asked,
+     * which at shutdown is a server thread. The engine does its chunk work on
+     * the server threads and waits for it, so it would wait on itself until the
+     * stall timeout gave up, a minute per schematic. Refusing at once ends the
+     * same way, minus the minute.
+     */
+    private static SchematicResult stopping(Plugin plugin, String name) {
+        return SchematicResult.failed(name, plugin.getName() + " is shutting down; blocks are not "
+                + "copied or written while it stops");
+    }
+
     private static @Nullable World resolve(WorldIdentity world) {
         World byId = Bukkit.getWorld(world.id());
         return byId != null ? byId : Bukkit.getWorld(world.fallbackName());

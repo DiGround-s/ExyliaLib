@@ -330,6 +330,24 @@ class SchematicTest {
     }
 
     @Test
+    @DisplayName("a plugin that is shutting down is refused at once instead of waiting on itself")
+    void stoppingPluginIsRefusedAtOnce() throws Exception {
+        writeSchematic("schematics", "arena_1");
+        PluginSchematics schematics = schematics();
+        awaitIndexed(schematics);
+        FakeServer.disable(plugin);
+
+        for (CompletableFuture<SchematicResult> call : List.of(
+                schematics.save("arena_2", box(), world()),
+                schematics.paste("arena_1", somewhere()),
+                schematics.regenerate("arena_1", box(), world()))) {
+            assertTrue(call.isDone(), "a stopping plugin was made to wait");
+            assertEquals(SchematicOutcome.FAILED, call.get().outcome());
+        }
+        assertTrue(engine.calls().isEmpty());
+    }
+
+    @Test
     @DisplayName("a disabled plugin completes what it still has, naming the schematic")
     void releaseCompletesWhatIsInFlight() throws Exception {
         writeSchematic("schematics", "arena_1");

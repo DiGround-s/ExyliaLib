@@ -353,11 +353,13 @@ public final class ArenaPool {
 
     /** The real world: temporary plots, this plugin's schematics and regions. */
     private static final class Live implements Placement {
+        private final Plugin plugin;
         private final PluginSchematics schematics;
         private final PluginRegions regions;
         private final Debug debug;
 
         Live(Plugin plugin) {
+            this.plugin = plugin;
             this.schematics = Schematics.of(plugin);
             this.regions = Regions.of(plugin);
             this.debug = Debug.of(plugin);
@@ -387,6 +389,12 @@ public final class ArenaPool {
 
         @Override
         public CompletableFuture<Boolean> regenerate(String schematic, Cuboid bounds, World world) {
+            if (!plugin.isEnabled()) {
+                // Shutdown: no blocks can be written now, and regenerateIdle() on
+                // the next start puts back whatever a match left.
+                debug.debug("Arena schematic '" + schematic + "' is regenerated on the next start");
+                return CompletableFuture.completedFuture(false);
+            }
             return schematics.regenerate(schematic, bounds, WorldIdentity.from(world),
                     RegenerateOptions.defaults()).thenApply(result -> {
                 if (!result.isSuccess()) {

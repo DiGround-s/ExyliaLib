@@ -179,6 +179,12 @@ A plugin being disabled completes whatever it still has in flight as `FAILED`,
 naming the schematic, rather than leaving a promise its own scheduler can no
 longer keep.
 
+A save, paste or regeneration asked for while the plugin is being disabled — from
+its `onDisable` — completes as `FAILED` at once (1.476.2). Its scheduler would run
+the work on the server thread that asked, and the engine waits there for chunk
+work queued on that same thread, so before this each one stalled the shutdown for
+a minute and failed anyway.
+
 ## `exists()` never touches the disk
 
 This is a contract, not an implementation detail.
@@ -304,7 +310,7 @@ either way.
 
 | When | What happens |
 | --- | --- |
-| a plugin is disabled | its outstanding futures complete as `FAILED`, its index is dropped |
+| a plugin is disabled | its outstanding futures complete as `FAILED`, its index is dropped; new calls from its `onDisable` complete as `FAILED` at once |
 | the server stops | the same, plus every clipboard is released |
 
 Released **before** the task module, because a paste in flight is a chain of
