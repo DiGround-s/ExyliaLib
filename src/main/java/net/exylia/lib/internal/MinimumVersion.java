@@ -43,7 +43,7 @@ public final class MinimumVersion {
         logger.severe("************************************************************");
     }
 
-    private static String running() {
+    static String running() {
         try {
             return Bukkit.getMinecraftVersion();
         } catch (NoSuchMethodError spigot) {

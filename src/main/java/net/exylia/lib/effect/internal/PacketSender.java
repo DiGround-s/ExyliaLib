@@ -35,7 +35,8 @@ final class PacketSender {
     static boolean ready() {
         try {
             var api = PacketEvents.getAPI();
-            return api != null && api.isLoaded() && api.isInitialized();
+            return api != null && api.isLoaded() && api.isInitialized()
+                    && net.exylia.lib.internal.PacketEventsVersion.agrees();
         } catch (Throwable ignored) {
             return false;
         }

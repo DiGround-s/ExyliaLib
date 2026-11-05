@@ -103,7 +103,8 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     /** Returns whether PacketEvents is loaded and ready. */
     static boolean ready() {
         try {
-            return PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded();
+            return PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded()
+                    && net.exylia.lib.internal.PacketEventsVersion.agrees();
         } catch (Throwable ignored) {
             return false;
         }

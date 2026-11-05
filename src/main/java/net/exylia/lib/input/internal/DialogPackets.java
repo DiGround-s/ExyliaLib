@@ -132,7 +132,8 @@ final class DialogPackets {
             }
             var api = PacketEvents.getAPI();
             return packetEvents != null && packetEvents.isEnabled()
-                    && api != null && api.isLoaded() && api.isInitialized();
+                    && api != null && api.isLoaded() && api.isInitialized()
+                    && net.exylia.lib.internal.PacketEventsVersion.agrees();
         } catch (Throwable unavailable) {
             return false;
         }

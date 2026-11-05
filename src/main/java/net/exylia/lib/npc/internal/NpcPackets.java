@@ -123,7 +123,8 @@ final class NpcPackets implements NpcSink, PlacedSink {
     /** Whether PacketEvents is loaded and ready to send. */
     static boolean ready() {
         try {
-            return PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded();
+            return PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded()
+                    && net.exylia.lib.internal.PacketEventsVersion.agrees();
         } catch (Throwable ignored) {
             return false;
         }
