@@ -52,7 +52,10 @@ public final class Paint {
                 String argument = arguments.pop().value();
                 TextColor colour = colour(argument);
                 if (colour != null) {
-                    hexes.add(colour.asHexString().substring(1));
+                    // Formatted here rather than with asHexString, whose case
+                    // changed with Adventure 4.25: a key must be lowercase, and
+                    // an uppercase one left the whole tag on screen as text.
+                    hexes.add(String.format(Locale.ROOT, "%06x", colour.value()));
                 }
                 // A phase (a number) or anything unreadable is skipped: the
                 // run still paints between the colours that were readable.

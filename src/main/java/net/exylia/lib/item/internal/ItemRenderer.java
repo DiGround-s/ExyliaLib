@@ -677,6 +677,20 @@ public final class ItemRenderer {
      */
     // Package-private for the same reason as text(): expanding a row value into
     // lines is a decision worth testing, and it needs no live server.
+    /**
+     * A lore line in body text where nothing coloured it.
+     *
+     * <p>The client draws uncoloured lore in dark purple, which no Exylia
+     * screen wants: a line that is only a value — a description from a
+     * config, a phrase a plugin passes in — came out in that purple. Body
+     * text is {@code {letters}}; anything the line or its values colour keeps
+     * its own colour.
+     */
+    static Component loreLine(Component line) {
+        return line.colorIfAbsent(net.exylia.lib.text.Colors.get("letters",
+                net.kyori.adventure.text.format.TextColor.color(0xE7CFFF)));
+    }
+
     static List<Component> lore(List<String> written, Player viewer,
                                 Map<String, String> values, Set<String> formatted) {
         return lore(written, viewer, values, formatted, Set.of());
@@ -692,8 +706,8 @@ public final class ItemRenderer {
             // a player wrote can hold as many line breaks as it likes.
             int spans = Math.min(spans(line, normalized), MAX_VALUE_LINES);
             for (int index = 0; index < spans && lines.size() < MAX_LORE; index++) {
-                lines.add(text(line, viewer, spans == 1 ? normalized : segment(normalized, index),
-                        formatted, verbatim));
+                lines.add(loreLine(text(line, viewer, spans == 1 ? normalized : segment(normalized, index),
+                        formatted, verbatim)));
             }
         }
         return lines;

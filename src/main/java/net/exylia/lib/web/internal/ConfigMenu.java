@@ -782,6 +782,12 @@ public final class ConfigMenu {
         }
         ConfigFile<?> file = file(plugin, session.context(FILE_KEY, String.class).orElse(""));
         String token = session.context(PAGE_KEY, String.class).orElse("");
+        if (file == null && session.menuId().endsWith(FILES)) {
+            // The plugin's own list of files: going up from it is leaving the
+            // plugin. pluginUp would open this same list again.
+            top(viewer, plugin);
+            return;
+        }
         if (file == null || (session.menuId().endsWith(FILES) && token.isEmpty())) {
             pluginUp(viewer, plugin);
             return;

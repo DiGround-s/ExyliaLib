@@ -79,6 +79,15 @@ class LoreToolkitTest {
     }
 
     @Test
+    void aValueGradientNeverWritesAnUppercaseKey() {
+        // Adventure 4.25 writes hex in capitals; a font key must be lowercase.
+        Component line = Text.of("<gradient:#A33B53:#D4617D>%v%</gradient>").with("%v%", "Back").build();
+        assertEquals("Back", join(letters(line)));
+        assertEquals(TextColor.fromHexString("#a33b53"), letters(line).get(0).color());
+        assertNoLabel(line);
+    }
+
+    @Test
     void errorLightIsAPaletteRole() {
         Component line = Text.of("{error_light}x").build();
         assertEquals(TextColor.fromHexString("#d4617d"), letters(line).get(0).color());
