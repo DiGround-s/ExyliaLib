@@ -9,6 +9,7 @@ import net.exylia.lib.placeholder.internal.ValueRenderer;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
+import net.exylia.lib.text.internal.Paint;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -330,14 +331,17 @@ public final class Text {
             source = source.replace(placeholder, marker);
             values.add(pairs.get(i + 1));
         }
-        Component component = TextEngine.parse(source);
+        String labelled = values.isEmpty() ? source : Paint.mark(source, MARKER_BASE, MARKER_LAST);
+        boolean painted = labelled != source;
+        Component component = TextEngine.parse(labelled);
         Component[] replacements = new Component[values.size()];
         for (int i = 0; i < values.size(); i++) {
             // What a placeholder answered: a nickname or a clan tag a player
             // chose may be in it, so only its colours are honoured.
             replacements[i] = TextEngine.parseRestricted(values.get(i), false);
         }
-        return substituteMarkers(component, replacements);
+        Component substituted = substituteMarkers(component, replacements);
+        return painted ? Paint.apply(substituted) : substituted;
     }
 
     /**
@@ -672,6 +676,12 @@ public final class Text {
             source = centreLines(source, marked);
         }
 
+        // A gradient over a value has to run across the value's letters, which
+        // only exist after the substitution: it is labelled now, painted then.
+        String labelled = marked.isEmpty() ? source : Paint.mark(source, MARKER_BASE, MARKER_LAST);
+        boolean painted = labelled != source;
+        source = labelled;
+
         Component component = verbatim ? TextEngine.parseExact(source) : TextEngine.parse(source);
 
         // What has to be substituted into a click's command as well as into the
@@ -694,6 +704,9 @@ public final class Text {
             }
         }
         component = substituteMarkers(component, replacements);
+        if (painted) {
+            component = Paint.apply(component);
+        }
         return commands.isEmpty() ? component : fillClicks(component, commands);
     }
 

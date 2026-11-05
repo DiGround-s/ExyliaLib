@@ -46,10 +46,12 @@ Text.of("{primary}&lWELCOME &8[{success}online&8]").send(player);
   reloads).
 - `names()` — every registered token.
 
-`Palette` — the 15 Exylia roles (`primary`, `secondary`, `secondary_light`,
-`letters`, `letters_black`, `success`, `success_light`, `warning`,
-`warning_light`, `info`, `info_light`, `accent`, `neutral`, `highlight`,
-`muted`), each a hex string.
+`Palette` — the 16 Exylia roles (`primary`, `secondary`, `secondary_light`,
+`letters`, `letters_black`, `error`, `error_light`, `success`, `success_light`,
+`warning`, `warning_light`, `info`, `info_light`, `accent`, `neutral`,
+`highlight`, `muted`), each a hex string. `error_light` (`#d4617d`) is the light
+end of an error gradient; it arrived in 1.477.0 and is added to an existing
+`colors.yml` with its default.
 
 ## The prefix
 
@@ -401,6 +403,119 @@ Only the colour changes: decorations, hover, click, insertion and font stay
 where they were. The parent's own colour is dropped, since every character now
 carries its own. A character outside the basic plane counts as one. Stateless
 and safe from any thread; the original component is never touched.
+
+### Palette tokens inside a tag (since 1.477.0)
+
+A token written as a tag's argument is the bare colour, so gradients follow the
+palette like every other colour does:
+
+```yaml
+name: '<gradient:{primary}:{secondary_light}>&lRESET</gradient>'
+```
+
+`{primary}` is `<#8a51c4>` in text and `#8a51c4` inside `<gradient:…>`,
+`<transition:…>`, `<color:…>` or `<shadow:…>`. A palette change repaints them.
+
+### A gradient over a value (since 1.477.0)
+
+A value is put in after the parse, so a gradient around `%kit_name%` used to
+paint the whole name in its first colour. A gradient whose body holds a value
+is now painted once the value is in, across its real letters, together with any
+text written beside it:
+
+```yaml
+name: '{letters}Queue {letters_black}▸ <gradient:{info}:{info_light}>%kit_name%</gradient>'
+```
+
+Bold and every other decoration written inside it are kept. A gradient with no
+value in it is still MiniMessage's own, parsed once and cached. Only a
+gradient's colours are read; a phase argument is ignored when a value is
+inside.
+
+## Icons (since 1.477.0)
+
+`{icon:...}` draws a game sprite inside a line: an item, a block, a particle or
+an interface icon, eight pixels square, the way 1.21.9 draws text objects.
+
+| Written | Draws |
+| --- | --- |
+| `{icon:clock}` | a named icon, in its own colours |
+| `{icon:clock\|✧}` | the same icon with another stand-in glyph |
+| `{icon:items:item/diamond\|♦}` | any sprite, as `atlas:id`; `items`, `blocks`, `particles`, `gui`, or a namespaced atlas in full |
+| `{icon:items:item/diamond\|♦\|tint}` | the sprite in the colour around it instead of its own |
+
+Where a sprite cannot be drawn the glyph stands in for it, in the colour around
+it. Write that colour first, so the glyph is right everywhere:
+`{info}{icon:clock} {letters}Played`.
+
+- **A server older than 1.21.9** (or whose Adventure has no sprites) writes
+  the glyph. `Features.sprites()` says which.
+- **A client older than 1.21.9** joining a newer server through ViaBackwards
+  gets the glyph too: with PacketEvents installed, ExyliaLib swaps each sprite
+  on items (name and lore) on their way to that client. Without PacketEvents
+  that client sees whatever ViaBackwards makes of a sprite.
+- **Item textures** live in the `items` atlas from 1.21.11 and in `blocks`
+  before it. `items:` is read from the right one for the server, and a
+  1.21.9–1.21.10 client on a 1.21.11 server gets the glyph for item icons.
+
+A sprite ignores bold and italic. An unknown name stays as written, like any
+other brace. Icons are for item names and lore; a title or a chat line has no
+per-client swap.
+
+Named icons, with their glyph (`tinted` ones take the colour around them):
+
+| Name | Sprite | Glyph |
+| --- | --- | --- |
+| `clock` | item/clock_00 | ⌚ |
+| `xp` | item/experience_bottle | ✦ |
+| `sword` · `kills` | item/iron_sword · item/diamond_sword | ⚔ |
+| `deaths` | item/bone | ☠ |
+| `heart` · `armor` · `food` | gui hud/heart/full · hud/armor_full · hud/food_full | ❤ · ⛨ · ♨ |
+| `apple` · `totem` · `arrow` | item/golden_apple · item/totem_of_undying · item/arrow | ❤ · ✦ · ➹ |
+| `crit` (tinted) | particle critical_hit | ✦ |
+| `star` · `shard` · `key` | item/nether_star · item/amethyst_shard · item/trial_key | ✦ |
+| `diamond` · `emerald` | item/diamond · item/emerald | ♦ |
+| `gold` · `coin` | item/gold_ingot · item/gold_nugget | $ |
+| `book` · `quill` · `tag` · `sign` | item/book · item/writable_book · item/name_tag · item/oak_sign | ✎ |
+| `paper` · `map` | item/paper · item/map | ✉ |
+| `compass` · `feather` | item/compass_16 · item/feather | ➤ · ➹ |
+| `eye` · `pearl` · `spyglass` · `search` | item/ender_eye · item/ender_pearl · item/spyglass · gui icon/search | ◉ |
+| `info` · `check` · `barrier` · `ping` | gui icon/info · icon/checkmark · item/barrier · gui icon/ping_5 | ℹ · ✔ · ✘ · ▮ |
+| `pickaxe` · `redstone` · `hopper` · `iron` · `blaze` | item/diamond_pickaxe · item/redstone · item/hopper · item/iron_ingot · item/blaze_powder | ⛏ · ⚡ · ⬇ · ■ · ☀ |
+| `spark` · `glint` · `note` (tinted) | particle spark_4 · glint · note | ✦ · ✧ · ♪ |
+| `flame` | particle flame | ☀ |
+
+## Card lore in code: `Lore` (since 1.477.0)
+
+Lore a plugin builds in Java follows the same card layout its YAML menus do.
+`Lore` writes the strings, so code and files cannot drift apart:
+
+```java
+String name = Lore.name(Lore.Tone.PRIMARY, "Mine", "%mine_name%");
+List<String> lore = Lore.of(Lore.Tone.PRIMARY)
+        .subtitle("Mine setting")
+        .section("Information").text("How and when this mine").text("refills its blocks.")
+        .section("✦", "Status").stat("clock", "info", "Interval", "%interval%")
+        .click("Left-click", "edit interval")
+        .lines();
+```
+
+| Method | Writes |
+| --- | --- |
+| `name(tone, context, subject)` | `{letters}Mine {letters_black}▸ <gradient:{primary}:{secondary_light}>Reset</gradient>` |
+| `name(tone, subject)` | the subject alone, in the gradient |
+| `subtitle(text)` | `{letters_black}Mine setting`, the first lore line |
+| `section(label)` / `section(glyph, label)` | a blank line, then `{primary}✎ Information` |
+| `text(line)` | ` {letters}…` |
+| `stat(icon, colour, label, value)` | `  {letters_black}· {info}{icon:clock} {letters}Interval{letters_black}: {info}15m` |
+| `action(text)` / `click(click, effect)` | `{primary}» Left-click to edit` / `{primary}» Left-click {letters_black}· {letters}+1` |
+| `note(text)` | `{letters_black}You will be asked to confirm.` |
+
+`Tone` picks the colour pair: `PRIMARY` (a subject's own card, settings),
+`INFO` (browsing, choosing, read-only), `SUCCESS` (create, claim, join, buy),
+`HIGHLIGHT` (rankings, rewards), `WARNING` (pending, limited), `ERROR`
+(destructive, leave, back), `ACCENT` (cosmetics). Words a player reads come
+from the plugin's messages, as always; `Lore` only places them.
 
 ## Character maps
 

@@ -84,7 +84,7 @@ public final class TextEngine {
     private static final List<TagResolver> EXTRA = new CopyOnWriteArrayList<>();
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.builder()
-            .editTags(builder -> builder.resolver(new ExtraTags()))
+            .editTags(builder -> builder.resolver(new ExtraTags()).resolver(Paint.RESOLVER))
             .build();
 
     /**
@@ -430,6 +430,9 @@ public final class TextEngine {
         prepared = small ? SmallText.apply(prepared) : prepared;
 
         if (braces) {
+            // After small capitals, which leave a token alone, so a glyph
+            // standing in for a sprite is drawn as written.
+            prepared = Icons.expand(prepared);
             prepared = TokenResolver.resolve(prepared, tokens);
             // Expanding a token introduces '<', which the next stage must see.
             flags |= FormatScanner.ANGLE;
@@ -501,6 +504,7 @@ public final class TextEngine {
         put(result, "letters", palette.letters());
         put(result, "letters_black", palette.lettersBlack());
         put(result, "error", palette.error());
+        put(result, "error_light", palette.errorLight());
         put(result, "success", palette.success());
         put(result, "success_light", palette.successLight());
         put(result, "warning", palette.warning());

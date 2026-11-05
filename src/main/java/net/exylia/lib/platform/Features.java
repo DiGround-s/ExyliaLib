@@ -36,6 +36,9 @@ public final class Features {
             hasClass("io.papermc.paper.event.entity.EntityEquipmentChangedEvent");
     private static final boolean TOOLTIP_DISPLAY =
             hasClass("io.papermc.paper.datacomponent.item.TooltipDisplay");
+    private static final boolean SPRITES =
+            hasClass("net.kyori.adventure.text.ObjectComponent")
+                    && hasMethod("net.kyori.adventure.text.minimessage.tag.standard.StandardTags", "sprite", null);
 
     private Features() {
     }
@@ -85,6 +88,16 @@ public final class Features {
         return TOOLTIP_DISPLAY;
     }
 
+    /**
+     * Sprites in text: an item, block, particle or interface icon drawn inside
+     * a line, as {@code {icon:...}} writes (Minecraft 1.21.9, Adventure 4.25).
+     *
+     * @since 1.477.0
+     */
+    public static boolean sprites() {
+        return SPRITES;
+    }
+
     private static boolean hasClass(String name) {
         try {
             Class.forName(name, false, Features.class.getClassLoader());
@@ -97,7 +110,12 @@ public final class Features {
     private static boolean hasMethod(String owner, String name, String parameter) {
         try {
             ClassLoader loader = Features.class.getClassLoader();
-            Class.forName(owner, false, loader).getMethod(name, Class.forName(parameter, false, loader));
+            Class<?> type = Class.forName(owner, false, loader);
+            if (parameter == null) {
+                type.getMethod(name);
+            } else {
+                type.getMethod(name, Class.forName(parameter, false, loader));
+            }
             return true;
         } catch (ReflectiveOperationException | LinkageError absent) {
             return false;

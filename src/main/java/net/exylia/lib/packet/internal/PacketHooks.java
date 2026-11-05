@@ -25,6 +25,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import net.exylia.lib.packet.ItemPlace;
 import net.exylia.lib.packet.RevealStyle;
+import net.exylia.lib.text.internal.Icons;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -210,7 +211,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (type == PacketType.Play.Server.OPEN_WINDOW) {
             ItemDecor.opened(viewer, PacketPeek.leadingVarInt(event,
                     e -> new WrapperPlayServerOpenWindow(e).getContainerId()));
-        } else if (ItemDecor.decoratesAnything() && carriesItems(type)) {
+        } else if ((ItemDecor.decoratesAnything() || Icons.any()) && carriesItems(type)) {
             decorate(event, type, viewer);
         }
         if (Borders.drawsAny() && isWorldBorder(type) && Borders.replaces(event.getPlayer())) {
@@ -338,9 +339,13 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         if (!(event.getPlayer() instanceof Player viewer) || viewer.getGameMode() == GameMode.CREATIVE) {
             return;
         }
+        IconDowngrade.Limits limits = IconDowngrade.limitsOf(viewer);
+        if (!ItemDecor.decoratesAnything() && limits == null) {
+            return;
+        }
         if (type == PacketType.Play.Server.SET_SLOT) {
             WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
-            ItemStack drawn = decorated(viewer, packet.getItem(),
+            ItemStack drawn = decorated(viewer, limits, packet.getItem(),
                     ItemDecor.place(viewerId, packet.getWindowId(), packet.getSlot()));
             if (drawn != null) {
                 packet.setItem(drawn);
@@ -351,7 +356,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             List<ItemStack> items = new ArrayList<>(packet.getItems());
             boolean changed = false;
             for (int slot = 0; slot < items.size(); slot++) {
-                ItemStack drawn = decorated(viewer, items.get(slot),
+                ItemStack drawn = decorated(viewer, limits, items.get(slot),
                         ItemDecor.place(viewerId, packet.getWindowId(), slot));
                 if (drawn != null) {
                     items.set(slot, drawn);
@@ -359,7 +364,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 }
             }
             ItemStack carried = packet.getCarriedItem().orElse(null);
-            ItemStack drawnCarried = carried == null ? null : decorated(viewer, carried, ItemPlace.OWN);
+            ItemStack drawnCarried = carried == null ? null : decorated(viewer, limits, carried, ItemPlace.OWN);
             if (drawnCarried != null) {
                 packet.setCarriedItem(drawnCarried);
                 changed = true;
@@ -370,14 +375,14 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             }
         } else if (type == PacketType.Play.Server.SET_CURSOR_ITEM) {
             WrapperPlayServerSetCursorItem packet = new WrapperPlayServerSetCursorItem(event);
-            ItemStack drawn = decorated(viewer, packet.getStack(), ItemPlace.OWN);
+            ItemStack drawn = decorated(viewer, limits, packet.getStack(), ItemPlace.OWN);
             if (drawn != null) {
                 packet.setStack(drawn);
                 event.markForReEncode(true);
             }
         } else {
             WrapperPlayServerSetPlayerInventory packet = new WrapperPlayServerSetPlayerInventory(event);
-            ItemStack drawn = decorated(viewer, packet.getStack(), ItemPlace.OWN);
+            ItemStack drawn = decorated(viewer, limits, packet.getStack(), ItemPlace.OWN);
             if (drawn != null) {
                 packet.setStack(drawn);
                 event.markForReEncode(true);
@@ -385,11 +390,25 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
     }
 
-    /** A copy of the item with every plugin's lines under its lore, or {@code null} when none has any. */
-    private static ItemStack decorated(Player viewer, ItemStack item, ItemPlace place) {
+    /**
+     * A copy of the item with every plugin's lines under its lore and its icons
+     * drawn the way this client can, or {@code null} when neither changes it.
+     */
+    private static ItemStack decorated(Player viewer, IconDowngrade.Limits limits, ItemStack item,
+                                       ItemPlace place) {
         if (item == null || item.isEmpty()) {
             return null;
         }
+        ItemStack lined = ItemDecor.decoratesAnything() ? decorated(viewer, item, place) : null;
+        if (limits == null) {
+            return lined;
+        }
+        ItemStack swapped = IconDowngrade.downgrade(lined == null ? item : lined, limits);
+        return swapped == null ? lined : swapped;
+    }
+
+    /** A copy of the item with every plugin's lines under its lore, or {@code null} when none has any. */
+    private static ItemStack decorated(Player viewer, ItemStack item, ItemPlace place) {
         // A fresh stack nobody else holds: handed over, so a lone provider gets it uncopied.
         List<Component> lines = ItemDecor.lines(viewer, SpigotConversionUtil.toBukkitItemStack(item), place);
         if (lines.isEmpty()) {

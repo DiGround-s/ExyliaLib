@@ -45,6 +45,9 @@ public record Palette(
         @Comment("Something went wrong.")
         String error,
 
+        @Comment("Lighter error, for supporting lines and the light end of a gradient.")
+        String errorLight,
+
         @Comment("Something worked.")
         String success,
 
@@ -94,6 +97,7 @@ public record Palette(
                 "#e7cfff",  // letters
                 "#a89ab5",  // letters_black
                 "#a33b53",  // error
+                "#d4617d",  // error_light
                 "#8fffc1",  // success
                 "#a1ffc3",  // success_light
                 "#ff9500",  // warning
@@ -106,5 +110,21 @@ public record Palette(
                 "#868e96",  // muted
                 "exylia.net" // server-ip
         );
+    }
+
+    /**
+     * The palette without {@code error_light}, which is then the Exylia default.
+     *
+     * @deprecated since 1.477.0; use the canonical constructor, which takes
+     *             {@code errorLight} right after {@code error}.
+     */
+    @Deprecated(since = "1.477.0")
+    public Palette(String primary, String secondary, String secondaryLight, String letters,
+                   String lettersBlack, String error, String success, String successLight,
+                   String warning, String warningLight, String info, String infoLight,
+                   String accent, String neutral, String highlight, String muted, String serverIp) {
+        this(primary, secondary, secondaryLight, letters, lettersBlack, error, "#d4617d",
+                success, successLight, warning, warningLight, info, infoLight, accent, neutral,
+                highlight, muted, serverIp);
     }
 }
