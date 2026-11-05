@@ -1616,3 +1616,6 @@ World: Mundo
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} no puede ser menor que {1} {letters_black}({2}{letters_black}){letters}.'
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} no puede ser mayor que {1} {letters_black}({2}{letters_black}){letters}.'
 '{letters_black}▎ {success}The current value.': '{letters_black}▎ {success}El valor actual.'
+'{muted}Type {highlight}%blank%{muted} to leave it blank.': '{muted}Escribe {highlight}%blank%{muted} para dejarlo vacío.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it.': '{muted}Ahora {letters}%value%{muted}. Escribe {highlight}%keep%{muted} para mantenerlo.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it, or {highlight}%blank%{muted} to leave it blank.': '{muted}Ahora {letters}%value%{muted}. Escribe {highlight}%keep%{muted} para mantenerlo, o {highlight}%blank%{muted} para dejarlo vacío.'

@@ -42,6 +42,13 @@ import java.util.concurrent.ConcurrentMap;
 public final class ChatTransport implements Transport {
 
     private static final String BACK_WORD = "back";
+    /**
+     * Keeps the value a field opened with. A dialog shows it in the box; chat
+     * cannot, and a chat line can never be empty, so these two words stand in.
+     */
+    static final String KEEP_WORD = "skip";
+    /** Answers blank: "blank for none" in a box that chat cannot leave empty. */
+    static final String BLANK_WORD = "-";
     private static volatile String cancelWord = "cancel";
 
     private final Plugin plugin;
@@ -88,6 +95,10 @@ public final class ChatTransport implements Transport {
         if (request instanceof InputRequest<?, ?> single) {
             sendPrompt(player, single.prompt());
             sendFieldHint(player, single.hint());
+            if (single.parseRaw("").ok()) {
+                Text.of(Phrases.tr("{muted}Type {highlight}%blank%{muted} to leave it blank."))
+                        .with("%blank%", BLANK_WORD).send(player);
+            }
         } else if (request instanceof FormInput form) {
             FormProgress progress = new FormProgress(form);
             forms.put(session.id(), progress);
@@ -146,7 +157,8 @@ public final class ChatTransport implements Transport {
 
     private static void answerSingle(InputSession session, Player player,
                                      InputRequest<?, ?> request, String raw) {
-        InputParser.Parsed<?> parsed = request.parseRaw(raw);
+        String answer = formAnswer(raw);
+        InputParser.Parsed<?> parsed = request.parseRaw(answer == null ? raw : answer);
         if (parsed.ok()) {
             session.complete(parsed.value());
             return;
@@ -169,7 +181,12 @@ public final class ChatTransport implements Transport {
             return;
         }
 
-        progress.answer(raw);
+        String answer = formAnswer(raw);
+        if (answer == null) {
+            progress.clearCurrent();
+        } else {
+            progress.answer(answer);
+        }
         Object parsed = form.parseRaw(progress.answers());
         if (!progress.atEnd()) {
             if (parsed instanceof Validation validation) {
@@ -197,6 +214,18 @@ public final class ChatTransport implements Transport {
         }
         progress.returnTo(firstOffendingField(form.fields(), validation));
         sendFormField(player, progress);
+    }
+
+    /**
+     * What a chat line answers a form field with: {@code null} for
+     * {@link #KEEP_WORD}, as a box left as it opened (the value it opened with
+     * stands, or nothing when it opened empty), {@code ""} for
+     * {@link #BLANK_WORD}, as a box the player emptied, and the line otherwise.
+     */
+    static @Nullable String formAnswer(String raw) {
+        String word = raw.trim();
+        if (word.equalsIgnoreCase(KEEP_WORD)) return null;
+        return word.equals(BLANK_WORD) ? "" : raw;
     }
 
     private static int firstOffendingField(List<FormField<?>> fields, Validation validation) {
@@ -243,6 +272,29 @@ public final class ChatTransport implements Transport {
                 .with("%total%", progress.fields().size())
                 .send(player);
         sendFieldHint(player, field.hint());
+        sendSkipHint(player, field);
+    }
+
+    /**
+     * What the field holds now and the words that keep or blank it. Chat has no
+     * prefilled box, so without this an edit could not leave a value as it was,
+     * and a "blank for none" field could not be left blank at all.
+     */
+    private static void sendSkipHint(Player player, FormField<?> field) {
+        Object now = field.defaultValue();
+        String shown = now == null ? "" : InputRuntime.display(now);
+        if (!shown.isBlank()) {
+            Text.of(field.isRequired()
+                            ? Phrases.tr("{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it.")
+                            : Phrases.tr("{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it, or {highlight}%blank%{muted} to leave it blank."))
+                    .with("%value%", shown)
+                    .with("%keep%", KEEP_WORD)
+                    .with("%blank%", BLANK_WORD)
+                    .send(player);
+        } else if (!field.isRequired()) {
+            Text.of(Phrases.tr("{muted}Type {highlight}%blank%{muted} to leave it blank."))
+                    .with("%blank%", BLANK_WORD).send(player);
+        }
     }
 
     /** Chat has no box to put a hint in, so it gets its own muted line. */

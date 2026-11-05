@@ -1616,3 +1616,6 @@ World: Dünya
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} şundan düşük olamaz: {1} {letters_black}({2}{letters_black}){letters}.'
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} şundan yüksek olamaz: {1} {letters_black}({2}{letters_black}){letters}.'
 '{letters_black}▎ {success}The current value.': '{letters_black}▎ {success}Mevcut değer.'
+'{muted}Type {highlight}%blank%{muted} to leave it blank.': '{muted}Boş bırakmak için {highlight}%blank%{muted} yaz.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it.': '{muted}Şu an {letters}%value%{muted}. Korumak için {highlight}%keep%{muted} yaz.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it, or {highlight}%blank%{muted} to leave it blank.': '{muted}Şu an {letters}%value%{muted}. Korumak için {highlight}%keep%{muted}, boş bırakmak için {highlight}%blank%{muted} yaz.'

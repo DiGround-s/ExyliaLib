@@ -1604,3 +1604,6 @@ World: Мир
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be lower than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} не может быть меньше, чем {1} {letters_black}({2}{letters_black}){letters}.'
 '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} can''t be higher than {1} {letters_black}({2}{letters_black}){letters}.': '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✘ {letters}{0} не может быть больше, чем {1} {letters_black}({2}{letters_black}){letters}.'
 '{letters_black}▎ {success}The current value.': '{letters_black}▎ {success}Текущее значение.'
+'{muted}Type {highlight}%blank%{muted} to leave it blank.': '{muted}Напиши {highlight}%blank%{muted}, чтобы оставить пустым.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it.': '{muted}Сейчас {letters}%value%{muted}. Напиши {highlight}%keep%{muted}, чтобы оставить как есть.'
+'{muted}Now {letters}%value%{muted}. Type {highlight}%keep%{muted} to keep it, or {highlight}%blank%{muted} to leave it blank.': '{muted}Сейчас {letters}%value%{muted}. Напиши {highlight}%keep%{muted}, чтобы оставить как есть, или {highlight}%blank%{muted}, чтобы оставить пустым.'

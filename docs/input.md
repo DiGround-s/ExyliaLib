@@ -197,6 +197,13 @@ inputs.text(player, "{primary}Paste the webhook URL")
       .open(url -> save(url));
 ```
 
+On clients before 1.21.6 a form is asked in chat, one field at a time, and a
+chat line can never be empty. So each field says what it holds now: `skip`
+keeps that value, as a box left as it opened, and `-` answers blank, as a box
+the player emptied, which is how a "blank for none" field is left blank. A
+required field is still required. A single question whose parser accepts a blank
+answer takes `-` too (since 1.475.0).
+
 A dialog or a Bedrock form never puts the answer in chat. In chat, an ordinary
 answer is taken at `HIGHEST`, after other chat plugins have run; a sensitive one
 is taken at `LOWEST`, so no filter, chat log or Discord bridge reads it before
