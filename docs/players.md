@@ -221,6 +221,24 @@ that went to a database or to the proxy would be doing it dozens of times a
 second, on whichever thread the completion arrived on. That is the whole
 reason the network tiers live behind `PlayerTarget` instead.
 
+### Arguments with a colon (since 1.476.0)
+
+Lamp hands a `String` parameter to Brigadier as a quotable string, and an
+unquoted one stops at anything but letters, digits and `_-.+`. Paper refuses
+`/cca give Notch tag:heart` at the colon ("Expected whitespace to end one
+argument") before Lamp sees it. `command.lamp.KeyArgument` reads up to the next
+space (or a quoted string, as before) and tells the client it is a resource
+location:
+
+```java
+@Subcommand("give")
+public void give(CommandSender sender, String player,
+                 @SuggestWith(KeySuggestion.class) @BType(KeyArgument.class) String key) { ... }
+```
+
+The handler gets the same value as before. It names no Lamp type, so unlike the
+parameter types above it can come from this library.
+
 ---
 
 ## Messages
@@ -342,6 +360,7 @@ nothing here decides what a shared address means — a household shares one.
 | The deferred target | `player/PlayerTarget.java` |
 | The tiers and the caches | `player/internal/PlayerRuntime.java` |
 | The Lamp glue | `PlayerArguments.java`, in each consumer plugin |
+| Keys with a colon | `command/lamp/KeyArgument.java`; test `command/lamp/KeyArgumentTest` |
 | The messages | `text/LibraryMessages.Players` |
 | Joins recorded | `ExyliaLib.onPlayerJoin` |
 | Accounts | `player/Accounts.java`, rows in `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`); test `player/AccountsTest` |
