@@ -641,8 +641,8 @@ final class Steps {
          * The seat-th player watching who is neither the killer nor the victim.
          *
          * <p>What a crowd is made of: the people standing round the fight wear
-         * the spectators' bodies. Nobody else there leaves the seat to the
-         * default skin, which is still somebody watching.
+         * the spectators' bodies. Nobody else there leaves the seat to
+         * {@link #unfilled}.
          */
         private static @Nullable Player spectator(List<Player> observers, @Nullable Player killer,
                                                   @Nullable Player victim, int seat) {
@@ -653,6 +653,30 @@ final class Steps {
                 }
             }
             return others.isEmpty() ? null : others.get(seat % others.size());
+        }
+
+        /**
+         * A seat no spectator fills: somebody else online, or else whoever is
+         * watching (the one not dying, when there is a choice). Never one of
+         * vanilla's default skins while a real one is there to wear; before
+         * 1.476.1 it was a default skin by seat.
+         */
+        private static RagdollModel unfilled(List<Player> observers, @Nullable Player killer,
+                                             @Nullable Player victim, int seat) {
+            java.util.Set<java.util.UUID> skip = new java.util.HashSet<>();
+            for (Player observer : observers) {
+                skip.add(observer.getUniqueId());
+            }
+            if (killer != null) skip.add(killer.getUniqueId());
+            if (victim != null) skip.add(victim.getUniqueId());
+            RagdollModel online = net.exylia.lib.npc.PreviewSkins.crowd(seat, skip);
+            if (online != null) {
+                return online;
+            }
+            for (Player observer : observers) {
+                if (observer != victim) return RagdollModel.of(observer);
+            }
+            return RagdollModel.of(observers.get(0));
         }
 
         @Override
@@ -684,10 +708,9 @@ final class Steps {
             // A body handed over by whoever played this (a placed NPC) starts
             // from its own size, outline and what it carries; the line still
             // has the last word on each.
-            // Nobody to wear (an extra in a preview, a crowd with no spectators): a vanilla default skin,
-            // never the block-built placeholder.
+            // Past the check above, nobody to wear means a crowd seat with no spectator.
             RagdollModel base = worn != null ? worn : whose != null ? RagdollModel.of(whose)
-                    : net.exylia.lib.npc.PreviewSkins.extra(Math.max(0, seat));
+                    : unfilled(observers, killer, victim, seat);
             RagdollModel model = base
                     .detail(detail)
                     .scale(scale * base.scaleFactor())

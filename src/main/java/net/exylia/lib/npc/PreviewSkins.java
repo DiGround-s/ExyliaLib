@@ -149,6 +149,28 @@ public final class PreviewSkins {
         return RagdollModel.ofTexture(all[Math.floorMod(seat * 7 + 3, all.length)].textures());
     }
 
+    /**
+     * A body for a {@code [RAGDOLL] {crowd}} seat nobody watching fills: the {@code seat}-th online player
+     * outside {@code skip} who has a skin of their own, so a crowd wears real people rather than vanilla's
+     * defaults. {@code null} when there is nobody, and the seat then falls to whoever is watching. Since 1.476.1.
+     */
+    @ApiStatus.Internal
+    public static @Nullable RagdollModel crowd(int seat, @NotNull java.util.Set<UUID> skip) {
+        String texture = crowd(seat, skip, ONLINE);
+        return texture != null ? RagdollModel.ofTexture(texture) : null;
+    }
+
+    static @Nullable String crowd(int seat, java.util.Set<UUID> skip, Map<UUID, String[]> online) {
+        List<Map.Entry<UUID, String[]>> skinned = new ArrayList<>(online.size());
+        for (Map.Entry<UUID, String[]> entry : online.entrySet()) {
+            if (entry.getValue()[0] != null && !skip.contains(entry.getKey())) skinned.add(entry);
+        }
+        if (skinned.isEmpty()) return null;
+        // In a fixed order, so the seats of one crowd are different people while there are enough of them.
+        skinned.sort(Map.Entry.comparingByKey());
+        return skinned.get(Math.floorMod(seat, skinned.size())).getValue()[0];
+    }
+
     /** Reads every default skin's picture once, in the background, so the first ragdoll is not the placeholder. */
     @ApiStatus.Internal
     public static void warmDefaults() {

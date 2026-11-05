@@ -459,8 +459,11 @@ its chain. They break at `snip:` and drop back into the floor. Since 1.139.0.
 ### Crowds
 
 `[RAGDOLL] {crowd};seat:N` is a spectator: the Nth player watching who is
-neither the killer nor the victim wears the body, and a seat nobody fills wears
-the default skin. `[RAGDOLL] {killer}` is the killer's own body, so a sequence
+neither the killer nor the victim wears the body. A seat no spectator fills
+wears another online player's own skin, one per seat while there are enough of
+them, and with nobody else online the skin of whoever is watching (the killer
+before the victim): never a vanilla default while a real skin is there to wear
+(since 1.476.1; a default skin by seat from 1.455.0). `[RAGDOLL] {killer}` is the killer's own body, so a sequence
 can have the killer walk in and do it. Since 1.137.0.
 
 ### Spelling

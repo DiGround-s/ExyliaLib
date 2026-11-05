@@ -79,6 +79,22 @@ class PreviewSkinsTest {
     }
 
     @Test
+    @DisplayName("a crowd seat nobody watches wears an online player's own skin, never one skipped or skinless")
+    void crowd() {
+        UUID killer = new UUID(0, 1);
+        UUID a = new UUID(0, 2);
+        UUID b = new UUID(0, 3);
+        UUID skinless = new UUID(0, 4);
+        Map<UUID, String[]> online = Map.of(killer, new String[]{"k", null}, a, new String[]{"a", null},
+                b, new String[]{"b", null}, skinless, new String[]{null, null});
+        assertEquals("a", PreviewSkins.crowd(0, Set.of(killer), online));
+        assertEquals("b", PreviewSkins.crowd(1, Set.of(killer), online), "seats are different people");
+        assertEquals("a", PreviewSkins.crowd(2, Set.of(killer), online));
+        assertNull(PreviewSkins.crowd(0, Set.of(killer, a, b), online), "left to whoever is watching");
+        assertNull(PreviewSkins.crowd(0, Set.of(), Map.of()));
+    }
+
+    @Test
     @DisplayName("defaults walk through all eighteen vanilla skins")
     void defaultsRotate() {
         Set<DefaultSkin> seen = new HashSet<>();

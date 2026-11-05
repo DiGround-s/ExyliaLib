@@ -737,8 +737,9 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
   `effect-scale` (`EffectView.MIN_SCALE`); wider than the zone, it spills out sideways rather than shrink. 1.454.0
   learned from the first visible play and shrank down to 15 %, so a crowd made the next plays a miniature.
   Particles cannot be scaled by the client: with the 60 % floor they stay in proportion.
-- **No body is ever built of blocks for want of a skin.** An extra with nobody to wear (a `[RAGDOLL] {crowd}` seat
-  with no spectator, a placed NPC with no skin, an account that cannot be read) wears one of vanilla's default
+- **No body is ever built of blocks for want of a skin.** A `[RAGDOLL] {crowd}` seat with no spectator wears another
+  online player's skin or the viewer's (since 1.476.1, see `ragdolls.md`). An extra with nobody to wear (a placed NPC
+  with no skin, an account that cannot be read) wears one of vanilla's default
   skins (`PreviewSkins.extra(seat)`), never `SkinCache.fallback()`'s block colours; every default skin's picture
   is read when the library starts, so the first death already wears it. This holds for real kills too.
 - **The backdrop is a soft vignette:** 10 rings over 0.9 blocks by default (alpha steps of about 14).
