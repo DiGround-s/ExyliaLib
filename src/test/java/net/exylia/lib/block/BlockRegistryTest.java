@@ -158,6 +158,22 @@ class BlockRegistryTest {
                 new BlockRuntime.Position(world.getUID(), 1, 64, 0), BlockButton.RIGHT));
     }
 
+    @Test
+    @DisplayName("in adventure mode a right click's arm swing is not a left click")
+    void adventureSwingIsNotALeftClick() {
+        // Paper fires a left click from the arm swing in adventure mode, and a
+        // right click swings the arm: a crate opened its contents over the opening.
+        UUID player = UUID.randomUUID();
+        BlockRuntime.Position crate = new BlockRuntime.Position(world.getUID(), 5, 64, 0);
+
+        assertFalse(BlockRuntime.isRepeat(player, crate, BlockButton.RIGHT, true));
+        assertTrue(BlockRuntime.isRepeat(player, crate, BlockButton.LEFT, true), "the swing that followed");
+
+        BlockRuntime.Position other = new BlockRuntime.Position(world.getUID(), 6, 64, 0);
+        assertFalse(BlockRuntime.isRepeat(player, other, BlockButton.LEFT, true),
+                "a left click on its own still counts in adventure mode");
+    }
+
     /** A click with no player behind it: enough to drive {@code fire}. */
     private BlockClick click(BlockButton button) {
         return new BlockClick(null, null, button, false);

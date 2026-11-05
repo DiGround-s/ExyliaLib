@@ -71,7 +71,8 @@ public final class BlockRuntime {
         }
     }
 
-    private record Click(UUID player, Position position, BlockButton button) {
+    /** {@code button} is {@code null} for the last right press, kept apart from the debounce. */
+    private record Click(UUID player, Position position, @Nullable BlockButton button) {
     }
 
     /** Registers a block, replacing whatever held its location. */
@@ -189,8 +190,33 @@ public final class BlockRuntime {
      * @return {@code true} when it should be ignored
      */
     public static boolean isRepeat(@NotNull UUID player, @NotNull Position position, @NotNull BlockButton button) {
-        Click click = new Click(player, position, button);
+        return isRepeat(player, position, button, false);
+    }
+
+    /**
+     * Whether this click is the tail of one already handled.
+     *
+     * <p>In adventure mode the client sends no digging packet, so Paper fires a
+     * left click from the arm swing instead, and a right click swings the arm
+     * too: every right click on a block also arrived as a left click, and a
+     * crate opened its contents screen over the opening. There, a left click
+     * on the block just right-clicked is that swing.
+     *
+     * @param adventure whether the player is in adventure mode
+     * @return {@code true} when it should be ignored
+     */
+    public static boolean isRepeat(@NotNull UUID player, @NotNull Position position, @NotNull BlockButton button,
+                                   boolean adventure) {
         long now = System.currentTimeMillis();
+        // The last right press, repeat or not: a held button swings on every one.
+        Click pressed = new Click(player, position, null);
+        if (button == BlockButton.RIGHT) {
+            RECENT.put(pressed, now);
+        } else if (adventure) {
+            Long right = RECENT.getIfPresent(pressed);
+            if (right != null && now - right < DEBOUNCE_MILLIS) return true;
+        }
+        Click click = new Click(player, position, button);
         Long last = RECENT.getIfPresent(click);
         if (last != null && now - last < DEBOUNCE_MILLIS) return true;
         RECENT.put(click, now);

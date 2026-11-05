@@ -4,6 +4,7 @@ import net.exylia.lib.block.BlockButton;
 import net.exylia.lib.block.BlockClick;
 import net.exylia.lib.block.ClickableBlock;
 import net.exylia.lib.debug.Debug;
+import org.bukkit.GameMode;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -60,7 +61,8 @@ public final class BlockListener implements Listener {
         Player player = event.getPlayer();
         BlockRuntime.Position position = new BlockRuntime.Position(
                 block.getWorld().getUID(), block.getX(), block.getY(), block.getZ());
-        if (BlockRuntime.isRepeat(player.getUniqueId(), position, button)) return;
+        if (BlockRuntime.isRepeat(player.getUniqueId(), position, button,
+                player.getGameMode() == GameMode.ADVENTURE)) return;
 
         try {
             registered.fire(new BlockClick(player, block, button, player.isSneaking(), event));

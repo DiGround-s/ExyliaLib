@@ -120,7 +120,9 @@ refilling stays shut while the others open as chests.
 - **A repeated click is one click.** A held left button fires every tick and both
   hands fire a right click; within 250ms, the same button on the same block by
   the same player does not call the handler again. A crate that opened twice
-  from one press would cost a key.
+  from one press would cost a key. In adventure mode Paper turns every arm swing
+  into a left click, and a right click swings the arm, so there a left click
+  within 250ms of a right click on the same block is dropped (since 1.475.0).
 - **A handler that throws costs its own click.** It is reported through `Debug`
   against its own plugin, and the interact event carries on to the plugins
   behind it.
