@@ -154,6 +154,13 @@ public final class Playtime {
             if (!OPENERS.contains(plugin)) {
                 OPENERS.add(plugin);
             }
+            Playtime current = tracker;
+            if (current != null && current.host != plugin && current.host != null
+                    && current.host.getName().equals(plugin.getName())) {
+                // Hosted by the earlier load, whose database view closed when this load opened its
+                // own: writing through it fails with "the database target is closing".
+                current.rehost(plugin);
+            }
             if (tracker == null) {
                 Playtime created = new Playtime(Databases.of(plugin).repository(PlaytimeRow.class));
                 created.hostBy(plugin);
@@ -375,14 +382,20 @@ public final class Playtime {
                 tracker = null;
                 return;
             }
-            current.rows = Databases.of(next).repository(PlaytimeRow.class);
-            current.hostBy(next);
-            // Each total was the old host's database; this one's may differ.
-            current.sessions.forEach((id, session) -> {
-                session.loaded = false;
-                current.load(id, session);
-            });
+            current.rehost(next);
         }
+    }
+
+    /** Moves hosting to another plugin's database; time not yet written is written there. */
+    private void rehost(Plugin next) {
+        stopTimer();
+        rows = Databases.of(next).repository(PlaytimeRow.class);
+        hostBy(next);
+        // Each total was the old host's database; this one's may differ.
+        sessions.forEach((id, session) -> {
+            session.loaded = false;
+            load(id, session);
+        });
     }
 
     /** Writes everybody's time and stops, on shutdown. */

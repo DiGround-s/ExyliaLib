@@ -568,8 +568,10 @@ public final class SqlBackend implements AutoCloseable {
         }
         String sql = statements.computeIfAbsent("save:" + model.key(),
                 key -> dialect.upsert(model, List.of(model.id().name())));
+        // Auto-commit is not restored by hand: Hikari resets it when the connection goes back to
+        // the pool, and a restore on a link that just dropped threw "Connection is closed" over
+        // the failure that said why.
         try (Connection connection = pool.getConnection()) {
-            boolean autoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 for (Object[] row : rows) {
@@ -580,10 +582,12 @@ public final class SqlBackend implements AutoCloseable {
                 connection.commit();
                 return rows.size();
             } catch (SQLException failure) {
-                connection.rollback();
+                try {
+                    connection.rollback();
+                } catch (SQLException rollback) {
+                    failure.addSuppressed(rollback);
+                }
                 throw failure;
-            } finally {
-                connection.setAutoCommit(autoCommit);
             }
         }
     }
@@ -1105,7 +1109,16 @@ public final class SqlBackend implements AutoCloseable {
             statement.setString(slot, text);
             return;
         }
-        statement.setObject(slot, value);
+        // Numbers and flags too: MariaDB's setObject finds its encoder in a service-loaded codec
+        // table, and a server where another copy of the driver won the class lookup was seen
+        // answering "Type java.lang.Long not supported type" for every long.
+        switch (value) {
+            case Long number -> statement.setLong(slot, number);
+            case Integer number -> statement.setInt(slot, number);
+            case Double number -> statement.setDouble(slot, number);
+            case Boolean flag -> statement.setBoolean(slot, flag);
+            default -> statement.setObject(slot, value);
+        }
     }
 
     private static int sqlTypeOf(@NotNull ColumnModel column) {

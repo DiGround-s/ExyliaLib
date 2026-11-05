@@ -60,8 +60,11 @@ public final class Outages {
     }
 
     private static boolean connection(@NotNull Throwable failure) {
+        // A socket the database dropped ("Connection reset") arrives on some drivers as a plain
+        // SQLException with no SQLSTATE, wrapping the socket's own failure.
         if (failure instanceof SQLTransientConnectionException
-                || failure instanceof SQLNonTransientConnectionException) {
+                || failure instanceof SQLNonTransientConnectionException
+                || failure instanceof java.net.SocketException) {
             return true;
         }
         if (failure instanceof SQLException sql && sql.getSQLState() != null

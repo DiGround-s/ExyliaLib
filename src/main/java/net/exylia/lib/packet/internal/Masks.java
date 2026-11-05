@@ -286,11 +286,12 @@ final class Masks implements BlockMasks {
     /**
      * Sends blocks of one chunk as they are, with their block entities, read on the chunk's own region.
      * Run by the library, which outlives the plugin unmasking on its way out; nothing is sent while the
-     * library itself is going down.
+     * library or the server is going down: Folia disables plugins from its shutdown thread, which
+     * owns every region but has no region scheduler to queue on.
      */
     private static void sendReal(List<Player> viewers, List<Location> blocks) {
         Plugin lib = PacketRuntime.lib();
-        if (lib == null || !lib.isEnabled()) return;
+        if (lib == null || !lib.isEnabled() || Bukkit.isStopping()) return;
         Tasks.of(lib).runAtLocation(blocks.getFirst(), () -> {
             for (Location at : blocks) {
                 Block block = at.getBlock();
