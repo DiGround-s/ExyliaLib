@@ -266,6 +266,35 @@ class PluginAbilitiesTest {
     }
 
     @Test
+    @DisplayName("the gathering effects compile, CAST is a trigger, and unusable lines are reported")
+    void gatheringEffects() {
+        Map<String, Object> mining = new LinkedHashMap<>();
+        mining.put("trigger", "BLOCK_BREAK");
+        mining.put("effects", List.of(
+                Map.of("reveal", Map.of("radius", "4 + level", "only", List.of("DIAMOND_ORE"), "duration", "3s",
+                        "colour", "#55ffff")),
+                "replant",
+                Map.of("grow", Map.of("radius", 3, "stages", 2, "max", 10)),
+                Map.of("item", Map.of("material", "minecraft:wheat_seeds", "amount", "level", "to", "drop"))));
+        assertEquals(4, compile("gather", mining).effects().size());
+        assertTrue(problems.isEmpty(), problems.toString());
+
+        Map<String, Object> cast = new LinkedHashMap<>();
+        cast.put("trigger", "CAST");
+        cast.put("effects", List.of(Map.of("fish-hook", Map.of("wait-multiplier", "1 - level * 0.1"))));
+        assertEquals(1, compile("lure", cast).effects().size());
+        assertTrue(problems.isEmpty(), problems.toString());
+
+        Map<String, Object> broken = new LinkedHashMap<>();
+        broken.put("trigger", "FISH");
+        broken.put("effects", List.of(Map.of("reveal", Map.of("radius", 3)),
+                Map.of("item", Map.of("material", "not_a_thing"))));
+        assertEquals(0, compile("broken", broken).effects().size());
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("only")), problems.toString());
+        assertTrue(problems.stream().anyMatch(problem -> problem.contains("not_a_thing")), problems.toString());
+    }
+
+    @Test
     @DisplayName("holdings are cached until refreshed, and refreshing fires EQUIP and UNEQUIP")
     void holdingsCache() {
         Ability ability = attack("cached", 100, null);

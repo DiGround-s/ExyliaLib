@@ -440,6 +440,43 @@ public final class Ledger {
         });
     }
 
+    /**
+     * How much one player received (created) or spent (sunk) over a span,
+     * every server and source together.
+     *
+     * <pre>{@code
+     * long now = Ledger.currentHour();
+     * ledger.player(uuid, Ledger.Flow.CREATED, null, now - 24, now + 1)
+     *       .thenAccept(earned -> ...); // last day's earnings, default currency
+     * }</pre>
+     *
+     * @param player          the player
+     * @param flow            which way
+     * @param currency        the currency id; {@code null} for the default one
+     * @param fromHour        first UTC hour, inclusive
+     * @param toHourExclusive last UTC hour, exclusive; no span limit, since one player's rows are few
+     * @return the total, {@code 0.00} when nothing was recorded; completes off the server thread
+     * @since 1.480.0
+     */
+    public @NotNull CompletableFuture<BigDecimal> player(@NotNull UUID player, @NotNull Flow flow,
+                                                         @Nullable String currency, long fromHour,
+                                                         long toHourExclusive) {
+        Repository<LedgerPlayerRow> repo = playerRows;
+        if (repo == null || toHourExclusive <= fromHour) return CompletableFuture.completedFuture(amount(0));
+        String wanted = currencyOf(currency);
+        return flush().thenCompose(done -> repo.where("player", player.toString())
+                        .where("flow", flow.name()).where("currency", wanted).find())
+                .thenApply(found -> sum(found, fromHour, toHourExclusive));
+    }
+
+    static BigDecimal sum(List<LedgerPlayerRow> rows, long fromHour, long toHourExclusive) {
+        long cents = 0;
+        for (LedgerPlayerRow row : rows) {
+            if (row.hour() >= fromHour && row.hour() < toHourExclusive) cents += row.cents();
+        }
+        return amount(cents);
+    }
+
     static List<PlayerTotal> top(List<LedgerPlayerRow> rows, int limit) {
         Map<String, Long> byPlayer = new HashMap<>();
         rows.forEach(row -> byPlayer.merge(row.player(), row.cents(), Long::sum));

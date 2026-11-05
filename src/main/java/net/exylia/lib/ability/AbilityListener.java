@@ -1,8 +1,10 @@
 package net.exylia.lib.ability;
 
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Statistic;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
@@ -28,6 +30,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerStatisticIncrementEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.projectiles.ProjectileSource;
 
 /**
@@ -130,11 +133,64 @@ final class AbilityListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onFish(PlayerFishEvent event) {
         PlayerFishEvent.State state = event.getState();
-        if ((state == PlayerFishEvent.State.CAUGHT_FISH || state == PlayerFishEvent.State.CAUGHT_ENTITY)
-                && abilities.holds(event.getPlayer(), Triggers.FISH)) {
-            LivingEntity caught = event.getCaught() instanceof LivingEntity living ? living : null;
-            abilities.fire(event.getPlayer(), Triggers.FISH, ctx -> ctx.event(event).victim(caught));
+        Player player = event.getPlayer();
+        if (state == PlayerFishEvent.State.FISHING) {
+            if (abilities.holds(player, Triggers.CAST)) {
+                abilities.fire(player, Triggers.CAST, ctx -> ctx.event(event).location(event.getHook().getLocation()));
+            }
+            return;
         }
+        if ((state != PlayerFishEvent.State.CAUGHT_FISH && state != PlayerFishEvent.State.CAUGHT_ENTITY)
+                || !abilities.holds(player, Triggers.FISH)) {
+            return;
+        }
+        if (!(event.getCaught() instanceof Item item)) {
+            LivingEntity caught = event.getCaught() instanceof LivingEntity living ? living : null;
+            abilities.fire(player, Triggers.FISH, ctx -> ctx.event(event).victim(caught));
+            return;
+        }
+        // The catch is the firing's drops: `drops` multiplies it, `to: inventory` sends it home.
+        java.util.List<ItemStack> drops = new java.util.ArrayList<>();
+        drops.add(item.getItemStack());
+        AbilityContext[] fired = {null};
+        abilities.fire(player, Triggers.FISH, ctx -> {
+            fired[0] = ctx;
+            ctx.event(event).location(item.getLocation()).with(ContextKey.DROPS, drops);
+        });
+        boolean toInventory = fired[0] != null && Boolean.TRUE.equals(fired[0].get(ContextKey.DROPS_TO_INVENTORY));
+        caught(item, drops, toInventory ? player : null);
+    }
+
+    /**
+     * Writes a fishing catch back: the first stack stays the hooked item flying
+     * to the player, the rest fly with it or go into the inventory.
+     */
+    private void caught(Item item, java.util.List<ItemStack> drops, @org.jetbrains.annotations.Nullable Player inventory) {
+        drops.removeIf(stack -> stack == null || stack.getType().isAir() || stack.getAmount() <= 0);
+        if (drops.isEmpty()) {
+            // The entity is not in the world yet, and removing it now would make the server warn when
+            // it adds it: it is left unpickable to despawn on its next tick instead.
+            item.setPickupDelay(Short.MAX_VALUE);
+            item.setTicksLived(5999);
+            return;
+        }
+        item.setItemStack(drops.getFirst());
+        java.util.List<ItemStack> rest = drops.subList(1, drops.size());
+        if (rest.isEmpty()) return;
+        Location where = item.getLocation();
+        org.bukkit.util.Vector velocity = item.getVelocity();
+        Runnable spawn = () -> {
+            for (ItemStack extra : rest) {
+                if (inventory != null && inventory.isOnline()) {
+                    inventory.getInventory().addItem(extra).values()
+                            .forEach(over -> inventory.getWorld().dropItemNaturally(inventory.getLocation(), over));
+                } else if (where.getWorld() != null) {
+                    where.getWorld().dropItem(where, extra).setVelocity(velocity);
+                }
+            }
+        };
+        if (abilities.tasks().isOwnedBy(where)) spawn.run();
+        else abilities.tasks().runAtLocation(where, spawn);
     }
 
     /** The jump statistic: the one jump signal Spigot and Paper share. */

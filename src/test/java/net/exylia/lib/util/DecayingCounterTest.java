@@ -76,6 +76,17 @@ class DecayingCounterTest {
     }
 
     @Test
+    void addLocalIsNeverSentToPeers() {
+        DecayingCounter shared = new DecayingCounter(Duration.ofHours(2), now::get, true);
+        shared.addLocal("ore", 30);
+        assertEquals(30, shared.value("ore"), 1e-9);
+        assertEquals(0, shared.outboxSize(), "a local add stays off the wire");
+        shared.add("ore", 10);
+        assertEquals(40, shared.value("ore"), 1e-9);
+        assertEquals(1, shared.outboxSize());
+    }
+
+    @Test
     void aHalfLifeMustBePositive() {
         assertThrows(IllegalArgumentException.class, () -> DecayingCounter.local(Duration.ZERO));
     }

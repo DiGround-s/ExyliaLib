@@ -103,6 +103,7 @@ public final class BuiltinEffects {
         abilities.effect("vfx", BuiltinEffects::vfx);
         abilities.effect("action", BuiltinEffects::action);
         abilities.effect("cooldown-reset", BuiltinEffects::cooldownReset);
+        FieldEffects.register(abilities);
     }
 
     // ------------------------------------------------------------------ combat
@@ -433,6 +434,9 @@ public final class BuiltinEffects {
             } else if (ctx.event() instanceof BlockBreakEvent breaking) {
                 breaking.setExpToDrop(Modifiers.xp(holder.getUniqueId(), source,
                         (int) Math.round(breaking.getExpToDrop() * factor)));
+            } else if (ctx.event() instanceof org.bukkit.event.player.PlayerFishEvent fishing) {
+                fishing.setExpToDrop(Modifiers.xp(holder.getUniqueId(), source,
+                        (int) Math.round(fishing.getExpToDrop() * factor)));
             }
         };
     }
@@ -715,7 +719,7 @@ public final class BuiltinEffects {
         }
     }
 
-    private static int roll(double amount) {
+    static int roll(double amount) {
         int whole = (int) Math.floor(amount);
         return ThreadLocalRandom.current().nextDouble() < amount - whole ? whole + 1 : whole;
     }

@@ -47,6 +47,32 @@ public record StakeRow(
                 StakeState.PENDING, System.currentTimeMillis());
     }
 
+    /**
+     * A persistent hold's pending row. Its id is derived from the plugin and
+     * the hold id, so one hold id names one row however often it is written.
+     */
+    public static StakeRow pendingKept(String plugin, String server, String holdId, UUID player, String currency,
+                                       BigDecimal amount) {
+        return new StakeRow(keptId(plugin, holdId), plugin, server, holdId, player, currency, amount,
+                StakeState.PENDING, System.currentTimeMillis());
+    }
+
+    /** The row id of a persistent hold. */
+    public static String keptId(String plugin, String holdId) {
+        return UUID.nameUUIDFromBytes((plugin + "\0kept\0" + holdId).getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .toString();
+    }
+
+    /**
+     * The row with a new amount and state, its {@code updatedAt} strictly
+     * later than this one's: a compare-and-set on {@code updatedAt} then
+     * fails for every caller that read the row before this write.
+     */
+    public StakeRow next(BigDecimal nextAmount, StakeState next) {
+        return new StakeRow(id, plugin, server, matchId, player, currency, nextAmount, next,
+                Math.max(System.currentTimeMillis(), updatedAt + 1));
+    }
+
     public StakeRow with(StakeState next) {
         return new StakeRow(id, plugin, server, matchId, player, currency, amount, next, System.currentTimeMillis());
     }

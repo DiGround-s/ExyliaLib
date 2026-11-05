@@ -408,6 +408,67 @@ class EscrowTest {
         assertEquals(2L, items.where("state", StakeState.SETTLED).count().join());
     }
 
+    @Test
+    @DisplayName("a persistent hold pays out in parts, refunds the rest once, and survives recovery")
+    void persistentHold() {
+        Escrow escrow = escrow();
+        assertEquals(Escrow.Hold.HELD, escrow.holdPersistent("o1", id(alice), "gems", new BigDecimal("50")).join());
+        assertEquals(Escrow.Hold.FAILED, escrow.holdPersistent("o1", id(alice), "gems", BigDecimal.TEN).join(),
+                "one hold id is one stake");
+        assertBalance(alice, "50");
+
+        // a restart leaves it alone, and match calls do not see it
+        Escrow.releaseAll();
+        escrow = escrow();
+        escrow.refund("o1").join();
+        assertEquals(0, new BigDecimal("50").compareTo(escrow.remaining("o1").join()));
+
+        assertTrue(escrow.pay("o1", id(bob), new BigDecimal("20")).join());
+        assertFalse(escrow.pay("o1", id(bob), new BigDecimal("31")).join(), "never more than is left");
+        FakeServer.tick(1);
+        assertBalance(bob, "120");
+        assertEquals(0, new BigDecimal("30").compareTo(escrow.remaining("o1").join()));
+
+        assertEquals(0, new BigDecimal("30").compareTo(escrow.refundRemaining("o1").join()));
+        assertEquals(0, BigDecimal.ZERO.compareTo(escrow.refundRemaining("o1").join()));
+        assertFalse(escrow.pay("o1", id(bob), BigDecimal.ONE).join());
+        FakeServer.tick(1);
+        assertBalance(alice, "80");
+        assertBalance(bob, "120");
+    }
+
+    @Test
+    @DisplayName("racing partial payments never pay out more than the hold kept")
+    void persistentHoldRace() {
+        Escrow escrow = escrow();
+        escrow.holdPersistent("o2", id(alice), "gems", new BigDecimal("10")).join();
+        List<java.util.concurrent.CompletableFuture<Boolean>> racing = new ArrayList<>();
+        for (int i = 0; i < 15; i++) {
+            racing.add(java.util.concurrent.CompletableFuture.supplyAsync(
+                    () -> escrow.pay("o2", id(bob), BigDecimal.ONE).join()));
+        }
+        racing.add(java.util.concurrent.CompletableFuture.supplyAsync(
+                () -> escrow.refundRemaining("o2").thenApply(BigDecimal::signum).join() >= 0));
+        racing.forEach(java.util.concurrent.CompletableFuture::join);
+        FakeServer.tick(1);
+
+        BigDecimal total = gems.balance(id(alice)).add(gems.balance(id(bob)));
+        assertEquals(0, new BigDecimal("200").compareTo(total), "total " + total);
+        assertEquals(0, BigDecimal.ZERO.compareTo(escrow.remaining("o2").join()));
+    }
+
+    @Test
+    @DisplayName("a persistent hold the player cannot pay keeps nothing, and the id can be held again")
+    void persistentHoldVoidReused() {
+        Escrow escrow = escrow();
+        gems.balances.put(id(alice), new BigDecimal("5"));
+        stakes.save(StakeRow.pendingKept("Duels", "x", "o3", id(alice), "gems", BigDecimal.TEN)
+                .with(StakeState.VOID)).join();
+        assertEquals(Escrow.Hold.HELD, escrow.holdPersistent("o3", id(alice), "gems", new BigDecimal("5")).join());
+        assertBalance(alice, "0");
+        assertEquals(0, new BigDecimal("5").compareTo(escrow.remaining("o3").join()));
+    }
+
     // ---------------------------------------------------------------- helpers
 
     private static UUID id(FakePlayer player) {

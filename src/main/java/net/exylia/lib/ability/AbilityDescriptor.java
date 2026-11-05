@@ -277,6 +277,7 @@ final class AbilityDescriptor implements EditorDescriptor<Ability> {
             case Triggers.PROJECTILE_HIT -> Material.ARROW;
             case Triggers.BLOCK_BREAK -> Material.IRON_PICKAXE;
             case Triggers.FISH -> Material.FISHING_ROD;
+            case Triggers.CAST -> Material.STRING;
             case Triggers.JUMP -> Material.RABBIT_FOOT;
             case Triggers.SNEAK -> Material.LEATHER_BOOTS;
             case Triggers.LOW_HEALTH -> Material.REDSTONE;

@@ -611,6 +611,9 @@ DecayingCounter market = DecayingCounter.shared(this, "jobs-market", Duration.of
   to now: `value * 2^(-elapsed / halfLife)` (`DecayingCounter.decay`, public and
   pure). There is no timer.
 - A negative `add` takes away; a value never goes below zero.
+- `addLocal(key, amount)` (1.480.0) adds on this server only, never sent to
+  peers: for re-seeding a counter rebuilt with a new half-life from the old
+  one's `values()`, which every server already holds.
 - An untouched key is dropped after 32 half-lives (under a billionth of what it
   was). At most 100,000 keys.
 - **`shared`** sends what this server added every five seconds on a
@@ -620,6 +623,31 @@ DecayingCounter market = DecayingCounter.shared(this, "jobs-market", Duration.of
   forgiven within a few half-lives. Keys with a line break stay local. It stops
   with its plugin or on `close()`.
 - Safe from any thread, memory only.
+
+## CarriedItems — count and take what a player carries
+
+Since 1.480.0. The items an order, a delivery or a sale takes from a player:
+the hotbar and the 27 storage slots, never armour, the off hand or the
+crafting grid.
+
+```java
+Predicate<ItemStack> wheat = CarriedItems.matching("wheat");     // "minecraft:wheat", "nexo:ruby"
+int carried = CarriedItems.count(player.getInventory(), wheat);
+List<ItemStack> taken = CarriedItems.take(player.getInventory(), wheat, 64);
+int units = CarriedItems.amount(taken);
+```
+
+| Method | What it does |
+| --- | --- |
+| `matching(id)` | the exact item: a Nexo, Oraxen, ItemsAdder or CraftEngine id matches only that plugin's item; a vanilla material only a plain stack (no meta at all) |
+| `similar(template)` | `ItemStack.isSimilar` against a copy of the template |
+| `count(inventory, accepts)` | the amount in slots 0-35 the test accepts |
+| `take(inventory, accepts, max)` | takes up to `max`, hotbar first; answers copies of what it took, one per slot |
+| `amount(stacks)` | the stacks' amounts together |
+
+- Any other rule is a `Predicate<ItemStack>` of your own.
+- Call on the player's thread (`runAtEntity`): a take is one pass there, so
+  nothing changes the inventory between the count and the removal.
 
 ## SpawnOrigin — where a mob came from
 
@@ -655,9 +683,9 @@ if (SpawnOrigin.of(entity).playerMade()) return;   // SPAWNER, EGG or BREEDING
 ## Source and tests
 
 - Public: `util/Effects.java`, `util/TimeFormats.java`,
-  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java` (and `util/BuildZones.java`, on its [own page](build-zones.md)), `util/Totp.java`, `util/QrCodes.java`, `util/DecayingCounter.java`, `util/SpawnOrigin.java` (plus the cooldown classes on their own page).
+  `util/Expressions.java`, `util/Formula.java`, `util/Condition.java`, `util/Weighted.java`, `util/FairRoll.java`, `util/CommandLabels.java`, `util/PeriodClock.java`, `util/upgrade/Upgrade.java`, `Upgrades.java`, `Purchase.java`, `util/PlayerStates.java`, `util/PvpZones.java` (and `util/BuildZones.java`, on its [own page](build-zones.md)), `util/Totp.java`, `util/QrCodes.java`, `util/DecayingCounter.java`, `util/SpawnOrigin.java`, `util/CarriedItems.java` (plus the cooldown classes on their own page).
 - Internal: `util/internal/CooldownStore.java`, `util/internal/ClaimPvp.java` (the claim plugins), `util/internal/ClaimHooks.java` (their hook cache, shared with `ClaimBuild`), `util/worldguard/internal/WorldGuardAccess.pvpDenied`, `util/internal/SpawnOriginListener.java` (origin carried over transforms).
 - Tests: `src/test/java/net/exylia/lib/util/EffectsTest.java`,
   `TimeFormatsTest.java`, `ExpressionsTest.java`, `ConditionTest.java`, `WeightedTest.java`, `FairRollTest.java`, `CommandLabelsTest.java`, `PeriodClockTest.java`, `upgrade/UpgradesTest.java`, `TotpTest.java`,
-  `DecayingCounterTest.java`, `SpawnOriginTest.java`,
+  `DecayingCounterTest.java`, `SpawnOriginTest.java`, `CarriedItemsTest.java`,
   `QrCodesTest.java` (scans the map pixels back with ZXing's reader).

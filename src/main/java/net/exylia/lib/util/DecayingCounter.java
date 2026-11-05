@@ -129,6 +129,21 @@ public final class DecayingCounter {
         if (pending != null && key.indexOf('\n') < 0) merge(pending, key, amount, now);
     }
 
+    /**
+     * Adds to a key's volume on this server only: peers of a {@link #shared}
+     * counter never hear of it. For re-seeding a fresh counter from values
+     * every server already holds (a half-life change rebuilds the counter
+     * from {@link #values()} of the old one), where broadcasting would count
+     * the same volume once per server.
+     *
+     * @since 1.480.0
+     */
+    public void addLocal(@NotNull String key, double amount) {
+        Objects.requireNonNull(key, "key");
+        if (amount == 0 || !Double.isFinite(amount)) return;
+        merge(entries.asMap(), key, amount, clock.getAsLong());
+    }
+
     /** A key's volume now; {@code 0} for a key never added to. */
     public double value(@NotNull String key) {
         Entry entry = entries.getIfPresent(Objects.requireNonNull(key, "key"));
@@ -171,6 +186,12 @@ public final class DecayingCounter {
     private void merge(ConcurrentMap<String, Entry> map, String key, double amount, long now) {
         map.merge(key, new Entry(Math.max(0, amount), now), (old, added) ->
                 new Entry(Math.max(0, decay(old.value(), now - old.at(), halfLifeMillis) + amount), now));
+    }
+
+    /** How many keys wait to be sent to peers (test observation). */
+    int outboxSize() {
+        ConcurrentMap<String, Entry> pending = outbox;
+        return pending == null ? 0 : pending.size();
     }
 
     /** Sends what this server added since the last batch, decayed to now. */

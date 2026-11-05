@@ -45,6 +45,7 @@ with `Ledger.created`.
 | `ledger.day(long day)` | Every `Entry` of one UTC day, all servers, plugins and sources, hour by hour |
 | `ledger.hour(long hour)` | Every `Entry` of one UTC hour |
 | `ledger.top(flow, currency, fromHour, toHour, limit)` | `PlayerTotal`s, highest first, `toHour` exclusive, at most 31 days |
+| `ledger.player(uuid, flow, currency, fromHour, toHour)` | One player's `BigDecimal` total over a span, every server and source, `toHour` exclusive (1.480.0) |
 | `ledger.flush()` | Writes what is counted in memory (runs every minute and before every read) |
 | `Ledger.hourOf(millis)`, `dayOf(millis)`, `currentHour()`, `currentDay()` | UTC hours and days since the epoch |
 

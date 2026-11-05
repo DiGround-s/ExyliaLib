@@ -367,19 +367,24 @@ public final class Escrow {
     }
 
     private CompletableFuture<Hold> charge(StakeRow pending, Economy.CurrencyView view) {
+        return charge(pending, view, StakeState.HELD);
+    }
+
+    private CompletableFuture<Hold> charge(StakeRow pending, Economy.CurrencyView view, StakeState target) {
         // Later, not plain withdraw: this runs on a database callback, and items or experience
         // can only be taken on the player's own thread.
         return view.withdrawLater(pending.player(), pending.amount(),
-                Transaction.of(reason("stake")).by(pending.player())).thenCompose(response -> charged(pending, response));
+                Transaction.of(reason("stake")).by(pending.player()))
+                .thenCompose(response -> charged(pending, response, target));
     }
 
-    private CompletableFuture<Hold> charged(StakeRow pending, EconomyResponse response) {
+    private CompletableFuture<Hold> charged(StakeRow pending, EconomyResponse response, StakeState target) {
         if (!response.isSuccess()) {
             Hold answer = response.type() == EconomyResponse.Type.INSUFFICIENT_FUNDS ? Hold.CANNOT_PAY : Hold.FAILED;
             // A pending row that fails to become VOID is voided by the next start anyway.
             return stakes.save(pending.with(StakeState.VOID)).handle((ignored, failure) -> answer);
         }
-        StakeRow held = pending.with(StakeState.HELD);
+        StakeRow held = pending.with(target);
         return stakes.save(held).handle((ignored, failure) -> {
             if (failure != null) {
                 // The row still reads PENDING, which a restart voids and never refunds: give it back now.
@@ -388,7 +393,7 @@ public final class Escrow {
                 pay(held.player(), held.currency(), held.amount(), reason("refund"));
                 return CompletableFuture.completedFuture(Hold.FAILED);
             }
-            if (closedMoney.getIfPresent(held.matchId()) != null) {
+            if (target == StakeState.HELD && closedMoney.getIfPresent(held.matchId()) != null) {
                 // The match ended while this charge was in flight.
                 return giveBack(held).thenApply(done -> Hold.FAILED);
             }
@@ -602,6 +607,160 @@ public final class Escrow {
             }
             return null;
         });
+    }
+
+    // ------------------------------------------------------- persistent holds
+
+    /**
+     * Charges a player and keeps the money under a hold that outlives the
+     * server: a buy order, a work order, anything paid out over days in parts.
+     *
+     * <pre>{@code
+     * escrow.holdPersistent("order-" + orderId, buyer, "", total).thenAccept(hold -> {
+     *     if (hold != Escrow.Hold.HELD) refuse(buyer, hold);
+     * });
+     * escrow.pay("order-" + orderId, seller, unitPrice.multiply(units));   // each delivery
+     * escrow.refundRemaining("order-" + orderId);                          // cancelled or expired
+     * }</pre>
+     *
+     * <p>Written {@code PENDING} before the money moves and {@code KEPT}
+     * after, like {@link #hold}: a restart cutting the charge short voids the
+     * row and never refunds it. A kept hold is <b>never touched by recovery</b>
+     * and does not mix with match stakes: {@link #settle}, {@link #refund} and
+     * the rest do not see it. It is one stake: a second hold under an id that
+     * is still pending, kept or finished answers {@code FAILED}, charging
+     * nothing; only an id whose charge went void may be held again.
+     *
+     * <p>Only for a player online on this server, as {@link #hold}.
+     *
+     * @param holdId   the hold, 1 to 64 characters, unique per plugin
+     * @param player   who pays
+     * @param currency the currency id; empty for the server's default
+     * @param amount   how much, above zero
+     * @return how it went; never completes exceptionally
+     * @since 1.480.0
+     */
+    public @NotNull CompletableFuture<Hold> holdPersistent(@NotNull String holdId, @NotNull UUID player,
+                                                           @NotNull String currency, @NotNull BigDecimal amount) {
+        checkStake(holdId, player, currency, amount);
+        return ready().thenCompose(ready -> {
+            if (!ready) {
+                return CompletableFuture.completedFuture(Hold.FAILED);
+            }
+            Economy.CurrencyView view = Economy.of(currency);
+            if (!livesOnPlayer(currency) && !view.has(player, amount)) {
+                return CompletableFuture.completedFuture(Hold.CANNOT_PAY);
+            }
+            StakeRow pending = StakeRow.pendingKept(name, server, holdId, player, currency, amount);
+            // One statement decides who owns the id; a void row (a charge that never went through) is reused.
+            return stakes.insertIfAbsent(pending)
+                    .thenCompose(created -> created ? CompletableFuture.completedFuture(true)
+                            : stakes.updateIf(pending, "state", StakeState.VOID))
+                    .thenCompose(owned -> owned ? charge(pending, view, StakeState.KEPT)
+                            : CompletableFuture.completedFuture(Hold.FAILED));
+        }).exceptionally(failure -> {
+            debug.error("Escrow: could not keep the hold " + holdId + " of " + player + ".", failure);
+            return Hold.FAILED;
+        });
+    }
+
+    /**
+     * Pays part of a persistent hold to a player.
+     *
+     * <p>The amount is rounded down to the currency's decimals, and taken off
+     * the hold with a compare-and-set before any money moves: two calls, or
+     * two servers, never pay the same money twice, and a call racing another
+     * reads the hold again and retries. The hold ends as settled when nothing
+     * is left. A player who is offline, or whose deposit is refused, is paid on
+     * their next join.
+     *
+     * @param holdId the hold
+     * @param to     who is paid
+     * @param amount how much, above zero
+     * @return {@code true} when paid; {@code false} when the hold is not kept
+     *         (never made, refunded, used up) or holds less than {@code amount}
+     * @since 1.480.0
+     */
+    public @NotNull CompletableFuture<Boolean> pay(@NotNull String holdId, @NotNull UUID to,
+                                                   @NotNull BigDecimal amount) {
+        checkId(holdId);
+        Objects.requireNonNull(to, "to");
+        if (amount.signum() <= 0) {
+            throw new IllegalArgumentException("A payment must be above zero, and " + amount + " is not.");
+        }
+        return payKept(StakeRow.keptId(name, holdId), to, amount, KEPT_RETRIES);
+    }
+
+    private static final int KEPT_RETRIES = 8;
+
+    private CompletableFuture<Boolean> payKept(String rowId, UUID to, BigDecimal amount, int tries) {
+        return stakes.findFresh(rowId).thenCompose(found -> {
+            if (found.isEmpty() || found.get().state() != StakeState.KEPT) {
+                return CompletableFuture.completedFuture(false);
+            }
+            StakeRow row = found.get();
+            BigDecimal paid = amount.setScale(Math.max(0, Economy.info(row.currency()).decimals()), RoundingMode.DOWN);
+            BigDecimal left = row.amount().subtract(paid);
+            if (paid.signum() <= 0 || left.signum() < 0) {
+                return CompletableFuture.completedFuture(false);
+            }
+            StakeRow next = row.next(left, left.signum() == 0 ? StakeState.SETTLED : StakeState.KEPT);
+            return stakes.updateIf(next, "updatedAt", row.updatedAt()).thenCompose(won -> {
+                if (won) {
+                    pay(to, row.currency(), paid, reason("payout"));
+                    return CompletableFuture.completedFuture(true);
+                }
+                return tries > 1 ? payKept(rowId, to, amount, tries - 1) : CompletableFuture.completedFuture(false);
+            });
+        });
+    }
+
+    /**
+     * Gives what is left of a persistent hold back to whoever paid it, and
+     * ends the hold. A second call, or one after the hold was used up, gives
+     * nothing.
+     *
+     * @param holdId the hold
+     * @return what this call refunded; zero when nothing was left
+     * @since 1.480.0
+     */
+    public @NotNull CompletableFuture<BigDecimal> refundRemaining(@NotNull String holdId) {
+        checkId(holdId);
+        return refundKept(StakeRow.keptId(name, holdId), KEPT_RETRIES);
+    }
+
+    private CompletableFuture<BigDecimal> refundKept(String rowId, int tries) {
+        return stakes.findFresh(rowId).thenCompose(found -> {
+            if (found.isEmpty() || found.get().state() != StakeState.KEPT) {
+                return CompletableFuture.completedFuture(BigDecimal.ZERO);
+            }
+            StakeRow row = found.get();
+            return stakes.updateIf(row.next(row.amount(), StakeState.REFUNDED), "updatedAt", row.updatedAt())
+                    .thenCompose(won -> {
+                        if (won) {
+                            if (row.amount().signum() > 0) {
+                                pay(row.player(), row.currency(), row.amount(), reason("refund"));
+                            }
+                            return CompletableFuture.completedFuture(row.amount());
+                        }
+                        return tries > 1 ? refundKept(rowId, tries - 1)
+                                : CompletableFuture.completedFuture(BigDecimal.ZERO);
+                    });
+        });
+    }
+
+    /**
+     * What a persistent hold still keeps.
+     *
+     * @param holdId the hold
+     * @return the amount left; zero when the hold is not kept (never made,
+     *         pending, refunded or used up)
+     * @since 1.480.0
+     */
+    public @NotNull CompletableFuture<BigDecimal> remaining(@NotNull String holdId) {
+        checkId(holdId);
+        return stakes.findFresh(StakeRow.keptId(name, holdId)).thenApply(found ->
+                found.filter(row -> row.state() == StakeState.KEPT).map(StakeRow::amount).orElse(BigDecimal.ZERO));
     }
 
     // ------------------------------------------------------------------ items

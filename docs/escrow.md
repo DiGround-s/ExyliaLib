@@ -87,6 +87,36 @@ escrow.settleAmount(roundId, uuid, BigDecimal.ZERO);       // or lost: settled, 
 - Like every payment here, an offline player or a refused deposit is owed and
   paid on the next join.
 
+## Persistent holds
+
+Since 1.480.0. Money kept for days and paid out in parts: a buy order, a work
+order. Not a match: recovery never touches it, and `settle`, `refund` and the
+other match calls do not see it.
+
+```java
+escrow.holdPersistent("order-" + id, buyer, "", total);           // HELD, CANNOT_PAY or FAILED
+escrow.pay("order-" + id, seller, price.multiply(units));          // each delivery
+escrow.remaining("order-" + id);                                   // what is left
+escrow.refundRemaining("order-" + id);                             // cancelled or expired
+```
+
+| Call | Contract |
+| --- | --- |
+| `holdPersistent(holdId, player, currency, amount)` | `CompletableFuture<Hold>`; `PENDING → charge → KEPT`, as `hold`. One stake per id: a second hold on an id that is pending, kept or finished answers `FAILED` and charges nothing; an id whose charge went `VOID` may be held again |
+| `pay(holdId, to, amount)` | `CompletableFuture<Boolean>`: `amount`, rounded down to the currency's decimals, taken off the hold and paid; `false` when the hold is not `KEPT` or holds less. The hold ends `SETTLED` at zero |
+| `refundRemaining(holdId)` | `CompletableFuture<BigDecimal>`: what was left, paid back to whoever paid it; the hold ends `REFUNDED`. Zero on a second call |
+| `remaining(holdId)` | `CompletableFuture<BigDecimal>`: what the hold keeps; zero when not `KEPT` |
+
+- **The hold row is one row**, its id derived from the plugin and the hold id,
+  created with `insertIfAbsent`: two servers holding the same id, one wins.
+- **Every part is a compare-and-set** on the row's `updatedAt`, which each
+  write moves strictly forward, before any money moves. Two payments, a
+  payment racing a refund, or two servers: the money leaves the hold once. A
+  call that loses the race reads the row again and retries.
+- **A restart mid-charge** leaves the row `PENDING`; recovery voids it and
+  never refunds it, exactly as for a match stake.
+- Money only; items are held per match.
+
 ## The order is the whole point
 
 There is no escrow account. Each stake is a row, written before anything moves.
@@ -254,7 +284,7 @@ shared database stays legible:
 
 | Table | Holds |
 | --- | --- |
-| `exylia_escrow_stakes` | one row per money stake: match, player, currency, amount, state, server |
+| `exylia_escrow_stakes` | one row per money stake: match (or persistent hold id), player, currency, amount (what is left, for a persistent hold), state, server |
 | `exylia_escrow_items` | one row per `holdItems` call: match, player, encoded items, state, server |
 | `exylia_escrow_owed` | money or items waiting for a player's next join |
 
@@ -273,4 +303,6 @@ Rows are kept after they settle, as a record. Nothing expires them.
   another server's rows untouched, items returned), owed money delivered once,
   item overflow owed rather than dropped, a further stake needing a first one,
   an amount paid once with an unused extra refunded (also under racing calls),
-  and items paid at a multiplier.
+  items paid at a multiplier, and persistent holds (paid in parts, refunded
+  once, left alone by recovery, never overpaid under racing payments, a void
+  id held again).

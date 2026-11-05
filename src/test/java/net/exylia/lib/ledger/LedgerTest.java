@@ -67,6 +67,17 @@ class LedgerTest {
         assertTrue(Ledger.top(List.of(row(ALICE, 1), row(BOB, 2)), 1).size() == 1);
     }
 
+    @Test
+    void playerSumOnlyCountsHoursInTheSpan() {
+        List<LedgerPlayerRow> rows = List.of(
+                new LedgerPlayerRow("a", 9, 0, ALICE.toString(), "vault", "CREATED", 100),
+                new LedgerPlayerRow("b", 10, 0, ALICE.toString(), "vault", "CREATED", 250),
+                new LedgerPlayerRow("c", 12, 0, ALICE.toString(), "vault", "CREATED", 7),
+                new LedgerPlayerRow("d", 13, 0, ALICE.toString(), "vault", "CREATED", 1000));
+        assertEquals(new BigDecimal("2.57"), Ledger.sum(rows, 10, 13), "from inclusive, to exclusive");
+        assertEquals(new BigDecimal("0.00"), Ledger.sum(List.of(), 0, 100));
+    }
+
     private static LedgerPlayerRow row(UUID player, long cents) {
         return new LedgerPlayerRow("id", 1, 0, player.toString(), "vault", "CREATED", cents);
     }

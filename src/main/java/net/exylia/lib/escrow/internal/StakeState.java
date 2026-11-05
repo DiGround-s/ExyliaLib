@@ -18,5 +18,10 @@ public enum StakeState {
     /** Given back to whoever staked it. */
     REFUNDED,
     /** The charge never went through, or a restart cut it short mid-charge. */
-    VOID
+    VOID,
+    /**
+     * Taken from the player for a persistent hold (a buy order, a work order):
+     * paid out in parts and never touched by recovery. Since 1.480.0.
+     */
+    KEPT
 }

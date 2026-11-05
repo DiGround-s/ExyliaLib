@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.6.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:3.6.0'
 }
 ```
 
@@ -134,6 +134,16 @@ on release). `ArenaUsage.EVENT` lets admins set arenas aside for those modes;
 `acquireArena` does not check usages, so filter on it yourself. All of them are
 `default` methods, so nothing that compiled before breaks.
 
+`exylia-api` 3.6.0 (ExyliaLib 1.480.0) added `api.jobs` for ExyliaJobs:
+`JobsService` (`jobIds`, `jobsOf(player)` as `JobLevel(jobId, level, xp,
+prestige)`, `level(player, jobId)`) and the events `JobJoinEvent`,
+`JobLeaveEvent`, `JobPayoutEvent` (money and experience settable),
+`JobPerkChosenEvent`, `JobPrestigeEvent` (all cancellable),
+`JobLevelUpEvent` and `WorkOrderFilledEvent`. The events live here, not in
+the plugin, because a Lukittu-loaded plugin's own event classes are invisible
+to every other plugin (see [Why the contract lives in the
+library](#why-the-contract-lives-in-the-library)).
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before
@@ -174,7 +184,7 @@ plugin imports it from there.
 
 ## Services
 
-Twenty-four services across twenty-three plugins, plus one plugin that publishes
+Twenty-five services across twenty-four plugins, plus one plugin that publishes
 only events. Every one is reached the same way:
 `ExyliaAPI.get(<Service>.class)`. The event counts leave out abstract bases
 such as `TableEvent` and `PracticeEvent`.
@@ -192,6 +202,7 @@ such as `TableEvent` and `PracticeEvent`.
 | `api.events` | `EventsService` | ExyliaEvents | 6 |
 | `api.ffa` | `FfaService` | ExyliaFFA | 4 |
 | `api.hiteffect` | `HitEffectService` | ExyliaHitEffect | 1 |
+| `api.jobs` | `JobsService` | ExyliaJobs | 7 |
 | `api.journey` | `JourneyService` | ExyliaJourney | 4 |
 | `api.killeffect` | `KillEffectService` | ExyliaKillEffect | 1 |
 | `api.market` | `MarketService` (`isModuleEnabled`, `autoSell`); events `MarketDealEvent`, `MarketLogEvent` (deprecated, see [logs.md](logs.md)), `TradeRequestEvent`, `SellWandUseEvent` | ExyliaMarket | 2 |

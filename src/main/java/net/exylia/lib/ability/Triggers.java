@@ -31,8 +31,17 @@ public final class Triggers {
     public static final String PROJECTILE_HIT = "PROJECTILE_HIT";
     /** The holder breaks a block. Block: the block; never fired for the extra blocks of an area break. */
     public static final String BLOCK_BREAK = "BLOCK_BREAK";
-    /** The holder catches something with a rod. Victim: a caught living entity. */
+    /**
+     * The holder catches something with a rod. Victim: a caught living entity.
+     * A caught item is the firing's {@link ContextKey#DROPS} (since 1.480.0),
+     * so {@code drops} multiplies it and {@code to: inventory} sends it home.
+     */
     public static final String FISH = "FISH";
+    /**
+     * The holder casts a rod; the event is the {@code PlayerFishEvent} with its
+     * hook, which {@code fish-hook} changes. Since 1.480.0.
+     */
+    public static final String CAST = "CAST";
     /** The holder jumps. */
     public static final String JUMP = "JUMP";
     /** The holder starts sneaking. */
@@ -53,5 +62,5 @@ public final class Triggers {
 
     /** Every built-in trigger, in the order above. */
     public static final List<String> BUILT_IN = List.of(ATTACK, HIT_TAKEN, KILL, DEATH, BOW_SHOOT,
-            PROJECTILE_HIT, BLOCK_BREAK, FISH, JUMP, SNEAK, LOW_HEALTH, EQUIP, UNEQUIP, INTERVAL, PASSIVE);
+            PROJECTILE_HIT, BLOCK_BREAK, FISH, CAST, JUMP, SNEAK, LOW_HEALTH, EQUIP, UNEQUIP, INTERVAL, PASSIVE);
 }

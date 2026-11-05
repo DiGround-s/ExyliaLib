@@ -106,7 +106,8 @@ in seconds.
 | `BOW_SHOOT` | the holder shoots a bow or crossbow | event |
 | `PROJECTILE_HIT` | the holder's projectile lands; with `projectileLevels(true)`, the levels the shot left the bow with | event, victim, block, location |
 | `BLOCK_BREAK` | the holder breaks a block; never for an area break's extra blocks | event, block |
-| `FISH` | the holder catches something | event, victim (a caught entity) |
+| `FISH` | the holder catches something | event, victim (a caught entity); a caught item is `DROPS` (*1.480.0*) |
+| `CAST` | the holder casts a rod (*1.480.0*) | event (`PlayerFishEvent`, its hook), location (the hook) |
 | `JUMP` | the holder jumps (the jump statistic, Spigot and Paper alike) | event |
 | `SNEAK` | the holder starts sneaking | event |
 | `LOW_HEALTH` | a hit takes the holder from above 30% of max health to 30% or less | event, attacker |
@@ -177,15 +178,56 @@ pets. Armour stands are never `nearby` targets.
 | `vfx` | `target` (victim), `indicator` (true), `shake` radius (0) | floats this proc's damage or healing over the target; tilts nearby cameras |
 | `action` | value: `'namespace:id args'` | runs an ExyliaLib action as the holder, compiled at load |
 | `cooldown-reset` | value: an ability id or `all` | clears the holder's cooldowns of abilities they hold, this one excepted |
+| `reveal` | `radius` formula (6, at most 16), `only` (what `block` takes; required), `duration` (5s), `colour` (`aqua`; a name or `#rrggbb`) | outlines the matching blocks around the holder through walls, for the holder only ([`GlowingBlocks`](packets.md), packets); at most 512; needs PacketEvents, otherwise does nothing (*1.480.0*) |
+| `replant` | — | on `BLOCK_BREAK` of a ripe wheat, carrot, potato, beetroot, nether wart or cocoa: takes one plain seed from the final drops (after every multiplier) and plants the crop again, age 0, a tick later; no seed or no free supported spot plants nothing (and gives the seed back at the block) (*1.480.0*) |
+| `grow` | `radius` formula (4, at most 8), `stages` formula (1), `max` formula (16) | advances up to `max` crops (wheat, carrots, potatoes, beetroots, nether wart, cocoa, stems, sweet berries, torchflower) around the trigger's place by `stages` ages, never past ripe, where the region policy `build` allows (*1.480.0*) |
+| `fish-hook` | `wait-multiplier` formula (1) | on `CAST`: scales the hook's minimum and maximum wait for a bite (below 1 is faster, at least a tick) (*1.480.0*) |
+| `item` | `material` (required: a material or a Nexo/Oraxen/ItemsAdder/CraftEngine id), `amount` formula (1; a fraction is a chance of one more), `to` `inventory \| drop` (inventory) | gives the item; what does not fit, and `drop`, lands at the holder's feet / the trigger's place (*1.480.0*) |
 
 Effects that work out an amount multiply it by the gate's factor
 (`ctx.scale()`): damage, heal, absorption, lifesteal, knockback, pull, launch,
-drops, xp, money, bonus-damage, armour-pierce. Chance and cooldown are not
+drops, xp, money, bonus-damage, armour-pierce, grow (`stages`), item (`amount`). Chance and cooldown are not
 scaled.
 
 `potion` resolves its type through the server's registry; with no server (a
 unit test) it compiles anyway and resolves on its first proc (*1.387.0*). On a
 server an unknown type is still reported at load.
+
+### Gathering
+
+*1.480.0.* A fishing catch is the firing's drops, so the effects that work on
+drops work on it: `drops: { multiplier }` multiplies the caught item (the
+extra stacks fly to the player with it), `to: inventory` puts the extras
+straight in the inventory, and `xp: { multiplier }` scales the catch's
+experience.
+
+```yaml
+# a rod
+- trigger: CAST
+  effects:
+    - fish-hook: { wait-multiplier: 1 - level * 0.1 }
+- trigger: FISH
+  chance: 10 * level
+  effects:
+    - drops: { multiplier: 2 }
+
+# a hoe
+- trigger: BLOCK_BREAK
+  conditions: [ { block: ['#minecraft:crops'] } ]
+  effects:
+    - replant
+    - grow: { radius: 3, stages: 1, max: 8 }
+
+# a pickaxe
+- trigger: BLOCK_BREAK
+  cooldown: 30s
+  effects:
+    - reveal: { radius: 8, only: [DIAMOND_ORE, DEEPSLATE_DIAMOND_ORE], duration: 5s, colour: aqua }
+    - item: { material: 'nexo:ore_shard', amount: 0.25 }
+```
+
+`reveal`, `grow` read and change only blocks in loaded chunks the holder's
+thread owns (the holder's region on Folia).
 
 ### Hit shaping
 
@@ -442,6 +484,6 @@ mine) does so in its `check` or before calling `start`.
 | Public API | `ability/Abilities`, `PluginAbilities`, `Ability`, `Held`, `AbilityContext`, `ContextKey`, `AbilityEffect`, `AbilityCondition`, `AbilityArgs`, `AbilityReport`, `AbilityOutcome`, `AbilityGate`, `AbilityScale`, `Triggers`, `AreaBreaks`, `AreaBreak`, `AreaShape`; `util/Formula`, `util/Expressions.compile` |
 | Engine | `ability/AbilityListener` (Bukkit events to triggers, holdings refresh points), `ability/PaperArmourListener` and `ability/PaperSlotListener` (Paper only, loaded by name), `ability/AbilityDescriptor` (the editor) |
 | Hit shaping | `ability/DamageShaping` (`bonus-damage`, `armour-pierce`, built-in scales, pending pierces) |
-| Internal | `ability/internal/BuiltinEffects`, `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
-| Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/internal/PassivePotionTest` (finite PASSIVE duration, revert match), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`, PASSIVE sustain timer, refresh offline guard), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
+| Internal | `ability/internal/BuiltinEffects`, `FieldEffects` (`reveal`, `replant`, `grow`, `fish-hook`, `item`), `BuiltinConditions`, `Targets`, `ChainGuard`, `AreaPlanner`, `PackedBlocks`, `BlockMatcher` (`block` and `only`) |
+| Tests | `ability/AbilityShapingTest` (bonus-damage and scales, pierce applied last and deferred, `transformDropsLast` order, stamps, carried levels, potion without a registry, column shape, strip table), `ability/internal/PassivePotionTest` (finite PASSIVE duration, revert match), `ability/internal/FieldEffectsTest` (fishing waits, crop ages, colours, one seed taken), `ability/PluginAbilitiesTest` (order, gate, cooldown start, chance 0 and 100, formulas and fallback, chain guard, unknown keys, holdings cache, outcomes, `block` and `mode: { id }`, PASSIVE sustain timer, refresh offline guard, gathering effects and CAST compile), `ability/internal/BlockMatcherTest` (types, tags, short form, refused names), `ability/internal/AreaPlannerTest` (packing, shapes, filters, vein bound, budget), `util/ExpressionsTest` (compiled formulas) |
 | Test seam | `PluginAbilities.detached(plugin)` (no listeners) and `dice(DoubleSupplier)` (the roll), package-private |

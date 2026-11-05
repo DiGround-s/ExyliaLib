@@ -803,11 +803,44 @@ A file written by ExyliaLib 1.24 to 1.30 was flat (`type`, `host`, `user`, …).
 It is migrated to the layout above on first load, and its connection fields land
 in the block its `type` names, not in `mysql` regardless.
 
+## Reading another plugin's database (since 1.480.0)
+
+An importer reads the plugin it replaces from that plugin's own SQLite file or
+MySQL server, with the values in that plugin's config. `ForeignDatabase` opens
+it **read-only** (SQLite with `SQLITE_OPEN_READONLY`, MySQL connections marked
+read-only), with the drivers Paper ships, and is closed when the import ends.
+
+```java
+// off the main thread
+try (ForeignDatabase old = ForeignDatabase.sqlite(jobsFolder.resolve("jobs.sqlite.db"))) {
+    String table = old.table("jobs");                      // the real name, any case; null when absent
+    for (Map<String, Object> row : old.rows(table)) {      // column labels lower case
+        UUID player = UUID.fromString(ForeignDatabase.text(row, "player_uuid"));
+        long level = ForeignDatabase.number(row, "level", 1);
+    }
+}
+ForeignDatabase.mysql("db.host:3306", "jobs", "user", "pass");   // or (host, port, database, user, password)
+```
+
+| Method | What it does |
+| --- | --- |
+| `sqlite(path)` | opens the file read-only; a missing file throws rather than creating an empty one |
+| `mysql(host[:port], database, user, password)` / `mysql(host, port, …)` | opens MySQL or MariaDB read-only; port 3306 when none is written |
+| `tables()` | every table and its lower-cased columns, read once |
+| `table(name)` | a table's real name for any spelling, or `null` |
+| `rows(table)` | every row; `null` answers none; anything but `[A-Za-z0-9_]` is refused |
+| `query(sql, params…)` | a prepared query with `?` parameters |
+| `connection()` | the raw connection, for anything else |
+| `text`, `number`, `decimal`, `bytes` (static) | a column's value, whatever type the driver handed back (text from bytes, numbers from text, booleans as 1/0, blobs as bytes) |
+
+Every call blocks: run it in `Tasks.runAsync`. Nothing is pooled — an import
+opens one connection, reads and closes it.
+
 ## Where the code is
 
 | | |
 | --- | --- |
-| Public API | `database/Databases`, `PluginDatabase`, `Repository`, `RowLocks`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
+| Public API | `database/Databases`, `PluginDatabase`, `ForeignDatabase`, `Repository`, `RowLocks`, `Query`, `Table`, `Column`, `Id`, `Indexed`, `Index`, `Codec`, `DatabaseException`, `DatabaseSettings` |
 | Internal | `database/internal/EntityModel`, `LockRow`, `ColumnModel`, `IndexModel`, `IndexCoverage`, `CodecRegistry`, `Codecs`, `Coercions`, `Storage`, `SqlStorage`, `MongoStorage`, `GatedStorage`, `SqlBackend`, `SqlSchema`, `SqlSettings`, `SchemaReport`, `Dialect`, `AnsiDialect`, `H2Dialect`, `MySQLDialect`, `MariaDBDialect`, `PostgresDialect`, `MongoBackend`, `MongoDocuments`, `DatabaseRuntime`, `TaskExecutor`, `H2Guard` |
 | Moving a database | `database/transfer/` — see [transfer.md](transfer.md) |
 | Lifecycle | `ExyliaLib` starts target management; each consumer loads `database.yml` on view creation and leases a target lazily |
