@@ -99,10 +99,10 @@ rejects. `skin.textures()` is the same skin as an unsigned value pointing at
 Mojang's copy, for what is drawn from pixels (a ragdoll, a head).
 
 `PreviewSkins` picks whose skin from an ordered list of `others`, `viewer` and
-`defaults` (default `[others, defaults]`):
+`defaults` (default `[others, viewer]` since 1.474.0, `[others, defaults]` before):
 
 ```java
-PreviewSkins.Body body = PreviewSkins.of(List.of("others", "defaults")).pick(viewer);
+PreviewSkins.Body body = PreviewSkins.of(List.of("others", "viewer")).pick(viewer);
 npcs.show(body.npc().nameless(), motion, at, life, List.of(viewer));   // stands there
 sequences.play(kill, SequenceTarget.at(at).by(viewer).onlyTo(viewer)
         .wearing(body.ragdoll())          // [RAGDOLL] lines

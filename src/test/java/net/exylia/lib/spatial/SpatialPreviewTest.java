@@ -32,8 +32,8 @@ class SpatialPreviewTest {
     }
 
     @Test
-    void mannequinSkinsDefaultToOthersThenDefaults() {
-        assertEquals(List.of("others", "defaults"), new PreviewSettings.Mannequin().skins());
+    void mannequinSkinsDefaultToOthersThenViewer() {
+        assertEquals(List.of("others", "viewer"), new PreviewSettings.Mannequin().skins());
         assertEquals(List.of("viewer"), new PreviewSettings.Mannequin(List.of(), 30, 12, false, 1, List.of("viewer")).skins());
         assertTrue(new PreviewSettings.Mannequin(List.of(), 30, 12, false, 1).skins().contains("others"));
     }

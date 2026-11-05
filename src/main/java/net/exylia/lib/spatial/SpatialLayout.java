@@ -432,7 +432,7 @@ public record SpatialLayout(
         public static final String TURN_HINT = "{muted}Click the body to turn it";
 
         /** Whose skin an effect preview wears when the file does not say. */
-        public static final List<String> SKINS = List.of("others", "defaults");
+        public static final List<String> SKINS = net.exylia.lib.npc.PreviewSkins.DEFAULT_NAMES;
 
         /** What an effect preview plays at when the file does not say: a kill fits between the carousel and the header. */
         public static final double EFFECT_SCALE = 0.35;

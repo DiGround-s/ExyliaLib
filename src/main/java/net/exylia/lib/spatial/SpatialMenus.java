@@ -146,8 +146,9 @@ public final class SpatialMenus {
             "preview.turn-hint", SpatialLayout.Preview.TURN_HINT,
             "preview.turn-pause", 8.0);
 
-    /** What the layout record wrote for a theme key before its default changed: still the library's on disk. */
+    /** What the layout record wrote for a key before its default changed: still the library's on disk. */
     private static final Map<String, List<Object>> EARLIER_DEFAULTS = Map.of(
+            "preview.skins", List.of(List.of("others", "defaults")),
             "theme.title-scale", List.of(0.5),
             "theme.text-scale", List.of(0.36),
             "theme.small-scale", List.of(0.27),

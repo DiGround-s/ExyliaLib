@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * </ul>
  *
  * <pre>{@code
- * PreviewSkins.Body body = PreviewSkins.of(List.of("others", "defaults")).pick(viewer);
+ * PreviewSkins.Body body = PreviewSkins.of(List.of("others", "viewer")).pick(viewer);
  * npcs.show(body.npc().nameless(), motion, at, life, List.of(viewer));      // stands there
  * sequences.play(kill, SequenceTarget.at(at).by(viewer).onlyTo(viewer)
  *         .wearing(body.ragdoll()).standing(body::npc));                       // and dies the same
@@ -51,11 +51,14 @@ public final class PreviewSkins {
     /** Where a body's skin can come from. */
     public enum Source { OTHERS, VIEWER, DEFAULTS }
 
-    /** {@code [others, defaults]}: somebody else on the server, or a vanilla default when alone. */
-    public static final PreviewSkins DEFAULT = new PreviewSkins(List.of(Source.OTHERS, Source.DEFAULTS));
+    /**
+     * {@code [others, viewer]}: somebody else on the server, or the viewer's own skin when alone. Never a
+     * vanilla default when a real skin is there to wear (since 1.474.0; {@code [others, defaults]} before).
+     */
+    public static final PreviewSkins DEFAULT = new PreviewSkins(List.of(Source.OTHERS, Source.VIEWER));
 
     /** {@link #DEFAULT} as a config writes it. @since 1.428.0 */
-    public static final List<String> DEFAULT_NAMES = List.of("others", "defaults");
+    public static final List<String> DEFAULT_NAMES = List.of("others", "viewer");
 
     /** Online players' {@code textures} value and signature, read on their own thread. */
     private static final Map<UUID, String[]> ONLINE = new ConcurrentHashMap<>();

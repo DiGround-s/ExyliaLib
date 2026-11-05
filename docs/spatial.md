@@ -127,7 +127,7 @@ panels:
   focus:     {at: [0, 1.05, 0.2], size: [1.6, 0.42],
               content: {type: TEXT, lines: ['{letters}&l%pattern%', '{info}Editing %piece%']}}
 preview:  {at: [0, -0.8, 0.2], turn-speed: 12, pedestal: true, scale: 0.8, vanish-on-play: true, effect-scale: 0.35,
-           skins: [others, defaults]}
+           skins: [others, viewer]}
 carousel: {source: patterns, at: [0, -1.05, 0.8], slots: 6, spacing: 0.62, centre-gap: 1.3, curve: 0.15}
 ```
 
@@ -326,8 +326,11 @@ stood there: `skin`'s when one is given, otherwise the one `preview.skins` picks
 | `viewer` | The player looking |
 | `defaults` | Vanilla's default skins (Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny, Zuri, slim and wide), one after another |
 
-The default is `[others, defaults]`: a kill effect reads best on somebody else,
-and alone on the server you see the real vanilla skins rather than yourself.
+The default is `[others, viewer]` (since 1.474.0): a kill effect reads best on
+somebody else, and alone on the server the body is yours, never a vanilla default
+(before 1.474.0 it was `[others, defaults]`, so a player alone saw Steve or Alex;
+a file that still says so keeps it until the owner changes it or applies, in
+`/exylialib updates`, the new value a plugin's layout ships).
 `viewer` and `defaults` always have a body, so anything after them is never
 reached. A fresh body's first play waits up to 3 s for its skin's picture, so a
 ragdoll never falls in placeholder colours. With `preview.vanish-on-play` (default

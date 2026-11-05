@@ -42,13 +42,14 @@ class PreviewSkinsTest {
     }
 
     @Test
-    @DisplayName("the policy reads names in order, skips typos and duplicates, and defaults to [others, defaults]")
+    @DisplayName("the policy reads names in order, skips typos and duplicates, and defaults to [others, viewer]")
     void parse() {
         assertEquals(List.of(PreviewSkins.Source.VIEWER, PreviewSkins.Source.DEFAULTS),
                 PreviewSkins.of(List.of(" Viewer", "nobody", "defaults", "viewer")).sources());
         assertSame(PreviewSkins.DEFAULT, PreviewSkins.of(null));
         assertSame(PreviewSkins.DEFAULT, PreviewSkins.of(List.of("typo")));
-        assertEquals(List.of(PreviewSkins.Source.OTHERS, PreviewSkins.Source.DEFAULTS), PreviewSkins.DEFAULT.sources());
+        assertEquals(List.of(PreviewSkins.Source.OTHERS, PreviewSkins.Source.VIEWER), PreviewSkins.DEFAULT.sources());
+        assertEquals(List.of("others", "viewer"), PreviewSkins.DEFAULT_NAMES);
     }
 
     @Test

@@ -115,7 +115,9 @@ tall from the eyes and cut with an ellipsis rather than shrunk.
 The preview: an NPC in the viewer's skin (nameless, turning), an item turning on the pedestal, or an
 effect on a mannequin played by the viewer for the viewer alone at `effect-scale` and replayed a second
 after it ends; with `previewVanishes` the mannequin is taken down while it plays (an endless effect,
-such as an emote, keeps it down). An NPC lives two minutes and is replaced before that.
+such as an emote, keeps it down). An NPC lives two minutes and is replaced before that. The mannequin and
+the body it leaves wear the same real skin, another online player's or the viewer's
+([`PreviewSkins.DEFAULT`](npcs.md#preview-bodies-since-1416); since 1.474.0, a vanilla default before).
 
 ## Using it without the crate module
 

@@ -51,7 +51,7 @@ config.update(c -> c.withPreview(c.preview().withMode(PreviewMode.MANNEQUIN)));
 
 - **Mannequins are placed NPCs** (default skin, facing the way the admin faced).
   The body that falls when one is struck (`[RAGDOLL]`, `[NPC] {victim}`) wears
-  `mannequin.skins` (since 1.428.0, default `[others, defaults]`, as a spatial
+  `mannequin.skins` (since 1.428.0, default `[others, viewer]` since 1.474.0, as a spatial
   menu's `preview.skins`; see [`PreviewSkins`](npcs.md#preview-bodies-since-1416)),
   picked at the loan's first hit and kept for the loan, never the striker's own
   skin. The effect plays at the mannequin's feet, as a real kill and the
@@ -159,7 +159,7 @@ preview:
     radius: 12.0      # walking further from every mannequin ends the loan
     vanish-on-hit: false
     effect-scale: 1.0 # how large the effect plays on a mannequin (since 1.413.0)
-    skins: [others, defaults] # whose skin the struck body wears (since 1.428.0)
+    skins: [others, viewer] # whose skin the struck body wears (since 1.428.0)
   # Every one of these is ticks, and every one also reads 1s, 30s or 1m30s.
 ```
 

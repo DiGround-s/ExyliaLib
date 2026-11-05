@@ -93,7 +93,7 @@ preview:
   # Whose skin the mannequin and the body it leaves wear, the first source that has one: others
   # (another online player, a different one each play), viewer (the player looking), defaults
   # (vanilla's Steve, Alex, Ari, Efe, Kai, Makena, Noor, Sunny and Zuri, slim and wide).
-  skins: [others, defaults]
+  skins: [others, viewer]
   facing: FRONT
   # The side an effect is seen from: AUTO watches its first play and turns it so its motion runs across
   # your view, never showing the victim's back (SpatialPreview.sequence(sequence, skin, facing) sets one per effect).

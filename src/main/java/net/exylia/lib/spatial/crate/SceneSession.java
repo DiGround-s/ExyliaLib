@@ -11,6 +11,7 @@ import net.exylia.lib.npc.NpcHandle;
 import net.exylia.lib.npc.NpcModel;
 import net.exylia.lib.npc.NpcMotion;
 import net.exylia.lib.npc.Npcs;
+import net.exylia.lib.npc.PreviewSkins;
 import net.exylia.lib.overlay.Overlays;
 import net.exylia.lib.overlay.PluginOverlays;
 import net.exylia.lib.packet.Packets;
@@ -726,6 +727,8 @@ final class SceneSession {
         private @Nullable SequenceRun run;
         private long nextPlay;
         private long npcUntil;
+        /** Whose skin the mannequin wears, so the body that falls is the one that stood there. */
+        private @Nullable PreviewSkins.Body body;
 
         private Location base() {
             Location at = board.point(0, layout.crate().up() + 0.12, CRATE_FORWARD);
@@ -781,7 +784,9 @@ final class SceneSession {
         }
 
         private void mannequin(SpatialPreview.Effect effect) {
-            NpcModel model = effect.skin() == null ? NpcModel.of("Mannequin") : NpcModel.of(effect.skin());
+            // A real skin, as the menus' preview: somebody online or the viewer, never a vanilla default.
+            body = effect.skin() == null ? PreviewSkins.DEFAULT.pick(viewer) : null;
+            NpcModel model = body != null ? body.npc() : NpcModel.of(effect.skin());
             spawn(model.scale(layout.preview().effectScale()).nameless());
         }
 
@@ -821,7 +826,8 @@ final class SceneSession {
                 nextPlay = now + 1000L;
                 return;
             }
-            RagdollModel body = effect.skin() == null ? net.exylia.lib.npc.PreviewSkins.extra(0) : RagdollModel.of(effect.skin());
+            RagdollModel body = effect.skin() != null ? RagdollModel.of(effect.skin())
+                    : this.body != null ? this.body.ragdoll() : PreviewSkins.DEFAULT.pick(viewer).ragdoll();
             // Played by the viewer, with nobody else there, so an [NPC] {victim} line has a body; no target,
             // so a [POTION] or a victim's title never lands on them. A miniature at the pedestal's top.
             run = Sequences.of(owner.plugin).play(effect.sequence(), SequenceTarget.at(base()).by(viewer).onlyTo(viewer)
@@ -845,7 +851,7 @@ final class SceneSession {
             }
             if (now < nextPlay) return;
             RagdollModel body = act.skin() != null ? RagdollModel.of(act.skin())
-                    : net.exylia.lib.npc.PreviewSkins.DEFAULT.pick(viewer).ragdoll();
+                    : PreviewSkins.DEFAULT.pick(viewer).ragdoll();
             run = Sequences.of(owner.plugin).play(act.sequence(), SequenceTarget.at(base()).by(viewer).onlyTo(viewer)
                     .wearing(body).scale(layout.preview().effectScale()));
         }
