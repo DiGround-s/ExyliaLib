@@ -21,7 +21,9 @@ import org.jetbrains.annotations.NotNull;
  * <h2>It steps aside</h2>
  * A panel floating in front of somebody sprint-jumping, gliding or fighting is
  * in the way. Above the style's speed, while gliding, or while in combat, it
- * is taken away, and it comes back after a second of calm.
+ * is taken away, and it comes back after a second of calm. Anchored or not,
+ * it is also away while the player looks through a camera shot, and back on
+ * the next draw after it.
  */
 final class LiveText extends Piece implements GuideText {
 
@@ -71,6 +73,11 @@ final class LiveText extends Piece implements GuideText {
 
     @Override
     void draw(Player player, long tick) {
+        if (filmed(player)) {
+            seenX = Double.NaN;
+            hide(player);
+            return;
+        }
         if (anchor == null) {
             drawCompanion(player, tick);
         } else {

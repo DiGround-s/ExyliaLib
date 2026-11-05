@@ -1,6 +1,5 @@
 package net.exylia.lib.guide.internal;
 
-import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.guide.GuideText;
 import net.exylia.lib.guide.ViewTextStyle;
 import net.kyori.adventure.text.Component;
@@ -99,14 +98,7 @@ final class LiveViewText extends Piece implements GuideText {
     }
 
     private static boolean stepsAside(Player player) {
-        if (player.isDead() || player.getGameMode() == GameMode.SPECTATOR) {
-            return true;
-        }
-        try {
-            return CameraRuntime.isFilming(player);
-        } catch (Throwable unavailable) {
-            return false;
-        }
+        return player.isDead() || player.getGameMode() == GameMode.SPECTATOR || filmed(player);
     }
 
     @Override

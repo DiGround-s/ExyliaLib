@@ -2,6 +2,7 @@ package net.exylia.lib.guide.internal;
 
 import net.exylia.lib.guide.BeaconStyle;
 import net.exylia.lib.guide.GuideBeacon;
+import net.exylia.lib.guide.GuideTextStyle;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -99,6 +100,7 @@ final class LiveBeacon extends Piece implements GuideBeacon {
             clear(player);
             return;
         }
+        boolean filmed = filmed(player);
         Location eye = player.getEyeLocation();
         double gap = eye.distance(goal);
         distance = gap;
@@ -118,20 +120,13 @@ final class LiveBeacon extends Piece implements GuideBeacon {
             if (!drawn) {
                 spawn(player, goal.getX(), goal.getY(), goal.getZ(), style.height(), viewRange);
             }
-            float base = style.label().scale();
-            float scale = style.label().scaleWithDistance()
-                    ? GuideGeometry.scaleFor(gap, base, style.label().maxScale()) : base;
-            if (Math.abs(scale - labelScale) > labelScale * 0.05f) {
-                labelScale = scale;
-                GuidePackets.resizeText(player, text, scale, 4);
-            }
         } else {
             double[] at = GuideGeometry.marker(eye.getX(), eye.getY(), eye.getZ(),
                     goal.getX(), goal.getY(), goal.getZ(), style.markerDistance());
             double markerBase = at[1] - MARKER_HEIGHT / 2;
             if (!drawn) {
                 spawn(player, at[0], markerBase, at[2], MARKER_HEIGHT, viewRange);
-                GuidePackets.resizeText(player, text, labelScale = (float) (style.label().scale() * style.markerDistance() / 10.0), 0);
+                GuidePackets.resizeText(player, text, labelScale = labelScale(filmed, true, gap, style), 0);
                 markerX = at[0];
                 markerY = markerBase;
                 markerZ = at[2];
@@ -149,12 +144,33 @@ final class LiveBeacon extends Piece implements GuideBeacon {
                 }
             }
         }
+        float scale = labelScale(filmed, next == State.MARKER, gap, style);
+        if (Math.abs(scale - labelScale) > labelScale * 0.05f) {
+            labelScale = scale;
+            GuidePackets.resizeText(player, text, scale, scale == 0f ? 0 : 4);
+        }
         long metres = Math.round(gap);
         if (label != null && metres != rounded) {
             rounded = metres;
             GuidePackets.text(player, text, label.apply(gap));
         }
         pulse(player, tick, next == State.AT_TARGET ? style.height() : MARKER_HEIGHT);
+    }
+
+    /**
+     * How big the label is drawn. It is sized for the player's body, so while
+     * they look through a camera filming somewhere else it would hang huge in
+     * the shot: it has none until the shot ends, and the beam stays.
+     */
+    static float labelScale(boolean filmed, boolean marker, double gap, BeaconStyle style) {
+        GuideTextStyle label = style.label();
+        if (filmed) {
+            return 0f;
+        }
+        if (marker) {
+            return (float) (label.scale() * style.markerDistance() / 10.0);
+        }
+        return label.scaleWithDistance() ? GuideGeometry.scaleFor(gap, label.scale(), label.maxScale()) : label.scale();
     }
 
     private void spawn(Player player, double x, double y, double z, double height, float viewRange) {

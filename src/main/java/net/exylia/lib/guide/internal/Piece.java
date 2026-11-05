@@ -1,5 +1,6 @@
 package net.exylia.lib.guide.internal;
 
+import net.exylia.lib.camera.internal.CameraRuntime;
 import net.exylia.lib.guide.GuideHandle;
 import org.bukkit.entity.Player;
 
@@ -84,5 +85,18 @@ abstract class Piece implements GuideHandle {
 
     boolean removed() {
         return removed;
+    }
+
+    /**
+     * Whether the player is looking through a camera shot. Guidance is placed
+     * and sized for their body, so from the camera a text would hang wherever
+     * that body is, huge when it is far from what it labels.
+     */
+    static boolean filmed(Player player) {
+        try {
+            return CameraRuntime.isFilming(player);
+        } catch (Throwable unavailable) {
+            return false;
+        }
     }
 }

@@ -114,7 +114,9 @@ A panel floating `ahead` blocks in front of the eyes (2.5 by default) and
 - **It steps aside** while the player glides, moves faster than
   `hideAboveSpeed` blocks per second (7.5 by default: sprint-jumping, riding,
   flying), or is in combat (`hideInCombat`, through [Combat](combat.md)). It
-  comes back after a second of calm.
+  comes back after a second of calm. Companion and anchored texts are also
+  away while a camera shot plays to the player (since 1.475.1): they are
+  placed and sized for the body, not for the camera.
 
 ## Anchored text
 
@@ -181,7 +183,9 @@ Growing keeps it the same size on screen (full size up to 8 blocks, then in
 proportion). The beam is drawn up to the cut-over, about 136 blocks at ten
 chunks, so a `maxScale` under `cut-over / 8` (17 there) lets the label shrink
 before the stand-in takes over. Beside the stand-in it is drawn at
-`scale × markerDistance / 10`.
+`scale × markerDistance / 10`. While a camera shot plays to the player the
+label is not drawn (since 1.475.1): sized for a body far away, it would hang
+huge in the shot. The beam stays.
 
 ### When the target is too far
 
