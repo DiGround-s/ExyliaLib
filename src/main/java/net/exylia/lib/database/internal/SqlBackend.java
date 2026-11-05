@@ -345,10 +345,10 @@ public final class SqlBackend implements AutoCloseable {
                 if (column == model.idIndex()) {
                     continue;
                 }
-                statement.setObject(index++, values[column]);
+                bind(statement, index++, model.columns().get(column), values[column]);
             }
             // The key is last, because it is the WHERE rather than a SET.
-            statement.setObject(index, values[model.idIndex()]);
+            bind(statement, index, model.id(), values[model.idIndex()]);
             statement.executeUpdate();
         }
     }
