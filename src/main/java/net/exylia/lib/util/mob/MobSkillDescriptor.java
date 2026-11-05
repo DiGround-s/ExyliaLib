@@ -4,6 +4,7 @@ import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.Effects;
 import net.exylia.lib.util.TimeFormats;
@@ -128,7 +129,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
 
     @Override
     public @NotNull String label(@NotNull MobSkill skill) {
-        return "{primary}&l" + skill.type().readable().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Skill"), skill.type().readable());
     }
 
     @Override
@@ -145,8 +146,8 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     @Override
     public @NotNull List<String> lore(@NotNull MobSkill skill, @NotNull List<MobSkill> siblings) {
         List<String> lore = new ArrayList<>(20);
-        lore.add(Phrases.tr("{secondary}Skill:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}When {letters_black}» {info}{0}", when(skill)));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Skill"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}When{letters_black}: {info}{0}", when(skill)));
         if (skill.grouped()) {
             double total = siblings.stream().filter(MobSkill::grouped)
                     .filter(other -> other.cast().group().equals(skill.cast().group()))
@@ -154,26 +155,26 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             lore.add(line(Phrases.tr("Weight"), number(skill.chance() * 100)
                     + (total > 0 ? " {letters_black}(" + "{info}" + percent(skill.chance() / total) + "%{letters_black})" : "")));
             if (!skill.cooldown().isZero()) {
-                lore.add(Phrases.tr(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚", time(skill.cooldown())));
+                lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", time(skill.cooldown())));
             }
         } else {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%", percent(skill.chance())));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {info}{0}%", percent(skill.chance())));
             if (skill.trigger() != MobSkill.Trigger.INTERVAL && !skill.cooldown().isZero()) {
-                lore.add(Phrases.tr(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚", time(skill.cooldown())));
+                lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", time(skill.cooldown())));
             }
         }
         List<String> settings = settings(skill);
         if (!skill.effect().isBlank()) settings.add(line(Phrases.tr("Looks like"), firstLine(skill.effect())));
         if (!settings.isEmpty()) {
             lore.add("");
-            lore.add(Phrases.tr("{secondary}Settings:"));
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Settings"));
             lore.addAll(settings);
         }
         List<String> cast = cast(skill.cast());
         cast.addAll(look(skill));
         if (!cast.isEmpty()) {
             lore.add("");
-            lore.add(Phrases.tr("{secondary}Cast:"));
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Cast"));
             lore.addAll(cast);
         }
         return lore;
@@ -910,7 +911,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     }
 
     private static String line(String label, String value) {
-        return " {letters_black}▎ {letters}" + label + " {letters_black}» {info}" + value;
+        return "  {letters_black}· {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     private static String firstLine(String text) {

@@ -1,6 +1,8 @@
 # The modes screens: every way to play the plugins on this server offer.
 # Restyle them freely: the library only adds keys missing from this file.
 # One category's modes, and the categories when there are more than seven.
+menu-version: 1
+
 title: '{primary}&lMODES {letters_black}» {highlight}%modes_title% {muted}%current_page%/%total_pages%'
 size: 54
 type: PAGINATION
@@ -19,9 +21,7 @@ filler:
     hide_tooltip: false
     name: '{muted}No more modes'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Plugins on this server add theirs here.'
-      - ''
+      - "{letters_black}Plugins on this server add theirs here."
 pagination:
   slots: '0-35'
   item_template:
@@ -42,22 +42,18 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← PREVIOUS PAGE'
+      name: "{letters}Page {letters_black}▸ <gradient:{error}:{error_light}>← Previous</gradient>"
       lore:
-      - ''
-      - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-      - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
       actions:
         - 'previous_page'
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lNEXT PAGE →'
+      name: "{letters}Page {letters_black}▸ <gradient:{success}:{success_light}>Next →</gradient>"
       lore:
-      - ''
-      - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-      - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
       actions:
         - 'next_page'
 items:
@@ -65,12 +61,8 @@ items:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lBACK'
+    name: "{letters}Back {letters_black}▸ <gradient:{error}:{error_light}>%modes_parent%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Returns to %modes_parent%.'
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - "{error}» Click to go back"
     actions:
       - 'exylialib:modes_back'

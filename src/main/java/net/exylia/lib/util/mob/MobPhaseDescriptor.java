@@ -1,5 +1,6 @@
 package net.exylia.lib.util.mob;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
@@ -52,10 +53,10 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
     @Override
     public @NotNull List<String> lore(@NotNull MobPhase phase) {
         List<String> lore = new ArrayList<>(8);
-        lore.add(Phrases.tr("{secondary}Phase:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Phase"));
         lore.add(line(Phrases.tr("Starts below"), Phrases.tr("{0}% health", number(phase.below() * 100))));
         if (!phase.suffix().isBlank()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Name gains {letters_black}» {0}", phase.suffix()));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Name gains{letters_black}: {0}", phase.suffix()));
         }
         lore.add(line(Phrases.tr("Style"), phase.style().isEmpty() ? Phrases.tr("enrage {letters_black}(auto)") : phase.style()));
         lore.add(line(Phrases.tr("Speed"), "×" + number(phase.speed())));
@@ -143,7 +144,7 @@ final class MobPhaseDescriptor implements EditorDescriptor<MobPhase> {
     }
 
     private static String line(String label, String value) {
-        return " {letters_black}▎ {letters}" + label + " {letters_black}» {info}" + value;
+        return "  {letters_black}· {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     private static String number(double value) {

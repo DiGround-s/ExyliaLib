@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lAJUSTES'
 size: 27
 type: SIMPLE
@@ -15,28 +17,28 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lAJUSTES'
+    name: "<gradient:{primary}:{secondary_light}>Ajustes</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Cómo te contactan otros jugadores'
-      - ' {letters_black}▎ {letters}y cómo te trata cada función.'
-      - ''
-      - '{warning}➥ Clic para abrir'
-      - ''
+      - "{letters_black}Tus ajustes"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Cómo te contactan otros jugadores"
+      - " {letters}y cómo te trata cada función."
+      - ""
+      - "{primary}» Clic para abrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lANUNCIOS'
+    name: "<gradient:{primary}:{secondary_light}>Anuncios</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Qué mensajes de todo el servidor'
-      - ' {letters_black}▎ {letters}llegan a tu {highlight}chat{letters}.'
-      - ''
-      - '{warning}➥ Clic para abrir'
-      - ''
+      - "{letters_black}Tus ajustes"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Qué mensajes de todo el"
+      - " {letters}servidor llegan a tu {highlight}chat{letters}."
+      - ""
+      - "{primary}» Clic para abrir"
     actions:
       - 'exylialib:settings_open announcements'

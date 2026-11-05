@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lRÉGLAGES'
 size: 27
 type: SIMPLE
@@ -15,28 +17,29 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lRÉGLAGES'
+    name: "<gradient:{primary}:{secondary_light}>Réglages</gradient>"
     lore:
-      - ''
-      - '{secondary}Informations :'
-      - ' {letters_black}▎ {letters}Comment les autres joueurs vous joignent'
-      - ' {letters_black}▎ {letters}et comment chaque fonction vous traite.'
-      - ''
-      - '{warning}➥ Cliquez pour ouvrir'
-      - ''
+      - "{letters_black}Tes réglages"
+      - ""
+      - "{primary}✎ Informations "
+      - " {letters}Comment les autres joueurs"
+      - " {letters}vous joignent et comment"
+      - " {letters}chaque fonction vous traite."
+      - ""
+      - "{primary}» Cliquez pour ouvrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lANNONCES'
+    name: "<gradient:{primary}:{secondary_light}>Annonces</gradient>"
     lore:
-      - ''
-      - '{secondary}Informations :'
-      - ' {letters_black}▎ {letters}Quels messages du serveur'
-      - ' {letters_black}▎ {letters}arrivent dans votre {highlight}chat{letters}.'
-      - ''
-      - '{warning}➥ Cliquez pour ouvrir'
-      - ''
+      - "{letters_black}Tes réglages"
+      - ""
+      - "{primary}✎ Informations "
+      - " {letters}Quels messages du serveur"
+      - " {letters}arrivent dans votre {highlight}chat{letters}."
+      - ""
+      - "{primary}» Cliquez pour ouvrir"
     actions:
       - 'exylialib:settings_open announcements'

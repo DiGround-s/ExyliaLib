@@ -11,6 +11,7 @@ import net.exylia.lib.settings.Settings;
 import net.exylia.lib.settings.internal.SettingsRuntime.Category;
 import net.exylia.lib.settings.internal.SettingsRuntime.PluginStore;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
@@ -53,6 +54,9 @@ import java.util.stream.IntStream;
  * adds keys and never overwrites the owner's.
  */
 public final class SettingsMenu {
+
+    /** The tone of every card these screens build. */
+    private static final Lore.Tone TONE = Lore.Tone.PRIMARY;
 
     static final String ROOT = "settings";
     static final String LIST = "settings_list";
@@ -243,9 +247,9 @@ public final class SettingsMenu {
             return new Parent(label(store), player -> openPlugin(player, mode, store));
         }
         if (!screen.equals("plugins") && storesFor(mode).size() > 1) {
-            return new Parent(Phrases.tr("the plugin list"), player -> openPlugins(player, mode));
+            return new Parent(Phrases.tr("Plugin list"), player -> openPlugins(player, mode));
         }
-        return new Parent(Phrases.tr("the settings menu"), SettingsMenu::open);
+        return new Parent(Phrases.tr("Settings menu"), SettingsMenu::open);
     }
 
     // ------------------------------------------------------------------ clicks
@@ -290,42 +294,39 @@ public final class SettingsMenu {
         String icon = announcements ? listed.get(0).icon() : store.categories().get(0).icon();
         return UiEntry.of(new PluginRow(store.plugin().getName(), mode))
                 .with("icon", icon)
-                .withFormatted("name", "{primary}&l" + label(store).toUpperCase(Locale.ROOT))
+                .withFormatted("name", Lore.name(TONE, announcements ? Phrases.tr("Announcements") : Phrases.tr("Settings"),
+                        label(store)))
                 .with("glow", false)
                 .withFormatted("lore", () -> {
-                    List<String> lore = new ArrayList<>();
-                    lore.add("");
-                    lore.add(Phrases.tr("{secondary}Information:"));
+                    Lore lore = Lore.of(TONE)
+                            .subtitle(announcements ? Phrases.tr("Chat announcements") : Phrases.tr("Plugin settings"))
+                            .section("✦", Phrases.tr("Status"));
                     if (announcements) {
                         long muted = listed.stream().filter(setting -> !Settings.enabled(player, store.plugin(), setting.key())).count();
-                        lore.add(Phrases.tr(" {letters_black}▎ {letters}Channels {letters_black}» {info}{0}", listed.size()));
-                        lore.add(Phrases.tr(" {letters_black}▎ {letters}Muted {letters_black}» {info}{0}", muted));
+                        lore.stat("note", "info", Phrases.tr("Channels"), String.valueOf(listed.size()));
+                        lore.stat("barrier", "info", Phrases.tr("Muted"), String.valueOf(muted));
                     } else {
-                        lore.add(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", listed.size()));
+                        lore.stat("iron", "info", Phrases.tr("Settings"), String.valueOf(listed.size()));
                     }
-                    lore.add("");
-                    lore.add(Phrases.tr("{warning}➥ Click to open"));
-                    lore.add("");
-                    return String.join(Lines.NEWLINE, lore);
+                    return String.join(Lines.NEWLINE, lore.action(Phrases.tr("Click to open")).lines());
                 })
                 .build();
     }
 
     static UiEntry categoryRow(PluginStore store, Category category) {
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add(Phrases.tr("{secondary}Information:"));
-        category.description().forEach(line -> lore.add(" {letters_black}▎ {letters}" + line));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}",
-                store.settings(category.id()).size()));
-        lore.add("");
-        lore.add(Phrases.tr("{warning}➥ Click to open"));
-        lore.add("");
+        Lore lore = Lore.of(TONE).subtitle(Phrases.tr("Settings category"));
+        if (!category.description().isEmpty()) {
+            lore.section(Phrases.tr("Information"));
+            category.description().forEach(lore::text);
+        }
+        lore.section("✦", Phrases.tr("Status"))
+                .stat("iron", "info", Phrases.tr("Settings"), String.valueOf(store.settings(category.id()).size()))
+                .action(Phrases.tr("Click to open"));
         return UiEntry.of(new CategoryRow(store.plugin().getName(), category.id()))
                 .with("icon", category.icon())
-                .withFormatted("name", "{primary}&l" + category.name().toUpperCase(Locale.ROOT))
+                .withFormatted("name", Lore.name(TONE, label(store), category.name()))
                 .with("glow", false)
-                .withFormatted("lore", String.join(Lines.NEWLINE, lore))
+                .withFormatted("lore", String.join(Lines.NEWLINE, lore.lines()))
                 .build();
     }
 
@@ -334,7 +335,7 @@ public final class SettingsMenu {
         boolean available = setting.available();
         return UiEntry.of(new SettingRow(store.plugin().getName(), setting.key()))
                 .with("icon", setting.icon())
-                .withFormatted("name", "{primary}&l" + setting.name().toUpperCase(Locale.ROOT))
+                .withFormatted("name", Lore.name(TONE, Phrases.tr("Setting"), setting.name()))
                 .with("glow", () -> available && allowed && setting.kind() == Setting.Kind.TOGGLE
                         && Settings.enabled(player, store.plugin(), setting.key()))
                 .withFormatted("lore", () -> lore(setting, allowed, available,
@@ -346,54 +347,49 @@ public final class SettingsMenu {
     /** A setting's lore: what it does, where it stands, and what a click does. */
     static String lore(Setting setting, boolean allowed, boolean available, @Nullable String value) {
         String current = value == null ? setting.defaultValue() : value;
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        Lore lore = Lore.of(TONE).subtitle(Phrases.tr("Your setting"));
         if (!setting.description().isEmpty()) {
-            lore.add(Phrases.tr("{secondary}Information:"));
-            setting.description().forEach(line -> lore.add(" {letters_black}▎ {letters}" + line));
-            lore.add("");
+            lore.section(Phrases.tr("Information"));
+            setting.description().forEach(lore::text);
         }
-        lore.add(Phrases.tr("{secondary}Status:"));
+        lore.section("✦", Phrases.tr("Status"));
         if (!available) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}State {letters_black}» {0}", Phrases.tr("{muted}Unavailable")));
-            lore.add(" {letters_black}▎ {muted}" + (setting.unavailableReason() != null ? setting.unavailableReason()
+            lore.stat("redstone", "muted", Phrases.tr("State"), Phrases.tr("Unavailable"));
+            lore.line("    {muted}" + (setting.unavailableReason() != null ? setting.unavailableReason()
                     : Phrases.tr("This feature is off on this server.")));
-            lore.add("");
-            return String.join(Lines.NEWLINE, lore);
+            return String.join(Lines.NEWLINE, lore.lines());
         }
         if (!allowed) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}State {letters_black}» {0}", Phrases.tr("{error}Locked")));
-            lore.add(" {letters_black}▎ {muted}" + Phrases.tr("Your rank does not include it."));
-            lore.add("");
-            return String.join(Lines.NEWLINE, lore);
+            lore.stat("key", "error", Phrases.tr("State"), Phrases.tr("Locked"));
+            lore.line("    {muted}" + Phrases.tr("Your rank does not include it."));
+            return String.join(Lines.NEWLINE, lore.lines());
         }
         switch (setting.kind()) {
-            case TOGGLE -> lore.add(Phrases.tr(" {letters_black}▎ {letters}State {letters_black}» {0}",
-                    Boolean.parseBoolean(current) ? Phrases.tr("{success}Enabled") : Phrases.tr("{error}Disabled")));
-            case CHOICE -> lore.add(Phrases.tr(" {letters_black}▎ {letters}Current {letters_black}» {info}{0}",
-                    setting.label(current)));
-            case NUMBER -> lore.add(Phrases.tr(" {letters_black}▎ {letters}Current {letters_black}» {info}{0}", current));
+            case TOGGLE -> {
+                boolean on = Boolean.parseBoolean(current);
+                lore.stat("redstone", on ? "success" : "error", Phrases.tr("State"),
+                        on ? Phrases.tr("Enabled") : Phrases.tr("Disabled"));
+            }
+            case CHOICE -> lore.stat("compass", "info", Phrases.tr("Current"), setting.label(current));
+            case NUMBER -> lore.stat("iron", "info", Phrases.tr("Current"), current);
         }
         if (setting.perServer()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Applies to {letters_black}» {info}{0}",
-                    Phrases.tr("this server")));
+            lore.stat("ping", "info", Phrases.tr("Applies to"), Phrases.tr("this server"));
         }
-        lore.add("");
         switch (setting.kind()) {
-            case TOGGLE -> lore.add(Phrases.tr("{warning}➥ Click to toggle"));
+            case TOGGLE -> lore.action(Phrases.tr("Click to toggle"));
             case CHOICE -> {
-                lore.add(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next option"));
-                lore.add(Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous option"));
+                lore.click(Phrases.tr("Left-click"), Phrases.tr("next option"));
+                lore.click(Phrases.tr("Right-click"), Phrases.tr("previous option"));
             }
             case NUMBER -> {
                 double raw = setting.step();
                 String step = raw == Math.rint(raw) ? Long.toString((long) raw) : Double.toString(raw);
-                lore.add(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}+{0}", step));
-                lore.add(Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}-{0}", step));
+                lore.click(Phrases.tr("Left-click"), "+" + step);
+                lore.click(Phrases.tr("Right-click"), "-" + step);
             }
         }
-        lore.add("");
-        return String.join(Lines.NEWLINE, lore);
+        return String.join(Lines.NEWLINE, lore.lines());
     }
 
     // ------------------------------------------------------------------ screens

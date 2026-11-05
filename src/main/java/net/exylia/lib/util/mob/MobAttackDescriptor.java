@@ -2,6 +2,7 @@ package net.exylia.lib.util.mob;
 
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -47,7 +48,7 @@ final class MobAttackDescriptor implements EditorDescriptor<MobAttack> {
 
     @Override
     public @NotNull String label(@NotNull MobAttack attack) {
-        return "{primary}&l" + attack.name().toUpperCase(java.util.Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Attack"), attack.name());
     }
 
     @Override
@@ -64,7 +65,7 @@ final class MobAttackDescriptor implements EditorDescriptor<MobAttack> {
     @Override
     public @NotNull List<String> lore(@NotNull MobAttack attack) {
         List<String> lore = new ArrayList<>(10);
-        lore.add(Phrases.tr("{secondary}Attack:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Attack"));
         lore.add(line(Phrases.tr("Kind"), attack.ranged()
                 ? Phrases.tr("throws {0}", readable(attack.projectile())) : Phrases.tr("a blow")));
         lore.add(line(attack.ranged() ? Phrases.tr("Range") : Phrases.tr("Reach"),
@@ -139,7 +140,7 @@ final class MobAttackDescriptor implements EditorDescriptor<MobAttack> {
     }
 
     private static String line(String label, String value) {
-        return " {letters_black}▎ {letters}" + label + " {letters_black}» {info}" + value;
+        return "  {letters_black}· {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     private static String readable(String name) {

@@ -18,30 +18,30 @@ items:
   header:
     slot: 4
     material: 'playerhead-%player_name%'
-    name: '{primary}&l%player_name%'
+    name: "<gradient:{primary}:{secondary_light}>%player_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Ключи, открытое и то, что'
-      - ' {letters_black}▎ {letters}сейчас {highlight}надето{letters}.'
-      - ''
+      - "{letters_black}Игрок"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Ключи, открытое и то,"
+      - " {letters}что сейчас {highlight}надето{letters}."
   keys:
     group: cards
     material: TRIPWIRE_HOOK
-    name: '{primary}&lКЛЮЧИ ОТ ЯЩИКА &8[{info}%player_keys%&8]'
+    name: "{letters}Игрок {letters_black}▸ <gradient:{primary}:{secondary_light}>Ключи от ящика</gradient> &8[{info}%player_keys%&8]"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Ключи на аккаунте: открывают'
-      - ' {letters_black}▎ {letters}ящик и никогда не {highlight}теряются{letters}.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Ключи {letters_black}» {info}%player_keys%'
-      - ''
-      - '{warning}➥ ЛКМ {letters_black}» {letters}+1 ключ'
-      - '{warning}➥ ПКМ {letters_black}» {letters}-1 ключ'
-      - '{warning}➥ Shift-клик {letters_black}» {letters}ввести число'
-      - ''
+      - "{letters_black}Настройка игрока"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Ключи на аккаунте: открывают"
+      - " {letters}ящик и никогда не {highlight}теряются{letters}."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:key} {letters}Ключи{letters_black}: {info}%player_keys%"
+      - ""
+      - "{primary}» ЛКМ {letters_black}· {letters}+1 ключ"
+      - "{primary}» ПКМ {letters_black}· {letters}-1 ключ"
+      - "{primary}» Shift-клик {letters_black}· {letters}ввести число"
     actions:
       - 'left: exylialib:cosmetics keys 1'
       - 'right: exylialib:cosmetics keys -1'
@@ -49,78 +49,74 @@ items:
   unlocks:
     group: cards
     material: CHEST
-    name: '{primary}&lОТКРЫТИЯ'
+    name: "{letters}Игрок {letters_black}▸ <gradient:{primary}:{secondary_light}>Открытия</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Выдай или забери косметику,'
-      - ' {letters_black}▎ {letters}навсегда, как выигрыш из {highlight}ящика{letters}.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Есть {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Нажми, чтобы управлять'
-      - ''
+      - "{letters_black}Раздел настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Выдай или забери косметику,"
+      - " {letters}навсегда, как выигрыш из {highlight}ящика{letters}."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {success}{icon:star} {letters}Есть{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - ""
+      - "{primary}» Нажми, чтобы управлять"
     actions:
       - 'exylialib:cosmetics unlocks'
   equipped:
     group: cards
     condition: '%admin_has_equipped% == true'
     material: ARMOR_STAND
-    name: '{primary}&lНАДЕТО'
+    name: "{letters}Игрок {letters_black}▸ <gradient:{primary}:{secondary_light}>Надето</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Что сейчас надето на игроке.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Надето {letters_black}» %player_equipped%'
-      - ''
-      - '{error}➥ Нажми, чтобы снять'
-      - ' {letters_black}Потребуется подтверждение.'
-      - ''
+      - "{letters_black}Настройка игрока"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Что сейчас надето на игроке."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:eye} {letters}Надето{letters_black}: %player_equipped%"
+      - ""
+      - "{error}» Нажми, чтобы снять"
+      - "{letters_black}Потребуется подтверждение."
     actions:
       - 'exylialib:cosmetics unequip'
   favourites:
     slot: 36
     condition: '%admin_has_favourites% == true'
     material: BLAZE_POWDER
-    name: '{error}&lОЧИСТИТЬ ИЗБРАННОЕ'
+    name: "{letters}Игрок {letters_black}▸ <gradient:{error}:{error_light}>Очистить избранное</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Очищает избранное игрока.'
-      - ''
-      - '{error}➥ Нажми, чтобы очистить'
-      - ' {letters_black}Потребуется подтверждение.'
-      - ''
+      - "{letters_black}Опасная зона"
+      - ""
+      - "{error}✎ Информация"
+      - " {letters}Очищает избранное игрока."
+      - ""
+      - "{error}» Нажми, чтобы очистить"
+      - "{letters_black}Потребуется подтверждение."
     actions:
       - 'exylialib:cosmetics favourites'
   back:
     slot: 40
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lНАЗАД'
+    name: "{letters}Назад {letters_black}▸ <gradient:{error}:{error_light}>Игроки</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Возврат к игрокам.'
-      - ''
-      - '{warning}➥ Нажми, чтобы вернуться'
-      - ''
+      - "{error}» Нажми, чтобы вернуться"
     actions:
       - 'exylialib:cosmetics players'
   clear:
     slot: 44
     material: BARRIER
-    name: '{error}&lСБРОСИТЬ ОТКРЫТИЯ'
+    name: "{letters}Игрок {letters_black}▸ <gradient:{error}:{error_light}>Сбросить открытия</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Забирает {highlight}всё{letters}, что игрок'
-      - ' {letters_black}▎ {letters}выиграл или получил.'
-      - ''
-      - '{error}➥ Нажми, чтобы очистить'
-      - ' {letters_black}Потребуется подтверждение.'
-      - ''
+      - "{letters_black}Опасная зона"
+      - ""
+      - "{error}✎ Информация"
+      - " {letters}Забирает {highlight}всё{letters}, что игрок"
+      - " {letters}выиграл или получил."
+      - ""
+      - "{error}» Нажми, чтобы очистить"
+      - "{letters_black}Потребуется подтверждение."
     actions:
       - 'exylialib:cosmetics clear_unlocks'

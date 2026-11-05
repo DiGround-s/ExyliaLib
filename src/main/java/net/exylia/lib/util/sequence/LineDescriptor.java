@@ -1,6 +1,7 @@
 package net.exylia.lib.util.sequence;
 
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
@@ -79,25 +80,25 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
         SequenceLine.Spec spec = spec(line);
         List<String> lore = new ArrayList<>(8);
         if (spec.isFree()) {
-            lore.add(Phrases.tr("{secondary}Says:"));
-            lore.add(" {letters_black}▎ {letters}" + (line.rest().isBlank()
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Says"));
+            lore.add(" {letters}" + (line.rest().isBlank()
                     ? Phrases.tr("{muted}nothing yet") : line.rest()));
             return lore;
         }
         List<String> settings = settings(line, spec);
         if (settings.isEmpty()) {
-            lore.add(Phrases.tr("{secondary}Settings:"));
-            lore.add(Phrases.tr(" {letters_black}▎ {muted}all left at their defaults"));
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Settings"));
+            lore.add(Phrases.tr(" {muted}all left at their defaults"));
             return lore;
         }
-        lore.add(Phrases.tr("{secondary}Settings:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Settings"));
         // Four, then a count. A row is a row, not a config file: an admin who
         // needs the sixteenth parameter is already opening the form.
         for (int index = 0; index < Math.min(4, settings.size()); index++) {
             lore.add(settings.get(index));
         }
         if (settings.size() > 4) {
-            lore.add(Phrases.tr(" {letters_black}▎ {muted}and {0} more", settings.size() - 4));
+            lore.add(Phrases.tr(" {muted}and {0} more", settings.size() - 4));
         }
         return lore;
     }
@@ -124,7 +125,7 @@ final class LineDescriptor implements EditorDescriptor<SequenceLine> {
     }
 
     private static String setting(String label, String value) {
-        return " {letters_black}▎ {letters}" + label + " {letters_black}» {info}" + value;
+        return "  {letters_black}· {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     @Override

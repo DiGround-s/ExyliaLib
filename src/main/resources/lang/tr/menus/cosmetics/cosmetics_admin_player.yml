@@ -18,30 +18,30 @@ items:
   header:
     slot: 4
     material: 'playerhead-%player_name%'
-    name: '{primary}&l%player_name%'
+    name: "<gradient:{primary}:{secondary_light}>%player_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Anahtarlar, açılanlar ve'
-      - ' {letters_black}▎ {letters}{highlight}kuşanılanlar{letters}.'
-      - ''
+      - "{letters_black}Oyuncu"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Anahtarlar, açılanlar"
+      - " {letters}ve {highlight}kuşanılanlar{letters}."
   keys:
     group: cards
     material: TRIPWIRE_HOOK
-    name: '{primary}&lSANDIK ANAHTARLARI &8[{info}%player_keys%&8]'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{primary}:{secondary_light}>Sandık anahtarları</gradient> &8[{info}%player_keys%&8]"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Hesaptaki anahtarlar sandığı açar'
-      - ' {letters_black}▎ {letters}ve asla {highlight}kaybolmaz{letters}.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Anahtar {letters_black}» {info}%player_keys%'
-      - ''
-      - '{warning}➥ Sol tık {letters_black}» {letters}+1 anahtar'
-      - '{warning}➥ Sağ tık {letters_black}» {letters}-1 anahtar'
-      - '{warning}➥ Shift-tık {letters_black}» {letters}miktar yaz'
-      - ''
+      - "{letters_black}Oyuncu ayarı"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Hesaptaki anahtarlar sandığı"
+      - " {letters}açar ve asla {highlight}kaybolmaz{letters}."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:key} {letters}Anahtar{letters_black}: {info}%player_keys%"
+      - ""
+      - "{primary}» Sol tık {letters_black}· {letters}+1 anahtar"
+      - "{primary}» Sağ tık {letters_black}· {letters}-1 anahtar"
+      - "{primary}» Shift-tık {letters_black}· {letters}miktar yaz"
     actions:
       - 'left: exylialib:cosmetics keys 1'
       - 'right: exylialib:cosmetics keys -1'
@@ -49,78 +49,75 @@ items:
   unlocks:
     group: cards
     material: CHEST
-    name: '{primary}&lKİLİT AÇMALAR'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{primary}:{secondary_light}>Kilit açmalar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Her kozmetiği ver ya da geri al,'
-      - ' {letters_black}▎ {letters}{highlight}sandık {letters}ödülü gibi kalıcı.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Sahip olunan {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Yönetmek için tıkla'
-      - ''
+      - "{letters_black}Kurulum bölümü"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Her kozmetiği ver ya da geri"
+      - " {letters}al, {highlight}sandık {letters}ödülü gibi kalıcı."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {success}{icon:star} {letters}Sahip olunan{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - ""
+      - "{primary}» Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics unlocks'
   equipped:
     group: cards
     condition: '%admin_has_equipped% == true'
     material: ARMOR_STAND
-    name: '{primary}&lKUŞANILAN'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{primary}:{secondary_light}>Kuşanılan</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Oyuncunun şu an kuşandığı.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Kuşanılan {letters_black}» %player_equipped%'
-      - ''
-      - '{error}➥ Çıkarmak için tıkla'
-      - ' {letters_black}Onaylaman istenecek.'
-      - ''
+      - "{letters_black}Oyuncu ayarı"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Oyuncunun şu an kuşandığı."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:eye} {letters}Kuşanılan{letters_black}: %player_equipped%"
+      - ""
+      - "{error}» Çıkarmak için tıkla"
+      - "{letters_black}Onaylaman istenecek."
     actions:
       - 'exylialib:cosmetics unequip'
   favourites:
     slot: 36
     condition: '%admin_has_favourites% == true'
     material: BLAZE_POWDER
-    name: '{error}&lFAVORİLERİ TEMİZLE'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{error}:{error_light}>Favorileri temizle</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Oyuncunun favori listesini boşaltır.'
-      - ''
-      - '{error}➥ Temizlemek için tıkla'
-      - ' {letters_black}Onaylaman istenecek.'
-      - ''
+      - "{letters_black}Tehlikeli bölge"
+      - ""
+      - "{error}✎ Bilgi"
+      - " {letters}Oyuncunun favori"
+      - " {letters}listesini boşaltır."
+      - ""
+      - "{error}» Temizlemek için tıkla"
+      - "{letters_black}Onaylaman istenecek."
     actions:
       - 'exylialib:cosmetics favourites'
   back:
     slot: 40
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lGERİ'
+    name: "{letters}Geri {letters_black}▸ <gradient:{error}:{error_light}>Oyuncular</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Oyunculara döner.'
-      - ''
-      - '{warning}➥ Geri dönmek için tıkla'
-      - ''
+      - "{error}» Geri dönmek için tıkla"
     actions:
       - 'exylialib:cosmetics players'
   clear:
     slot: 44
     material: BARRIER
-    name: '{error}&lKİLİT AÇMALARI SİL'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{error}:{error_light}>Kilit açmaları sil</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Oyuncunun kazandığı ya da'
-      - ' {letters_black}▎ {letters}aldığı {highlight}her şeyi {letters}geri alır.'
-      - ''
-      - '{error}➥ Temizlemek için tıkla'
-      - ' {letters_black}Onaylaman istenecek.'
-      - ''
+      - "{letters_black}Tehlikeli bölge"
+      - ""
+      - "{error}✎ Bilgi"
+      - " {letters}Oyuncunun kazandığı ya da"
+      - " {letters}aldığı {highlight}her şeyi {letters}geri alır."
+      - ""
+      - "{error}» Temizlemek için tıkla"
+      - "{letters_black}Onaylaman istenecek."
     actions:
       - 'exylialib:cosmetics clear_unlocks'

@@ -2,6 +2,7 @@ package net.exylia.lib.input.internal;
 
 import net.exylia.lib.item.Source;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
@@ -159,22 +160,24 @@ public final class InsertWindow implements InventoryHolder {
             inventory.setItem(slot, isInput(slot) ? null : filler);
         }
         if (bulk) {
-            inventory.setItem(BULK_CONFIRM, button(Material.LIME_DYE, Phrases.tr("{success}&lUSE THESE ITEMS"),
-                    Phrases.tr("{letters_black}▎ {letters}Each item above becomes"),
-                    Phrases.tr("{letters_black}▎ {letters}its own entry."),
-                    "",
-                    Phrases.tr("{letters_black}▎ {letters}You get the items back either way."),
-                    "",
-                    Phrases.tr("{warning}➥ Click to confirm")));
+            inventory.setItem(BULK_CONFIRM, button(Material.LIME_DYE,
+                    Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Items"), Phrases.tr("Use these items")),
+                    Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Item input"))
+                            .section(Phrases.tr("Information"))
+                            .line(Phrases.tr(" {letters}Each item above becomes"))
+                            .line(Phrases.tr(" {letters}its own entry."))
+                            .line(Phrases.tr(" {letters}You get the items back either way."))
+                            .action(Phrases.tr("Click to confirm")).lines().toArray(String[]::new)));
             return;
         }
-        inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE, Phrases.tr("{success}&lUSE THIS ITEM"),
-                Phrases.tr("{letters_black}▎ {letters}Read the item above and use"),
-                Phrases.tr("{letters_black}▎ {letters}it as the icon."),
-                "",
-                Phrases.tr("{letters_black}▎ {letters}You get the item back either way."),
-                "",
-                Phrases.tr("{warning}➥ Click to confirm")));
+        inventory.setItem(SLOT_CONFIRM, button(Material.LIME_DYE,
+                Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Items"), Phrases.tr("Use this item")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Item input"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Read the item above and use"))
+                        .line(Phrases.tr(" {letters}it as the icon."))
+                        .line(Phrases.tr(" {letters}You get the item back either way."))
+                        .action(Phrases.tr("Click to confirm")).lines().toArray(String[]::new)));
     }
 
     /**

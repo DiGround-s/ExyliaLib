@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import org.bukkit.Location;
@@ -30,6 +31,9 @@ import java.util.concurrent.CompletionStage;
  */
 final class LocationDescriptor implements EditorDescriptor<ExyliaLocation> {
 
+    /** An action line in these cards' tone. */
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+
     /** The clipboard bucket location lists share. */
     static final String TYPE_KEY = "exylia:locations";
 
@@ -41,7 +45,7 @@ final class LocationDescriptor implements EditorDescriptor<ExyliaLocation> {
 
     @Override
     public @NotNull String label(@NotNull ExyliaLocation entry) {
-        return "{primary}&l" + entry.world().toUpperCase(java.util.Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("World"), entry.world());
     }
 
     @Override
@@ -52,15 +56,15 @@ final class LocationDescriptor implements EditorDescriptor<ExyliaLocation> {
     @Override
     public @NotNull List<String> lore(@NotNull ExyliaLocation entry) {
         List<String> lore = new java.util.ArrayList<>(6);
-        lore.add(Phrases.tr("{secondary}Place:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Place"));
         if (!entry.isLocal()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Server {letters_black}» {info}{0}", entry.server()));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Server{letters_black}: {info}{0}", entry.server()));
         }
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}World {letters_black}» {info}{0}", entry.world()));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}At {letters_black}» {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}",
+        lore.add(Phrases.tr("  {letters_black}· {letters}World{letters_black}: {info}{0}", entry.world()));
+        lore.add(Phrases.tr("  {letters_black}· {letters}At{letters_black}: {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}",
                 round(entry.x()), round(entry.y()), round(entry.z())));
         lore.add("");
-        lore.add(Phrases.tr("{warning}➥ Editing moves it to where you stand"));
+        lore.add(ACT + Phrases.tr("Editing moves it to where you stand"));
         return lore;
     }
 

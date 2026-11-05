@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.ui.ClickPolicy;
 import net.exylia.lib.util.editor.Loadout;
@@ -109,49 +110,45 @@ public final class LoadoutHolder implements InventoryHolder {
             inventory.setItem(slot, INPUT_SLOTS.contains(slot) ? null : filler);
         }
         inventory.setItem(SLOT_LABEL, Icons.button(Material.ARMOR_STAND,
-                Phrases.tr("{primary}&l← ARMOUR & OFFHAND"), List.of(
-                        "",
-                        Phrases.tr("{secondary}The five slots to the left:"),
-                        Phrases.tr(" {letters_black}▎ {letters}1 {letters_black}» {letters}Helmet"),
-                        Phrases.tr(" {letters_black}▎ {letters}2 {letters_black}» {letters}Chestplate"),
-                        Phrases.tr(" {letters_black}▎ {letters}3 {letters_black}» {letters}Leggings"),
-                        Phrases.tr(" {letters_black}▎ {letters}4 {letters_black}» {letters}Boots"),
-                        Phrases.tr(" {letters_black}▎ {letters}5 {letters_black}» {letters}Offhand"),
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters_black}The rows below are the inventory,"),
-                        Phrases.tr(" {letters_black}▎ {letters_black}the last one being the hotbar."),
-                        "")));
+                Lore.name(Lore.Tone.INFO, Phrases.tr("Loadout"), "← " + Phrases.tr("Armour & offhand")),
+                Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("Loadout layout"))
+                        .section("✦", Phrases.tr("The five slots to the left"))
+                        .line(Phrases.tr("  {letters_black}· {letters}1{letters_black}: {letters}Helmet"))
+                        .line(Phrases.tr("  {letters_black}· {letters}2{letters_black}: {letters}Chestplate"))
+                        .line(Phrases.tr("  {letters_black}· {letters}3{letters_black}: {letters}Leggings"))
+                        .line(Phrases.tr("  {letters_black}· {letters}4{letters_black}: {letters}Boots"))
+                        .line(Phrases.tr("  {letters_black}· {letters}5{letters_black}: {letters}Offhand"))
+                        .line("")
+                        .line(Phrases.tr(" {letters_black}The rows below are the inventory,"))
+                        .line(Phrases.tr(" {letters_black}the last one being the hotbar."))
+                        .lines()));
         inventory.setItem(SLOT_SAVE, Icons.button(Material.EMERALD,
-                Phrases.tr("{success}&lSAVE & BACK"), List.of(
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters}Keeps the layout as it is now."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to save"),
-                        "")));
+                Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Loadout"), Phrases.tr("Save & back")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Loadout action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Keeps the layout as it is now."))
+                        .action(Phrases.tr("Click to save")).lines()));
         inventory.setItem(SLOT_IMPORT, Icons.button(Material.SHULKER_BOX,
-                Phrases.tr("{success}&lIMPORT MY INVENTORY"), List.of(
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters}Lays your own armour, offhand,"),
-                        Phrases.tr(" {letters_black}▎ {letters}inventory and hotbar into the grid."),
-                        Phrases.tr(" {letters_black}▎ {letters_black}Replaces whatever is there now."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to import"),
-                        "")));
+                Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Loadout"), Phrases.tr("Import my inventory")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Loadout action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Lays your own armour, offhand,"))
+                        .line(Phrases.tr(" {letters}inventory and hotbar into the grid."))
+                        .line(Phrases.tr(" {letters_black}Replaces whatever is there now."))
+                        .action(Phrases.tr("Click to import")).lines()));
         inventory.setItem(SLOT_CANCEL, Icons.row(CANCEL_HEAD,
-                Phrases.tr("{error}&lCANCEL"), List.of(
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters}Leaves it exactly as it was."),
-                        "",
-                        Phrases.tr("{error}➥ Click to discard"),
-                        "")));
+                Lore.name(Lore.Tone.ERROR, Phrases.tr("Loadout"), Phrases.tr("Cancel")),
+                Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Loadout action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Leaves it exactly as it was."))
+                        .action(Phrases.tr("Click to discard")).lines()));
         inventory.setItem(SLOT_CLEAR, Icons.button(Material.TNT,
-                Phrases.tr("{error}&lCLEAR THE GRID"), List.of(
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters}Empties every slot."),
-                        Phrases.tr(" {letters_black}▎ {letters_black}Nothing is written until you leave."),
-                        "",
-                        Phrases.tr("{error}➥ Click to clear"),
-                        "")));
+                Lore.name(Lore.Tone.ERROR, Phrases.tr("Loadout"), Phrases.tr("Clear the grid")),
+                Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Danger zone"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Empties every slot."))
+                        .line(Phrases.tr(" {letters_black}Nothing is written until you leave."))
+                        .action(Phrases.tr("Click to clear")).lines()));
         write(items);
     }
 

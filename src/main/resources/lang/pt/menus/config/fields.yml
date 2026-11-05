@@ -22,15 +22,15 @@ pagination:
   slots: '10-16'
   item_template:
     material: '%cfg_icon%'
-    name: '{primary}&l%cfg_name%'
+    name: "{letters}Ajuste {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_about%'
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Atual {letters_black}» %cfg_value%'
-      - ''
-      - '%cfg_hint%'
-      - ''
+      - "{letters_black}Ajuste do plugin"
+      - "%cfg_about%"
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {letters}Atual{letters_black}: %cfg_value%"
+      - ""
+      - "%cfg_hint%"
     actions:
       - 'left: exylialib:config_edit left %cfg_key%'
       - 'right: exylialib:config_edit right %cfg_key%'
@@ -39,67 +39,58 @@ pagination:
       - 'drop: exylialib:config_edit drop %cfg_key%'
   section_template:
     material: '%cfg_icon%'
-    name: '{primary}&l%cfg_name%'
+    name: "{letters}Seção {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_about%'
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Configurações {letters_black}» %cfg_value%'
-      - ''
-      - '%cfg_hint%'
-      - ''
+      - "{letters_black}Seção de configurações"
+      - "%cfg_about%"
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {letters}Configurações{letters_black}: %cfg_value%"
+      - ""
+      - "%cfg_hint%"
     actions:
       - 'exylialib:config_edit left %cfg_key%'
   locked_template:
     material: '%cfg_icon%'
-    name: '{muted}&l%cfg_name%'
+    name: "{letters}Ajuste {letters_black}▸ {muted}%cfg_name%"
     lore:
-      - ''
-      - '%cfg_about%'
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Atual {letters_black}» %cfg_value%'
-      - ''
-      - ' {letters_black}▎ {letters_black}Este valor não é editado no jogo.'
-      - '%cfg_hint%'
-      - ''
+      - "{letters_black}Ajuste do plugin"
+      - "%cfg_about%"
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {letters}Atual{letters_black}: %cfg_value%"
+      - ""
+      - "{letters_black}Este valor não é editado no jogo."
+      - "%cfg_hint%"
   navigation:
     previous:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← PÁGINA ANTERIOR'
+      name: "{letters}Página {letters_black}▸ <gradient:{error}:{error_light}>← Anterior</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Página {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Página{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lPRÓXIMA PÁGINA →'
+      name: "{letters}Página {letters_black}▸ <gradient:{success}:{success_light}>Próxima →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Página {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Página{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   header:
     slot: 4
     material: '%cfg_head_icon%'
-    name: '{primary}&l%cfg_head_name%'
+    name: "<gradient:{primary}:{secondary_light}>%cfg_head_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_head_lore%'
-      - ''
+      - "{letters_black}Configurações do plugin"
+      - "%cfg_head_lore%"
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lVOLTAR'
+    name: "{letters}Voltar {letters_black}▸ <gradient:{error}:{error_light}>%cfg_back_to%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Volta para %cfg_back_to%.'
-      - ''
-      - '{warning}➥ Clique para voltar'
-      - ''
+      - "{error}» Clique para voltar"
     actions:
       - 'exylialib:config_back'

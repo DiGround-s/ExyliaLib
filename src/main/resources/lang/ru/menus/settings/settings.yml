@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lНАСТРОЙКИ'
 size: 27
 type: SIMPLE
@@ -15,28 +17,29 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lНАСТРОЙКИ'
+    name: "<gradient:{primary}:{secondary_light}>Настройки</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Как другие игроки связываются с тобой'
-      - ' {letters_black}▎ {letters}и как каждая функция к тебе относится.'
-      - ''
-      - '{warning}➥ Нажми, чтобы открыть'
-      - ''
+      - "{letters_black}Твои настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Как другие игроки связываются"
+      - " {letters}с тобой и как каждая функция"
+      - " {letters}к тебе относится."
+      - ""
+      - "{primary}» Нажми, чтобы открыть"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lОБЪЯВЛЕНИЯ'
+    name: "<gradient:{primary}:{secondary_light}>Объявления</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Какие общесерверные сообщения'
-      - ' {letters_black}▎ {letters}попадают в твой {highlight}чат{letters}.'
-      - ''
-      - '{warning}➥ Нажми, чтобы открыть'
-      - ''
+      - "{letters_black}Твои настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Какие общесерверные сообщения"
+      - " {letters}попадают в твой {highlight}чат{letters}."
+      - ""
+      - "{primary}» Нажми, чтобы открыть"
     actions:
       - 'exylialib:settings_open announcements'

@@ -16,27 +16,24 @@ pagination:
   slots: '9-44'
   group_template:
     material: NAME_TAG
-    name: '{primary}&l%group_label%'
+    name: "{letters}Группа {letters_black}▸ <gradient:{info}:{info_light}>%group_label%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Стаки {letters_black}» {info}%group_count%'
-      - ''
-      - '{warning}➥ Наведи на предметы рядом'
-      - ''
+      - "{letters_black}Группа предметов"
+      - ""
+      - "{info}✦ Статус"
+      - "  {letters_black}· {info}{icon:iron} {letters}Стаки{letters_black}: {info}%group_count%"
+      - ""
+      - "{info}» Наведи на предметы рядом"
   nothing_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}В этой группе пусто'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}С этой стороны предметы не двигались.'
-      - ''
+      - "{letters_black}С этой стороны предметы не двигались."
   empty_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Предметы не сохранены'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Всё, что записано, показано выше.'
-      - ''
+      - "{letters_black}Всё, что записано, показано выше."
   spacer_template:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
@@ -45,51 +42,43 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ПРЕД. СТРАНИЦА'
+      name: "{letters}Страница {letters_black}▸ <gradient:{error}:{error_light}>← Предыдущая</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Страница{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lСЛЕД. СТРАНИЦА →'
+      name: "{letters}Страница {letters_black}▸ <gradient:{success}:{success_light}>Следующая →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Страница{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   entry:
     slot: 4
     material: '%log_icon%'
-    name: '{primary}&l%log_action%'
+    name: "{letters}Запись {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Plugin {letters_black}» {info}%log_plugin%'
-      - ' {letters_black}▎ {letters}Кто {letters_black}» {highlight}%log_actor%'
-      - ' {letters_black}▎ {letters}Цель {letters_black}» {highlight}%log_target%'
-      - ''
-      - '{secondary}Подробности:'
-      - '%log_detail%'
-      - ''
-      - '{secondary}Где:'
-      - ' {letters_black}▎ {letters}Сервер {letters_black}» {info}%log_server%'
-      - ' {letters_black}▎ {letters}Место {letters_black}» {info}%log_location%'
-      - ' {letters_black}▎ {letters}Когда {letters_black}» {info}%log_when% ⌚'
-      - ' {letters_black}▎ {letters_black}%log_date%'
-      - ''
+      - "{letters_black}Запись персонала"
+      - ""
+      - "{info}✦ Статус"
+      - "  {letters_black}· {info}{icon:book} {letters}Plugin{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Кто{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Цель{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Подробности"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Где"
+      - "  {letters_black}· {info}{icon:ping} {letters}Сервер{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Место{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {letters}Когда{letters_black}: {info}%log_when% ⌚"
+      - "    {letters_black}%log_date%"
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lНАЗАД'
+    name: "{letters}Назад {letters_black}▸ <gradient:{error}:{error_light}>Журнал</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Назад к журналу с теми же фильтрами.'
-      - ''
-      - '{warning}➥ Нажми, чтобы вернуться'
-      - ''
+      - "{error}» Нажми, чтобы вернуться"
     actions:
       - 'exylialib:logs_back'

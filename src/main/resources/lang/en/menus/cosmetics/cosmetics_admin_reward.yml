@@ -25,44 +25,44 @@ items:
     slot: 4
     material: '%reward_material%'
     hide-attributes: true
-    name: '%reward_name%'
+    name: "%reward_name%"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ %reward_description%'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}ID {letters_black}» {info}%reward_id%'
-      - ' {letters_black}▎ {letters}Rarity {letters_black}» %reward_tier%'
-      - ''
+      - "{letters_black}Cosmetic"
+      - ""
+      - "{accent}✎ Information"
+      - " %reward_description%"
+      - ""
+      - "{accent}✦ Status"
+      - "  {letters_black}· {info}{icon:tag} {letters}ID{letters_black}: {info}%reward_id%"
+      - "  {letters_black}· {info}{icon:star} {letters}Rarity{letters_black}: %reward_tier%"
   item:
     group: buttons
     condition: '%admin_has_token% == true'
     material: CHEST
-    name: '{primary}&lGIVE ITEM'
+    name: "{letters}Cosmetic {letters_black}▸ <gradient:{success}:{success_light}>Give item</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}The item that applies this'
-      - ' {letters_black}▎ {letters}cosmetic, into {highlight}your {letters}inventory.'
-      - ''
-      - '{warning}➥ Click to receive one'
-      - ''
+      - "{letters_black}Cosmetic action"
+      - ""
+      - "{success}✎ Information"
+      - " {letters}The item that applies this"
+      - " {letters}cosmetic, into {highlight}your {letters}inventory."
+      - ""
+      - "{success}» Click to receive one"
     actions:
       - 'exylialib:cosmetics give_item'
   keys:
     group: buttons
     material: TRIPWIRE_HOOK
-    name: '{primary}&lGIVE CRATE KEYS'
+    name: "{letters}Cosmetic {letters_black}▸ <gradient:{success}:{success_light}>Give crate keys</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Key items that open the crate,'
-      - ' {letters_black}▎ {letters}to hold, trade or drop.'
-      - ''
-      - '{warning}➥ Left-click {letters_black}» {letters}one key'
-      - '{warning}➥ Right-click {letters_black}» {letters}type an amount'
-      - ''
+      - "{letters_black}Cosmetic action"
+      - ""
+      - "{success}✎ Information"
+      - " {letters}Key items that open the crate,"
+      - " {letters}to hold, trade or drop."
+      - ""
+      - "{success}» Left-click {letters_black}· {letters}one key"
+      - "{success}» Right-click {letters_black}· {letters}type an amount"
     actions:
       - 'left,shift_left: exylialib:cosmetics give_keys 1'
       - 'right,shift_right: exylialib:cosmetics give_keys ask'
@@ -70,27 +70,23 @@ items:
     group: buttons
     condition: '%admin_has_preview% == true'
     material: ENDER_EYE
-    name: '{primary}&lPREVIEW'
+    name: "{letters}Cosmetic {letters_black}▸ <gradient:{info}:{info_light}>Preview</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Plays this cosmetic for {highlight}you'
-      - ' {letters_black}▎ {letters}on the preview stage.'
-      - ''
-      - '{warning}➥ Click to watch it'
-      - ''
+      - "{letters_black}Cosmetic action"
+      - ""
+      - "{info}✎ Information"
+      - " {letters}Plays this cosmetic for"
+      - " {highlight}you {letters}on the preview stage."
+      - ""
+      - "{info}» Click to watch it"
     actions:
       - 'exylialib:cosmetics preview'
   back:
     slot: 22
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lBACK'
+    name: "{letters}Back {letters_black}▸ <gradient:{error}:{error_light}>Catalogue</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Returns to the catalogue.'
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - "{error}» Click to go back"
     actions:
       - 'exylialib:cosmetics catalogue'

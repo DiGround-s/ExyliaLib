@@ -1,5 +1,6 @@
 package net.exylia.lib.region.internal;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.Editors;
@@ -28,7 +29,7 @@ final class MaterialDescriptor implements EditorDescriptor<Material> {
 
     @Override
     public @NotNull String label(@NotNull Material entry) {
-        return "{primary}&l" + entry.name().replace('_', ' ');
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Block"), entry.name().replace('_', ' '));
     }
 
     @Override
@@ -38,7 +39,7 @@ final class MaterialDescriptor implements EditorDescriptor<Material> {
 
     @Override
     public @NotNull List<String> lore(@NotNull Material entry) {
-        return List.of("", Phrases.tr("{warning}➥ Click to swap"), Phrases.tr("{error}➥ Right-click to remove"), "");
+        return List.of(Lore.Tone.PRIMARY.colour() + "» " + Phrases.tr("Click to swap"), "{error}» " + Phrases.tr("Right-click to remove"));
     }
 
     @Override

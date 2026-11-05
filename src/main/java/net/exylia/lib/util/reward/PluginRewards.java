@@ -281,7 +281,7 @@ public final class PluginRewards {
      * The same, with lines of the plugin's own under each row.
      *
      * <pre>{@code
-     * rewards.weightedEditor(crate.rewards(), reward -> List.of(" {letters_black}▎ {letters}Rarity "
+     * rewards.weightedEditor(crate.rewards(), reward -> List.of(" {letters}Rarity "
      *         + "{letters_black}» " + tiers.of(reward).display()))
      * }</pre>
      *

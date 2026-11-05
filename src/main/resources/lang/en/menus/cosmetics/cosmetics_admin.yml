@@ -26,99 +26,99 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&l%admin_title%'
+    name: "<gradient:{primary}:{secondary_light}>%admin_title%</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}The catalogue, the players, the'
-      - ' {letters_black}▎ {letters}showcases and the crate blocks.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Cosmetics {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}In use {letters_black}» {info}%admin_in_use% {letters}of {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
+      - "{letters_black}Cosmetics admin"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}The catalogue, the players, the"
+      - " {letters}showcases and the crate blocks."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosmetics{letters_black}: {info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}In use{letters_black}: {info}%admin_in_use% {letters}of {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
   catalogue:
     group: cards
     material: BOOKSHELF
-    name: '{primary}&lCATALOGUE'
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Catalogue</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Every cosmetic: hand out its item,'
-      - ' {letters_black}▎ {letters}crate keys, or watch a {highlight}preview{letters}.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Cosmetics {letters_black}» {info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Click to browse'
-      - ''
+      - "{letters_black}Setup section"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Every cosmetic: hand out its item,"
+      - " {letters}crate keys, or watch a {highlight}preview{letters}."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosmetics{letters_black}: {info}%admin_catalogue%"
+      - ""
+      - "{primary}» Click to browse"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
     group: cards
     material: PLAYER_HEAD
-    name: '{primary}&lPLAYERS'
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Players</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Keys, unlocks and what each'
-      - ' {letters_black}▎ {letters}player online has {highlight}equipped{letters}.'
-      - '%admin_players_status%'
-      - '%admin_players_status%{secondary}Status:'
-      - ' {letters_black}▎ {letters}Wearing one now {letters_black}» {info}%admin_wearing% {letters}of {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
-      - '{warning}➥ Click to browse'
-      - ''
+      - "{letters_black}Setup section"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys, unlocks and what each"
+      - " {letters}player online has {highlight}equipped{letters}."
+      - "%admin_players_status%"
+      - "%admin_players_status%{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:eye} {letters}Wearing one now{letters_black}: {info}%admin_wearing% {letters}of {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+      - ""
+      - "{primary}» Click to browse"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
     group: cards
     condition: '%admin_has_showcases% == true'
     material: ARMOR_STAND
-    name: '{primary}&lSHOWCASES'
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Showcases</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Places that show the cosmetics'
-      - ' {letters_black}▎ {letters}off on a {highlight}loop {letters}to whoever is near.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Placed {letters_black}» {info}%admin_showcases%'
-      - ''
-      - '{warning}➥ Click to manage'
-      - ''
+      - "{letters_black}Setup section"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Places that show the cosmetics"
+      - " {letters}off on a {highlight}loop {letters}to whoever is near."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Placed{letters_black}: {info}%admin_showcases%"
+      - ""
+      - "{primary}» Click to manage"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
     group: cards
     material: ENDER_CHEST
-    name: '{primary}&lCRATE BLOCKS'
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Crate blocks</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Blocks that open the crate'
-      - ' {letters_black}▎ {letters}when a player {highlight}clicks {letters}them.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Bound {letters_black}» {info}%admin_blocks%'
-      - ''
-      - '{warning}➥ Click to manage'
-      - ''
+      - "{letters_black}Setup section"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Blocks that open the crate"
+      - " {letters}when a player {highlight}clicks {letters}them."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Bound{letters_black}: {info}%admin_blocks%"
+      - ""
+      - "{primary}» Click to manage"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
     slot: 36
     material: COMPARATOR
-    name: '{primary}&lSETTINGS'
+    name: "{letters}Plugin {letters_black}▸ <gradient:{primary}:{secondary_light}>Settings</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Change this plugin''s settings'
-      - ' {letters_black}▎ {letters}without editing its {highlight}files{letters}.'
-      - ''
-      - '{warning}➥ Click {letters_black}» {letters}Open settings'
-      - ''
+      - "{letters_black}Configuration"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Change this plugin's settings"
+      - " {letters}without editing its {highlight}files{letters}."
+      - ""
+      - "{primary}» Click {letters_black}· {letters}Open settings"
     actions:
       - 'exylialib:cosmetics settings'

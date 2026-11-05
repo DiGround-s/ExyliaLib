@@ -16,27 +16,24 @@ pagination:
   slots: '9-44'
   group_template:
     material: NAME_TAG
-    name: '{primary}&l%group_label%'
+    name: "{letters}Grupo {letters_black}▸ <gradient:{info}:{info_light}>%group_label%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Stacks {letters_black}» {info}%group_count%'
-      - ''
-      - '{warning}➥ Pasa el cursor por los ítems de al lado'
-      - ''
+      - "{letters_black}Grupo de ítems"
+      - ""
+      - "{info}✦ Estado"
+      - "  {letters_black}· {info}{icon:iron} {letters}Stacks{letters_black}: {info}%group_count%"
+      - ""
+      - "{info}» Pasa el cursor por los ítems de al lado"
   nothing_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Nada en este grupo'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}No se movieron ítems en este lado.'
-      - ''
+      - "{letters_black}No se movieron ítems en este lado."
   empty_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Sin ítems guardados'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Todo lo registrado está arriba.'
-      - ''
+      - "{letters_black}Todo lo registrado está arriba."
   spacer_template:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
@@ -45,51 +42,43 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← PÁGINA ANTERIOR'
+      name: "{letters}Página {letters_black}▸ <gradient:{error}:{error_light}>← Anterior</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Página {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Página{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lPÁGINA SIGUIENTE →'
+      name: "{letters}Página {letters_black}▸ <gradient:{success}:{success_light}>Siguiente →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Página {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Página{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   entry:
     slot: 4
     material: '%log_icon%'
-    name: '{primary}&l%log_action%'
+    name: "{letters}Registro {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Plugin {letters_black}» {info}%log_plugin%'
-      - ' {letters_black}▎ {letters}Por {letters_black}» {highlight}%log_actor%'
-      - ' {letters_black}▎ {letters}Objetivo {letters_black}» {highlight}%log_target%'
-      - ''
-      - '{secondary}Detalle:'
-      - '%log_detail%'
-      - ''
-      - '{secondary}Ubicación:'
-      - ' {letters_black}▎ {letters}Servidor {letters_black}» {info}%log_server%'
-      - ' {letters_black}▎ {letters}Ubicación {letters_black}» {info}%log_location%'
-      - ' {letters_black}▎ {letters}Cuándo {letters_black}» {info}%log_when% ⌚'
-      - ' {letters_black}▎ {letters_black}%log_date%'
-      - ''
+      - "{letters_black}Registro del staff"
+      - ""
+      - "{info}✦ Estado"
+      - "  {letters_black}· {info}{icon:book} {letters}Plugin{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Por{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Objetivo{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Detalle"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Ubicación"
+      - "  {letters_black}· {info}{icon:ping} {letters}Servidor{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Ubicación{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {letters}Cuándo{letters_black}: {info}%log_when% ⌚"
+      - "    {letters_black}%log_date%"
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lVOLVER'
+    name: "{letters}Volver {letters_black}▸ <gradient:{error}:{error_light}>Registros</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Vuelve a los registros, mismos filtros.'
-      - ''
-      - '{warning}➥ Clic para volver'
-      - ''
+      - "{error}» Clic para volver"
     actions:
       - 'exylialib:logs_back'

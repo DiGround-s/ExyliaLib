@@ -6,6 +6,7 @@ import net.exylia.lib.economy.Economy;
 import net.exylia.lib.config.Time;
 import net.exylia.lib.effect.Ticks;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Values;
 import net.exylia.lib.util.TimeFormats;
@@ -653,7 +654,7 @@ final class ConfigFields {
         return null;
     }
 
-    /** What the clicks on a button do, one {@code ➥} line each. */
+    /** What the clicks on a button do, one {@code »} line each. */
     static String hint(Field field) {
         if (field.kind() == Kind.INTEGER || field.kind() == Kind.DECIMAL) {
             BigDecimal step = BigDecimal.valueOf(step(field));
@@ -665,25 +666,40 @@ final class ConfigFields {
     /** What the clicks on a button of this kind do. */
     static String hint(Kind kind) {
         List<String> lines = switch (kind) {
-            case SECTION, ENTRIES -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}open"));
-            case TOGGLE -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}switch"));
-            case CHOICE -> List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next"),
-                    Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"));
+            case SECTION, ENTRIES -> List.of(act(Phrases.tr("Click {letters_black}· {letters}open")));
+            case TOGGLE -> List.of(act(Phrases.tr("Click {letters_black}· {letters}switch")));
+            case CHOICE -> List.of(act(Phrases.tr("Left-click {letters_black}· {letters}next")),
+                    act(Phrases.tr("Right-click {letters_black}· {letters}previous")));
             case INTEGER, DECIMAL -> numbers(BigDecimal.ONE, BigDecimal.TEN);
-            case TIME, TEXT, MATERIAL, LINES -> List.of(Phrases.tr("{warning}➥ Click {letters_black}» {letters}change"));
-            case SOUND -> List.of(Phrases.tr("{warning}➥ Left-click {letters_black}» {letters}next"),
-                    Phrases.tr("{warning}➥ Right-click {letters_black}» {letters}previous"),
-                    Phrases.tr("{warning}➥ Press Q {letters_black}» {letters}type a sound"));
+            case TIME, TEXT, MATERIAL, LINES -> List.of(act(Phrases.tr("Click {letters_black}· {letters}change")));
+            case SOUND -> List.of(act(Phrases.tr("Left-click {letters_black}· {letters}next")),
+                    act(Phrases.tr("Right-click {letters_black}· {letters}previous")),
+                    act(Phrases.tr("Press Q {letters_black}· {letters}type a sound")));
             case LOCKED -> List.of(Phrases.tr("{letters_black}Edit it with {letters}/exylialib editor{letters_black}."));
         };
         return Lines.join(lines);
     }
 
+    /** An action line in the settings screens' tone. */
+    static String act(String action) {
+        return Lore.Tone.PRIMARY.colour() + "» " + action;
+    }
+
+    /** The label opening an Information block, after the blank line that separates it. */
+    static String information() {
+        return Lore.Tone.PRIMARY.colour() + "✎ " + Phrases.tr("Information");
+    }
+
+    /** The label opening a Status block. */
+    static String status() {
+        return Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Status");
+    }
+
     private static List<String> numbers(BigDecimal step, BigDecimal big) {
         String small = step.stripTrailingZeros().toPlainString();
-        return List.of(Phrases.tr("{warning}➥ Left / Right-click {letters_black}» {letters}+{0} / -{0}", small),
-                Phrases.tr("{warning}➥ Shift-click {letters_black}» {letters}±{0}", big.stripTrailingZeros().toPlainString()),
-                Phrases.tr("{warning}➥ Press Q {letters_black}» {letters}type a value"));
+        return List.of(act(Phrases.tr("Left / Right-click {letters_black}· {letters}+{0} / -{0}", small)),
+                act(Phrases.tr("Shift-click {letters_black}· {letters}±{0}", big.stripTrailingZeros().toPlainString())),
+                act(Phrases.tr("Press Q {letters_black}· {letters}type a value")));
     }
 
     /**
@@ -700,13 +716,13 @@ final class ConfigFields {
     static String block(List<String> lines) {
         List<String> shown = new ArrayList<>();
         for (String line : lines) {
-            if (!line.isBlank()) shown.add(" {letters_black}▎ {letters}" + line);
+            if (!line.isBlank()) shown.add(" {letters}" + line);
         }
         if (shown.isEmpty()) return Lines.OMIT;
         List<String> out = new ArrayList<>();
-        out.add(Phrases.tr("{secondary}Information:"));
-        out.addAll(shown);
         out.add("");
+        out.add(information());
+        out.addAll(shown);
         return Lines.join(out);
     }
 
@@ -721,15 +737,15 @@ final class ConfigFields {
         java.util.regex.Matcher end = java.util.regex.Pattern.compile("[.!?](\\s|$)").matcher(text);
         if (end.find()) text = text.substring(0, end.start() + 1);
         List<String> lines = new ArrayList<>();
-        lines.add(Phrases.tr("{secondary}Information:"));
-        for (String line : Lines.split(Lines.wrap(text, 34))) {
-            lines.add(" {letters_black}▎ {letters}" + Values.inert(line));
-        }
         lines.add("");
+        lines.add(information());
+        for (String line : Lines.split(Lines.wrap(text, 34))) {
+            lines.add(" {letters}" + Values.inert(line));
+        }
         return Lines.join(lines);
     }
 
-    /** The comment lines as an Information block ending in a blank line; nothing when undocumented. */
+    /** The comment lines as an Information block after a blank line; nothing when undocumented. */
     static String about(List<String> comments) {
         List<String> prose = new ArrayList<>();
         for (String comment : comments) {
@@ -737,11 +753,11 @@ final class ConfigFields {
         }
         if (prose.isEmpty()) return Lines.OMIT;
         List<String> lines = new ArrayList<>();
-        lines.add(Phrases.tr("{secondary}Information:"));
-        for (String line : Lines.split(Lines.wrap(String.join(" ", prose), 38))) {
-            lines.add(" {letters_black}▎ {letters}" + Values.inert(line));
-        }
         lines.add("");
+        lines.add(information());
+        for (String line : Lines.split(Lines.wrap(String.join(" ", prose), 34))) {
+            lines.add(" {letters}" + Values.inert(line));
+        }
         return Lines.join(lines);
     }
 

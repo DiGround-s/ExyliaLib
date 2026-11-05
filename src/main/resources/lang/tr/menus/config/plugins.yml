@@ -19,20 +19,18 @@ filler:
     hide_tooltip: false
     name: '{muted}Başka eklenti yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Ayarları olan Exylia eklentileri burada görünür.'
-      - ''
+      - "{letters_black}Ayarları olan Exylia eklentileri burada görünür."
 pagination:
   slots: '0-35'
   item_template:
     material: KNOWLEDGE_BOOK
-    name: '{primary}&l%cfg_plugin_name%'
+    name: "{letters}Eklenti {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_plugin_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_plugin_about%'
-      - '%cfg_plugin_status%'
-      - '{warning}➥ Ayarlarını açmak için tıkla'
-      - ''
+      - "{letters_black}Eklenti ayarları"
+      - "%cfg_plugin_about%"
+      - "%cfg_plugin_status%"
+      - ""
+      - "{primary}» Ayarlarını açmak için tıkla"
     actions:
       - 'exylialib:config_plugin %cfg_plugin_name%'
   navigation:
@@ -40,30 +38,26 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 # A command opens this screen, so it has no BACK: ESC closes it.
 items:
   info:
     slot: 49
     material: BOOK
-    name: '{primary}&lAYARLAR'
+    name: "<gradient:{primary}:{secondary_light}>Ayarlar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Tüm Exylia eklentileri, buradan.'
-      - ' {letters_black}▎ {letters}Dosyalar esas kalır:'
-      - ' {letters_black}▎ {letters}birini düzenle, diğeri izler.'
-      - ''
+      - "{letters_black}Yapılandırma"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Tüm Exylia eklentileri,"
+      - " {letters}buradan. Dosyalar esas kalır:"
+      - " {letters}birini düzenle, diğeri izler."

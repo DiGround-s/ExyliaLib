@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor;
 
 import net.exylia.lib.item.Source;
 import net.exylia.lib.input.internal.InsertWindow;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -49,8 +50,8 @@ final class ItemListEditor implements EditorDescriptor<ItemStack> {
 
     @Override
     public @NotNull List<String> lore(@NotNull ItemStack entry) {
-        return List.of(Phrases.tr("{secondary}Stack:"),
-                Phrases.tr(" {letters_black}▎ {letters}Amount {letters_black}» {info}{0}", entry.getAmount()));
+        return List.of(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Stack"),
+                Phrases.tr("  {letters_black}· {letters}Amount{letters_black}: {info}{0}", entry.getAmount()));
     }
 
     @Override

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.command;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.Inputs;
@@ -38,7 +39,7 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
 
     @Override
     public @NotNull String label(@NotNull NamedCommand entry) {
-        return "{primary}&l" + entry.displayName().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Command"), entry.displayName());
     }
 
     @Override
@@ -49,10 +50,10 @@ final class NamedCommandDescriptor implements EditorDescriptor<NamedCommand> {
     @Override
     public @NotNull List<String> lore(@NotNull NamedCommand entry) {
         if (!entry.isRunnable()) {
-            return List.of(Phrases.tr("{secondary}Runs:"), Phrases.tr(" {letters_black}▎ {muted}nothing yet"));
+            return List.of(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Runs"), Phrases.tr(" {muted}nothing yet"));
         }
-        return List.of(Phrases.tr("{secondary}Runs:"),
-                " {letters_black}▎ {letters}/{info}" + entry.command());
+        return List.of(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Runs"),
+                " {letters}/{info}" + entry.command());
     }
 
     @Override

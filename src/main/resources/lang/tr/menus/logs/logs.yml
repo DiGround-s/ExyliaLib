@@ -24,32 +24,30 @@ filler:
     hide_tooltip: false
     name: '{muted}Başka kayıt yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Eklentiler yetkililerin yaptıklarını buraya kaydeder.'
-      - ''
+      - "{letters_black}Eklentiler yetkililerin yaptıklarını buraya kaydeder."
 pagination:
   slots: '0-35'
   item_template:
     material: '%log_icon%'
-    name: '{primary}&l%log_action%'
+    name: "{letters}Kayıt {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Eklenti {letters_black}» {info}%log_plugin%'
-      - ' {letters_black}▎ {letters}Yapan {letters_black}» {highlight}%log_actor%'
-      - ' {letters_black}▎ {letters}Hedef {letters_black}» {highlight}%log_target%'
-      - ''
-      - '{secondary}Ayrıntı:'
-      - '%log_detail%'
-      - ''
-      - '{secondary}Konum:'
-      - ' {letters_black}▎ {letters}Sunucu {letters_black}» {info}%log_server%'
-      - ' {letters_black}▎ {letters}Konum {letters_black}» {info}%log_location%'
-      - ' {letters_black}▎ {letters}Zaman {letters_black}» {info}%log_when% ⌚'
-      - ' {letters_black}▎ {letters_black}%log_date%'
-      - ''
-      - '%log_view%'
-      - ''
+      - "{letters_black}Yetkili kaydı"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {info}{icon:book} {letters}Eklenti{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Yapan{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Hedef{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Ayrıntı"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Konum"
+      - "  {letters_black}· {info}{icon:ping} {letters}Sunucu{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Konum{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {letters}Zaman{letters_black}: {info}%log_when% ⌚"
+      - "    {letters_black}%log_date%"
+      - ""
+      - "%log_view%"
     actions:
       - 'exylialib:logs_entry %log_id%'
   navigation:
@@ -57,59 +55,55 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 # A command opens this screen, so it has no BACK: ESC closes it.
 items:
   plugin:
     slot: 45
     material: COMPARATOR
-    name: '{primary}&lEKLENTİYE GÖRE FİLTRELE'
+    name: "{letters}Filtre {letters_black}▸ <gradient:{info}:{info_light}>Eklenti</gradient>"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Gösterilen {letters_black}» {highlight}%logs_plugin%'
-      - ''
-      - '{warning}➥ Sol tık {letters_black}» {letters}sonraki eklenti'
-      - '{warning}➥ Sağ tık {letters_black}» {letters}tüm eklentiler'
-      - ''
+      - "{letters_black}Kayıt filtresi"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {highlight}{icon:search} {letters}Gösterilen{letters_black}: {highlight}%logs_plugin%"
+      - ""
+      - "{info}» Sol tık {letters_black}· {letters}sonraki eklenti"
+      - "{info}» Sağ tık {letters_black}· {letters}tüm eklentiler"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
   action:
     slot: 46
     material: HOPPER
-    name: '{primary}&lİŞLEME GÖRE FİLTRELE'
+    name: "{letters}Filtre {letters_black}▸ <gradient:{info}:{info_light}>İşlem</gradient>"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Gösterilen {letters_black}» {highlight}%logs_action%'
-      - ''
-      - '{warning}➥ Sol tık {letters_black}» {letters}sonraki işlem'
-      - '{warning}➥ Sağ tık {letters_black}» {letters}tüm işlemler'
-      - ''
+      - "{letters_black}Kayıt filtresi"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {highlight}{icon:search} {letters}Gösterilen{letters_black}: {highlight}%logs_action%"
+      - ""
+      - "{info}» Sol tık {letters_black}· {letters}sonraki işlem"
+      - "{info}» Sağ tık {letters_black}· {letters}tüm işlemler"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'
   info:
     slot: 49
     material: BOOK
-    name: '{primary}&lKAYITLAR'
+    name: "<gradient:{info}:{info_light}>Kayıtlar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Oyuncu {letters_black}» {highlight}%logs_subject%'
-      - ' {letters_black}▎ {letters}Kayıtlar {letters_black}» {info}%logs_count%'
-      - ''
+      - "{letters_black}Yetkili kayıtları"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Oyuncu{letters_black}: {highlight}%logs_subject%"
+      - "  {letters_black}· {info}{icon:book} {letters}Kayıtlar{letters_black}: {info}%logs_count%"

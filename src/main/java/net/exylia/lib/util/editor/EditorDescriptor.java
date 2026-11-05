@@ -20,7 +20,7 @@ import java.util.concurrent.CompletionStage;
  *
  *     public String label(Warp warp)      { return warp.name(); }
  *     public String icon(Warp warp)       { return "ENDER_PEARL"; }
- *     public List<String> lore(Warp warp) { return List.of(" {letters_black}▎ {info}" + warp.world()); }
+ *     public List<String> lore(Warp warp) { return List.of(" {info}" + warp.world()); }
  *     public Warp create()                { return new Warp("new-warp", "world"); }
  *     public Warp copy(Warp warp)         { return warp.withName(warp.name() + "-copy"); }
  *

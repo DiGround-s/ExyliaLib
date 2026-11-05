@@ -1,6 +1,7 @@
 package net.exylia.lib.util.sequence;
 
 import net.exylia.lib.input.FormKey;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.util.editor.EditorButton;
@@ -64,7 +65,7 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
 
     @Override
     public @NotNull String label(@NotNull EffectEntry entry) {
-        return "{primary}&l" + entry.displayName().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Effect"), entry.displayName());
     }
 
     /**
@@ -86,30 +87,30 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
     @Override
     public @NotNull List<String> lore(@NotNull EffectEntry entry) {
         List<String> lore = new ArrayList<>(10);
-        lore.add(Phrases.tr("{secondary}Plays:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Plays"));
         if (entry.lines().isEmpty()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {muted}nothing yet"));
+            lore.add(Phrases.tr(" {muted}nothing yet"));
         } else {
             for (int index = 0; index < Math.min(4, entry.lines().size()); index++) {
-                lore.add(" {letters_black}▎ {letters}" + entry.lines().get(index));
+                lore.add(" {letters}" + entry.lines().get(index));
             }
             if (entry.lines().size() > 4) {
-                lore.add(Phrases.tr(" {letters_black}▎ {muted}and {0} more", entry.lines().size() - 4));
+                lore.add(Phrases.tr(" {muted}and {0} more", entry.lines().size() - 4));
             }
         }
         lore.add("");
-        lore.add(Phrases.tr("{secondary}When:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Seen by {letters_black}» {info}{0}", audience(entry)));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("When"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {0}", chance(entry)));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Seen by{letters_black}: {info}{0}", audience(entry)));
         if (entry.delayTicks() > 0) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}After {letters_black}» {info}{0}s ⌚",
+            lore.add(Phrases.tr("  {letters_black}· {letters}After{letters_black}: {info}{0}s ⌚",
                     entry.delayTicks() / 20.0));
         }
         if (entry.condition() != null) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}If {letters_black}» {info}{0}", entry.condition()));
+            lore.add(Phrases.tr("  {letters_black}· {letters}If{letters_black}: {info}{0}", entry.condition()));
         }
         if (entry.permission() != null) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Needs {letters_black}» {info}{0}", entry.permission()));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Needs{letters_black}: {info}{0}", entry.permission()));
         }
         return lore;
     }
@@ -201,12 +202,12 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
     /** The one button on the lines screen: everything an effect is besides them. */
     private EditorButton<SequenceLine> settings(Player viewer, AtomicReference<EffectEntry> gating) {
         return EditorButton.<SequenceLine>of("COMPARATOR")
-                .name(Phrases.tr("{highlight}&lWHEN IT PLAYS"))
-                .lore(Phrases.tr("{secondary}Information:"),
-                        Phrases.tr(" {letters_black}▎ {letters}Its odds, who sees it, how long"),
-                        Phrases.tr(" {letters_black}▎ {letters}it waits, and what it needs."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to change, then save"))
+                .name(Lore.name(Lore.Tone.HIGHLIGHT, Phrases.tr("Effect"), Phrases.tr("When it plays")))
+                .lore(Lore.of(Lore.Tone.HIGHLIGHT).subtitle(Phrases.tr("Effect setting"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Its odds, who sees it, how long"))
+                        .line(Phrases.tr(" {letters}it waits, and what it needs."))
+                        .action(Phrases.tr("Click to change, then save")).lines())
                 .glowing()
                 .onClick(view -> view.ask(() -> form(viewer, gating.get())
                         .thenAccept(edited -> edited.ifPresent(gating::set))))

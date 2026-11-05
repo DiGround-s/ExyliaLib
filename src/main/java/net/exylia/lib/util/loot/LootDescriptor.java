@@ -1,5 +1,6 @@
 package net.exylia.lib.util.loot;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
@@ -75,7 +76,7 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
 
     @Override
     public @NotNull String label(@NotNull LootEntry entry) {
-        return "{primary}&l" + entry.displayName().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Loot"), entry.displayName());
     }
 
     @Override
@@ -99,30 +100,30 @@ public final class LootDescriptor implements EditorDescriptor<LootEntry> {
     public @NotNull List<String> lore(@NotNull LootEntry entry,
                                       @NotNull List<LootEntry> siblings) {
         List<String> lore = new ArrayList<>(8);
-        lore.add(Phrases.tr("{secondary}Gives:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Gives"));
         if (entry.isCommand()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Command {letters_black}» {warning}{0}",
+            lore.add(Phrases.tr("  {letters_black}· {letters}Command{letters_black}: {warning}{0}",
                     entry.displayName()));
         } else if (entry.isEconomy()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Money {letters_black}» {success}{0}", entry.minAmount())
+            lore.add(Phrases.tr("  {letters_black}· {letters}Money{letters_black}: {success}{0}", entry.minAmount())
                     + (entry.isRanged() ? " {muted}— {success}" + entry.maxAmount() : ""));
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Currency {letters_black}» {info}{0}",
+            lore.add(Phrases.tr("  {letters_black}· {letters}Currency{letters_black}: {info}{0}",
                     entry.currency() == null ? Phrases.tr("default") : entry.currency()));
         } else {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Amount {letters_black}» {info}{0}", entry.minAmount())
+            lore.add(Phrases.tr("  {letters_black}· {letters}Amount{letters_black}: {info}{0}", entry.minAmount())
                     + (entry.isRanged() ? " {muted}— {info}" + entry.maxAmount() : ""));
         }
         lore.add("");
-        lore.add(Phrases.tr("{secondary}Odds:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}{0}",
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Odds"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Weight 🎲{letters_black}: {highlight}{0}",
                 number(entry.weight())));
         String share = share(entry.weight(), siblings);
         if (share != null) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops",
+            lore.add(Phrases.tr("  {letters_black}· {letters}Real{letters_black}: {success}{0}% {muted}of all drops",
                     share));
         }
         if (entry.tier() != null && !entry.tier().isBlank()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Tier {letters_black}» {info}{0}", entry.tier()));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Tier{letters_black}: {info}{0}", entry.tier()));
         }
         return lore;
     }

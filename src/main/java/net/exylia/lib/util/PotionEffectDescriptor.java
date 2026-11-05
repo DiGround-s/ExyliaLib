@@ -3,6 +3,7 @@ package net.exylia.lib.util;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.effect.Ticks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.Effects.ParsedEffect;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -88,14 +89,14 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
 
     @Override
     public @NotNull List<String> lore(@NotNull ParsedEffect entry) {
-        return List.of(Phrases.tr("{secondary}Effect:"),
-                Phrases.tr(" {letters_black}▎ {letters}Level {letters_black}» {info}{0}", entry.amplifier() + 1),
-                Phrases.tr(" {letters_black}▎ {letters}Lasts {letters_black}» {info}{0} ⌚", duration(entry)),
+        return List.of(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Effect"),
+                Phrases.tr("  {letters_black}· {letters}Level{letters_black}: {info}{0}", entry.amplifier() + 1),
+                Phrases.tr("  {letters_black}· {letters}Lasts{letters_black}: {info}{0} ⌚", duration(entry)),
                 "",
-                Phrases.tr("{secondary}On screen:"),
-                Phrases.tr(" {letters_black}▎ {letters}Particles {letters_black}» {0}", shown(entry.particles()))
+                Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("On screen"),
+                Phrases.tr("  {letters_black}· {letters}Particles{letters_black}: {0}", shown(entry.particles()))
                         + (entry.ambient() ? Phrases.tr(" {letters_black}(faint)") : ""),
-                Phrases.tr(" {letters_black}▎ {letters}Icon {letters_black}» {0}", shown(entry.icon())));
+                Phrases.tr("  {letters_black}· {letters}Icon{letters_black}: {0}", shown(entry.icon())));
     }
 
     @Override

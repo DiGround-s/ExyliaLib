@@ -1,6 +1,7 @@
 package net.exylia.lib.input.internal;
 
 import net.exylia.lib.input.SearchInput;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
@@ -304,25 +305,27 @@ final class SearchView<T> implements InventoryHolder {
         }
 
         if (hasPrevious()) {
-            inventory.setItem(PREVIOUS_SLOT, button(Material.ARROW, Phrases.tr("{primary}&lPREVIOUS"),
-                    Phrases.tr("{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}", page, pages())));
+            inventory.setItem(PREVIOUS_SLOT, button(Material.ARROW,
+                    Lore.name(Lore.Tone.ERROR, Phrases.tr("Page"), "← " + Phrases.tr("Previous")),
+                    Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}", page, pages())));
         }
-        inventory.setItem(SEARCH_SLOT, button(Material.NAME_TAG, Phrases.tr("{primary}&lSEARCH"),
-                Phrases.tr("{letters_black}▎ {letters}Type to filter these results."),
-                "",
-                Phrases.tr("{warning}➥ Click to open the text box")));
+        inventory.setItem(SEARCH_SLOT, button(Material.NAME_TAG, Lore.name(Lore.Tone.INFO, Phrases.tr("Search"), Phrases.tr("Filter")),
+                Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("Search action"))
+                        .section(Phrases.tr("Information")).line(Phrases.tr(" {letters}Type to filter these results."))
+                        .action(Phrases.tr("Click to open the text box")).lines().toArray(String[]::new)));
         if (!query.isEmpty()) {
-            inventory.setItem(CLEAR_SLOT, button(Material.STRUCTURE_VOID, Phrases.tr("{secondary}&lCLEAR"),
-                    Phrases.tr("{letters_black}▎ {letters}Show every option again."),
-                    "",
-                    Phrases.tr("{warning}➥ Click to clear the search")));
+            inventory.setItem(CLEAR_SLOT, button(Material.STRUCTURE_VOID, Lore.name(Lore.Tone.WARNING, Phrases.tr("Search"), Phrases.tr("Clear")),
+                    Lore.of(Lore.Tone.WARNING).subtitle(Phrases.tr("Search action"))
+                            .section(Phrases.tr("Information")).line(Phrases.tr(" {letters}Show every option again."))
+                            .action(Phrases.tr("Click to clear the search")).lines().toArray(String[]::new)));
         }
         inventory.setItem(INFO_SLOT, info());
-        inventory.setItem(CANCEL_SLOT, button(Material.BARRIER, Phrases.tr("{error}&lCANCEL"),
-                Phrases.tr("{letters_black}▎ {letters}Close without choosing.")));
+        inventory.setItem(CANCEL_SLOT, button(Material.BARRIER, Lore.name(Lore.Tone.ERROR, Phrases.tr("Search"), Phrases.tr("Cancel")),
+                "{error}» " + Phrases.tr("Close without choosing.")));
         if (hasNext()) {
-            inventory.setItem(NEXT_SLOT, button(Material.ARROW, Phrases.tr("{primary}&lNEXT"),
-                    Phrases.tr("{letters_black}▎ {letters}Page {info}{0}{letters_black}/{info}{1}", page + 2, pages())));
+            inventory.setItem(NEXT_SLOT, button(Material.ARROW,
+                    Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Page"), Phrases.tr("Next") + " →"),
+                    Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}", page + 2, pages())));
         }
     }
 
@@ -422,31 +425,33 @@ final class SearchView<T> implements InventoryHolder {
             base = new ItemStack(material);
         }
         if (value.equals(request.defaultValue())) {
-            return written(base, Text.of("{success}✔ {primary}&l%label%").with("%label%", label).build(),
-                    Phrases.tr("{letters_black}▎ {success}The current value."));
+            return written(base, Text.of("{letters}" + Phrases.tr("Option") + " {letters_black}▸ "
+                            + Lore.Tone.INFO.gradient("%label%") + " {success}✔").with("%label%", label).build(),
+                    "{success}» " + Phrases.tr("The current value."));
         }
-        return written(base, Text.of("{primary}&l%label%").with("%label%", label).build(),
-                Phrases.tr("{letters_black}▎ {letters}Click to choose this option."));
+        return written(base, Text.of("{letters}" + Phrases.tr("Option") + " {letters_black}▸ "
+                        + Lore.Tone.INFO.gradient("%label%")).with("%label%", label).build(),
+                Lore.Tone.INFO.colour() + "» " + Phrases.tr("Click to choose this option."));
     }
 
     private ItemStack info() {
         String state = query.isEmpty() ? Phrases.tr("{muted}none") : "{highlight}" + '"' + query + '"';
         if (loading) {
-            return button(Material.CLOCK, Phrases.tr("{primary}&lSEARCHING"),
-                    Phrases.tr("{letters_black}▎ {letters}Query {letters_black}» {0}", state),
-                    Phrases.tr("{letters_black}▎ {letters}Fetching results…"));
+            return button(Material.CLOCK, Lore.name(Lore.Tone.INFO, Phrases.tr("Search"), Phrases.tr("Searching")),
+                    Phrases.tr("  {letters_black}· {letters}Query{letters_black}: {0}", state),
+                    "    " + Phrases.tr("{letters_black}Fetching results…"));
         }
         if (unavailable) {
-            return button(Material.BARRIER, Phrases.tr("{error}&lUNAVAILABLE"),
-                    Phrases.tr("{letters_black}▎ {letters}The catalogue could not be reached."),
+            return button(Material.BARRIER, Lore.name(Lore.Tone.ERROR, Phrases.tr("Search"), Phrases.tr("Unavailable")),
+                    Phrases.tr(" {letters}The catalogue could not be reached."),
                     "",
-                    Phrases.tr("{warning}➥ Search again to retry"));
+                    "{error}» " + Phrases.tr("Search again to retry"));
         }
-        return button(Material.PAPER, Phrases.tr("{primary}&lSEARCH RESULTS"),
-                Phrases.tr("{letters_black}▎ {letters}Query {letters_black}» {0}", state),
-                Phrases.tr("{letters_black}▎ {letters}Matches {letters_black}» {info}{0}",
+        return button(Material.PAPER, Lore.name(Lore.Tone.INFO, Phrases.tr("Search"), Phrases.tr("Results")),
+                Phrases.tr("  {letters_black}· {letters}Query{letters_black}: {0}", state),
+                Phrases.tr("  {letters_black}· {letters}Matches{letters_black}: {info}{0}",
                         paged ? total : matches.size()),
-                Phrases.tr("{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}",
+                Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}",
                         page + 1, pages()));
     }
 

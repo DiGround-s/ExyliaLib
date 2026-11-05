@@ -5,6 +5,7 @@ import net.exylia.lib.effect.Effects;
 import net.exylia.lib.escrow.Escrow;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.trade.TradeOptions;
@@ -340,52 +341,48 @@ public final class TradeSession {
 
     private ItemStack confirmButton(int side, boolean empty) {
         if (state.confirmed(side)) {
-            return Icons.glowing(Material.LIME_DYE, Phrases.tr("{success}&lCONFIRMED"), List.of("",
-                    Phrases.tr("{secondary}Status:"),
-                    Phrases.tr(" {letters_black}▎ {letters}You {success}confirmed {letters}this trade."),
-                    "",
-                    Phrases.tr("{warning}➥ Click to take it back"),
-                    ""));
+            return Icons.glowing(Material.LIME_DYE, Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Trade"), Phrases.tr("Confirmed")),
+                    Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Your offer"))
+                            .section("✦", Phrases.tr("Status"))
+                            .line(Phrases.tr(" {letters}You {success}confirmed {letters}this trade."))
+                            .action(Phrases.tr("Click to take it back")).lines());
         }
-        List<String> lore = new ArrayList<>(List.of("",
-                Phrases.tr("{secondary}Status:"),
-                Phrases.tr(" {letters_black}▎ {letters}You have {error}not confirmed {letters}yet.")));
+        Lore lore = Lore.of(Lore.Tone.WARNING).subtitle(Phrases.tr("Your offer"))
+                .section("✦", Phrases.tr("Status"))
+                .line(Phrases.tr(" {letters}You have {error}not confirmed {letters}yet."));
         if (empty && !options.allowEmpty()) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Put at least one item in first."));
+            lore.line(Phrases.tr(" {letters}Put at least one item in first."));
         }
-        lore.addAll(List.of("", Phrases.tr("{warning}➥ Click to confirm your offer"), ""));
-        return Icons.button(Material.GRAY_DYE, Phrases.tr("{warning}&lCONFIRM"), lore);
+        lore.action(Phrases.tr("Click to confirm your offer"));
+        return Icons.button(Material.GRAY_DYE, Lore.name(Lore.Tone.WARNING, Phrases.tr("Trade"), Phrases.tr("Confirm")), lore.lines());
     }
 
     private ItemStack statusButton(int side) {
         boolean confirmed = state.confirmed(1 - side);
-        String name = "{primary}&l" + Text.escape(players[1 - side].getName());
-        List<String> lore = List.of("",
-                Phrases.tr("{secondary}Status:"),
-                confirmed ? Phrases.tr(" {letters_black}▎ {letters}Has {success}confirmed {letters}the trade.")
-                        : Phrases.tr(" {letters_black}▎ {letters}Has {error}not confirmed {letters}yet."),
-                "");
+        String name = Lore.name(Lore.Tone.INFO, Phrases.tr("Trade"), Text.escape(players[1 - side].getName()));
+        List<String> lore = Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("Their offer"))
+                .section("✦", Phrases.tr("Status"))
+                .line(confirmed ? Phrases.tr(" {letters}Has {success}confirmed {letters}the trade.")
+                        : Phrases.tr(" {letters}Has {error}not confirmed {letters}yet."))
+                .lines();
         return confirmed ? Icons.glowing(Material.LIME_DYE, name, lore) : Icons.button(Material.GRAY_DYE, name, lore);
     }
 
     private ItemStack infoItem() {
-        List<String> lore = new ArrayList<>(List.of("",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Your offer on the left, theirs on the right."),
-                Phrases.tr(" {letters_black}▎ {letters}Any change resets both confirmations.")));
+        Lore lore = Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Player trade"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Your offer on the left, theirs on the right."))
+                .line(Phrases.tr(" {letters}Any change resets both confirmations."));
         String extra = info();
         if (extra != null && !extra.isBlank()) {
-            lore.add(" {letters_black}▎ " + extra);
+            lore.line(" " + extra);
         }
         long remaining = state.remaining(System.currentTimeMillis());
-        lore.addAll(List.of("", Phrases.tr("{secondary}Status:"),
-                remaining > 0
-                        ? Phrases.tr(" {letters_black}▎ {letters}Completes in {letters_black}» {info}{0}s ⌚",
-                        (remaining + 999) / 1000)
-                        : Phrases.tr(" {letters_black}▎ {letters}Waiting for both confirmations."),
-                ""));
-        return Icons.button(remaining > 0 ? Material.CLOCK : Material.NETHER_STAR, Phrases.tr("{primary}&lTRADE"),
-                lore);
+        lore.section("✦", Phrases.tr("Status")).line(remaining > 0
+                ? Phrases.tr("  {letters_black}· {letters}Completes in{letters_black}: {info}{0}s ⌚", (remaining + 999) / 1000)
+                : Phrases.tr(" {letters}Waiting for both confirmations."));
+        return Icons.button(remaining > 0 ? Material.CLOCK : Material.NETHER_STAR, Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Trade")),
+                lore.lines());
     }
 
     private String info() {

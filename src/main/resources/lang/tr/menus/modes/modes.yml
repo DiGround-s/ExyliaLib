@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lMODLAR'
 size: 45
 type: PAGINATION
@@ -24,13 +26,13 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&lMODLAR'
+    name: "<gradient:{info}:{info_light}>Modlar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Sunucuda oynamanın tüm yolları,'
-      - ' {letters_black}▎ {letters}{highlight}türlerine{letters} göre gruplanmış.'
-      - ''
-      - '{secondary}İstatistikler:'
-      - ' {letters_black}▎ {letters}Oynayan {letters_black}» {info}%modes_playing%'
-      - ''
+      - "{letters_black}Sunucu modları"
+      - ""
+      - "{info}✎ Bilgi"
+      - " {letters}Sunucuda oynamanın tüm yolları,"
+      - " {highlight}türlerine{letters} göre gruplanmış."
+      - ""
+      - "{info}✦ İstatistikler"
+      - "  {letters_black}· {info}{icon:eye} {letters}Oynayan{letters_black}: {info}%modes_playing%"

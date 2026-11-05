@@ -261,7 +261,7 @@ public final class ConfigMenu {
         context.put(PLUGIN_KEY, plugin.getName());
         context.put("cfg_title", Phrases.tr("Settings").toUpperCase(java.util.Locale.ROOT));
         context.put("cfg_where", net.exylia.lib.text.Values.inert(plugin.getName()));
-        context.put("cfg_back_to", returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins"));
+        context.put("cfg_back_to", returning(viewer, plugin) ? Phrases.tr("Previous screen") : Phrases.tr("Plugins"));
         String description = plugin.getDescription().getDescription();
         header(context, "BEACON", plugin.getName(),
                 description == null || description.isBlank() ? net.exylia.lib.text.Lines.OMIT : ConfigFields.summary(List.of(description)),
@@ -287,18 +287,15 @@ public final class ConfigMenu {
     /** The header in slot 4: an item, a name, an Information block and a Status block. */
     private static void header(Map<String, Object> context, String icon, String name, String about, List<String> status) {
         List<String> lore = new ArrayList<>();
+        // Each block opens with the blank line that separates it from the one above.
         if (!net.exylia.lib.text.Lines.OMIT.equals(about)) lore.add(about);
         if (!status.isEmpty()) {
-            lore.add(Phrases.tr("{secondary}Status:"));
+            lore.add("");
+            lore.add(ConfigFields.status());
             lore.addAll(status);
-        } else if (!lore.isEmpty()) {
-            // The Information block ends in a blank line of its own.
-            String last = lore.remove(lore.size() - 1);
-            lore.add(last.endsWith(net.exylia.lib.text.Lines.NEWLINE)
-                    ? last.substring(0, last.length() - net.exylia.lib.text.Lines.NEWLINE.length()) : last);
         }
         context.put("cfg_head_icon", icon);
-        context.put("cfg_head_name", net.exylia.lib.text.Values.inert(name.toUpperCase(java.util.Locale.ROOT)));
+        context.put("cfg_head_name", net.exylia.lib.text.Values.inert(name));
         context.put("cfg_head_lore", lore.isEmpty() ? net.exylia.lib.text.Lines.OMIT : net.exylia.lib.text.Lines.join(lore));
     }
 
@@ -371,17 +368,17 @@ public final class ConfigMenu {
     private static String backTo(Player viewer, Plugin plugin, @Nullable ConfigPages.Page page, ConfigFile<?> file) {
         if (page != null) {
             ConfigPages.Page holder = page.token().startsWith("s:") ? ConfigPages.holder(file.schema(), page.token().substring(2)) : null;
-            if (holder != null) return Phrases.tr("the section above");
-            if (ConfigPages.cards(file.schema()).size() > 1) return Phrases.tr("the settings of {0}", fileName(file));
+            if (holder != null) return Phrases.tr("Section above");
+            if (ConfigPages.cards(file.schema()).size() > 1) return Phrases.tr("{0} settings", fileName(file));
         }
-        if (count(viewer, plugin) > 1) return Phrases.tr("the files of {0}", plugin.getName());
-        return returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins");
+        if (count(viewer, plugin) > 1) return Phrases.tr("{0} files", plugin.getName());
+        return returning(viewer, plugin) ? Phrases.tr("Previous screen") : Phrases.tr("Plugins");
     }
 
     private static String backTo(Player viewer, Plugin plugin, boolean top) {
-        if (!top) return Phrases.tr("the section above");
-        if (count(viewer, plugin) > 1) return Phrases.tr("the files of {0}", plugin.getName());
-        return returning(viewer, plugin) ? Phrases.tr("the previous screen") : Phrases.tr("the plugins");
+        if (!top) return Phrases.tr("Section above");
+        if (count(viewer, plugin) > 1) return Phrases.tr("{0} files", plugin.getName());
+        return returning(viewer, plugin) ? Phrases.tr("Previous screen") : Phrases.tr("Plugins");
     }
 
     private static int count(Player viewer, Plugin plugin) {
@@ -425,12 +422,11 @@ public final class ConfigMenu {
                     .template("content")
                     .with("cfg_card", subject.id())
                     .with("cfg_card_icon", "CHEST")
-                    .with("cfg_card_name", subject.title().toUpperCase(java.util.Locale.ROOT))
+                    .with("cfg_card_name", subject.title())
                     .withFormatted("cfg_card_about", ConfigFields.summary(read == null ? List.of() : comments(read.schema())))
                     .withFormatted("cfg_card_status", net.exylia.lib.text.Lines.join(List.of(
-                            Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
-                                    net.exylia.lib.text.Values.inert(subject.source().name() + ".yml")),
-                            Phrases.tr(" {letters_black}▎ {letters}Entries {letters_black}» {info}{0}",
+                            fileLine(subject.source().name() + ".yml"),
+                            Phrases.tr("  {letters_black}· {info}{icon:iron} {letters}Entries{letters_black}: {info}{0}",
                                     read == null ? 0 : read.values().size()))))
                     .build());
         }
@@ -445,25 +441,30 @@ public final class ConfigMenu {
         int count = 0;
         for (ConfigFile<?> file : files) count += file.issues().size();
         return count == 0 ? List.of()
-                : List.of(Phrases.tr(" {letters_black}▎ {letters}Problems {letters_black}» {error}{0}", count));
+                : List.of(Phrases.tr("  {letters_black}· {error}{icon:barrier} {letters}Problems{letters_black}: {error}{0}", count));
     }
 
     /** Where a file is edited by hand, and its problems when it has any. */
     private static List<String> fileStatus(ConfigFile<?> file) {
         List<String> lines = new ArrayList<>();
-        lines.add(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
-                net.exylia.lib.text.Values.inert(file.name() + ".yml")));
+        lines.add(fileLine(file.name() + ".yml"));
         lines.addAll(problems(List.of(file)));
         return lines;
+    }
+
+    /** Where a file is edited by hand, as a Status line. */
+    private static String fileLine(String name) {
+        return Phrases.tr("  {letters_black}· {info}{icon:paper} {letters}File{letters_black}: {info}{0}",
+                net.exylia.lib.text.Values.inert(name));
     }
 
     /** A Status block of these lines, or nothing at all. */
     private static String status(List<String> lines) {
         if (lines.isEmpty()) return net.exylia.lib.text.Lines.OMIT;
         List<String> block = new ArrayList<>();
-        block.add(Phrases.tr("{secondary}Status:"));
-        block.addAll(lines);
         block.add("");
+        block.add(ConfigFields.status());
+        block.addAll(lines);
         return net.exylia.lib.text.Lines.join(block);
     }
 
@@ -536,7 +537,7 @@ public final class ConfigMenu {
         List<String> lines = new ArrayList<>();
         if (page.entries() != null) {
             Object value = ConfigFields.read(schema, values, page.entries().key());
-            lines.add(Phrases.tr(" {letters_black}▎ {letters}Entries {letters_black}» {info}{0}", ConfigFields.size(value)));
+            lines.add(Phrases.tr("  {letters_black}· {info}{icon:iron} {letters}Entries{letters_black}: {info}{0}", ConfigFields.size(value)));
             return net.exylia.lib.text.Lines.join(lines);
         }
         int shown = 0;
@@ -544,15 +545,15 @@ public final class ConfigMenu {
             ConfigFields.Kind kind = field.kind();
             if (kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.LOCKED) continue;
             if (shown++ == 4) {
-                lines.add(Phrases.tr(" {letters_black}▎ {letters_black}… and {0} more", page.fields().size() - 4));
+                lines.add("  " + Phrases.tr("{letters_black}… and {0} more", page.fields().size() - 4));
                 break;
             }
             Object value = ConfigFields.read(schema, values, field.key());
-            lines.add(" {letters_black}▎ {letters}" + net.exylia.lib.text.Values.inert(ConfigFields.words(ConfigFields.label(field)))
-                    + " {letters_black}» " + ConfigFields.display(field, value));
+            lines.add("  {letters_black}· {letters}" + net.exylia.lib.text.Values.inert(ConfigFields.words(ConfigFields.label(field)))
+                    + "{letters_black}: " + ConfigFields.display(field, value));
         }
         if (lines.isEmpty()) {
-            lines.add(Phrases.tr(" {letters_black}▎ {letters}Settings {letters_black}» {info}{0}", page.fields().size()));
+            lines.add(Phrases.tr("  {letters_black}· {info}{icon:iron} {letters}Settings{letters_black}: {info}{0}", page.fields().size()));
         }
         return net.exylia.lib.text.Lines.join(lines);
     }
@@ -906,8 +907,7 @@ public final class ConfigMenu {
         int count = YamlFields.fields(YamlFields.type(read.schema(), path)).size();
         header(context, path.isEmpty() ? "CHEST" : "BOOKSHELF", name,
                 ConfigFields.summary(path.isEmpty() ? comments(read.schema()) : List.of()),
-                List.of(Phrases.tr(" {letters_black}▎ {letters}File {letters_black}» {info}{0}",
-                        net.exylia.lib.text.Values.inert(subject.source().name() + ".yml"))));
+                List.of(fileLine(subject.source().name() + ".yml")));
         show(viewer, FIELDS, context, yamlRows(subject, path), count, 1);
     }
 
@@ -996,10 +996,10 @@ public final class ConfigMenu {
     /** What a click on an entry does: open it, or change the one value it is. */
     private static String entryHint(ConfigFields.Kind kind) {
         return switch (kind) {
-            case TOGGLE -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}switch");
-            case CHOICE -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}next");
-            case INTEGER, DECIMAL, TEXT, LINES, TIME, MATERIAL -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}change");
-            default -> Phrases.tr("{warning}➥ Click {letters_black}» {letters}open");
+            case TOGGLE -> ConfigFields.act(Phrases.tr("Click {letters_black}· {letters}switch"));
+            case CHOICE -> ConfigFields.act(Phrases.tr("Click {letters_black}· {letters}next"));
+            case INTEGER, DECIMAL, TEXT, LINES, TIME, MATERIAL -> ConfigFields.act(Phrases.tr("Click {letters_black}· {letters}change"));
+            default -> ConfigFields.act(Phrases.tr("Click {letters_black}· {letters}open"));
         };
     }
 

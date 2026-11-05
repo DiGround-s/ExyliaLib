@@ -52,9 +52,9 @@ logs:
   everybody: Todos
   all: Tudo
   none: —
-  detail-line: ' {letters_black}▎ {letters}%line%'
-  view-items: '{warning}➥ Clique para ver os itens'
-  view-entry: '{warning}➥ Clique para abrir o registro'
+  detail-line: ' {letters}%line%'
+  view-items: '{info}» Clique para ver os itens'
+  view-entry: '{info}» Clique para abrir o registro'
 tables:
   seat-tool: '{primary}&lLUGAR'
   seat-tool-lore:

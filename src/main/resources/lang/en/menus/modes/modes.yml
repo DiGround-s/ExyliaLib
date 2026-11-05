@@ -2,6 +2,8 @@
 # Restyle them freely: the library only adds keys missing from this file.
 # The hub: up to seven category cards. pagination.slots is set by the
 # library, which centres the cards on the third row (slots 18-26).
+menu-version: 1
+
 title: '{primary}&lMODES'
 size: 45
 type: PAGINATION
@@ -28,13 +30,13 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&lMODES'
+    name: "<gradient:{info}:{info_light}>Modes</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Every way to play on this server,'
-      - ' {letters_black}▎ {letters}grouped by {highlight}kind{letters}.'
-      - ''
-      - '{secondary}Stats:'
-      - ' {letters_black}▎ {letters}Playing {letters_black}» {info}%modes_playing%'
-      - ''
+      - "{letters_black}Server modes"
+      - ""
+      - "{info}✎ Information"
+      - " {letters}Every way to play on this"
+      - " {letters}server, grouped by {highlight}kind{letters}."
+      - ""
+      - "{info}✦ Stats"
+      - "  {letters_black}· {info}{icon:eye} {letters}Playing{letters_black}: {info}%modes_playing%"

@@ -1,5 +1,6 @@
 package net.exylia.lib.util.editor;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 
@@ -114,12 +115,12 @@ public final class EditorButton<T> {
     public static <T> @NotNull EditorButton<T> preset(@NotNull Supplier<List<T>> preset) {
         Objects.requireNonNull(preset, "preset");
         return EditorButton.<T>of("CHEST_MINECART")
-                .name(Phrases.tr("{highlight}&lLOAD DEFAULTS"))
-                .lore(Phrases.tr("{secondary}Information:"),
-                        Phrases.tr(" {letters_black}▎ {letters}Replaces everything here with"),
-                        Phrases.tr(" {letters_black}▎ {letters}the recommended list."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to load, then save"))
+                .name(Lore.name(Lore.Tone.HIGHLIGHT, Phrases.tr("List"), Phrases.tr("Load defaults")))
+                .lore(Lore.of(Lore.Tone.HIGHLIGHT).subtitle(Phrases.tr("List action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Replaces everything here with"))
+                        .line(Phrases.tr(" {letters}the recommended list."))
+                        .action(Phrases.tr("Click to load, then save")).lines())
                 .glowing()
                 .onClick(view -> view.replaceAll(preset.get()))
                 .build();
@@ -134,7 +135,7 @@ public final class EditorButton<T> {
 
         private final String icon;
         private final List<String> lore = new ArrayList<>();
-        private String name = Phrases.tr("{primary}&lBUTTON");
+        private String name = Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Button"));
         private boolean glowing;
         private Consumer<EditorView<T>> onClick = view -> { };
 

@@ -99,22 +99,22 @@ class PolicyDraftTest {
     void rowText() {
         PolicyLooks.Look look = PolicyLooks.builtIn(PVP);
         PolicyDraft plugin = draft(PolicySet.empty());
-        assertEquals("{primary}&lPVP &8[{muted}DEFAULT&8]", PolicyLooks.name(PVP, look, plugin));
+        assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>PVP</gradient> &8[{muted}DEFAULT&8]", PolicyLooks.name(PVP, look, plugin));
         List<String> lore = PolicyLooks.lore(PVP, look, plugin);
-        assertTrue(lore.contains(" {letters_black}▎ {letters}Default {letters_black}» {muted}Set by the plugin"), lore.toString());
-        assertTrue(lore.contains("{warning}➥ Click to cycle"), lore.toString());
-        assertFalse(lore.contains("{warning}➥ Right-click for default"), "nothing to reset yet");
+        assertTrue(lore.contains("  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: {muted}Set by the plugin"), lore.toString());
+        assertTrue(lore.contains("{primary}» Click to cycle"), lore.toString());
+        assertFalse(lore.contains("{primary}» Right-click for default"), "nothing to reset yet");
 
         PolicyDraft denied = new PolicyDraft(PolicySet.of(PVP, true), PolicySet.of(PVP, false), Map.of());
-        assertEquals("{primary}&lPVP &8[{success}ALLOW&8]", PolicyLooks.name(PVP, look, denied));
+        assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>PVP</gradient> &8[{success}ALLOW&8]", PolicyLooks.name(PVP, look, denied));
         lore = PolicyLooks.lore(PVP, look, denied);
-        assertTrue(lore.contains(" {letters_black}▎ {letters}Default {letters_black}» {error}Deny"), lore.toString());
-        assertTrue(lore.contains("{warning}➥ Right-click for default"), lore.toString());
+        assertTrue(lore.contains("  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: {error}Deny"), lore.toString());
+        assertTrue(lore.contains("{primary}» Right-click for default"), lore.toString());
 
         PolicyDraft locked = new PolicyDraft(PolicySet.empty(), null, Map.of(PVP, "Driven by the game"));
         lore = PolicyLooks.lore(PVP, look, locked);
-        assertTrue(lore.contains(" {letters_black}▎ {muted}Driven by the game"), lore.toString());
-        assertTrue(lore.stream().noneMatch(line -> line.startsWith("{warning}➥")), "a locked row offers nothing");
+        assertTrue(lore.contains(" {muted}Driven by the game"), lore.toString());
+        assertTrue(lore.stream().noneMatch(line -> line.startsWith("{primary}»")), "a locked row offers nothing");
     }
 
     @Test
@@ -124,14 +124,14 @@ class PolicyDraftTest {
         PolicyDraft draft = draft(PolicySet.of(ALLOWED_BLOCKS, MaterialSet.of(Material.STONE, Material.DIRT,
                 Material.SAND, Material.GRAVEL, Material.OAK_LOG, Material.GLASS, Material.TNT)));
 
-        assertEquals("{primary}&lALLOWED BLOCKS &8[{info}7&8]", PolicyLooks.name(ALLOWED_BLOCKS, look, draft));
+        assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>Allowed blocks</gradient> &8[{info}7&8]", PolicyLooks.name(ALLOWED_BLOCKS, look, draft));
         List<String> lore = PolicyLooks.lore(ALLOWED_BLOCKS, look, draft);
-        assertTrue(lore.contains(" {letters_black}▎ {letters}Now {letters_black}» {info}7 materials"), lore.toString());
-        assertTrue(lore.contains(" {letters_black}▎ {muted}and 2 more"), lore.toString());
-        assertEquals(PolicyLooks.LISTED, lore.stream().filter(line -> line.startsWith(" {letters_black}▎ {info}")).count());
+        assertTrue(lore.contains("  {letters_black}· {info}{icon:redstone} {letters}Now{letters_black}: {info}7 materials"), lore.toString());
+        assertTrue(lore.contains(" {muted}and 2 more"), lore.toString());
+        assertEquals(PolicyLooks.LISTED, lore.stream().filter(line -> line.startsWith(" {info}")).count());
 
         PolicyLooks.Look seconds = PolicyLooks.builtIn(TEMPORARY_BLOCKS_SECONDS);
-        assertEquals("{primary}&lBLOCK LIFETIME &8[{info}30s ⌚&8]", PolicyLooks.name(TEMPORARY_BLOCKS_SECONDS,
+        assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>Block lifetime</gradient> &8[{info}30s ⌚&8]", PolicyLooks.name(TEMPORARY_BLOCKS_SECONDS,
                 seconds, draft(PolicySet.of(TEMPORARY_BLOCKS_SECONDS, 30))));
     }
 

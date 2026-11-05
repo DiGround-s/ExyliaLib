@@ -291,7 +291,7 @@ public final class MenuTransport implements Transport {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Text.of(label).build());
         if (description != null) {
-            meta.lore(List.of(Text.of(" {letters_black}▎ {letters}%text%").withFormatted("%text%", description)
+            meta.lore(List.of(Text.of(" {letters}%text%").withFormatted("%text%", description)
                     .build().decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false)));
         }
         item.setItemMeta(meta);

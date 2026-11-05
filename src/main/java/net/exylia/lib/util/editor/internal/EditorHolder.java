@@ -2,6 +2,7 @@ package net.exylia.lib.util.editor.internal;
 
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.Clipboard;
 import net.exylia.lib.util.editor.EditorButton;
@@ -42,6 +43,9 @@ import java.util.function.Supplier;
  * @param <T> what is being edited
  */
 public final class EditorHolder<T> implements InventoryHolder {
+
+    /** An action line in these cards' tone. */
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
 
     /** Rows on a page when the editor has no buttons of its own. */
     static final int FULL_PAGE = 45;
@@ -408,92 +412,107 @@ public final class EditorHolder<T> implements InventoryHolder {
             // One unreadable element must not blank the page: the row still
             // draws and stays deletable, which is the only thing an admin can
             // usefully do with it.
-            return Icons.row("BARRIER", Phrases.tr("{error}&lUNREADABLE ENTRY"),
-                    List.of(Phrases.tr("{letters_black}▎ {letters}This row could not be described."),
-                            "", Phrases.tr("{error}● {letters}Right Click {letters_black}» Delete")));
+            return Icons.row("BARRIER", Lore.name(Lore.Tone.ERROR, Phrases.tr("List"), Phrases.tr("Unreadable")),
+                    Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("List entry"))
+                            .section(Phrases.tr("Information")).line(Phrases.tr(" {letters}This row could not be described."))
+                            .click(Phrases.tr("Right-click"), Phrases.tr("delete")).lines());
         }
 
-        List<String> lore = new ArrayList<>(details.size() + 6);
-        lore.addAll(details);
+        Lore lore = Lore.of(Lore.Tone.PRIMARY);
+        details.forEach(lore::line);
         if (!descriptor.isComplete(entry)) {
-            if (!lore.isEmpty()) {
-                lore.add("");
+            if (!details.isEmpty()) {
+                lore.line("");
             }
-            lore.add(Phrases.tr("{warning}⚠ {letters}Not finished yet"));
+            lore.line(Phrases.tr("{warning}⚠ {letters}Not finished yet"));
         }
-        lore.add("");
-        lore.add(Phrases.tr("{success}● {letters}Left Click {letters_black}» Edit"));
-        lore.add(Phrases.tr("{error}● {letters}Right Click {letters_black}» Delete"));
+        if (!details.isEmpty() || !descriptor.isComplete(entry)) {
+            lore.line("");
+        }
+        lore.line(ACT + Phrases.tr("Left-click") + " {letters_black}· {letters}" + Phrases.tr("edit"));
+        lore.line("{error}» " + Phrases.tr("Right-click") + " {letters_black}· {letters}" + Phrases.tr("delete"));
         String stepped = descriptor.stepped();
         if (stepped == null) {
-            lore.add(Phrases.tr("{highlight}● {letters}Shift + Left {letters_black}» Copy"));
+            lore.line(ACT + Phrases.tr("Shift + left-click") + " {letters_black}· {letters}" + Phrases.tr("copy"));
         } else {
-            lore.add(Phrases.tr("{info}▲ {letters}Shift + Left {letters_black}» Raise {0}", stepped));
-            lore.add(Phrases.tr("{info}▼ {letters}Shift + Right {letters_black}» Lower {0}", stepped));
-            lore.add(Phrases.tr("{highlight}● {letters}Q {letters_black}» Copy"));
+            lore.line(ACT + Phrases.tr("Shift + left-click") + " {letters_black}· {letters}" + Phrases.tr("raise {0}", stepped));
+            lore.line(ACT + Phrases.tr("Shift + right-click") + " {letters_black}· {letters}" + Phrases.tr("lower {0}", stepped));
+            lore.line(ACT + Phrases.tr("Press Q") + " {letters_black}· {letters}" + Phrases.tr("copy"));
         }
-        return Icons.row(icon, label, lore);
+        return Icons.row(icon, label, lore.lines());
     }
 
     private void drawControls() {
-        inventory.setItem(SLOT_ADD, Icons.button(Material.EMERALD, Phrases.tr("{success}&lADD"),
-                List.of(Phrases.tr("{letters_black}▎ {letters}Create a new entry and"),
-                        Phrases.tr("{letters_black}▎ {letters}configure it right away."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to add"))));
+        inventory.setItem(SLOT_ADD, Icons.button(Material.EMERALD, Lore.name(Lore.Tone.SUCCESS, Phrases.tr("List"), Phrases.tr("Add")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("New entry"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Create a new entry and"))
+                        .line(Phrases.tr(" {letters}configure it right away."))
+                        .action(Phrases.tr("Click to add")).lines()));
 
         Player viewer = viewer();
         int pending = viewer == null ? 0 : Clipboard.size(viewer, descriptor.typeKey());
         if (pending > 0) {
             inventory.setItem(SLOT_PASTE, Icons.glowing(Material.WRITABLE_BOOK,
-                    Phrases.tr("{highlight}&lPASTE"),
-                    List.of(pending == 1
-                                    ? Phrases.tr("{letters_black}▎ {letters}Add {info}{0} {letters}copied entry to", pending)
-                                    : Phrases.tr("{letters_black}▎ {letters}Add {info}{0} {letters}copied entries to", pending),
-                            Phrases.tr("{letters_black}▎ {letters}this list."),
-                            "",
-                            Phrases.tr("{warning}➥ Click to paste"))));
+                    Lore.name(Lore.Tone.HIGHLIGHT, Phrases.tr("List"), Phrases.tr("Paste")),
+                    Lore.of(Lore.Tone.HIGHLIGHT).subtitle(Phrases.tr("Clipboard"))
+                            .section(Phrases.tr("Information"))
+                            .line(pending == 1
+                                    ? Phrases.tr(" {letters}Add {info}{0} {letters}copied entry to", pending)
+                                    : Phrases.tr(" {letters}Add {info}{0} {letters}copied entries to", pending))
+                            .line(Phrases.tr(" {letters}this list."))
+                            .action(Phrases.tr("Click to paste")).lines()));
         }
 
         if (!entries.isEmpty()) {
-            inventory.setItem(SLOT_COPY_ALL, Icons.button(Material.BOOKSHELF, Phrases.tr("{info}&lCOPY ALL"),
-                    List.of(Phrases.tr("{letters_black}▎ {letters}Copy every entry here {letters_black}({0})", entries.size()),
-                            Phrases.tr("{letters_black}▎ {letters}ready to paste somewhere else."),
-                            "",
-                            Phrases.tr("{warning}➥ Click to copy"))));
+            inventory.setItem(SLOT_COPY_ALL, Icons.button(Material.BOOKSHELF, Lore.name(Lore.Tone.INFO, Phrases.tr("List"), Phrases.tr("Copy all")),
+                    Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("Clipboard"))
+                            .section(Phrases.tr("Information"))
+                            .line(Phrases.tr(" {letters}Copy every entry here {letters_black}({0})", entries.size()))
+                            .line(Phrases.tr(" {letters}ready to paste somewhere else."))
+                            .action(Phrases.tr("Click to copy")).lines()));
         }
 
         if (descriptor.editsAll() && !entries.isEmpty()) {
-            inventory.setItem(SLOT_EDIT_ALL, Icons.button(Material.ANVIL, Phrases.tr("{info}&lEDIT ALL"),
-                    List.of(Phrases.tr("{letters_black}▎ {letters}Change a value on every"),
-                            Phrases.tr("{letters_black}▎ {letters}entry here at once {letters_black}({0})", entries.size()),
-                            "",
-                            Phrases.tr("{warning}➥ Click to edit all"))));
+            inventory.setItem(SLOT_EDIT_ALL, Icons.button(Material.ANVIL, Lore.name(Lore.Tone.INFO, Phrases.tr("List"), Phrases.tr("Edit all")),
+                    Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("List action"))
+                            .section(Phrases.tr("Information"))
+                            .line(Phrases.tr(" {letters}Change a value on every"))
+                            .line(Phrases.tr(" {letters}entry here at once {letters_black}({0})", entries.size()))
+                            .action(Phrases.tr("Click to edit all")).lines()));
         }
 
         if (page > 0) {
             inventory.setItem(SLOT_PREVIOUS, Icons.button(Material.ARROW,
-                    Phrases.tr("{secondary}&l« PREVIOUS"), List.of()));
+                    Lore.name(Lore.Tone.ERROR, Phrases.tr("Page"), "← " + Phrases.tr("Previous")), pageLine()));
         }
         if (page + 1 < pages()) {
             inventory.setItem(SLOT_NEXT, Icons.button(Material.ARROW,
-                    Phrases.tr("{secondary}&lNEXT »"), List.of()));
+                    Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Page"), Phrases.tr("Next") + " →"), pageLine()));
         }
 
-        inventory.setItem(SLOT_INFO, Icons.button(Material.PAPER, Phrases.tr("{primary}&lLIST"),
-                List.of(Phrases.tr("{letters_black}▎ {letters}Entries {letters_black}» {info}{0}", entries.size()),
-                        Phrases.tr("{letters_black}▎ {letters}Page {letters_black}» {info}{0}{letters_black}/{info}{1}",
-                                page + 1, pages()))));
+        inventory.setItem(SLOT_INFO, Icons.button(Material.PAPER, Lore.name(Lore.Tone.PRIMARY, Phrases.tr("List")),
+                Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("List editor"))
+                        .section("✦", Phrases.tr("Status"))
+                        .line(Phrases.tr("  {letters_black}· {info}{icon:iron} {letters}Entries{letters_black}: {info}{0}", entries.size()))
+                        .lines()));
 
-        inventory.setItem(SLOT_SAVE, Icons.glowing(Material.LIME_DYE, Phrases.tr("{success}&lSAVE"),
-                List.of(Phrases.tr("{letters_black}▎ {letters}Keep every change made here."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to save"))));
+        inventory.setItem(SLOT_SAVE, Icons.glowing(Material.LIME_DYE, Lore.name(Lore.Tone.SUCCESS, Phrases.tr("List"), Phrases.tr("Save")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("List action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Keep every change made here."))
+                        .action(Phrases.tr("Click to save")).lines()));
 
-        inventory.setItem(SLOT_CANCEL, Icons.button(Material.RED_DYE, Phrases.tr("{error}&lCANCEL"),
-                List.of(Phrases.tr("{letters_black}▎ {letters}Discard every change and"),
-                        Phrases.tr("{letters_black}▎ {letters}close this screen."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to discard"))));
+        inventory.setItem(SLOT_CANCEL, Icons.button(Material.RED_DYE, Lore.name(Lore.Tone.ERROR, Phrases.tr("List"), Phrases.tr("Cancel")),
+                Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("List action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Discard every change and"))
+                        .line(Phrases.tr(" {letters}close this screen."))
+                        .action(Phrases.tr("Click to discard")).lines()));
+    }
+
+    /** The page counter both arrows carry. */
+    private List<String> pageLine() {
+        return List.of(Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}", page + 1, pages()));
     }
 }

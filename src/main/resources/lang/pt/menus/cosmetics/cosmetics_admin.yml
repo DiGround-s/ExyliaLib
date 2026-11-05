@@ -18,99 +18,100 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&l%admin_title%'
+    name: "<gradient:{primary}:{secondary_light}>%admin_title%</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}O catálogo, os jogadores, as'
-      - ' {letters_black}▎ {letters}vitrines e os blocos de caixa.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Cosméticos {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Em uso {letters_black}» {info}%admin_in_use% {letters}de {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
+      - "{letters_black}Gestão de cosméticos"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}O catálogo, os jogadores, as"
+      - " {letters}vitrines e os blocos de caixa."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosméticos{letters_black}: {info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}Em uso{letters_black}: {info}%admin_in_use% {letters}de {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
   catalogue:
     group: cards
     material: BOOKSHELF
-    name: '{primary}&lCATÁLOGO'
+    name: "{letters}Cosméticos {letters_black}▸ <gradient:{primary}:{secondary_light}>Catálogo</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Cada cosmético: entregue o item,'
-      - ' {letters_black}▎ {letters}chaves de caixa, ou veja uma {highlight}prévia{letters}.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Cosméticos {letters_black}» {info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Clique para navegar'
-      - ''
+      - "{letters_black}Seção da configuração"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Cada cosmético: entregue"
+      - " {letters}o item, chaves de caixa,"
+      - " {letters}ou veja uma {highlight}prévia{letters}."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosméticos{letters_black}: {info}%admin_catalogue%"
+      - ""
+      - "{primary}» Clique para navegar"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
     group: cards
     material: PLAYER_HEAD
-    name: '{primary}&lJOGADORES'
+    name: "{letters}Cosméticos {letters_black}▸ <gradient:{primary}:{secondary_light}>Jogadores</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Chaves, desbloqueios e o que cada'
-      - ' {letters_black}▎ {letters}jogador online tem {highlight}equipado{letters}.'
-      - '%admin_players_status%'
-      - '%admin_players_status%{secondary}Status:'
-      - ' {letters_black}▎ {letters}Usando agora {letters_black}» {info}%admin_wearing% {letters}de {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
-      - '{warning}➥ Clique para navegar'
-      - ''
+      - "{letters_black}Seção da configuração"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Chaves, desbloqueios e o que cada"
+      - " {letters}jogador online tem {highlight}equipado{letters}."
+      - "%admin_players_status%"
+      - "%admin_players_status%{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:eye} {letters}Usando agora{letters_black}: {info}%admin_wearing% {letters}de {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+      - ""
+      - "{primary}» Clique para navegar"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
     group: cards
     condition: '%admin_has_showcases% == true'
     material: ARMOR_STAND
-    name: '{primary}&lVITRINES'
+    name: "{letters}Cosméticos {letters_black}▸ <gradient:{primary}:{secondary_light}>Vitrines</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Lugares que exibem os cosméticos'
-      - ' {letters_black}▎ {letters}em {highlight}loop {letters}para quem estiver perto.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Colocadas {letters_black}» {info}%admin_showcases%'
-      - ''
-      - '{warning}➥ Clique para gerenciar'
-      - ''
+      - "{letters_black}Seção da configuração"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Lugares que exibem os cosméticos"
+      - " {letters}em {highlight}loop {letters}para quem estiver perto."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Colocadas{letters_black}: {info}%admin_showcases%"
+      - ""
+      - "{primary}» Clique para gerenciar"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
     group: cards
     material: ENDER_CHEST
-    name: '{primary}&lBLOCOS DE CAIXA'
+    name: "{letters}Cosméticos {letters_black}▸ <gradient:{primary}:{secondary_light}>Blocos de caixa</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Blocos que abrem a caixa'
-      - ' {letters_black}▎ {letters}quando um jogador {highlight}clica {letters}neles.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Vinculados {letters_black}» {info}%admin_blocks%'
-      - ''
-      - '{warning}➥ Clique para gerenciar'
-      - ''
+      - "{letters_black}Seção da configuração"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Blocos que abrem a caixa"
+      - " {letters}quando um jogador {highlight}clica {letters}neles."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Vinculados{letters_black}: {info}%admin_blocks%"
+      - ""
+      - "{primary}» Clique para gerenciar"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
     slot: 36
     material: COMPARATOR
-    name: '{primary}&lCONFIGURAÇÕES'
+    name: "{letters}Plugin {letters_black}▸ <gradient:{primary}:{secondary_light}>Configurações</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Altera as configurações do plugin'
-      - ' {letters_black}▎ {letters}sem editar seus {highlight}arquivos{letters}.'
-      - ''
-      - '{warning}➥ Clique {letters_black}» {letters}Abrir configurações'
-      - ''
+      - "{letters_black}Configuração"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Altera as configurações do"
+      - " {letters}plugin sem editar seus {highlight}arquivos{letters}."
+      - ""
+      - "{primary}» Clique {letters_black}· {letters}Abrir configurações"
     actions:
       - 'exylialib:cosmetics settings'

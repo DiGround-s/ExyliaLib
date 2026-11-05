@@ -24,29 +24,26 @@ pagination:
   # Starts each group: whose items these were, or what happened to them.
   group_template:
     material: NAME_TAG
-    name: '{primary}&l%group_label%'
+    name: "{letters}Grup {letters_black}▸ <gradient:{info}:{info_light}>%group_label%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Yığın {letters_black}» {info}%group_count%'
-      - ''
-      - '{warning}➥ Yanındaki eşyaların üzerine gel'
-      - ''
+      - "{letters_black}Eşya grubu"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {info}{icon:iron} {letters}Yığın{letters_black}: {info}%group_count%"
+      - ""
+      - "{info}» Yanındaki eşyaların üzerine gel"
   # A group that moved nothing, such as the empty side of a gift.
   nothing_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Bu grupta hiçbir şey yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Bu tarafta hiç eşya taşınmadı.'
-      - ''
+      - "{letters_black}Bu tarafta hiç eşya taşınmadı."
   # An entry that kept no items.
   empty_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Saklanan eşya yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Bu kayıttaki her şey yukarıda.'
-      - ''
+      - "{letters_black}Bu kayıttaki her şey yukarıda."
   # The blank rest of a group's row.
   spacer_template:
     material: GRAY_STAINED_GLASS_PANE
@@ -56,51 +53,43 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   entry:
     slot: 4
     material: '%log_icon%'
-    name: '{primary}&l%log_action%'
+    name: "{letters}Kayıt {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Eklenti {letters_black}» {info}%log_plugin%'
-      - ' {letters_black}▎ {letters}Yapan {letters_black}» {highlight}%log_actor%'
-      - ' {letters_black}▎ {letters}Hedef {letters_black}» {highlight}%log_target%'
-      - ''
-      - '{secondary}Ayrıntı:'
-      - '%log_detail%'
-      - ''
-      - '{secondary}Konum:'
-      - ' {letters_black}▎ {letters}Sunucu {letters_black}» {info}%log_server%'
-      - ' {letters_black}▎ {letters}Konum {letters_black}» {info}%log_location%'
-      - ' {letters_black}▎ {letters}Zaman {letters_black}» {info}%log_when% ⌚'
-      - ' {letters_black}▎ {letters_black}%log_date%'
-      - ''
+      - "{letters_black}Yetkili kaydı"
+      - ""
+      - "{info}✦ Durum"
+      - "  {letters_black}· {info}{icon:book} {letters}Eklenti{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Yapan{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Hedef{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Ayrıntı"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Konum"
+      - "  {letters_black}· {info}{icon:ping} {letters}Sunucu{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Konum{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {letters}Zaman{letters_black}: {info}%log_when% ⌚"
+      - "    {letters_black}%log_date%"
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lGERİ'
+    name: "{letters}Geri {letters_black}▸ <gradient:{error}:{error_light}>Kayıtlar</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Aynı filtrelerle kayıtlara döner.'
-      - ''
-      - '{warning}➥ Geri dönmek için tıkla'
-      - ''
+      - "{error}» Geri dönmek için tıkla"
     actions:
       - 'exylialib:logs_back'

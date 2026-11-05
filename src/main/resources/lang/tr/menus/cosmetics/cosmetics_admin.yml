@@ -18,99 +18,99 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&l%admin_title%'
+    name: "<gradient:{primary}:{secondary_light}>%admin_title%</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Katalog, oyuncular, vitrinler'
-      - ' {letters_black}▎ {letters}ve sandık blokları.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Kozmetikler {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Kullanımda {letters_black}» {info}%admin_in_use% {letters_black}/ {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
+      - "{letters_black}Kozmetik yönetimi"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Katalog, oyuncular, vitrinler"
+      - " {letters}ve sandık blokları."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:star} {letters}Kozmetikler{letters_black}: {info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}Kullanımda{letters_black}: {info}%admin_in_use% {letters_black}/ {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
   catalogue:
     group: cards
     material: BOOKSHELF
-    name: '{primary}&lKATALOG'
+    name: "{letters}Kozmetikler {letters_black}▸ <gradient:{primary}:{secondary_light}>Katalog</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Her kozmetik: eşyasını ver,'
-      - ' {letters_black}▎ {letters}sandık anahtarı ver ya da {highlight}önizle{letters}.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Kozmetikler {letters_black}» {info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Göz atmak için tıkla'
-      - ''
+      - "{letters_black}Kurulum bölümü"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Her kozmetik: eşyasını ver,"
+      - " {letters}sandık anahtarı ver ya da {highlight}önizle{letters}."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:star} {letters}Kozmetikler{letters_black}: {info}%admin_catalogue%"
+      - ""
+      - "{primary}» Göz atmak için tıkla"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
     group: cards
     material: PLAYER_HEAD
-    name: '{primary}&lOYUNCULAR'
+    name: "{letters}Kozmetikler {letters_black}▸ <gradient:{primary}:{secondary_light}>Oyuncular</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Anahtarlar, kilit açmalar ve her'
-      - ' {letters_black}▎ {letters}çevrimiçi oyuncunun {highlight}kuşandığı{letters}.'
-      - '%admin_players_status%'
-      - '%admin_players_status%{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Şu an kuşanan {letters_black}» {info}%admin_wearing% {letters_black}/ {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
-      - '{warning}➥ Göz atmak için tıkla'
-      - ''
+      - "{letters_black}Kurulum bölümü"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Anahtarlar, kilit açmalar ve her"
+      - " {letters}çevrimiçi oyuncunun {highlight}kuşandığı{letters}."
+      - "%admin_players_status%"
+      - "%admin_players_status%{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:eye} {letters}Şu an kuşanan{letters_black}: {info}%admin_wearing% {letters_black}/ {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+      - ""
+      - "{primary}» Göz atmak için tıkla"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
     group: cards
     condition: '%admin_has_showcases% == true'
     material: ARMOR_STAND
-    name: '{primary}&lVİTRİNLER'
+    name: "{letters}Kozmetikler {letters_black}▸ <gradient:{primary}:{secondary_light}>Vitrinler</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Kozmetikleri yakındaki herkese'
-      - ' {letters_black}▎ {letters}{highlight}döngüde {letters}gösteren yerler.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Yerleştirilen {letters_black}» {info}%admin_showcases%'
-      - ''
-      - '{warning}➥ Yönetmek için tıkla'
-      - ''
+      - "{letters_black}Kurulum bölümü"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Kozmetikleri yakındaki herkese"
+      - " {highlight}döngüde {letters}gösteren yerler."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:iron} {letters}Yerleştirilen{letters_black}: {info}%admin_showcases%"
+      - ""
+      - "{primary}» Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
     group: cards
     material: ENDER_CHEST
-    name: '{primary}&lSANDIK BLOKLARI'
+    name: "{letters}Kozmetikler {letters_black}▸ <gradient:{primary}:{secondary_light}>Sandık blokları</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Bir oyuncu {highlight}tıkladığında'
-      - ' {letters_black}▎ {letters}sandığı açan bloklar.'
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Bağlı {letters_black}» {info}%admin_blocks%'
-      - ''
-      - '{warning}➥ Yönetmek için tıkla'
-      - ''
+      - "{letters_black}Kurulum bölümü"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Bir oyuncu {highlight}tıkladığında"
+      - " {letters}sandığı açan bloklar."
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:iron} {letters}Bağlı{letters_black}: {info}%admin_blocks%"
+      - ""
+      - "{primary}» Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
     slot: 36
     material: COMPARATOR
-    name: '{primary}&lAYARLAR'
+    name: "{letters}Eklenti {letters_black}▸ <gradient:{primary}:{secondary_light}>Ayarlar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Eklentinin ayarlarını'
-      - ' {letters_black}▎ {letters}{highlight}dosyalarını {letters}açmadan değiştir.'
-      - ''
-      - '{warning}➥ Tıkla {letters_black}» {letters}Ayarları aç'
-      - ''
+      - "{letters_black}Yapılandırma"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Eklentinin ayarlarını"
+      - " {highlight}dosyalarını {letters}açmadan değiştir."
+      - ""
+      - "{primary}» Tıkla {letters_black}· {letters}Ayarları aç"
     actions:
       - 'exylialib:cosmetics settings'

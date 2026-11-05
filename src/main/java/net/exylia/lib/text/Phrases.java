@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  *
  * <pre>{@code
  * Icons.button(Material.EMERALD, Phrases.tr("{success}&lADD"), ...);
- * Phrases.tr("{letters_black}▎ {letters}Copy every entry here {letters_black}({0})", entries.size());
+ * Phrases.tr(" {letters}Copy every entry here {letters_black}({0})", entries.size());
  * }</pre>
  *
  * <p>The language is ExyliaLib's own {@code language} in its {@code config.yml}.

@@ -24,30 +24,30 @@ items:
   header:
     slot: 4
     material: 'playerhead-%player_name%'
-    name: '{primary}&l%player_name%'
+    name: "<gradient:{primary}:{secondary_light}>%player_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Keys, unlocks and what this'
-      - ' {letters_black}▎ {letters}player has {highlight}equipped{letters}.'
-      - ''
+      - "{letters_black}Player"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys, unlocks and what"
+      - " {letters}this player has {highlight}equipped{letters}."
   keys:
     group: cards
     material: TRIPWIRE_HOOK
-    name: '{primary}&lCRATE KEYS &8[{info}%player_keys%&8]'
+    name: "{letters}Player {letters_black}▸ <gradient:{primary}:{secondary_light}>Crate keys</gradient> &8[{info}%player_keys%&8]"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Keys on the account, which open'
-      - ' {letters_black}▎ {letters}the crate and can never be {highlight}lost{letters}.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Keys {letters_black}» {info}%player_keys%'
-      - ''
-      - '{warning}➥ Left-click {letters_black}» {letters}+1 key'
-      - '{warning}➥ Right-click {letters_black}» {letters}-1 key'
-      - '{warning}➥ Shift-click {letters_black}» {letters}type an amount'
-      - ''
+      - "{letters_black}Player setting"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys on the account, which open"
+      - " {letters}the crate and can never be {highlight}lost{letters}."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:key} {letters}Keys{letters_black}: {info}%player_keys%"
+      - ""
+      - "{primary}» Left-click {letters_black}· {letters}+1 key"
+      - "{primary}» Right-click {letters_black}· {letters}-1 key"
+      - "{primary}» Shift-click {letters_black}· {letters}type an amount"
     actions:
       - 'left: exylialib:cosmetics keys 1'
       - 'right: exylialib:cosmetics keys -1'
@@ -55,78 +55,74 @@ items:
   unlocks:
     group: cards
     material: CHEST
-    name: '{primary}&lUNLOCKS'
+    name: "{letters}Player {letters_black}▸ <gradient:{primary}:{secondary_light}>Unlocks</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Grant or revoke each cosmetic,'
-      - ' {letters_black}▎ {letters}kept for good like a {highlight}crate {letters}win.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Owned {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Click to manage'
-      - ''
+      - "{letters_black}Setup section"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Grant or revoke each cosmetic,"
+      - " {letters}kept for good like a {highlight}crate {letters}win."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {success}{icon:star} {letters}Owned{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - ""
+      - "{primary}» Click to manage"
     actions:
       - 'exylialib:cosmetics unlocks'
   equipped:
     group: cards
     condition: '%admin_has_equipped% == true'
     material: ARMOR_STAND
-    name: '{primary}&lEQUIPPED'
+    name: "{letters}Player {letters_black}▸ <gradient:{primary}:{secondary_light}>Equipped</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}What the player has on right now.'
-      - ''
-      - '{secondary}Status:'
-      - ' {letters_black}▎ {letters}Equipped {letters_black}» %player_equipped%'
-      - ''
-      - '{error}➥ Click to take it off'
-      - ' {letters_black}You will be asked to confirm.'
-      - ''
+      - "{letters_black}Player setting"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}What the player has on right now."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:eye} {letters}Equipped{letters_black}: %player_equipped%"
+      - ""
+      - "{error}» Click to take it off"
+      - "{letters_black}You will be asked to confirm."
     actions:
       - 'exylialib:cosmetics unequip'
   favourites:
     slot: 36
     condition: '%admin_has_favourites% == true'
     material: BLAZE_POWDER
-    name: '{error}&lCLEAR FAVOURITES'
+    name: "{letters}Player {letters_black}▸ <gradient:{error}:{error_light}>Clear favourites</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Empties the player''s shortlist.'
-      - ''
-      - '{error}➥ Click to clear'
-      - ' {letters_black}You will be asked to confirm.'
-      - ''
+      - "{letters_black}Danger zone"
+      - ""
+      - "{error}✎ Information"
+      - " {letters}Empties the player's shortlist."
+      - ""
+      - "{error}» Click to clear"
+      - "{letters_black}You will be asked to confirm."
     actions:
       - 'exylialib:cosmetics favourites'
   back:
     slot: 40
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lBACK'
+    name: "{letters}Back {letters_black}▸ <gradient:{error}:{error_light}>Players</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Returns to the players.'
-      - ''
-      - '{warning}➥ Click to go back'
-      - ''
+      - "{error}» Click to go back"
     actions:
       - 'exylialib:cosmetics players'
   clear:
     slot: 44
     material: BARRIER
-    name: '{error}&lCLEAR UNLOCKS'
+    name: "{letters}Player {letters_black}▸ <gradient:{error}:{error_light}>Clear unlocks</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Takes back {highlight}everything {letters}the player'
-      - ' {letters_black}▎ {letters}won or was granted.'
-      - ''
-      - '{error}➥ Click to clear'
-      - ' {letters_black}You will be asked to confirm.'
-      - ''
+      - "{letters_black}Danger zone"
+      - ""
+      - "{error}✎ Information"
+      - " {letters}Takes back {highlight}everything {letters}the"
+      - " {letters}player won or was granted."
+      - ""
+      - "{error}» Click to clear"
+      - "{letters_black}You will be asked to confirm."
     actions:
       - 'exylialib:cosmetics clear_unlocks'

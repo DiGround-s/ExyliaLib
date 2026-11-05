@@ -22,41 +22,41 @@ pagination:
   slots: '19-25'
   item_template:
     material: '%cfg_card_icon%'
-    name: '{primary}&l%cfg_card_name%'
+    name: "{letters}Ayarlar {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_card_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_card_about%'
-      - '{secondary}Durum:'
-      - '%cfg_card_status%'
-      - ''
-      - '{warning}➥ Açmak için tıkla'
-      - ''
+      - "{letters_black}Ayar sayfası"
+      - "%cfg_card_about%"
+      - ""
+      - "{primary}✦ Durum"
+      - "%cfg_card_status%"
+      - ""
+      - "{primary}» Açmak için tıkla"
     actions:
       - 'exylialib:config_page %cfg_card%'
   file_template:
     material: '%cfg_card_icon%'
-    name: '{primary}&l%cfg_card_name%'
+    name: "{letters}Dosya {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_card_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_card_about%'
-      - '{secondary}Durum:'
-      - '%cfg_card_status%'
-      - ''
-      - '{warning}➥ Açmak için tıkla'
-      - ''
+      - "{letters_black}Ayar dosyası"
+      - "%cfg_card_about%"
+      - ""
+      - "{primary}✦ Durum"
+      - "%cfg_card_status%"
+      - ""
+      - "{primary}» Açmak için tıkla"
     actions:
       - 'exylialib:config_file %cfg_card%'
   content_template:
     material: '%cfg_card_icon%'
-    name: '{primary}&l%cfg_card_name%'
+    name: "{letters}Dosya {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_card_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_card_about%'
-      - '{secondary}Durum:'
-      - '%cfg_card_status%'
-      - ''
-      - '{warning}➥ Açmak için tıkla'
-      - ''
+      - "{letters_black}İçerik dosyası"
+      - "%cfg_card_about%"
+      - ""
+      - "{primary}✦ Durum"
+      - "%cfg_card_status%"
+      - ""
+      - "{primary}» Açmak için tıkla"
     actions:
       - 'exylialib:config_yaml %cfg_card%'
   navigation:
@@ -64,39 +64,30 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   header:
     slot: 4
     material: '%cfg_head_icon%'
-    name: '{primary}&l%cfg_head_name%'
+    name: "<gradient:{primary}:{secondary_light}>%cfg_head_name%</gradient>"
     lore:
-      - ''
-      - '%cfg_head_lore%'
-      - ''
+      - "{letters_black}Eklenti ayarları"
+      - "%cfg_head_lore%"
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lGERİ'
+    name: "{letters}Geri {letters_black}▸ <gradient:{error}:{error_light}>%cfg_back_to%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}%cfg_back_to% ekranına döner.'
-      - ''
-      - '{warning}➥ Geri dönmek için tıkla'
-      - ''
+      - "{error}» Geri dönmek için tıkla"
     actions:
       - 'exylialib:config_back'

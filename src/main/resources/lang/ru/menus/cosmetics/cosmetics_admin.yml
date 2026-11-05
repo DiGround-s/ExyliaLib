@@ -18,99 +18,99 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&l%admin_title%'
+    name: "<gradient:{primary}:{secondary_light}>%admin_title%</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Каталог, игроки, витрины'
-      - ' {letters_black}▎ {letters}и блоки ящика.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Косметика {letters_black}» {info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Используется {letters_black}» {info}%admin_in_use% {letters}из {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
+      - "{letters_black}Управление косметикой"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Каталог, игроки,"
+      - " {letters}витрины и блоки ящика."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:star} {letters}Косметика{letters_black}: {info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}Используется{letters_black}: {info}%admin_in_use% {letters}из {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
   catalogue:
     group: cards
     material: BOOKSHELF
-    name: '{primary}&lКАТАЛОГ'
+    name: "{letters}Косметика {letters_black}▸ <gradient:{primary}:{secondary_light}>Каталог</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Вся косметика: выдай предмет,'
-      - ' {letters_black}▎ {letters}ключи от ящика или смотри {highlight}превью{letters}.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Косметика {letters_black}» {info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Нажми, чтобы открыть'
-      - ''
+      - "{letters_black}Раздел настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Вся косметика: выдай предмет,"
+      - " {letters}ключи от ящика или смотри {highlight}превью{letters}."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:star} {letters}Косметика{letters_black}: {info}%admin_catalogue%"
+      - ""
+      - "{primary}» Нажми, чтобы открыть"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
     group: cards
     material: PLAYER_HEAD
-    name: '{primary}&lИГРОКИ'
+    name: "{letters}Косметика {letters_black}▸ <gradient:{primary}:{secondary_light}>Игроки</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Ключи, открытия и что надето'
-      - ' {letters_black}▎ {letters}на каждом игроке {highlight}онлайн{letters}.'
-      - '%admin_players_status%'
-      - '%admin_players_status%{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Сейчас носят {letters_black}» {info}%admin_wearing% {letters}из {info}%admin_online%'
-      - ' {letters_black}▎ {letters}%admin_activity_label% {letters_black}» {info}%admin_activity%'
-      - ''
-      - '{warning}➥ Нажми, чтобы открыть'
-      - ''
+      - "{letters_black}Раздел настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Ключи, открытия и что надето"
+      - " {letters}на каждом игроке {highlight}онлайн{letters}."
+      - "%admin_players_status%"
+      - "%admin_players_status%{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:eye} {letters}Сейчас носят{letters_black}: {info}%admin_wearing% {letters}из {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+      - ""
+      - "{primary}» Нажми, чтобы открыть"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
     group: cards
     condition: '%admin_has_showcases% == true'
     material: ARMOR_STAND
-    name: '{primary}&lВИТРИНЫ'
+    name: "{letters}Косметика {letters_black}▸ <gradient:{primary}:{secondary_light}>Витрины</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Места, где косметика крутится'
-      - ' {letters_black}▎ {letters}по {highlight}кругу {letters}для всех рядом.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Установлено {letters_black}» {info}%admin_showcases%'
-      - ''
-      - '{warning}➥ Нажми, чтобы управлять'
-      - ''
+      - "{letters_black}Раздел настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Места, где косметика крутится"
+      - " {letters}по {highlight}кругу {letters}для всех рядом."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:iron} {letters}Установлено{letters_black}: {info}%admin_showcases%"
+      - ""
+      - "{primary}» Нажми, чтобы управлять"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
     group: cards
     material: ENDER_CHEST
-    name: '{primary}&lБЛОКИ ЯЩИКА'
+    name: "{letters}Косметика {letters_black}▸ <gradient:{primary}:{secondary_light}>Блоки ящика</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Блоки, которые открывают ящик,'
-      - ' {letters_black}▎ {letters}когда игрок по ним {highlight}кликает{letters}.'
-      - ''
-      - '{secondary}Состояние:'
-      - ' {letters_black}▎ {letters}Привязано {letters_black}» {info}%admin_blocks%'
-      - ''
-      - '{warning}➥ Нажми, чтобы управлять'
-      - ''
+      - "{letters_black}Раздел настройки"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Блоки, которые открывают ящик,"
+      - " {letters}когда игрок по ним {highlight}кликает{letters}."
+      - ""
+      - "{primary}✦ Состояние"
+      - "  {letters_black}· {info}{icon:iron} {letters}Привязано{letters_black}: {info}%admin_blocks%"
+      - ""
+      - "{primary}» Нажми, чтобы управлять"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
     slot: 36
     material: COMPARATOR
-    name: '{primary}&lНАСТРОЙКИ'
+    name: "{letters}Плагин {letters_black}▸ <gradient:{primary}:{secondary_light}>Настройки</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Меняй настройки плагина,'
-      - ' {letters_black}▎ {letters}не открывая его {highlight}файлы{letters}.'
-      - ''
-      - '{warning}➥ Нажми {letters_black}» {letters}Открыть настройки'
-      - ''
+      - "{letters_black}Конфигурация"
+      - ""
+      - "{primary}✎ Информация"
+      - " {letters}Меняй настройки плагина,"
+      - " {letters}не открывая его {highlight}файлы{letters}."
+      - ""
+      - "{primary}» Нажми {letters_black}· {letters}Открыть настройки"
     actions:
       - 'exylialib:cosmetics settings'

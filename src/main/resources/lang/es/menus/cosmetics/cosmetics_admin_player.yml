@@ -18,30 +18,30 @@ items:
   header:
     slot: 4
     material: 'playerhead-%player_name%'
-    name: '{primary}&l%player_name%'
+    name: "<gradient:{primary}:{secondary_light}>%player_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Llaves, desbloqueos y lo que'
-      - ' {letters_black}▎ {letters}este jugador tiene {highlight}equipado{letters}.'
-      - ''
+      - "{letters_black}Jugador"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Llaves, desbloqueos y lo que"
+      - " {letters}este jugador tiene {highlight}equipado{letters}."
   keys:
     group: cards
     material: TRIPWIRE_HOOK
-    name: '{primary}&lLLAVES DE CAJA &8[{info}%player_keys%&8]'
+    name: "{letters}Jugador {letters_black}▸ <gradient:{primary}:{secondary_light}>Llaves de caja</gradient> &8[{info}%player_keys%&8]"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Llaves en la cuenta, que abren'
-      - ' {letters_black}▎ {letters}la caja y nunca se {highlight}pierden{letters}.'
-      - ''
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Llaves {letters_black}» {info}%player_keys%'
-      - ''
-      - '{warning}➥ Clic izquierdo {letters_black}» {letters}+1 llave'
-      - '{warning}➥ Clic derecho {letters_black}» {letters}-1 llave'
-      - '{warning}➥ Shift-clic {letters_black}» {letters}escribir una cantidad'
-      - ''
+      - "{letters_black}Ajuste del jugador"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Llaves en la cuenta, que abren"
+      - " {letters}la caja y nunca se {highlight}pierden{letters}."
+      - ""
+      - "{primary}✦ Estado"
+      - "  {letters_black}· {info}{icon:key} {letters}Llaves{letters_black}: {info}%player_keys%"
+      - ""
+      - "{primary}» Clic izquierdo {letters_black}· {letters}+1 llave"
+      - "{primary}» Clic derecho {letters_black}· {letters}-1 llave"
+      - "{primary}» Shift-clic {letters_black}· {letters}escribir una cantidad"
     actions:
       - 'left: exylialib:cosmetics keys 1'
       - 'right: exylialib:cosmetics keys -1'
@@ -49,78 +49,77 @@ items:
   unlocks:
     group: cards
     material: CHEST
-    name: '{primary}&lDESBLOQUEOS'
+    name: "{letters}Jugador {letters_black}▸ <gradient:{primary}:{secondary_light}>Desbloqueos</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Otorga o retira cada cosmético,'
-      - ' {letters_black}▎ {letters}para siempre, como un premio de {highlight}caja{letters}.'
-      - ''
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Obtenidos {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ''
-      - '{warning}➥ Clic para gestionar'
-      - ''
+      - "{letters_black}Sección de configuración"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Otorga o retira cada"
+      - " {letters}cosmético, para siempre,"
+      - " {letters}como un premio de {highlight}caja{letters}."
+      - ""
+      - "{primary}✦ Estado"
+      - "  {letters_black}· {success}{icon:star} {letters}Obtenidos{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - ""
+      - "{primary}» Clic para gestionar"
     actions:
       - 'exylialib:cosmetics unlocks'
   equipped:
     group: cards
     condition: '%admin_has_equipped% == true'
     material: ARMOR_STAND
-    name: '{primary}&lEQUIPADO'
+    name: "{letters}Jugador {letters_black}▸ <gradient:{primary}:{secondary_light}>Equipado</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Lo que el jugador lleva ahora mismo.'
-      - ''
-      - '{secondary}Estado:'
-      - ' {letters_black}▎ {letters}Equipado {letters_black}» %player_equipped%'
-      - ''
-      - '{error}➥ Clic para quitárselo'
-      - ' {letters_black}Se te pedirá confirmación.'
-      - ''
+      - "{letters_black}Ajuste del jugador"
+      - ""
+      - "{primary}✎ Información"
+      - " {letters}Lo que el jugador"
+      - " {letters}lleva ahora mismo."
+      - ""
+      - "{primary}✦ Estado"
+      - "  {letters_black}· {info}{icon:eye} {letters}Equipado{letters_black}: %player_equipped%"
+      - ""
+      - "{error}» Clic para quitárselo"
+      - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics unequip'
   favourites:
     slot: 36
     condition: '%admin_has_favourites% == true'
     material: BLAZE_POWDER
-    name: '{error}&lBORRAR FAVORITOS'
+    name: "{letters}Jugador {letters_black}▸ <gradient:{error}:{error_light}>Borrar favoritos</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Vacía la lista de favoritos del jugador.'
-      - ''
-      - '{error}➥ Clic para borrar'
-      - ' {letters_black}Se te pedirá confirmación.'
-      - ''
+      - "{letters_black}Zona de peligro"
+      - ""
+      - "{error}✎ Información"
+      - " {letters}Vacía la lista de"
+      - " {letters}favoritos del jugador."
+      - ""
+      - "{error}» Clic para borrar"
+      - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics favourites'
   back:
     slot: 40
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lVOLVER'
+    name: "{letters}Volver {letters_black}▸ <gradient:{error}:{error_light}>Jugadores</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Vuelve a los jugadores.'
-      - ''
-      - '{warning}➥ Clic para volver'
-      - ''
+      - "{error}» Clic para volver"
     actions:
       - 'exylialib:cosmetics players'
   clear:
     slot: 44
     material: BARRIER
-    name: '{error}&lBORRAR DESBLOQUEOS'
+    name: "{letters}Jugador {letters_black}▸ <gradient:{error}:{error_light}>Borrar desbloqueos</gradient>"
     lore:
-      - ''
-      - '{secondary}Información:'
-      - ' {letters_black}▎ {letters}Retira {highlight}todo {letters}lo que el jugador'
-      - ' {letters_black}▎ {letters}ganó o recibió.'
-      - ''
-      - '{error}➥ Clic para borrar'
-      - ' {letters_black}Se te pedirá confirmación.'
-      - ''
+      - "{letters_black}Zona de peligro"
+      - ""
+      - "{error}✎ Información"
+      - " {letters}Retira {highlight}todo {letters}lo que el"
+      - " {letters}jugador ganó o recibió."
+      - ""
+      - "{error}» Clic para borrar"
+      - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics clear_unlocks'

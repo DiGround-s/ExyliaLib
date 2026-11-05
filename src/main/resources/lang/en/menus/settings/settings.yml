@@ -1,6 +1,8 @@
 # The settings screens of every plugin, shown by /settings.
 # Restyle them freely: the library only adds keys missing from this file.
 # The root screen: Settings and Announcements.
+menu-version: 1
+
 title: '{primary}&lSETTINGS'
 size: 27
 type: SIMPLE
@@ -18,28 +20,28 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lSETTINGS'
+    name: "<gradient:{primary}:{secondary_light}>Settings</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}How other players reach you'
-      - ' {letters_black}▎ {letters}and how each feature treats you.'
-      - ''
-      - '{warning}➥ Click to open'
-      - ''
+      - "{letters_black}Your settings"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}How other players reach you and"
+      - " {letters}how each feature treats you."
+      - ""
+      - "{primary}» Click to open"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lANNOUNCEMENTS'
+    name: "<gradient:{primary}:{secondary_light}>Announcements</gradient>"
     lore:
-      - ''
-      - '{secondary}Information:'
-      - ' {letters_black}▎ {letters}Which server-wide messages'
-      - ' {letters_black}▎ {letters}reach your {highlight}chat{letters}.'
-      - ''
-      - '{warning}➥ Click to open'
-      - ''
+      - "{letters_black}Your settings"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Which server-wide"
+      - " {letters}messages reach your {highlight}chat{letters}."
+      - ""
+      - "{primary}» Click to open"
     actions:
       - 'exylialib:settings_open announcements'

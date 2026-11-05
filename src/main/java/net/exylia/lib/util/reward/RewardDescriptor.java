@@ -5,6 +5,7 @@ import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.input.internal.InsertWindow;
 import net.exylia.lib.item.Source;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.command.NamedCommands;
@@ -118,12 +119,12 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
      */
     static EditorButton<RewardEntry> sortByWeight() {
         return EditorButton.<RewardEntry>of("HOPPER")
-                .name(Phrases.tr("{info}&lSORT BY WEIGHT"))
-                .lore(Phrases.tr("{secondary}Information:"),
-                        Phrases.tr(" {letters_black}▎ {letters}Most common first; press again"),
-                        Phrases.tr(" {letters_black}▎ {letters}for the rarest first."),
-                        "",
-                        Phrases.tr("{warning}➥ Click to sort"))
+                .name(Lore.name(Lore.Tone.INFO, Phrases.tr("List"), Phrases.tr("Sort by weight")))
+                .lore(Lore.of(Lore.Tone.INFO).subtitle(Phrases.tr("List action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Most common first; press again"))
+                        .line(Phrases.tr(" {letters}for the rarest first."))
+                        .action(Phrases.tr("Click to sort")).lines())
                 .onClick(view -> view.replaceAll(sorted(view.entries())))
                 .build();
     }
@@ -156,7 +157,7 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
 
     @Override
     public @NotNull String label(@NotNull RewardEntry entry) {
-        return "{primary}&l" + entry.displayName().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Reward"), entry.displayName());
     }
 
     @Override
@@ -181,31 +182,31 @@ public final class RewardDescriptor implements EditorDescriptor<RewardEntry> {
     public @NotNull List<String> lore(@NotNull RewardEntry entry,
                                       @NotNull List<RewardEntry> siblings) {
         List<String> lore = new ArrayList<>(9);
-        lore.add(Phrases.tr("{secondary}Reward:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Gives {letters_black}» {info}{0}", readable(entry.type())));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Value {letters_black}» {highlight}{0}", entry.preview()));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Reward"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Gives{letters_black}: {info}{0}", readable(entry.type())));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Value{letters_black}: {highlight}{0}", entry.preview()));
         lore.add("");
-        lore.add(Phrases.tr("{secondary}Odds:"));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Odds"));
         // In a draw the weight already answers how often; a chance below 100 is
         // only shown so an old one can still be found and cleared.
         if (asksChance(entry)) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {0}", chance(entry)));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {0}", chance(entry)));
         }
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {info}{0}", number(entry.weight())));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Weight 🎲{letters_black}: {info}{0}", number(entry.weight())));
         String share = share(entry, siblings, weighted);
         if (share != null) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Real {letters_black}» {success}{0}% {muted}of all drops",
+            lore.add(Phrases.tr("  {letters_black}· {letters}Real{letters_black}: {success}{0}% {muted}of all drops",
                     share));
         }
         if (entry.permission() != null || entry.condition() != null) {
             lore.add("");
-            lore.add(Phrases.tr("{secondary}Only for:"));
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Only for"));
             if (entry.permission() != null) {
-                lore.add(Phrases.tr(" {letters_black}▎ {letters}Permission {letters_black}» {info}{0}",
+                lore.add(Phrases.tr("  {letters_black}· {letters}Permission{letters_black}: {info}{0}",
                         entry.permission()));
             }
             if (entry.condition() != null) {
-                lore.add(Phrases.tr(" {letters_black}▎ {letters}Condition {letters_black}» {info}{0}",
+                lore.add(Phrases.tr("  {letters_black}· {letters}Condition{letters_black}: {info}{0}",
                         entry.condition()));
             }
         }

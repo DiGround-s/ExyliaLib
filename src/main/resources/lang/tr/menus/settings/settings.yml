@@ -1,6 +1,8 @@
 # The settings screens of every plugin, shown by /settings.
 # Restyle them freely: the library only adds keys missing from this file.
 # The root screen: Settings and Announcements.
+menu-version: 1
+
 title: '{primary}&lAYARLAR'
 size: 27
 type: SIMPLE
@@ -18,28 +20,29 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lAYARLAR'
+    name: "<gradient:{primary}:{secondary_light}>Ayarlar</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Diğer oyuncular sana nasıl ulaşır'
-      - ' {letters_black}▎ {letters}ve her özellik sana nasıl davranır.'
-      - ''
-      - '{warning}➥ Açmak için tıkla'
-      - ''
+      - "{letters_black}Ayarların"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Diğer oyuncular sana nasıl"
+      - " {letters}ulaşır ve her özellik sana"
+      - " {letters}nasıl davranır."
+      - ""
+      - "{primary}» Açmak için tıkla"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lDUYURULAR'
+    name: "<gradient:{primary}:{secondary_light}>Duyurular</gradient>"
     lore:
-      - ''
-      - '{secondary}Bilgi:'
-      - ' {letters_black}▎ {letters}Sunucu genelindeki hangi mesajlar'
-      - ' {letters_black}▎ {letters}senin {highlight}sohbetine {letters}ulaşır.'
-      - ''
-      - '{warning}➥ Açmak için tıkla'
-      - ''
+      - "{letters_black}Ayarların"
+      - ""
+      - "{primary}✎ Bilgi"
+      - " {letters}Sunucu genelindeki hangi"
+      - " {letters}mesajlar senin {highlight}sohbetine {letters}ulaşır."
+      - ""
+      - "{primary}» Açmak için tıkla"
     actions:
       - 'exylialib:settings_open announcements'

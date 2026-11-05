@@ -9,6 +9,7 @@ import net.exylia.lib.region.MaterialSet;
 import net.exylia.lib.region.PolicyKey;
 import net.exylia.lib.region.PolicySet;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.util.editor.Editors;
@@ -158,20 +159,26 @@ public final class PolicyEditorHolder implements InventoryHolder {
                     PolicyLooks.name(key, look, draft), PolicyLooks.lore(key, look, draft), false));
         }
         inventory.setItem(infoSlot(), render(viewer, "PAPER",
-                Phrases.tr("{primary}&lFLAGS &8[{info}{0}&8/{info}{1}&8]", draft.declared(keys), keys.size()),
-                List.of("",
-                        Phrases.tr(" {letters_black}▎ {letters}Flags set here {letters_black}» {info}{0}", draft.declared(keys)),
-                        Phrases.tr(" {letters_black}▎ {letters}The rest follow their {muted}Default{letters}."),
-                        "",
-                        Phrases.tr(" {letters_black}▎ {letters_black}Nothing is written until you save."),
-                        ""), false));
-        inventory.setItem(saveSlot(), render(viewer, "LIME_DYE", Phrases.tr("{success}&lSAVE"),
-                List.of("", Phrases.tr(" {letters_black}▎ {letters}Keep every change made here."), "",
-                        Phrases.tr("{warning}➥ Click to save"), ""), true));
-        inventory.setItem(cancelSlot(), render(viewer, "RED_DYE", Phrases.tr("{error}&lCANCEL"),
-                List.of("", Phrases.tr(" {letters_black}▎ {letters}Discard every change and"),
-                        Phrases.tr(" {letters_black}▎ {letters}close this screen."), "",
-                        Phrases.tr("{warning}➥ Click to discard"), ""), false));
+                "{letters}" + Phrases.tr("Region") + " {letters_black}▸ " + Lore.Tone.PRIMARY.gradient(Phrases.tr("Flags"))
+                        + Phrases.tr(" &8[{info}{0}&8/{info}{1}&8]", draft.declared(keys), keys.size()),
+                Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Region flags"))
+                        .section("✦", Phrases.tr("Status"))
+                        .line(Phrases.tr("  {letters_black}· {info}{icon:redstone} {letters}Flags set here{letters_black}: {info}{0}", draft.declared(keys)))
+                        .line(Phrases.tr(" {letters}The rest follow their {muted}Default{letters}."))
+                        .line("")
+                        .line(Phrases.tr(" {letters_black}Nothing is written until you save."))
+                        .lines(), false));
+        inventory.setItem(saveSlot(), render(viewer, "LIME_DYE", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Flags"), Phrases.tr("Save")),
+                Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Flags action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Keep every change made here."))
+                        .action(Phrases.tr("Click to save")).lines(), true));
+        inventory.setItem(cancelSlot(), render(viewer, "RED_DYE", Lore.name(Lore.Tone.ERROR, Phrases.tr("Flags"), Phrases.tr("Cancel")),
+                Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Flags action"))
+                        .section(Phrases.tr("Information"))
+                        .line(Phrases.tr(" {letters}Discard every change and"))
+                        .line(Phrases.tr(" {letters}close this screen."))
+                        .action(Phrases.tr("Click to discard")).lines(), false));
     }
 
     private ItemStack render(Player viewer, String icon, String name, List<String> lore, boolean glow) {

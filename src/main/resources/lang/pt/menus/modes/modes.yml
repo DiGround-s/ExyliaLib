@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lMODOS'
 size: 45
 type: PAGINATION
@@ -24,13 +26,13 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&lMODOS'
+    name: "<gradient:{info}:{info_light}>Modos</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Todas as formas de jogar no servidor,'
-      - ' {letters_black}▎ {letters}agrupadas por {highlight}tipo{letters}.'
-      - ''
-      - '{secondary}Estatísticas:'
-      - ' {letters_black}▎ {letters}Jogando {letters_black}» {info}%modes_playing%'
-      - ''
+      - "{letters_black}Modos do servidor"
+      - ""
+      - "{info}✎ Informação"
+      - " {letters}Todas as formas de jogar no"
+      - " {letters}servidor, agrupadas por {highlight}tipo{letters}."
+      - ""
+      - "{info}✦ Estatísticas"
+      - "  {letters_black}· {info}{icon:eye} {letters}Jogando{letters_black}: {info}%modes_playing%"

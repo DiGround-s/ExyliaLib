@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lCONFIGURAÇÕES'
 size: 27
 type: SIMPLE
@@ -15,28 +17,28 @@ items:
   settings:
     slot: 12
     material: COMPARATOR
-    name: '{primary}&lCONFIGURAÇÕES'
+    name: "<gradient:{primary}:{secondary_light}>Configurações</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Como outros jogadores te alcançam'
-      - ' {letters_black}▎ {letters}e como cada recurso te trata.'
-      - ''
-      - '{warning}➥ Clique para abrir'
-      - ''
+      - "{letters_black}Suas configurações"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Como outros jogadores te alcançam"
+      - " {letters}e como cada recurso te trata."
+      - ""
+      - "{primary}» Clique para abrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
     slot: 14
     material: BELL
-    name: '{primary}&lANÚNCIOS'
+    name: "<gradient:{primary}:{secondary_light}>Anúncios</gradient>"
     lore:
-      - ''
-      - '{secondary}Informação:'
-      - ' {letters_black}▎ {letters}Quais mensagens do servidor'
-      - ' {letters_black}▎ {letters}chegam ao seu {highlight}chat{letters}.'
-      - ''
-      - '{warning}➥ Clique para abrir'
-      - ''
+      - "{letters_black}Suas configurações"
+      - ""
+      - "{primary}✎ Informação"
+      - " {letters}Quais mensagens do servidor"
+      - " {letters}chegam ao seu {highlight}chat{letters}."
+      - ""
+      - "{primary}» Clique para abrir"
     actions:
       - 'exylialib:settings_open announcements'

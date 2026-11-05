@@ -52,9 +52,9 @@ logs:
   everybody: Все
   all: Всё
   none: —
-  detail-line: ' {letters_black}▎ {letters}%line%'
-  view-items: '{warning}➥ Нажми, чтобы посмотреть предметы'
-  view-entry: '{warning}➥ Нажми, чтобы открыть запись'
+  detail-line: ' {letters}%line%'
+  view-items: '{info}» Нажми, чтобы посмотреть предметы'
+  view-entry: '{info}» Нажми, чтобы открыть запись'
 tables:
   seat-tool: '{primary}&lМЕСТО'
   seat-tool-lore:

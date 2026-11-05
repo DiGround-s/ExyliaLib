@@ -52,9 +52,9 @@ logs:
   everybody: Herkes
   all: Tümü
   none: —
-  detail-line: ' {letters_black}▎ {letters}%line%'
-  view-items: '{warning}➥ Eşyaları görmek için tıkla'
-  view-entry: '{warning}➥ Kaydı açmak için tıkla'
+  detail-line: ' {letters}%line%'
+  view-items: '{info}» Eşyaları görmek için tıkla'
+  view-entry: '{info}» Kaydı açmak için tıkla'
 tables:
   seat-tool: '{primary}&lKOLTUK'
   seat-tool-lore:

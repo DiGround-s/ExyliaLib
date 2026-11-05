@@ -6,6 +6,7 @@ import net.exylia.lib.input.FormValues;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorButton;
 import net.exylia.lib.util.editor.EditorDescriptor;
@@ -122,31 +123,39 @@ public final class ModelTweakEditor {
         this.list = Editors.of(plugin).list(new Bones(), Row.class, rows)
                 .title(Phrases.tr("{primary}&lMODEL TWEAKS {letters_black}» {highlight}{0}", model.name()))
                 .button(EditorButton.<Row>of("SLIME_BALL")
-                        .name(Phrases.tr("{primary}&lSIZE & PLACE"))
-                        .lore("", Phrases.tr(" {letters_black}▎ {letters}How big it is drawn, and where it"),
-                                Phrases.tr(" {letters_black}▎ {letters}sits on the mob that wears it."), "",
-                                Phrases.tr("{warning}➥ Click to change them"), "")
+                        .name(Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Model"), Phrases.tr("Size & place")))
+                        .lore(Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Model setting"))
+                                .section(Phrases.tr("Information"))
+                                .line(Phrases.tr(" {letters}How big it is drawn, and where it"))
+                                .line(Phrases.tr(" {letters}sits on the mob that wears it."))
+                                .action(Phrases.tr("Click to change them")).lines())
                         .onClick(view -> view.ask(() -> place(view.viewer())))
                         .build())
                 .button(EditorButton.<Row>of("CLOCK")
-                        .name(Phrases.tr("{primary}&lSPEEDS"))
-                        .lore("", Phrases.tr(" {letters_black}▎ {letters}How fast each state plays, as a"),
-                                Phrases.tr(" {letters_black}▎ {letters}multiple of the pace it was animated at."), "",
-                                Phrases.tr("{warning}➥ Click to change them"), "")
+                        .name(Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Model"), Phrases.tr("Speeds")))
+                        .lore(Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Model setting"))
+                                .section(Phrases.tr("Information"))
+                                .line(Phrases.tr(" {letters}How fast each state plays, as a"))
+                                .line(Phrases.tr(" {letters}multiple of the pace it was animated at."))
+                                .action(Phrases.tr("Click to change them")).lines())
                         .onClick(view -> view.ask(() -> speeds(view.viewer())))
                         .build())
                 .button(EditorButton.<Row>of("SHIELD")
-                        .name(Phrases.tr("{primary}&lHITBOX"))
-                        .lore("", Phrases.tr(" {letters_black}▎ {letters}The box it is hit by. Zero works it"),
-                                Phrases.tr(" {letters_black}▎ {letters}out from the model's own size."), "",
-                                Phrases.tr("{warning}➥ Click to change it"), "")
+                        .name(Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Model"), Phrases.tr("Hitbox")))
+                        .lore(Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Model setting"))
+                                .section(Phrases.tr("Information"))
+                                .line(Phrases.tr(" {letters}The box it is hit by. Zero works it"))
+                                .line(Phrases.tr(" {letters}out from the model's own size."))
+                                .action(Phrases.tr("Click to change it")).lines())
                         .onClick(view -> view.ask(() -> hitbox(view.viewer())))
                         .build())
                 .button(EditorButton.<Row>of("ARMOR_STAND")
-                        .name(Phrases.tr("{success}&lPREVIEW"))
-                        .lore("", Phrases.tr(" {letters_black}▎ {letters}Puts it in front of you for 30s ⌚,"),
-                                Phrases.tr(" {letters_black}▎ {letters}turning and playing every animation."), "",
-                                Phrases.tr("{warning}➥ Click to see it as it stands"), "")
+                        .name(Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Model"), Phrases.tr("Preview")))
+                        .lore(Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Model action"))
+                                .section(Phrases.tr("Information"))
+                                .line(Phrases.tr(" {letters}Puts it in front of you for 30s ⌚,"))
+                                .line(Phrases.tr(" {letters}turning and playing every animation."))
+                                .action(Phrases.tr("Click to see it as it stands")).lines())
                         .glowing()
                         .onClick(this::preview)
                         .build())
@@ -315,7 +324,7 @@ public final class ModelTweakEditor {
 
         @Override
         public @NotNull String label(@NotNull Row row) {
-            return row.bone().isEmpty() ? Phrases.tr("{muted}No bone") : "{primary}&l" + row.bone().toUpperCase(Locale.ROOT);
+            return row.bone().isEmpty() ? Phrases.tr("{muted}No bone") : Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Bone"), row.bone());
         }
 
         @Override
@@ -330,9 +339,11 @@ public final class ModelTweakEditor {
             String drawn = row.tweak().hidden() ? Phrases.tr("{error}hidden")
                     : row.tweak().material().isEmpty() ? Phrases.tr("its own look")
                     : "{highlight}" + row.tweak().material();
-            return List.of(Phrases.tr("{secondary}Bone:"),
-                    " {letters_black}▎ {letters}" + Phrases.tr("Drawn") + " {letters_black}» {info}" + drawn,
-                    Phrases.tr(" {letters_black}▎ {letters}Every bone below it follows."));
+            return Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Model bone"))
+                    .section("✦", Phrases.tr("Status"))
+                    .stat("eye", "info", Phrases.tr("Drawn"), drawn)
+                    .line("    " + Phrases.tr("{letters_black}Every bone below it follows."))
+                    .lines();
         }
 
         @Override

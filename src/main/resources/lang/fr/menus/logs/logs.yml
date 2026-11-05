@@ -16,32 +16,30 @@ filler:
     hide_tooltip: false
     name: '{muted}Plus aucune entrée'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Les plugins consignent ici ce que fait le staff.'
-      - ''
+      - "{letters_black}Les plugins consignent ici ce que fait le staff."
 pagination:
   slots: '0-35'
   item_template:
     material: '%log_icon%'
-    name: '{primary}&l%log_action%'
+    name: "{letters}Entrée {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
     lore:
-      - ''
-      - '{secondary}Informations :'
-      - ' {letters_black}▎ {letters}Plugin {letters_black}» {info}%log_plugin%'
-      - ' {letters_black}▎ {letters}Par {letters_black}» {highlight}%log_actor%'
-      - ' {letters_black}▎ {letters}Cible {letters_black}» {highlight}%log_target%'
-      - ''
-      - '{secondary}Détail :'
-      - '%log_detail%'
-      - ''
-      - '{secondary}Position :'
-      - ' {letters_black}▎ {letters}Serveur {letters_black}» {info}%log_server%'
-      - ' {letters_black}▎ {letters}Position {letters_black}» {info}%log_location%'
-      - ' {letters_black}▎ {letters}Quand {letters_black}» {info}%log_when% ⌚'
-      - ' {letters_black}▎ {letters_black}%log_date%'
-      - ''
-      - '%log_view%'
-      - ''
+      - "{letters_black}Journal du staff"
+      - ""
+      - "{info}✦ État"
+      - "  {letters_black}· {info}{icon:book} {letters}Plugin{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Par{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Cible{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Détail "
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Position "
+      - "  {letters_black}· {info}{icon:ping} {letters}Serveur{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Position{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {letters}Quand{letters_black}: {info}%log_when% ⌚"
+      - "    {letters_black}%log_date%"
+      - ""
+      - "%log_view%"
     actions:
       - 'exylialib:logs_entry %log_id%'
   navigation:
@@ -49,58 +47,54 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← PAGE PRÉCÉDENTE'
+      name: "{letters}Page {letters_black}▸ <gradient:{error}:{error_light}>← Précédente</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lPAGE SUIVANTE →'
+      name: "{letters}Page {letters_black}▸ <gradient:{success}:{success_light}>Suivante →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   plugin:
     slot: 45
     material: COMPARATOR
-    name: '{primary}&lFILTRER PAR PLUGIN'
+    name: "{letters}Filtre {letters_black}▸ <gradient:{info}:{info_light}>Plugin</gradient>"
     lore:
-      - ''
-      - '{secondary}État :'
-      - ' {letters_black}▎ {letters}Affichage {letters_black}» {highlight}%logs_plugin%'
-      - ''
-      - '{warning}➥ Clic gauche {letters_black}» {letters}plugin suivant'
-      - '{warning}➥ Clic droit {letters_black}» {letters}tous les plugins'
-      - ''
+      - "{letters_black}Filtre des journaux"
+      - ""
+      - "{info}✦ État "
+      - "  {letters_black}· {highlight}{icon:search} {letters}Affichage{letters_black}: {highlight}%logs_plugin%"
+      - ""
+      - "{info}» Clic gauche {letters_black}· {letters}plugin suivant"
+      - "{info}» Clic droit {letters_black}· {letters}tous les plugins"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
   action:
     slot: 46
     material: HOPPER
-    name: '{primary}&lFILTRER PAR ACTION'
+    name: "{letters}Filtre {letters_black}▸ <gradient:{info}:{info_light}>Action</gradient>"
     lore:
-      - ''
-      - '{secondary}État :'
-      - ' {letters_black}▎ {letters}Affichage {letters_black}» {highlight}%logs_action%'
-      - ''
-      - '{warning}➥ Clic gauche {letters_black}» {letters}action suivante'
-      - '{warning}➥ Clic droit {letters_black}» {letters}toutes les actions'
-      - ''
+      - "{letters_black}Filtre des journaux"
+      - ""
+      - "{info}✦ État "
+      - "  {letters_black}· {highlight}{icon:search} {letters}Affichage{letters_black}: {highlight}%logs_action%"
+      - ""
+      - "{info}» Clic gauche {letters_black}· {letters}action suivante"
+      - "{info}» Clic droit {letters_black}· {letters}toutes les actions"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'
   info:
     slot: 49
     material: BOOK
-    name: '{primary}&lJOURNAUX'
+    name: "<gradient:{info}:{info_light}>Journaux</gradient>"
     lore:
-      - ''
-      - '{secondary}Informations :'
-      - ' {letters_black}▎ {letters}Joueur {letters_black}» {highlight}%logs_subject%'
-      - ' {letters_black}▎ {letters}Entrées {letters_black}» {info}%logs_count%'
-      - ''
+      - "{letters_black}Journaux du staff"
+      - ""
+      - "{info}✦ État"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Joueur{letters_black}: {highlight}%logs_subject%"
+      - "  {letters_black}· {info}{icon:book} {letters}Entrées{letters_black}: {info}%logs_count%"

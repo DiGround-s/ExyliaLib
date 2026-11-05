@@ -8,6 +8,7 @@ import net.exylia.lib.format.Dates;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
@@ -33,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -254,7 +254,7 @@ public final class PendingRewardsMenu {
             int total = byPlugin.values().stream().mapToInt(Integer::intValue).sum();
             List<String> lines = new ArrayList<>(byPlugin.size());
             byPlugin.forEach((plugin, batches) -> lines.add(
-                    " {letters_black}▎ {letters}" + plugin + " {letters_black}» {info}" + batches));
+                    "  {letters_black}· {letters}" + plugin + "{letters_black}: {info}" + batches));
             rows.add(UiEntry.of(new Owed(player, name))
                     .with("player", name)
                     .with("batches", total)
@@ -272,7 +272,7 @@ public final class PendingRewardsMenu {
         String icon = rewards.isEmpty() ? "PAPER" : rewards.get(0).resolvedIcon();
         return UiEntry.of(new Batch(plugin, player, batch.id()))
                 .with("icon", icon)
-                .with("plugin", plugin.toUpperCase(Locale.ROOT))
+                .with("plugin", plugin)
                 .with("count", rewards.size())
                 .withFormatted("rewards", rewardLines(rewards))
                 .with("source", batch.source() == null || batch.source().isBlank()
@@ -284,7 +284,7 @@ public final class PendingRewardsMenu {
 
     private static UiEntry sealedRow(String plugin, UUID player) {
         return UiEntry.of(new Batch(plugin, player, null))
-                .with("plugin", plugin.toUpperCase(Locale.ROOT))
+                .with("plugin", plugin)
                 .template("sealed")
                 .build();
     }
@@ -299,17 +299,17 @@ public final class PendingRewardsMenu {
         List<String> lines = new ArrayList<>();
         for (RewardEntry reward : rewards) {
             if (lines.size() == MAX_REWARDS - 1 && rewards.size() > MAX_REWARDS) {
-                lines.add(" {letters_black}▎ {muted}" + Phrases.tr("… {0} more", rewards.size() - lines.size()));
+                lines.add(" {muted}" + Phrases.tr("… {0} more", rewards.size() - lines.size()));
                 break;
             }
             String name = reward.displayName();
             if (name.length() > MAX_WIDTH) {
                 name = name.substring(0, MAX_WIDTH - 1) + "…";
             }
-            lines.add(" {letters_black}▎ {letters}" + name);
+            lines.add(" {letters}" + name);
         }
         if (lines.isEmpty()) {
-            lines.add(" {letters_black}▎ {muted}" + Phrases.tr("nothing"));
+            lines.add(" {muted}" + Phrases.tr("nothing"));
         }
         return String.join(Lines.NEWLINE, lines);
     }
@@ -505,7 +505,7 @@ public final class PendingRewardsMenu {
               slots: '10-16,19-25,28-34,37-43'
               item_template:
                 material: 'playerhead-%player%'
-                name: '{primary}&l%player% &8[{warning}%batches%&8]'
+                name: '{letters}Player {letters_black}▸ <gradient:{highlight}:{warning_light}>%player%</gradient> &8[{warning}%batches%&8]'
                 actions:
                   - 'exylialib:pending_open'
             """ + NAVIGATION + """
@@ -535,24 +535,24 @@ public final class PendingRewardsMenu {
               slots: '10-16,19-25,28-34,37-43'
               item_template:
                 material: '%icon%'
-                name: '{primary}&l%plugin% &8[{info}%count%&8]'
+                name: '{letters}Batch {letters_black}▸ <gradient:{highlight}:{warning_light}>%plugin%</gradient> &8[{info}%count%&8]'
                 actions:
                   - 'left: exylialib:pending_give'
                   - 'shift_right: exylialib:pending_cancel'
               offline_template:
                 material: '%icon%'
-                name: '{primary}&l%plugin% &8[{info}%count%&8]'
+                name: '{letters}Batch {letters_black}▸ <gradient:{highlight}:{warning_light}>%plugin%</gradient> &8[{info}%count%&8]'
                 actions:
                   - 'shift_right: exylialib:pending_cancel'
               armed_template:
                 material: BARRIER
-                name: '{primary}&l%plugin% &8[{error}%count%&8]'
+                name: '{letters}Batch {letters_black}▸ <gradient:{error}:{error_light}>%plugin%</gradient> &8[{error}%count%&8]'
                 actions:
                   - 'shift_right: exylialib:pending_cancel'
                   - 'left,right,shift_left: exylialib:pending_keep'
               sealed_template:
                 material: GRAY_DYE
-                name: '{primary}&l%plugin%'
+                name: '{letters}Batch {letters_black}▸ <gradient:{highlight}:{warning_light}>%plugin%</gradient>'
             """ + NAVIGATION + """
             items:
               info:
@@ -581,94 +581,84 @@ public final class PendingRewardsMenu {
     // UpdatesMenu: a reload in another language redraws them, and a quote in a
     // translation can never break the YAML.
 
+    private static final Lore.Tone TONE = Lore.Tone.HIGHLIGHT;
+
     private static void frame(YamlConfiguration yaml) {
-        yaml.set("filler.pagination.name", Phrases.tr("{success}&lALL DELIVERED"));
-        yaml.set("filler.pagination.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}No reward is waiting to be delivered."),
-                ""));
-        yaml.set("pagination.navigation.previous.name", Phrases.tr("{error}&l← PREVIOUS PAGE"));
-        yaml.set("pagination.navigation.next.name", Phrases.tr("{success}&lNEXT PAGE →"));
+        yaml.set("filler.pagination.name", Phrases.tr("{success}All delivered"));
+        yaml.set("filler.pagination.lore", List.of(Phrases.tr("{letters_black}No reward is waiting to be delivered.")));
+        yaml.set("pagination.navigation.previous.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Page"), "← " + Phrases.tr("Previous")));
+        yaml.set("pagination.navigation.next.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Page"), Phrases.tr("Next") + " →"));
+        String page = Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%");
+        yaml.set("pagination.navigation.previous.lore", List.of(page));
+        yaml.set("pagination.navigation.next.lore", List.of(page));
     }
 
     private static void playersWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&lPENDING REWARDS {muted}%current_page%/%total_pages%"));
-        yaml.set("pagination.item_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Owed by:"),
-                "%plugins%",
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Player {letters_black}» %status%"),
-                "",
-                Phrases.tr("{warning}➥ Click to review"),
-                ""));
-        yaml.set("items.info.name", Phrases.tr("{primary}&lPENDING REWARDS"));
-        yaml.set("items.info.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Rewards a player could not receive"),
-                Phrases.tr(" {letters_black}▎ {letters}wait here until their {highlight}next join{letters}."),
-                ""));
-        yaml.set("items.close.name", Phrases.tr("{error}&lCLOSE"));
-        yaml.set("items.refresh.name", Phrases.tr("{info}&lREFRESH"));
+        yaml.set("pagination.item_template.lore", Lore.of(TONE).subtitle(Phrases.tr("Owed rewards"))
+                .section("♦", Phrases.tr("Owed by")).line("%plugins%")
+                .section("✦", Phrases.tr("Status"))
+                .line(Phrases.tr("  {letters_black}· {info}{icon:ping} {letters}Player{letters_black}: %status%"))
+                .action(Phrases.tr("Click to review"))
+                .lines());
+        yaml.set("items.info.name", Lore.name(TONE, Phrases.tr("Pending rewards")));
+        yaml.set("items.info.lore", Lore.of(TONE).subtitle(Phrases.tr("Reward queue"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Rewards a player could not receive"))
+                .line(Phrases.tr(" {letters}wait here until their {highlight}next join{letters}."))
+                .lines());
+        yaml.set("items.close.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Rewards"), Phrases.tr("Close")));
+        yaml.set("items.refresh.name", Lore.name(Lore.Tone.INFO, Phrases.tr("Rewards"), Phrases.tr("Refresh")));
+    }
+
+    private static Lore details(String subtitle) {
+        return Lore.of(TONE).subtitle(subtitle)
+                .section("♦", Phrases.tr("Rewards")).line("%rewards%")
+                .section("✦", Phrases.tr("Status"))
+                .line(Phrases.tr("  {letters_black}· {info}{icon:book} {letters}Source{letters_black}: {info}%source%"))
+                .line(Phrases.tr("  {letters_black}· {letters}Owed{letters_black}: {info}%owed% ⌚"));
     }
 
     private static void batchesWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&l%pending_name% {muted}%current_page%/%total_pages%"));
-        List<String> details = List.of(
-                "",
-                Phrases.tr("{secondary}Rewards:"),
-                "%rewards%",
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Source {letters_black}» {info}%source%"),
-                Phrases.tr(" {letters_black}▎ {letters}Owed {letters_black}» {info}%owed% ⌚"),
-                "");
-        List<String> online = new ArrayList<>(details);
-        online.add(Phrases.tr("{warning}➥ Left click to give it now"));
-        online.add(Phrases.tr("{warning}➥ Shift + right click to cancel it"));
-        online.add("");
-        yaml.set("pagination.item_template.lore", online);
-        List<String> offline = new ArrayList<>(details);
-        offline.add(Phrases.tr(" {letters_black}▎ {muted}Offline: delivered on their next join."));
-        offline.add("");
-        offline.add(Phrases.tr("{warning}➥ Shift + right click to cancel it"));
-        offline.add("");
-        yaml.set("pagination.offline_template.lore", offline);
-        yaml.set("pagination.armed_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Rewards:"),
-                "%rewards%",
-                "",
-                Phrases.tr(" {letters_black}▎ {error}Cancelling deletes this batch."),
-                Phrases.tr(" {letters_black}▎ {letters}The player never receives it."),
-                "",
-                Phrases.tr("{warning}➥ Shift + right click again to confirm"),
-                Phrases.tr("{warning}➥ Any other click keeps it"),
-                ""));
-        yaml.set("pagination.sealed_template.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}This plugin keeps its own table and"),
-                Phrases.tr(" {letters_black}▎ {letters}cannot list it yet. Update it to"),
-                Phrases.tr(" {letters_black}▎ {letters}review its rewards here."),
-                ""));
-        yaml.set("items.info.name", Phrases.tr("{primary}&l%pending_name%"));
-        yaml.set("items.info.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Every batch this player is owed,"),
-                Phrases.tr(" {letters_black}▎ {letters}oldest first, plugin by plugin."),
-                ""));
-        yaml.set("items.give.name", Phrases.tr("{success}&lGIVE EVERYTHING"));
-        yaml.set("items.give.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Hands over every batch now."),
-                Phrases.tr(" {letters_black}▎ {letters}Only while the player is {highlight}online{letters}."),
-                "",
-                Phrases.tr("{warning}➥ Click to give all"),
-                ""));
-        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
-        yaml.set("items.refresh.name", Phrases.tr("{info}&lREFRESH"));
+        yaml.set("pagination.item_template.lore", details(Phrases.tr("Owed batch"))
+                .action(Phrases.tr("Left click to give it now"))
+                .line("{error}» " + Phrases.tr("Shift + right click to cancel it"))
+                .lines());
+        yaml.set("pagination.offline_template.lore", details(Phrases.tr("Owed batch"))
+                .line("    " + Phrases.tr("{muted}Offline: delivered on their next join."))
+                .line("")
+                .line("{error}» " + Phrases.tr("Shift + right click to cancel it"))
+                .lines());
+        yaml.set("pagination.armed_template.lore", Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Danger zone"))
+                .section("♦", Phrases.tr("Rewards")).line("%rewards%")
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {error}Cancelling deletes this batch."))
+                .line(Phrases.tr(" {letters}The player never receives it."))
+                .action(Phrases.tr("Shift + right click again to confirm"))
+                .line(Lore.Tone.ERROR.colour() + "» " + Phrases.tr("Any other click keeps it"))
+                .lines());
+        yaml.set("pagination.sealed_template.lore", Lore.of(TONE).subtitle(Phrases.tr("Owed batch"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}This plugin keeps its own table and"))
+                .line(Phrases.tr(" {letters}cannot list it yet. Update it to"))
+                .line(Phrases.tr(" {letters}review its rewards here."))
+                .lines());
+        yaml.set("items.info.name", Lore.name(TONE, "%pending_name%"));
+        yaml.set("items.info.lore", Lore.of(TONE).subtitle(Phrases.tr("Owed rewards"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Every batch this player is owed,"))
+                .line(Phrases.tr(" {letters}oldest first, plugin by plugin."))
+                .lines());
+        yaml.set("items.give.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Rewards"), Phrases.tr("Give everything")));
+        yaml.set("items.give.lore", Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Rewards action"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Hands over every batch now."))
+                .line(Phrases.tr(" {letters}Only while the player is {highlight}online{letters}."))
+                .action(Phrases.tr("Click to give all"))
+                .lines());
+        yaml.set("items.back.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Back"), Phrases.tr("Players")));
+        yaml.set("items.back.lore", List.of("{error}» " + Phrases.tr("Click to go back")));
+        yaml.set("items.refresh.name", Lore.name(Lore.Tone.INFO, Phrases.tr("Rewards"), Phrases.tr("Refresh")));
     }
 }

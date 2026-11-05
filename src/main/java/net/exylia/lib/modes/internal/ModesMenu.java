@@ -11,6 +11,7 @@ import net.exylia.lib.modes.Modes;
 import net.exylia.lib.modes.Modes.Category;
 import net.exylia.lib.settings.internal.SettingsMenu;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
@@ -23,10 +24,8 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -46,6 +45,9 @@ import java.util.function.Supplier;
  * the server's to restyle: {@link Languages#refresh} only adds what is missing.
  */
 public final class ModesMenu {
+
+    /** The tone of every card these screens build: browsing and choosing. */
+    private static final Lore.Tone TONE = Lore.Tone.INFO;
 
     static final String HUB = "modes_hub_";
     static final String LIST = "modes_list";
@@ -148,7 +150,7 @@ public final class ModesMenu {
     private static Map<String, Object> context(String title) {
         Map<String, Object> context = new HashMap<>();
         context.put("modes_title", title);
-        context.put("modes_parent", Phrases.tr("the modes menu"));
+        context.put("modes_parent", Phrases.tr("Modes menu"));
         return context;
     }
 
@@ -199,7 +201,7 @@ public final class ModesMenu {
         boolean open = mode.isOpen();
         return UiEntry.of(mode)
                 .with("icon", mode.icon())
-                .withFormatted("name", "{primary}&l" + mode.name().toUpperCase(Locale.ROOT))
+                .withFormatted("name", Lore.name(TONE, Phrases.tr("Mode"), mode.name()))
                 .with("glow", false)
                 .withFormatted("lore", lore(mode, allowed, open))
                 .template(allowed && open ? null : "inert")
@@ -208,50 +210,46 @@ public final class ModesMenu {
 
     /** A mode's lore: what it is, where it stands, and what a click does. */
     static String lore(Mode mode, boolean allowed, boolean open) {
-        List<String> lore = new ArrayList<>();
-        lore.add("");
+        Lore lore = Lore.of(TONE).subtitle(Phrases.tr("Game mode"));
         if (!mode.description().isEmpty()) {
-            lore.add(Phrases.tr("{secondary}Information:"));
-            mode.description().forEach(line -> lore.add(" {letters_black}▎ {letters}" + line));
-            lore.add("");
+            lore.section(Phrases.tr("Information"));
+            mode.description().forEach(lore::text);
         }
-        lore.add(Phrases.tr("{secondary}Status:"));
-        String state = !allowed ? Phrases.tr("{error}Locked") : open ? Phrases.tr("{success}Open")
-                : Phrases.tr("{error}Closed");
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}State {letters_black}» {0}", state));
+        lore.section("✦", Phrases.tr("Status"));
+        if (!allowed) lore.stat("key", "error", Phrases.tr("State"), Phrases.tr("Locked"));
+        else if (open) lore.stat("redstone", "success", Phrases.tr("State"), Phrases.tr("Open"));
+        else lore.stat("redstone", "error", Phrases.tr("State"), Phrases.tr("Closed"));
         if (mode.players() >= 0) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Playing {letters_black}» {info}{0}", mode.players()));
+            lore.stat("eye", "info", Phrases.tr("Playing"), String.valueOf(mode.players()));
         }
         if (!allowed) {
-            lore.add(" {letters_black}▎ {muted}" + Phrases.tr("Your rank does not include it."));
+            lore.line("    {muted}" + Phrases.tr("Your rank does not include it."));
         }
-        lore.add("");
         if (allowed && open) {
-            lore.add(Phrases.tr("{warning}➥ Click to play"));
-            lore.add("");
+            lore.action(Phrases.tr("Click to play"));
         }
-        return String.join(Lines.NEWLINE, lore);
+        return String.join(Lines.NEWLINE, lore.lines());
     }
 
     static UiEntry categoryRow(Category category) {
         List<Mode> modes = Modes.modes(category.id());
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add(Phrases.tr("{secondary}Information:"));
-        category.description().forEach(line -> lore.add(" {letters_black}▎ {letters}" + line));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Modes {letters_black}» {info}{0}", modes.size()));
+        Lore lore = Lore.of(TONE).subtitle(Phrases.tr("Mode category"));
+        if (!category.description().isEmpty()) {
+            lore.section(Phrases.tr("Information"));
+            category.description().forEach(lore::text);
+        }
+        lore.section("✦", Phrases.tr("Status"))
+                .stat("iron", "info", Phrases.tr("Modes"), String.valueOf(modes.size()));
         int playing = playing(modes);
         if (playing >= 0) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Playing {letters_black}» {info}{0}", playing));
+            lore.stat("eye", "info", Phrases.tr("Playing"), String.valueOf(playing));
         }
-        lore.add("");
-        lore.add(Phrases.tr("{warning}➥ Click to open"));
-        lore.add("");
+        lore.action(Phrases.tr("Click to open"));
         return UiEntry.of(category)
                 .with("icon", category.icon())
-                .withFormatted("name", "{primary}&l" + category.name().toUpperCase(Locale.ROOT))
+                .withFormatted("name", Lore.name(TONE, Phrases.tr("Modes"), category.name()))
                 .with("glow", false)
-                .withFormatted("lore", String.join(Lines.NEWLINE, lore))
+                .withFormatted("lore", String.join(Lines.NEWLINE, lore.lines()))
                 .build();
     }
 

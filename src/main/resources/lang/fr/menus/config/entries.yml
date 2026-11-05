@@ -20,24 +20,22 @@ filler:
     hide_tooltip: false
     name: '{muted}Plus aucune entrée'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Ajoutez-en une avec {highlight}NOUVELLE ENTRÉE{letters}.'
-      - ''
+      - "{letters_black}Crée-en une pour la voir ici."
 pagination:
   slots: '0-35'
   item_template:
     material: '%cfg_icon%'
-    name: '{primary}&l%cfg_name%'
+    name: "{letters}Entrée {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}État :'
-      - ' {letters_black}▎ {letters}Contient {letters_black}» %cfg_value%'
-      - ''
-      - '%cfg_hint%'
-      - '{warning}➥ Maj + clic gauche {letters_black}» {letters}dupliquer'
-      - '{error}➥ Maj + clic droit {letters_black}» {letters}supprimer'
-      - '{letters_black}Une confirmation vous sera demandée.'
-      - ''
+      - "{letters_black}Entrée de la liste"
+      - ""
+      - "{primary}✦ État"
+      - "  {letters_black}· {letters}Contient{letters_black}: %cfg_value%"
+      - ""
+      - "%cfg_hint%"
+      - "{primary}» Maj + clic gauche {letters_black}· {letters}dupliquer"
+      - "{error}» Maj + clic droit {letters_black}· {letters}supprimer"
+      - "{letters_black}Une confirmation te sera demandée."
     actions:
       - 'left: exylialib:config_entry open %cfg_key%'
       - 'right: exylialib:config_entry open %cfg_key%'
@@ -48,45 +46,37 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← PAGE PRÉCÉDENTE'
+      name: "{letters}Page {letters_black}▸ <gradient:{error}:{error_light}>← Précédente</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lPAGE SUIVANTE →'
+      name: "{letters}Page {letters_black}▸ <gradient:{success}:{success_light}>Suivante →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Page {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   create:
     slot: 45
     material: LIME_DYE
-    name: '{primary}&lNOUVELLE ENTRÉE'
+    name: "{letters}Créer {letters_black}▸ <gradient:{success}:{success_light}>Nouvelle entrée</gradient>"
     lore:
-      - ''
-      - '{secondary}Informations :'
-      - ' {letters_black}▎ {letters}Ajoute une nouvelle entrée qui se'
-      - ' {letters_black}▎ {letters}charge déjà, prête à {highlight}modifier{letters} ici.'
-      - ''
-      - '{warning}➥ Clic {letters_black}» {letters}Créer'
-      - ''
+      - "{letters_black}Nouvelle entrée"
+      - ""
+      - "{success}✎ Informations "
+      - " {letters}Ajoute une nouvelle entrée qui se"
+      - " {letters}charge déjà, prête à {highlight}modifier{letters} ici."
+      - ""
+      - "{success}» Clic {letters_black}· {letters}Créer"
     actions:
       - 'exylialib:config_entry create'
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lRETOUR'
+    name: "{letters}Retour {letters_black}▸ <gradient:{error}:{error_light}>%cfg_back_to%</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Revient à %cfg_back_to%.'
-      - ''
-      - '{warning}➥ Cliquez pour revenir'
-      - ''
+      - "{error}» Clique pour revenir"
     actions:
       - 'exylialib:config_back'

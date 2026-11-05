@@ -16,23 +16,21 @@ filler:
     hide_tooltip: false
     name: '{muted}Başka oyuncu yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Oyuncular katıldıkça burada görünür.'
-      - ''
+      - "{letters_black}Oyuncular katıldıkça burada görünür."
 pagination:
   slots: '0-35'
   item_template:
     material: 'playerhead-%player_name%'
-    name: '{primary}&l%player_name%'
+    name: "{letters}Oyuncu {letters_black}▸ <gradient:{primary}:{secondary_light}>%player_name%</gradient>"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Sandık anahtarı {letters_black}» {info}%player_keys%'
-      - ' {letters_black}▎ {letters}Sahip olunan {letters_black}» {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%'
-      - ' {letters_black}▎ {letters}Kuşanılan {letters_black}» %player_equipped%'
-      - ''
-      - '{warning}➥ Yönetmek için tıkla'
-      - ''
+      - "{letters_black}Çevrimiçi oyuncu"
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:key} {letters}Sandık anahtarı{letters_black}: {info}%player_keys%"
+      - "  {letters_black}· {success}{icon:star} {letters}Sahip olunan{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}Kuşanılan{letters_black}: %player_equipped%"
+      - ""
+      - "{primary}» Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics player'
   navigation:
@@ -40,31 +38,23 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lGERİ'
+    name: "{letters}Geri {letters_black}▸ <gradient:{error}:{error_light}>Yönetim paneli</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Yönetim paneline döner.'
-      - ''
-      - '{warning}➥ Geri dönmek için tıkla'
-      - ''
+      - "{error}» Geri dönmek için tıkla"
     actions:
       - 'exylialib:cosmetics hub'

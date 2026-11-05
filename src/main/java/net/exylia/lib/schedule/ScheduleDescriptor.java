@@ -1,5 +1,6 @@
 package net.exylia.lib.schedule;
 
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
@@ -50,6 +51,9 @@ import java.util.function.Supplier;
  */
 final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
 
+    /** An action line in these cards' tone. */
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+
     /** The clipboard bucket schedules share, so one screen pastes into another. */
     static final String TYPE_KEY = "exylia:schedules";
 
@@ -91,7 +95,7 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
 
     @Override
     public @NotNull String label(@NotNull Schedule entry) {
-        return "{primary}&l" + entry.displayName().toUpperCase(Locale.ROOT);
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Schedule"), entry.displayName());
     }
 
     @Override
@@ -105,16 +109,16 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
     @Override
     public @NotNull List<String> lore(@NotNull Schedule entry) {
         List<String> lore = new ArrayList<>();
-        lore.add(Phrases.tr("{secondary}When:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Time {letters_black}» {info}{0}", entry.describeTrigger()));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Days {letters_black}» {info}{0}", entry.describeDays()));
+        lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("When"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Time{letters_black}: {info}{0}", entry.describeTrigger()));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Days{letters_black}: {info}{0}", entry.describeDays()));
 
         List<String> gates = entry.describeGates();
         if (!gates.isEmpty()) {
             lore.add("");
-            lore.add(Phrases.tr("{secondary}Only if:"));
+            lore.add(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Only if"));
             for (String gate : gates) {
-                lore.add(" {letters_black}▎ {letters}" + gate);
+                lore.add(" {letters}" + gate);
             }
         }
 
@@ -123,7 +127,7 @@ final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
             lore.add(Phrases.tr("{error}✘ Turned off"));
         } else if (!entry.isRunnable()) {
             lore.add("");
-            lore.add(Phrases.tr("{warning}➥ Set a time before it can run"));
+            lore.add(ACT + Phrases.tr("Set a time before it can run"));
         }
         return List.copyOf(lore);
     }

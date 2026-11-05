@@ -3,6 +3,7 @@ package net.exylia.lib.region.internal;
 import net.exylia.lib.region.CommonRegionPolicies;
 import net.exylia.lib.region.MaterialSet;
 import net.exylia.lib.region.PolicyKey;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -42,45 +43,50 @@ public final class PolicyLooks {
 
     static {
         BUILT_IN.put(CommonRegionPolicies.PVP, () -> new Look("IRON_SWORD",
-                Phrases.tr("{primary}&lPVP"), Phrases.tr("Players can hurt each other.")));
+                flag(Phrases.tr("PVP")), Phrases.tr("Players can hurt each other.")));
         BUILT_IN.put(CommonRegionPolicies.BUILD, () -> new Look("BRICKS",
-                Phrases.tr("{primary}&lBUILD"), Phrases.tr("Players can place blocks.")));
+                flag(Phrases.tr("Build")), Phrases.tr("Players can place blocks.")));
         BUILT_IN.put(CommonRegionPolicies.BREAK, () -> new Look("IRON_PICKAXE",
-                Phrases.tr("{primary}&lBREAK"), Phrases.tr("Players can break blocks.")));
+                flag(Phrases.tr("Break")), Phrases.tr("Players can break blocks.")));
         BUILT_IN.put(CommonRegionPolicies.INTERACT, () -> new Look("LEVER",
-                Phrases.tr("{primary}&lINTERACT"), Phrases.tr("Blocks and entities can be used.")));
+                flag(Phrases.tr("Interact")), Phrases.tr("Blocks and entities can be used.")));
         BUILT_IN.put(CommonRegionPolicies.PLAYER_BUILD_ONLY, () -> new Look("SCAFFOLDING",
-                Phrases.tr("{primary}&lPLAYER BLOCKS ONLY"), Phrases.tr("Only blocks a player placed can break.")));
+                flag(Phrases.tr("Player blocks only")), Phrases.tr("Only blocks a player placed can break.")));
         BUILT_IN.put(CommonRegionPolicies.ALLOWED_BLOCKS_ONLY, () -> new Look("CRAFTING_TABLE",
-                Phrases.tr("{primary}&lALLOWED BLOCKS ONLY"), Phrases.tr("Only the allowed blocks can be placed.")));
+                flag(Phrases.tr("Allowed blocks only")), Phrases.tr("Only the allowed blocks can be placed.")));
         BUILT_IN.put(CommonRegionPolicies.BREAKABLE_BLOCKS_ONLY, () -> new Look("GOLDEN_PICKAXE",
-                Phrases.tr("{primary}&lBREAKABLE BLOCKS ONLY"), Phrases.tr("Only the breakable blocks can break.")));
+                flag(Phrases.tr("Breakable blocks only")), Phrases.tr("Only the breakable blocks can break.")));
         BUILT_IN.put(CommonRegionPolicies.TEMPORARY_BLOCKS, () -> new Look("SAND",
-                Phrases.tr("{primary}&lTEMPORARY BLOCKS"), Phrases.tr("Placed blocks vanish on their own.")));
+                flag(Phrases.tr("Temporary blocks")), Phrases.tr("Placed blocks vanish on their own.")));
         BUILT_IN.put(CommonRegionPolicies.RE_GIVE_BLOCKS, () -> new Look("BUNDLE",
-                Phrases.tr("{primary}&lRETURN BLOCKS"), Phrases.tr("A vanished block goes back to its placer.")));
+                flag(Phrases.tr("Return blocks")), Phrases.tr("A vanished block goes back to its placer.")));
         BUILT_IN.put(CommonRegionPolicies.REGION_MEMBERS_ONLY, () -> new Look("NAME_TAG",
-                Phrases.tr("{primary}&lMEMBERS ONLY"), Phrases.tr("Only region members can act inside.")));
+                flag(Phrases.tr("Members only")), Phrases.tr("Only region members can act inside.")));
         BUILT_IN.put(CommonRegionPolicies.ENTRY, () -> new Look("OAK_DOOR",
-                Phrases.tr("{primary}&lENTRY"), Phrases.tr("Players can come in, teleports included.")));
+                flag(Phrases.tr("Entry")), Phrases.tr("Players can come in, teleports included.")));
         BUILT_IN.put(CommonRegionPolicies.EXIT, () -> new Look("IRON_DOOR",
-                Phrases.tr("{primary}&lEXIT"), Phrases.tr("Players can leave, teleports included.")));
+                flag(Phrases.tr("Exit")), Phrases.tr("Players can leave, teleports included.")));
         BUILT_IN.put(CommonRegionPolicies.ITEM_DROP, () -> new Look("DROPPER",
-                Phrases.tr("{primary}&lITEM DROP"), Phrases.tr("Players can drop items.")));
+                flag(Phrases.tr("Item drop")), Phrases.tr("Players can drop items.")));
         BUILT_IN.put(CommonRegionPolicies.ITEM_PICKUP, () -> new Look("HOPPER",
-                Phrases.tr("{primary}&lITEM PICKUP"), Phrases.tr("Players can pick items up.")));
+                flag(Phrases.tr("Item pickup")), Phrases.tr("Players can pick items up.")));
         BUILT_IN.put(CommonRegionPolicies.FALL_DAMAGE, () -> new Look("FEATHER",
-                Phrases.tr("{primary}&lFALL DAMAGE"), Phrases.tr("Falling hurts players.")));
+                flag(Phrases.tr("Fall damage")), Phrases.tr("Falling hurts players.")));
         BUILT_IN.put(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS, () -> new Look("CLOCK",
-                Phrases.tr("{primary}&lBLOCK LIFETIME"), Phrases.tr("How long a temporary block lasts."),
+                flag(Phrases.tr("Block lifetime")), Phrases.tr("How long a temporary block lasts."),
                 Phrases.tr("s ⌚")));
         BUILT_IN.put(CommonRegionPolicies.BUILD_MAX_Y, () -> new Look("LADDER",
-                Phrases.tr("{primary}&lBUILD HEIGHT"),
+                flag(Phrases.tr("Build height")),
                 Phrases.tr("Highest Y a block can be placed at. 0 means no limit.")));
         BUILT_IN.put(CommonRegionPolicies.ALLOWED_BLOCKS, () -> new Look("WRITABLE_BOOK",
-                Phrases.tr("{primary}&lALLOWED BLOCKS"), Phrases.tr("What can be placed when the list is on.")));
+                flag(Phrases.tr("Allowed blocks")), Phrases.tr("What can be placed when the list is on.")));
         BUILT_IN.put(CommonRegionPolicies.BREAKABLE_BLOCKS, () -> new Look("BOOK",
-                Phrases.tr("{primary}&lBREAKABLE BLOCKS"), Phrases.tr("What can break when the list is on.")));
+                flag(Phrases.tr("Breakable blocks")), Phrases.tr("What can break when the list is on.")));
+    }
+
+    /** A built-in flag's card name. */
+    private static String flag(String subject) {
+        return Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Flag"), subject);
     }
 
     /** Every boolean common policy, in declaration order: the editor's default rows. */
@@ -130,46 +136,44 @@ public final class PolicyLooks {
      */
     public static @NotNull List<String> lore(@NotNull PolicyKey<?> key, @NotNull Look look,
                                              @NotNull PolicyDraft draft) {
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add(" {letters_black}▎ {letters}" + look.description());
-        lore.add("");
-        lore.add(Phrases.tr("{secondary}State:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Now {letters_black}» {0}",
+        Lore lore = Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Region flag"))
+                .section(Phrases.tr("Information"));
+        for (String line : net.exylia.lib.text.Lines.split(net.exylia.lib.text.Lines.wrap(look.description(), 34))) {
+            lore.text(line);
+        }
+        lore.section("✦", Phrases.tr("Status"));
+        lore.line(Phrases.tr("  {letters_black}· {info}{icon:redstone} {letters}Now{letters_black}: {0}",
                 draft.explicit(key).map(value -> full(value, look)).orElseGet(() -> Phrases.tr("{muted}Default"))));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Default {letters_black}» {0}",
+        lore.line(Phrases.tr("  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: {0}",
                 draft.fallback(key).map(value -> full(value, look))
                         .orElseGet(() -> Phrases.tr("{muted}Set by the plugin"))));
         if (key.type() == MaterialSet.class) {
             MaterialSet listed = (MaterialSet) draft.explicit(key).orElse(null);
             if (listed != null && !listed.isEmpty()) {
-                lore.add("");
-                lore.add(Phrases.tr("{secondary}Materials:"));
+                lore.section("✦", Phrases.tr("Materials"));
                 int shown = 0;
                 for (org.bukkit.Material material : listed.materials()) {
                     if (shown++ == LISTED) {
-                        lore.add(Phrases.tr(" {letters_black}▎ {muted}and {0} more", listed.materials().size() - LISTED));
+                        lore.line(Phrases.tr(" {muted}and {0} more", listed.materials().size() - LISTED));
                         break;
                     }
-                    lore.add(" {letters_black}▎ {info}" + readable(material.name()));
+                    lore.line(" {info}" + readable(material.name()));
                 }
             }
         }
-        lore.add("");
         String reason = draft.lockReason(key);
         if (reason != null) {
-            lore.add(Phrases.tr("{secondary}Locked:"));
-            lore.add(" {letters_black}▎ {muted}" + reason);
+            lore.section("✦", Phrases.tr("Locked"));
+            lore.line(" {muted}" + reason);
         } else {
-            lore.add(key.type() == Boolean.class ? Phrases.tr("{warning}➥ Click to cycle")
-                    : key.type() == Integer.class ? Phrases.tr("{warning}➥ Click to set")
-                    : Phrases.tr("{warning}➥ Click to edit the list"));
+            lore.action(key.type() == Boolean.class ? Phrases.tr("Click to cycle")
+                    : key.type() == Integer.class ? Phrases.tr("Click to set")
+                    : Phrases.tr("Click to edit the list"));
             if (draft.explicit(key).isPresent()) {
-                lore.add(Phrases.tr("{warning}➥ Right-click for default"));
+                lore.action(Phrases.tr("Right-click for default"));
             }
         }
-        lore.add("");
-        return lore;
+        return lore.lines();
     }
 
     /** A value inside the name's brackets. */

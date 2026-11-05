@@ -7,6 +7,7 @@ import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.config.internal.DefaultUpdates;
 import net.exylia.lib.config.internal.DefaultsMerge;
 import net.exylia.lib.text.Lines;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.Menus;
@@ -371,7 +372,7 @@ public final class UpdatesMenu {
               slots: '10-16,19-25,28-34,37-43'
               item_template:
                 material: WRITABLE_BOOK
-                name: '{primary}&l%plugin% &8[{warning}%changes%&8]'
+                name: '{letters}Plugin {letters_black}▸ <gradient:{primary}:{secondary_light}>%plugin%</gradient> &8[{warning}%changes%&8]'
                 actions:
                   - 'left,right: exylialib:updates_open'
                   - 'shift_left: exylialib:updates_apply'
@@ -408,7 +409,7 @@ public final class UpdatesMenu {
               slots: '10-16,19-25,28-34,37-43'
               item_template:
                 material: PAPER
-                name: '{primary}&l%file% &8[{warning}%changes%&8]'
+                name: '{letters}File {letters_black}▸ <gradient:{primary}:{secondary_light}>%file%</gradient> &8[{warning}%changes%&8]'
                 actions:
                   - 'left,right: exylialib:updates_open'
                   - 'shift_left: exylialib:updates_apply'
@@ -442,7 +443,7 @@ public final class UpdatesMenu {
               slots: '10-16,19-25,28-34,37-43'
               item_template:
                 material: ORANGE_DYE
-                name: '{primary}&l%key%'
+                name: '{letters}Setting {letters_black}▸ <gradient:{warning}:{warning_light}>%key%</gradient>'
                 actions:
                   - 'left,shift_left: exylialib:updates_apply'
                   - 'right,shift_right: exylialib:updates_keep'
@@ -483,132 +484,100 @@ public final class UpdatesMenu {
     // never break the YAML.
 
     private static void frame(YamlConfiguration yaml) {
-        yaml.set("filler.pagination.name", Phrases.tr("{success}&lALL CAUGHT UP"));
-        yaml.set("filler.pagination.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}No default change waits for a decision."),
-                ""));
-        yaml.set("pagination.navigation.previous.name", Phrases.tr("{error}&l← PREVIOUS PAGE"));
-        yaml.set("pagination.navigation.next.name", Phrases.tr("{success}&lNEXT PAGE →"));
+        yaml.set("filler.pagination.name", Phrases.tr("{success}All caught up"));
+        yaml.set("filler.pagination.lore", List.of(Phrases.tr("{letters_black}No default change waits for a decision.")));
+        yaml.set("pagination.navigation.previous.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Page"), "← " + Phrases.tr("Previous")));
+        yaml.set("pagination.navigation.next.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Page"), Phrases.tr("Next") + " →"));
+        String page = Phrases.tr("  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%");
+        yaml.set("pagination.navigation.previous.lore", List.of(page));
+        yaml.set("pagination.navigation.next.lore", List.of(page));
+    }
+
+    /** The lore of a plugin's or a file's row: how many changes wait, and the three clicks. */
+    private static List<String> rowLore(String subtitle, boolean files) {
+        Lore lore = Lore.of(Lore.Tone.PRIMARY).subtitle(subtitle).section("✦", Phrases.tr("Status"));
+        if (files) lore.line(Phrases.tr("  {letters_black}· {info}{icon:paper} {letters}Files{letters_black}: {info}%files%"));
+        return lore.line(Phrases.tr("  {letters_black}· {info}{icon:hopper} {letters}Changes{letters_black}: {info}%changes%"))
+                .action(Phrases.tr("Click to review"))
+                .action(Phrases.tr("Shift + left click to apply all"))
+                .action(Phrases.tr("Shift + right click to keep all"))
+                .lines();
     }
 
     private static void pluginsWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&lUPDATES {muted}%current_page%/%total_pages%"));
-        yaml.set("pagination.item_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Files {letters_black}» {info}%files%"),
-                Phrases.tr(" {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%"),
-                "",
-                Phrases.tr("{warning}➥ Click to review"),
-                Phrases.tr("{warning}➥ Shift + left click to apply all"),
-                Phrases.tr("{warning}➥ Shift + right click to keep all"),
-                ""));
-        yaml.set("items.info.name", Phrases.tr("{primary}&lPLUGIN UPDATES"));
-        yaml.set("items.info.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}New settings arrive on their own."),
-                Phrases.tr(" {letters_black}▎ {letters}A {highlight}changed default {letters}waits here:"),
-                Phrases.tr(" {letters_black}▎ {letters}your value may be the one you want."),
-                ""));
-        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY EVERYTHING"));
-        yaml.set("items.apply.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Writes every new default and reloads"),
-                Phrases.tr(" {letters_black}▎ {letters}the plugins they belong to."),
-                "",
-                Phrases.tr("{warning}➥ Click to apply all"),
-                ""));
-        yaml.set("items.close.name", Phrases.tr("{error}&lCLOSE"));
-        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP EVERYTHING"));
-        yaml.set("items.keep.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Leaves every value as it is and stops"),
-                Phrases.tr(" {letters_black}▎ {letters}listing these changes."),
-                "",
-                Phrases.tr("{warning}➥ Click to keep all"),
-                ""));
+        yaml.set("pagination.item_template.lore", rowLore(Phrases.tr("Changed defaults"), true));
+        yaml.set("items.info.name", Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Plugin updates")));
+        yaml.set("items.info.lore", Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("Reviewed updates"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}New settings arrive on their own."))
+                .line(Phrases.tr(" {letters}A {highlight}changed default {letters}waits here:"))
+                .line(Phrases.tr(" {letters}your value may be the one you want."))
+                .lines());
+        yaml.set("items.apply.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Updates"), Phrases.tr("Apply everything")));
+        yaml.set("items.apply.lore", Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Updates action"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Writes every new default and reloads"))
+                .line(Phrases.tr(" {letters}the plugins they belong to."))
+                .action(Phrases.tr("Click to apply all")).lines());
+        yaml.set("items.close.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Updates"), Phrases.tr("Close")));
+        yaml.set("items.keep.name", Lore.name(Lore.Tone.WARNING, Phrases.tr("Updates"), Phrases.tr("Keep everything")));
+        yaml.set("items.keep.lore", Lore.of(Lore.Tone.WARNING).subtitle(Phrases.tr("Updates action"))
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Leaves every value as it is and stops"))
+                .line(Phrases.tr(" {letters}listing these changes."))
+                .action(Phrases.tr("Click to keep all")).lines());
     }
 
     private static void filesWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&l%updates_plugin% {muted}%current_page%/%total_pages%"));
-        yaml.set("pagination.item_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Information:"),
-                Phrases.tr(" {letters_black}▎ {letters}Changes {letters_black}» {info}%changes%"),
-                "",
-                Phrases.tr("{warning}➥ Click to review"),
-                Phrases.tr("{warning}➥ Shift + left click to apply all"),
-                Phrases.tr("{warning}➥ Shift + right click to keep all"),
-                ""));
-        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY ALL"));
-        yaml.set("items.apply.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Every change in this plugin."),
-                "",
-                Phrases.tr("{warning}➥ Click to apply all"),
-                ""));
-        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
-        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP ALL"));
-        yaml.set("items.keep.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Every value in this plugin stays as it is."),
-                "",
-                Phrases.tr("{warning}➥ Click to keep all"),
-                ""));
+        yaml.set("pagination.item_template.lore", rowLore(Phrases.tr("Changed defaults"), false));
+        applyKeep(yaml, Phrases.tr(" {letters}Every change in this plugin."),
+                Phrases.tr(" {letters}Every value in this plugin stays as it is."), Phrases.tr("Plugins"));
+    }
+
+    private static void applyKeep(YamlConfiguration yaml, String applies, String keeps, String parent) {
+        yaml.set("items.apply.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Updates"), Phrases.tr("Apply all")));
+        yaml.set("items.apply.lore", Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Updates action"))
+                .section(Phrases.tr("Information")).line(applies)
+                .action(Phrases.tr("Click to apply all")).lines());
+        yaml.set("items.back.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Back"), parent));
+        yaml.set("items.back.lore", List.of("{error}» " + Phrases.tr("Click to go back")));
+        yaml.set("items.keep.name", Lore.name(Lore.Tone.WARNING, Phrases.tr("Updates"), Phrases.tr("Keep all")));
+        yaml.set("items.keep.lore", Lore.of(Lore.Tone.WARNING).subtitle(Phrases.tr("Updates action"))
+                .section(Phrases.tr("Information")).line(keeps)
+                .action(Phrases.tr("Click to keep all")).lines());
     }
 
     private static void changesWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&l%updates_file% {muted}%current_page%/%total_pages%"));
-        yaml.set("pagination.item_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Your value:"),
-                " {letters_black}▎ {muted}%current%",
-                "",
-                Phrases.tr("{secondary}New default:"),
-                " {letters_black}▎ {highlight}%shipped%",
-                "",
-                Phrases.tr("{warning}➥ Left click to apply the new default"),
-                Phrases.tr("{warning}➥ Right click to keep your value"),
-                ""));
-        yaml.set("pagination.added_template.name", Phrases.tr("{primary}&l%key% &8[{success}NEW&8]"));
-        yaml.set("pagination.added_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}New setting:"),
-                " {letters_black}▎ {highlight}%shipped%",
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Not in your file yet. It may be one"),
-                Phrases.tr(" {letters_black}▎ {letters}you removed on purpose."),
-                "",
-                Phrases.tr("{warning}➥ Left click to add it"),
-                Phrases.tr("{warning}➥ Right click to leave it out"),
-                ""));
-        yaml.set("pagination.removed_template.name", Phrases.tr("{primary}&l%key% &8[{error}REMOVED&8]"));
-        yaml.set("pagination.removed_template.lore", List.of(
-                "",
-                Phrases.tr("{secondary}Your value:"),
-                " {letters_black}▎ {muted}%current%",
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}The plugin no longer ships it."),
-                "",
-                Phrases.tr("{warning}➥ Left click to remove it"),
-                Phrases.tr("{warning}➥ Right click to keep it"),
-                ""));
-        yaml.set("items.apply.name", Phrases.tr("{success}&lAPPLY ALL"));
-        yaml.set("items.apply.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Every change in this file."),
-                "",
-                Phrases.tr("{warning}➥ Click to apply all"),
-                ""));
-        yaml.set("items.back.name", Phrases.tr("{error}&lBACK"));
-        yaml.set("items.keep.name", Phrases.tr("{letters_black}&lKEEP ALL"));
-        yaml.set("items.keep.lore", List.of(
-                "",
-                Phrases.tr(" {letters_black}▎ {letters}Every value in this file stays as it is."),
-                "",
-                Phrases.tr("{warning}➥ Click to keep all"),
-                ""));
+        Lore.Tone tone = Lore.Tone.WARNING;
+        yaml.set("pagination.item_template.lore", Lore.of(tone).subtitle(Phrases.tr("Changed default"))
+                .section("✦", Phrases.tr("Your value")).line(" {muted}%current%")
+                .section("✦", Phrases.tr("New default")).line(" {highlight}%shipped%")
+                .action(Phrases.tr("Left click to apply the new default"))
+                .action(Phrases.tr("Right click to keep your value"))
+                .lines());
+        yaml.set("pagination.added_template.name", "{letters}" + Phrases.tr("Setting") + " {letters_black}▸ "
+                + Lore.Tone.SUCCESS.gradient("%key%") + Phrases.tr(" &8[{success}NEW&8]"));
+        yaml.set("pagination.added_template.lore", Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("New setting"))
+                .section("✦", Phrases.tr("New setting")).line(" {highlight}%shipped%")
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}Not in your file yet. It may be one"))
+                .line(Phrases.tr(" {letters}you removed on purpose."))
+                .action(Phrases.tr("Left click to add it"))
+                .action(Phrases.tr("Right click to leave it out"))
+                .lines());
+        yaml.set("pagination.removed_template.name", "{letters}" + Phrases.tr("Setting") + " {letters_black}▸ "
+                + Lore.Tone.ERROR.gradient("%key%") + Phrases.tr(" &8[{error}REMOVED&8]"));
+        yaml.set("pagination.removed_template.lore", Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Removed setting"))
+                .section("✦", Phrases.tr("Your value")).line(" {muted}%current%")
+                .section(Phrases.tr("Information"))
+                .line(Phrases.tr(" {letters}The plugin no longer ships it."))
+                .action(Phrases.tr("Left click to remove it"))
+                .action(Phrases.tr("Right click to keep it"))
+                .lines());
+        applyKeep(yaml, Phrases.tr(" {letters}Every change in this file."),
+                Phrases.tr(" {letters}Every value in this file stays as it is."), Phrases.tr("Files"));
     }
 }

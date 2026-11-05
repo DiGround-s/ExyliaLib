@@ -16,52 +16,50 @@ filler:
     hide_tooltip: false
     name: '{muted}Başka kozmetik yok'
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Burada görmek için eklentiye ekle.'
-      - ''
+      - "{letters_black}Burada görmek için eklentiye ekle."
 pagination:
   slots: '0-35'
   item_template:
     material: '%reward_material%'
     hide-attributes: true
-    name: '%reward_name%'
+    name: "{letters}Kozmetik {letters_black}▸ %reward_name%"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Nadirlik {letters_black}» %reward_tier%'
-      - ' {letters_black}▎ {letters}Durum {letters_black}» {error}✘ Kilitli'
-      - ''
-      - '{warning}➥ Vermek için tıkla'
-      - ''
+      - "{letters_black}Kilitli kozmetik"
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:star} {letters}Nadirlik{letters_black}: %reward_tier%"
+      - "  {letters_black}· {error}{icon:redstone} {letters}Durum{letters_black}: {error}✘ Kilitli"
+      - ""
+      - "{primary}» Vermek için tıkla"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   unlocked_template:
     material: '%reward_material%'
     hide-attributes: true
     glowing: true
-    name: '%reward_name%'
+    name: "{letters}Kozmetik {letters_black}▸ %reward_name%"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Nadirlik {letters_black}» %reward_tier%'
-      - ' {letters_black}▎ {letters}Durum {letters_black}» {success}✔ Açık'
-      - ''
-      - '{error}➥ Geri almak için tıkla'
-      - ''
+      - "{letters_black}Kilidi açık kozmetik"
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:star} {letters}Nadirlik{letters_black}: %reward_tier%"
+      - "  {letters_black}· {success}{icon:redstone} {letters}Durum{letters_black}: {success}✔ Açık"
+      - ""
+      - "{error}» Geri almak için tıkla"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   permission_template:
     material: '%reward_material%'
     hide-attributes: true
-    name: '%reward_name%'
+    name: "{letters}Kozmetik {letters_black}▸ %reward_name%"
     lore:
-      - ''
-      - '{secondary}Durum:'
-      - ' {letters_black}▎ {letters}Nadirlik {letters_black}» %reward_tier%'
-      - ' {letters_black}▎ {letters}Durum {letters_black}» {info}İzinle'
-      - ''
-      - '{warning}➥ Kalıcı vermek için tıkla'
-      - ''
+      - "{letters_black}İzinle gelen kozmetik"
+      - ""
+      - "{primary}✦ Durum"
+      - "  {letters_black}· {info}{icon:star} {letters}Nadirlik{letters_black}: %reward_tier%"
+      - "  {letters_black}· {info}{icon:redstone} {letters}Durum{letters_black}: {info}İzinle"
+      - ""
+      - "{primary}» Kalıcı vermek için tıkla"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   navigation:
@@ -69,31 +67,23 @@ pagination:
       slot: 48
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
-      name: '{error}&l← ÖNCEKİ SAYFA'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{error}:{error_light}>← Önceki</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
     next:
       slot: 50
       sound: "minecraft:item.book.page_turn|1.0|1.0"
       material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
-      name: '{success}&lSONRAKİ SAYFA →'
+      name: "{letters}Sayfa {letters_black}▸ <gradient:{success}:{success_light}>Sonraki →</gradient>"
       lore:
-        - ''
-        - ' {letters_black}▎ {letters}Sayfa {info}%current_page%{letters_black}/{info}%total_pages%'
-        - ''
+        - "  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
 items:
   back:
     slot: 49
     sound: "minecraft:item.bundle.remove_one|1.0|0.5"
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
-    name: '{error}&lGERİ'
+    name: "{letters}Geri {letters_black}▸ <gradient:{error}:{error_light}>Oyuncu</gradient>"
     lore:
-      - ''
-      - ' {letters_black}▎ {letters}Oyuncuya döner.'
-      - ''
-      - '{warning}➥ Geri dönmek için tıkla'
-      - ''
+      - "{error}» Geri dönmek için tıkla"
     actions:
       - 'exylialib:cosmetics player'

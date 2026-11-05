@@ -4,6 +4,7 @@ import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
 import net.exylia.lib.input.Inputs;
+import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.util.editor.EditorDescriptor;
 import net.exylia.lib.util.editor.EditorForm;
@@ -74,17 +75,17 @@ final class AbilityDescriptor implements EditorDescriptor<Ability> {
         Map<String, Object> source = ability.source();
         List<String> lore = new ArrayList<>();
         lore.add("");
-        lore.add(Phrases.tr("{secondary}Information:"));
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Chance {letters_black}» {info}{0}%",
+        lore.add(Lore.Tone.PRIMARY.colour() + "✎ " + Phrases.tr("Information"));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {info}{0}%",
                 written(source.get("chance"), "100")));
         Object cooldown = source.get("cooldown");
         if (cooldown != null) {
-            lore.add(Phrases.tr(" {letters_black}▎ {letters}Cooldown {letters_black}» {info}{0} ⌚", written(cooldown, "")));
+            lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", written(cooldown, "")));
         }
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Conditions {letters_black}» {info}{0}", lines(source.get("conditions")).size()));
+        lore.add(Phrases.tr("  {letters_black}· {letters}Conditions{letters_black}: {info}{0}", lines(source.get("conditions")).size()));
         List<String> effects = new ArrayList<>();
         for (Line line : lines(source.get("effects"))) effects.add(line.name());
-        lore.add(Phrases.tr(" {letters_black}▎ {letters}Effects {letters_black}» {info}{0}",
+        lore.add(Phrases.tr("  {letters_black}· {letters}Effects{letters_black}: {info}{0}",
                 effects.isEmpty() ? Phrases.tr("nothing") : String.join(", ", effects)));
         return lore;
     }
@@ -359,10 +360,10 @@ final class AbilityDescriptor implements EditorDescriptor<Ability> {
             List<String> lore = new ArrayList<>();
             lore.add("");
             if (line.value() instanceof Map<?, ?> map) {
-                map.forEach((key, value) -> lore.add(" {letters_black}▎ {letters}" + key + " {letters_black}» {info}"
+                map.forEach((key, value) -> lore.add("  {letters_black}· {letters}" + key + "{letters_black}: {info}"
                         + value));
             } else if (line.value() != null && !String.valueOf(line.value()).isEmpty()) {
-                lore.add(" {letters_black}▎ {info}" + line.value());
+                lore.add(" {info}" + line.value());
             }
             return lore;
         }

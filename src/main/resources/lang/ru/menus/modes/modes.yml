@@ -1,3 +1,5 @@
+menu-version: 1
+
 title: '{primary}&lРЕЖИМЫ'
 size: 45
 type: PAGINATION
@@ -24,13 +26,13 @@ items:
   header:
     slot: 4
     material: NETHER_STAR
-    name: '{primary}&lРЕЖИМЫ'
+    name: "<gradient:{info}:{info_light}>Режимы</gradient>"
     lore:
-      - ''
-      - '{secondary}Информация:'
-      - ' {letters_black}▎ {letters}Все способы играть на сервере,'
-      - ' {letters_black}▎ {letters}сгруппированные по {highlight}виду{letters}.'
-      - ''
-      - '{secondary}Статистика:'
-      - ' {letters_black}▎ {letters}Играют {letters_black}» {info}%modes_playing%'
-      - ''
+      - "{letters_black}Режимы сервера"
+      - ""
+      - "{info}✎ Информация"
+      - " {letters}Все способы играть на сервере,"
+      - " {letters}сгруппированные по {highlight}виду{letters}."
+      - ""
+      - "{info}✦ Статистика"
+      - "  {letters_black}· {info}{icon:eye} {letters}Играют{letters_black}: {info}%modes_playing%"
