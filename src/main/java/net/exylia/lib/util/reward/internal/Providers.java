@@ -2,6 +2,7 @@ package net.exylia.lib.util.reward.internal;
 
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.economy.EconomyResponse;
+import net.exylia.lib.economy.Transaction;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.text.Text;
@@ -92,7 +93,7 @@ public final class Providers {
                 case COMMAND -> command(entry, player, tasks);
                 case MESSAGE -> message(entry, player, owner);
                 case ITEM -> item(entry, player, amount, overflow, items);
-                case ECONOMY -> economy(entry, player, amount);
+                case ECONOMY -> economy(entry, player, amount, owner);
                 case EXPERIENCE -> experience(entry, player, amount);
                 case POTION -> potion(entry, player);
             };
@@ -175,7 +176,8 @@ public final class Providers {
                 : RewardResult.skipped(entry, outcome);
     }
 
-    private static RewardResult economy(RewardEntry entry, Player player, int amount) {
+    private static RewardResult economy(RewardEntry entry, Player player, int amount,
+                                        @Nullable org.bukkit.plugin.Plugin owner) {
         BigDecimal money = money(entry, amount);
         if (money == null) {
             return RewardResult.failed(entry, "has an amount that is not a number: " + entry.value());
@@ -186,9 +188,11 @@ public final class Providers {
         if (!Economy.isAvailable()) {
             return RewardResult.failed(entry, "pays money but no economy is installed");
         }
-        EconomyResponse response = entry.currency() != null
-                ? Economy.of(entry.currency()).deposit(player.getUniqueId(), money)
-                : Economy.deposit(player.getUniqueId(), money);
+        // Filed under the plugin giving it (rewards:reward, crates:reward), so the
+        // ledger tells a daily reward from a quest from a crate instead of "api".
+        Transaction why = owner == null ? Transaction.of("reward") : Transaction.of(owner, "reward");
+        EconomyResponse response = Economy.of(entry.currency())
+                .deposit(player.getUniqueId(), money, why);
         return response.isSuccess()
                 ? RewardResult.given(entry)
                 : RewardResult.failed(entry, "the economy refused it: " + response.message());

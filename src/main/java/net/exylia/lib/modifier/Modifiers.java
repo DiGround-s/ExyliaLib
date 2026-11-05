@@ -2,6 +2,7 @@ package net.exylia.lib.modifier;
 
 import net.exylia.lib.economy.CurrencyInfo;
 import net.exylia.lib.economy.Economy;
+import net.exylia.lib.economy.Transaction;
 import net.exylia.lib.modifier.internal.ModifierRuntime;
 import net.exylia.lib.modifier.internal.PermissionModifiers;
 import net.exylia.lib.util.Multipliers;
@@ -262,9 +263,7 @@ public final class Modifiers {
      */
     public static @NotNull BigDecimal pay(@NotNull UUID player, @NotNull String source, @Nullable String scope,
                                           @Nullable BigDecimal amount) {
-        if (amount == null || amount.signum() <= 0 || !Economy.isAvailable()) return BigDecimal.ZERO;
-        BigDecimal paid = money(player, source, scope, amount);
-        return Economy.pay(player, paid) ? paid : BigDecimal.ZERO;
+        return pay(player, source, scope, null, amount, Transaction.of(source));
     }
 
     /**
@@ -275,10 +274,26 @@ public final class Modifiers {
      */
     public static @NotNull BigDecimal pay(@NotNull UUID player, @NotNull String source, @Nullable String scope,
                                           @Nullable String currency, @Nullable BigDecimal amount) {
-        if (currency == null || currency.isBlank()) return pay(player, source, scope, amount);
-        if (amount == null || amount.signum() <= 0) return BigDecimal.ZERO;
-        BigDecimal paid = money(player, source, scope, currency, amount);
-        return paid.signum() > 0 && Economy.of(currency).pay(player, paid) ? paid : BigDecimal.ZERO;
+        return pay(player, source, scope, currency, amount, Transaction.of(source));
+    }
+
+    /**
+     * {@link #pay(UUID, String, String, String, BigDecimal)} with the reason the ledger
+     * files it under, such as {@code missions:complete}. The overloads without one use
+     * the source as the reason.
+     *
+     * @param currency    the currency's id, {@code null} or blank for the default one
+     * @param transaction why the money moved
+     * @since 1.477.0
+     */
+    public static @NotNull BigDecimal pay(@NotNull UUID player, @NotNull String source, @Nullable String scope,
+                                          @Nullable String currency, @Nullable BigDecimal amount,
+                                          @NotNull Transaction transaction) {
+        boolean fallback = currency == null || currency.isBlank();
+        if (amount == null || amount.signum() <= 0 || (fallback && !Economy.isAvailable())) return BigDecimal.ZERO;
+        BigDecimal paid = fallback ? money(player, source, scope, amount) : money(player, source, scope, currency, amount);
+        return paid.signum() > 0 && Economy.of(fallback ? null : currency).pay(player, paid, transaction)
+                ? paid : BigDecimal.ZERO;
     }
 
     // ------------------------------------------------------------------ xp and drops

@@ -47,6 +47,19 @@ public record Transaction(@NotNull String reason, @Nullable UUID initiator) {
     }
 
     /**
+     * A transaction named after a plugin, its {@code Exylia} prefix dropped:
+     * {@code of(exyliaRewards, "reward")} is {@code rewards:reward}, the shape
+     * {@link net.exylia.lib.escrow.Escrow} uses for its stakes.
+     *
+     * @since 1.477.0
+     */
+    public static @NotNull Transaction of(@NotNull org.bukkit.plugin.Plugin owner, @NotNull String what) {
+        String name = owner.getName().toLowerCase(Locale.ROOT);
+        if (name.startsWith("exylia") && name.length() > "exylia".length()) name = name.substring("exylia".length());
+        return of(name + ":" + what);
+    }
+
+    /**
      * The transaction a library call is carrying through Vault on this thread, or {@code null}.
      *
      * <p>Vault's API has no room for a reason, so a change made with {@code Economy.of("vault")}
