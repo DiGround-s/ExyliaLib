@@ -89,5 +89,8 @@ class LayoutTest {
         assertEquals(0, ScreenMath.argb(null, 7));
         assertEquals(-2, ScreenMath.turn(179, -179 - 4), 1e-9);
         assertEquals(10, ScreenMath.turn(-175, 195), 1e-9);
+        assertEquals(0xFF808080, ScreenMath.over(0x80FFFFFF, 0xFF000000));
+        assertEquals(0xFF112233, ScreenMath.over(0xFF112233, 0xFFFFFFFF));
+        assertEquals(0xFF0A141E, ScreenMath.over(0x00FFFFFF, 0xFF0A141E));
     }
 }

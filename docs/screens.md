@@ -181,7 +181,7 @@ comma lists, resolved by specificity then order. The base theme comes first, the
 | `flex-grow` | a share of the room left |
 | `align-items` | `start`, `center`, `end`, `stretch` |
 | `justify-content` | `start`, `center`, `end`, `space-between` |
-| `background` | `{token}`, `{token}40` (hex alpha), `#rrggbb`, `#aarrggbb`, `none` |
+| `background` | `{token}`, `{token}40` (hex alpha), `#rrggbb`, `#aarrggbb`, `none`; a see-through colour is mixed over its container's and sent opaque (1.485.2) |
 | `outline`, `border` | `1px {primary}`: a line outside the box |
 | `color`, `font-size`, `font-weight` | inherited; `font-size: 14px` is 1.4 lines, `font-weight: bold` |
 

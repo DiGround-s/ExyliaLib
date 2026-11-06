@@ -132,7 +132,7 @@ final class LiveScreen implements ScreenSession {
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
         out.add(ScreenPackets.spawnDisplay(backdropId, origin));
         out.add(rect(backdropId, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 0,
-                ScreenMath.argb(screen.backdrop(), 0xFF0B0912))));
+                ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000))));
         for (int id : cursorIds) out.add(ScreenPackets.spawnDisplay(id, origin));
         synchronized (this) {
             cursor(out, 0);
@@ -238,6 +238,11 @@ final class LiveScreen implements ScreenSession {
     private void sync() {
         Map<String, Object> wanted = new HashMap<>();
         List<String> order = new ArrayList<>();
+        // The client sorts see-through displays by entity position, and every display here stands at the eyes,
+        // so overlapping see-through rects blend in no fixed order. Each colour is mixed over the solid colour
+        // of what holds it instead, and only opaque rects are sent. Boxes come parents first, depth by depth.
+        int[] beneath = new int[64];
+        int backdrop = ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000);
         for (Layout.Placed box : placed) {
             if (wanted.size() >= BUDGET) {
                 if (!overBudget) {
@@ -249,12 +254,17 @@ final class LiveScreen implements ScreenSession {
             Node node = box.node();
             boolean over = box.key().equals(hovered);
             String colour = over && node.hover() != null ? node.hover() : node.background();
+            int depth = Math.min(box.depth(), beneath.length - 1);
+            int base = depth == 0 ? backdrop : beneath[depth - 1];
             int argb = ScreenMath.argb(colour, 0);
+            argb = argb == 0 ? 0 : ScreenMath.over(argb, base);
+            beneath[depth] = argb == 0 ? base : argb;
             double cx = (box.x() + box.w() / 2 - screen.width() / 2) * unit;
             double cy = (screen.height() / 2 - box.y() - box.h() / 2) * unit;
             // Outline, fill, text: three layers a box, deeper boxes nearer the eye.
             int layer = 2 + box.depth() * 3;
             int line = ScreenMath.argb(over && node.hoverOutline() != null ? node.hoverOutline() : node.outline(), 0);
+            line = line == 0 ? 0 : ScreenMath.over(line, base);
             if (line != 0 && node.outlineWidth() > 0) {
                 double grow = node.outlineWidth() * 2;
                 String key = box.key() + "#ol";

@@ -41,6 +41,20 @@ public final class ScreenMath {
         return fallback;
     }
 
+    /** {@code top} laid over {@code bottom} (treated as opaque): the opaque colour the eye sees. */
+    public static int over(int top, int bottom) {
+        int a = top >>> 24;
+        if (a == 0xFF) return top;
+        int r = mix(top >> 16, bottom >> 16, a);
+        int g = mix(top >> 8, bottom >> 8, a);
+        int b = mix(top, bottom, a);
+        return 0xFF000000 | r << 16 | g << 8 | b;
+    }
+
+    private static int mix(int top, int bottom, int alpha) {
+        return ((top & 0xFF) * alpha + (bottom & 0xFF) * (255 - alpha) + 127) / 255;
+    }
+
     /**
      * How far the view turned sideways between two packets, in degrees from -180 to 180. The client never wraps
      * its yaw and the server does, so a raw difference can be a whole turn off.

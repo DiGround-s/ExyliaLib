@@ -24,7 +24,7 @@ chip[selected] { color: {letters}; background: {primary}60; }
 
 grid, list { gap: 6px; }
 card { background: {letters_black}14; padding: 6px; gap: 3px; align-items: center; }
-card:hover { outline: 1px {primary}; }
+card:hover { outline: 1px {primary}; background: {primary}30; }
 card[selected] { outline: 1px {success}; background: {success}18; }
 card[disabled] { background: {neutral}14; color: {muted}; }
 empty { color: {muted}; padding: 8px; }
