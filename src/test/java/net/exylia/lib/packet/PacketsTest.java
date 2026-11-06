@@ -49,7 +49,7 @@ class PacketsTest {
 
         packets.visibility().rule((viewer, target) -> false);
         packets.visibility().refresh(alice.player());
-        assertTrue(packets.visibility().canSee(bob.player(), alice.player()));
+        assertFalse(packets.visibility().canSee(bob.player(), alice.player()), "falls back to hidePlayer");
 
         packets.fakeBlocks().show(alice.player(), Map.of());
         packets.fakeBlocks().clear(alice.player());

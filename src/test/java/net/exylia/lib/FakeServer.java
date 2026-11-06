@@ -24,7 +24,7 @@ import java.util.logging.Logger;
 public final class FakeServer {
 
     /** Tasks handed to the scheduler, in submission order. */
-    static final List<Scheduled> SCHEDULED = new ArrayList<>();
+    static final List<Scheduled> SCHEDULED = new java.util.concurrent.CopyOnWriteArrayList<>(); // async callers schedule concurrently, like the real scheduler allows
 
     /** Plugins {@link #disable(Plugin)} has stopped, by name. */
     static final java.util.Set<String> DISABLED = new java.util.HashSet<>();

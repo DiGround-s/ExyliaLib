@@ -726,10 +726,12 @@ public final class Escrow {
      */
     public @NotNull CompletableFuture<BigDecimal> refundRemaining(@NotNull String holdId) {
         checkId(holdId);
-        return refundKept(StakeRow.keptId(name, holdId), KEPT_RETRIES);
+        return refundKept(StakeRow.keptId(name, holdId));
     }
 
-    private CompletableFuture<BigDecimal> refundKept(String rowId, int tries) {
+    // Retries until it wins or the hold ends: every lost compare-and-set is another caller's committed
+    // write, and a hold takes finitely many, so this ends. Giving up would leave the rest held forever.
+    private CompletableFuture<BigDecimal> refundKept(String rowId) {
         return stakes.findFresh(rowId).thenCompose(found -> {
             if (found.isEmpty() || found.get().state() != StakeState.KEPT) {
                 return CompletableFuture.completedFuture(BigDecimal.ZERO);
@@ -743,8 +745,7 @@ public final class Escrow {
                             }
                             return CompletableFuture.completedFuture(row.amount());
                         }
-                        return tries > 1 ? refundKept(rowId, tries - 1)
-                                : CompletableFuture.completedFuture(BigDecimal.ZERO);
+                        return refundKept(rowId);
                     });
         });
     }
