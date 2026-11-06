@@ -110,6 +110,10 @@ final class LiveScreen implements ScreenSession {
     private record RectLook(double x, double y, double w, double h, int layer, int argb) {
     }
 
+    /** One of a picture's four copies: x, y its centre, cell one picture pixel, dx and dy the copy's nudge. */
+    private record ImageLook(double x, double y, double cell, int layer, Component text, int rows, int dx, int dy) {
+    }
+
     private record TextLook(double x, double y, double scale, int layer, Component text) {
     }
 
@@ -372,6 +376,26 @@ final class LiveScreen implements ScreenSession {
                 wanted.put(key, new ItemLook(ix, iy, side * unit * (lifted ? 1.15 : 1), layer + 1, node.item()));
                 order.add(key);
             }
+            if (node.pixels() != null) {
+                double innerW = box.w() - node.padLeft() - node.padRight();
+                double innerH = box.h() - node.padTop() - node.padBottom();
+                double cell = Math.min(innerW / node.pixelWidth(), innerH / node.pixelHeight());
+                if (cell > 0) {
+                    double ix = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
+                    double iy = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
+                    Component picture = picture(node, beneath[depth]);
+                    // A full block is narrower and shorter than the cell it stands in. Four copies, nudged by the
+                    // gaps, cover every cell edge to edge.
+                    int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
+                    int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
+                    for (int copy = 0; copy < 4; copy++) {
+                        String key = box.key() + "#im" + copy;
+                        wanted.put(key, new ImageLook(ix, iy, cell * unit, layer + 1, picture, node.pixelHeight(),
+                                (copy & 1) * gapX, (copy >> 1) * gapY));
+                        order.add(key);
+                    }
+                }
+            }
             if (node.text() != null) {
                 // Text sits in its padding box: centred on what is left inside it.
                 double inner = box.w() - node.padLeft() - node.padRight();
@@ -455,6 +479,7 @@ final class LiveScreen implements ScreenSession {
         return switch (look) {
             case RectLook r -> rect(id, r, glide);
             case ItemLook it -> item(id, it, glide);
+            case ImageLook im -> image(id, im, glide);
             default -> text(id, (TextLook) look, glide);
         };
     }
@@ -463,6 +488,7 @@ final class LiveScreen implements ScreenSession {
         return switch (look) {
             case RectLook r -> r.layer();
             case ItemLook it -> it.layer();
+            case ImageLook im -> im.layer();
             default -> ((TextLook) look).layer();
         };
     }
@@ -472,6 +498,8 @@ final class LiveScreen implements ScreenSession {
         return switch (look) {
             case RectLook r -> new RectLook(r.x() * f, r.y() * f + dy, r.w() * f, r.h() * f, r.layer(), r.argb());
             case ItemLook it -> new ItemLook(it.x() * f, it.y() * f + dy, it.size() * f, it.layer(), it.item());
+            case ImageLook im -> new ImageLook(im.x() * f, im.y() * f + dy, im.cell() * f, im.layer(), im.text(),
+                    im.rows(), im.dx(), im.dy());
             default -> {
                 TextLook t = (TextLook) look;
                 yield new TextLook(t.x() * f, t.y() * f + dy, t.scale() * f, t.layer(), t.text());
@@ -489,6 +517,56 @@ final class LiveScreen implements ScreenSession {
         double k = drawn(look.layer());
         return ScreenPackets.item(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
                 look.item(), glide);
+    }
+
+    private PacketWrapper<?> image(int id, ImageLook im, int glide) {
+        double k = drawn(im.layer());
+        double fx = im.cell() * k / ScreenPackets.IMAGE_ADVANCE;
+        double fy = im.cell() * k / ScreenPackets.IMAGE_LINE;
+        return ScreenPackets.image(id, im.x() * k + im.dx() * fx, im.y() * k - im.dy() * fy,
+                -DEPTH + im.layer() * LAYER, fx, fy, im.rows(), im.text(), glide);
+    }
+
+    /** Pictures already turned into glyphs, by their pixels and the colour behind them. */
+    private record PictureKey(int width, int length, int hash, int behind) {
+    }
+
+    private final Map<PictureKey, Component> pictures = new HashMap<>();
+
+    /**
+     * A picture as lines of full blocks, each run of one colour one component. A pixel more than half see-through
+     * takes the colour behind it, a partly see-through one is mixed over it: there is no see-through glyph.
+     */
+    private Component picture(Node node, int behind) {
+        int[] argb = node.pixels();
+        int w = node.pixelWidth();
+        // A node copies its pixels, so the same picture is a new array every render: keyed by what it holds.
+        PictureKey key = new PictureKey(w, argb.length, java.util.Arrays.hashCode(argb), behind);
+        Component known = pictures.get(key);
+        if (known != null) return known;
+        net.kyori.adventure.text.TextComponent.Builder out = Component.text();
+        for (int y = 0; y < node.pixelHeight(); y++) {
+            if (y > 0) out.append(Component.newline());
+            int x = 0;
+            while (x < w) {
+                int colour = solid(argb[y * w + x], behind);
+                int end = x + 1;
+                while (end < w && solid(argb[y * w + end], behind) == colour) end++;
+                out.append(Component.text("█".repeat(end - x), net.kyori.adventure.text.format.TextColor.color(colour & 0xFFFFFF)));
+                x = end;
+            }
+        }
+        Component built = out.build();
+        if (pictures.size() > 64) pictures.clear();
+        pictures.put(key, built);
+        return built;
+    }
+
+    private static int solid(int argb, int behind) {
+        int alpha = argb >>> 24;
+        if (alpha == 255) return argb;
+        if (alpha < 128) return behind;
+        return ScreenMath.over(argb, behind);
     }
 
     private PacketWrapper<?> text(int id, TextLook t, int glide) {

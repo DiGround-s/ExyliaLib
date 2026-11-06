@@ -41,7 +41,9 @@ public final class Node {
     public enum Kind {
         ROW, COLUMN, TEXT,
         /** An item drawn as itself, block or sprite or head: {@link #item(ItemStack)}. @since 1.488.0 */
-        ITEM
+        ITEM,
+        /** A small picture drawn pixel by pixel: {@link #image(int, int, int[])}. @since 1.489.0 */
+        IMAGE
     }
 
     /** Where children sit across the main axis. */
@@ -54,6 +56,9 @@ public final class Node {
     private final List<Node> children = new ArrayList<>();
     private final Component text;
     private ItemStack item;
+    private int[] pixels;
+    private int pixelWidth;
+    private int pixelHeight;
     private boolean overlay;
     private Consumer<ScreenSession> onDismiss;
     private String id;
@@ -111,6 +116,37 @@ public final class Node {
         return node;
     }
 
+    /**
+     * A small picture, drawn with the vanilla font's full block one pixel at a time, so no resource pack is
+     * needed: logos, badges, a player's body. One layout pixel a picture pixel unless sized; a size keeps the
+     * picture square-pixelled and centred. Pixels more than half see-through take the colour behind them.
+     * Pictures past {@link #MAX_IMAGE} pixels a side are refused: each pixel is a glyph sent to the client.
+     *
+     * @param argb {@code width * height} colours, row by row from the top left
+     * @since 1.489.0
+     */
+    public static @NotNull Node image(int width, int height, int @NotNull [] argb) {
+        if (width < 1 || height < 1 || width > MAX_IMAGE || height > MAX_IMAGE) {
+            throw new IllegalArgumentException("A picture is 1 to " + MAX_IMAGE + " pixels a side, not " + width + "x" + height);
+        }
+        if (argb.length != width * height) throw new IllegalArgumentException("Expected " + width * height + " colours");
+        Node node = new Node(Kind.IMAGE, null);
+        node.pixels = argb.clone();
+        node.pixelWidth = width;
+        node.pixelHeight = height;
+        return node;
+    }
+
+    /** {@link #image(int, int, int[])} from a decoded picture. @since 1.489.0 */
+    public static @NotNull Node image(@NotNull java.awt.image.BufferedImage picture) {
+        int w = picture.getWidth();
+        int h = picture.getHeight();
+        return image(w, h, picture.getRGB(0, 0, w, h, null, 0, w));
+    }
+
+    /** The largest side {@link #image} takes, in pixels. @since 1.489.0 */
+    public static final int MAX_IMAGE = 96;
+
     /** An empty box: a spacer with {@link #grow}, or a block of colour with a size. */
     public static @NotNull Node box() {
         return new Node(Kind.COLUMN, null);
@@ -118,7 +154,7 @@ public final class Node {
 
     /** Adds children after the ones already here; a text node takes none. */
     public @NotNull Node add(@NotNull Node... more) {
-        if ((kind == Kind.TEXT || kind == Kind.ITEM) && more.length > 0) {
+        if ((kind == Kind.TEXT || kind == Kind.ITEM || kind == Kind.IMAGE) && more.length > 0) {
             throw new IllegalStateException("A " + kind.name().toLowerCase(java.util.Locale.ROOT) + " node has no children");
         }
         for (Node child : more) children.add(java.util.Objects.requireNonNull(child, "child"));
@@ -297,6 +333,21 @@ public final class Node {
 
     public @Nullable Component text() {
         return text;
+    }
+
+    /** The colours an {@link Kind#IMAGE} node draws, row by row; do not change them. @since 1.489.0 */
+    public int @Nullable [] pixels() {
+        return pixels;
+    }
+
+    /** An {@link Kind#IMAGE} node's width in picture pixels. @since 1.489.0 */
+    public int pixelWidth() {
+        return pixelWidth;
+    }
+
+    /** An {@link Kind#IMAGE} node's height in picture pixels. @since 1.489.0 */
+    public int pixelHeight() {
+        return pixelHeight;
     }
 
     /** The item an {@link Kind#ITEM} node draws. @since 1.488.0 */

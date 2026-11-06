@@ -115,4 +115,15 @@ class LayoutTest {
         assertEquals("~dim", placed.get(start).key());
         assertEquals(100, placed.get(start).w());
     }
+
+    @Test
+    void anImageMeasuresOneLayoutPixelAPicturePixelAndRefusesHugeOnes() {
+        Node image = Node.image(4, 2, new int[8]).id("img");
+        Layout.Placed placed = find(Layout.lay(Node.row(image).align(Node.Align.START), 100, 50), "img");
+        assertEquals(4, placed.w());
+        assertEquals(2, placed.h());
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> Node.image(Node.MAX_IMAGE + 1, 1, new int[Node.MAX_IMAGE + 1]));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> Node.image(2, 2, new int[3]));
+    }
 }

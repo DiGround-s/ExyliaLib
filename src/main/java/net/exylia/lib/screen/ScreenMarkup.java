@@ -70,6 +70,7 @@ public final class ScreenMarkup {
     private final Map<String, Function<ScreenSession, ?>> values = new ConcurrentHashMap<>();
     private final Map<String, BiConsumer<ScreenEvent, List<String>>> actions = new ConcurrentHashMap<>();
     private final Set<String> problems = Collections.synchronizedSet(new LinkedHashSet<>());
+    private volatile Path images;
     private final String name;
 
     private ScreenMarkup(String name, Markup.El root) {
@@ -112,6 +113,7 @@ public final class ScreenMarkup {
             throw new IllegalArgumentException(file + ":" + failure.line + ": " + failure.getMessage(), failure);
         }
         ScreenMarkup screen = new ScreenMarkup(file, root);
+        screen.images = markup.toAbsolutePath().getParent();
         screen.css.add(BASE, "base.css", screen.problems::add);
         for (Path sheet : sheets) {
             if (Files.isRegularFile(sheet)) {
@@ -153,6 +155,16 @@ public final class ScreenMarkup {
         }
     }
 
+    /**
+     * The folder {@code <img src>} reads pictures from. {@link #load} sets it to the markup's own folder.
+     *
+     * @since 1.489.0
+     */
+    public @NotNull ScreenMarkup images(@NotNull Path dir) {
+        this.images = dir;
+        return this;
+    }
+
     /** A screen drawn from this markup; open it with {@link Screens#open}. */
     public @NotNull Screen screen() {
         return screen(Map.of());
@@ -161,7 +173,7 @@ public final class ScreenMarkup {
     /** A screen drawn from this markup, starting with {@code state} (the open tab, a preselected value). */
     public @NotNull Screen screen(@NotNull Map<String, ?> state) {
         MarkupRender.Parts parts = new MarkupRender.Parts(root, css, sources, values, actions,
-                problem -> problems.add(name + ": " + problem));
+                problem -> problems.add(name + ": " + problem), images);
         Screen screen = Screen.of(session -> MarkupRender.render(parts, session)).state(state);
         String size = root.attr("size");
         if (size != null && size.matches("\\d+x\\d+")) {

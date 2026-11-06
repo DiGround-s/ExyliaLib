@@ -83,7 +83,10 @@ public final class Layout {
     static double[] measure(Node node) {
         double w;
         double h;
-        if (node.kind() == Node.Kind.ITEM) {
+        if (node.kind() == Node.Kind.IMAGE) {
+            w = node.pixelWidth() + node.padLeft() + node.padRight();
+            h = node.pixelHeight() + node.padTop() + node.padBottom();
+        } else if (node.kind() == Node.Kind.ITEM) {
             w = ITEM + node.padLeft() + node.padRight();
             h = ITEM + node.padTop() + node.padBottom();
         } else if (node.kind() == Node.Kind.TEXT) {

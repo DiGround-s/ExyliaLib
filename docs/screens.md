@@ -64,6 +64,7 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 | `item(ItemStack)` (1.488.0) | the item's own model, flat, 16 px by default; a hovered one grows a little |
 | `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it or Shift runs `onDismiss` |
 | `textAlign(START/CENTER/END)` (1.488.0) | where text sits in a box wider than it |
+| `image(w, h, argb)`, `image(BufferedImage)` (1.489.0) | a small picture (up to 96 a side), one layout pixel a picture pixel unless sized; pixels stay square and the picture is centred in its box |
 
 When the children of a row or column need more room than there is, the ones that grow give it back in
 proportion to their size, as `flex-shrink` does; fixed boxes and text keep theirs (1.488.0).
@@ -72,6 +73,13 @@ proportion to their size, as `flex-shrink` does; fixed boxes and text keep their
 appears after a click slides up into place. A clickable box under the cursor rises a pixel, and a box that
 moves or resizes glides there. All of it is client-side interpolation, no extra packets per frame.
 `ScreenSession#toast(text)` shows a short note at the top for three seconds.
+
+**Pictures (1.489.0).** Each pixel is the vanilla font's full block (`█`) in its colour, one run of a colour
+one component, so no resource pack is needed. The glyph is 8 font pixels in a 9 by 10 cell, so a picture is
+four text displays, each nudged by the gap, which together cover every cell edge to edge: four displays a
+picture whatever its size. A pixel more than half see-through takes the colour of the box behind it. Keep
+pictures small (badges 16, logos up to 64): every pixel is a glyph the client lays out. `ScreenMarkup#images(dir)`
+sets the folder for markup given as a string; `load` uses the markup file's own folder.
 
 **Other players** are hidden from the viewer while a screen is open (only by this plugin, so other plugins'
 visibility rules stay), so a crowded spawn never stands in front of it.
@@ -169,6 +177,7 @@ well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
+| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded). Placeholders work in both |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
 

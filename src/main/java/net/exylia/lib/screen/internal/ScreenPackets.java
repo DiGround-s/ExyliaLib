@@ -221,6 +221,37 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
     }
 
+    /**
+     * A picture drawn as lines of full-block glyphs, its centre at x, y.
+     *
+     * @param fx blocks per font pixel across, {@code fy} down
+     * @param rows lines in {@code text}
+     */
+    static PacketWrapper<?> image(int id, double x, double y, double z, double fx, double fy, int rows,
+                                  Component text, int glide) {
+        // A text display hangs its lines up from its origin and centres them across, a glyph's advance leaving one
+        // empty column on its right.
+        Vector3f at = new Vector3f((float) (x - 0.5 * fx), (float) (y - rows * IMAGE_LINE * fy / 2), (float) z);
+        return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
+                        new Vector3f((float) (fx / FONT_PIXEL), (float) (fy / FONT_PIXEL), 1f)),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
+                new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
+                new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 4000),
+                new EntityData<>(BACKGROUND, EntityDataTypes.INT, 0),
+                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
+    }
+
+    /** Font pixels from one glyph to the next across, and from one line to the next down. */
+    static final int IMAGE_ADVANCE = 9;
+    static final int IMAGE_LINE = 10;
+    /** The full block glyph's own size in font pixels: the rest of each cell is a gap the copies fill. */
+    static final int IMAGE_GLYPH = 8;
+
     /** Blocks per font pixel, for turning screen pixels into a text display's scale. */
     static double fontPixel() {
         return FONT_PIXEL;

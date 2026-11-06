@@ -233,6 +233,29 @@ class ScreenMarkupTest {
         assertNull(session.state.get("hacked"));
     }
 
+    @Test
+    void anImgIsReadFromTheMarkupsFolderAndNeverOutsideIt(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir)
+            throws Exception {
+        java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(3, 2, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        picture.setRGB(0, 0, 0xFFFF0000);
+        java.nio.file.Files.createDirectories(dir.resolve("img"));
+        javax.imageio.ImageIO.write(picture, "png", dir.resolve("img/dot.png").toFile());
+        java.nio.file.Path html = dir.resolve("hub.html");
+        java.nio.file.Files.writeString(html, """
+                <screen>
+                  <img id="ok" src="img/%name%.png"/>
+                  <img id="out" src="../secret.png"/>
+                </screen>""");
+        ScreenMarkup markup = ScreenMarkup.load(html).value("name", s -> "dot");
+        Node root = new Fake(markup.screen()).render();
+        Node ok = find(root, "ok");
+        assertEquals(Node.Kind.IMAGE, ok.kind());
+        assertEquals(3, ok.pixelWidth());
+        assertEquals(0xFFFF0000, ok.pixels()[0]);
+        assertEquals(Node.Kind.COLUMN, find(root, "out").kind());
+        assertTrue(markup.problems().stream().anyMatch(p -> p.contains("outside")), markup.problems().toString());
+    }
+
     static Node overlay(Node node) {
         if (node.overlay()) return node;
         for (Node child : node.children()) {

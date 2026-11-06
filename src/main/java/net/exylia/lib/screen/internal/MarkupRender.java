@@ -33,7 +33,7 @@ public final class MarkupRender {
     /** Every tag a screen knows; anything else is reported when the markup is read. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal");
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal", "img");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("%([\\w.-]+)%");
     private static final Pattern NUMBER = Pattern.compile("(-?\\d+(?:\\.\\d+)?)(px)?");
@@ -41,7 +41,8 @@ public final class MarkupRender {
     /** What a render reads: the markup's own parts, handed over by {@code ScreenMarkup}. */
     public record Parts(El root, Css css, Map<String, Function<ScreenSession, List<? extends Map<String, ?>>>> sources,
                         Map<String, Function<ScreenSession, ?>> values,
-                        Map<String, BiConsumer<ScreenEvent, List<String>>> actions, Consumer<String> problems) {
+                        Map<String, BiConsumer<ScreenEvent, List<String>>> actions, Consumer<String> problems,
+                        java.nio.file.@org.jetbrains.annotations.Nullable Path images) {
     }
 
     private final Parts parts;
@@ -208,6 +209,8 @@ public final class MarkupRender {
         } else if (el.tag().equals("item")) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+        } else if (el.tag().equals("img")) {
+            node = image(el, scope);
         } else if (el.tag().equals("progress")) {
             node = progress(el, scope, style);
         } else if (el.tag().equals("icon")) {
@@ -496,6 +499,33 @@ public final class MarkupRender {
     }
 
     /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
+    /**
+     * {@code <img src="badge.png">} from the folder the markup was read from, or {@code <img skin="name">}: a player's
+     * body. A picture that cannot be had is an empty box of its size, so the layout never jumps.
+     */
+    private Node image(El el, Scope scope) {
+        if (el.attr("skin") != null) {
+            String name = fill(el.attr("skin"), scope).trim();
+            Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name);
+            return body == null ? Node.box().size(16, 32) : body.node();
+        }
+        String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope).trim();
+        if (src.isEmpty()) {
+            parts.problems().accept("<img> needs src or skin");
+            return Node.box();
+        }
+        if (parts.images() == null) {
+            parts.problems().accept("<img src> needs markup read with ScreenMarkup.load or given images(dir)");
+            return Node.box();
+        }
+        try {
+            return Pictures.file(parts.images(), src).node();
+        } catch (java.io.IOException failure) {
+            parts.problems().accept("<img src=\"" + src + "\">: " + failure.getMessage());
+            return Node.box();
+        }
+    }
+
     private org.bukkit.inventory.ItemStack item(El el, Scope scope) {
         try {
             return itemOf(el, scope);
