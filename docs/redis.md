@@ -101,6 +101,8 @@ ExyliaCommons used, so a server that had Redis working keeps its file.
 | `enabled` | `false` | Off unless asked for. A lone server gains nothing. |
 | `host` / `port` | `localhost` / `6379` | Where Redis is. |
 | `password` | `''` | Empty when the server needs none. |
+| `username` | `''` | ACL user (Redis 6+). Empty logs in as the default user. Since 1.484.0. |
+| `ssl` | `false` | Connect over TLS, for a Redis that has it on (managed ones). The certificate must be trusted by Java. Since 1.484.0. |
 | `database` | `0` | Which numbered Redis database. |
 | `pool-size` | `8` | Connections at most, shared by every plugin. |
 | `ttl-seconds` | `1800` | How long a row stays in Redis. |

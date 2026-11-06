@@ -100,7 +100,11 @@ final class JedisClient implements RedisClient {
                 .connectionTimeoutMillis(TIMEOUT_MILLIS)
                 .socketTimeoutMillis(TIMEOUT_MILLIS)
                 .database(settings.database())
-                .clientName(name);
+                .clientName(name)
+                .ssl(settings.ssl());
+        if (!settings.username().isEmpty()) {
+            config.user(settings.username());
+        }
         if (!settings.password().isEmpty()) {
             config.password(settings.password());
         }

@@ -24,6 +24,8 @@ import java.util.List;
  * @param host         the Redis host
  * @param port         the port
  * @param password     the password, empty when the server needs none
+ * @param username     the ACL user, empty for the default user
+ * @param ssl          whether to connect over TLS
  * @param database     which numbered Redis database to use
  * @param poolSize     connections at most
  * @param ttlSeconds   how long a row stays in Redis
@@ -59,6 +61,15 @@ public record RedisSettings(
 
         @Comment("Password, if the server needs one.")
         String password,
+
+        @Comment("ACL user, if the server uses Redis 6+ users. Empty for the")
+        @Comment("default user, which is what a password alone logs in as.")
+        String username,
+
+        @Comment("Connect over TLS (rediss://). Only for a Redis that has TLS")
+        @Comment("enabled, typically a managed one reached over the internet.")
+        @Comment("The certificate must be trusted by Java: a public CA works as is.")
+        boolean ssl,
 
         @Comment("Which numbered Redis database to use. 0 unless you share the")
         @Comment("server with something else that already uses it.")
@@ -110,7 +121,20 @@ public record RedisSettings(
 
     /** The defaults: off, and pointed at a local Redis if it is ever turned on. */
     public RedisSettings() {
-        this(false, "localhost", 6379, "", 0, 8, 1800, 300, 10_000, "exylia", "server-1", List.of());
+        this(false, "localhost", 6379, "", "", false, 0, 8, 1800, 300, 10_000, "exylia", "server-1", List.of());
+    }
+
+    /**
+     * Settings without a user or TLS, as they were before either existed.
+     *
+     * @deprecated use the canonical constructor, which takes {@code username} and {@code ssl}
+     */
+    @Deprecated(since = "1.484.0")
+    public RedisSettings(boolean enabled, String host, int port, String password, int database,
+                         int poolSize, int ttlSeconds, int localSeconds, int localEntries,
+                         String keyPrefix, String serverId, List<String> previousIds) {
+        this(enabled, host, port, password, "", false, database, poolSize, ttlSeconds, localSeconds,
+                localEntries, keyPrefix, serverId, previousIds);
     }
 
     /**
@@ -122,7 +146,7 @@ public record RedisSettings(
     public RedisSettings(boolean enabled, String host, int port, String password, int database,
                          int poolSize, int ttlSeconds, int localSeconds, int localEntries,
                          String keyPrefix, String serverId) {
-        this(enabled, host, port, password, database, poolSize, ttlSeconds, localSeconds,
+        this(enabled, host, port, password, "", false, database, poolSize, ttlSeconds, localSeconds,
                 localEntries, keyPrefix, serverId, List.of());
     }
 
@@ -156,6 +180,15 @@ public record RedisSettings(
     /** The password, or an empty string when the server needs none. */
     public @NotNull String password() {
         return password == null ? "" : password;
+    }
+
+    /**
+     * The ACL user, or an empty string for the default user.
+     *
+     * @since 1.484.0
+     */
+    public @NotNull String username() {
+        return username == null ? "" : username.trim();
     }
 
     /** The port, or Redis's own default when none was set. */
