@@ -48,8 +48,8 @@ final class LiveScreen implements ScreenSession {
     private static final double K = DEPTH / DISTANCE;
     /** Depth between layers, so stacked rects never fight. */
     private static final double LAYER = 0.001;
-    /** The default layout area spans this many units across at {@link #DISTANCE}: inside a 16:9 view at FOV 70. */
-    private static final double SPAN = 4.6;
+    /** The default layout area spans this many units across at {@link #DISTANCE}: about three quarters of a 16:9 view at FOV 70. */
+    private static final double SPAN = 5.6;
     /** The backdrop, in units: past the edge of any view. */
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
@@ -57,7 +57,9 @@ final class LiveScreen implements ScreenSession {
     /** Cursor arrow rows: how wide each row is, in arrow pixels. */
     private static final int[] ARROW = {1, 2, 3, 4, 5, 6, 3, 2};
     private static final double ARROW_PIXEL = 0.014;
-    private static final int CURSOR_LAYER = 150;
+    private static final int CURSOR_LAYER = 250;
+    /** How long a toast stays, in milliseconds. */
+    private static final long TOAST_MILLIS = 3000;
     /** What one screen may draw; past it the rest is left out and reported once. */
     static final int BUDGET = 400;
 
@@ -78,6 +80,13 @@ final class LiveScreen implements ScreenSession {
     private List<Layout.Placed> placed = List.of();
     private boolean open = true;
     private boolean overBudget;
+    /** Whether the first frame went out: the screen opens with a zoom, later arrivals slide in. */
+    private boolean shown;
+    /** Ticks a hover or a moved box takes to glide, and a new box to settle in. */
+    private static final int GLIDE = 2;
+    private static final int SETTLE = 4;
+    /** Blocks around the eyes where another player could stand in front of the screen. */
+    private static final double HIDE_RADIUS = 4;
     private TaskHandle ticker;
     private double cursorX, cursorY;
     private float lastYaw, lastPitch;
@@ -86,6 +95,13 @@ final class LiveScreen implements ScreenSession {
     private int heldSlot;
     private boolean shifting;
     private String hovered;
+    /** Where the open overlay's boxes start in {@link #placed}, or -1. */
+    private int overlayFrom = -1;
+    private Layout.Placed hoveredBox;
+    private volatile Component toast;
+    /** Players this screen hid from the viewer, shown again when it closes. */
+    private final Set<java.util.UUID> hidden = ConcurrentHashMap.newKeySet();
+    private volatile long toastUntil;
 
     /** One display on the client: its entity and the last thing sent to it. */
     private record Drawn(int id, Object look) {
@@ -95,6 +111,9 @@ final class LiveScreen implements ScreenSession {
     }
 
     private record TextLook(double x, double y, double scale, int layer, Component text) {
+    }
+
+    private record ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item) {
     }
 
     LiveScreen(Plugin plugin, Player player, Screen screen) {
@@ -129,10 +148,13 @@ final class LiveScreen implements ScreenSession {
     void show() {
         if (!screen.wheel()) Packets.of(plugin).fakeGameMode().cameraView(player, true);
         Packets.of(plugin).movement().freeze(player);
+        // A player standing at the viewer's eyes would be drawn in front of the screen and take its clicks;
+        // in a lobby everyone stands at spawn. Hidden for this plugin only, so other plugins' rules stay.
+        for (Player other : player.getWorld().getNearbyPlayers(player.getEyeLocation(), HIDE_RADIUS)) hide(other);
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
         out.add(ScreenPackets.spawnDisplay(backdropId, origin));
         out.add(rect(backdropId, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 0,
-                ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000))));
+                ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000)), 0));
         for (int id : cursorIds) out.add(ScreenPackets.spawnDisplay(id, origin));
         synchronized (this) {
             cursor(out, 0);
@@ -162,11 +184,43 @@ final class LiveScreen implements ScreenSession {
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
         }
         Packets.of(plugin).movement().unfreeze(player);
+        if (!hidden.isEmpty() && player.isOnline()) {
+            // Now when we can, so a screen opened right after this one finds everyone visible to hide again.
+            if (org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) reveal();
+            else if (plugin.isEnabled()) tasks.runAtEntity(player, this::reveal);
+        }
         if (!screen.wheel()) Packets.of(plugin).fakeGameMode().cameraView(player, false);
         Consumer<ScreenSession> onClose = screen.onClose();
         if (onClose != null && player.isOnline() && plugin.isEnabled()) {
             tasks.runAtEntity(player, () -> guarded(() -> onClose.accept(this)));
         }
+    }
+
+    /** On the viewer's thread. */
+    private void hide(Player other) {
+        if (other.equals(player) || !other.isOnline() || !player.canSee(other)) return;
+        if (!other.getWorld().equals(player.getWorld())
+                || other.getLocation().distanceSquared(player.getEyeLocation()) > HIDE_RADIUS * HIDE_RADIUS) return;
+        player.hidePlayer(plugin, other);
+        hidden.add(other.getUniqueId());
+    }
+
+    /** Hides a player who arrived while the screen is open. */
+    void hideLater(Player other) {
+        tasks.runAtEntity(player, () -> {
+            if (open()) hide(other);
+        });
+    }
+
+    /** On the viewer's thread: shows again only those this screen hid. */
+    private void reveal() {
+        for (java.util.UUID id : hidden) {
+            Player other = org.bukkit.Bukkit.getPlayer(id);
+            // The server remembers a hidden player by id even after they quit: shown again when they return.
+            if (other != null) player.showPlayer(plugin, other);
+            else ScreenRuntime.revealOnJoin(player, id, plugin);
+        }
+        hidden.clear();
     }
 
     // ------------------------------------------------------------------
@@ -219,17 +273,26 @@ final class LiveScreen implements ScreenSession {
         Node root;
         try {
             root = Objects.requireNonNull(screen.render().apply(this), "render returned null");
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | StackOverflowError failure) {
             plugin.getLogger().log(Level.WARNING, "A screen failed to render for " + player.getName(), failure);
             close();
             return;
         }
-        List<Layout.Placed> laid = Layout.lay(root, screen.width(), screen.height());
+        List<Layout.Placed> laid = new ArrayList<>(Layout.lay(root, screen.width(), screen.height()));
+        Component line = toast;
+        if (line != null && System.currentTimeMillis() < toastUntil) {
+            Node note = Node.text(line).padding(5, 12).background("#1f1830").outline("{primary}", 1);
+            double[] size = Layout.measure(note);
+            laid.add(new Layout.Placed(note, "~toast", (screen.width() - size[0]) / 2, 6, size[0], size[1],
+                    Layout.OVERLAY + 20));
+        }
         synchronized (this) {
             if (!open) return;
             placed = laid;
-            Layout.Placed under = Layout.under(laid, px(), py(), Node::pointable);
+            overlayFrom = Layout.overlayStart(laid);
+            Layout.Placed under = Layout.under(targets(), px(), py(), Node::pointable);
             hovered = under == null ? null : under.key();
+            hoveredBox = under;
             sync();
         }
     }
@@ -243,7 +306,14 @@ final class LiveScreen implements ScreenSession {
         // of what holds it instead, and only opaque rects are sent. Boxes come parents first, depth by depth.
         int[] beneath = new int[64];
         int backdrop = ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000);
-        for (Layout.Placed box : placed) {
+        // A dialog is drawn first, so a screen over the display budget loses its page, never the dialog that
+        // takes every click.
+        List<Layout.Placed> drawing = placed;
+        if (overlayFrom > 0) {
+            drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
+            drawing.addAll(placed.subList(0, overlayFrom));
+        }
+        for (Layout.Placed box : drawing) {
             if (wanted.size() >= BUDGET) {
                 if (!overBudget) {
                     overBudget = true;
@@ -253,6 +323,15 @@ final class LiveScreen implements ScreenSession {
             }
             Node node = box.node();
             boolean over = box.key().equals(hovered);
+            if (box.depth() == Layout.OVERLAY - 1) {
+                // The dimmer: the one see-through rect, over opaque ones only, so it blends in a fixed order.
+                int dim = ScreenMath.argb(Layout.DIMMER, 0);
+                beneath[box.depth()] = ScreenMath.over(dim, backdrop);
+                String key = box.key() + "#bg";
+                wanted.put(key, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 2 + box.depth() * 3, dim));
+                order.add(key);
+                continue;
+            }
             String colour = over && node.hover() != null ? node.hover() : node.background();
             int depth = Math.min(box.depth(), beneath.length - 1);
             int base = depth == 0 ? backdrop : beneath[depth - 1];
@@ -266,20 +345,43 @@ final class LiveScreen implements ScreenSession {
             int line = ScreenMath.argb(over && node.hoverOutline() != null ? node.hoverOutline() : node.outline(), 0);
             line = line == 0 ? 0 : ScreenMath.over(line, base);
             if (line != 0 && node.outlineWidth() > 0) {
-                double grow = node.outlineWidth() * 2;
+                double grow = node.outlineWidth() * 2 + (over && node.onClick() != null ? 2 : 0);
                 String key = box.key() + "#ol";
                 wanted.put(key, new RectLook(cx, cy, (box.w() + grow) * unit, (box.h() + grow) * unit, layer - 1, line));
                 order.add(key);
             }
             if (argb != 0 && box.w() > 0 && box.h() > 0) {
                 String key = box.key() + "#bg";
-                wanted.put(key, new RectLook(cx, cy, box.w() * unit, box.h() * unit, layer, argb));
+                // Something clickable under the pointer rises a little, as a button does.
+                double rise = over && node.onClick() != null ? 2 * unit : 0;
+                wanted.put(key, new RectLook(cx, cy, box.w() * unit + rise, box.h() * unit + rise, layer, argb));
+                order.add(key);
+            }
+            // An item is a solid model the dimmer cannot shade, so under an open overlay it is left out.
+            if (node.item() != null && (overlayFrom < 0 || box.depth() >= Layout.OVERLAY - 1)) {
+                double side = Math.min(box.w() - node.padLeft() - node.padRight(), box.h() - node.padTop() - node.padBottom());
+                double ix = (box.x() + node.padLeft() + (box.w() - node.padLeft() - node.padRight()) / 2
+                        - screen.width() / 2) * unit;
+                double iy = (screen.height() / 2 - box.y() - node.padTop()
+                        - (box.h() - node.padTop() - node.padBottom()) / 2) * unit;
+                String key = box.key() + "#it";
+                // A hovered item grows a little, as a slot under the cursor would.
+                boolean lifted = over || hoveredBox != null && !hoveredBox.key().equals("~dim")
+                        && hoveredBox.depth() < box.depth()
+                        && hoveredBox.holds(box.x() + box.w() / 2, box.y() + box.h() / 2);
+                wanted.put(key, new ItemLook(ix, iy, side * unit * (lifted ? 1.15 : 1), layer + 1, node.item()));
                 order.add(key);
             }
             if (node.text() != null) {
                 // Text sits in its padding box: centred on what is left inside it.
-                double tx = (box.x() + node.padLeft() + (box.w() - node.padLeft() - node.padRight()) / 2
-                        - screen.width() / 2) * unit;
+                double inner = box.w() - node.padLeft() - node.padRight();
+                double spare = Math.max(0, inner - Layout.textWidth(node));
+                double shift = switch (node.textAlign()) {
+                    case START, STRETCH -> -spare / 2;
+                    case END -> spare / 2;
+                    case CENTER -> 0;
+                };
+                double tx = (box.x() + node.padLeft() + inner / 2 + shift - screen.width() / 2) * unit;
                 double ty = (screen.height() / 2 - box.y() - node.padTop()
                         - (box.h() - node.padTop() - node.padBottom()) / 2) * unit;
                 String key = box.key() + "#t";
@@ -296,16 +398,49 @@ final class LiveScreen implements ScreenSession {
             for (String key : gone) ids[i++] = drawn.remove(key).id();
             out.add(ScreenPackets.destroy(ids));
         }
+        Map<Integer, Object> settling = new HashMap<>();
+        Map<Integer, String> settlingKeys = new HashMap<>();
         for (String key : order) {
             Object look = wanted.get(key);
             Drawn current = drawn.get(key);
             if (current != null && current.look().equals(look)) continue;
             int id = current != null ? current.id() : ScreenPackets.newId();
-            if (current == null) out.add(ScreenPackets.spawnDisplay(id, origin));
-            out.add(look instanceof RectLook r ? rect(id, r) : text(id, (TextLook) look));
+            if (current != null && current.look().getClass() != look.getClass()) {
+                out.add(ScreenPackets.destroy(new int[]{id}));
+                current = null;
+                id = ScreenPackets.newId();
+            }
+            Object first = look;
+            if (current == null) {
+                out.add(look instanceof ItemLook ? ScreenPackets.spawnItem(id, origin) : ScreenPackets.spawnDisplay(id, origin));
+                // A new box starts a little off and settles: the whole screen zooms in on open, a dialog pops
+                // up from the centre, and what a click brings in slides up into place.
+                if (!key.startsWith("~dim")) {
+                    boolean dialog = layerOf(look) >= 2 + (Layout.OVERLAY - 1) * 3;
+                    first = !shown ? moved(look, 0.96, 0) : dialog ? moved(look, 0.9, 0) : moved(look, 1, -4 * unit);
+                    settling.put(id, look);
+                    settlingKeys.put(id, key);
+                }
+            }
+            out.add(look(id, first, current == null ? 0 : GLIDE));
             drawn.put(key, new Drawn(id, look));
         }
+        shown = true;
         if (!out.isEmpty()) ScreenPackets.send(player, out);
+        if (!settling.isEmpty()) {
+            // A tick later, once the client has the start: a transform only glides from one it already shows.
+            tasks.runAtEntityLater(player, 1, () -> {
+                synchronized (this) {
+                    if (!open) return;
+                    List<PacketWrapper<?>> settle = new ArrayList<>();
+                    settling.forEach((id, look) -> {
+                        Drawn now = drawn.get(settlingKeys.get(id));
+                        if (now != null && now.id() == id && now.look().equals(look)) settle.add(look(id, look, SETTLE));
+                    });
+                    if (!settle.isEmpty()) ScreenPackets.send(player, settle);
+                }
+            });
+        }
     }
 
     /**
@@ -316,16 +451,50 @@ final class LiveScreen implements ScreenSession {
         return K * (DEPTH - layer * LAYER) / DEPTH;
     }
 
-    private PacketWrapper<?> rect(int id, RectLook r) {
-        double k = drawn(r.layer());
-        return ScreenPackets.rect(id, r.x() * k, r.y() * k, -DEPTH + r.layer() * LAYER, r.w() * k, r.h() * k,
-                r.argb(), 0);
+    private PacketWrapper<?> look(int id, Object look, int glide) {
+        return switch (look) {
+            case RectLook r -> rect(id, r, glide);
+            case ItemLook it -> item(id, it, glide);
+            default -> text(id, (TextLook) look, glide);
+        };
     }
 
-    private PacketWrapper<?> text(int id, TextLook t) {
+    private static int layerOf(Object look) {
+        return switch (look) {
+            case RectLook r -> r.layer();
+            case ItemLook it -> it.layer();
+            default -> ((TextLook) look).layer();
+        };
+    }
+
+    /** A look scaled about the screen's centre by {@code f} and lowered by {@code dy}. */
+    private static Object moved(Object look, double f, double dy) {
+        return switch (look) {
+            case RectLook r -> new RectLook(r.x() * f, r.y() * f + dy, r.w() * f, r.h() * f, r.layer(), r.argb());
+            case ItemLook it -> new ItemLook(it.x() * f, it.y() * f + dy, it.size() * f, it.layer(), it.item());
+            default -> {
+                TextLook t = (TextLook) look;
+                yield new TextLook(t.x() * f, t.y() * f + dy, t.scale() * f, t.layer(), t.text());
+            }
+        };
+    }
+
+    private PacketWrapper<?> rect(int id, RectLook r, int glide) {
+        double k = drawn(r.layer());
+        return ScreenPackets.rect(id, r.x() * k, r.y() * k, -DEPTH + r.layer() * LAYER, r.w() * k, r.h() * k,
+                r.argb(), glide);
+    }
+
+    private PacketWrapper<?> item(int id, ItemLook look, int glide) {
+        double k = drawn(look.layer());
+        return ScreenPackets.item(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
+                look.item(), glide);
+    }
+
+    private PacketWrapper<?> text(int id, TextLook t, int glide) {
         double k = drawn(t.layer());
         double scale = t.scale() * unit * k / ScreenPackets.fontPixel();
-        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.text());
+        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.text(), glide);
     }
 
     /** The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. */
@@ -362,10 +531,11 @@ final class LiveScreen implements ScreenSession {
         lastPitch = pitch;
         List<PacketWrapper<?>> out = new ArrayList<>();
         cursor(out, 1);
-        Layout.Placed under = Layout.under(placed, px(), py(), Node::pointable);
+        Layout.Placed under = Layout.under(targets(), px(), py(), Node::pointable);
         String now = under == null ? null : under.key();
         if (!Objects.equals(now, hovered)) {
             hovered = now;
+            hoveredBox = under;
             if (now != null && under.node().hover() != null) sound("ui.button.click", 0.15f, 2.0f);
             ScreenPackets.send(player, out);
             out.clear();
@@ -388,8 +558,10 @@ final class LiveScreen implements ScreenSession {
 
     synchronized void click(boolean right) {
         if (!open) return;
-        Layout.Placed box = Layout.under(placed, px(), py(), node -> node.onClick() != null);
+        Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onClick() != null);
         if (box == null) return;
+        // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.
+        if (box.key().equals("~dim") && Layout.under(targets(), px(), py(), node -> true) != box) return;
         Consumer<ScreenEvent> handler = box.node().onClick();
         ScreenEvent event = new ScreenEvent(this, right ? ScreenEvent.Kind.RIGHT : ScreenEvent.Kind.LEFT, 0,
                 box.node().id());
@@ -403,7 +575,7 @@ final class LiveScreen implements ScreenSession {
         if (steps < -4) steps += 9;
         heldSlot = slot;
         if (steps == 0 || !open) return;
-        Layout.Placed box = Layout.under(placed, px(), py(), node -> node.onScroll() != null);
+        Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onScroll() != null);
         if (box == null) return;
         handle(box.node().onScroll(), new ScreenEvent(this, ScreenEvent.Kind.SCROLL, steps, box.node().id()));
     }
@@ -411,7 +583,31 @@ final class LiveScreen implements ScreenSession {
     synchronized void shift(boolean down) {
         boolean pressed = down && !shifting;
         shifting = down;
-        if (pressed && open) tasks.runAtEntity(player, this::close);
+        if (!pressed || !open) return;
+        // An open dialog is dismissed first; Shift again closes the screen.
+        Consumer<ScreenSession> dismiss = overlayFrom < 0 ? null : placed.get(overlayFrom + 1 < placed.size()
+                ? overlayFrom + 1 : overlayFrom).node().onDismiss();
+        if (dismiss == null) {
+            tasks.runAtEntity(player, this::close);
+            return;
+        }
+        tasks.runAtEntity(player, () -> {
+            if (!open()) return;
+            guarded(() -> dismiss.accept(this));
+            render();
+        });
+    }
+
+    /** What the pointer can reach: only the overlay while one is open. Holds the lock. */
+    private List<Layout.Placed> targets() {
+        return overlayFrom < 0 ? placed : placed.subList(overlayFrom, placed.size());
+    }
+
+    @Override
+    public void toast(@NotNull String text) {
+        toast = net.exylia.lib.text.Text.of(text).build();
+        toastUntil = System.currentTimeMillis() + TOAST_MILLIS;
+        redraw();
     }
 
     /** Runs a handler on the viewer's thread, then redraws. */

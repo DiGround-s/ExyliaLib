@@ -27,7 +27,7 @@ card { background: {letters_black}14; padding: 6px; gap: 3px; align-items: cente
 card:hover { outline: 1px {primary}; background: {primary}30; }
 card[selected] { outline: 1px {success}; background: {success}18; }
 card[disabled] { background: {neutral}14; color: {muted}; }
-empty { color: {muted}; padding: 8px; }
+empty { color: {muted}; padding: 8px; align-items: center; justify-content: center; text-align: center; gap: 3px; }
 
 toggle { padding: 3px 8px; background: {neutral}40; color: {letters_black}; }
 toggle[checked] { background: {success}60; color: {letters}; }
@@ -36,3 +36,13 @@ checkbox { padding: 1px 3px; background: {letters_black}20; color: {success}; }
 checkbox:hover { outline: 1px {primary}; }
 
 pager { flex-direction: row; gap: 8px; color: {letters_black}; }
+
+item { width: 16px; height: 16px; }
+progress { background: {letters_black}20; color: {primary}; height: 4px; }
+.spacer { flex-grow: 1; }
+
+modal { background: #1a1424; outline: 1px {primary}60; padding: 14px 18px; gap: 8px; align-items: center; }
+modal h1 { font-size: 12px; }
+modal .actions { flex-direction: row; gap: 6px; }
+.danger { background: {error}50; }
+.danger:hover { background: {error}; }

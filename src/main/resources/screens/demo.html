@@ -17,7 +17,7 @@
       </chips>
       <grid source="kits" columns="4" rows="2">
         <card action="pick %kit_id%" selected="%kit_picked%">
-          <icon>%kit_icon%</icon>
+          <item material="%kit_icon%"/>
           <b>%kit_name%</b>
           <small>%kit_playing% playing</small>
         </card>
@@ -30,8 +30,17 @@
       <row class="setting"><text>Cursor speed</text><box class="spacer"/>
         <button action="speed -0.1">-</button><text>%speed%</text><button action="speed 0.1">+</button>
       </row>
-      <button action="close">Close</button>
+      <row class="setting"><text>Season</text><box class="spacer"/><progress value="70" max="100" class="season"/></row>
+      <row><button action="set confirm yes" class="danger">Reset stats</button><button action="close">Close</button></row>
     </column>
   </panel>
   <small>Shift closes</small>
+  <modal if="confirm">
+    <h1>Reset your stats?</h1>
+    <small>This cannot be undone.</small>
+    <row class="actions">
+      <button action="clear confirm">Cancel</button>
+      <button action="clear confirm; toast {success}Stats reset" class="danger">Reset</button>
+    </row>
+  </modal>
 </screen>

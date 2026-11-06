@@ -27,6 +27,13 @@ import java.util.logging.Level;
 public final class ScreenRuntime {
 
     private static final Map<UUID, LiveScreen> OPEN = new ConcurrentHashMap<>();
+    /** Viewer to the players a closed screen hid who were offline then, with the plugin that hid them. */
+    private static final Map<UUID, Map<UUID, Plugin>> REVEAL = new ConcurrentHashMap<>();
+
+    /** Shows {@code hidden} to {@code viewer} again when they next join. */
+    static void revealOnJoin(Player viewer, UUID hidden, Plugin plugin) {
+        REVEAL.computeIfAbsent(viewer.getUniqueId(), id -> new ConcurrentHashMap<>()).put(hidden, plugin);
+    }
     private static final Map<UUID, Double> SENSITIVITY = new ConcurrentHashMap<>();
     private static volatile boolean warned;
 
@@ -96,10 +103,28 @@ public final class ScreenRuntime {
 
     static final class Closer implements Listener {
 
+        /** Whoever joins stays out of sight of every open screen, as everyone online did when it opened. */
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+            Player joined = event.getPlayer();
+            for (LiveScreen screen : OPEN.values()) screen.hideLater(joined);
+            REVEAL.forEach((viewerId, pending) -> {
+                Plugin owner = pending.remove(joined.getUniqueId());
+                if (pending.isEmpty()) REVEAL.remove(viewerId, pending);
+                Player viewer = org.bukkit.Bukkit.getPlayer(viewerId);
+                if (owner == null || viewer == null || !owner.isEnabled()) return;
+                net.exylia.lib.task.Tasks.of(owner).runAtEntity(viewer, () -> {
+                    if (joined.isOnline()) viewer.showPlayer(owner, joined);
+                });
+            });
+        }
+
         @EventHandler(priority = EventPriority.MONITOR)
         public void onQuit(PlayerQuitEvent event) {
             close(event.getPlayer().getUniqueId());
             SENSITIVITY.remove(event.getPlayer().getUniqueId());
+            // A new login starts with nobody hidden.
+            REVEAL.remove(event.getPlayer().getUniqueId());
         }
 
         @EventHandler(priority = EventPriority.MONITOR)

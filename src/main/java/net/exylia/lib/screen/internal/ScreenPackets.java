@@ -25,10 +25,12 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHeldItemChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +64,11 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final int LINE_WIDTH = 24;
     private static final int BACKGROUND = 25;
     private static final int TEXT_FLAGS = 27;
+    private static final int ITEM = 23;
+    private static final int ITEM_CONTEXT = 24;
+    private static final byte CONTEXT_GUI = 6;
+    /** How deep an item is drawn, as a share of its width. */
+    private static final double FLAT = 0.02;
     private static final int INTERACTION_WIDTH = 8;
     private static final int INTERACTION_HEIGHT = 9;
     private static final byte BILLBOARD_CENTER = 3;
@@ -113,6 +120,27 @@ final class ScreenPackets extends PacketListenerAbstract {
     static PacketWrapper<?> spawnDisplay(int id, Vector3d at) {
         return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.TEXT_DISPLAY, at,
                 0f, 0f, 0f, 0, Optional.empty());
+    }
+
+    static PacketWrapper<?> spawnItem(int id, Vector3d at) {
+        return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
+                0f, 0f, 0f, 0, Optional.empty());
+    }
+
+    /**
+     * An item drawn as in an inventory slot, centred on ({@code x}, {@code y}), {@code size} blocks across.
+     * Flattened along the view so a block's cube never reaches through the layers in front of or behind it.
+     */
+    static PacketWrapper<?> item(int id, double x, double y, double z, double size, ItemStack item, int glide) {
+        return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) (size * FLAT))),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
+                new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)),
+                new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI)));
     }
 
     /** The click catcher around the eyes: a click that lands on an entity has no half-second miss cooldown. */
@@ -173,9 +201,16 @@ final class ScreenPackets extends PacketListenerAbstract {
      * @param scale display scale: one font pixel is {@code 0.025 × scale} blocks
      */
     static PacketWrapper<?> text(int id, double x, double y, double z, double scale, Component text) {
+        return text(id, x, y, z, scale, text, 0);
+    }
+
+    /** @param glide ticks the client takes to slide and scale to it, 0 to jump */
+    static PacketWrapper<?> text(int id, double x, double y, double z, double scale, Component text, int glide) {
         Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * scale),
                 (float) (y - (Layout.LINE + 1) * FONT_PIXEL * scale / 2), (float) z);
         return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) scale, (float) scale, 1f)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),

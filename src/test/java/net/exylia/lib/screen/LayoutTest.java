@@ -93,4 +93,26 @@ class LayoutTest {
         assertEquals(0xFF112233, ScreenMath.over(0xFF112233, 0xFFFFFFFF));
         assertEquals(0xFF0A141E, ScreenMath.over(0x00FFFFFF, 0xFF0A141E));
     }
+
+    @Test
+    void growingBoxesGiveBackRoomWhenTheirContentOverflows() {
+        Node wide = Node.row(Node.box().size(100, 10)).grow(1).id("wide");
+        Node root = Node.row(Node.box().size(40, 10).id("fixed"), wide);
+        List<Layout.Placed> placed = Layout.lay(root, 100, 20);
+        assertEquals(40, find(placed, "fixed").w());
+        assertEquals(60, find(placed, "wide").w());
+    }
+
+    @Test
+    void anOverlayIsCentredOverADimmerAndLeavesTheFlow() {
+        Node root = Node.column(Node.box().size(10, 10).id("under"), Node.box().size(20, 10).overlay(true).id("modal"));
+        List<Layout.Placed> placed = Layout.lay(root, 100, 50);
+        Layout.Placed modal = find(placed, "modal");
+        assertEquals(40, modal.x());
+        assertEquals(20, modal.y());
+        assertEquals(Layout.OVERLAY, modal.depth());
+        int start = Layout.overlayStart(placed);
+        assertEquals("~dim", placed.get(start).key());
+        assertEquals(100, placed.get(start).w());
+    }
 }

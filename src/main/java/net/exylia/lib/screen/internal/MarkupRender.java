@@ -33,7 +33,7 @@ public final class MarkupRender {
     /** Every tag a screen knows; anything else is reported when the markup is read. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon");
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal");
 
     private static final Pattern PLACEHOLDER = Pattern.compile("%([\\w.-]+)%");
     private static final Pattern NUMBER = Pattern.compile("(-?\\d+(?:\\.\\d+)?)(px)?");
@@ -45,8 +45,6 @@ public final class MarkupRender {
     }
 
     private final Parts parts;
-    /** Set while a repeat with no rows draws its {@code <empty>}, which is skipped anywhere else. */
-    private boolean drawingEmpty;
     private final ScreenSession session;
     private final Map<String, List<? extends Map<String, ?>>> rows = new HashMap<>();
     /** Grids by id or source, for pagers. */
@@ -92,7 +90,10 @@ public final class MarkupRender {
         Function<ScreenSession, ?> value = parts.values().get(name);
         if (value != null) return value.apply(session);
         Object state = session.state(name, "");
-        return "".equals(state) ? defaults.get(name) : state;
+        if (!"".equals(state)) return state;
+        String fallback = defaults.get(name);
+        // A default may itself be a placeholder (default="%first_mode%"); one that names itself stays as written.
+        return fallback == null || fallback.contains("%" + name + "%") ? fallback : fill(fallback, scope);
     }
 
     /** {@code %name%} replaced from the scope; an unknown name is left as written. */
@@ -115,9 +116,18 @@ public final class MarkupRender {
         return !(text.isEmpty() || text.equals("false") || text.equals("0") || text.equals("no") || text.startsWith("%"));
     }
 
-    /** {@code name}, {@code !name}, {@code name == 'x'} or {@code name != 'x'}; operands are names or quoted. */
+    /** {@code name}, {@code !name}, {@code name == 'x'}, {@code name != 'x'}, joined by {@code &&} and {@code ||}. */
     boolean test(String expression, Scope scope) {
         String text = expression.trim();
+        // || binds looser than &&, as in every language the markup's authors know; no brackets.
+        if (text.contains("||")) {
+            for (String part : text.split("\\|\\|")) if (test(part, scope)) return true;
+            return false;
+        }
+        if (text.contains("&&")) {
+            for (String part : text.split("&&")) if (!test(part, scope)) return false;
+            return true;
+        }
         for (String op : new String[]{"==", "!="}) {
             int at = text.indexOf(op);
             if (at < 0) continue;
@@ -162,7 +172,6 @@ public final class MarkupRender {
      * @param inherited the text properties it inherits: color, font-size, font-weight
      */
     private List<Node> build(El el, Scope scope, List<Css.Target> path, Map<String, String> inherited) {
-        if (el.tag().equals("empty") && !drawingEmpty) return List.of();
         String condition = el.attr("if");
         if (condition != null && !test(condition, scope)) return List.of();
 
@@ -183,7 +192,7 @@ public final class MarkupRender {
         Map<String, String> style = parts.css().style(here, false);
         if ("none".equalsIgnoreCase(style.get("display"))) return List.of();
         Map<String, String> text = new HashMap<>(inherited);
-        for (String p : new String[]{"color", "font-size", "font-weight"}) if (style.containsKey(p)) text.put(p, style.get(p));
+        for (String p : new String[]{"color", "font-size", "font-weight", "text-align"}) if (style.containsKey(p)) text.put(p, style.get(p));
 
         Node node;
         String source = el.attr("source");
@@ -195,21 +204,26 @@ public final class MarkupRender {
             boolean on = flags.contains("checked");
             String label = el.tag().equals("checkbox") ? (on ? "✔" : " ")
                     : (on ? attrOr(el, "on", "On") : attrOr(el, "off", "Off"));
-            node = Node.text(textOf(fill(label, scope), text));
+            node = words(fill(label, scope), text);
+        } else if (el.tag().equals("item")) {
+            org.bukkit.inventory.ItemStack stack = item(el, scope);
+            node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+        } else if (el.tag().equals("progress")) {
+            node = progress(el, scope, style);
         } else if (el.tag().equals("icon")) {
             String material = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope).trim();
             // ponytail: block items whose sprite lives under block/ fall back to the glyph; map them when needed.
             String glyph = attrOr(el, "glyph", "◆");
-            node = Node.text(textOf("{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}", text));
+            node = words("{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}", text);
         } else if (el.elements().isEmpty() && !el.text().isEmpty()) {
-            node = Node.text(textOf(fill(el.text(), scope), text));
+            node = words(fill(el.text(), scope), text);
         } else {
             node = container(style);
             boolean own = el.attr("state") != null;
             if (own) owners.add(el);
             try {
                 for (Part part : el.children()) {
-                    if (part instanceof Words words) node.add(Node.text(textOf(fill(words.text(), scope), text)));
+                    if (part instanceof Words words) node.add(words(fill(words.text(), scope), text));
                     else if (part instanceof El child) node.add(build(child, scope, here, text));
                 }
             } finally {
@@ -218,6 +232,18 @@ public final class MarkupRender {
         }
         box(node, style);
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope));
+        if (el.tag().equals("modal")) {
+            String dismiss = el.attr("dismiss");
+            if (dismiss == null && condition != null && condition.trim().matches("[\\w.-]+")) dismiss = "clear " + condition.trim();
+            node.overlay(true);
+            if (dismiss != null && !dismiss.isBlank()) {
+                List<String> actions = actions(dismiss, scope);
+                node.onDismiss(session -> {
+                    ScreenEvent event = new ScreenEvent(session, ScreenEvent.Kind.LEFT, 0, null);
+                    for (String one : actions) run(one, event);
+                });
+            }
+        }
 
         if (parts.css().hoverable(here)) {
             Map<String, String> hover = parts.css().style(here, true);
@@ -260,22 +286,16 @@ public final class MarkupRender {
                         Map<String, String> style) {
         List<? extends Map<String, ?>> all = rows(source);
         List<El> template = new ArrayList<>();
-        El empty = null;
+        // Several empties may each carry an if, so the message can match why the list is empty.
+        List<El> empties = new ArrayList<>();
         for (El child : el.elements()) {
-            if (child.tag().equals("empty")) empty = child;
+            if (child.tag().equals("empty")) empties.add(child);
             else template.add(child);
         }
         Node node = container(style);
         node.id(el.attr("id") != null ? el.attr("id") : source);
         if (all.isEmpty()) {
-            if (empty != null) {
-                drawingEmpty = true;
-                try {
-                    for (Node built : build(empty, scope, here, text)) node.add(built.id(source + ".empty"));
-                } finally {
-                    drawingEmpty = false;
-                }
-            }
+            for (El empty : empties) for (Node built : build(empty, scope, here, text)) node.add(built.id(source + ".empty"));
             return node;
         }
         boolean windowed = grids.get(source) == el;
@@ -297,15 +317,18 @@ public final class MarkupRender {
             } else {
                 double gap = px(style.get("gap"), 0);
                 for (int start = 0; start < visible.size(); start += columns) {
-                    Node line = Node.row().gap(gap);
+                    // A line fills its container: stretched across a column, grown along a row.
+                    Node line = Node.row().gap(gap).grow(node.kind() == Node.Kind.ROW ? 1 : 0);
                     for (int c = 0; c < columns; c++) {
                         int i = start + c;
                         if (i >= visible.size()) {
-                            line.add(Node.box().grow(1));
+                            line.add(Node.box().width(0).grow(1));
                             continue;
                         }
                         Scope row = new Scope(visible.get(i), scope);
                         for (El child : template) for (Node built : build(child, row, here, text)) {
+                            // Every column the same width, whatever its words need, as CSS grid columns are.
+                            if (built.width() < 0) built.width(0);
                             line.add(built.grow(1).id(source + "." + (offset + i)));
                         }
                     }
@@ -343,18 +366,20 @@ public final class MarkupRender {
         String key = "scroll." + source;
         int offset = offset(key, size, window, columns);
         int pages = Math.max(1, (size + window - 1) / window);
+        // One page needs no pager.
+        if (pages == 1) return Node.row();
         int page = Math.min(pages, (offset + window - 1) / window + 1);
-        Node previous = Node.text(textOf(attrOr(el, "previous", "‹"), text)).id(source + ".previous")
+        Node previous = words(attrOr(el, "previous", "‹"), text).id(source + ".previous")
                 .onClick(event -> event.session().set(key, Math.max(0, offset - window)));
-        Node next = Node.text(textOf(attrOr(el, "next", "›"), text)).id(source + ".next")
+        Node next = words(attrOr(el, "next", "›"), text).id(source + ".next")
                 .onClick(event -> event.session().set(key, offset + window < size ? offset + window : offset));
-        Node label = Node.text(textOf(page + " / " + pages, text)).id(source + ".page");
+        Node label = words(page + " / " + pages, text).id(source + ".page");
         return Node.row(previous, label, next).align(Node.Align.CENTER);
     }
 
     private void click(El el, Node node, Scope scope, Set<String> flags, String option, List<Css.Target> path,
                        String toggleKey) {
-        String action = el.attr("action") == null ? null : fill(el.attr("action"), scope);
+        List<String> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
         El owner = option == null ? null : stateOwner(path);
         if (action == null && owner == null && toggleKey == null) return;
         boolean disabled = flags.contains("disabled");
@@ -366,11 +391,21 @@ public final class MarkupRender {
             }
             if (stateKey != null) event.session().set(stateKey, option);
             if (toggleKey != null) event.session().set(toggleKey, !truthy(event.session().state(toggleKey, false)));
-            if (action != null) run(action, event);
+            if (action != null) for (String one : action) run(one, event);
         });
     }
 
-    /** Built-ins first ({@code close}, {@code set k v}, {@code toggle k}), then the screen's, then a global id. */
+    /** Split on {@code ;} before filling, so a {@code ;} inside a placeholder's value never starts an action. */
+    private List<String> actions(String raw, Scope scope) {
+        List<String> out = new ArrayList<>();
+        for (String one : raw.split(";")) if (!one.isBlank()) out.add(fill(one, scope));
+        return out;
+    }
+
+    /**
+     * Built-ins first ({@code close}, {@code set k v}, {@code clear k}, {@code toggle k}, {@code toast text}), then
+     * the screen's, then a global id. Several run in order when separated by {@code ;}.
+     */
     private void run(String action, ScreenEvent event) {
         List<String> words = new ArrayList<>(List.of(action.trim().split("\\s+")));
         String name = words.remove(0);
@@ -379,6 +414,10 @@ public final class MarkupRender {
             case "set" -> {
                 if (words.size() >= 2) event.session().set(words.get(0), String.join(" ", words.subList(1, words.size())));
             }
+            case "clear" -> {
+                for (String key : words) event.session().set(key, null);
+            }
+            case "toast" -> event.session().toast(String.join(" ", words));
             case "toggle" -> {
                 if (!words.isEmpty()) event.session().set(words.get(0), !truthy(event.session().state(words.get(0), false)));
             }
@@ -398,6 +437,19 @@ public final class MarkupRender {
     // ------------------------------------------------------------------
     // Style
     // ------------------------------------------------------------------
+
+    /** A line of words in the inherited text style: colour, weight, size and alignment. */
+    static Node words(String words, Map<String, String> text) {
+        Node node = Node.text(textOf(words, text));
+        if (text.containsKey("font-size")) node.scale(scale(text.get("font-size")));
+        String align = text.get("text-align");
+        if (align != null) node.textAlign(switch (align.trim()) {
+            case "center" -> Node.Align.CENTER;
+            case "right", "end" -> Node.Align.END;
+            default -> Node.Align.START;
+        });
+        return node;
+    }
 
     /** Text as {@code Text} reads it: colour and weight first, then the words. */
     static String textOf(String words, Map<String, String> style) {
@@ -441,6 +493,46 @@ public final class MarkupRender {
             case "space-between" -> Node.Justify.SPACE_BETWEEN;
             default -> Node.Justify.START;
         });
+    }
+
+    /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
+    private org.bukkit.inventory.ItemStack item(El el, Scope scope) {
+        try {
+            return itemOf(el, scope);
+        } catch (RuntimeException | LinkageError noServer) {
+            // Only without a server (a unit test): no registry to make items from, so a blank slot.
+            return null;
+        }
+    }
+
+    private org.bukkit.inventory.ItemStack itemOf(El el, Scope scope) {
+        String head = el.attr("head");
+        if (head != null && !(head = fill(head, scope).trim()).isEmpty() && !head.startsWith("%")) {
+            return net.exylia.lib.skull.Skulls.player(head).item();
+        }
+        String texture = el.attr("texture");
+        if (texture != null && !(texture = fill(texture, scope).trim()).isEmpty() && !texture.startsWith("%")) {
+            return net.exylia.lib.skull.Skulls.texture(texture).item();
+        }
+        String url = el.attr("url");
+        if (url != null && !(url = fill(url, scope).trim()).isEmpty() && !url.startsWith("%")) {
+            return net.exylia.lib.skull.Skulls.url(url).item();
+        }
+        String name = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope).trim();
+        org.bukkit.Material material = name.isEmpty() ? null : org.bukkit.Material.matchMaterial(name);
+        if (material == null || !material.isItem() || material.isAir()) material = org.bukkit.Material.PAPER;
+        return new org.bukkit.inventory.ItemStack(material);
+    }
+
+    /** A bar: {@code value} of {@code max} filled in the text colour over the background. */
+    private Node progress(El el, Scope scope, Map<String, String> style) {
+        double max = Math.max(0, px(fill(attrOr(el, "max", "100"), scope), 100));
+        double value = Math.max(0, Math.min(max, px(fill(attrOr(el, "value", "0"), scope), 0)));
+        String colour = style.getOrDefault("color", "{primary}");
+        Node bar = Node.row().height(4);
+        if (value > 0) bar.add(Node.box().grow(value).background(colour));
+        if (max - value > 0) bar.add(Node.box().grow(max - value));
+        return bar;
     }
 
     /** {@code 1px {primary}} as {colour, width}, or {@code null} for none. */

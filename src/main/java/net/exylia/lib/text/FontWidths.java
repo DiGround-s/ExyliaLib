@@ -79,8 +79,14 @@ final class FontWidths {
 
     /** Returns how many pixels wide a character is. */
     static int widthOf(char character) {
-        return character < ASCII.length ? ASCII[character] : DEFAULT;
+        if (character < ASCII.length) return ASCII[character];
+        // The small capitals the small-text style draws, measured in the vanilla font: five pixels, but ɪ.
+        if (character == 'ɪ') return 3;
+        if (SMALL_CAPS.indexOf(character) >= 0) return 5;
+        return DEFAULT;
     }
+
+    private static final String SMALL_CAPS = "ᴀʙᴄᴅᴇғɢʜᴊᴋʟᴍɴᴏᴘǫʀᴛᴜᴠᴡʏᴢ";
 
     /**
      * Returns the width of a bold character.

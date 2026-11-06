@@ -13,6 +13,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -184,5 +185,60 @@ class ScreenMarkupTest {
         assertTrue(texts(root).contains("1 / 2"), texts(root).toString());
         session.click("kits.0");
         assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
+
+    @Test
+    void conditionsCombineAndAnEmptyOutsideARepeatIsDrawn() {
+        ScreenMarkup markup = ScreenMarkup.parse("c", """
+                <screen>
+                  <text if="x &amp;&amp; !y">both</text>
+                  <text if="y || x">either</text>
+                  <text if="y &amp;&amp; x">never</text>
+                  <empty>nothing here</empty>
+                </screen>""").value("x", s -> "true").value("y", s -> "false");
+        List<String> shown = texts(new Fake(markup.screen()).render());
+        assertTrue(shown.contains("both"), shown.toString());
+        assertTrue(shown.contains("either"), shown.toString());
+        assertFalse(shown.contains("never"), shown.toString());
+        assertTrue(shown.contains("nothing here"), shown.toString());
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
+
+    @Test
+    void aModalOpensOnItsStateAndDismissClearsIt() {
+        ScreenMarkup markup = ScreenMarkup.parse("m", """
+                <screen>
+                  <button id="ask" action="set confirm yes">Reset</button>
+                  <modal if="confirm"><text>Sure?</text></modal>
+                </screen>""");
+        Fake session = new Fake(markup.screen());
+        assertNull(overlay(session.render()));
+        session.click("ask");
+        Node modal = overlay(session.render());
+        assertNotNull(modal);
+        modal.onDismiss().accept(session);
+        assertNull(overlay(session.render()));
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
+
+    @Test
+    void aSemicolonInARowValueNeverStartsAnotherAction() {
+        ScreenMarkup markup = ScreenMarkup.parse("s", """
+                <screen>
+                  <list source="rows"><text id="r" action="set picked %name%">%name%</text></list>
+                </screen>""").source("rows", s -> List.of(Map.of("name", "x; set hacked yes")));
+        Fake session = new Fake(markup.screen());
+        Node row = find(session.render(), "rows").children().get(0);
+        row.onClick().accept(new ScreenEvent(session, ScreenEvent.Kind.LEFT, 0, row.id()));
+        assertNull(session.state.get("hacked"));
+    }
+
+    static Node overlay(Node node) {
+        if (node.overlay()) return node;
+        for (Node child : node.children()) {
+            Node found = overlay(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 }

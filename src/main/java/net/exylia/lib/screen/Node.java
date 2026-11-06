@@ -2,6 +2,7 @@ package net.exylia.lib.screen;
 
 import net.exylia.lib.text.Text;
 import net.kyori.adventure.text.Component;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * One box on a {@link Screen}: a row, a column, or a line of text, laid out like a small flexbox.
+ * One box on a {@link Screen}: a row, a column, a line of text or an item, laid out like a small flexbox.
  *
  * <pre>{@code
  * Node.column(
@@ -37,7 +38,11 @@ import java.util.function.Consumer;
 public final class Node {
 
     /** What a box is. */
-    public enum Kind { ROW, COLUMN, TEXT }
+    public enum Kind {
+        ROW, COLUMN, TEXT,
+        /** An item drawn as itself, block or sprite or head: {@link #item(ItemStack)}. @since 1.488.0 */
+        ITEM
+    }
 
     /** Where children sit across the main axis. */
     public enum Align { START, CENTER, END, STRETCH }
@@ -48,6 +53,9 @@ public final class Node {
     private final Kind kind;
     private final List<Node> children = new ArrayList<>();
     private final Component text;
+    private ItemStack item;
+    private boolean overlay;
+    private Consumer<ScreenSession> onDismiss;
     private String id;
     private double width = -1;
     private double height = -1;
@@ -56,6 +64,7 @@ public final class Node {
     private double gap;
     private double scale = 1;
     private Align align = Align.STRETCH;
+    private Align textAlign = Align.START;
     private Justify justify = Justify.START;
     private String background;
     private String hover;
@@ -90,6 +99,18 @@ public final class Node {
         return new Node(Kind.TEXT, text);
     }
 
+    /**
+     * An item drawn as it looks in an inventory slot: a block, a sprite, a player head with its skin. Sixteen
+     * pixels square unless sized. No resource pack is involved: the client draws the item itself.
+     *
+     * @since 1.488.0
+     */
+    public static @NotNull Node item(@NotNull ItemStack item) {
+        Node node = new Node(Kind.ITEM, null);
+        node.item = item.clone();
+        return node;
+    }
+
     /** An empty box: a spacer with {@link #grow}, or a block of colour with a size. */
     public static @NotNull Node box() {
         return new Node(Kind.COLUMN, null);
@@ -97,7 +118,9 @@ public final class Node {
 
     /** Adds children after the ones already here; a text node takes none. */
     public @NotNull Node add(@NotNull Node... more) {
-        if (kind == Kind.TEXT && more.length > 0) throw new IllegalStateException("A text node has no children");
+        if ((kind == Kind.TEXT || kind == Kind.ITEM) && more.length > 0) {
+            throw new IllegalStateException("A " + kind.name().toLowerCase(java.util.Locale.ROOT) + " node has no children");
+        }
         for (Node child : more) children.add(java.util.Objects.requireNonNull(child, "child"));
         return this;
     }
@@ -179,6 +202,17 @@ public final class Node {
         return this;
     }
 
+    /**
+     * Where a line of text sits in a box wider than it: {@link Align#START} (left, the default, as in HTML),
+     * {@link Align#CENTER} or {@link Align#END}.
+     *
+     * @since 1.488.0
+     */
+    public @NotNull Node textAlign(@NotNull Align align) {
+        this.textAlign = align;
+        return this;
+    }
+
     /** How spare room along the main axis is shared out. */
     public @NotNull Node justify(@NotNull Justify justify) {
         this.justify = justify;
@@ -218,6 +252,29 @@ public final class Node {
         return this;
     }
 
+    /**
+     * Lifts the box out of the flow and centres it over the whole screen, above a dimmer, as a dialog: while one
+     * is on screen only what is inside it can be pointed at. Shift, or a click on the dimmer, runs
+     * {@link #onDismiss} instead of closing the screen.
+     *
+     * @since 1.488.0
+     */
+    public @NotNull Node overlay(boolean overlay) {
+        this.overlay = overlay;
+        return this;
+    }
+
+    /**
+     * What dismissing an {@link #overlay} does, usually clearing the state that shows it. Without one, Shift
+     * closes the screen as usual and the dimmer does nothing.
+     *
+     * @since 1.488.0
+     */
+    public @NotNull Node onDismiss(@Nullable Consumer<ScreenSession> handler) {
+        this.onDismiss = handler;
+        return this;
+    }
+
     /** Runs on a left or right click over the box, on the viewer's thread. */
     public @NotNull Node onClick(@Nullable Consumer<ScreenEvent> handler) {
         this.onClick = handler;
@@ -240,6 +297,21 @@ public final class Node {
 
     public @Nullable Component text() {
         return text;
+    }
+
+    /** The item an {@link Kind#ITEM} node draws. @since 1.488.0 */
+    public @Nullable ItemStack item() {
+        return item;
+    }
+
+    /** @since 1.488.0 */
+    public boolean overlay() {
+        return overlay;
+    }
+
+    /** @since 1.488.0 */
+    public @Nullable Consumer<ScreenSession> onDismiss() {
+        return onDismiss;
     }
 
     public @Nullable String id() {
@@ -284,6 +356,11 @@ public final class Node {
 
     public @NotNull Align align() {
         return align;
+    }
+
+    /** @since 1.488.0 */
+    public @NotNull Align textAlign() {
+        return textAlign;
     }
 
     public @NotNull Justify justify() {

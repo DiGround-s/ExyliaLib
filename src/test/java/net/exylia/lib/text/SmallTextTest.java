@@ -267,14 +267,13 @@ class SmallTextTest {
     @Test
     @DisplayName("a centred line is measured by the glyph that is drawn")
     void centringMeasuresTheDrawnGlyph() {
-        // A capital is five pixels wide; the small capital that replaces it is
-        // four. Measuring the source text would pad every centred line too far
-        // to the right.
-        int small = Centering.pixelWidth("WELCOME");
+        // The vanilla font draws a small capital as wide as the capital, except
+        // the small I (three pixels, as the capital I). Measured on a 1.21.4
+        // client: the drawn glyph's width is what centring must use.
+        int small = Centering.pixelWidth("welcome");
         TextEngine.smallText(false);
         int normal = Centering.pixelWidth("WELCOME");
-        assertTrue(small < normal,
-                "small capitals are narrower, so the measured width must drop");
+        assertEquals(normal, small, "a small capital measures as its capital");
     }
 
     private static TextColor firstColor(Component component) {

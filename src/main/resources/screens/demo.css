@@ -4,3 +4,4 @@
 .body { gap: 6px; flex-grow: 1; }
 .setting { align-items: center; }
 card { flex-grow: 1; }
+.season { width: 80px; }

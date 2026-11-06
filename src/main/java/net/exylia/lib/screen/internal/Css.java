@@ -22,7 +22,7 @@ public final class Css {
     /** Every property the screen reads; anything else is reported. */
     public static final Set<String> PROPERTIES = Set.of("flex-direction", "display", "gap", "padding", "width",
             "height", "flex-grow", "align-items", "justify-content", "background", "outline", "border", "color",
-            "font-size", "font-weight");
+            "font-size", "font-weight", "text-align");
 
     /** One selector step: what one element must have. */
     record Step(String tag, String id, List<String> classes, List<String> attrs, boolean hover) {

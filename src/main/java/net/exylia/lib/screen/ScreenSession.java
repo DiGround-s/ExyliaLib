@@ -40,4 +40,13 @@ public interface ScreenSession {
 
     /** Closes it; its {@link Screen#onClose} runs. */
     void close();
+
+    /**
+     * Shows a short line at the top of the screen for three seconds, above everything, without taking the
+     * pointer: feedback for something that just happened ("Joined the queue"). Written with {@code Text}.
+     *
+     * @since 1.488.0
+     */
+    default void toast(@NotNull String text) {
+    }
 }

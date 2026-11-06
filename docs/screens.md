@@ -61,6 +61,20 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 | `scale` | text size: 1 is one font pixel per screen pixel, ten pixels a line |
 | `background`, `hover` | `{token}`, `#rrggbb` or `#aarrggbb`; `hover` also makes the box pointable |
 | `onClick`, `onScroll` | handlers, on the viewer's thread; the screen redraws after them |
+| `item(ItemStack)` (1.488.0) | the item's own model, flat, 16 px by default; a hovered one grows a little |
+| `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it or Shift runs `onDismiss` |
+| `textAlign(START/CENTER/END)` (1.488.0) | where text sits in a box wider than it |
+
+When the children of a row or column need more room than there is, the ones that grow give it back in
+proportion to their size, as `flex-shrink` does; fixed boxes and text keep theirs (1.488.0).
+
+**Motion (1.488.0).** The screen zooms in as it opens, a dialog pops out from the centre, and a box that
+appears after a click slides up into place. A clickable box under the cursor rises a pixel, and a box that
+moves or resizes glides there. All of it is client-side interpolation, no extra packets per frame.
+`ScreenSession#toast(text)` shows a short note at the top for three seconds.
+
+**Other players** are hidden from the viewer while a screen is open (only by this plugin, so other plugins'
+visibility rules stay), so a crowded spawn never stands in front of it.
 
 A click goes to the topmost box under the cursor that has `onClick`; a wheel step to the topmost that has
 `onScroll`, so a list's rows can take clicks while the list itself scrolls.
@@ -150,16 +164,21 @@ well-formed throws, when it is read.
 | `tabs`/`tab`, `chips`/`chip` | Options: an element with `value` inside one with `state` sets that state on click and gets `[selected]` while it holds |
 | `grid`, `list` | Repeat their children over `source`; `columns` and `rows` make a window the wheel and a `pager` move |
 | `card` | A themed box, usually a grid cell |
-| `empty` | Shown by its repeating parent when the source has no rows |
+| `empty` | Shown by its repeating parent when the source has no rows; several may each carry an `if`. Outside a repeat it is a centred note |
 | `toggle`, `checkbox` | On/off: `state="key"` flips local state, or `checked="%field%"` with an `action`; `on`/`off` change the toggle's words |
 | `pager` | `for="<source>"`: previous, `page / pages`, next |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
+| `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
+| `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
+| `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
 
 ### Attributes on any tag
 
 - `id`, `class`: for CSS; an `id` also keeps a box's display between renders.
-- `if="tab == 'play'"`: `name`, `!name`, `name == 'x'`, `name != 'x'`. Names are row fields, values, then state.
-- `action="name arg ..."`: built-ins `close`, `set <key> <value>`, `toggle <key>`; then the markup's own
+- `if="tab == 'play'"`: `name`, `!name`, `name == 'x'`, `name != 'x'`, joined with `&&` and `||` (1.488.0;
+  `&amp;&amp;` in the file). Names are row fields, values, then state.
+- `action="name arg ..."`: built-ins `close`, `set <key> <value>`, `toggle <key>`, `clear <key> ...`,
+  `toast <text>` (1.488.0); several run in order when split by `;`; then the markup's own
   `action(...)`; then a namespaced ExyliaLib action (`practice:join_queue boxing`).
 - `selected`, `disabled`, `checked`: present (or true after placeholders) adds that CSS flag. A
   `disabled` box refuses clicks with a quiet villager sound.
@@ -184,6 +203,7 @@ comma lists, resolved by specificity then order. The base theme comes first, the
 | `background` | `{token}`, `{token}40` (hex alpha), `#rrggbb`, `#aarrggbb`, `none`; a see-through colour is mixed over its container's and sent opaque (1.485.2) |
 | `outline`, `border` | `1px {primary}`: a line outside the box |
 | `color`, `font-size`, `font-weight` | inherited; `font-size: 14px` is 1.4 lines, `font-weight: bold` |
+| `text-align` (1.488.0) | `left`, `center`, `right`; inherited |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
 
