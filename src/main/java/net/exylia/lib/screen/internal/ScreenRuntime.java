@@ -10,6 +10,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
 import java.util.List;
@@ -109,6 +110,15 @@ public final class ScreenRuntime {
         @EventHandler(priority = EventPriority.MONITOR)
         public void onWorld(PlayerChangedWorldEvent event) {
             close(event.getPlayer().getUniqueId());
+        }
+
+        /** The screen stands where the eyes were: a real move (a match found, a warp) leaves it behind. */
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onTeleport(PlayerTeleportEvent event) {
+            if (event.getTo() == null || event.getFrom().getWorld() != event.getTo().getWorld()
+                    || event.getFrom().distanceSquared(event.getTo()) > 1) {
+                close(event.getPlayer().getUniqueId());
+            }
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * }</pre>
  *
  * <p>While a screen is open the player stands still, their clicks and wheel go to the screen instead of the
- * world, and Shift closes it. It also closes when they take damage, die, change world, quit, or when the
+ * world, and Shift closes it. It also closes when they take damage, die, change world, are teleported (since 1.485.1), quit, or when the
  * plugin that opened it is disabled. A player has one screen at a time: opening another replaces it.
  *
  * <p>Drawn with packets only, so it needs PacketEvents; without it {@link #open} returns {@code null} and logs

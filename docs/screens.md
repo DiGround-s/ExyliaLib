@@ -77,7 +77,7 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
 - **Wheel:** off by default. The client is then shown as a spectator: no hand, no crosshair, no hotbar, but a
   spectator's wheel sends nothing. `Screen#wheel(true)` keeps the real mode so the wheel scrolls, at the cost
   of the hand and crosshair. Page lists with buttons when the wheel is off.
-- **Shift** closes. So does damage, death, a world change, quitting, the opening plugin being disabled, and
+- **Shift** closes. So does damage, death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
   another screen opening for the same player (one per player across all plugins).
 
 While a screen is open the player is frozen in place (`Packets#movement`).
