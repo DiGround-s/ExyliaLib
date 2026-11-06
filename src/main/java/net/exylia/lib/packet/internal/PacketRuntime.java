@@ -692,6 +692,28 @@ public final class PacketRuntime {
         }
     }
 
+    /** Takes every viewer's outline off these blocks. */
+    static void unoutline(java.util.Collection<org.bukkit.block.Block> blocks) {
+        if (OUTLINED.isEmpty() || blocks.isEmpty()) {
+            return;
+        }
+        PacketSink out = sink();
+        for (Map.Entry<UUID, Map<Location, Integer>> viewer : OUTLINED.entrySet()) {
+            java.util.List<Integer> gone = new java.util.ArrayList<>();
+            for (org.bukkit.block.Block block : blocks) {
+                Integer id = viewer.getValue().remove(block.getLocation());
+                if (id != null) {
+                    gone.add(id);
+                }
+            }
+            Player online = Bukkit.getPlayer(viewer.getKey());
+            if (gone.isEmpty() || out == null || online == null) {
+                continue;
+            }
+            out.destroyEntities(online, gone.stream().mapToInt(Integer::intValue).toArray());
+        }
+    }
+
     /** Bukkit's side: the safety net under the packet path, and cleanup. */
     static final class BukkitHooks implements Listener {
 
@@ -714,6 +736,23 @@ public final class PacketRuntime {
             // Its entities went with them: forget without sending a despawn.
             OUTLINED.remove(event.getPlayer().getUniqueId());
             Borders.resend(event.getPlayer());
+        }
+
+        // An outline is a display of the block drawn over it: once the block is gone it would float
+        // there as a ghost, so it goes with the block.
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onBreak(org.bukkit.event.block.BlockBreakEvent event) {
+            unoutline(java.util.List.of(event.getBlock()));
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onBlockExplode(org.bukkit.event.block.BlockExplodeEvent event) {
+            unoutline(event.blockList());
+        }
+
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onEntityExplode(org.bukkit.event.entity.EntityExplodeEvent event) {
+            unoutline(event.blockList());
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

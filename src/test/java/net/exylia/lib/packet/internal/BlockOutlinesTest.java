@@ -32,6 +32,7 @@ class BlockOutlinesTest {
 
         private int ids;
         int drawn;
+        int destroyed;
         final Map<Integer, Integer> perTick = new LinkedHashMap<>();
 
         @Override
@@ -56,6 +57,7 @@ class BlockOutlinesTest {
 
         @Override
         public void destroyEntities(Player viewer, int[] entityIds) {
+            destroyed += entityIds.length;
         }
 
         @Override
@@ -113,6 +115,19 @@ class BlockOutlinesTest {
             blocks.put(new Location(world, index, 64, 0), stone);
         }
         return blocks;
+    }
+
+    @Test
+    @DisplayName("a broken block takes its outline with it, so no ghost of it floats there")
+    void brokenBlockDropsItsOutline() {
+        Map<Location, BlockData> blocks = ores(3);
+        Packets.of(plugin).glowingBlocks().show(alice.player(), blocks, NamedTextColor.AQUA);
+        FakeServer.tick(1);
+
+        PacketRuntime.unoutline(List.of(new Location(world, 1, 64, 0).getBlock()));
+
+        assertEquals(1, sink.destroyed);
+        assertEquals(2, PacketRuntime.OUTLINED.get(alice.player().getUniqueId()).size());
     }
 
     @Test
