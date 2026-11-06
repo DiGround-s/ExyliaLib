@@ -5521,9 +5521,18 @@
       "requiresRestart": true,
       "releaseTag": "v1.482.8",
       "sourceCommit": "3b6aebf0b5129725b419269dbacce05b752b38a1"
+    },
+    "1.483.0": {
+      "version": "1.483.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.483.0/ExyliaLib-1.483.0.jar",
+      "sha256": "3d70cd6039b937381ec72d7e080ef71f141a3f4f1b624236b13dca7ef3d936a8",
+      "major": 1,
+      "requiresRestart": true,
+      "releaseTag": "v1.483.0",
+      "sourceCommit": "90e62d02bf739388e6cb8ebecab7a106295343fe"
     }
   },
   "latest": {
-    "major1": "1.482.8"
+    "major1": "1.483.0"
   }
 }
