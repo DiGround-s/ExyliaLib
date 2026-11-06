@@ -3,6 +3,7 @@ package net.exylia.lib.screen;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -44,6 +45,7 @@ public final class Screen {
     private String backdrop = BACKDROP;
     private boolean wheel;
     private Consumer<ScreenSession> onClose;
+    private Map<String, Object> state = Map.of();
 
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
@@ -81,6 +83,21 @@ public final class Screen {
     public @NotNull Screen onClose(@Nullable Consumer<ScreenSession> handler) {
         this.onClose = handler;
         return this;
+    }
+
+    /**
+     * What every session of this screen starts remembering, as if {@link ScreenSession#set} had been called
+     * for each entry before the first render: the open tab, a preselected kit.
+     *
+     * @since 1.485.0
+     */
+    public @NotNull Screen state(@NotNull Map<String, ?> initial) {
+        this.state = Map.copyOf(initial);
+        return this;
+    }
+
+    public @NotNull Map<String, Object> state() {
+        return state;
     }
 
     public @NotNull Function<ScreenSession, Node> render() {

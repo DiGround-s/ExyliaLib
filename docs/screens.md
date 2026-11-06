@@ -3,8 +3,12 @@
 Full-screen 2D menus drawn in front of the player, with a mouse cursor. No resource pack: every box is a
 packet-only text display, so the screen exists only on the viewer's client.
 
-Code: `net.exylia.lib.screen` (`Screens`, `Screen`, `Node`, `ScreenSession`, `ScreenEvent`); internals in
-`screen/internal` (`LiveScreen`, `Layout`, `ScreenPackets`, `ScreenRuntime`, `ScreenMath`). Needs PacketEvents.
+Code: `net.exylia.lib.screen` (`Screens`, `Screen`, `Node`, `ScreenSession`, `ScreenEvent`, `ScreenMarkup`);
+internals in `screen/internal` (`LiveScreen`, `Layout`, `ScreenPackets`, `ScreenRuntime`, `ScreenMath`,
+`Markup`, `Css`, `MarkupRender`). The base theme is `screens/base.css` in the library jar. Needs PacketEvents.
+
+A screen is built in Java with `Node` (below) or written as markup and CSS with `ScreenMarkup`
+(since 1.485.0, see *Markup*).
 
 ## Opening one
 
@@ -85,6 +89,106 @@ while the player is online and the plugin enabled. Nothing survives the plugin: 
 The module keeps nothing derived from the palette between renders (each render re-reads the tokens), so it
 has no `invalidateAll`.
 
+## Markup (since 1.485.0)
+
+`ScreenMarkup` reads a screen from a well-formed XHTML file and CSS sheets, so a server owner restyles it
+without touching Java. The JDK's SAX parser reads it; doctypes and external entities are refused.
+
+```java
+ScreenMarkup hub = ScreenMarkup.load(folder.resolve("practice_hub.html"), folder.resolve("theme.css"))
+        .source("kits", session -> kits.rows(session.viewer(), session.state("category", "all")))
+        .value("queued", session -> queues.size(session.viewer()))
+        .action("queue", (event, args) -> queues.toggle(event.viewer(), args.get(0)));
+hub.problems().forEach(plugin.getLogger()::warning);
+Screens.of(plugin).open(player, hub.screen(Map.of("tab", "play")));
+```
+
+```html
+<screen size="400x225">
+  <panel>
+    <tabs state="tab" default="play">
+      <tab value="play">Play</tab>
+      <tab value="settings">Settings</tab>
+    </tabs>
+    <column if="tab == 'play'">
+      <chips state="category" default="all">
+        <chip value="all">All</chip>
+        <chip value="sword">Sword</chip>
+      </chips>
+      <grid source="kits" columns="4" rows="2">
+        <card action="queue %kit_id%" selected="%kit_queued%">
+          <icon>%kit_icon%</icon>
+          <b>%kit_name%</b>
+          <small>%kit_playing% playing</small>
+        </card>
+        <empty>No kits in this category</empty>
+      </grid>
+      <pager for="kits"/>
+    </column>
+  </panel>
+</screen>
+```
+
+```css
+.cards { gap: 6px; }
+card:hover { outline: 1px {primary}; }
+card[selected] { outline: 1px {success}; background: {success}18; }
+```
+
+`problems()` lists what is outside the subset (an unknown tag, an unknown CSS property, a pager with no grid,
+an action or source that is not registered), each once, with its file and line. Only markup that is not
+well-formed throws, when it is read.
+
+### Tags
+
+| Tag | Does |
+| --- | --- |
+| `screen` | The root. `size="WxH"`, `backdrop="{token}"`, `wheel="true"` |
+| `panel`, `column`, `row`, `box` | Boxes; `panel` is a themed column, `row` runs across |
+| `text`, `h1`, `h2`, `b`, `small`, `p`, `span`, `label` | Text; an element with only text is one text box |
+| `button` | A themed box with an `action` |
+| `tabs`/`tab`, `chips`/`chip` | Options: an element with `value` inside one with `state` sets that state on click and gets `[selected]` while it holds |
+| `grid`, `list` | Repeat their children over `source`; `columns` and `rows` make a window the wheel and a `pager` move |
+| `card` | A themed box, usually a grid cell |
+| `empty` | Shown by its repeating parent when the source has no rows |
+| `toggle`, `checkbox` | On/off: `state="key"` flips local state, or `checked="%field%"` with an `action`; `on`/`off` change the toggle's words |
+| `pager` | `for="<source>"`: previous, `page / pages`, next |
+| `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
+
+### Attributes on any tag
+
+- `id`, `class`: for CSS; an `id` also keeps a box's display between renders.
+- `if="tab == 'play'"`: `name`, `!name`, `name == 'x'`, `name != 'x'`. Names are row fields, values, then state.
+- `action="name arg ..."`: built-ins `close`, `set <key> <value>`, `toggle <key>`; then the markup's own
+  `action(...)`; then a namespaced ExyliaLib action (`practice:join_queue boxing`).
+- `selected`, `disabled`, `checked`: present (or true after placeholders) adds that CSS flag. A
+  `disabled` box refuses clicks with a quiet villager sound.
+- `state` + `default`: what an option group remembers, and what it shows before the player picks.
+- `%name%` anywhere: a row field inside a repeat, a registered `value`, or session state; left as written when
+  none of them knows it.
+
+### CSS subset
+
+Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover`, compounds, descendants and
+comma lists, resolved by specificity then order. The base theme comes first, then each sheet given.
+
+| Property | Values |
+| --- | --- |
+| `flex-direction` | `row`, `column` (default) |
+| `display` | `none` hides the element |
+| `gap`, `width`, `height` | pixels (`6px` or `6`) |
+| `padding` | one to four pixel values, as in CSS |
+| `flex-grow` | a share of the room left |
+| `align-items` | `start`, `center`, `end`, `stretch` |
+| `justify-content` | `start`, `center`, `end`, `space-between` |
+| `background` | `{token}`, `{token}40` (hex alpha), `#rrggbb`, `#aarrggbb`, `none` |
+| `outline`, `border` | `1px {primary}`: a line outside the box |
+| `color`, `font-size`, `font-weight` | inherited; `font-size: 14px` is 1.4 lines, `font-weight: bold` |
+
+Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
+
 ## Trying it
 
-`/exylialib screentest open [spectator|wheel]` (permission `exylialib.admin`) opens a demo built on this API.
+`/exylialib screentest open [spectator|wheel]` (permission `exylialib.admin`) opens a demo built with
+`Node`; `/exylialib screentest markup [spectator|wheel]` opens the same kind of screen from
+`screens/demo.html` and `screens/demo.css` in the library jar.

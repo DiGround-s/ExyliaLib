@@ -59,6 +59,9 @@ public final class Node {
     private Justify justify = Justify.START;
     private String background;
     private String hover;
+    private String outline;
+    private String hoverOutline;
+    private double outlineWidth = 1;
     private Consumer<ScreenEvent> onClick;
     private Consumer<ScreenEvent> onScroll;
 
@@ -145,6 +148,19 @@ public final class Node {
         return this;
     }
 
+    /**
+     * Room inside each edge, clockwise from the top, as in CSS.
+     *
+     * @since 1.485.0
+     */
+    public @NotNull Node padding(double top, double right, double bottom, double left) {
+        this.padTop = top;
+        this.padRight = right;
+        this.padBottom = bottom;
+        this.padLeft = left;
+        return this;
+    }
+
     /** Room between children. */
     public @NotNull Node gap(double pixels) {
         this.gap = pixels;
@@ -178,6 +194,27 @@ public final class Node {
     /** The fill while the cursor is over the box; it also makes the box pointable. */
     public @NotNull Node hover(@Nullable String colour) {
         this.hover = colour;
+        return this;
+    }
+
+    /**
+     * A line drawn around the box, outside it: a palette token, {@code #rrggbb} or {@code #aarrggbb}.
+     *
+     * @since 1.485.0
+     */
+    public @NotNull Node outline(@Nullable String colour, double width) {
+        this.outline = colour;
+        this.outlineWidth = Math.max(0, width);
+        return this;
+    }
+
+    /**
+     * The outline while the cursor is over the box; it also makes the box pointable.
+     *
+     * @since 1.485.0
+     */
+    public @NotNull Node hoverOutline(@Nullable String colour) {
+        this.hoverOutline = colour;
         return this;
     }
 
@@ -261,6 +298,18 @@ public final class Node {
         return hover;
     }
 
+    public @Nullable String outline() {
+        return outline;
+    }
+
+    public @Nullable String hoverOutline() {
+        return hoverOutline;
+    }
+
+    public double outlineWidth() {
+        return outlineWidth;
+    }
+
     public @Nullable Consumer<ScreenEvent> onClick() {
         return onClick;
     }
@@ -271,6 +320,6 @@ public final class Node {
 
     /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering. */
     public boolean pointable() {
-        return onClick != null || onScroll != null || hover != null;
+        return onClick != null || onScroll != null || hover != null || hoverOutline != null;
     }
 }

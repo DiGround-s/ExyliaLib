@@ -1,0 +1,38 @@
+/* ExyliaLib base theme for screens. Read before every plugin sheet, so any rule here can be overridden. */
+screen { flex-direction: column; align-items: center; justify-content: center; color: {letters}; }
+panel { background: {primary}18; outline: 1px {primary}40; padding: 10px; gap: 8px; }
+row { flex-direction: row; gap: 6px; }
+column { gap: 6px; }
+
+h1 { font-size: 14px; font-weight: bold; }
+h2 { font-size: 12px; }
+b { font-weight: bold; }
+small { font-size: 8px; color: {letters_black}; }
+label { color: {letters_black}; }
+
+button { background: {primary}30; padding: 5px 10px; }
+button:hover { background: {primary}; }
+button[disabled] { background: {neutral}30; color: {muted}; }
+
+tabs, chips { flex-direction: row; gap: 4px; }
+tab { padding: 5px 12px; color: {letters_black}; background: {letters_black}14; }
+tab:hover { background: {primary}40; }
+tab[selected] { color: {letters}; background: {primary}; }
+chip { padding: 3px 8px; color: {letters_black}; background: {letters_black}14; }
+chip:hover { outline: 1px {primary}; }
+chip[selected] { color: {letters}; background: {primary}60; }
+
+grid, list { gap: 6px; }
+card { background: {letters_black}14; padding: 6px; gap: 3px; align-items: center; }
+card:hover { outline: 1px {primary}; }
+card[selected] { outline: 1px {success}; background: {success}18; }
+card[disabled] { background: {neutral}14; color: {muted}; }
+empty { color: {muted}; padding: 8px; }
+
+toggle { padding: 3px 8px; background: {neutral}40; color: {letters_black}; }
+toggle[checked] { background: {success}60; color: {letters}; }
+toggle:hover { outline: 1px {primary}; }
+checkbox { padding: 1px 3px; background: {letters_black}20; color: {success}; }
+checkbox:hover { outline: 1px {primary}; }
+
+pager { flex-direction: row; gap: 8px; color: {letters_black}; }

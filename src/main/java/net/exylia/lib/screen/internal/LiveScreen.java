@@ -57,7 +57,7 @@ final class LiveScreen implements ScreenSession {
     /** Cursor arrow rows: how wide each row is, in arrow pixels. */
     private static final int[] ARROW = {1, 2, 3, 4, 5, 6, 3, 2};
     private static final double ARROW_PIXEL = 0.014;
-    private static final int CURSOR_LAYER = 60;
+    private static final int CURSOR_LAYER = 150;
     /** What one screen may draw; past it the rest is left out and reported once. */
     static final int BUDGET = 400;
 
@@ -110,6 +110,7 @@ final class LiveScreen implements ScreenSession {
         this.lastYaw = eyes.getYaw();
         this.lastPitch = eyes.getPitch();
         for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ScreenPackets.newId();
+        state.putAll(screen.state());
     }
 
     Plugin plugin() {
@@ -246,11 +247,20 @@ final class LiveScreen implements ScreenSession {
                 break;
             }
             Node node = box.node();
-            String colour = box.key().equals(hovered) && node.hover() != null ? node.hover() : node.background();
+            boolean over = box.key().equals(hovered);
+            String colour = over && node.hover() != null ? node.hover() : node.background();
             int argb = ScreenMath.argb(colour, 0);
             double cx = (box.x() + box.w() / 2 - screen.width() / 2) * unit;
             double cy = (screen.height() / 2 - box.y() - box.h() / 2) * unit;
-            int layer = 1 + box.depth() * 2;
+            // Outline, fill, text: three layers a box, deeper boxes nearer the eye.
+            int layer = 2 + box.depth() * 3;
+            int line = ScreenMath.argb(over && node.hoverOutline() != null ? node.hoverOutline() : node.outline(), 0);
+            if (line != 0 && node.outlineWidth() > 0) {
+                double grow = node.outlineWidth() * 2;
+                String key = box.key() + "#ol";
+                wanted.put(key, new RectLook(cx, cy, (box.w() + grow) * unit, (box.h() + grow) * unit, layer - 1, line));
+                order.add(key);
+            }
             if (argb != 0 && box.w() > 0 && box.h() > 0) {
                 String key = box.key() + "#bg";
                 wanted.put(key, new RectLook(cx, cy, box.w() * unit, box.h() * unit, layer, argb));
@@ -288,22 +298,33 @@ final class LiveScreen implements ScreenSession {
         if (!out.isEmpty()) ScreenPackets.send(player, out);
     }
 
+    /**
+     * Layout units to drawn blocks at a layer. A layer nearer the eye is drawn that much smaller, so every
+     * layer projects to the same place and size and nested boxes line up exactly.
+     */
+    private static double drawn(int layer) {
+        return K * (DEPTH - layer * LAYER) / DEPTH;
+    }
+
     private PacketWrapper<?> rect(int id, RectLook r) {
-        return ScreenPackets.rect(id, r.x() * K, r.y() * K, -DEPTH + r.layer() * LAYER, r.w() * K, r.h() * K,
+        double k = drawn(r.layer());
+        return ScreenPackets.rect(id, r.x() * k, r.y() * k, -DEPTH + r.layer() * LAYER, r.w() * k, r.h() * k,
                 r.argb(), 0);
     }
 
     private PacketWrapper<?> text(int id, TextLook t) {
-        double scale = t.scale() * unit * K / ScreenPackets.fontPixel();
-        return ScreenPackets.text(id, t.x() * K, t.y() * K, -DEPTH + t.layer() * LAYER, scale, t.text());
+        double k = drawn(t.layer());
+        double scale = t.scale() * unit * k / ScreenPackets.fontPixel();
+        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.text());
     }
 
     /** The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. */
     private void cursor(List<PacketWrapper<?>> out, int glide) {
+        double k = drawn(CURSOR_LAYER);
         for (int i = 0; i < ARROW.length; i++) {
             double w = ARROW[i] * ARROW_PIXEL;
-            out.add(ScreenPackets.rect(cursorIds[i], (cursorX + w / 2) * K, (cursorY - (i + 0.5) * ARROW_PIXEL) * K,
-                    -DEPTH + CURSOR_LAYER * LAYER, w * K, ARROW_PIXEL * K, 0xFFFFFFFF, glide));
+            out.add(ScreenPackets.rect(cursorIds[i], (cursorX + w / 2) * k, (cursorY - (i + 0.5) * ARROW_PIXEL) * k,
+                    -DEPTH + CURSOR_LAYER * LAYER, w * k, ARROW_PIXEL * k, 0xFFFFFFFF, glide));
         }
     }
 

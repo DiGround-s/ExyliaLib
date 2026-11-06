@@ -69,7 +69,10 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final double FONT_PIXEL = 0.025;
     private static final int GRID = 16;
     private static final String GRID_TEXT;
+    private static final String CLEAR_TEXT;
     private static final double GRID_WIDE = GRID * 6 + 1;
+    /** A space advances four pixels. */
+    private static final double CLEAR_WIDE = GRID * 4 + 1;
     private static final double GRID_TALL = GRID * 10 + 1;
 
     static {
@@ -79,6 +82,7 @@ final class ScreenPackets extends PacketListenerAbstract {
             grid.append("M".repeat(GRID));
         }
         GRID_TEXT = grid.toString();
+        CLEAR_TEXT = GRID_TEXT.replace('M', ' ');
     }
 
     private static ScreenPackets installed;
@@ -142,7 +146,10 @@ final class ScreenPackets extends PacketListenerAbstract {
      * @param glide ticks the client takes to slide to it, 0 to jump
      */
     static PacketWrapper<?> rect(int id, double x, double y, double z, double w, double h, int argb, int glide) {
-        double sx = w / (GRID_WIDE * FONT_PIXEL);
+        // An opaque fill hides its glyphs in its own colour; a see-through one would show them, so it draws
+        // spaces instead. ponytail: spaces leave the 1 px background padding at 1.5 % rather than 1 %.
+        boolean clear = (argb >>> 24) < 0xFF;
+        double sx = w / ((clear ? CLEAR_WIDE : GRID_WIDE) * FONT_PIXEL);
         double sy = h / (GRID_TALL * FONT_PIXEL);
         // The client centres the glyphs half a pixel right of the origin and grows the box up from it.
         Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * sx), (float) (y - h / 2), (float) z);
@@ -153,10 +160,8 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) sx, (float) sy, 1f)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
-                // ponytail: glyphs are opaque, so a see-through rect shows its grid faintly; Phase 3's dimmer
-                // needs a glyph-free fill (spaces, or text opacity) once one is measured in a real client.
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT,
-                        Component.text(GRID_TEXT, TextColor.color(argb & 0xFFFFFF))),
+                        Component.text(clear ? CLEAR_TEXT : GRID_TEXT, TextColor.color(argb & 0xFFFFFF))),
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 1000),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, argb),
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));

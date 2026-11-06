@@ -1,0 +1,37 @@
+<!-- The /exylialib screentest markup demo: tabs, chips, a paged grid of cards, a toggle and a pager. -->
+<screen>
+  <panel id="panel" class="demo">
+    <row class="bar">
+      <h1>Practice</h1>
+      <box class="spacer"/>
+      <tabs state="tab" default="play">
+        <tab value="play">Play</tab>
+        <tab value="settings">Settings</tab>
+      </tabs>
+    </row>
+    <column if="tab == 'play'" class="body">
+      <chips state="category" default="all">
+        <chip value="all">All</chip>
+        <chip value="sword">Sword</chip>
+        <chip value="pot">Potions</chip>
+      </chips>
+      <grid source="kits" columns="4" rows="2">
+        <card action="pick %kit_id%" selected="%kit_picked%">
+          <icon>%kit_icon%</icon>
+          <b>%kit_name%</b>
+          <small>%kit_playing% playing</small>
+        </card>
+        <empty>No kits in this category</empty>
+      </grid>
+      <pager for="kits"/>
+    </column>
+    <column if="tab == 'settings'" class="body">
+      <row class="setting"><text>Sounds</text><box class="spacer"/><toggle state="sounds"/></row>
+      <row class="setting"><text>Cursor speed</text><box class="spacer"/>
+        <button action="speed -0.1">-</button><text>%speed%</text><button action="speed 0.1">+</button>
+      </row>
+      <button action="close">Close</button>
+    </column>
+  </panel>
+  <small>Shift closes</small>
+</screen>

@@ -43,6 +43,47 @@ public final class ScreenTestCommand {
         screens().open(player, demo().wheel("wheel".equalsIgnoreCase(mode)));
     }
 
+    /** Opens the same kind of screen written as markup ({@code screens/demo.html} in the library jar). */
+    @Subcommand("markup")
+    public void markup(@NotNull Player player, @Optional @Suggest({"spectator", "wheel"}) String mode) {
+        screens().open(player, markupDemo().screen().wheel("wheel".equalsIgnoreCase(mode)));
+    }
+
+    private static final String[][] KIT_LIST = {
+            {"nodebuff", "NoDebuff", "pot", "splash_potion"}, {"debuff", "Debuff", "pot", "potion"},
+            {"sumo", "Sumo", "sword", "lead"}, {"boxing", "Boxing", "sword", "diamond_sword"},
+            {"gapple", "Gapple", "sword", "golden_apple"}, {"archer", "Archer", "sword", "bow"},
+            {"builduhc", "BuildUHC", "sword", "lava_bucket"}, {"combo", "Combo", "pot", "pufferfish"},
+            {"soup", "Soup", "sword", "mushroom_stew"}, {"axe", "Axe", "sword", "diamond_axe"}};
+
+    static net.exylia.lib.screen.ScreenMarkup markupDemo() {
+        try (java.io.InputStream html = ScreenTestCommand.class.getResourceAsStream("/screens/demo.html");
+             java.io.InputStream css = ScreenTestCommand.class.getResourceAsStream("/screens/demo.css")) {
+            net.exylia.lib.screen.ScreenMarkup markup = net.exylia.lib.screen.ScreenMarkup.parse("demo.html",
+                    new String(java.util.Objects.requireNonNull(html).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8),
+                    new String(java.util.Objects.requireNonNull(css).readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
+            return markup
+                    .source("kits", session -> {
+                        String category = session.state("category", "all");
+                        String picked = session.state("picked", "");
+                        List<java.util.Map<String, Object>> rows = new ArrayList<>();
+                        for (String[] kit : KIT_LIST) {
+                            if (!category.equals("all") && !category.equals(kit[2])) continue;
+                            rows.add(java.util.Map.of("kit_id", kit[0], "kit_name", kit[1], "kit_icon", kit[3],
+                                    "kit_playing", Math.abs((kit[0].hashCode() + System.currentTimeMillis() / 5000) % 40),
+                                    "kit_picked", kit[0].equals(picked)));
+                        }
+                        return rows;
+                    })
+                    .value("speed", session -> String.format("%.1f", Screens.sensitivity(session.viewer())))
+                    .action("pick", (event, args) -> event.session().set("picked", args.get(0)))
+                    .action("speed", (event, args) -> Screens.sensitivity(event.viewer(),
+                            Screens.sensitivity(event.viewer()) + Double.parseDouble(args.get(0))));
+        } catch (java.io.IOException failure) {
+            throw new IllegalStateException(failure);
+        }
+    }
+
     /** Closes it, for when Shift does not. */
     @Subcommand("close")
     public void close(@NotNull Player player) {

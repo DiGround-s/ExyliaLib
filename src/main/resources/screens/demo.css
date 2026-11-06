@@ -1,0 +1,6 @@
+.demo { width: 320px; height: 190px; gap: 6px; }
+.bar { align-items: center; }
+.spacer { flex-grow: 1; }
+.body { gap: 6px; flex-grow: 1; }
+.setting { align-items: center; }
+card { flex-grow: 1; }

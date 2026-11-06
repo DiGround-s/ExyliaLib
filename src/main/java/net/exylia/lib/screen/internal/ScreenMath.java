@@ -14,15 +14,22 @@ public final class ScreenMath {
     }
 
     /**
-     * A colour as ARGB: a palette token ({@code {primary}}), {@code #rrggbb} (opaque) or {@code #aarrggbb};
-     * {@code fallback} for anything else, {@code 0} (nothing) for {@code null}.
+     * A colour as ARGB: a palette token ({@code {primary}}), a token with a hex alpha ({@code {primary}40}),
+     * {@code #rrggbb} (opaque) or {@code #aarrggbb}; {@code fallback} for anything else, {@code 0} (nothing) for
+     * {@code null}, blank or {@code none}.
      */
     public static int argb(String colour, int fallback) {
         if (colour == null || colour.isBlank()) return 0;
         String value = colour.trim();
-        if (value.startsWith("{") && value.endsWith("}")) {
-            TextColor token = Colors.get(value.substring(1, value.length() - 1));
-            return token == null ? fallback : 0xFF000000 | token.value();
+        if (value.equalsIgnoreCase("none") || value.equalsIgnoreCase("transparent")) return 0;
+        if (value.startsWith("{")) {
+            int end = value.indexOf('}');
+            if (end < 0) return fallback;
+            TextColor token = Colors.get(value.substring(1, end));
+            String alpha = value.substring(end + 1);
+            if (token == null || !(alpha.isEmpty() || alpha.matches("[0-9a-fA-F]{2}"))) return fallback;
+            int a = alpha.isEmpty() ? 0xFF : Integer.parseInt(alpha, 16);
+            return a << 24 | token.value();
         }
         if (value.startsWith("#")) value = value.substring(1);
         try {
