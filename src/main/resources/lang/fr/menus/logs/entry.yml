@@ -12,6 +12,16 @@ filler:
   pagination:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Première page"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Dernière page →"
+
 pagination:
   slots: '9-44'
   group_template:

@@ -17,6 +17,16 @@ filler:
     name: '{muted}No hay más bloques de caja'
     lore:
       - "{letters_black}Vincula un bloque para verlo aquí."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Primera página"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Última página →"
+
 pagination:
   slots: '0-35'
   item_template:

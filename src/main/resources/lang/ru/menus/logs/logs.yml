@@ -17,6 +17,16 @@ filler:
     name: '{muted}Больше нет записей'
     lore:
       - "{letters_black}Плагины пишут сюда действия персонала."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Первая страница"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Последняя страница →"
+
 pagination:
   slots: '0-35'
   item_template:

@@ -18,6 +18,16 @@ filler:
   pagination:
     material: GRAY_STAINED_GLASS_PANE
     hide_tooltip: true
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← İlk sayfa"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Son sayfa →"
+
 pagination:
   slots: '19-25'
   item_template:

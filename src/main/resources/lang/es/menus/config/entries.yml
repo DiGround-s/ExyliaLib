@@ -21,6 +21,16 @@ filler:
     name: '{muted}No hay más entradas'
     lore:
       - "{letters_black}Crea una para verla aquí."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Primera página"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Última página →"
+
 pagination:
   slots: '0-35'
   item_template:

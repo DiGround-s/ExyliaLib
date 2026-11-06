@@ -13,7 +13,8 @@ filler:
     hide_tooltip: true
 groups:
   buttons:
-    slots: '10-16'
+    slots: "10-16"
+    spacing: split
 items:
   header:
     slot: 4

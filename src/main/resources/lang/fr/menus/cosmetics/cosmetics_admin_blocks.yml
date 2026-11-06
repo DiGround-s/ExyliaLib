@@ -17,6 +17,16 @@ filler:
     name: '{muted}Plus aucun bloc de caisse'
     lore:
       - "{letters_black}Lie un bloc pour le voir ici."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Première page"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Dernière page →"
+
 pagination:
   slots: '0-35'
   item_template:

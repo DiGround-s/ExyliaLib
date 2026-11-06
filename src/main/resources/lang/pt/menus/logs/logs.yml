@@ -17,6 +17,16 @@ filler:
     name: '{muted}Não há mais registros'
     lore:
       - "{letters_black}Os plugins registram aqui o que a staff faz."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Primeira página"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Última página →"
+
 pagination:
   slots: '0-35'
   item_template:

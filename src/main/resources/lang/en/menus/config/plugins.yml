@@ -20,6 +20,16 @@ filler:
     name: '{muted}No more plugins'
     lore:
       - "{letters_black}Exylia plugins with settings show here."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← First page"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Last page →"
+
 pagination:
   slots: '0-35'
   item_template:

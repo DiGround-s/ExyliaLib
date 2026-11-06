@@ -23,6 +23,16 @@ filler:
     name: '{muted}No more showcases'
     lore:
       - "{letters_black}Add one where you stand to list it."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← First page"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Last page →"
+
 pagination:
   slots: '0-35'
   item_template:

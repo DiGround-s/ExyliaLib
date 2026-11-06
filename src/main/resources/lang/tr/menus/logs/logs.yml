@@ -25,6 +25,16 @@ filler:
     name: '{muted}Başka kayıt yok'
     lore:
       - "{letters_black}Eklentiler yetkililerin yaptıklarını buraya kaydeder."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← İlk sayfa"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Son sayfa →"
+
 pagination:
   slots: '0-35'
   item_template:

@@ -1,5 +1,5 @@
 title: '{primary}&lADMIN {letters_black}» {highlight}%admin_title%'
-size: 45
+size: 27
 type: SIMPLE
 open_sounds:
   - "minecraft:block.ender_chest.open|0.6|1.4"
@@ -13,7 +13,8 @@ filler:
     hide_tooltip: true
 groups:
   cards:
-    slots: '19-25'
+    slots: "10-16"
+    spacing: split
 items:
   header:
     slot: 4
@@ -103,7 +104,7 @@ items:
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
-    slot: 36
+    slot: 18
     material: COMPARATOR
     name: "{letters}Plugin {letters_black}▸ <gradient:{primary}:{secondary_light}>Paramètres</gradient>"
     lore:

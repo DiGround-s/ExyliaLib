@@ -21,6 +21,16 @@ filler:
     name: '{muted}Записей больше нет'
     lore:
       - "{letters_black}Создай запись, чтобы увидеть её здесь."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Первая страница"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Последняя страница →"
+
 pagination:
   slots: '0-35'
   item_template:
