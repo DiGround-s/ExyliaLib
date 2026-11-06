@@ -542,7 +542,7 @@ public final class UpdatesMenu {
                 .section(Phrases.tr("Information")).line(applies)
                 .action(Phrases.tr("Click to apply all")).lines());
         yaml.set("items.back.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Back"), parent));
-        yaml.set("items.back.lore", List.of("{error}» " + Phrases.tr("Click to go back")));
+        yaml.set("items.back.lore", List.of("{error}{icon:click} " + Phrases.tr("Click to go back")));
         yaml.set("items.keep.name", Lore.name(Lore.Tone.WARNING, Phrases.tr("Updates"), Phrases.tr("Keep all")));
         yaml.set("items.keep.lore", Lore.of(Lore.Tone.WARNING).subtitle(Phrases.tr("Updates action"))
                 .section(Phrases.tr("Information")).line(keeps)

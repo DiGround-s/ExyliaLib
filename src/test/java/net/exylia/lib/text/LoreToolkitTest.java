@@ -130,8 +130,8 @@ class LoreToolkitTest {
                 "{error}✦ Status",
                 "  {letters_black}· {info}{icon:clock} {letters}Interval{letters_black}: {info}%interval%",
                 "",
-                "{error}» Left-click {letters_black}· {letters}delete",
-                "{error}» Right-click {letters_black}· {letters}keep",
+                "{error}{icon:click} Left-click {letters_black}· {letters}delete",
+                "{error}{icon:right_click} Right-click {letters_black}· {letters}keep",
                 "{letters_black}You will be asked to confirm."),
                 Lore.of(Lore.Tone.ERROR).subtitle("Mine setting")
                         .section("Information").text("Removes the mine.")

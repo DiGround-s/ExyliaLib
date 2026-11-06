@@ -26,7 +26,7 @@ items:
       - " {letters}с тобой и как каждая функция"
       - " {letters}к тебе относится."
       - ""
-      - "{primary}» Нажми, чтобы открыть"
+      - "{primary}{icon:click} Нажми, чтобы открыть"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -40,6 +40,6 @@ items:
       - " {letters}Какие общесерверные сообщения"
       - " {letters}попадают в твой {highlight}чат{letters}."
       - ""
-      - "{primary}» Нажми, чтобы открыть"
+      - "{primary}{icon:click} Нажми, чтобы открыть"
     actions:
       - 'exylialib:settings_open announcements'

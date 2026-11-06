@@ -36,8 +36,8 @@ pagination:
       - "  {letters_black}· {info}{icon:compass} {letters}At{letters_black}: {info}%place_x%{letters_black}, {info}%place_y%{letters_black}, {info}%place_z%"
       - "  {letters_black}· {info}{icon:ping} {letters}Server{letters_black}: {info}%place_server%"
       - ""
-      - "{primary}» Left-click to teleport"
-      - "{error}» Right-click to remove"
+      - "{primary}{icon:click} Left-click to teleport"
+      - "{error}{icon:right_click} Right-click to remove"
       - "{letters_black}You will be asked to confirm."
     actions:
       - 'left,shift_left: exylialib:cosmetics place_tp'
@@ -69,7 +69,7 @@ items:
       - " {letters}Binds the block you are"
       - " {letters}looking at, within six blocks."
       - ""
-      - "{success}» Click to add"
+      - "{success}{icon:click} Click to add"
     actions:
       - 'exylialib:cosmetics place_add'
   back:
@@ -78,7 +78,7 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Back {letters_black}▸ <gradient:{error}:{error_light}>Admin hub</gradient>"
     lore:
-      - "{error}» Click to go back"
+      - "{error}{icon:click} Click to go back"
     actions:
       - 'exylialib:cosmetics hub'
   clear:
@@ -92,7 +92,7 @@ items:
       - " {letters}Unbinds every block"
       - " {letters}that opens this crate."
       - ""
-      - "{error}» Click to clear"
+      - "{error}{icon:click} Click to clear"
       - "{letters_black}You will be asked to confirm."
     actions:
       - 'exylialib:cosmetics place_clear'

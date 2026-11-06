@@ -73,7 +73,7 @@ final class MobAttackDescriptor implements EditorDescriptor<MobAttack> {
         if (!attack.ranged()) lore.add(line(Phrases.tr("Arc"), number(attack.arc()) + "°"));
         lore.add(line(Phrases.tr("Damage"), attack.damage() > 0 ? number(attack.damage())
                 : Phrases.tr("its attack damage")));
-        lore.add(line(Phrases.tr("Cooldown"), number(attack.cooldown().toMillis() / 1000.0) + "s ⌚"));
+        lore.add(timeLine(Phrases.tr("Cooldown"), number(attack.cooldown().toMillis() / 1000.0) + "s"));
         if (attack.knockback() > 0) lore.add(line(Phrases.tr("Knockback"), number(attack.knockback())));
         lore.add(line(Phrases.tr("Animation"), attack.state()));
         lore.add(line(Phrases.tr("Lands"), attack.windup().isZero() ? Phrases.tr("on its animation's beat")
@@ -137,6 +137,10 @@ final class MobAttackDescriptor implements EditorDescriptor<MobAttack> {
 
     private static double read(FormValues values, FormKey<BigDecimal> key, double current) {
         return values.has(key) ? values.get(key).doubleValue() : current;
+    }
+
+    private static String timeLine(String label, String value) {
+        return "  {letters_black}· {info}{icon:clock} {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     private static String line(String label, String value) {

@@ -30,8 +30,8 @@ pagination:
       - "  {letters_black}· {info}{icon:compass} {letters}Em{letters_black}: {info}%place_x%{letters_black}, {info}%place_y%{letters_black}, {info}%place_z%"
       - "  {letters_black}· {info}{icon:ping} {letters}Servidor{letters_black}: {info}%place_server%"
       - ""
-      - "{primary}» Clique esquerdo para teleportar"
-      - "{error}» Clique direito para remover"
+      - "{primary}{icon:click} Clique esquerdo para teleportar"
+      - "{error}{icon:right_click} Clique direito para remover"
       - "{letters_black}Você precisará confirmar."
     actions:
       - 'left,shift_left: exylialib:cosmetics place_tp'
@@ -63,7 +63,7 @@ items:
       - " {letters}Vincula o bloco que você está"
       - " {letters}olhando, a até seis blocos."
       - ""
-      - "{success}» Clique para adicionar"
+      - "{success}{icon:click} Clique para adicionar"
     actions:
       - 'exylialib:cosmetics place_add'
   back:
@@ -72,7 +72,7 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Voltar {letters_black}▸ <gradient:{error}:{error_light}>Painel de gestão</gradient>"
     lore:
-      - "{error}» Clique para voltar"
+      - "{error}{icon:click} Clique para voltar"
     actions:
       - 'exylialib:cosmetics hub'
   clear:
@@ -86,7 +86,7 @@ items:
       - " {letters}Desvincula cada bloco"
       - " {letters}que abre esta caixa."
       - ""
-      - "{error}» Clique para limpar"
+      - "{error}{icon:click} Clique para limpar"
       - "{letters_black}Será pedida uma confirmação."
     actions:
       - 'exylialib:cosmetics place_clear'

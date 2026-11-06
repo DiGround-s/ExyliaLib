@@ -484,6 +484,31 @@ Named icons, with their glyph (`tinted` ones take the colour around them):
 | `pickaxe` · `redstone` · `hopper` · `iron` · `blaze` | item/diamond_pickaxe · item/redstone · item/hopper · item/iron_ingot · item/blaze_powder | ⛏ · ⚡ · ⬇ · ■ · ☀ |
 | `spark` · `glint` · `note` (tinted) | particle spark_4 · glint · note | ✦ · ✧ · ♪ |
 | `flame` | particle flame | ☀ |
+| `click` · `right_click` | gui toast/mouse · toast/right_click | » |
+| `on` · `off` | gui pending_invite/accept · pending_invite/reject | ✔ · ✘ |
+| `locked` · `unlocked` | gui widget/locked_button · widget/unlocked_button | ■ · □ |
+| `up` · `down` | gui statistics/sort_up · statistics/sort_down | ▲ · ▼ |
+| `warning` | gui world_list/warning | ⚠ |
+| `music` | gui icon/music_notes | ♪ |
+| `signal_1` … `signal_5` | gui server_list/ping_1 … ping_5 | ▮ |
+
+The interface icons (`gui` atlas) exist from 1.21.9 on; all of them were checked
+on 1.21.9, 1.21.10 and 1.21.11, so none needs its glyph on a 1.21.9+ client.
+Older servers and clients draw the glyph. What each is for:
+
+- **Click lines.** `{icon:click}` opens every action line of a card, in the
+  card's tone (`{primary}{icon:click} Left-click to edit`); `{icon:right_click}`
+  opens a right-click line. `Lore.action` and `Lore.click` write them, choosing
+  the right button when the text says right-click.
+- **States.** `on` and `off` for enabled and disabled; `locked` and `unlocked`
+  for permission or progress gates.
+- **Trends.** `up` and `down` beside a value that rose or fell.
+- **Card problems.** `warning` before a line that needs attention.
+- **Level bars.** `signal_1` … `signal_5` read as five-step levels (quality,
+  load, strength); `music` marks sounds and songs.
+- **Time.** A time stat in item lore writes `{info}{icon:clock}` before its
+  label and no trailing ⌚: `  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}15s`.
+  Chat, action bar, boss bar, title and Discord lines keep ⌚.
 
 ## Card lore in code: `Lore` (since 1.477.0)
 
@@ -508,7 +533,7 @@ List<String> lore = Lore.of(Lore.Tone.PRIMARY)
 | `section(label)` / `section(glyph, label)` | a blank line, then `{primary}✎ Information` |
 | `text(line)` | ` {letters}…` |
 | `stat(icon, colour, label, value)` | `  {letters_black}· {info}{icon:clock} {letters}Interval{letters_black}: {info}15m` |
-| `action(text)` / `click(click, effect)` | `{primary}» Left-click to edit` / `{primary}» Left-click {letters_black}· {letters}+1` |
+| `action(text)` / `click(click, effect)` | `{primary}{icon:click} Left-click to edit` / `{primary}{icon:click} Left-click {letters_black}· {letters}+1` (`{icon:right_click}` for a right-click) |
 | `note(text)` | `{letters_black}You will be asked to confirm.` |
 
 `Tone` picks the colour pair: `PRIMARY` (a subject's own card, settings),

@@ -41,7 +41,7 @@ items:
       - " {letters}El ítem que aplica este"
       - " {letters}cosmético, a {highlight}tu {letters}inventario."
       - ""
-      - "{success}» Clic para recibir uno"
+      - "{success}{icon:click} Clic para recibir uno"
     actions:
       - 'exylialib:cosmetics give_item'
   keys:
@@ -56,8 +56,8 @@ items:
       - " {letters}la caja, para guardar,"
       - " {letters}intercambiar o tirar."
       - ""
-      - "{success}» Clic izquierdo {letters_black}· {letters}una llave"
-      - "{success}» Clic derecho {letters_black}· {letters}escribir una cantidad"
+      - "{success}{icon:click} Clic izquierdo {letters_black}· {letters}una llave"
+      - "{success}{icon:right_click} Clic derecho {letters_black}· {letters}escribir una cantidad"
     actions:
       - 'left,shift_left: exylialib:cosmetics give_keys 1'
       - 'right,shift_right: exylialib:cosmetics give_keys ask'
@@ -73,7 +73,7 @@ items:
       - " {letters}Reproduce este cosmético para {highlight}ti"
       - " {letters}en el escenario de vista previa."
       - ""
-      - "{info}» Clic para verlo"
+      - "{info}{icon:click} Clic para verlo"
     actions:
       - 'exylialib:cosmetics preview'
   back:
@@ -82,6 +82,6 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Volver {letters_black}▸ <gradient:{error}:{error_light}>Catálogo</gradient>"
     lore:
-      - "{error}» Clic para volver"
+      - "{error}{icon:click} Clic para volver"
     actions:
       - 'exylialib:cosmetics catalogue'

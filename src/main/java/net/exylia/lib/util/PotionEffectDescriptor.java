@@ -91,7 +91,7 @@ final class PotionEffectDescriptor implements EditorDescriptor<ParsedEffect> {
     public @NotNull List<String> lore(@NotNull ParsedEffect entry) {
         return List.of(Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("Effect"),
                 Phrases.tr("  {letters_black}· {letters}Level{letters_black}: {info}{0}", entry.amplifier() + 1),
-                Phrases.tr("  {letters_black}· {letters}Lasts{letters_black}: {info}{0} ⌚", duration(entry)),
+                Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Lasts{letters_black}: {info}{0}", duration(entry)),
                 "",
                 Lore.Tone.PRIMARY.colour() + "✦ " + Phrases.tr("On screen"),
                 Phrases.tr("  {letters_black}· {letters}Particles{letters_black}: {0}", shown(entry.particles()))

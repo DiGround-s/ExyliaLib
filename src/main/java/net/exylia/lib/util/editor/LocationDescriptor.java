@@ -32,7 +32,7 @@ import java.util.concurrent.CompletionStage;
 final class LocationDescriptor implements EditorDescriptor<ExyliaLocation> {
 
     /** An action line in these cards' tone. */
-    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "{icon:click} ";
 
     /** The clipboard bucket location lists share. */
     static final String TYPE_KEY = "exylia:locations";

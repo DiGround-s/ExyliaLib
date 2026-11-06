@@ -44,7 +44,7 @@ items:
       - "{primary}✦ Durum"
       - "  {letters_black}· {info}{icon:star} {letters}Kozmetikler{letters_black}: {info}%admin_catalogue%"
       - ""
-      - "{primary}» Göz atmak için tıkla"
+      - "{primary}{icon:click} Göz atmak için tıkla"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
@@ -62,7 +62,7 @@ items:
       - "  {letters_black}· {info}{icon:eye} {letters}Şu an kuşanan{letters_black}: {info}%admin_wearing% {letters_black}/ {info}%admin_online%"
       - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
       - ""
-      - "{primary}» Göz atmak için tıkla"
+      - "{primary}{icon:click} Göz atmak için tıkla"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
@@ -80,7 +80,7 @@ items:
       - "{primary}✦ Durum"
       - "  {letters_black}· {info}{icon:iron} {letters}Yerleştirilen{letters_black}: {info}%admin_showcases%"
       - ""
-      - "{primary}» Yönetmek için tıkla"
+      - "{primary}{icon:click} Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
@@ -97,7 +97,7 @@ items:
       - "{primary}✦ Durum"
       - "  {letters_black}· {info}{icon:iron} {letters}Bağlı{letters_black}: {info}%admin_blocks%"
       - ""
-      - "{primary}» Yönetmek için tıkla"
+      - "{primary}{icon:click} Yönetmek için tıkla"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
@@ -111,6 +111,6 @@ items:
       - " {letters}Eklentinin ayarlarını"
       - " {highlight}dosyalarını {letters}açmadan değiştir."
       - ""
-      - "{primary}» Tıkla {letters_black}· {letters}Ayarları aç"
+      - "{primary}{icon:click} Tıkla {letters_black}· {letters}Ayarları aç"
     actions:
       - 'exylialib:cosmetics settings'

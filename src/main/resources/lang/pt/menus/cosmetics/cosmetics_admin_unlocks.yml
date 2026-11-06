@@ -30,7 +30,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Raridade{letters_black}: %reward_tier%"
       - "  {letters_black}· {error}{icon:redstone} {letters}Estado{letters_black}: {error}✘ Bloqueado"
       - ""
-      - "{primary}» Clique para conceder"
+      - "{primary}{icon:click} Clique para conceder"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   unlocked_template:
@@ -45,7 +45,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Raridade{letters_black}: %reward_tier%"
       - "  {letters_black}· {success}{icon:redstone} {letters}Estado{letters_black}: {success}✔ Desbloqueado"
       - ""
-      - "{error}» Clique para retirar"
+      - "{error}{icon:click} Clique para retirar"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   permission_template:
@@ -59,7 +59,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Raridade{letters_black}: %reward_tier%"
       - "  {letters_black}· {info}{icon:redstone} {letters}Estado{letters_black}: {info}Por permissão"
       - ""
-      - "{primary}» Clique para conceder para sempre"
+      - "{primary}{icon:click} Clique para conceder para sempre"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   navigation:
@@ -84,6 +84,6 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Voltar {letters_black}▸ <gradient:{error}:{error_light}>Jogador</gradient>"
     lore:
-      - "{error}» Clique para voltar"
+      - "{error}{icon:click} Clique para voltar"
     actions:
       - 'exylialib:cosmetics player'

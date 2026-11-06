@@ -30,7 +30,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Редкость{letters_black}: %reward_tier%"
       - "  {letters_black}· {error}{icon:redstone} {letters}Статус{letters_black}: {error}✘ Закрыто"
       - ""
-      - "{primary}» Нажми, чтобы выдать"
+      - "{primary}{icon:click} Нажми, чтобы выдать"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   unlocked_template:
@@ -45,7 +45,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Редкость{letters_black}: %reward_tier%"
       - "  {letters_black}· {success}{icon:redstone} {letters}Статус{letters_black}: {success}✔ Открыто"
       - ""
-      - "{error}» Нажми, чтобы забрать"
+      - "{error}{icon:click} Нажми, чтобы забрать"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   permission_template:
@@ -59,7 +59,7 @@ pagination:
       - "  {letters_black}· {info}{icon:star} {letters}Редкость{letters_black}: %reward_tier%"
       - "  {letters_black}· {info}{icon:redstone} {letters}Статус{letters_black}: {info}По праву"
       - ""
-      - "{primary}» Нажми, чтобы выдать навсегда"
+      - "{primary}{icon:click} Нажми, чтобы выдать навсегда"
     actions:
       - 'exylialib:cosmetics toggle %reward_id%'
   navigation:
@@ -84,6 +84,6 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Назад {letters_black}▸ <gradient:{error}:{error_light}>Игрок</gradient>"
     lore:
-      - "{error}» Нажми, чтобы вернуться"
+      - "{error}{icon:click} Нажми, чтобы вернуться"
     actions:
       - 'exylialib:cosmetics player'

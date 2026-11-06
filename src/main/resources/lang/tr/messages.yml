@@ -53,8 +53,8 @@ logs:
   all: Tümü
   none: —
   detail-line: ' {letters}%line%'
-  view-items: '{info}» Eşyaları görmek için tıkla'
-  view-entry: '{info}» Kaydı açmak için tıkla'
+  view-items: '{info}{icon:click} Eşyaları görmek için tıkla'
+  view-entry: '{info}{icon:click} Kaydı açmak için tıkla'
 tables:
   seat-tool: '{primary}&lKOLTUK'
   seat-tool-lore:

@@ -45,7 +45,7 @@ import java.util.function.Supplier;
 public final class EditorHolder<T> implements InventoryHolder {
 
     /** An action line in these cards' tone. */
-    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "{icon:click} ";
 
     /** Rows on a page when the editor has no buttons of its own. */
     static final int FULL_PAGE = 45;
@@ -430,7 +430,7 @@ public final class EditorHolder<T> implements InventoryHolder {
             lore.line("");
         }
         lore.line(ACT + Phrases.tr("Left-click") + " {letters_black}· {letters}" + Phrases.tr("edit"));
-        lore.line("{error}» " + Phrases.tr("Right-click") + " {letters_black}· {letters}" + Phrases.tr("delete"));
+        lore.line("{error}{icon:right_click} " + Phrases.tr("Right-click") + " {letters_black}· {letters}" + Phrases.tr("delete"));
         String stepped = descriptor.stepped();
         if (stepped == null) {
             lore.line(ACT + Phrases.tr("Shift + left-click") + " {letters_black}· {letters}" + Phrases.tr("copy"));

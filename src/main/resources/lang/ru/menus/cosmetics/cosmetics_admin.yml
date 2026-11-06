@@ -44,7 +44,7 @@ items:
       - "{primary}✦ Состояние"
       - "  {letters_black}· {info}{icon:star} {letters}Косметика{letters_black}: {info}%admin_catalogue%"
       - ""
-      - "{primary}» Нажми, чтобы открыть"
+      - "{primary}{icon:click} Нажми, чтобы открыть"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
@@ -62,7 +62,7 @@ items:
       - "  {letters_black}· {info}{icon:eye} {letters}Сейчас носят{letters_black}: {info}%admin_wearing% {letters}из {info}%admin_online%"
       - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
       - ""
-      - "{primary}» Нажми, чтобы открыть"
+      - "{primary}{icon:click} Нажми, чтобы открыть"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
@@ -80,7 +80,7 @@ items:
       - "{primary}✦ Состояние"
       - "  {letters_black}· {info}{icon:iron} {letters}Установлено{letters_black}: {info}%admin_showcases%"
       - ""
-      - "{primary}» Нажми, чтобы управлять"
+      - "{primary}{icon:click} Нажми, чтобы управлять"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
@@ -97,7 +97,7 @@ items:
       - "{primary}✦ Состояние"
       - "  {letters_black}· {info}{icon:iron} {letters}Привязано{letters_black}: {info}%admin_blocks%"
       - ""
-      - "{primary}» Нажми, чтобы управлять"
+      - "{primary}{icon:click} Нажми, чтобы управлять"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
@@ -111,6 +111,6 @@ items:
       - " {letters}Меняй настройки плагина,"
       - " {letters}не открывая его {highlight}файлы{letters}."
       - ""
-      - "{primary}» Нажми {letters_black}· {letters}Открыть настройки"
+      - "{primary}{icon:click} Нажми {letters_black}· {letters}Открыть настройки"
     actions:
       - 'exylialib:cosmetics settings'

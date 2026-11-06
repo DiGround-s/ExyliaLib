@@ -29,7 +29,7 @@ items:
       - " {letters}ulaşır ve her özellik sana"
       - " {letters}nasıl davranır."
       - ""
-      - "{primary}» Açmak için tıkla"
+      - "{primary}{icon:click} Açmak için tıkla"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -43,6 +43,6 @@ items:
       - " {letters}Sunucu genelindeki hangi"
       - " {letters}mesajlar senin {highlight}sohbetine {letters}ulaşır."
       - ""
-      - "{primary}» Açmak için tıkla"
+      - "{primary}{icon:click} Açmak için tıkla"
     actions:
       - 'exylialib:settings_open announcements'

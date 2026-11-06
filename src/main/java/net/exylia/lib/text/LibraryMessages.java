@@ -693,8 +693,8 @@ public record LibraryMessages(
         public static final String DEFAULT_ALL = "All";
         public static final String DEFAULT_NONE = "—";
         public static final String DEFAULT_DETAIL_LINE = " {letters}%line%";
-        public static final String DEFAULT_VIEW_ITEMS = "{info}» Click to view the items";
-        public static final String DEFAULT_VIEW_ENTRY = "{info}» Click to open the entry";
+        public static final String DEFAULT_VIEW_ITEMS = "{info}{icon:click} Click to view the items";
+        public static final String DEFAULT_VIEW_ENTRY = "{info}{icon:click} Click to open the entry";
 
         /** The Exylia defaults. */
         public Logs() {

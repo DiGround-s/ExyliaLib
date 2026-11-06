@@ -33,9 +33,9 @@ import java.util.List;
  *  How and when this mine              text: body
  *
  * ✦ Status
- *   · ⌚ Interval: 15m                  stat: icon and value in the value's colour
+ *   {icon:clock} Interval: 15m                stat: icon and value in the value's colour
  *
- * » Left-click · edit interval         action: in the tone
+ * {icon:click} Left-click · edit interval         action: in the tone
  * </pre>
  *
  * @since 1.477.0
@@ -142,7 +142,7 @@ public final class Lore {
     }
 
     /**
-     * A stat: {@code · ⌚ Interval: 15m}.
+     * A stat: {@code · {icon:clock} Interval: 15m}.
      *
      * @param icon   an {@code {icon:…}} name such as {@code clock}, or {@code null} for none
      * @param colour the value's palette role, such as {@code info}; the icon's glyph takes it too
@@ -155,17 +155,17 @@ public final class Lore {
         return this;
     }
 
-    /** The one thing a click does: {@code » Left-click to edit}. */
+    /** The one thing a click does: {@code {icon:click} Left-click to edit}. */
     public @NotNull Lore action(@NotNull String action) {
         actionGap();
-        lines.add(tone.colour() + "» " + action);
+        lines.add(tone.colour() + clickIcon(action) + action);
         return this;
     }
 
-    /** One of several clicks: {@code » Left-click · +1 weight}. */
+    /** One of several clicks: {@code {icon:click} Left-click · +1 weight}. */
     public @NotNull Lore click(@NotNull String click, @NotNull String effect) {
         actionGap();
-        lines.add(tone.colour() + "» " + click + " {letters_black}· {letters}" + effect);
+        lines.add(tone.colour() + clickIcon(click) + click + " {letters_black}· {letters}" + effect);
         return this;
     }
 
@@ -197,5 +197,10 @@ public final class Lore {
             gap();
             actions = true;
         }
+    }
+
+    /** The mouse sprite for a click line: the right button for a right-click, the plain one otherwise. */
+    private static String clickIcon(String text) {
+        return text.toLowerCase(java.util.Locale.ROOT).contains("right") ? "{icon:right_click} " : "{icon:click} ";
     }
 }

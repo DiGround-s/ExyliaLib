@@ -28,7 +28,7 @@ items:
       - " {letters}How other players reach you and"
       - " {letters}how each feature treats you."
       - ""
-      - "{primary}» Click to open"
+      - "{primary}{icon:click} Click to open"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -42,6 +42,6 @@ items:
       - " {letters}Which server-wide"
       - " {letters}messages reach your {highlight}chat{letters}."
       - ""
-      - "{primary}» Click to open"
+      - "{primary}{icon:click} Click to open"
     actions:
       - 'exylialib:settings_open announcements'

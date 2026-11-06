@@ -26,7 +26,7 @@ items:
       - " {letters}vous joignent et comment"
       - " {letters}chaque fonction vous traite."
       - ""
-      - "{primary}» Cliquez pour ouvrir"
+      - "{primary}{icon:click} Cliquez pour ouvrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -40,6 +40,6 @@ items:
       - " {letters}Quels messages du serveur"
       - " {letters}arrivent dans votre {highlight}chat{letters}."
       - ""
-      - "{primary}» Cliquez pour ouvrir"
+      - "{primary}{icon:click} Cliquez pour ouvrir"
     actions:
       - 'exylialib:settings_open announcements'

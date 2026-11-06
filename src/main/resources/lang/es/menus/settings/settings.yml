@@ -25,7 +25,7 @@ items:
       - " {letters}Cómo te contactan otros jugadores"
       - " {letters}y cómo te trata cada función."
       - ""
-      - "{primary}» Clic para abrir"
+      - "{primary}{icon:click} Clic para abrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -39,6 +39,6 @@ items:
       - " {letters}Qué mensajes de todo el"
       - " {letters}servidor llegan a tu {highlight}chat{letters}."
       - ""
-      - "{primary}» Clic para abrir"
+      - "{primary}{icon:click} Clic para abrir"
     actions:
       - 'exylialib:settings_open announcements'

@@ -44,7 +44,7 @@ pagination:
       - "{info}✦ Where"
       - "  {letters_black}· {info}{icon:ping} {letters}Server{letters_black}: {info}%log_server%"
       - "  {letters_black}· {info}{icon:map} {letters}Location{letters_black}: {info}%log_location%"
-      - "  {letters_black}· {letters}When{letters_black}: {info}%log_when% ⌚"
+      - "  {letters_black}· {info}{icon:clock} {letters}When{letters_black}: {info}%log_when%"
       - "    {letters_black}%log_date%"
       - ""
       - "%log_view%"
@@ -77,8 +77,8 @@ items:
       - "{info}✦ Status"
       - "  {letters_black}· {highlight}{icon:search} {letters}Showing{letters_black}: {highlight}%logs_plugin%"
       - ""
-      - "{info}» Left-click {letters_black}· {letters}next plugin"
-      - "{info}» Right-click {letters_black}· {letters}every plugin"
+      - "{info}{icon:click} Left-click {letters_black}· {letters}next plugin"
+      - "{info}{icon:right_click} Right-click {letters_black}· {letters}every plugin"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
@@ -92,8 +92,8 @@ items:
       - "{info}✦ Status"
       - "  {letters_black}· {highlight}{icon:search} {letters}Showing{letters_black}: {highlight}%logs_action%"
       - ""
-      - "{info}» Left-click {letters_black}· {letters}next action"
-      - "{info}» Right-click {letters_black}· {letters}every action"
+      - "{info}{icon:click} Left-click {letters_black}· {letters}next action"
+      - "{info}{icon:right_click} Right-click {letters_black}· {letters}every action"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'

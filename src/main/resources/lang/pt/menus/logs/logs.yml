@@ -36,7 +36,7 @@ pagination:
       - "{info}✦ Onde"
       - "  {letters_black}· {info}{icon:ping} {letters}Servidor{letters_black}: {info}%log_server%"
       - "  {letters_black}· {info}{icon:map} {letters}Local{letters_black}: {info}%log_location%"
-      - "  {letters_black}· {letters}Quando{letters_black}: {info}%log_when% ⌚"
+      - "  {letters_black}· {info}{icon:clock} {letters}Quando{letters_black}: {info}%log_when%"
       - "    {letters_black}%log_date%"
       - ""
       - "%log_view%"
@@ -68,8 +68,8 @@ items:
       - "{info}✦ Estado"
       - "  {letters_black}· {highlight}{icon:search} {letters}Mostrando{letters_black}: {highlight}%logs_plugin%"
       - ""
-      - "{info}» Clique esq. {letters_black}· {letters}próximo plugin"
-      - "{info}» Clique dir. {letters_black}· {letters}todos os plugins"
+      - "{info}{icon:click} Clique esq. {letters_black}· {letters}próximo plugin"
+      - "{info}{icon:click} Clique dir. {letters_black}· {letters}todos os plugins"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
@@ -83,8 +83,8 @@ items:
       - "{info}✦ Estado"
       - "  {letters_black}· {highlight}{icon:search} {letters}Mostrando{letters_black}: {highlight}%logs_action%"
       - ""
-      - "{info}» Clique esq. {letters_black}· {letters}próxima ação"
-      - "{info}» Clique dir. {letters_black}· {letters}todas as ações"
+      - "{info}{icon:click} Clique esq. {letters_black}· {letters}próxima ação"
+      - "{info}{icon:click} Clique dir. {letters_black}· {letters}todas as ações"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'

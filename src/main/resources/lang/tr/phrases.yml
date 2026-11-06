@@ -187,7 +187,7 @@ Entering each phase: Her aşamaya girerken
 Entering phase {0}: Aşama {0} başlarken
 Every: Her
 Every day: Her gün
-Every {0} ⌚: Her {0} ⌚
+Every {0}: Her {0}
 Exactly as it is spelled in game, such as {0}.: Oyunda yazıldığı haliyle, örneğin {0}.
 Experience levels: Tecrübe seviyeleri
 Experience points: Tecrübe puanı
@@ -1316,29 +1316,29 @@ World: Dünya
 '  {letters_black}· {letters}3{letters_black}: {letters}Leggings': '  {letters_black}· {letters}3{letters_black}: {letters}Pantolon'
 '  {letters_black}· {letters}4{letters_black}: {letters}Boots': '  {letters_black}· {letters}4{letters_black}: {letters}Bot'
 '  {letters_black}· {letters}5{letters_black}: {letters}Offhand': '  {letters_black}· {letters}5{letters_black}: {letters}İkinci el'
-'  {letters_black}· {letters}After{letters_black}: {info}{0}s ⌚': '  {letters_black}· {letters}Sonra{letters_black}: {info}{0}s ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}After{letters_black}: {info}{0}s': '  {letters_black}· {info}{icon:clock} {letters}Sonra{letters_black}: {info}{0}s'
 '  {letters_black}· {letters}Amount{letters_black}: {info}{0}': '  {letters_black}· {letters}Miktar{letters_black}: {info}{0}'
 '  {letters_black}· {letters}At{letters_black}: {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}': '  {letters_black}· {letters}Konum{letters_black}: {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}'
 '  {letters_black}· {letters}Chance{letters_black}: {0}': '  {letters_black}· {letters}Şans{letters_black}: {0}'
 '  {letters_black}· {letters}Chance{letters_black}: {info}{0}%': '  {letters_black}· {letters}Şans{letters_black}: {info}{0}%'
 '  {letters_black}· {letters}Command{letters_black}: {warning}{0}': '  {letters_black}· {letters}Komut{letters_black}: {warning}{0}'
-'  {letters_black}· {letters}Completes in{letters_black}: {info}{0}s ⌚': '  {letters_black}· {letters}Tamamlanmasına{letters_black}: {info}{0}sn ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Completes in{letters_black}: {info}{0}s': '  {letters_black}· {info}{icon:clock} {letters}Tamamlanmasına{letters_black}: {info}{0}sn'
 '  {letters_black}· {letters}Conditions{letters_black}: {info}{0}': '  {letters_black}· {letters}Koşullar{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Condition{letters_black}: {info}{0}': '  {letters_black}· {letters}Koşul{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚': '  {letters_black}· {letters}Bekleme süresi{letters_black}: {info}{0} ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}': '  {letters_black}· {info}{icon:clock} {letters}Bekleme süresi{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Currency{letters_black}: {info}{0}': '  {letters_black}· {letters}Para birimi{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Days{letters_black}: {info}{0}': '  {letters_black}· {letters}Günler{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Effects{letters_black}: {info}{0}': '  {letters_black}· {letters}Efektler{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Gives{letters_black}: {info}{0}': '  {letters_black}· {letters}Verir{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Icon{letters_black}: {0}': '  {letters_black}· {letters}Simge{letters_black}: {0}'
 '  {letters_black}· {letters}If{letters_black}: {info}{0}': '  {letters_black}· {letters}Eğer{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Lasts{letters_black}: {info}{0} ⌚': '  {letters_black}· {letters}Süre{letters_black}: {info}{0} ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Lasts{letters_black}: {info}{0}': '  {letters_black}· {info}{icon:clock} {letters}Süre{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Level{letters_black}: {info}{0}': '  {letters_black}· {letters}Seviye{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Matches{letters_black}: {info}{0}': '  {letters_black}· {letters}Eşleşmeler{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Money{letters_black}: {success}{0}': '  {letters_black}· {letters}Para{letters_black}: {success}{0}'
 '  {letters_black}· {letters}Name gains{letters_black}: {0}': '  {letters_black}· {letters}İsme eklenen{letters_black}: {0}'
 '  {letters_black}· {letters}Needs{letters_black}: {info}{0}': '  {letters_black}· {letters}Gerekli{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Owed{letters_black}: {info}%owed% ⌚': '  {letters_black}· {letters}Bekleyen{letters_black}: {info}%owed% ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Owed{letters_black}: {info}%owed%': '  {letters_black}· {info}{icon:clock} {letters}Bekleyen{letters_black}: {info}%owed%'
 '  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%': '  {letters_black}· {letters}Sayfa{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%'
 '  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}': '  {letters_black}· {letters}Sayfa{letters_black}: {info}{0}{letters_black}/{info}{1}'
 '  {letters_black}· {letters}Particles{letters_black}: {0}': '  {letters_black}· {letters}Parçacıklar{letters_black}: {0}'
@@ -1411,7 +1411,7 @@ World: Dünya
 ' {letters}Pick the kinds that go.': ' {letters}Silinecek türleri seç.'
 ' {letters}Player progress, world state': ' {letters}Oyuncu ilerlemesi, dünya durumu'
 ' {letters}Put at least one item in first.': ' {letters}Önce en az bir eşya koy.'
-' {letters}Puts it in front of you for 30s ⌚,': ' {letters}30s ⌚ boyunca önüne koyar,'
+' {letters}Puts it in front of you for 30s,': ' {letters}30s boyunca önüne koyar,'
 ' {letters}Read the item above and use': ' {letters}Yukarıdaki eşyayı oku ve'
 ' {letters}Rebuilt by itself: cooldowns,': ' {letters}Kendiliğinden yeniden oluşur: bekleme süreleri,'
 ' {letters}Replaces everything here with': ' {letters}Buradaki her şeyi önerilen'

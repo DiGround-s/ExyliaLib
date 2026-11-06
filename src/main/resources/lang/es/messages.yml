@@ -53,8 +53,8 @@ logs:
   all: Todo
   none: —
   detail-line: ' {letters}%line%'
-  view-items: '{info}» Haz clic para ver los ítems'
-  view-entry: '{info}» Haz clic para abrir el registro'
+  view-items: '{info}{icon:click} Haz clic para ver los ítems'
+  view-entry: '{info}{icon:click} Haz clic para abrir el registro'
 tables:
   seat-tool: '{primary}&lASIENTO'
   seat-tool-lore:

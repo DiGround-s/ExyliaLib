@@ -24,7 +24,7 @@ class LoreColourTest {
 
     @Test
     void aColouredLineKeepsItsColour() {
-        List<Component> lore = ItemRenderer.lore(List.of("{info}» Click to open"), null, Map.of(), Set.of());
+        List<Component> lore = ItemRenderer.lore(List.of("{info}{icon:click} Click to open"), null, Map.of(), Set.of());
         assertEquals(TextColor.fromHexString("#59a4ff"), firstColour(lore.get(0)));
     }
 

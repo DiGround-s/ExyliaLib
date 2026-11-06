@@ -30,7 +30,7 @@ pagination:
       - "%cfg_plugin_about%"
       - "%cfg_plugin_status%"
       - ""
-      - "{primary}» Click to open its settings"
+      - "{primary}{icon:click} Click to open its settings"
     actions:
       - 'exylialib:config_plugin %cfg_plugin_name%'
   navigation:

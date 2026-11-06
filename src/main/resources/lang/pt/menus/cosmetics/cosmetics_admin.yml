@@ -45,7 +45,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:star} {letters}Cosméticos{letters_black}: {info}%admin_catalogue%"
       - ""
-      - "{primary}» Clique para navegar"
+      - "{primary}{icon:click} Clique para navegar"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
@@ -63,7 +63,7 @@ items:
       - "  {letters_black}· {info}{icon:eye} {letters}Usando agora{letters_black}: {info}%admin_wearing% {letters}de {info}%admin_online%"
       - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
       - ""
-      - "{primary}» Clique para navegar"
+      - "{primary}{icon:click} Clique para navegar"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
@@ -81,7 +81,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:iron} {letters}Colocadas{letters_black}: {info}%admin_showcases%"
       - ""
-      - "{primary}» Clique para gerenciar"
+      - "{primary}{icon:click} Clique para gerenciar"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
@@ -98,7 +98,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:iron} {letters}Vinculados{letters_black}: {info}%admin_blocks%"
       - ""
-      - "{primary}» Clique para gerenciar"
+      - "{primary}{icon:click} Clique para gerenciar"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
@@ -112,6 +112,6 @@ items:
       - " {letters}Altera as configurações do"
       - " {letters}plugin sem editar seus {highlight}arquivos{letters}."
       - ""
-      - "{primary}» Clique {letters_black}· {letters}Abrir configurações"
+      - "{primary}{icon:click} Clique {letters_black}· {letters}Abrir configurações"
     actions:
       - 'exylialib:cosmetics settings'

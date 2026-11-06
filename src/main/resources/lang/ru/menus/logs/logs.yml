@@ -36,7 +36,7 @@ pagination:
       - "{info}✦ Где"
       - "  {letters_black}· {info}{icon:ping} {letters}Сервер{letters_black}: {info}%log_server%"
       - "  {letters_black}· {info}{icon:map} {letters}Место{letters_black}: {info}%log_location%"
-      - "  {letters_black}· {letters}Когда{letters_black}: {info}%log_when% ⌚"
+      - "  {letters_black}· {info}{icon:clock} {letters}Когда{letters_black}: {info}%log_when%"
       - "    {letters_black}%log_date%"
       - ""
       - "%log_view%"
@@ -68,8 +68,8 @@ items:
       - "{info}✦ Статус"
       - "  {letters_black}· {highlight}{icon:search} {letters}Показано{letters_black}: {highlight}%logs_plugin%"
       - ""
-      - "{info}» ЛКМ {letters_black}· {letters}следующий плагин"
-      - "{info}» ПКМ {letters_black}· {letters}все плагины"
+      - "{info}{icon:click} ЛКМ {letters_black}· {letters}следующий плагин"
+      - "{info}{icon:click} ПКМ {letters_black}· {letters}все плагины"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
@@ -83,8 +83,8 @@ items:
       - "{info}✦ Статус"
       - "  {letters_black}· {highlight}{icon:search} {letters}Показано{letters_black}: {highlight}%logs_action%"
       - ""
-      - "{info}» ЛКМ {letters_black}· {letters}следующее действие"
-      - "{info}» ПКМ {letters_black}· {letters}все действия"
+      - "{info}{icon:click} ЛКМ {letters_black}· {letters}следующее действие"
+      - "{info}{icon:click} ПКМ {letters_black}· {letters}все действия"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'

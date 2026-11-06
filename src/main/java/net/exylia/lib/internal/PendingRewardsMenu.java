@@ -616,19 +616,19 @@ public final class PendingRewardsMenu {
                 .section("♦", Phrases.tr("Rewards")).line("%rewards%")
                 .section("✦", Phrases.tr("Status"))
                 .line(Phrases.tr("  {letters_black}· {info}{icon:book} {letters}Source{letters_black}: {info}%source%"))
-                .line(Phrases.tr("  {letters_black}· {letters}Owed{letters_black}: {info}%owed% ⌚"));
+                .line(Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Owed{letters_black}: {info}%owed%"));
     }
 
     private static void batchesWords(YamlConfiguration yaml) {
         yaml.set("title", Phrases.tr("{primary}&l%pending_name% {muted}%current_page%/%total_pages%"));
         yaml.set("pagination.item_template.lore", details(Phrases.tr("Owed batch"))
                 .action(Phrases.tr("Left click to give it now"))
-                .line("{error}» " + Phrases.tr("Shift + right click to cancel it"))
+                .line("{error}{icon:right_click} " + Phrases.tr("Shift + right click to cancel it"))
                 .lines());
         yaml.set("pagination.offline_template.lore", details(Phrases.tr("Owed batch"))
                 .line("    " + Phrases.tr("{muted}Offline: delivered on their next join."))
                 .line("")
-                .line("{error}» " + Phrases.tr("Shift + right click to cancel it"))
+                .line("{error}{icon:right_click} " + Phrases.tr("Shift + right click to cancel it"))
                 .lines());
         yaml.set("pagination.armed_template.lore", Lore.of(Lore.Tone.ERROR).subtitle(Phrases.tr("Danger zone"))
                 .section("♦", Phrases.tr("Rewards")).line("%rewards%")
@@ -636,7 +636,7 @@ public final class PendingRewardsMenu {
                 .line(Phrases.tr(" {error}Cancelling deletes this batch."))
                 .line(Phrases.tr(" {letters}The player never receives it."))
                 .action(Phrases.tr("Shift + right click again to confirm"))
-                .line(Lore.Tone.ERROR.colour() + "» " + Phrases.tr("Any other click keeps it"))
+                .line(Lore.Tone.ERROR.colour() + "{icon:click} " + Phrases.tr("Any other click keeps it"))
                 .lines());
         yaml.set("pagination.sealed_template.lore", Lore.of(TONE).subtitle(Phrases.tr("Owed batch"))
                 .section(Phrases.tr("Information"))
@@ -658,7 +658,7 @@ public final class PendingRewardsMenu {
                 .action(Phrases.tr("Click to give all"))
                 .lines());
         yaml.set("items.back.name", Lore.name(Lore.Tone.ERROR, Phrases.tr("Back"), Phrases.tr("Players")));
-        yaml.set("items.back.lore", List.of("{error}» " + Phrases.tr("Click to go back")));
+        yaml.set("items.back.lore", List.of("{error}{icon:click} " + Phrases.tr("Click to go back")));
         yaml.set("items.refresh.name", Lore.name(Lore.Tone.INFO, Phrases.tr("Rewards"), Phrases.tr("Refresh")));
     }
 }

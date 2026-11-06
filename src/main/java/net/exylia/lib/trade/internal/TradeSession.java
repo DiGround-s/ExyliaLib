@@ -379,7 +379,7 @@ public final class TradeSession {
         }
         long remaining = state.remaining(System.currentTimeMillis());
         lore.section("✦", Phrases.tr("Status")).line(remaining > 0
-                ? Phrases.tr("  {letters_black}· {letters}Completes in{letters_black}: {info}{0}s ⌚", (remaining + 999) / 1000)
+                ? Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Completes in{letters_black}: {info}{0}s", (remaining + 999) / 1000)
                 : Phrases.tr(" {letters}Waiting for both confirmations."));
         return Icons.button(remaining > 0 ? Material.CLOCK : Material.NETHER_STAR, Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Trade")),
                 lore.lines());

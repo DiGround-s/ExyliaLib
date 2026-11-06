@@ -39,7 +39,7 @@ final class MaterialDescriptor implements EditorDescriptor<Material> {
 
     @Override
     public @NotNull List<String> lore(@NotNull Material entry) {
-        return List.of(Lore.Tone.PRIMARY.colour() + "» " + Phrases.tr("Click to swap"), "{error}» " + Phrases.tr("Right-click to remove"));
+        return List.of(Lore.Tone.PRIMARY.colour() + "{icon:click} " + Phrases.tr("Click to swap"), "{error}{icon:right_click} " + Phrases.tr("Right-click to remove"));
     }
 
     @Override

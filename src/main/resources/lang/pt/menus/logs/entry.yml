@@ -23,7 +23,7 @@ pagination:
       - "{info}✦ Status"
       - "  {letters_black}· {info}{icon:iron} {letters}Pilhas{letters_black}: {info}%group_count%"
       - ""
-      - "{info}» Passe o mouse nos itens ao lado"
+      - "{info}{icon:click} Passe o mouse nos itens ao lado"
   nothing_template:
     material: LIGHT_GRAY_STAINED_GLASS_PANE
     name: '{muted}Nada neste grupo'
@@ -71,7 +71,7 @@ items:
       - "{info}✦ Onde"
       - "  {letters_black}· {info}{icon:ping} {letters}Servidor{letters_black}: {info}%log_server%"
       - "  {letters_black}· {info}{icon:map} {letters}Local{letters_black}: {info}%log_location%"
-      - "  {letters_black}· {letters}Quando{letters_black}: {info}%log_when% ⌚"
+      - "  {letters_black}· {info}{icon:clock} {letters}Quando{letters_black}: {info}%log_when%"
       - "    {letters_black}%log_date%"
   back:
     slot: 49
@@ -79,6 +79,6 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Voltar {letters_black}▸ <gradient:{error}:{error_light}>Registros</gradient>"
     lore:
-      - "{error}» Clique para voltar"
+      - "{error}{icon:click} Clique para voltar"
     actions:
       - 'exylialib:logs_back'

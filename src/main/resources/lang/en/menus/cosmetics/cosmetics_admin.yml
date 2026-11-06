@@ -52,7 +52,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:star} {letters}Cosmetics{letters_black}: {info}%admin_catalogue%"
       - ""
-      - "{primary}» Click to browse"
+      - "{primary}{icon:click} Click to browse"
     actions:
       - 'exylialib:cosmetics catalogue'
   players:
@@ -70,7 +70,7 @@ items:
       - "  {letters_black}· {info}{icon:eye} {letters}Wearing one now{letters_black}: {info}%admin_wearing% {letters}of {info}%admin_online%"
       - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
       - ""
-      - "{primary}» Click to browse"
+      - "{primary}{icon:click} Click to browse"
     actions:
       - 'exylialib:cosmetics players'
   showcases:
@@ -88,7 +88,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:iron} {letters}Placed{letters_black}: {info}%admin_showcases%"
       - ""
-      - "{primary}» Click to manage"
+      - "{primary}{icon:click} Click to manage"
     actions:
       - 'exylialib:cosmetics showcases'
   blocks:
@@ -105,7 +105,7 @@ items:
       - "{primary}✦ Status"
       - "  {letters_black}· {info}{icon:iron} {letters}Bound{letters_black}: {info}%admin_blocks%"
       - ""
-      - "{primary}» Click to manage"
+      - "{primary}{icon:click} Click to manage"
     actions:
       - 'exylialib:cosmetics blocks'
   settings:
@@ -119,6 +119,6 @@ items:
       - " {letters}Change this plugin's settings"
       - " {letters}without editing its {highlight}files{letters}."
       - ""
-      - "{primary}» Click {letters_black}· {letters}Open settings"
+      - "{primary}{icon:click} Click {letters_black}· {letters}Open settings"
     actions:
       - 'exylialib:cosmetics settings'

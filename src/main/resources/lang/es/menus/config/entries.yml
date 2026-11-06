@@ -33,8 +33,8 @@ pagination:
       - "  {letters_black}· {letters}Contiene{letters_black}: %cfg_value%"
       - ""
       - "%cfg_hint%"
-      - "{primary}» Clic izq. + Shift {letters_black}· {letters}duplicar"
-      - "{error}» Clic der. + Shift {letters_black}· {letters}borrar"
+      - "{primary}{icon:click} Clic izq. + Shift {letters_black}· {letters}duplicar"
+      - "{error}{icon:click} Clic der. + Shift {letters_black}· {letters}borrar"
       - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'left: exylialib:config_entry open %cfg_key%'
@@ -68,7 +68,7 @@ items:
       - " {letters}Añade una entrada nueva que ya"
       - " {letters}carga, lista para {highlight}editar{letters} aquí."
       - ""
-      - "{success}» Clic {letters_black}· {letters}Crear"
+      - "{success}{icon:click} Clic {letters_black}· {letters}Crear"
     actions:
       - 'exylialib:config_entry create'
   back:
@@ -77,6 +77,6 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Volver {letters_black}▸ <gradient:{error}:{error_light}>%cfg_back_to%</gradient>"
     lore:
-      - "{error}» Clic para volver"
+      - "{error}{icon:click} Clic para volver"
     actions:
       - 'exylialib:config_back'

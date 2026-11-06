@@ -335,6 +335,9 @@ public final class MenuLoader {
         if (raw.equalsIgnoreCase("auto")) {
             return UiGroup.AUTO;
         }
+        if (raw.equalsIgnoreCase("split")) {
+            return UiGroup.SPLIT;
+        }
         try {
             int gap = Integer.parseInt(raw);
             if (gap >= 0) {
@@ -344,7 +347,7 @@ public final class MenuLoader {
             // reported below
         }
         binder.problems().found("group \"" + id + "\" spacing \"" + raw + "\"",
-                "not auto or a number of zero or more; using auto");
+                "not auto, split or a number of zero or more; using auto");
         return UiGroup.AUTO;
     }
 

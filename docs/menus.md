@@ -583,7 +583,7 @@ centred in the group's slots on every render:
 groups:
   sections:
     slots: "19-25"     # any slot expression; order is the layout order
-    spacing: auto      # optional: auto (default) or a fixed gap such as 0 or 1
+    spacing: auto      # optional: auto (default), split, or a fixed gap such as 0 or 1
 items:
   land:
     group: sections    # instead of slot:
@@ -597,6 +597,13 @@ items:
   side otherwise (7 slots: 1 → 22; 2 → 21,23; 3 → 20,22,24; 4 → 19,21,23,25;
   5 → 20-24; 6 → 19-24). A fixed `spacing` that does not fit falls back to 0.
   An odd leftover leans left.
+- `spacing: split` follows the menu layout rule, per row of consecutive slots.
+  An odd number of members sits together in the middle (7 slots, 10-16:
+  1 → 13; 3 → 12-14; 5 → 11-15; 7 → 10-16). An even number splits into two
+  equal halves around the free centre slot (2 → 12,14; 4 → 11,12,14,15;
+  6 → 10,11,12,14,15,16). A group spanning two rows (`"10-16,19-25"`) fills the
+  first row up to its width, and past that splits the members evenly between
+  the rows, each laid out by the same rule (8 → 4+4, 9 → 5+4).
 - Group slots left over are background, exactly like a hidden button.
 - More visible members than slots: the extras are not drawn (reported at load
   when the members with no `condition`, plus one conditional, outnumber the

@@ -25,7 +25,7 @@ items:
       - " {letters}Como outros jogadores te alcançam"
       - " {letters}e como cada recurso te trata."
       - ""
-      - "{primary}» Clique para abrir"
+      - "{primary}{icon:click} Clique para abrir"
     actions:
       - 'exylialib:settings_open settings'
   announcements:
@@ -39,6 +39,6 @@ items:
       - " {letters}Quais mensagens do servidor"
       - " {letters}chegam ao seu {highlight}chat{letters}."
       - ""
-      - "{primary}» Clique para abrir"
+      - "{primary}{icon:click} Clique para abrir"
     actions:
       - 'exylialib:settings_open announcements'

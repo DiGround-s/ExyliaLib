@@ -52,7 +52,7 @@ import java.util.function.Supplier;
 final class ScheduleDescriptor implements EditorDescriptor<Schedule> {
 
     /** An action line in these cards' tone. */
-    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "{icon:click} ";
 
     /** The clipboard bucket schedules share, so one screen pastes into another. */
     static final String TYPE_KEY = "exylia:schedules";

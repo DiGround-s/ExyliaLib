@@ -224,7 +224,7 @@ class ConfigPagesTest {
                 "the next house sound, written the way the file writes it, volume and pitch kept");
         assertEquals("minecraft:entity.villager.no", ConfigFields.nextSound("minecraft:ui.button.click", -1));
 
-        assertTrue(ConfigFields.display(ConfigFields.field(schema, "window"), 90).contains("⌚"), "minutes read as a length of time");
+        assertTrue(ConfigFields.display(ConfigFields.field(schema, "window"), 90).contains("1h"), "minutes read as a length of time");
 
         ConfigFields.Field warning = ConfigFields.field(schema, "warning");
         ConfigFields.Field critical = ConfigFields.field(schema, "critical");

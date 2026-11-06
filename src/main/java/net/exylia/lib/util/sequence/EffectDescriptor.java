@@ -103,7 +103,7 @@ final class EffectDescriptor implements EditorDescriptor<EffectEntry> {
         lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {0}", chance(entry)));
         lore.add(Phrases.tr("  {letters_black}· {letters}Seen by{letters_black}: {info}{0}", audience(entry)));
         if (entry.delayTicks() > 0) {
-            lore.add(Phrases.tr("  {letters_black}· {letters}After{letters_black}: {info}{0}s ⌚",
+            lore.add(Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}After{letters_black}: {info}{0}s",
                     entry.delayTicks() / 20.0));
         }
         if (entry.condition() != null) {

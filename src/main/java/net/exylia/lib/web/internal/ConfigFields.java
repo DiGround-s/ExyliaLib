@@ -497,7 +497,7 @@ final class ConfigFields {
                 Bounds range = bounds(field);
                 if (range != null && value instanceof Number number && number.doubleValue() == range.none()) yield none();
                 Duration duration = duration(field, value);
-                yield duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT) + " ⌚";
+                yield duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT);
             }
             case MATERIAL -> value instanceof Material material ? "{highlight}" + material.name()
                     : value == null || value.toString().isBlank() ? none() : "{highlight}" + Values.inert(cut(value.toString()));
@@ -519,7 +519,7 @@ final class ConfigFields {
         Long millis = unit == null ? null : unitMillis(unit.value());
         if (millis != null) {
             Duration duration = Duration.ofMillis(Math.max(0, Math.round(number.doubleValue() * millis)));
-            return duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT) + " ⌚";
+            return duration.isZero() ? none() : "{info}" + TimeFormats.render(duration, TimeFormats.Style.COMPACT);
         }
         Menu.Format format = field.hint(Menu.Format.class);
         Menu.Style style = format == null ? Menu.Style.NUMBER : format.value();
@@ -586,7 +586,7 @@ final class ConfigFields {
             case ENTRIES -> entries(value instanceof Number number ? number.intValue() : 0);
             case SECTION -> Phrases.tr("{info}{0} {letters}settings", value instanceof Number number ? number.intValue() : 0);
             case CHOICE, MATERIAL -> value == null ? none() : "{highlight}" + Values.inert(cut(String.valueOf(value)));
-            case TIME -> value == null ? none() : "{info}" + Values.inert(cut(String.valueOf(value))) + " ⌚";
+            case TIME -> value == null ? none() : "{info}" + Values.inert(cut(String.valueOf(value)));
             default -> value == null ? none() : "{muted}" + Values.inert(cut(String.valueOf(value)));
         };
     }
@@ -682,7 +682,7 @@ final class ConfigFields {
 
     /** An action line in the settings screens' tone. */
     static String act(String action) {
-        return Lore.Tone.PRIMARY.colour() + "» " + action;
+        return Lore.Tone.PRIMARY.colour() + "{icon:click} " + action;
     }
 
     /** The label opening an Information block, after the blank line that separates it. */

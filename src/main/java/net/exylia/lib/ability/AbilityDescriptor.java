@@ -80,7 +80,7 @@ final class AbilityDescriptor implements EditorDescriptor<Ability> {
                 written(source.get("chance"), "100")));
         Object cooldown = source.get("cooldown");
         if (cooldown != null) {
-            lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", written(cooldown, "")));
+            lore.add(Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}", written(cooldown, "")));
         }
         lore.add(Phrases.tr("  {letters_black}· {letters}Conditions{letters_black}: {info}{0}", lines(source.get("conditions")).size()));
         List<String> effects = new ArrayList<>();

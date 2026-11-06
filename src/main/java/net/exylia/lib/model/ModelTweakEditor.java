@@ -153,7 +153,7 @@ public final class ModelTweakEditor {
                         .name(Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Model"), Phrases.tr("Preview")))
                         .lore(Lore.of(Lore.Tone.SUCCESS).subtitle(Phrases.tr("Model action"))
                                 .section(Phrases.tr("Information"))
-                                .line(Phrases.tr(" {letters}Puts it in front of you for 30s ⌚,"))
+                                .line(Phrases.tr(" {letters}Puts it in front of you for 30s,"))
                                 .line(Phrases.tr(" {letters}turning and playing every animation."))
                                 .action(Phrases.tr("Click to see it as it stands")).lines())
                         .glowing()

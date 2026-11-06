@@ -45,7 +45,7 @@ import java.util.function.Supplier;
 public final class WipeMenu {
 
     /** An action line in these cards' tone. */
-    private static final String ACT = Lore.Tone.PRIMARY.colour() + "» ";
+    private static final String ACT = Lore.Tone.PRIMARY.colour() + "{icon:click} ";
 
     /** The tone of the wipe screens' own cards. */
     private static final Lore.Tone TONE = Lore.Tone.PRIMARY;
@@ -299,7 +299,7 @@ public final class WipeMenu {
             context.put(key + "_action", (Supplier<String>) () -> !request.preset().allowed().contains(kind)
                     ? "{muted}» " + Phrases.tr("Not part of this preset")
                     : request.kinds().contains(kind) ? ACT + Phrases.tr("Click to keep it")
-                    : "{error}» " + Phrases.tr("Click to delete it too"));
+                    : "{error}{icon:click} " + Phrases.tr("Click to delete it too"));
         }
         show(viewer, KINDS, context, null);
     }
@@ -470,7 +470,7 @@ public final class WipeMenu {
 
     private static void back(YamlConfiguration yaml, int slot, String parent, String target) {
         item(yaml, "back", slot, BACK_HEAD, Lore.name(Lore.Tone.ERROR, Phrases.tr("Back"), parent),
-                List.of("{error}» " + Phrases.tr("Click to go back")),
+                List.of("{error}{icon:click} " + Phrases.tr("Click to go back")),
                 List.of("exylialib:wipe_back " + target));
         yaml.set("items.back.sound", "minecraft:item.bundle.remove_one|1.0|0.5");
     }

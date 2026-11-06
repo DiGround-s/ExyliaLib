@@ -102,19 +102,19 @@ class PolicyDraftTest {
         assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>PVP</gradient> &8[{muted}DEFAULT&8]", PolicyLooks.name(PVP, look, plugin));
         List<String> lore = PolicyLooks.lore(PVP, look, plugin);
         assertTrue(lore.contains("  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: {muted}Set by the plugin"), lore.toString());
-        assertTrue(lore.contains("{primary}» Click to cycle"), lore.toString());
-        assertFalse(lore.contains("{primary}» Right-click for default"), "nothing to reset yet");
+        assertTrue(lore.contains("{primary}{icon:click} Click to cycle"), lore.toString());
+        assertFalse(lore.contains("{primary}{icon:right_click} Right-click for default"), "nothing to reset yet");
 
         PolicyDraft denied = new PolicyDraft(PolicySet.of(PVP, true), PolicySet.of(PVP, false), Map.of());
         assertEquals("{letters}Flag {letters_black}▸ <gradient:{primary}:{secondary_light}>PVP</gradient> &8[{success}ALLOW&8]", PolicyLooks.name(PVP, look, denied));
         lore = PolicyLooks.lore(PVP, look, denied);
         assertTrue(lore.contains("  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: {error}Deny"), lore.toString());
-        assertTrue(lore.contains("{primary}» Right-click for default"), lore.toString());
+        assertTrue(lore.contains("{primary}{icon:right_click} Right-click for default"), lore.toString());
 
         PolicyDraft locked = new PolicyDraft(PolicySet.empty(), null, Map.of(PVP, "Driven by the game"));
         lore = PolicyLooks.lore(PVP, look, locked);
         assertTrue(lore.contains(" {muted}Driven by the game"), lore.toString());
-        assertTrue(lore.stream().noneMatch(line -> line.startsWith("{primary}»")), "a locked row offers nothing");
+        assertTrue(lore.stream().noneMatch(line -> line.contains("{icon:click}")), "a locked row offers nothing");
     }
 
     @Test

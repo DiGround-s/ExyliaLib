@@ -88,6 +88,20 @@ public final class Icons {
         named.put("check", new Icon("gui", "icon/checkmark", "✔", false));
         named.put("barrier", new Icon("items", "item/barrier", "✘", false));
         named.put("ping", new Icon("gui", "icon/ping_5", "▮", false));
+        // Interface: clicks, states, trends, problems and level bars (gui atlas, 1.21.9+).
+        named.put("click", new Icon("gui", "toast/mouse", "»", false));
+        named.put("right_click", new Icon("gui", "toast/right_click", "»", false));
+        named.put("on", new Icon("gui", "pending_invite/accept", "✔", false));
+        named.put("off", new Icon("gui", "pending_invite/reject", "✘", false));
+        named.put("locked", new Icon("gui", "widget/locked_button", "■", false));
+        named.put("unlocked", new Icon("gui", "widget/unlocked_button", "□", false));
+        named.put("up", new Icon("gui", "statistics/sort_up", "▲", false));
+        named.put("down", new Icon("gui", "statistics/sort_down", "▼", false));
+        named.put("warning", new Icon("gui", "world_list/warning", "⚠", false));
+        named.put("music", new Icon("gui", "icon/music_notes", "♪", false));
+        for (int level = 1; level <= 5; level++) {
+            named.put("signal_" + level, new Icon("gui", "server_list/ping_" + level, "▮", false));
+        }
         // Work and settings.
         named.put("pickaxe", new Icon("items", "item/diamond_pickaxe", "⛏", false));
         named.put("redstone", new Icon("items", "item/redstone", "⚡", false));

@@ -44,7 +44,7 @@ pagination:
       - "{info}✦ Konum"
       - "  {letters_black}· {info}{icon:ping} {letters}Sunucu{letters_black}: {info}%log_server%"
       - "  {letters_black}· {info}{icon:map} {letters}Konum{letters_black}: {info}%log_location%"
-      - "  {letters_black}· {letters}Zaman{letters_black}: {info}%log_when% ⌚"
+      - "  {letters_black}· {info}{icon:clock} {letters}Zaman{letters_black}: {info}%log_when%"
       - "    {letters_black}%log_date%"
       - ""
       - "%log_view%"
@@ -77,8 +77,8 @@ items:
       - "{info}✦ Durum"
       - "  {letters_black}· {highlight}{icon:search} {letters}Gösterilen{letters_black}: {highlight}%logs_plugin%"
       - ""
-      - "{info}» Sol tık {letters_black}· {letters}sonraki eklenti"
-      - "{info}» Sağ tık {letters_black}· {letters}tüm eklentiler"
+      - "{info}{icon:click} Sol tık {letters_black}· {letters}sonraki eklenti"
+      - "{info}{icon:right_click} Sağ tık {letters_black}· {letters}tüm eklentiler"
     actions:
       - 'left: exylialib:logs_plugin next'
       - 'right: exylialib:logs_plugin all'
@@ -92,8 +92,8 @@ items:
       - "{info}✦ Durum"
       - "  {letters_black}· {highlight}{icon:search} {letters}Gösterilen{letters_black}: {highlight}%logs_action%"
       - ""
-      - "{info}» Sol tık {letters_black}· {letters}sonraki işlem"
-      - "{info}» Sağ tık {letters_black}· {letters}tüm işlemler"
+      - "{info}{icon:click} Sol tık {letters_black}· {letters}sonraki işlem"
+      - "{info}{icon:right_click} Sağ tık {letters_black}· {letters}tüm işlemler"
     actions:
       - 'left: exylialib:logs_action next'
       - 'right: exylialib:logs_action all'

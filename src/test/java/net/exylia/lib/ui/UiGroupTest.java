@@ -67,4 +67,27 @@ class UiGroupTest {
         assertEquals(Map.of(20, "land", 21, "flags", 22, "teleport", 23, "market", 24, "danger"), placed);
         assertEquals(List.of("land", "flags", "teleport", "market", "danger"), List.copyOf(placed.values()));
     }
+
+    @Test
+    @DisplayName("split: odd counts sit together in the middle, even counts halve around the centre")
+    void splitOneRow() {
+        List<Integer> row = List.of(10, 11, 12, 13, 14, 15, 16);
+        List<List<Integer>> want = List.of(List.of(13), List.of(12, 14), List.of(12, 13, 14),
+                List.of(11, 12, 14, 15), List.of(11, 12, 13, 14, 15), List.of(10, 11, 12, 14, 15, 16), row);
+        for (int n = 1; n <= 7; n++) {
+            UiGroup group = new UiGroup("row", row, List.of(), UiGroup.SPLIT);
+            assertEquals(want.get(n - 1), List.copyOf(group.place(java.util.stream.IntStream.range(0, n).boxed().toList()).keySet()), "n=" + n);
+        }
+    }
+
+    @Test
+    @DisplayName("split: past one row the members are shared evenly between rows")
+    void splitTwoRows() {
+        List<Integer> rows = List.of(10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25);
+        UiGroup group = new UiGroup("rows", rows, List.of(), UiGroup.SPLIT);
+        assertEquals(List.of(11, 12, 14, 15, 20, 21, 23, 24),
+                List.copyOf(group.place(java.util.stream.IntStream.range(0, 8).boxed().toList()).keySet()));
+        assertEquals(List.of(11, 12, 13, 14, 15, 20, 21, 23, 24),
+                List.copyOf(group.place(java.util.stream.IntStream.range(0, 9).boxed().toList()).keySet()));
+    }
 }

@@ -321,7 +321,7 @@ final class SearchView<T> implements InventoryHolder {
         }
         inventory.setItem(INFO_SLOT, info());
         inventory.setItem(CANCEL_SLOT, button(Material.BARRIER, Lore.name(Lore.Tone.ERROR, Phrases.tr("Search"), Phrases.tr("Cancel")),
-                "{error}» " + Phrases.tr("Close without choosing.")));
+                "{error}{icon:click} " + Phrases.tr("Close without choosing.")));
         if (hasNext()) {
             inventory.setItem(NEXT_SLOT, button(Material.ARROW,
                     Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Page"), Phrases.tr("Next") + " →"),
@@ -427,11 +427,11 @@ final class SearchView<T> implements InventoryHolder {
         if (value.equals(request.defaultValue())) {
             return written(base, Text.of("{letters}" + Phrases.tr("Option") + " {letters_black}▸ "
                             + Lore.Tone.INFO.gradient("%label%") + " {success}✔").with("%label%", label).build(),
-                    "{success}» " + Phrases.tr("The current value."));
+                    "{success}{icon:click} " + Phrases.tr("The current value."));
         }
         return written(base, Text.of("{letters}" + Phrases.tr("Option") + " {letters_black}▸ "
                         + Lore.Tone.INFO.gradient("%label%")).with("%label%", label).build(),
-                Lore.Tone.INFO.colour() + "» " + Phrases.tr("Click to choose this option."));
+                Lore.Tone.INFO.colour() + "{icon:click} " + Phrases.tr("Click to choose this option."));
     }
 
     private ItemStack info() {
@@ -445,7 +445,7 @@ final class SearchView<T> implements InventoryHolder {
             return button(Material.BARRIER, Lore.name(Lore.Tone.ERROR, Phrases.tr("Search"), Phrases.tr("Unavailable")),
                     Phrases.tr(" {letters}The catalogue could not be reached."),
                     "",
-                    "{error}» " + Phrases.tr("Search again to retry"));
+                    "{error}{icon:click} " + Phrases.tr("Search again to retry"));
         }
         return button(Material.PAPER, Lore.name(Lore.Tone.INFO, Phrases.tr("Search"), Phrases.tr("Results")),
                 Phrases.tr("  {letters_black}· {letters}Query{letters_black}: {0}", state),

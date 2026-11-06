@@ -39,9 +39,9 @@ items:
       - "{primary}✦ Estado"
       - "  {letters_black}· {info}{icon:key} {letters}Llaves{letters_black}: {info}%player_keys%"
       - ""
-      - "{primary}» Clic izquierdo {letters_black}· {letters}+1 llave"
-      - "{primary}» Clic derecho {letters_black}· {letters}-1 llave"
-      - "{primary}» Shift-clic {letters_black}· {letters}escribir una cantidad"
+      - "{primary}{icon:click} Clic izquierdo {letters_black}· {letters}+1 llave"
+      - "{primary}{icon:right_click} Clic derecho {letters_black}· {letters}-1 llave"
+      - "{primary}{icon:click} Shift-clic {letters_black}· {letters}escribir una cantidad"
     actions:
       - 'left: exylialib:cosmetics keys 1'
       - 'right: exylialib:cosmetics keys -1'
@@ -61,7 +61,7 @@ items:
       - "{primary}✦ Estado"
       - "  {letters_black}· {success}{icon:star} {letters}Obtenidos{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
       - ""
-      - "{primary}» Clic para gestionar"
+      - "{primary}{icon:click} Clic para gestionar"
     actions:
       - 'exylialib:cosmetics unlocks'
   equipped:
@@ -79,7 +79,7 @@ items:
       - "{primary}✦ Estado"
       - "  {letters_black}· {info}{icon:eye} {letters}Equipado{letters_black}: %player_equipped%"
       - ""
-      - "{error}» Clic para quitárselo"
+      - "{error}{icon:click} Clic para quitárselo"
       - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics unequip'
@@ -95,7 +95,7 @@ items:
       - " {letters}Vacía la lista de"
       - " {letters}favoritos del jugador."
       - ""
-      - "{error}» Clic para borrar"
+      - "{error}{icon:click} Clic para borrar"
       - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics favourites'
@@ -105,7 +105,7 @@ items:
     material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
     name: "{letters}Volver {letters_black}▸ <gradient:{error}:{error_light}>Jugadores</gradient>"
     lore:
-      - "{error}» Clic para volver"
+      - "{error}{icon:click} Clic para volver"
     actions:
       - 'exylialib:cosmetics players'
   clear:
@@ -119,7 +119,7 @@ items:
       - " {letters}Retira {highlight}todo {letters}lo que el"
       - " {letters}jugador ganó o recibió."
       - ""
-      - "{error}» Clic para borrar"
+      - "{error}{icon:click} Clic para borrar"
       - "{letters_black}Se te pedirá confirmación."
     actions:
       - 'exylialib:cosmetics clear_unlocks'

@@ -155,12 +155,12 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             lore.add(line(Phrases.tr("Weight"), number(skill.chance() * 100)
                     + (total > 0 ? " {letters_black}(" + "{info}" + percent(skill.chance() / total) + "%{letters_black})" : "")));
             if (!skill.cooldown().isZero()) {
-                lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", time(skill.cooldown())));
+                lore.add(Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}", time(skill.cooldown())));
             }
         } else {
             lore.add(Phrases.tr("  {letters_black}· {letters}Chance{letters_black}: {info}{0}%", percent(skill.chance())));
             if (skill.trigger() != MobSkill.Trigger.INTERVAL && !skill.cooldown().isZero()) {
-                lore.add(Phrases.tr("  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚", time(skill.cooldown())));
+                lore.add(Phrases.tr("  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}", time(skill.cooldown())));
             }
         }
         List<String> settings = settings(skill);
@@ -184,7 +184,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
     static List<String> cast(MobSkill.Cast cast) {
         List<String> lines = new ArrayList<>(8);
         if (!cast.name().isEmpty()) lines.add(line(Phrases.tr("Name"), cast.name()));
-        if (!cast.windup().isZero()) lines.add(line(Phrases.tr("Wind-up"), time(cast.windup()) + " ⌚"));
+        if (!cast.windup().isZero()) lines.add(timeLine(Phrases.tr("Wind-up"), time(cast.windup())));
         if (cast.aim() != MobSkill.Aim.AUTO) {
             String spread = cast.spread() <= 0 ? "" : cast.aim() == MobSkill.Aim.CONE ? " " + number(cast.spread()) + "°"
                     : cast.aim() == MobSkill.Aim.LINE ? " " + Phrases.tr("{0} wide", number(cast.spread())) : "";
@@ -245,7 +245,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             case AREA_DAMAGE -> {
                 lines.add(line(Phrases.tr("Radius"), Phrases.tr("{0} blocks", number(skill.radius()))));
                 lines.add(line(Phrases.tr("Damage"), number(skill.amount())));
-                if (!skill.duration().isZero()) lines.add(line(Phrases.tr("Burns"), time(skill.duration()) + " ⌚"));
+                if (!skill.duration().isZero()) lines.add(timeLine(Phrases.tr("Burns"), time(skill.duration())));
             }
             case DASH -> {
                 lines.add(line(Phrases.tr("Reach"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 12))));
@@ -258,20 +258,20 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             }
             case SHIELD -> {
                 lines.add(line(Phrases.tr("Blocks"), number(skill.amount()) + "%"));
-                lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
+                lines.add(timeLine(Phrases.tr("For"), time(skill.duration())));
             }
             case ZONE -> {
                 lines.add(line(Phrases.tr("Radius"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 3))));
                 lines.add(line(Phrases.tr("Damage"), Phrases.tr("{0} a second", number(skill.amount()))));
                 if (!skill.text().isBlank()) lines.add(line(Phrases.tr("Effect"), Effects.describe(skill.text())));
-                lines.add(line(Phrases.tr("Lasts"), time(skill.duration()) + " ⌚"));
+                lines.add(timeLine(Phrases.tr("Lasts"), time(skill.duration())));
             }
             case BARRAGE -> {
                 lines.add(line(Phrases.tr("Strikes"), number(skill.amount() > 0 ? skill.amount() : 5)));
                 lines.add(line(Phrases.tr("Scatter"), Phrases.tr("{0} blocks", number(skill.radius() > 0 ? skill.radius() : 6))));
                 lines.add(line(Phrases.tr("Damage each"), skill.text().isBlank() ? "4" : skill.text()));
             }
-            case IGNITE -> lines.add(line(Phrases.tr("Burns"), time(skill.duration()) + " ⌚"));
+            case IGNITE -> lines.add(timeLine(Phrases.tr("Burns"), time(skill.duration())));
             case EFFECT, COMMAND -> {
                 if (!skill.text().isBlank()) lines.add(line(skill.type() == MobSkill.Type.EFFECT ? Phrases.tr("Plays") : Phrases.tr("Runs"),
                         firstLine(skill.text())));
@@ -283,9 +283,9 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
             case SIZE -> lines.add(line(Phrases.tr("Scale"), skill.text().isBlank() ? Phrases.tr("{error}none") : skill.text()));
             case SPEED -> {
                 lines.add(line(Phrases.tr("Speed"), "×" + number(skill.amount())));
-                lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
+                lines.add(timeLine(Phrases.tr("For"), time(skill.duration())));
             }
-            case BABY -> lines.add(line(Phrases.tr("For"), time(skill.duration()) + " ⌚"));
+            case BABY -> lines.add(timeLine(Phrases.tr("For"), time(skill.duration())));
         }
         return lines;
     }
@@ -899,7 +899,7 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
         if (skill.grouped()) return Phrases.tr("Takes turns in {0}", skill.cast().group());
         return switch (skill.trigger()) {
             case SPAWN -> Phrases.tr("On spawn");
-            case INTERVAL -> Phrases.tr("Every {0} ⌚", time(skill.period()));
+            case INTERVAL -> Phrases.tr("Every {0}", time(skill.period()));
             case ATTACK -> Phrases.tr("When it hits");
             case DAMAGED -> Phrases.tr("When it is hit");
             case LOW_HEALTH -> Phrases.tr("At {0}% health", percent(skill.threshold()));
@@ -908,6 +908,10 @@ final class MobSkillDescriptor implements EditorDescriptor<MobSkill> {
 
                     : Phrases.tr("Entering each phase");
         };
+    }
+
+    private static String timeLine(String label, String value) {
+        return "  {letters_black}· {info}{icon:clock} {letters}" + label + "{letters_black}: {info}" + value;
     }
 
     private static String line(String label, String value) {

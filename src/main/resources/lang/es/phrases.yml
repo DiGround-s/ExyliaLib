@@ -187,7 +187,7 @@ Entering each phase: Al entrar en cada fase
 Entering phase {0}: Al entrar en la fase {0}
 Every: Cada
 Every day: Todos los días
-Every {0} ⌚: Cada {0} ⌚
+Every {0}: Cada {0}
 Exactly as it is spelled in game, such as {0}.: Tal como se escribe en el juego, como {0}.
 Experience levels: Niveles de experiencia
 Experience points: Puntos de experiencia
@@ -1316,29 +1316,29 @@ World: Mundo
 '  {letters_black}· {letters}3{letters_black}: {letters}Leggings': '  {letters_black}· {letters}3{letters_black}: {letters}Grebas'
 '  {letters_black}· {letters}4{letters_black}: {letters}Boots': '  {letters_black}· {letters}4{letters_black}: {letters}Botas'
 '  {letters_black}· {letters}5{letters_black}: {letters}Offhand': '  {letters_black}· {letters}5{letters_black}: {letters}Mano secundaria'
-'  {letters_black}· {letters}After{letters_black}: {info}{0}s ⌚': '  {letters_black}· {letters}Tras{letters_black}: {info}{0}s ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}After{letters_black}: {info}{0}s': '  {letters_black}· {info}{icon:clock} {letters}Tras{letters_black}: {info}{0}s'
 '  {letters_black}· {letters}Amount{letters_black}: {info}{0}': '  {letters_black}· {letters}Cantidad{letters_black}: {info}{0}'
 '  {letters_black}· {letters}At{letters_black}: {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}': '  {letters_black}· {letters}En{letters_black}: {info}{0}{letters_black}, {info}{1}{letters_black}, {info}{2}'
 '  {letters_black}· {letters}Chance{letters_black}: {0}': '  {letters_black}· {letters}Probabilidad{letters_black}: {0}'
 '  {letters_black}· {letters}Chance{letters_black}: {info}{0}%': '  {letters_black}· {letters}Probabilidad{letters_black}: {info}{0}%'
 '  {letters_black}· {letters}Command{letters_black}: {warning}{0}': '  {letters_black}· {letters}Comando{letters_black}: {warning}{0}'
-'  {letters_black}· {letters}Completes in{letters_black}: {info}{0}s ⌚': '  {letters_black}· {letters}Se completa en{letters_black}: {info}{0}s ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Completes in{letters_black}: {info}{0}s': '  {letters_black}· {info}{icon:clock} {letters}Se completa en{letters_black}: {info}{0}s'
 '  {letters_black}· {letters}Conditions{letters_black}: {info}{0}': '  {letters_black}· {letters}Condiciones{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Condition{letters_black}: {info}{0}': '  {letters_black}· {letters}Condición{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚': '  {letters_black}· {letters}Cooldown{letters_black}: {info}{0} ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}': '  {letters_black}· {info}{icon:clock} {letters}Cooldown{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Currency{letters_black}: {info}{0}': '  {letters_black}· {letters}Moneda{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Days{letters_black}: {info}{0}': '  {letters_black}· {letters}Días{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Effects{letters_black}: {info}{0}': '  {letters_black}· {letters}Efectos{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Gives{letters_black}: {info}{0}': '  {letters_black}· {letters}Da{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Icon{letters_black}: {0}': '  {letters_black}· {letters}Icono{letters_black}: {0}'
 '  {letters_black}· {letters}If{letters_black}: {info}{0}': '  {letters_black}· {letters}Si{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Lasts{letters_black}: {info}{0} ⌚': '  {letters_black}· {letters}Dura{letters_black}: {info}{0} ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Lasts{letters_black}: {info}{0}': '  {letters_black}· {info}{icon:clock} {letters}Dura{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Level{letters_black}: {info}{0}': '  {letters_black}· {letters}Nivel{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Matches{letters_black}: {info}{0}': '  {letters_black}· {letters}Coincidencias{letters_black}: {info}{0}'
 '  {letters_black}· {letters}Money{letters_black}: {success}{0}': '  {letters_black}· {letters}Dinero{letters_black}: {success}{0}'
 '  {letters_black}· {letters}Name gains{letters_black}: {0}': '  {letters_black}· {letters}El nombre suma{letters_black}: {0}'
 '  {letters_black}· {letters}Needs{letters_black}: {info}{0}': '  {letters_black}· {letters}Requiere{letters_black}: {info}{0}'
-'  {letters_black}· {letters}Owed{letters_black}: {info}%owed% ⌚': '  {letters_black}· {letters}Pendiente{letters_black}: {info}%owed% ⌚'
+'  {letters_black}· {info}{icon:clock} {letters}Owed{letters_black}: {info}%owed%': '  {letters_black}· {info}{icon:clock} {letters}Pendiente{letters_black}: {info}%owed%'
 '  {letters_black}· {letters}Page{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%': '  {letters_black}· {letters}Página{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%'
 '  {letters_black}· {letters}Page{letters_black}: {info}{0}{letters_black}/{info}{1}': '  {letters_black}· {letters}Página{letters_black}: {info}{0}{letters_black}/{info}{1}'
 '  {letters_black}· {letters}Particles{letters_black}: {0}': '  {letters_black}· {letters}Partículas{letters_black}: {0}'
@@ -1411,7 +1411,7 @@ World: Mundo
 ' {letters}Pick the kinds that go.': ' {letters}Elige los tipos que se van.'
 ' {letters}Player progress, world state': ' {letters}Progreso de jugadores, estado del mundo'
 ' {letters}Put at least one item in first.': ' {letters}Pon al menos un ítem primero.'
-' {letters}Puts it in front of you for 30s ⌚,': ' {letters}Lo pone delante de ti durante 30s ⌚,'
+' {letters}Puts it in front of you for 30s,': ' {letters}Lo pone delante de ti durante 30s,'
 ' {letters}Read the item above and use': ' {letters}Lee el ítem de arriba y úsalo'
 ' {letters}Rebuilt by itself: cooldowns,': ' {letters}Se regenera solo: cooldowns,'
 ' {letters}Replaces everything here with': ' {letters}Reemplaza todo lo de aquí con'

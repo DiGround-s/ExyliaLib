@@ -53,8 +53,8 @@ logs:
   all: Tout
   none: —
   detail-line: ' {letters}%line%'
-  view-items: '{info}» Clique pour voir les objets'
-  view-entry: '{info}» Clique pour ouvrir l''entrée'
+  view-items: '{info}{icon:click} Clique pour voir les objets'
+  view-entry: '{info}{icon:click} Clique pour ouvrir l''entrée'
 tables:
   seat-tool: '{primary}&lSIÈGE'
   seat-tool-lore:
