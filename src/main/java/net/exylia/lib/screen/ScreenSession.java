@@ -1,0 +1,43 @@
+package net.exylia.lib.screen;
+
+import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * One open {@link Screen}: its viewer and its state.
+ *
+ * <pre>{@code
+ * Node.text("{letters}Duels").onClick(event -> event.session().set("tab", "duels"));
+ * ...
+ * String tab = session.state("tab", "queue");   // inside the render function
+ * }</pre>
+ *
+ * <p>State is what the screen itself remembers (the open tab, a page, a picked row); it lives as long as the
+ * session and is gone when it closes. Every method is safe from any thread.
+ *
+ * @since 1.483.0
+ */
+public interface ScreenSession {
+
+    /** Who is looking at it. */
+    @NotNull Player viewer();
+
+    /** The screen being shown. */
+    @NotNull Screen screen();
+
+    /** A value this session remembers, or {@code fallback} when none is set. */
+    <T> @NotNull T state(@NotNull String key, @NotNull T fallback);
+
+    /** Remembers a value ({@code null} forgets it) and redraws. */
+    void set(@NotNull String key, @Nullable Object value);
+
+    /** Draws again now rather than at the next second. */
+    void redraw();
+
+    /** Whether it is still open. */
+    boolean open();
+
+    /** Closes it; its {@link Screen#onClose} runs. */
+    void close();
+}

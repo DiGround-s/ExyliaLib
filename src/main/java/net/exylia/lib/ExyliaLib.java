@@ -315,6 +315,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // In-world menus and the pointer every in-world screen shares: one listener for every plugin's
         // pointers, and the rule that hides players in a menu, under the library's own name.
         net.exylia.lib.spatial.SpatialMenus.init(this);
+        net.exylia.lib.screen.internal.ScreenRuntime.init(this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.register(this);
@@ -702,6 +703,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sequences.releaseAll();
         // After the sequences that drew them, for the same reason as above.
         net.exylia.lib.spatial.SpatialMenus.releaseAll();
+        net.exylia.lib.screen.internal.ScreenRuntime.releaseAll();
         Displays.releaseAll();
         net.exylia.lib.stage.Stage.releaseAll();
         net.exylia.lib.ragdoll.Ragdolls.releaseAll();
@@ -1015,6 +1017,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the tuner, the displays and the NPCs: a spatial menu put the player's hotbar, freeze and
         // hiding on, and takes them off while the modules that did it are still up.
         net.exylia.lib.spatial.SpatialMenus.release(event.getPlugin());
+        net.exylia.lib.screen.internal.ScreenRuntime.release(event.getPlugin());
         // First: ending a tuning session stops its boss bars and lets the
         // plugin save, which needs the effects and tasks below still up.
         net.exylia.lib.tuner.Tuner.release(pluginName);

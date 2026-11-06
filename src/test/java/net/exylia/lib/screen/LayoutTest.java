@@ -1,0 +1,93 @@
+package net.exylia.lib.screen;
+
+import net.exylia.lib.screen.internal.Layout;
+import net.exylia.lib.screen.internal.ScreenMath;
+import net.kyori.adventure.text.Component;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+class LayoutTest {
+
+    private static Layout.Placed find(List<Layout.Placed> placed, String id) {
+        return placed.stream().filter(p -> id.equals(p.node().id())).findFirst().orElseThrow();
+    }
+
+    @Test
+    void rowPlacesChildrenSideBySideWithPaddingAndGap() {
+        Node root = Node.row(Node.box().size(30, 10).id("a"), Node.box().size(20, 10).id("b")).padding(5).gap(4);
+        List<Layout.Placed> placed = Layout.lay(root, 100, 50);
+        Layout.Placed a = find(placed, "a");
+        Layout.Placed b = find(placed, "b");
+        assertEquals(5, a.x());
+        assertEquals(5, a.y());
+        assertEquals(39, b.x());
+        assertEquals(1, a.depth());
+    }
+
+    @Test
+    void growSharesWhatIsLeftAndStretchFillsTheCrossAxis() {
+        Node root = Node.row(Node.box().width(20).id("fixed"), Node.box().grow(1).id("a"), Node.box().grow(3).id("b"));
+        List<Layout.Placed> placed = Layout.lay(root, 100, 40);
+        assertEquals(20, find(placed, "a").w());
+        assertEquals(60, find(placed, "b").w());
+        assertEquals(40, find(placed, "b").h());
+        assertEquals(40, find(placed, "b").x());
+    }
+
+    @Test
+    void justifyAndAlignCentre() {
+        Node root = Node.column(Node.box().size(40, 20).id("c"))
+                .justify(Node.Justify.CENTER).align(Node.Align.CENTER);
+        Layout.Placed c = find(Layout.lay(root, 100, 60), "c");
+        assertEquals(30, c.x());
+        assertEquals(20, c.y());
+    }
+
+    @Test
+    void spaceBetweenPushesTheLastToTheEnd() {
+        Node root = Node.row(Node.box().width(10).id("a"), Node.box().width(10).id("b"))
+                .justify(Node.Justify.SPACE_BETWEEN);
+        assertEquals(90, find(Layout.lay(root, 100, 10), "b").x());
+    }
+
+    @Test
+    void textIsMeasuredByTheFontAndScale() {
+        Node text = Node.text(Component.text("ab")).scale(2).padding(1, 3).id("t");
+        Layout.Placed t = find(Layout.lay(Node.row(text).align(Node.Align.START), 200, 50), "t");
+        assertEquals(2 * 2 * 6 + 6, t.w());
+        assertEquals(2 * Layout.LINE + 2, t.h());
+    }
+
+    @Test
+    void underPicksTheTopmostMatchingBox() {
+        Node inner = Node.box().size(20, 20).id("inner").onClick(e -> { });
+        Node outer = Node.column(inner).padding(10).id("outer").onScroll(e -> { });
+        List<Layout.Placed> placed = Layout.lay(Node.row(outer).align(Node.Align.START), 100, 100);
+        assertEquals("inner", Layout.under(placed, 15, 15, Node::pointable).node().id());
+        assertEquals("outer", Layout.under(placed, 15, 15, n -> n.onScroll() != null).node().id());
+        assertEquals("outer", Layout.under(placed, 5, 5, Node::pointable).node().id());
+        assertNull(Layout.under(placed, 80, 80, Node::pointable));
+    }
+
+    @Test
+    void keysStayStableAndIdsWin() {
+        Node root = Node.column(Node.box(), Node.box().id("named"));
+        List<Layout.Placed> placed = Layout.lay(root, 10, 10);
+        assertEquals("0.0", placed.get(1).key());
+        assertEquals("#named", placed.get(2).key());
+    }
+
+    @Test
+    void coloursAndTurns() {
+        assertEquals(0xFF112233, ScreenMath.argb("#112233", 7));
+        assertEquals(0x80112233, ScreenMath.argb("#80112233", 7));
+        assertEquals(7, ScreenMath.argb("nope", 7));
+        assertEquals(0, ScreenMath.argb(null, 7));
+        assertEquals(-2, ScreenMath.turn(179, -179 - 4), 1e-9);
+        assertEquals(10, ScreenMath.turn(-175, 195), 1e-9);
+    }
+}
