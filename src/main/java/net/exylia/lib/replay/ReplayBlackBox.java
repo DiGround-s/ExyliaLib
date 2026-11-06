@@ -116,6 +116,11 @@ public interface ReplayBlackBox {
      */
     @NotNull CompletableFuture<Replay> capture(@NotNull Location center, int seconds);
 
+    default @NotNull CompletableFuture<Replay> capture(@NotNull Location center, int seconds, int afterSeconds,
+                                                       boolean terrain) {
+        return capture(center, seconds);
+    }
+
     /**
      * Writes something down against a player, for a plugin's own reasons: a
      * freeze, a report, a flag. It travels with any capture that includes them.

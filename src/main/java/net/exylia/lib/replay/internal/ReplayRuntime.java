@@ -491,6 +491,13 @@ public final class ReplayRuntime {
         }
 
         @Override
+        public @NotNull CompletableFuture<Replay> capture(@NotNull Location center, int seconds, int afterSeconds,
+                                                          boolean terrain) {
+            BlackBox running = box;
+            return running == null ? closed() : running.capture(null, center, seconds, afterSeconds, terrain);
+        }
+
+        @Override
         public void mark(@NotNull String kind, @NotNull Player actor, @Nullable String text) {
             BlackBox running = box;
             if (running != null && running.knows(actor.getUniqueId())) {

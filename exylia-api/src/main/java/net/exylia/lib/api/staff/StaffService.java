@@ -1,6 +1,7 @@
 package net.exylia.lib.api.staff;
 
 import net.exylia.lib.api.ExyliaAPI;
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
@@ -8,6 +9,7 @@ import org.jetbrains.annotations.Unmodifiable;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Reading and driving ExyliaStaff.
@@ -353,4 +355,16 @@ public interface StaffService {
      */
     @NotNull
     ReportResult report(@NotNull Player reporter, @NotNull Player target, @NotNull String reason);
+
+    @NotNull
+    default CompletableFuture<Long> saveReplay(@NotNull ReplayReason reason, @NotNull UUID about,
+                                               @NotNull String aboutName, @NotNull Location at,
+                                               @NotNull String detail, byte @NotNull [] recording) {
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("This ExyliaStaff does not take replays from other plugins"));
+    }
+
+    default boolean watchReplay(@NotNull Player viewer, long id) {
+        return false;
+    }
 }

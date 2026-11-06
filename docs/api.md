@@ -144,6 +144,18 @@ the plugin, because a Lukittu-loaded plugin's own event classes are invisible
 to every other plugin (see [Why the contract lives in the
 library](#why-the-contract-lives-in-the-library)).
 
+`exylia-api` 3.7.0 (ExyliaLib 1.486.0) let other plugins keep a replay in
+ExyliaStaff. `StaffService.saveReplay(reason, about, aboutName, at, detail,
+recording)` takes a recording the caller cut itself (the bytes of ExyliaLib's
+`Replay#toBytes()`, terrain inline) and stores it as a staff replay listed under
+`about`, with the `ReplayReason` (`RAID`) as its cause and `detail` as its line;
+it completes with the replay's id off the server's thread, and exceptionally
+when the replay module is off. `watchReplay(viewer, id)` opens a saved replay
+the way `/staffreplay watch <id>` does. Both are `default` methods: an older
+ExyliaStaff answers a failed future and `false`, so a caller keeps the replay
+itself instead. ExyliaProtections uses it for the minute before a base is
+raided.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before

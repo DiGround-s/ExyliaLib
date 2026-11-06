@@ -563,6 +563,20 @@ now: for a death, the fall, the red and the puff are the second after the blow.
 The person it is about is followed only up to now, so a respawn on the other
 side of the map in those seconds is not a scene.
 
+### Around a place
+
+`box.capture(center, seconds)` cuts the window around a place instead of a
+person: everything within the radius of `center`, whoever came and went. Since
+1.486.0 `box.capture(center, seconds, afterSeconds, terrain)` carries on past
+now and says whether this one capture keeps the ground, as the person overload
+does. It is the capture for something that happened to a place: a base raided
+(ExyliaProtections keeps the minute before a core falls this way), a boss killed
+in its arena.
+
+```java
+box.capture(core, 60, 3, true).thenAccept(replay -> store.save(replay.toBytes()));
+```
+
 ### How the connection and the server were doing
 
 Once a second the black box writes every player's ping (`ReplayMark.PING`) and
