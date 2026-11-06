@@ -49,4 +49,19 @@ public interface ScreenSession {
      */
     default void toast(@NotNull String text) {
     }
+
+    /**
+     * Steps the screen aside while an input runs, so a chat prompt or a dialog is not drawn behind it, and brings
+     * it back, with its state and page, once the input ends however it ends. Set values in {@code thenAccept} as
+     * usual: they show when the screen comes back.
+     *
+     * <pre>{@code session.aside(() -> Inputs.of(plugin).text(player, "Search").open())
+     *         .thenAccept(result -> result.ifCompleted(query -> session.set("query", query)));}</pre>
+     *
+     * @since 1.490.0
+     */
+    default <T> java.util.concurrent.@NotNull CompletionStage<T> aside(
+            java.util.function.@NotNull Supplier<? extends java.util.concurrent.CompletionStage<T>> input) {
+        return input.get();
+    }
 }

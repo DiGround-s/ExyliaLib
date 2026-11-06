@@ -399,7 +399,10 @@ public final class SkullRuntime {
             // The cached overload, never getOfflinePlayer(name): that one goes to
             // Mojang itself on a miss, a second uncounted request per head.
             OfflinePlayer offline = Bukkit.getOfflinePlayerIfCached(name);
-            return offline != null && offline.hasPlayedBefore() ? offline.getUniqueId() : null;
+            // An offline-mode server keys its players by an id made from the name (version 3), which Mojang has
+            // never heard of: only a real account id (version 4) is worth asking about.
+            return offline != null && offline.hasPlayedBefore() && offline.getUniqueId().version() == 4
+                    ? offline.getUniqueId() : null;
         } catch (Exception | LinkageError unsupported) {
             // No server, or Spigot, which has no user cache accessor: the
             // Mojang lookup after this covers it.

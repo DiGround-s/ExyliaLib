@@ -507,11 +507,16 @@ public final class MarkupRender {
         if (el.attr("skin") != null) {
             String name = fill(el.attr("skin"), scope).trim();
             Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name);
-            return body == null ? Node.box().size(16, 32) : body.node();
+            return (body == null ? Pictures.stranger(true) : body).node();
+        }
+        if (el.attr("face") != null) {
+            String name = fill(el.attr("face"), scope).trim();
+            Pictures.Picture face = name.isEmpty() ? null : Pictures.face(name);
+            return (face == null ? Pictures.stranger(false) : face).node();
         }
         String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope).trim();
         if (src.isEmpty()) {
-            parts.problems().accept("<img> needs src or skin");
+            parts.problems().accept("<img> needs src, skin or face");
             return Node.box();
         }
         if (parts.images() == null) {

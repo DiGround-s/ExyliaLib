@@ -97,6 +97,48 @@ public final class Pictures {
         return null;
     }
 
+    /** A player's face with its outer layer, 8 by 8, or {@code null} while their skin is on its way. */
+    public static @Nullable Picture face(String player) {
+        Picture body = body(player);
+        if (body == null) return null;
+        int[] out = new int[64];
+        for (int y = 0; y < 8; y++) System.arraycopy(body.argb(), y * 16 + 4, out, y * 8, 8);
+        return new Picture(8, 8, out);
+    }
+
+    /**
+     * A head and shoulders in quiet greys, for a player whose skin is not known (yet, or ever: a name no account
+     * has). Drawn at the size the real picture would be, so nothing moves when the skin lands.
+     */
+    public static Picture stranger(boolean body) {
+        String[] mask = body ? STRANGER_BODY : STRANGER_FACE;
+        int w = mask[0].length();
+        int[] out = new int[w * mask.length];
+        for (int y = 0; y < mask.length; y++) {
+            for (int x = 0; x < w; x++) {
+                out[y * w + x] = switch (mask[y].charAt(x)) {
+                    case 'H' -> 0xFF3A3248;
+                    case 'S' -> 0xFF4A4060;
+                    case 'E' -> 0xFF1C1726;
+                    default -> 0;
+                };
+            }
+        }
+        return new Picture(w, mask.length, out);
+    }
+
+    private static final String[] STRANGER_FACE = {
+            "HHHHHHHH", "HSSSSSSH", "SSSSSSSS", "SEESSEES", "SSSSSSSS", "SSSSSSSS", "SSSEESSS", "SSSSSSSS"};
+    private static final String[] STRANGER_BODY;
+
+    static {
+        String[] body = new String[32];
+        for (int y = 0; y < 8; y++) body[y] = "...." + STRANGER_FACE[y] + "....";
+        for (int y = 8; y < 20; y++) body[y] = "HHHHHHHHHHHHHHHH";
+        for (int y = 20; y < 32; y++) body[y] = "....HHHHHHHH....";
+        STRANGER_BODY = body;
+    }
+
     static Picture of(BufferedImage image) {
         int w = image.getWidth();
         int h = image.getHeight();

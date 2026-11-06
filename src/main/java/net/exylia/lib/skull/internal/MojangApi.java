@@ -37,6 +37,8 @@ public class MojangApi implements Lookup {
     /** Sent so Mojang can see who is calling, which is only polite. */
     private static final String USER_AGENT = "ExyliaLib";
 
+    private static final java.util.regex.Pattern VALID_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,16}");
+
     private final HttpClient http;
     private final Duration timeout;
     private final Logger logger;
@@ -89,7 +91,9 @@ public class MojangApi implements Lookup {
      */
     @Override
     public UUID idOf(String name) {
-        if (isBackedOff()) {
+        // Not a name Minecraft allows (an unfilled placeholder, a display name with colours): no account has it,
+        // and asking with it is a malformed request that would pause every lookup on the server.
+        if (name == null || !VALID_NAME.matcher(name).matches() || isBackedOff()) {
             return null;
         }
         String body = get(NAME_TO_ID + name, "id lookup for " + name);

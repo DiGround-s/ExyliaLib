@@ -81,6 +81,10 @@ picture whatever its size. A pixel more than half see-through takes the colour o
 pictures small (badges 16, logos up to 64): every pixel is a glyph the client lays out. `ScreenMarkup#images(dir)`
 sets the folder for markup given as a string; `load` uses the markup file's own folder.
 
+**Inputs from a screen (1.490.0).** `session.aside(() -> Inputs.of(plugin).text(...).open())` steps the screen
+away while the input runs (a chat prompt below 1.21.6, a dialog from 1.21.6 on, both ends) and brings it back,
+state and page kept, when it ends. Never open an input from a screen without it: the prompt would sit behind it.
+
 **Other players** are hidden from the viewer while a screen is open (only by this plugin, so other plugins'
 visibility rules stay), so a crowded spawn never stands in front of it.
 
@@ -177,7 +181,7 @@ well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
-| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded). Placeholders work in both |
+| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
 

@@ -79,6 +79,8 @@ final class LiveScreen implements ScreenSession {
     private final Map<String, Drawn> drawn = new HashMap<>();
     private List<Layout.Placed> placed = List.of();
     private boolean open = true;
+    /** Stepped aside for an input: nothing drawn, nothing taken, until it ends. */
+    private boolean away;
     private boolean overBudget;
     /** Whether the first frame went out: the screen opens with a zoom, later arrivals slide in. */
     private boolean shown;
@@ -200,6 +202,43 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    @Override
+    public <T> @NotNull java.util.concurrent.CompletionStage<T> aside(
+            @NotNull java.util.function.Supplier<? extends java.util.concurrent.CompletionStage<T>> input) {
+        List<Integer> ids = new ArrayList<>();
+        synchronized (this) {
+            if (!open || away) return input.get();
+            away = true;
+            for (Drawn d : drawn.values()) ids.add(d.id());
+            drawn.clear();
+        }
+        if (ticker != null) ticker.cancel();
+        ids.add(hitboxId);
+        ids.add(backdropId);
+        for (int id : cursorIds) ids.add(id);
+        ScreenPackets.send(player, List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
+        java.util.concurrent.CompletionStage<T> future;
+        try {
+            future = input.get();
+        } catch (RuntimeException failure) {
+            back();
+            throw failure;
+        }
+        future.whenComplete((done, failure) -> {
+            if (plugin.isEnabled() && player.isOnline()) tasks.runAtEntity(player, this::back);
+        });
+        return future;
+    }
+
+    /** On the viewer's thread: the screen returns from {@link #aside}, drawn afresh. */
+    private void back() {
+        synchronized (this) {
+            if (!open || !away) return;
+            away = false;
+        }
+        show();
+    }
+
     /** On the viewer's thread. */
     private void hide(Player other) {
         if (other.equals(player) || !other.isOnline() || !player.canSee(other)) return;
@@ -273,7 +312,9 @@ final class LiveScreen implements ScreenSession {
 
     /** On the viewer's thread. */
     private void render() {
-        if (!open()) return;
+        synchronized (this) {
+            if (!open || away) return;
+        }
         Node root;
         try {
             root = Objects.requireNonNull(screen.render().apply(this), "render returned null");
@@ -421,6 +462,23 @@ final class LiveScreen implements ScreenSession {
             int i = 0;
             for (String key : gone) ids[i++] = drawn.remove(key).id();
             out.add(ScreenPackets.destroy(ids));
+        }
+        if (overlayFrom > 0) {
+            // The client draws displays in the order they arrive, and the see-through dimmer hides whatever
+            // arrives after it behind it: new boxes go back to front, and the dimmer comes again after any new
+            // box behind it.
+            order.sort(java.util.Comparator.comparingInt(key -> layerOf(wanted.get(key))));
+            String dim = null;
+            for (String key : order) if (key.startsWith("~dim")) dim = key;
+            if (dim != null && drawn.containsKey(dim)) {
+                int dimLayer = layerOf(wanted.get(dim));
+                for (String key : order) {
+                    if (!drawn.containsKey(key) && layerOf(wanted.get(key)) < dimLayer) {
+                        out.add(ScreenPackets.destroy(new int[]{drawn.remove(dim).id()}));
+                        break;
+                    }
+                }
+            }
         }
         Map<Integer, Object> settling = new HashMap<>();
         Map<Integer, String> settlingKeys = new HashMap<>();
@@ -600,6 +658,12 @@ final class LiveScreen implements ScreenSession {
 
     synchronized void turned(float yaw, float pitch) {
         if (!open) return;
+        if (away) {
+            // The cursor stays where it was: the turn made while typing is not a pointer move.
+            lastYaw = yaw;
+            lastPitch = pitch;
+            return;
+        }
         double perDegree = DISTANCE * Math.PI / 180 * ScreenRuntime.sensitivity(player.getUniqueId());
         double halfW = screen.width() / 2 * unit;
         double halfH = screen.height() / 2 * unit;
@@ -635,7 +699,7 @@ final class LiveScreen implements ScreenSession {
     }
 
     synchronized void click(boolean right) {
-        if (!open) return;
+        if (!open || away) return;
         Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onClick() != null);
         if (box == null) return;
         // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.
@@ -652,7 +716,7 @@ final class LiveScreen implements ScreenSession {
         if (steps > 4) steps -= 9;
         if (steps < -4) steps += 9;
         heldSlot = slot;
-        if (steps == 0 || !open) return;
+        if (steps == 0 || !open || away) return;
         Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onScroll() != null);
         if (box == null) return;
         handle(box.node().onScroll(), new ScreenEvent(this, ScreenEvent.Kind.SCROLL, steps, box.node().id()));
@@ -661,7 +725,7 @@ final class LiveScreen implements ScreenSession {
     synchronized void shift(boolean down) {
         boolean pressed = down && !shifting;
         shifting = down;
-        if (!pressed || !open) return;
+        if (!pressed || !open || away) return;
         // An open dialog is dismissed first; Shift again closes the screen.
         Consumer<ScreenSession> dismiss = overlayFrom < 0 ? null : placed.get(overlayFrom + 1 < placed.size()
                 ? overlayFrom + 1 : overlayFrom).node().onDismiss();
