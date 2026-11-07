@@ -135,7 +135,7 @@ class ModesTest {
 
             YamlConfiguration list = net.exylia.lib.settings.internal.SettingsMenu.read(library, ModesMenu.FOLDER,
                     ModesMenu.LIST);
-            assertEquals(49, list.getInt("items.back.slot"));
+            assertEquals(31, list.getInt("items.back.slot"));
             assertFalse(ModesMenu.withoutBack(list).contains("items.back"));
             assertEquals(ModesMenu.HUB + 3, ModesMenu.layout(3));
             assertEquals(ModesMenu.ROOT_LIST, ModesMenu.layout(8));
