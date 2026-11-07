@@ -50,6 +50,79 @@ public final class Pictures {
     private Pictures() {
     }
 
+    /** Pictures already turned into glyphs, shared by every screen, weighed by their pixels. */
+    private static final Cache<Glyphs, net.kyori.adventure.text.Component> GLYPHS = Caffeine.newBuilder()
+            .maximumWeight(262_144).weigher((Glyphs key, net.kyori.adventure.text.Component value) -> key.argb.length + 1)
+            .expireAfterAccess(Duration.ofMinutes(10)).build();
+
+    /** A picture's pixels, compared by content: a node copies its pixels, so the same picture is a new array. */
+    private static final class Glyphs {
+        final int[] argb;
+        final int width;
+        final int behind;
+        private final int hash;
+
+        Glyphs(int[] argb, int width, int behind) {
+            this.argb = argb;
+            this.width = width;
+            this.behind = behind;
+            this.hash = (java.util.Arrays.hashCode(argb) * 31 + width) * 31 + behind;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof Glyphs g && g.hash == hash && g.width == width && g.behind == behind
+                    && java.util.Arrays.equals(g.argb, argb);
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+    }
+
+    /**
+     * A picture as lines of full blocks, each run of one colour one component. A pixel more than half see-through
+     * takes the colour behind it, a partly see-through one is mixed over it: there is no see-through glyph. Safe
+     * from any thread; the same pixels give the same component instance while it stays cached.
+     */
+    static net.kyori.adventure.text.Component glyphs(int[] argb, int w, int h, int behind) {
+        return GLYPHS.get(new Glyphs(argb, w, behind), key -> build(argb, w, h, behind));
+    }
+
+    private static net.kyori.adventure.text.Component build(int[] argb, int w, int h, int behind) {
+        net.kyori.adventure.text.TextComponent.Builder out = net.kyori.adventure.text.Component.text();
+        for (int y = 0; y < h; y++) {
+            if (y > 0) out.append(net.kyori.adventure.text.Component.newline());
+            int x = 0;
+            while (x < w) {
+                boolean clear = (argb[y * w + x] >>> 24) < 128;
+                int colour = solid(argb[y * w + x], behind);
+                int end = x + 1;
+                while (end < w && ((argb[y * w + end] >>> 24) < 128) == clear
+                        && (clear || solid(argb[y * w + end], behind) == colour)) end++;
+                if (clear) {
+                    // A clear pixel is a gap as wide as a block: a space (4) and a bold space (5).
+                    out.append(net.kyori.adventure.text.Component.text(" ".repeat(end - x)));
+                    out.append(net.kyori.adventure.text.Component.text(" ".repeat(end - x))
+                            .decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
+                } else {
+                    out.append(net.kyori.adventure.text.Component.text("█".repeat(end - x),
+                            net.kyori.adventure.text.format.TextColor.color(colour & 0xFFFFFF)));
+                }
+                x = end;
+            }
+        }
+        return out.build();
+    }
+
+    private static int solid(int argb, int behind) {
+        int alpha = argb >>> 24;
+        if (alpha == 255) return argb;
+        if (alpha < 128) return behind;
+        return ScreenMath.over(argb, behind);
+    }
+
     /**
      * A PNG under {@code dir}. Never reaches outside it, whatever the path says.
      *

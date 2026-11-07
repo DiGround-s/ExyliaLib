@@ -63,6 +63,7 @@ public final class FakePlayer {
                 (self, method, args) -> switch (method.getName()) {
                     case "getUniqueId" -> id;
                     case "getLocation" -> location;
+                    case "getEyeLocation" -> location == null ? null : location.clone();
                     case "getAddress" -> address;
                     case "getWorld" -> location == null ? null : location.getWorld();
                     case "getName" -> this.name;

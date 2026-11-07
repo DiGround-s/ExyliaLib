@@ -52,6 +52,12 @@ public final class Css {
     }
 
     private final List<Rule> rules = new ArrayList<>();
+    /** Computed styles by element path and hover: the same element in every row and every render asks again. */
+    private final com.github.benmanes.caffeine.cache.Cache<Object, Object> computed =
+            com.github.benmanes.caffeine.cache.Caffeine.newBuilder().maximumSize(4096).build();
+
+    private record Key(List<Target> path, int hovered) {
+    }
 
     /** Reads {@code source} after any rules already here, so later sheets win ties. */
     public Css add(String source, String name, Consumer<String> problems) {
@@ -90,6 +96,7 @@ public final class Css {
             }
             at = close + 1;
         }
+        computed.invalidateAll();
         return this;
     }
 
@@ -134,7 +141,13 @@ public final class Css {
      * @param path    the element and its ancestors, root first
      * @param hovered whether {@code :hover} on the last element matches
      */
+    @SuppressWarnings("unchecked")
     public Map<String, String> style(List<Target> path, boolean hovered) {
+        return (Map<String, String>) computed.get(new Key(List.copyOf(path), hovered ? 1 : 0),
+                key -> java.util.Collections.unmodifiableMap(cascade(path, hovered)));
+    }
+
+    private Map<String, String> cascade(List<Target> path, boolean hovered) {
         List<Rule> matched = new ArrayList<>();
         for (Rule rule : rules) if (matches(rule.selector(), path, hovered)) matched.add(rule);
         matched.sort((a, b) -> a.selector().specificity() != b.selector().specificity()
@@ -147,6 +160,10 @@ public final class Css {
 
     /** Whether any rule mentions {@code :hover} for this element, so it must be pointable. */
     public boolean hoverable(List<Target> path) {
+        return (Boolean) computed.get(new Key(List.copyOf(path), 2), key -> anyHover(path));
+    }
+
+    private boolean anyHover(List<Target> path) {
         for (Rule rule : rules) {
             List<Step> steps = rule.selector().steps();
             if (steps.get(steps.size() - 1).hover() && matches(rule.selector(), path, true)) return true;

@@ -4,7 +4,11 @@ import net.exylia.lib.screen.Node;
 import net.exylia.lib.text.Centering;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 /**
@@ -44,19 +48,90 @@ public final class Layout {
     public static List<Placed> lay(Node root, double width, double height) {
         List<Placed> out = new ArrayList<>();
         List<Node> overlays = new ArrayList<>();
-        place(root, "0", 0, 0, width, height, 0, out, overlays);
+        // Each node is measured once a layout, however deep it sits.
+        Map<Node, double[]> sizes = new IdentityHashMap<>();
+        place(root, "0", 0, 0, width, height, 0, out, overlays, sizes);
         // The last overlay wins: one dialog at a time, centred over everything.
         if (!overlays.isEmpty()) {
             Node top = overlays.get(overlays.size() - 1);
-            Node dimmer = Node.box().background(DIMMER);
-            if (top.onDismiss() != null) dimmer.onClick(event -> top.onDismiss().accept(event.session()));
-            out.add(new Placed(dimmer, "~dim", 0, 0, width, height, OVERLAY - 1));
-            double[] size = measure(top);
+            out.add(new Placed(dimmer(top), "~dim", 0, 0, width, height, OVERLAY - 1));
+            double[] size = measure(top, sizes);
             double w = Math.min(size[0], width);
             double h = Math.min(size[1], height);
-            place(top, "~", (width - w) / 2, (height - h) / 2, w, h, OVERLAY, out, new ArrayList<>());
+            place(top, "~", (width - w) / 2, (height - h) / 2, w, h, OVERLAY, out, new ArrayList<>(), sizes);
         }
         return out;
+    }
+
+    private static Node dimmer(Node top) {
+        Node dimmer = Node.box().background(DIMMER);
+        if (top.onDismiss() != null) dimmer.onClick(event -> top.onDismiss().accept(event.session()));
+        return dimmer;
+    }
+
+    /**
+     * {@code laid} (a {@link #lay} of a tree with the same {@link #fingerprint}) holding {@code root}'s nodes, so
+     * their handlers are the new render's, without laying anything out again; {@code null} if the trees differ.
+     */
+    public static List<Placed> relink(List<Placed> laid, Node root) {
+        List<Node> nodes = new ArrayList<>(laid.size());
+        List<Node> overlays = new ArrayList<>();
+        walk(root, nodes, overlays);
+        if (!overlays.isEmpty()) {
+            Node top = overlays.get(overlays.size() - 1);
+            nodes.add(dimmer(top));
+            walk(top, nodes, new ArrayList<>());
+        }
+        if (nodes.size() != laid.size()) return null;
+        List<Placed> out = new ArrayList<>(nodes.size());
+        for (int i = 0; i < nodes.size(); i++) {
+            Placed was = laid.get(i);
+            out.add(new Placed(nodes.get(i), was.key(), was.x(), was.y(), was.w(), was.h(), was.depth()));
+        }
+        return out;
+    }
+
+    /** The nodes in the order {@link #place} lays them. */
+    private static void walk(Node node, List<Node> out, List<Node> overlays) {
+        out.add(node);
+        for (Node child : node.children()) {
+            if (child.overlay()) overlays.add(child);
+            else walk(child, out, overlays);
+        }
+    }
+
+    /**
+     * A hash of everything layout and drawing read from a tree: two trees with the same one lay out and draw the
+     * same. Handlers count only by whether they are there.
+     */
+    public static long fingerprint(Node node) {
+        long h = node.kind().ordinal();
+        h = mix(h, Objects.hashCode(node.id()));
+        h = mix(h, Objects.hashCode(node.key()));
+        h = mix(h, Objects.hashCode(node.text()));
+        h = mix(h, Objects.hashCode(node.item()));
+        h = mix(h, node.pixels() == null ? 0 : Arrays.hashCode(node.pixels()));
+        h = mix(h, node.pixelWidth() * 4099L + node.pixelHeight());
+        h = mix(h, Objects.hashCode(node.turntable()));
+        h = mix(h, Objects.hashCode(node.background()));
+        h = mix(h, Objects.hashCode(node.hover()));
+        h = mix(h, Objects.hashCode(node.outline()));
+        h = mix(h, Objects.hashCode(node.hoverOutline()));
+        for (double d : new double[]{node.width(), node.height(), node.grow(), node.padTop(), node.padRight(),
+                node.padBottom(), node.padLeft(), node.gap(), node.scale(), node.outlineWidth()}) {
+            h = mix(h, Double.doubleToLongBits(d));
+        }
+        h = mix(h, node.align().ordinal() * 64L + node.textAlign().ordinal() * 8L + node.justify().ordinal());
+        h = mix(h, (node.overlay() ? 1 : 0) | (node.onClick() != null ? 2 : 0) | (node.onScroll() != null ? 4 : 0)
+                | (node.onDismiss() != null ? 8 : 0));
+        h = mix(h, node.children().size());
+        for (Node child : node.children()) h = mix(h, fingerprint(child));
+        return h;
+    }
+
+    private static long mix(long h, long value) {
+        h = (h ^ value) * 0x9E3779B97F4A7C15L;
+        return h ^ (h >>> 31);
     }
 
     /** Where the overlay's boxes start in a {@link #lay} result, or -1 with none on screen. */
@@ -81,6 +156,12 @@ public final class Layout {
 
     /** What a node needs, {width, height}, before any growing or stretching. */
     static double[] measure(Node node) {
+        return measure(node, new IdentityHashMap<>());
+    }
+
+    private static double[] measure(Node node, Map<Node, double[]> sizes) {
+        double[] known = sizes.get(node);
+        if (known != null) return known;
         double w;
         double h;
         if (node.kind() == Node.Kind.IMAGE) {
@@ -99,7 +180,7 @@ public final class Layout {
             List<Node> children = node.children();
             children = children.stream().filter(child -> !child.overlay()).toList();
             for (Node child : children) {
-                double[] size = measure(child);
+                double[] size = measure(child, sizes);
                 main += row ? size[0] : size[1];
                 cross = Math.max(cross, row ? size[1] : size[0]);
             }
@@ -109,11 +190,13 @@ public final class Layout {
         }
         if (node.width() >= 0) w = node.width();
         if (node.height() >= 0) h = node.height();
-        return new double[]{w, h};
+        double[] size = {w, h};
+        sizes.put(node, size);
+        return size;
     }
 
     private static void place(Node node, String path, double x, double y, double w, double h, int depth,
-                              List<Placed> out, List<Node> overlays) {
+                              List<Placed> out, List<Node> overlays, Map<Node, double[]> sizes) {
         out.add(new Placed(node, node.id() != null ? "#" + node.id() : path, x, y, w, h, depth));
         List<Node> children = new ArrayList<>();
         for (Node child : node.children()) {
@@ -133,7 +216,7 @@ public final class Layout {
         double used = node.gap() * (count - 1);
         double grows = 0;
         for (int i = 0; i < count; i++) {
-            double[] size = measure(children.get(i));
+            double[] size = measure(children.get(i), sizes);
             mains[i] = row ? size[0] : size[1];
             crosses[i] = row ? size[1] : size[0];
             used += mains[i];
@@ -193,7 +276,7 @@ public final class Layout {
             double cx = row ? innerX + cursor : innerX + offset;
             double cy = row ? innerY + offset : innerY + cursor;
             place(child, path + "." + i, cx, cy, row ? mains[i] : cross, row ? cross : mains[i], depth + 1, out,
-                    overlays);
+                    overlays, sizes);
             cursor += mains[i] + gap;
         }
     }

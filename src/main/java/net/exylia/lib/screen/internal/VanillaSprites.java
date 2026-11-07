@@ -5,6 +5,7 @@ import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import net.exylia.lib.task.TaskScheduler;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -44,6 +45,11 @@ public final class VanillaSprites {
     private static final AtomicBoolean STARTED = new AtomicBoolean();
     private static final Map<String, Pictures.Picture> SPRITES = new ConcurrentHashMap<>();
     private static final Pictures.Picture NONE = new Pictures.Picture(0, 0, new int[0]);
+    /** What {@link #of(ItemStack, TaskScheduler, Runnable)} answers while the sprite is read: draw nothing yet. */
+    static final Pictures.Picture LOADING = new Pictures.Picture(0, 0, new int[0]);
+    private static final java.util.Set<String> READING = ConcurrentHashMap.newKeySet();
+    /** Counts what arrived (the folder, a sprite), so a screen whose tree did not change still draws it. */
+    private static final java.util.concurrent.atomic.AtomicInteger GENERATION = new java.util.concurrent.atomic.AtomicInteger();
     private static volatile Path folder;
 
     private VanillaSprites() {
@@ -59,6 +65,38 @@ public final class VanillaSprites {
         String key = type.getKey().getKey() + "#" + tint;
         Pictures.Picture known = SPRITES.computeIfAbsent(key, k -> load(dir, type.getKey().getKey(), tint));
         return known == NONE ? null : known;
+    }
+
+    /**
+     * As {@link #of(ItemStack)}, without reading the disk on the calling thread: a sprite not read yet is read on
+     * an async task, {@link #LOADING} is answered meanwhile, and {@code loaded} runs once it is there.
+     */
+    static @Nullable Pictures.Picture of(ItemStack item, TaskScheduler tasks, Runnable loaded) {
+        Path dir = ready();
+        if (dir == null || item == null) return null;
+        Material type = item.getType();
+        if (type == Material.PLAYER_HEAD || type.isAir()) return null;
+        int tint = tint(item);
+        String key = type.getKey().getKey() + "#" + tint;
+        Pictures.Picture known = SPRITES.get(key);
+        if (known != null) return known == NONE ? null : known;
+        if (READING.add(key)) {
+            tasks.runAsync(() -> {
+                try {
+                    SPRITES.computeIfAbsent(key, k -> load(dir, type.getKey().getKey(), tint));
+                } finally {
+                    READING.remove(key);
+                    GENERATION.incrementAndGet();
+                }
+                loaded.run();
+            });
+        }
+        return LOADING;
+    }
+
+    /** Changes whenever a sprite or the sprite folder arrives. */
+    static int generation() {
+        return GENERATION.get();
     }
 
     private static int tint(ItemStack item) {
@@ -164,6 +202,7 @@ public final class VanillaSprites {
                 try {
                     fetch(version, target);
                     folder = target;
+                    GENERATION.incrementAndGet();
                 } catch (IOException | InterruptedException | RuntimeException failure) {
                     library.getLogger().log(Level.INFO, "Screens: could not fetch the item sprites (" + failure
                             + "); items are drawn as 3D items.");

@@ -34,8 +34,9 @@ import java.util.logging.Level;
  * One open screen: lays the tree out, sends only what changed, and turns the player's rotation, clicks, wheel
  * and Shift into a cursor and events.
  *
- * <p>Input arrives on the netty thread and handlers run on the viewer's; everything mutable is guarded by
- * {@code this}.
+ * <p>Input arrives on the netty thread, which only moves the cursor (guarded by {@link #input}) and hit-tests the
+ * last published {@link View}; rendering, hover and handlers run on the viewer's thread under {@code this}. Lock
+ * order: {@code this}, then {@code input}, then the wire.
  *
  * <p>Internal: free to change without notice.
  */
@@ -97,13 +98,38 @@ final class LiveScreen implements ScreenSession {
     private volatile int backdropId;
     private final int[] cursorIds = new int[4];
     private final int serverSlot;
+    private final ScreenPackets.Wire wire;
+    private final java.util.function.IntSupplier ids;
+    /** Guards the cursor and the keys: what the netty thread writes. Never held while taking {@code this}. */
+    private final Object input = new Object();
+
+    /** What the pointer can reach, as last laid out: read by the netty thread without a lock. */
+    private record View(List<Layout.Placed> placed, int overlayFrom) {
+        static final View EMPTY = new View(List.of(), -1);
+
+        List<Layout.Placed> targets() {
+            return overlayFrom < 0 ? placed : placed.subList(overlayFrom, placed.size());
+        }
+    }
+
+    private volatile View view = View.EMPTY;
+    /** A render is queued: set() and redraw() within one tick render once. */
+    private final java.util.concurrent.atomic.AtomicBoolean dirty = new java.util.concurrent.atomic.AtomicBoolean();
+    /** A hover change is queued for the viewer's thread. */
+    private final java.util.concurrent.atomic.AtomicBoolean hoverQueued = new java.util.concurrent.atomic.AtomicBoolean();
+    /** The last render's tree, laid out without the toast, and what it drew: an unchanged one skips layout and diff. */
+    private List<Layout.Placed> lastLaid;
+    private long lastPrint;
+    private Component lastToast;
+    /** Whether the last frame drew a turning body, which must move every second. */
+    private boolean turning;
 
     /** What is on the client now, by key. */
     private final Map<String, Drawn> drawn = new HashMap<>();
     private List<Layout.Placed> placed = List.of();
-    private boolean open = true;
+    private volatile boolean open = true;
     /** Stepped aside for an input: nothing drawn, nothing taken, until it ends. */
-    private boolean away;
+    private volatile boolean away;
     private boolean overBudget;
     /** Whether the first frame went out: the screen opens with a zoom, later arrivals slide in. */
     private boolean shown;
@@ -115,6 +141,7 @@ final class LiveScreen implements ScreenSession {
     /** How far around the viewer the world is emptied while a screen is up: past any view distance's entities. */
     private static final double SEAL_REACH = 192;
     private TaskHandle ticker;
+    // The cursor, the recentre and the keys below are guarded by input.
     private double cursorX, cursorY;
     private float lastYaw, lastPitch;
     private int recentreId;
@@ -122,6 +149,8 @@ final class LiveScreen implements ScreenSession {
     private int heldSlot;
     private boolean shifting;
     private String hovered;
+    /** What the netty thread last saw under the pointer. Guarded by {@link #input}. */
+    private String pointed;
     /** Where the open overlay's boxes start in {@link #placed}, or -1. */
     private int overlayFrom = -1;
     private Layout.Placed hoveredBox;
@@ -160,10 +189,17 @@ final class LiveScreen implements ScreenSession {
     }
 
     LiveScreen(Plugin plugin, Player player, Screen screen) {
+        this(plugin, player, screen, ScreenPackets.Wire.to(player), ScreenPackets::newId);
+    }
+
+    /** With the wire and entity ids given, so a test can count what is sent without a server. */
+    LiveScreen(Plugin plugin, Player player, Screen screen, ScreenPackets.Wire wire, java.util.function.IntSupplier ids) {
         this.plugin = plugin;
         this.player = player;
         this.screen = screen;
         this.tasks = Tasks.of(plugin);
+        this.wire = wire;
+        this.ids = ids;
         // A camera view holds the field of view at its widest (see FakeGameMode#cameraView): drawn larger to
         // look the size it was designed at.
         this.unit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
@@ -200,20 +236,29 @@ final class LiveScreen implements ScreenSession {
         // The screen's own pieces are spawned after this, so they stay.
         Packets.of(plugin).visibility().seal(player, new net.exylia.lib.packet.Volume(origin.x, origin.z,
                 0f, SEAL_REACH, origin.y - SEAL_REACH, origin.y + SEAL_REACH));
-        hitboxId = ScreenPackets.newId();
-        backdropId = ScreenPackets.newId();
-        for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ScreenPackets.newId();
+        start();
+    }
+
+    /** On the viewer's thread, once the world is sealed: the screen's own entities, then its first render. */
+    void start() {
+        hitboxId = ids.getAsInt();
+        backdropId = ids.getAsInt();
+        for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ids.getAsInt();
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
         out.add(ScreenPackets.spawnDisplay(backdropId, origin));
         out.add(rect(backdropId, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 0,
                 ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000)), 0));
         for (int id : cursorIds) out.add(ScreenPackets.spawnDisplay(id, origin));
         synchronized (this) {
-            cursor(out, 0);
+            // Drawn afresh: nothing on the client is the last render's any more.
+            lastLaid = null;
+            synchronized (input) {
+                cursor(out, 0);
+            }
         }
-        ScreenPackets.send(player, out);
+        wire.send(out);
         redraw();
-        ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::redraw);
+        ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::renderNow);
     }
 
     @Override
@@ -231,7 +276,7 @@ final class LiveScreen implements ScreenSession {
         ids.add(backdropId);
         for (int id : cursorIds) ids.add(id);
         if (player.isOnline()) {
-            ScreenPackets.send(player, List.of(
+            wire.send(List.of(
                     ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray()),
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
         }
@@ -263,7 +308,7 @@ final class LiveScreen implements ScreenSession {
         ids.add(hitboxId);
         ids.add(backdropId);
         for (int id : cursorIds) ids.add(id);
-        ScreenPackets.send(player, List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
+        wire.send(List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
         Packets.of(plugin).visibility().seal(player, null);
         java.util.concurrent.CompletionStage<T> future;
         try {
@@ -287,11 +332,29 @@ final class LiveScreen implements ScreenSession {
         show();
     }
 
-    /** On the viewer's thread. */
+    /**
+     * On the viewer's thread. Another player's position is theirs to read: on Folia one in another region is read
+     * on their own thread and handed back here.
+     */
     private void hide(Player other) {
-        if (other.equals(player) || !other.isOnline() || !player.canSee(other)) return;
-        if (!other.getWorld().equals(player.getWorld())
-                || other.getLocation().distanceSquared(player.getEyeLocation()) > HIDE_RADIUS * HIDE_RADIUS) return;
+        if (other.equals(player) || !other.isOnline()) return;
+        if (org.bukkit.Bukkit.isOwnedByCurrentRegion(other)) {
+            hideIfNear(other, other.getLocation());
+            return;
+        }
+        tasks.runAtEntity(other, () -> {
+            if (!other.isOnline()) return;
+            Location at = other.getLocation();
+            tasks.runAtEntity(player, () -> {
+                if (open()) hideIfNear(other, at);
+            });
+        });
+    }
+
+    /** On the viewer's thread, with where {@code other} stood. */
+    private void hideIfNear(Player other, Location at) {
+        if (!player.canSee(other) || !java.util.Objects.equals(at.getWorld(), player.getWorld())
+                || at.distanceSquared(player.getEyeLocation()) > HIDE_RADIUS * HIDE_RADIUS) return;
         player.hidePlayer(plugin, other);
         hidden.add(other.getUniqueId());
     }
@@ -343,15 +406,28 @@ final class LiveScreen implements ScreenSession {
     }
 
     @Override
-    public synchronized boolean open() {
+    public boolean open() {
         return open;
     }
 
-    /** Runs the render function and sends the difference. Safe from any thread; renders on the viewer's. */
+    /**
+     * Runs the render function and sends the difference. Safe from any thread; renders on the viewer's, once
+     * however many calls arrive before it runs.
+     */
     @Override
     public void redraw() {
         if (!open()) return;
-        tasks.runAtEntity(player, this::render);
+        if (dirty.compareAndSet(false, true)) tasks.runAtEntity(player, this::renderIfDirty);
+    }
+
+    private void renderIfDirty() {
+        if (dirty.compareAndSet(true, false)) render();
+    }
+
+    /** On the viewer's thread: renders now, taking any queued redraw with it. */
+    private void renderNow() {
+        dirty.set(false);
+        render();
     }
 
     // ------------------------------------------------------------------
@@ -371,20 +447,59 @@ final class LiveScreen implements ScreenSession {
             close();
             return;
         }
-        List<Layout.Placed> laid = new ArrayList<>(Layout.lay(root, screen.width(), screen.height()));
         Component line = toast;
-        if (line != null && System.currentTimeMillis() < toastUntil) {
-            Node note = Node.text(line).padding(5, 12).background("#1f1830").outline("{primary}", 1);
-            double[] size = Layout.measure(note);
-            laid.add(new Layout.Placed(note, "~toast", (screen.width() - size[0]) / 2, 6, size[0], size[1],
-                    Layout.OVERLAY + 20));
-        }
+        if (line != null && System.currentTimeMillis() >= toastUntil) line = null;
+        // The tree's fingerprint covers everything layout and drawing read from it, and a sprite arriving changes
+        // what an unchanged tree draws: same print, same toast, nothing turning, and the last frame still holds.
+        long print = Layout.fingerprint(root) * 31 + VanillaSprites.generation();
         synchronized (this) {
-            if (!open) return;
+            if (!open || away) return;
+            List<Layout.Placed> core = lastLaid != null && print == lastPrint && line == lastToast && !turning
+                    ? Layout.relink(lastLaid, root) : null;
+            boolean same = core != null;
+            // The handlers are this render's either way: a click acts on what it shows now.
+            if (core == null) core = Layout.lay(root, screen.width(), screen.height());
+            lastLaid = core;
+            lastPrint = print;
+            lastToast = line;
+            List<Layout.Placed> laid = new ArrayList<>(core);
+            if (line != null) {
+                Node note = Node.text(line).padding(5, 12).background("#1f1830").outline("{primary}", 1);
+                double[] size = Layout.measure(note);
+                laid.add(new Layout.Placed(note, "~toast", (screen.width() - size[0]) / 2, 6, size[0], size[1],
+                        Layout.OVERLAY + 20));
+            }
             placed = laid;
             overlayFrom = Layout.overlayStart(laid);
-            Layout.Placed under = Layout.under(targets(), px(), py(), Node::pointable);
-            hovered = under == null ? null : under.key();
+            view = new View(laid, overlayFrom);
+            Layout.Placed under = underPointer();
+            String now = under == null ? null : under.key();
+            if (same && Objects.equals(now, hovered)) return;
+            hovered = now;
+            hoveredBox = under;
+            sync();
+        }
+    }
+
+    /** The pointable box under the cursor now. Holds the lock. */
+    private Layout.Placed underPointer() {
+        double x, y;
+        synchronized (input) {
+            x = px();
+            y = py();
+        }
+        return Layout.under(targets(), x, y, Node::pointable);
+    }
+
+    /** On the viewer's thread: the box under the pointer changed since the last frame. */
+    private void hoverMoved() {
+        hoverQueued.set(false);
+        synchronized (this) {
+            if (!open || away) return;
+            Layout.Placed under = underPointer();
+            String now = under == null ? null : under.key();
+            if (Objects.equals(now, hovered)) return;
+            hovered = now;
             hoveredBox = under;
             sync();
         }
@@ -402,6 +517,7 @@ final class LiveScreen implements ScreenSession {
         // A dialog is drawn first, so a screen over the display budget loses its page, never the dialog that
         // takes every click.
         List<Layout.Placed> drawing = placed;
+        boolean turns = false;
         if (overlayFrom > 0) {
             drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
             drawing.addAll(placed.subList(0, overlayFrom));
@@ -462,16 +578,21 @@ final class LiveScreen implements ScreenSession {
                 boolean lifted = over || hoveredBox != null && !hoveredBox.key().equals("~dim")
                         && hoveredBox.depth() < box.depth()
                         && hoveredBox.holds(box.x() + box.w() / 2, box.y() + box.h() / 2);
-                Pictures.Picture sprite = VanillaSprites.of(node.item());
-                if (sprite == null) {
+                // Read from disk off this thread the first time; drawn on the redraw its arrival asks for.
+                Pictures.Picture sprite = VanillaSprites.of(node.item(), tasks, this::redraw);
+                if (sprite == VanillaSprites.LOADING) {
+                    // Nothing yet, rather than the 3D item for a moment.
+                } else if (sprite == null) {
                     wanted.put(key, new ItemLook(ix, iy, side * unit * (lifted ? 1.15 : 1), layer + 1, node.item()));
                     order.add(key);
                 } else {
                     double cell = side * (lifted ? 1.15 : 1) / Math.max(sprite.width(), sprite.height());
-                    pictureLooks(key, ix, iy, cell, layer + 1, picture(sprite.argb(), sprite.width(), sprite.height(),
-                            beneath[depth]), sprite.height(), wanted, order);
+                    pictureLooks(key, ix, iy, cell, layer + 1, Pictures.glyphs(sprite.argb(), sprite.width(),
+                            sprite.height(), beneath[depth]), sprite.height(), wanted, order);
                 }
             }
+            // A body turns every second, and one whose skin is on its way must be looked for again: never skipped.
+            turns |= node.turntable() != null;
             List<Pictures.Face> model = node.turntable() == null ? null : Pictures.model(node.turntable());
             if (model != null) {
                 double innerW = box.w() - node.padLeft() - node.padRight();
@@ -484,7 +605,8 @@ final class LiveScreen implements ScreenSession {
                 int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
                 for (int f = 0; f < model.size(); f++) {
                     Pictures.Face face = model.get(f);
-                    Component text = picture(face.picture().argb(), face.picture().width(), face.picture().height(), 0);
+                    Component text = Pictures.glyphs(face.picture().argb(), face.picture().width(),
+                            face.picture().height(), 0);
                     for (int copy = 0; copy < 4; copy++) {
                         String key = box.key() + "#tt" + f + "." + copy;
                         wanted.put(key, new TurnLook(mx, my, cell * unit, layer + 1, text, face.picture().height(),
@@ -500,7 +622,7 @@ final class LiveScreen implements ScreenSession {
                     double ix = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
                     double iy = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
                     pictureLooks(box.key() + "#im", ix, iy, cell, layer + 1,
-                            picture(node.pixels(), node.pixelWidth(), node.pixelHeight(), beneath[depth]),
+                            Pictures.glyphs(node.pixels(), node.pixelWidth(), node.pixelHeight(), beneath[depth]),
                             node.pixelHeight(), wanted, order);
                 }
             }
@@ -557,11 +679,11 @@ final class LiveScreen implements ScreenSession {
             Object look = wanted.get(key);
             Drawn current = drawn.get(key);
             if (current != null && current.look().equals(look)) continue;
-            int id = current != null ? current.id() : ScreenPackets.newId();
+            int id = current != null ? current.id() : ids.getAsInt();
             if (current != null && current.look().getClass() != look.getClass()) {
                 out.add(ScreenPackets.destroy(new int[]{id}));
                 current = null;
-                id = ScreenPackets.newId();
+                id = ids.getAsInt();
             }
             Object first = look;
             if (current == null) {
@@ -579,7 +701,8 @@ final class LiveScreen implements ScreenSession {
             drawn.put(key, new Drawn(id, look));
         }
         shown = true;
-        if (!out.isEmpty()) ScreenPackets.send(player, out);
+        turning = turns;
+        if (!out.isEmpty()) wire.send(out);
         if (!settling.isEmpty()) {
             // A tick later, once the client has the start: a transform only glides from one it already shows.
             tasks.runAtEntityLater(player, 1, () -> {
@@ -590,7 +713,7 @@ final class LiveScreen implements ScreenSession {
                         Drawn now = drawn.get(settlingKeys.get(id));
                         if (now != null && now.id() == id && now.look().equals(look)) settle.add(look(id, look, SETTLE));
                     });
-                    if (!settle.isEmpty()) ScreenPackets.send(player, settle);
+                    if (!settle.isEmpty()) wire.send(settle);
                 }
             });
         }
@@ -673,16 +796,6 @@ final class LiveScreen implements ScreenSession {
                 glide == 0 ? 0 : TURN_TICKS, t.yaw() + t.turn(), t.dx());
     }
 
-    /** Pictures already turned into glyphs, by their pixels and the colour behind them. */
-    private record PictureKey(int width, int length, int hash, int behind) {
-    }
-
-    private final Map<PictureKey, Component> pictures = new HashMap<>();
-
-    /**
-     * A picture as lines of full blocks, each run of one colour one component. A pixel more than half see-through
-     * takes the colour behind it, a partly see-through one is mixed over it: there is no see-through glyph.
-     */
     /**
      * A picture's four copies: a full block is narrower and shorter than the cell it stands in, and the copies,
      * nudged by the gaps, cover every cell edge to edge. {@code cell} is one picture pixel in layout units.
@@ -698,55 +811,20 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
-    private Component picture(int[] argb, int w, int h, int behind) {
-        // A node copies its pixels, so the same picture is a new array every render: keyed by what it holds.
-        PictureKey key = new PictureKey(w, argb.length, java.util.Arrays.hashCode(argb), behind);
-        Component known = pictures.get(key);
-        if (known != null) return known;
-        net.kyori.adventure.text.TextComponent.Builder out = Component.text();
-        for (int y = 0; y < h; y++) {
-            if (y > 0) out.append(Component.newline());
-            int x = 0;
-            while (x < w) {
-                boolean clear = (argb[y * w + x] >>> 24) < 128;
-                int colour = solid(argb[y * w + x], behind);
-                int end = x + 1;
-                while (end < w && ((argb[y * w + end] >>> 24) < 128) == clear
-                        && (clear || solid(argb[y * w + end], behind) == colour)) end++;
-                if (clear) {
-                    // A clear pixel is a gap as wide as a block: a space (4) and a bold space (5).
-                    out.append(Component.text(" ".repeat(end - x)));
-                    out.append(Component.text(" ".repeat(end - x)).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
-                } else {
-                    out.append(Component.text("█".repeat(end - x), net.kyori.adventure.text.format.TextColor.color(colour & 0xFFFFFF)));
-                }
-                x = end;
-            }
-        }
-        Component built = out.build();
-        if (pictures.size() > 64) pictures.clear();
-        pictures.put(key, built);
-        return built;
-    }
-
-    private static int solid(int argb, int behind) {
-        int alpha = argb >>> 24;
-        if (alpha == 255) return argb;
-        if (alpha < 128) return behind;
-        return ScreenMath.over(argb, behind);
-    }
-
     private PacketWrapper<?> text(int id, TextLook t, int glide) {
         double k = drawn(t.layer());
         double scale = t.scale() * unit * k / ScreenPackets.fontPixel();
         return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.text(), glide);
     }
 
-    /** The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. */
+    /**
+     * The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. The same
+     * picture every time, so the wire sends only its move. Holds {@link #input}.
+     */
     private void cursor(List<PacketWrapper<?>> out, int glide) {
         double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
         int w = ARROW[0].length(), h = ARROW.length;
-        Component arrow = picture(ARROW_ARGB, w, h, 0);
+        Component arrow = Pictures.glyphs(ARROW_ARGB, w, h, 0);
         // The tip is the pointer's top-left pixel, where the cursor is.
         double cx = cursorX + w * pixel / 2, cy = cursorY - h * pixel / 2;
         int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
@@ -785,54 +863,67 @@ final class LiveScreen implements ScreenSession {
     // Input (netty thread)
     // ------------------------------------------------------------------
 
-    synchronized void turned(float yaw, float pitch) {
+    void turned(float yaw, float pitch) {
         if (!open) return;
-        if (away) {
-            // The cursor stays where it was: the turn made while typing is not a pointer move.
+        boolean moved = false;
+        synchronized (input) {
+            if (away) {
+                // The cursor stays where it was: the turn made while typing is not a pointer move.
+                lastYaw = yaw;
+                lastPitch = pitch;
+                return;
+            }
+            double perDegree = DISTANCE * Math.PI / 180 * ScreenRuntime.sensitivity(player.getUniqueId());
+            double halfW = screen.width() / 2 * unit;
+            double halfH = screen.height() / 2 * unit;
+            cursorX = ScreenMath.clamp(cursorX + ScreenMath.turn(lastYaw, yaw) * perDegree, -halfW, halfW);
+            cursorY = ScreenMath.clamp(cursorY - (pitch - lastPitch) * perDegree, -halfH, halfH);
             lastYaw = yaw;
             lastPitch = pitch;
-            return;
+            List<PacketWrapper<?>> out = new ArrayList<>();
+            cursor(out, 1);
+            Layout.Placed under = Layout.under(view.targets(), px(), py(), Node::pointable);
+            String now = under == null ? null : under.key();
+            if (!Objects.equals(now, pointed)) {
+                pointed = now;
+                moved = true;
+                if (now != null && under.node().hover() != null) sound("ui.button.click", 0.15f, 2.0f);
+            }
+            if (recentreId == 0 && Math.abs(pitch) > RECENTRE_PITCH) {
+                recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+                recentreBy = pitch;
+                out.add(ScreenPackets.recentre(recentreId, pitch));
+            }
+            wire.send(out);
         }
-        double perDegree = DISTANCE * Math.PI / 180 * ScreenRuntime.sensitivity(player.getUniqueId());
-        double halfW = screen.width() / 2 * unit;
-        double halfH = screen.height() / 2 * unit;
-        cursorX = ScreenMath.clamp(cursorX + ScreenMath.turn(lastYaw, yaw) * perDegree, -halfW, halfW);
-        cursorY = ScreenMath.clamp(cursorY - (pitch - lastPitch) * perDegree, -halfH, halfH);
-        lastYaw = yaw;
-        lastPitch = pitch;
-        List<PacketWrapper<?>> out = new ArrayList<>();
-        cursor(out, 1);
-        Layout.Placed under = Layout.under(targets(), px(), py(), Node::pointable);
-        String now = under == null ? null : under.key();
-        if (!Objects.equals(now, hovered)) {
-            hovered = now;
-            hoveredBox = under;
-            if (now != null && under.node().hover() != null) sound("ui.button.click", 0.15f, 2.0f);
-            ScreenPackets.send(player, out);
-            out.clear();
-            sync();
-        }
-        if (recentreId == 0 && Math.abs(pitch) > RECENTRE_PITCH) {
-            recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-            recentreBy = pitch;
-            out.add(ScreenPackets.recentre(recentreId, pitch));
-        }
-        if (!out.isEmpty()) ScreenPackets.send(player, out);
+        // The hover is drawn on the viewer's thread, which owns the frame; a burst of moves asks once.
+        if (moved && hoverQueued.compareAndSet(false, true)) tasks.runAtEntity(player, this::hoverMoved);
     }
 
-    synchronized boolean confirmed(int teleportId) {
-        if (recentreId == 0 || teleportId != recentreId) return false;
-        lastPitch -= recentreBy;
-        recentreId = 0;
-        return true;
+    boolean confirmed(int teleportId) {
+        synchronized (input) {
+            if (recentreId == 0 || teleportId != recentreId) return false;
+            lastPitch -= recentreBy;
+            recentreId = 0;
+            return true;
+        }
     }
 
-    synchronized void click(boolean right) {
+    /** The cursor in layout pixels, read once. */
+    double[] pointer() {
+        synchronized (input) {
+            return new double[]{px(), py()};
+        }
+    }
+
+    void click(boolean right) {
         if (!open || away) return;
-        Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onClick() != null);
+        List<Layout.Placed> targets = view.targets();
+        double[] at = pointer();
+        Layout.Placed box = Layout.under(targets, at[0], at[1], node -> node.onClick() != null);
         if (box == null) return;
         // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.
-        if (box.key().equals("~dim") && Layout.under(targets(), px(), py(), node -> true) != box) return;
+        if (box.key().equals("~dim") && Layout.under(targets, at[0], at[1], node -> true) != box) return;
         Consumer<ScreenEvent> handler = box.node().onClick();
         ScreenEvent event = new ScreenEvent(this, right ? ScreenEvent.Kind.RIGHT : ScreenEvent.Kind.LEFT, 0,
                 box.node().id());
@@ -840,13 +931,17 @@ final class LiveScreen implements ScreenSession {
         handle(handler, event);
     }
 
-    synchronized void wheel(int slot) {
-        int steps = slot - heldSlot;
-        if (steps > 4) steps -= 9;
-        if (steps < -4) steps += 9;
-        heldSlot = slot;
+    void wheel(int slot) {
+        int steps;
+        synchronized (input) {
+            steps = slot - heldSlot;
+            if (steps > 4) steps -= 9;
+            if (steps < -4) steps += 9;
+            heldSlot = slot;
+        }
         if (steps == 0 || !open || away) return;
-        Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onScroll() != null);
+        double[] at = pointer();
+        Layout.Placed box = Layout.under(view.targets(), at[0], at[1], node -> node.onScroll() != null);
         if (box == null) return;
         handle(box.node().onScroll(), new ScreenEvent(this, ScreenEvent.Kind.SCROLL, steps, box.node().id()));
     }
@@ -855,14 +950,18 @@ final class LiveScreen implements ScreenSession {
     private int keysDown;
 
     /** Movement keys as bits (w, a, s, d, space): a key just pressed clicks the box bound to it. */
-    synchronized void keys(int down) {
-        int pressed = down & ~keysDown;
-        keysDown = down;
+    void keys(int down) {
+        int pressed;
+        synchronized (input) {
+            pressed = down & ~keysDown;
+            keysDown = down;
+        }
         if (pressed == 0 || !open || away) return;
+        List<Layout.Placed> targets = view.targets();
         for (int bit = 0; bit < KEYS.length; bit++) {
             if ((pressed & 1 << bit) == 0) continue;
             String key = KEYS[bit];
-            for (Layout.Placed box : targets()) {
+            for (Layout.Placed box : targets) {
                 if (!key.equals(box.node().key()) || box.node().onClick() == null) continue;
                 sound("ui.button.click", 0.35f, 1.4f);
                 handle(box.node().onClick(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, box.node().id()));
@@ -871,13 +970,17 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
-    synchronized void shift(boolean down) {
-        boolean pressed = down && !shifting;
-        shifting = down;
+    void shift(boolean down) {
+        boolean pressed;
+        synchronized (input) {
+            pressed = down && !shifting;
+            shifting = down;
+        }
         if (!pressed || !open || away) return;
         // An open dialog is dismissed first; Shift again closes the screen.
-        Consumer<ScreenSession> dismiss = overlayFrom < 0 ? null : placed.get(overlayFrom + 1 < placed.size()
-                ? overlayFrom + 1 : overlayFrom).node().onDismiss();
+        View now = view;
+        Consumer<ScreenSession> dismiss = now.overlayFrom() < 0 ? null : now.placed().get(
+                now.overlayFrom() + 1 < now.placed().size() ? now.overlayFrom() + 1 : now.overlayFrom()).node().onDismiss();
         if (dismiss == null) {
             tasks.runAtEntity(player, this::close);
             return;
@@ -885,7 +988,7 @@ final class LiveScreen implements ScreenSession {
         tasks.runAtEntity(player, () -> {
             if (!open()) return;
             guarded(() -> dismiss.accept(this));
-            render();
+            renderNow();
         });
     }
 
@@ -901,12 +1004,12 @@ final class LiveScreen implements ScreenSession {
         redraw();
     }
 
-    /** Runs a handler on the viewer's thread, then redraws. */
+    /** Runs a handler on the viewer's thread, then renders once, taking along the redraws its set() calls asked for. */
     private void handle(Consumer<ScreenEvent> handler, ScreenEvent event) {
         tasks.runAtEntity(player, () -> {
             if (!open()) return;
             guarded(() -> handler.accept(event));
-            render();
+            renderNow();
         });
     }
 

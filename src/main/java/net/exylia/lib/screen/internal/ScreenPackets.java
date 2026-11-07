@@ -20,6 +20,7 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientIn
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientTeleportConfirm;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBundle;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHeldItemChange;
@@ -110,8 +111,95 @@ final class ScreenPackets extends PacketListenerAbstract {
         return SpigotReflectionUtil.generateEntityId();
     }
 
-    static void send(Player player, List<? extends PacketWrapper<?>> packets) {
-        for (PacketWrapper<?> packet : packets) PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
+    /** The most packets one bundle may hold: the client refuses a bundle of 4096 or more. */
+    static final int BUNDLE = 4000;
+    /** Indices that move a display: a change to any of them restarts its glide, so delay and duration go along. */
+    private static final int[] TRANSFORM = {TRANSLATION, SCALE, LEFT_ROTATION, 14};
+
+    /**
+     * One viewer's wire: remembers the last value sent for each field of each entity and sends only the fields
+     * that changed. A spawn starts an entity afresh, a destroy forgets it. Every frame goes out as one bundle,
+     * written and flushed in one go on the channel's own thread, so the client never draws half of it.
+     */
+    static class Wire {
+
+        private final java.util.function.Consumer<List<PacketWrapper<?>>> out;
+        private final java.util.Map<Integer, Object[]> sent = new java.util.HashMap<>();
+
+        Wire(java.util.function.Consumer<List<PacketWrapper<?>>> out) {
+            this.out = out;
+        }
+
+        static Wire to(Player player) {
+            return new Wire(frame -> write(player, frame));
+        }
+
+        /** Sends what in {@code packets} the client does not have yet, as one frame. Safe from any thread. */
+        synchronized void send(List<? extends PacketWrapper<?>> packets) {
+            List<PacketWrapper<?>> frame = new java.util.ArrayList<>(packets.size());
+            for (PacketWrapper<?> packet : packets) {
+                if (packet instanceof WrapperPlayServerSpawnEntity spawn) {
+                    sent.remove(spawn.getEntityId());
+                } else if (packet instanceof WrapperPlayServerDestroyEntities destroy) {
+                    for (int id : destroy.getEntityIds()) sent.remove(id);
+                } else if (packet instanceof WrapperPlayServerEntityMetadata data) {
+                    packet = changed(data);
+                    if (packet == null) continue;
+                }
+                frame.add(packet);
+            }
+            // The lock is held until the frame is queued, so frames reach the channel in the order they were diffed.
+            if (!frame.isEmpty()) out.accept(frame);
+        }
+
+        private PacketWrapper<?> changed(WrapperPlayServerEntityMetadata data) {
+            Object[] last = sent.computeIfAbsent(data.getEntityId(), id -> new Object[32]);
+            List<EntityData<?>> fields = data.getEntityMetadata();
+            boolean[] keep = new boolean[fields.size()];
+            boolean moved = false;
+            boolean any = false;
+            for (int i = 0; i < fields.size(); i++) {
+                EntityData<?> field = fields.get(i);
+                int index = field.getIndex();
+                if (index >= last.length || !java.util.Objects.equals(last[index], field.getValue())) {
+                    keep[i] = true;
+                    any = true;
+                    for (int t : TRANSFORM) moved |= index == t;
+                }
+            }
+            if (!any) return null;
+            List<EntityData<?>> diff = new java.util.ArrayList<>(fields.size());
+            for (int i = 0; i < fields.size(); i++) {
+                EntityData<?> field = fields.get(i);
+                int index = field.getIndex();
+                // The client times a glide from the packet that carries its delay: a move without it would jump.
+                if (keep[i] || moved && (index == INTERPOLATION_DELAY || index == TRANSFORM_DURATION)) {
+                    diff.add(field);
+                    if (index < last.length) last[index] = field.getValue();
+                }
+            }
+            return diff.size() == fields.size() ? data : new WrapperPlayServerEntityMetadata(data.getEntityId(), diff);
+        }
+    }
+
+    /** Writes a frame as bundles on the channel's thread, then flushes once. Encoded here, off that thread. */
+    static void write(Player player, List<PacketWrapper<?>> frame) {
+        Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(player);
+        if (channel == null) return;
+        com.github.retrooper.packetevents.manager.protocol.ProtocolManager protocol =
+                PacketEvents.getAPI().getProtocolManager();
+        List<Object> buffers = new java.util.ArrayList<>(frame.size() + 2);
+        for (int from = 0; from < frame.size(); from += BUNDLE) {
+            List<PacketWrapper<?>> part = frame.subList(from, Math.min(frame.size(), from + BUNDLE));
+            boolean bundled = part.size() > 1;
+            if (bundled) buffers.addAll(List.of(protocol.transformWrappers(new WrapperPlayServerBundle(), channel, true)));
+            for (PacketWrapper<?> packet : part) buffers.addAll(List.of(protocol.transformWrappers(packet, channel, true)));
+            if (bundled) buffers.addAll(List.of(protocol.transformWrappers(new WrapperPlayServerBundle(), channel, true)));
+        }
+        com.github.retrooper.packetevents.netty.channel.ChannelHelper.runInEventLoop(channel, () -> {
+            for (Object buffer : buffers) protocol.writePacket(channel, buffer);
+            com.github.retrooper.packetevents.netty.channel.ChannelHelper.flush(channel);
+        });
     }
 
     // ------------------------------------------------------------------
@@ -140,8 +228,21 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) (size * FLAT))),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
-                new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, SpigotConversionUtil.fromBukkitItemStack(item)),
+                new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)),
                 new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI)));
+    }
+
+    /** Items as PacketEvents takes them, one per equal stack, so the wire sees an unchanged item as unchanged. */
+    private static final com.github.benmanes.caffeine.cache.Cache<ItemStack, com.github.retrooper.packetevents.protocol.item.ItemStack>
+            ITEMS = com.github.benmanes.caffeine.cache.Caffeine.newBuilder().maximumSize(512).build();
+
+    private static com.github.retrooper.packetevents.protocol.item.ItemStack converted(ItemStack item) {
+        com.github.retrooper.packetevents.protocol.item.ItemStack known = ITEMS.getIfPresent(item);
+        if (known != null) return known;
+        ItemStack key = item.clone();
+        known = SpigotConversionUtil.fromBukkitItemStack(key);
+        ITEMS.put(key, known);
+        return known;
     }
 
     /** The click catcher around the eyes: a click that lands on an entity has no half-second miss cooldown. */

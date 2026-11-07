@@ -35,6 +35,9 @@ Screens.of(plugin).open(player, hub);          // on the player's thread
 
 - Called on open, after every click or scroll handler, after `session.set(...)`, and once a second. Read a
   moving value (a countdown, a queue size) inside it and it stays current; there is nothing to refresh.
+- Redraws are coalesced (1.493.0): any number of `set(...)` and `redraw()` calls within a tick, and the ones a
+  handler makes, render once. A render whose tree comes out the same as the last one (same text, pixels, sizes,
+  colours, ids) skips layout and diff and sends nothing; its handlers still replace the old ones.
 - Runs on the viewer's thread. Read memory, never a database.
 - Returns a fresh `Node` tree each time. Only what changed since the last render is sent: a box keeps its
   display while its key stays the same. The key is the node's `id(...)` when it has one, or its position in the
@@ -122,11 +125,19 @@ plugins' holograms never show through or at its edges. It all comes back on clos
 - **Words wider than their box** shrink to fit it rather than run over the next box: a long kit name in an
   equal-width chip or card stays inside it. Rows give way in this order: boxes that grow, then words.
 - **The cursor** is a pixel arrow with a dark outline, one picture moved as a whole.
+- **Only changed fields go out** (1.493.0). The wire remembers the last value of every field of every display and
+  sends only what changed, so a cursor move, a hover, a glide or a turning body costs a transform (about 25 bytes a
+  display) rather than the whole picture again. Each frame goes out as one bundle with one flush, so the client
+  never draws half of it. Pictures turned into glyphs are cached once for every screen.
 
 ## Threads and lifecycle
 
 `ScreenSession` is safe from any thread. Handlers and `onClose` run on the viewer's thread; `onClose` only
-while the player is online and the plugin enabled. Nothing survives the plugin: its screens close on disable.
+while the player is online and the plugin enabled. Since 1.493.0 the netty thread only moves the cursor and reads
+the last laid-out frame to find what is under it; rendering, hover and every sprite, skin or picture lookup happen
+on the viewer's thread, and an item sprite seen for the first time is read from disk on an async task (the slot
+stays empty for that moment) rather than on any server thread. Another player's position is read on their own
+thread on Folia. Nothing survives the plugin: its screens close on disable.
 The module keeps nothing derived from the palette between renders (each render re-reads the tokens), so it
 has no `invalidateAll`.
 
