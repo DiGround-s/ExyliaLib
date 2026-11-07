@@ -875,7 +875,9 @@ final class LiveScreen implements ScreenSession {
             at[i] = new Cx(xf, transition, animated, n.decoration() || parent != null && parent.low());
             out.put(b, at[i]);
             String parentKey = b.parent() >= 0 && b.parent() < i ? list.get(b.parent()).key() : null;
-            boxes.put(b.key(), new Box(parentKey, n, centreX(b), centreY(b), b.depth()));
+            // Two boxes may share a key (the same id written twice); the first placed keeps it, so a walk up the
+            // parents always reaches an earlier box and ends.
+            boxes.putIfAbsent(b.key(), new Box(parentKey, n, centreX(b), centreY(b), b.depth()));
         }
         return out;
     }

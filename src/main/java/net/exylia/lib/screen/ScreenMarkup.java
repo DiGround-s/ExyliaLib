@@ -304,15 +304,16 @@ public final class ScreenMarkup {
     /**
      * What is wrong with the markup or its sheets, each said once with {@code file:line:col}: unknown tags,
      * attributes and properties, expressions that do not read, includes and templates that do not exist, and
-     * (since 1.494.0) sources and actions the markup names that nothing registered. Then what went missing
-     * while rendering.
+     * (since 1.494.0) sources and actions the markup names that nothing registered. A screen with
+     * {@code routes} reads the chest menu's own sections as sources, so an unregistered source is not reported
+     * there (1.504.0). Then what went missing while rendering.
      */
     public @NotNull List<String> problems() {
         Compiled now = compiled;
         Set<String> out = new LinkedHashSet<>(now.problems());
         for (Compile.Reference reference : now.references()) {
             if (reference.kind().equals("source") && !bindings.hasSource(reference.name())
-                    && !bindings.values().containsKey(reference.name())) {
+                    && !bindings.values().containsKey(reference.name()) && routes() == null) {
                 out.add(reference.pos() + ": no source \"" + reference.name() + "\" is registered");
             } else if (reference.kind().equals("action") && !known(reference.name())) {
                 out.add(reference.pos() + ": no action \"" + reference.name() + "\" is registered");

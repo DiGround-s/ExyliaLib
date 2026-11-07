@@ -475,4 +475,10 @@ class ScreenMarkupTest {
         markup.source("nope", s -> List.of()).action("zap", (e, a) -> { });
         assertEquals(1, markup.problems().size(), markup.problems().toString());
     }
+
+    @Test
+    void aRoutedScreenReadsItsSourcesFromTheMenu() {
+        ScreenMarkup markup = ScreenMarkup.parse("r.html", "<screen routes=\"shop\">\n<list source=\"main\"/></screen>");
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
 }

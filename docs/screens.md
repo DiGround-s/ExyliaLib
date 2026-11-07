@@ -803,6 +803,12 @@ A routed screen is drawn from the same data as the chest menu it stands for, so 
 - `source="<section>"` / `<for each="x in <section>">` reads **the menu's rows** of that section (`main`, or the
   section ids of a `sections:` menu) when no binding of the screen has that name, refreshed as the plugin refreshes
   them (`entries(...)`, live suppliers).
+- Each of those rows also carries `row_template` (1.504.0): the template the chest would draw it with (`empty`,
+  `locked`, `shop`... as the plugin set it with `UiEntry.Builder#template`), `''` for the default one. A screen
+  uses it to style a locked or rotating row: `class="shop ${row_template}"`. A row that has a `row_template`
+  value of its own keeps it. A row that carries nothing (no object, values or item: a chest's placeholder that only
+  keeps a slot empty, `UiEntry.row().template("empty")`) is left out, so the screen's grid has no holes. `screens check` does not report a source of a routed screen that no
+  binding registers, since the menu's sections answer it.
 - `ns:id args` actions run with `UiKeys.SESSION` (the chest menu behind the screen), `UiKeys.MENU` and
   `UiKeys.ENTRY` (the clicked row's object), exactly as from a chest, so the YAML's action strings work unchanged.
 - Bindings registered on the screen (`value`, `text`, `rows`, `action`) are read **once a render** however many rows

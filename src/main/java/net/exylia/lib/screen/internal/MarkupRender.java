@@ -279,6 +279,13 @@ public final class MarkupRender {
         }
     }
 
+    private static UiEntry withTemplate(UiEntry entry) {
+        if (entry.values().containsKey("row_template")) return entry;
+        Map<String, String> values = new java.util.LinkedHashMap<>(entry.values());
+        values.put("row_template", entry.template() == null ? "" : entry.template());
+        return new UiEntry(entry.value(), values, entry.formatted(), entry.verbatim(), entry.template(), entry.item(), entry.live());
+    }
+
     /** The chest menu this screen was opened for in SCREEN style, or {@code null}. */
     private net.exylia.lib.ui.UiSession menu() {
         Object menu = session.state(ScreenRoutes.MENU, "");
@@ -290,8 +297,13 @@ public final class MarkupRender {
             Function<ScreenSession, List<UiEntry>> entries = parts.bindings().entries().get(name);
             net.exylia.lib.ui.UiSession menu = entries == null && !parts.bindings().sources().containsKey(name) ? menu() : null;
             if (menu != null && menu.definition().section(name) != null) {
-                // The chest menu's own list, as the plugin filled it.
-                entries = ignored -> menu.entries(name);
+                // The chest menu's own list, as the plugin filled it; row_template says which template the chest
+                // would draw it with ("" for the default), so a screen can tell a locked row apart. A row that
+                // carries nothing at all only holds a chest slot empty, so it is left out.
+                entries = ignored -> menu.entries(name).stream()
+                        .filter(entry -> entry.value() != null || !entry.values().isEmpty() || entry.item() != null
+                                || !entry.live().isEmpty())
+                        .map(MarkupRender::withTemplate).toList();
             }
             if (entries != null) {
                 List<UiEntry> list = entries.apply(session);
