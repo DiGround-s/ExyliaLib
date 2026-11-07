@@ -28,7 +28,7 @@ public final class Compile {
     /** Tags the render draws, beyond the screen's templates. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal", "img", "search",
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "progress", "modal", "img", "search",
             // Structure (1.494.0): drawn as their children, never as a box of their own.
             "fragment", "for", "switch", "case", "default", "else");
 
@@ -40,7 +40,7 @@ public final class Compile {
             // 1.496.0
             "action-shift", "priority", "refresh", "prompt", "hint",
             // 1.498.0
-            "action-hover", "wearing");
+            "action-hover", "wearing", "spin");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");

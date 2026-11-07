@@ -60,6 +60,7 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final int TRANSLATION = 11;
     private static final int SCALE = 12;
     private static final int LEFT_ROTATION = 13;
+    private static final int RIGHT_ROTATION = 14;
     private static final int BILLBOARD = 15;
     private static final int BRIGHTNESS = 16;
     private static final int TEXT = 23;
@@ -232,6 +233,35 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI)));
     }
 
+    /** How far a 3D item leans towards the viewer, degrees, so a block shows its top as it turns. */
+    private static final double ITEM3D_TILT = 25;
+    private static final byte CONTEXT_FIXED = 8;
+
+    /**
+     * A 3D item: its model in the round ({@code size} deep as well), turned {@code angle} degrees about its upright
+     * and leaned towards the viewer. Shaded by the world's lights, so the screen keeps the camera still around it.
+     */
+    static PacketWrapper<?> item3d(int id, double x, double y, double z, double size, ItemStack item, int glide,
+                                   double angle) {
+        double a = Math.toRadians(angle) / 2;
+        double t = Math.toRadians(ITEM3D_TILT) / 2;
+        // The item-frame view draws a block at half an item's size; leaned and turning it reaches its corners at 1.25.
+        if (item.getType().isBlock()) size *= 1.25;
+        return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
+                new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION,
+                        new com.github.retrooper.packetevents.util.Quaternion4f((float) Math.sin(t), 0f, 0f, (float) Math.cos(t))),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) size)),
+                new EntityData<>(RIGHT_ROTATION, EntityDataTypes.QUATERNION,
+                        new com.github.retrooper.packetevents.util.Quaternion4f(0f, (float) Math.sin(a), 0f, (float) Math.cos(a))),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
+                new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)),
+                new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_FIXED)));
+    }
+
     /** Items as PacketEvents takes them, one per equal stack, so the wire sees an unchanged item as unchanged. */
     private static final com.github.benmanes.caffeine.cache.Cache<ItemStack, com.github.retrooper.packetevents.protocol.item.ItemStack>
             ITEMS = com.github.benmanes.caffeine.cache.Caffeine.newBuilder().maximumSize(512).build();
@@ -265,9 +295,14 @@ final class ScreenPackets extends PacketListenerAbstract {
 
     /** Turns the client's pitch back by {@code pitch} without moving it; invisible behind the screen. */
     static PacketWrapper<?> recentre(int teleportId, float pitch) {
+        return recentre(teleportId, 0f, pitch);
+    }
+
+    /** Turns the camera back by {@code yaw} and {@code pitch} degrees, relative to wherever it faces now. */
+    static PacketWrapper<?> recentre(int teleportId, float yaw, float pitch) {
         byte relative = RelativeFlag.X.or(RelativeFlag.Y).or(RelativeFlag.Z)
                 .or(RelativeFlag.YAW).or(RelativeFlag.PITCH).getMask();
-        return new WrapperPlayServerPlayerPositionAndLook(0, 0, 0, 0f, -pitch, relative, teleportId, false);
+        return new WrapperPlayServerPlayerPositionAndLook(0, 0, 0, -yaw, -pitch, relative, teleportId, false);
     }
 
     /**

@@ -66,6 +66,8 @@ public final class Node {
     private String key;
     private String turntable;
     private String wearing;
+    private boolean solid;
+    private double spin;
     private Consumer<ScreenEvent> onHover;
     private double width = -1;
     private double height = -1;
@@ -136,6 +138,32 @@ public final class Node {
         Node node = new Node(Kind.ITEM, null);
         node.item = item.clone();
         return node;
+    }
+
+    /**
+     * An item as a real 3D model (a block with its sides, a sword with its edge, enchantment glint), turning
+     * {@code spin} degrees a second about the upright, 0 to stand still. While one is on screen the viewer's camera
+     * is kept within a few degrees of where the screen opened, so the world's lights shade it the same however they
+     * move the cursor. Below 1.21.9 a 3D item is the only way to show glint; {@link #item(ItemStack)} draws a flat
+     * sprite instead.
+     *
+     * @since 1.499.0
+     */
+    public static @NotNull Node item3d(@NotNull ItemStack item, double spin) {
+        Node node = item(item);
+        node.solid = true;
+        node.spin = spin;
+        return node;
+    }
+
+    /** Whether this item is drawn as a 3D model ({@link #item3d}). @since 1.499.0 */
+    public boolean solid() {
+        return solid;
+    }
+
+    /** Degrees a second a {@link #item3d} turns. @since 1.499.0 */
+    public double spin() {
+        return spin;
     }
 
     /**

@@ -505,6 +505,12 @@ public final class MarkupRender {
         } else if (el.tag().equals("item")) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+        } else if (el.tag().equals("item3d")) {
+            // <item3d material="..." spin="36">: the real model, turning; a bare spin turns 36 degrees a second.
+            org.bukkit.inventory.ItemStack stack = item(el, scope);
+            String spin = el.attr("spin") == null ? null : fill(el.attr("spin"), scope, false).trim();
+            double speed = spin == null ? 0 : spin.isEmpty() ? 36 : px(spin, 36);
+            node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item3d(stack, speed);
         } else if (el.tag().equals("img")) {
             node = image(el, scope);
         } else if (el.tag().equals("search")) {

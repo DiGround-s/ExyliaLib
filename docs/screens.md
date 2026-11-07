@@ -229,6 +229,7 @@ that is not well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
+| `item3d` (1.499.0) | The item's real 3D model, lit, with enchantment glint: `material=`/`head=`/`texture=`/`url=` as `<item>`; `spin` turns it slowly about its upright (36° a second, or `spin="72"`). See [3D items](#3d-items-14990) |
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
@@ -577,6 +578,26 @@ row.put("kit_wearing", Screens.outfit(helmet, chestplate, leggings, boots, first
 Armour is laid flat on the skin's boxes rather than as the game's slightly larger second box, so a helmet sits on
 the head's outer layer; a slim arm wears the first three columns of the classic armour arm. It costs nothing more
 on the wire than the bare body (the same 96 displays turning).
+
+## 3D items (1.499.0)
+
+`<item3d material="diamond_sword" spin/>` (Java: `Node.item3d(stack, 36)`) draws the item as the game models
+it: a block with its sides, a sword with its edge, glint on enchanted items. It leans 25° towards the viewer so a
+block shows its top, and a spinning one glides a step every second, interpolated by the client (one transform a
+second on the wire). Blocks are drawn a quarter larger so blocks and items fill their box alike.
+
+A 3D item is shaded by the world's two fixed lights, and a screen faces the eye wherever it looks: left alone,
+the item would brighten and darken as the player moves the cursor. So while one is on screen the camera is held
+within 8° of where it faced when the screen opened: whenever yaw or pitch drifts further, the server turns it
+back with a relative teleport (the pitch recentre the screen always does past 40°, generalised). The screen
+itself never moves, so the snap is not seen, and the cursor keeps every bit of the turn. Verified in a 1.21.4
+client: sweeping the cursor across the whole screen left the camera within 6° of home and the items' shading
+steady; clicks land as before. Shading still depends on the compass direction the player faced when the screen
+opened (north and east light a block differently), and a very fast flick can show one frame of drift before the
+turn back arrives.
+
+Use `<item>` (a flat sprite, never shaded) for lists and icons; keep `<item3d>` for a showcase: the item a
+crate gives, a kit's weapon, a shop's featured item.
 
 ## Gallery and preview (1.497.0)
 

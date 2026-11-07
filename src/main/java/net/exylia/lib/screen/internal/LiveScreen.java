@@ -61,6 +61,8 @@ final class LiveScreen implements ScreenSession {
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
     private static final float RECENTRE_PITCH = 40f;
+    /** How far the camera may turn from where the screen opened while a 3D item is on screen, in degrees. */
+    private static final float CONE = 8f;
     /** The pointer, a pixel per character: {@code #} outline, {@code o} fill, {@code .} clear. */
     private static final String[] ARROW = {
             "#..........",
@@ -197,6 +199,11 @@ final class LiveScreen implements ScreenSession {
     private float lastYaw, lastPitch;
     private int recentreId;
     private float recentreBy;
+    private float recentreYaw;
+    /** Where the camera faced when the screen opened: with a 3D item on screen the camera is kept near it. */
+    private float homeYaw;
+    /** Whether a 3D item is on screen, which keeps the camera within {@link #CONE} of {@link #homeYaw}. */
+    private volatile boolean cone;
     private int heldSlot;
     private boolean shifting;
     private long shiftStamp;
@@ -238,7 +245,12 @@ final class LiveScreen implements ScreenSession {
     private record TextLook(double x, double y, double scale, int layer, Component text, int lines, int flags) {
     }
 
-    private record ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item) {
+    /** An item: flat ({@code solid} false), or a 3D model turned {@code angle} degrees about the upright. */
+    private record ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item,
+                            boolean solid, double angle) {
+        ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item) {
+            this(x, y, size, layer, item, false, 0);
+        }
     }
 
     LiveScreen(Plugin plugin, Player player, Screen screen) {
@@ -261,6 +273,7 @@ final class LiveScreen implements ScreenSession {
         Location eyes = player.getEyeLocation();
         this.origin = new Vector3d(eyes.getX(), eyes.getY(), eyes.getZ());
         this.lastYaw = eyes.getYaw();
+        this.homeYaw = lastYaw;
         this.lastPitch = eyes.getPitch();
         state.putAll(screen.state());
         this.spriteGlyphs = spritesFor(player);
@@ -978,10 +991,16 @@ final class LiveScreen implements ScreenSession {
                             && hoveredBox.holds(box.x() + box.w() / 2, box.y() + box.h() / 2);
                     double grow = lifted && node.hoverTransform() == null ? 1.15 : 1;
                     // Read from disk off this thread the first time; drawn on the redraw its arrival asks for.
-                    Pictures.Picture sprite = VanillaSprites.of(node.item(), tasks, this::redraw);
+                    Pictures.Picture sprite = node.solid() ? null : VanillaSprites.of(node.item(), tasks, this::redraw);
                     net.kyori.adventure.text.Component glyph = sprite != null && sprite != VanillaSprites.LOADING
                             ? spriteGlyph(node.item()) : null;
-                    if (sprite == VanillaSprites.LOADING) {
+                    if (node.solid()) {
+                        // <item3d>: the model itself, turning a step every second like a body.
+                        double angle = node.spin() == 0 ? 0 : System.currentTimeMillis() / 1000.0 * node.spin();
+                        turns |= node.spin() != 0;
+                        wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, top, node.item(), true, angle), xf));
+                        mine.add(key);
+                    } else if (sprite == VanillaSprites.LOADING) {
                         // Nothing yet, rather than the 3D item for a moment.
                     } else if (glyph != null) {
                         // A 1.21.11+ client draws the sprite itself: one display.
@@ -1185,7 +1204,8 @@ final class LiveScreen implements ScreenSession {
                 } else {
                     out.add(look(id, look, 0));
                 }
-            } else if (look instanceof TurnLook) {
+            } else if (look instanceof TurnLook || look instanceof ItemLook it && it.solid()
+                    && it.angle() != ((ItemLook) current.look()).angle() && sameGeometry(look, current.look())) {
                 out.add(look(id, look, GLIDE));
             } else if (animating && frame.animated().contains(key)) {
                 out.add(look(id, look, animStep));
@@ -1204,6 +1224,9 @@ final class LiveScreen implements ScreenSession {
         }
         shown = true;
         turning = frame.turns();
+        boolean holds = false;
+        for (Object look : wanted.values()) holds |= look instanceof ItemLook it && it.solid();
+        cone = holds;
         lastBoxes = frame.boxes();
         if (!out.isEmpty()) wire.send(out);
         later.forEach((delay, segments) -> tasks.runAtEntityLater(player, delay, () -> segments(segments)));
@@ -1374,7 +1397,8 @@ final class LiveScreen implements ScreenSession {
         double s = f.as();
         return switch (look) {
             case RectLook r -> new RectLook(f.ax(r.x()), f.ay(r.y()), r.w() * s, r.h() * s, r.layer(), r.argb());
-            case ItemLook it -> new ItemLook(f.ax(it.x()), f.ay(it.y()), it.size() * s, it.layer(), it.item());
+            case ItemLook it -> new ItemLook(f.ax(it.x()), f.ay(it.y()), it.size() * s, it.layer(), it.item(), it.solid(),
+                    it.angle());
             case ImageLook im -> new ImageLook(f.ax(im.x()), f.ay(im.y()), im.cell() * s, im.layer(), im.text(), im.rows(),
                     im.dx(), im.dy());
             case TurnLook t -> new TurnLook(f.ax(t.x()), f.ay(t.y()), t.cell() * s, t.layer(), t.text(), t.rows(), t.lx(),
@@ -1397,7 +1421,8 @@ final class LiveScreen implements ScreenSession {
             }
             case ItemLook it -> {
                 ItemLook q = (ItemLook) a;
-                yield new ItemLook(mix(q.x(), it.x(), f), mix(q.y(), it.y(), f), mix(q.size(), it.size(), f), it.layer(), it.item());
+                yield new ItemLook(mix(q.x(), it.x(), f), mix(q.y(), it.y(), f), mix(q.size(), it.size(), f), it.layer(), it.item(),
+                        it.solid(), it.angle());
             }
             case ImageLook im -> {
                 ImageLook q = (ImageLook) a;
@@ -1477,6 +1502,10 @@ final class LiveScreen implements ScreenSession {
 
     private PacketWrapper<?> item(int id, ItemLook look, int glide) {
         double k = drawn(look.layer());
+        if (look.solid()) {
+            return ScreenPackets.item3d(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
+                    look.item(), glide == 0 ? 0 : TURN_TICKS, look.angle());
+        }
         return ScreenPackets.item(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
                 look.item(), glide);
     }
@@ -1662,10 +1691,16 @@ final class LiveScreen implements ScreenSession {
             List<PacketWrapper<?>> out = new ArrayList<>();
             cursor(out, 1);
             moved = pointerMoved();
-            if (recentreId == 0 && Math.abs(pitch) > RECENTRE_PITCH) {
+            // The client turns the camera, the server turns it back: past RECENTRE_PITCH always, and with a 3D item on
+            // screen past CONE either way, so the world's fixed lights shade the item the same. The screen faces the
+            // eye whatever it looks at, so the snap is not seen.
+            float off = (float) ScreenMath.turn(homeYaw, yaw);
+            boolean held = cone;
+            if (recentreId == 0 && (Math.abs(pitch) > (held ? CONE : RECENTRE_PITCH) || held && Math.abs(off) > CONE)) {
                 recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
                 recentreBy = pitch;
-                out.add(ScreenPackets.recentre(recentreId, pitch));
+                recentreYaw = held ? off : 0;
+                out.add(ScreenPackets.recentre(recentreId, recentreYaw, pitch));
             }
             wire.send(out);
         }
@@ -1688,6 +1723,7 @@ final class LiveScreen implements ScreenSession {
         synchronized (input) {
             if (recentreId == 0 || teleportId != recentreId) return false;
             lastPitch -= recentreBy;
+            lastYaw -= recentreYaw;
             recentreId = 0;
             return true;
         }
