@@ -67,6 +67,25 @@ class ScreenWireTest {
         @Override public com.github.retrooper.packetevents.injector.ChannelInjector getInjector() { return null; }
     }
 
+    /**
+     * The client turns an item display half a turn before drawing it, which showed a shield's bare back (no banner),
+     * a head's hair and a block's underside. A screen's item carries the half turn back, so its front faces the
+     * viewer as in a slot.
+     */
+    @Test
+    void itemsFaceTheViewer() {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            Quaternion4f half = ScreenPackets.FACING_VIEWER;
+            assertEquals(List.of(0f, 1f, 0f, 0f), List.of(half.getX(), half.getY(), half.getZ(), half.getW()));
+            assertTrue(ScreenPackets.itemPose(0, 0, 0, 1, 0).stream().anyMatch(d -> d.getValue() == half),
+                    "the pose carries the half turn");
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
     @Test
     void framesSendOnlyWhatChanged() {
         var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();

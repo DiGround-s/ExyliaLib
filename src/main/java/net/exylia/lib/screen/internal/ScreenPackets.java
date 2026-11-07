@@ -33,6 +33,7 @@ import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -222,15 +223,30 @@ final class ScreenPackets extends PacketListenerAbstract {
      * Flattened along the view so a block's cube never reaches through the layers in front of or behind it.
      */
     static PacketWrapper<?> item(int id, double x, double y, double z, double size, ItemStack item, int glide) {
-        return new WrapperPlayServerEntityMetadata(id, List.of(
+        List<EntityData<?>> data = new ArrayList<>(itemPose(x, y, z, size, glide));
+        data.add(new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)));
+        data.add(new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI));
+        return new WrapperPlayServerEntityMetadata(id, data);
+    }
+
+    /**
+     * A half turn about the upright. The client turns every item display half a turn before drawing it, so without
+     * this the viewer sees an item's back: a shield's bare wood instead of its banner, a head's hair, a block's
+     * underside, a banner's pattern mirrored.
+     */
+    static final com.github.retrooper.packetevents.util.Quaternion4f FACING_VIEWER =
+            new com.github.retrooper.packetevents.util.Quaternion4f(0f, 1f, 0f, 0f);
+
+    /** Where and how big {@link #item} draws, without the item itself. */
+    static List<EntityData<?>> itemPose(double x, double y, double z, double size, int glide) {
+        return List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
+                new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION, FACING_VIEWER),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) (size * FLAT))),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
-                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
-                new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)),
-                new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI)));
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
     }
 
     /** How far a 3D item leans towards the viewer, degrees, so a block shows its top as it turns. */

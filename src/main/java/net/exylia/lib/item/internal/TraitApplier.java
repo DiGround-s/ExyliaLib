@@ -188,6 +188,11 @@ public final class TraitApplier {
         List<Pattern> layers = layers(design, resolve, problems);
         ItemMeta meta = item.getItemMeta();
         if (meta instanceof BannerMeta bannerMeta) {
+            // A shield's meta is a banner's too, plus the base colour a banner takes from its material.
+            if (meta instanceof org.bukkit.inventory.meta.ShieldMeta shield && design.baseColor() != null) {
+                DyeColor base = Registries.dye(resolve.apply(design.baseColor()));
+                if (base != null) shield.setBaseColor(base);
+            }
             bannerMeta.setPatterns(layers);
             item.setItemMeta(bannerMeta);
             return;
