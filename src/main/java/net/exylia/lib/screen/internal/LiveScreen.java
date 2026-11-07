@@ -661,6 +661,13 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    private final Map<String, net.exylia.lib.screen.ScreenScene> scenes = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    public net.exylia.lib.screen.@NotNull ScreenScene scene(@NotNull String id) {
+        return scenes.computeIfAbsent(id, name -> new net.exylia.lib.screen.ScreenScene(name, this::redraw));
+    }
+
     /** Runs the {@link Node#onHover} of a box the cursor has just come onto, on the viewer's thread. */
     private void entered(Layout.Placed under, String before) {
         if (under == null || under.key().equals(before) || under.node().onHover() == null) return;

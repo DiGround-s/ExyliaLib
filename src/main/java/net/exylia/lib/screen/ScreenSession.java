@@ -113,4 +113,16 @@ public interface ScreenSession {
     default boolean back() {
         return false;
     }
+
+    /**
+     * The sprite layer drawn by the {@code <canvas id="...">} of that id (or placed by a Java screen with
+     * {@link ScreenScene#node}): made empty the first time, kept for as long as the session. A game moves its
+     * sprites from Java and the client glides them. A session that cannot draw (a test double) answers a scene
+     * nothing shows.
+     *
+     * @since 1.500.0
+     */
+    default @NotNull ScreenScene scene(@NotNull String id) {
+        return new ScreenScene(id, () -> { });
+    }
 }

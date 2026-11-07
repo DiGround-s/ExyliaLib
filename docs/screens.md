@@ -229,6 +229,7 @@ that is not well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
+| `canvas` (1.500.0) | `id="table"`: a sprite layer the plugin moves from Java (`session.scene("table")`), sized by CSS `width`/`height`. See [Scenes and games](#scenes-and-games-15000) |
 | `item3d` (1.499.0) | The item's real 3D model, lit, with enchantment glint: `material=`/`head=`/`texture=`/`url=` as `<item>`; `spin` turns it slowly about its upright (36° a second, or `spin="72"`). See [3D items](#3d-items-14990) |
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
@@ -598,6 +599,46 @@ turn back arrives.
 
 Use `<item>` (a flat sprite, never shaded) for lists and icons; keep `<item3d>` for a showcase: the item a
 crate gives, a kit's weapon, a shop's featured item.
+
+## Scenes and games (1.500.0)
+
+Solo and house games (a coin, dice, a wheel) are drawn on a screen with a **scene**: the markup holds a
+`<canvas id="table"/>` where the game goes (its size from CSS), and the plugin moves sprites on it from Java. The
+score, the stake and the buttons stay markup, so an owner restyles everything but the motion.
+
+```java
+ScreenScene table = session.scene("table");
+table.sprite("coin").item(new ItemStack(Material.SUNFLOWER)).size(36, 36).at(92, 76);
+table.sprite("coin").move(92, 10, 8, Motion.Ease.OUT);          // up; the client glides it
+table.sprite("coin").scale(0.2, 2, Motion.Ease.LINEAR);          // to its edge, mid-turn
+table.sprite("shadow").rect(28, 3, "{letters_black}").at(96, 114);
+table.remove("coin");
+```
+
+| `Sprite` | Does |
+| --- | --- |
+| `item(stack)`, `item3d(stack, spin)` | an item's flat sprite, or its lit 3D model (see [3D items](#3d-items-14990)) |
+| `text("{highlight}x2")`, `image(w, h, argb)`, `rect(w, h, colour)` | words, a picture, a plain box |
+| `content(() -> node)` | any node, built again on each redraw |
+| `size(w, h)` | its box in pixels (`-1` for its content's own) |
+| `at(x, y)`, `move(x, y, ticks, ease)` | its top left in canvas pixels, at once or gliding |
+| `scale(s, ticks, ease)` | about its centre; 0 hides it |
+| `layer(z)`, `remove()` | above or below its siblings (-4 to 8); off the scene |
+
+- Sprites persist: they stay put until moved, unlike a render function's nodes. Every change redraws the screen
+  once (changes in the same tick are drawn together) and only changed sprites go out, one transform each.
+- Motion is the client's interpolation, so it is smooth at any TPS. One sprite has one glide at a time: a `move`
+  and a `scale` set together share the last call's ticks and easing. For a curve (a toss), move it a step every
+  two ticks along the curve; an ease is split into linear segments as `transition` does.
+- A screen has one viewer, so hidden information (the next card, the result before it lands) never leaves the
+  server early. Decide the outcome first; the scene only shows it.
+- Cost: what each sprite draws (an item 1 display, a picture 4, a rect 1-2), within the screen's display budget.
+- A screen built in Java places a scene with `session.scene("table").node(220, 120)`. `ScreenScene` is safe from
+  any thread; a session that cannot draw (a test double) answers a scene nothing shows.
+
+ExyliaCasino's coinflip is the reference: for a player whose menu style is SCREEN the toss is a sprite on
+`screens/coinflip.html`'s canvas (`modules/coinflip/CoinScreen.java`), and table games with seats and watchers
+keep drawing in the world.
 
 ## Gallery and preview (1.497.0)
 

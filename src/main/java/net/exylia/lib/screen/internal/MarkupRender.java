@@ -505,6 +505,10 @@ public final class MarkupRender {
         } else if (el.tag().equals("item")) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+        } else if (el.tag().equals("canvas")) {
+            // <canvas id="table">: the session's scene of that id, sized by CSS (1.500.0).
+            String id = el.attr("id") == null ? "canvas" : el.attr("id");
+            node = session.scene(id).node(px(style.get("width"), 160), px(style.get("height"), 90));
         } else if (el.tag().equals("item3d")) {
             // <item3d material="..." spin="36">: the real model, turning; a bare spin turns 36 degrees a second.
             org.bukkit.inventory.ItemStack stack = item(el, scope);

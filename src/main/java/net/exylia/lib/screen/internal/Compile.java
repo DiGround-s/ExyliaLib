@@ -28,7 +28,7 @@ public final class Compile {
     /** Tags the render draws, beyond the screen's templates. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "progress", "modal", "img", "search",
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "canvas", "progress", "modal", "img", "search",
             // Structure (1.494.0): drawn as their children, never as a box of their own.
             "fragment", "for", "switch", "case", "default", "else");
 
