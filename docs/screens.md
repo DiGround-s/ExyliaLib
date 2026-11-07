@@ -639,7 +639,9 @@ on the wire than the bare body (the same 96 displays turning).
 `<item3d material="diamond_sword" spin/>` (Java: `Node.item3d(stack, 36)`) draws the item as the game models
 it: a block with its sides, a sword with its edge, glint on enchanted items. It leans 25° towards the viewer so a
 block shows its top, and a spinning one glides a step every second, interpolated by the client (one transform a
-second on the wire). Blocks are drawn a quarter larger so blocks and items fill their box alike.
+second on the wire). Every model fits its box as it turns (1.507.1): a block cube at half the box, so its corners
+reach the edge, and a flat item (a sword, and block items drawn flat such as cake, saplings and doors) the box
+across. Being 3D, an item off the screen's centre leans a little past its box towards the edge it is near.
 
 A 3D item is shaded by the world's two fixed lights, and a screen faces the eye wherever it looks: left alone,
 the item would brighten and darken as the player moves the cursor. So while one is on screen the camera is held

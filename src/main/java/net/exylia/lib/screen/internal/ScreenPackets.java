@@ -261,8 +261,8 @@ final class ScreenPackets extends PacketListenerAbstract {
                                    double angle) {
         double a = Math.toRadians(angle) / 2;
         double t = Math.toRadians(ITEM3D_TILT) / 2;
-        // The item-frame view draws a block at half an item's size; leaned and turning it reaches its corners at 1.25.
-        if (item.getType().isBlock()) size *= 1.25;
+        // No size-up for blocks: the item-frame view already draws a block cube at half the box, so turned and leaned
+        // its corners reach the box's edge, as a flat item's do. Cake, saplings and doors are flat items, not cubes.
         return new WrapperPlayServerEntityMetadata(id, List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
