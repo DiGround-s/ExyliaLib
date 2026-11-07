@@ -324,6 +324,18 @@ public final class ScreenMarkup {
         return List.copyOf(out);
     }
 
+    /**
+     * A word of this screen's {@code lang/<code>/screens/<id>.yml} (the server's language, then English), as
+     * {@code t="key"} reads it, or {@code fallback} when neither has it: words for Java-made text on the screen,
+     * such as {@link ScreenSession#confirm} labels.
+     *
+     * @since 1.497.0
+     */
+    public @NotNull String word(@NotNull String key, @NotNull String fallback) {
+        String word = compiled.words().apply(key);
+        return word == null ? fallback : word;
+    }
+
     private boolean known(String action) {
         if (BUILT_IN.contains(action) || bindings.actions().containsKey(action) || action.contains("%")
                 || action.contains("${")) {
@@ -375,6 +387,26 @@ public final class ScreenMarkup {
         if ("true".equalsIgnoreCase(root.attr("wheel")) || "".equals(root.attr("wheel"))) screen.wheel(true);
         String keys = root.attr("keys");
         if (keys != null && keys.trim().equalsIgnoreCase("navigate")) screen.navigate(true);
+        String scene = root.attr("scene");
+        Path folder = images != null ? images : compiled.images();
+        if (scene != null && !scene.isBlank()) {
+            if (folder == null) {
+                problems.add(name + ": <screen scene> needs markup read with ScreenMarkup.load or given images(dir)");
+            } else {
+                try {
+                    screen.scene(net.exylia.lib.screen.internal.Pictures.file(folder, scene.trim()).node());
+                } catch (IOException failure) {
+                    problems.add(name + ": <screen scene=\"" + scene + "\">: " + failure.getMessage());
+                }
+            }
+        }
+        if (root.attr("parallax") != null) {
+            try {
+                screen.parallax(Double.parseDouble(root.attr("parallax").replace("px", "").trim()));
+            } catch (NumberFormatException bad) {
+                problems.add(name + ": <screen parallax> is a number of pixels, not " + root.attr("parallax"));
+            }
+        }
         return screen;
     }
 

@@ -131,6 +131,17 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void anEmptyFromATemplateIsTheEmptyNotARow() {
+        ScreenMarkup markup = ScreenMarkup.parse("e", """
+                <screen><template name="nothing" props="title"><empty><text>${title}</text></empty></template>
+                <list source="kits"><text>%kit_name%</text><nothing title="0000"/></list></screen>""");
+        markup.source("kits", s -> List.of(Map.of("kit_name", "a")));
+        assertEquals(List.of("a"), texts(new Fake(markup.screen()).render()));
+        markup.source("kits", s -> List.of());
+        assertEquals(List.of("0000"), texts(new Fake(markup.screen()).render()));
+    }
+
+    @Test
     void sheetsCascadeBySpecificityThenOrder() {
         ScreenMarkup markup = ScreenMarkup.parse("css", """
                 <screen><panel class="hero"><card id="c" selected="%on%">1</card></panel></screen>""",

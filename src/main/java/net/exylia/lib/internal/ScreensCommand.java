@@ -3,7 +3,13 @@ package net.exylia.lib.internal;
 import net.exylia.lib.screen.ScreenSet;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.screen.ScreenMarkup;
+import net.exylia.lib.screen.Screens;
+import net.exylia.lib.ui.UiEntry;
+import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import revxrsal.commands.annotation.Command;
 import revxrsal.commands.annotation.Optional;
@@ -15,7 +21,8 @@ import java.util.List;
 
 /**
  * {@code /exylialib screens check|reload [plugin]}: every plugin's screen files compiled, with what is wrong in them
- * by file, line and column, or read again after an edit.
+ * by file, line and column, or read again after an edit; {@code gallery} opens every element on one screen, and
+ * {@code preview <plugin> <id>} opens any plugin's screen as it is now.
  */
 @Command("exylialib screens")
 @CommandPermission("exylialib.admin")
@@ -54,6 +61,55 @@ public final class ScreensCommand {
         }
         Text.of("{primary}&lSCREENS\n" + Phrases.tr("{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}", screens))
                 .send(sender);
+    }
+
+    /** Opens the gallery: every element, the component library and the motion (plugins/ExyliaLib/gallery). */
+    @Subcommand("gallery")
+    public void gallery(@NotNull Player player) {
+        ScreenMarkup gallery = gallery();
+        gallery.problems().forEach(problem -> Text.of("{warning}" + Text.escape(problem)).send(player));
+        Screens.of(JavaPlugin.getProvidingPlugin(ScreensCommand.class)).open(player, gallery.screen());
+    }
+
+    /** Opens a plugin's screen by id, as its files are now, with no state: for authors checking an edit. */
+    @Subcommand("preview")
+    public void preview(@NotNull Player player, @revxrsal.commands.annotation.Single String plugin,
+                        @revxrsal.commands.annotation.Single String id) {
+        for (ScreenSet set : sets(plugin)) {
+            ScreenMarkup markup = set.markups().get(id);
+            if (markup == null) continue;
+            Screens.of(set.plugin()).open(player, markup.screen());
+            return;
+        }
+        Text.of("{primary}&lSCREENS\n" + Phrases.tr("{letters_black}▎ {error}No screen {0} in {1}", Text.escape(id),
+                Text.escape(plugin))).send(player);
+    }
+
+    private static final Material[] ITEMS = {Material.DIAMOND_SWORD, Material.IRON_AXE, Material.BOW,
+            Material.FISHING_ROD, Material.SHEARS, Material.DIAMOND_PICKAXE, Material.GOLDEN_APPLE, Material.BREAD,
+            Material.COOKED_BEEF, Material.APPLE, Material.CAKE, Material.MUSHROOM_STEW, Material.ENDER_PEARL,
+            Material.TOTEM_OF_UNDYING, Material.SHIELD, Material.ELYTRA};
+
+    /** The gallery's markup, its demo list bound once. */
+    static ScreenMarkup gallery() {
+        JavaPlugin lib = JavaPlugin.getProvidingPlugin(ScreensCommand.class);
+        ScreenMarkup markup = Screens.of(lib).files(ScreensCommand.class, "gallery").markup("gallery");
+        return markup
+                .text("viewer", session -> session.viewer().getName())
+                .rows("items", session -> {
+                    String kind = session.state("kind", "all");
+                    String q = session.state("q", "").toLowerCase(java.util.Locale.ROOT);
+                    List<UiEntry> rows = new ArrayList<>();
+                    for (Material item : ITEMS) {
+                        boolean food = item.isEdible() || item == Material.CAKE;
+                        if (kind.equals("food") != food && !kind.equals("all")) continue;
+                        String name = item.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ');
+                        if (!q.isEmpty() && !name.contains(q)) continue;
+                        rows.add(UiEntry.of(item).with("item_id", item.name().toLowerCase(java.util.Locale.ROOT))
+                                .with("item_name", name).build());
+                    }
+                    return rows;
+                });
     }
 
     private static List<ScreenSet> sets(String plugin) {

@@ -1,0 +1,22 @@
+/* The gallery's look: palette tokens only. */
+.gallery { width: 380px; height: 205px; gap: 6px; background: linear-gradient(to bottom, {primary}1c, {primary}0a); }
+.top { align-items: center; }
+.title { gap: 1px; }
+.top tab { padding: 4px 8px; }
+.page { flex-grow: 1; gap: 6px; }
+.pane { background: {letters_black}0c; padding: 6px; gap: 4px; }
+.grow { flex-grow: 1; }
+.line { flex-direction: row; align-items: center; gap: 4px; }
+.bar { width: 70px; }
+grid { flex-grow: 1; }
+card { flex-grow: 1; }
+.thumb { width: 32px; height: 18px; }
+.face { width: 16px; height: 16px; }
+.body { width: 12px; height: 24px; }
+.swatch { height: 26px; padding: 4px; justify-content: center; align-items: center; }
+.grad-v { background: linear-gradient(to bottom, {primary}, {primary}20); }
+.grad-h { background: linear-gradient(to right, {info}80, {primary}80, {accent}80); }
+.picture { background: {primary}20; background-image: url(img/stars.png); }
+.lift { padding: 8px; }
+.live { padding: 8px; animation: pulse 40t ease-in-out infinite; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }

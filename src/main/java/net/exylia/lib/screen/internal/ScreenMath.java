@@ -41,6 +41,73 @@ public final class ScreenMath {
         return fallback;
     }
 
+    /**
+     * A {@code linear-gradient(...)}: its colours from the start side to the end, spread evenly; {@code vertical}
+     * when it runs top to bottom (or bottom to top, with the colours reversed).
+     */
+    public record Gradient(boolean vertical, int[] stops) {
+
+        /** The colour {@code t} of the way along (0 to 1), channels and alpha mixed straight. */
+        public int at(double t) {
+            if (stops.length == 1) return stops[0];
+            double at = clamp(t, 0, 1) * (stops.length - 1);
+            int i = Math.min(stops.length - 2, (int) at);
+            double f = at - i;
+            int a = stops[i], b = stops[i + 1];
+            int alpha = (int) Math.round((a >>> 24) + ((b >>> 24) - (a >>> 24)) * f);
+            return alpha << 24 | (blend(a, b, f) & 0xFFFFFF);
+        }
+    }
+
+    /**
+     * {@code linear-gradient([to bottom|to top|to right|to left|<n>deg,] colour, colour...)}, or {@code null} when
+     * {@code value} is not one or a colour does not read. Angles turn to the nearest side (180deg is to bottom).
+     */
+    public static Gradient gradient(String value) {
+        if (value == null) return null;
+        String v = value.trim();
+        if (!v.toLowerCase(java.util.Locale.ROOT).startsWith("linear-gradient(") || !v.endsWith(")")) return null;
+        String[] parts = v.substring(16, v.length() - 1).split(",");
+        int from = 0;
+        String side = "bottom";
+        String first = parts[0].trim().toLowerCase(java.util.Locale.ROOT);
+        if (first.startsWith("to ")) {
+            side = first.substring(3).trim();
+            from = 1;
+        } else if (first.endsWith("deg")) {
+            try {
+                double deg = ((Double.parseDouble(first.substring(0, first.length() - 3).trim()) % 360) + 360) % 360;
+                side = deg < 45 || deg >= 315 ? "top" : deg < 135 ? "right" : deg < 225 ? "bottom" : "left";
+            } catch (NumberFormatException bad) {
+                return null;
+            }
+            from = 1;
+        }
+        int count = parts.length - from;
+        if (count < 1) return null;
+        int[] stops = new int[count];
+        for (int i = 0; i < count; i++) {
+            int c = argb(parts[from + i], 1);
+            if (c == 1) return null;
+            stops[i] = c;
+        }
+        boolean reverse = side.equals("top") || side.equals("left");
+        if (!side.equals("bottom") && !side.equals("right") && !reverse) return null;
+        if (reverse) {
+            for (int i = 0; i < count / 2; i++) {
+                int t = stops[i];
+                stops[i] = stops[count - 1 - i];
+                stops[count - 1 - i] = t;
+            }
+        }
+        return new Gradient(side.equals("bottom") || side.equals("top"), stops);
+    }
+
+    /** How many bands a gradient {@code length} pixels long is drawn as: one each five pixels, 2 to 12. */
+    public static int bands(double length) {
+        return (int) clamp(Math.round(length / 5), 2, 12);
+    }
+
     /** {@code top} laid over {@code bottom} (treated as opaque): the opaque colour the eye sees. */
     public static int over(int top, int bottom) {
         int a = top >>> 24;

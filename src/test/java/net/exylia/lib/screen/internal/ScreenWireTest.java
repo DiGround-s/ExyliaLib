@@ -252,6 +252,58 @@ class ScreenWireTest {
                 + "\n[screen motion] dialog leave " + leave + "\n[screen motion] toast " + toast);
     }
 
+    @Test
+    void backgroundsStayWithinBudget() {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            backgrounds();
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
+    private void backgrounds() {
+        FakeServer.install();
+        FakeServer.reset();
+        FakePlayer viewer = new FakePlayer("Painter").at(new Location(null, 0, 64, 0));
+        viewer.inventory(Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{PlayerInventory.class},
+                (self, method, args) -> FakeServer.defaultValue(method.getReturnType())));
+        int[] stars = new int[96 * 54];
+        for (int i = 0; i < stars.length; i += 87) stars[i] = 0xFF6C5A8A; // about 60 stars, as the gallery's
+        int[] tile = new int[16 * 16];
+        java.util.Arrays.fill(tile, 0xFF8A51C4);
+        Screen screen = Screen.of(session -> net.exylia.lib.screen.Node.column(
+                                net.exylia.lib.screen.Node.text("Gradient").padding(6),
+                                net.exylia.lib.screen.Node.box().size(60, 30).backgroundImage(
+                                        net.exylia.lib.screen.Node.image(16, 16, tile)))
+                        .size(300, 180).background("linear-gradient(to bottom, {primary}30, {primary}08)"))
+                .backdrop("linear-gradient(to bottom, {primary}26, {info}0c)")
+                .scene(net.exylia.lib.screen.Node.image(96, 54, stars)).parallax(3);
+        AtomicInteger ids = new AtomicInteger(1000);
+        ScreenPackets.Wire wire = new ScreenPackets.Wire(sent::add);
+        LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenPaint"), viewer.player(), screen, wire,
+                ids::incrementAndGet);
+        live.start();
+        FakeServer.tick(8);
+        Stats open = take();
+        // Hitbox, up to 12 backdrop bands, 4 scene and 4 cursor copies, up to 12 panel bands, 4 picture copies, text.
+        assertTrue(open.packets < 120, "a painted screen opens in a bounded number of packets: " + open);
+        // A 96 x 54 scene is four copies of 54 lines of blocks and gaps: the bulk of this, and sent once.
+        assertTrue(open.bytes < 100_000, "and a sparse scene stays within a chunk or two, sent once: " + open);
+        FakeServer.tick(40);
+        assertEquals(0, take().packets, "and sends nothing while idle");
+
+        live.turned(0, 0);
+        take();
+        live.turned(2, 1);
+        Stats move = take();
+        assertEquals(8, move.packets, "a move with parallax: the arrow's and the scene's four copies: " + move);
+        assertEquals(Set.of(8, 9, 11), move.indices, "translation only: " + move);
+        live.close();
+        System.out.println("[screen paint] open " + open + "\n[screen paint] parallax move " + move);
+    }
+
     private record Stats(int frames, int packets, int bytes, int rawPackets, int rawBytes, Set<Integer> indices) {
         @Override
         public String toString() {

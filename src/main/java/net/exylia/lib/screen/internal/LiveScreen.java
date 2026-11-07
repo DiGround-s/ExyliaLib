@@ -99,7 +99,12 @@ final class LiveScreen implements ScreenSession {
     private final double unit;
     // Given out again on every show, after the world is sealed: only ids newer than the seal are the screen's.
     private volatile int hitboxId;
-    private volatile int backdropId;
+    private volatile int[] backdropIds = new int[0];
+    /** The scene's four copies, and how it is drawn (guarded by {@link #input}); {@code sceneText} null for none. */
+    private final int[] sceneIds = new int[4];
+    private Component sceneText;
+    private int sceneRows;
+    private double sceneCell;
     private final int[] cursorIds = new int[4];
     private final int serverSlot;
     private final ScreenPackets.Wire wire;
@@ -121,6 +126,8 @@ final class LiveScreen implements ScreenSession {
     private final java.util.concurrent.atomic.AtomicBoolean dirty = new java.util.concurrent.atomic.AtomicBoolean();
     /** A tooltip's panel colour, opaque, and its depth: over everything, a dialog included. */
     private static final String TIP_BACKGROUND = "#120e1a";
+    /** A toast's panel: the primary colour over the black it is mixed on (toasts stand over everything). */
+    private static final String TOAST_BACKGROUND = "{primary}30";
     private static final int TIP_DEPTH = Layout.OVERLAY + 8;
 
     /** A hover change is queued for the viewer's thread. */
@@ -301,12 +308,23 @@ final class LiveScreen implements ScreenSession {
     /** On the viewer's thread, once the world is sealed: the screen's own entities, then its first render. */
     void start() {
         hitboxId = ids.getAsInt();
-        backdropId = ids.getAsInt();
         for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ids.getAsInt();
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
-        out.add(ScreenPackets.spawnDisplay(backdropId, origin));
-        out.add(rect(backdropId, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 0,
-                ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000)), 0));
+        List<RectLook> back = backdropLooks();
+        int[] backIds = new int[back.size()];
+        for (int i = 0; i < backIds.length; i++) {
+            backIds[i] = ids.getAsInt();
+            out.add(ScreenPackets.spawnDisplay(backIds[i], origin));
+            out.add(rect(backIds[i], back.get(i), 0));
+        }
+        backdropIds = backIds;
+        Node scene = screen.scene();
+        if (scene != null) {
+            for (int i = 0; i < sceneIds.length; i++) {
+                sceneIds[i] = ids.getAsInt();
+                out.add(ScreenPackets.spawnDisplay(sceneIds[i], origin));
+            }
+        }
         for (int id : cursorIds) out.add(ScreenPackets.spawnDisplay(id, origin));
         synchronized (this) {
             // Drawn afresh: nothing on the client is the last render's any more.
@@ -314,7 +332,9 @@ final class LiveScreen implements ScreenSession {
             lastBoxes = Map.of();
             refreshPeriod = 20;
             synchronized (input) {
+                if (scene != null) sceneSetup(scene);
                 cursor(out, 0);
+                if (scene != null && screen.parallax() <= 0) scene(out, 0);
             }
         }
         wire.send(out);
@@ -339,7 +359,8 @@ final class LiveScreen implements ScreenSession {
         ScreenRuntime.closed(this);
         if (ticker != null) ticker.cancel();
         ids.add(hitboxId);
-        ids.add(backdropId);
+        for (int id : backdropIds) ids.add(id);
+        if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
         for (int id : cursorIds) ids.add(id);
         if (player.isOnline()) {
             wire.send(List.of(
@@ -378,7 +399,8 @@ final class LiveScreen implements ScreenSession {
         }
         if (ticker != null) ticker.cancel();
         ids.add(hitboxId);
-        ids.add(backdropId);
+        for (int id : backdropIds) ids.add(id);
+        if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
         for (int id : cursorIds) ids.add(id);
         wire.send(List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
         Packets.of(plugin).visibility().seal(player, null);
@@ -638,7 +660,7 @@ final class LiveScreen implements ScreenSession {
     private void addToasts(List<Layout.Placed> laid) {
         double y = 6;
         for (Toast t : toasts) {
-            Node note = Node.text(t.text()).padding(5, 12).background("#1f1830").outline(tone(t.tone()), 1)
+            Node note = Node.text(t.text()).padding(5, 12).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
                     .enter(Motion.Tween.of(Motion.Transform.translate(0, -8), 5, Motion.Ease.OUT))
                     .leave(Motion.Tween.of(new Motion.Transform(0, -6, 0.96), 3, Motion.Ease.IN));
             double[] size = Layout.measure(note);
@@ -646,6 +668,31 @@ final class LiveScreen implements ScreenSession {
                     Layout.OVERLAY + 20));
             y += size[1] + 3;
         }
+    }
+
+    /**
+     * A gradient over a rect centred on {@code x}, {@code y}, {@code w} by {@code h} units: bands one each five
+     * pixels of {@code length}, each mixed over {@code base}; neighbours of the same colour are one band.
+     */
+    static List<RectLook> bands(ScreenMath.Gradient gradient, int base, double x, double y, double w, double h,
+                                int layer, double length) {
+        int n = ScreenMath.bands(length);
+        List<RectLook> out = new ArrayList<>(n);
+        int start = 0;
+        for (int i = 1; i <= n; i++) {
+            int colour = ScreenMath.over(gradient.at((start + 0.5) / n), base);
+            if (i < n && ScreenMath.over(gradient.at((i + 0.5) / n), base) == colour) continue;
+            // Bands [start, i) of n, along the gradient's axis (y up in units, so the top band has the larger y).
+            // Each band reaches a little into the next: edge to edge, the client leaves a hairline crack between them.
+            double from = (double) start / n, to = Math.min(1, (i + 0.2) / n);
+            if (gradient.vertical()) {
+                out.add(new RectLook(x, y + h / 2 - h * (from + to) / 2, w, h * (to - from), layer, colour));
+            } else {
+                out.add(new RectLook(x - w / 2 + w * (from + to) / 2, y, w * (to - from), h, layer, colour));
+            }
+            start = i;
+        }
+        return out;
     }
 
     private static String tone(String tone) {
@@ -661,15 +708,15 @@ final class LiveScreen implements ScreenSession {
     /** The tree with the open confirm dialog over it, the last overlay, so it is the one drawn. */
     private Node withConfirm(Node root, Confirm ask) {
         String fill = ask.dangerous() ? "{error}" : "{primary}";
-        Node yes = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.yes() == null ? "Confirm" : ask.yes())).build())
+        Node yes = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.yes() == null ? net.exylia.lib.text.Phrases.tr("Confirm") : ask.yes())).build())
                 .padding(4, 12).background(fill).hover(ask.dangerous() ? "{error_light}" : "{secondary}")
                 .active(null, Motion.Transform.scale(0.95)).id("~confirm.yes").onClick(event -> answer(true));
-        Node no = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.no() == null ? "Cancel" : ask.no())).build())
+        Node no = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.no() == null ? net.exylia.lib.text.Phrases.tr("Cancel") : ask.no())).build())
                 .padding(4, 12).background("{letters_black}20").hover("{primary}50")
                 .active(null, Motion.Transform.scale(0.95)).id("~confirm.no").onClick(event -> answer(false));
         Node dialog = Node.column(Node.text(ask.question()).wrap(200).textAlign(Node.Align.CENTER),
                         Node.row(no, yes).gap(6))
-                .id("~confirm").padding(12, 16).gap(10).align(Node.Align.CENTER).background("#1a1424")
+                .id("~confirm").padding(12, 16).gap(10).align(Node.Align.CENTER).background("{primary}20")
                 .outline(ask.dangerous() ? "{error}80" : "{primary}60", 1).overlay(true).onDismiss(session -> answer(false))
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.9), 5, Motion.Ease.BACK))
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.94), 3, Motion.Ease.IN));
@@ -822,7 +869,7 @@ final class LiveScreen implements ScreenSession {
         // so overlapping see-through rects blend in no fixed order. Each colour is mixed over the solid colour
         // of what holds it instead, and only opaque rects are sent. Boxes come parents first, depth by depth.
         int[] beneath = new int[64];
-        int backdrop = ScreenMath.over(ScreenMath.argb(screen.backdrop(), 0xFF0B0912), 0xFF000000);
+        int backdrop = backdropBase();
         long phaseAt = animating ? animClock + animStep : animClock;
         IdentityHashMap<Layout.Placed, Cx> cx = contexts(placed, phaseAt, boxes);
         List<Layout.Placed> tip = tooltip();
@@ -863,7 +910,9 @@ final class LiveScreen implements ScreenSession {
                         : over && node.hover() != null ? node.hover() : node.background();
                 int depth = Math.min(Math.max(0, box.depth()), beneath.length - 1);
                 int base = depth == 0 ? backdrop : beneath[depth - 1];
-                int argb = ScreenMath.argb(colour, 0);
+                // A gradient is drawn as bands; what it holds is mixed over its middle colour.
+                ScreenMath.Gradient gradient = ScreenMath.gradient(colour);
+                int argb = gradient != null ? gradient.at(0.5) : ScreenMath.argb(colour, 0);
                 argb = argb == 0 ? 0 : ScreenMath.over(argb, base);
                 beneath[depth] = argb == 0 ? base : argb;
                 double cxu = centreX(box);
@@ -881,8 +930,31 @@ final class LiveScreen implements ScreenSession {
                 if (argb != 0 && box.w() > 0 && box.h() > 0) {
                     String key = box.key() + "#bg";
                     double rise = rises ? 2 * unit : 0;
-                    wanted.put(key, xf(new RectLook(cxu, cyu, box.w() * unit + rise, box.h() * unit + rise, layer, argb), xf));
-                    mine.add(key);
+                    if (gradient != null) {
+                        for (RectLook band : bands(gradient, base, cxu, cyu, box.w() * unit + rise, box.h() * unit + rise,
+                                layer, gradient.vertical() ? box.h() : box.w())) {
+                            String bandKey = mine.contains(key) ? key + mine.size() : key;
+                            wanted.put(bandKey, xf(band, xf));
+                            mine.add(bandKey);
+                        }
+                    } else {
+                        wanted.put(key, xf(new RectLook(cxu, cyu, box.w() * unit + rise, box.h() * unit + rise, layer, argb), xf));
+                        mine.add(key);
+                    }
+                }
+                // A background picture sits over the fill; the box's own content then goes a layer nearer.
+                Node backImage = node.backgroundImage();
+                int top = backImage == null ? layer + 1 : layer + 2;
+                if (backImage != null && box.w() > 0 && box.h() > 0) {
+                    int pw = backImage.pixelWidth(), ph = backImage.pixelHeight();
+                    double cell = Math.max(box.w() / pw, box.h() / ph);
+                    int cols = Math.max(1, Math.min(pw, (int) Math.floor(box.w() / cell + 1e-6)));
+                    int rows = Math.max(1, Math.min(ph, (int) Math.floor(box.h() / cell + 1e-6)));
+                    int x0 = (pw - cols) / 2, y0 = (ph - rows) / 2;
+                    int[] all = backImage.pixels(), cut = new int[cols * rows];
+                    for (int y = 0; y < rows; y++) System.arraycopy(all, (y0 + y) * pw + x0, cut, y * cols, cols);
+                    mine.addAll(pictureLooks(box.key() + "#bi", cxu, cyu, cell, layer + 1,
+                            Pictures.glyphs(cut, cols, rows, beneath[depth]), rows, wanted, xf));
                 }
                 // An item is a solid model the dimmer cannot shade, so under an open overlay it is left out.
                 if (node.item() != null && (overlayFrom < 0 || box.depth() >= Layout.OVERLAY - 1)) {
@@ -905,14 +977,14 @@ final class LiveScreen implements ScreenSession {
                         // Nothing yet, rather than the 3D item for a moment.
                     } else if (glyph != null) {
                         // A 1.21.11+ client draws the sprite itself: one display.
-                        wanted.put(key, xf(new TextLook(ix, iy, side * grow / 8, layer + 1, glyph, 1, 0), xf));
+                        wanted.put(key, xf(new TextLook(ix, iy, side * grow / 8, top, glyph, 1, 0), xf));
                         mine.add(key);
                     } else if (sprite == null || lod >= 3) {
-                        wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, layer + 1, node.item()), xf));
+                        wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, top, node.item()), xf));
                         mine.add(key);
                     } else {
                         double cell = side * grow / Math.max(sprite.width(), sprite.height());
-                        mine.addAll(pictureLooks(key, ix, iy, cell, layer + 1, Pictures.glyphs(sprite.argb(), sprite.width(),
+                        mine.addAll(pictureLooks(key, ix, iy, cell, top, Pictures.glyphs(sprite.argb(), sprite.width(),
                                 sprite.height(), beneath[depth]), sprite.height(), wanted, xf));
                     }
                 }
@@ -935,7 +1007,7 @@ final class LiveScreen implements ScreenSession {
                                 face.picture().height(), 0);
                         for (int copy = 0; copy < 4; copy++) {
                             String key = box.key() + "#tt" + f + "." + copy;
-                            wanted.put(key, xf(new TurnLook(mx, my, cell * unit, layer + 1, text, face.picture().height(),
+                            wanted.put(key, xf(new TurnLook(mx, my, cell * unit, top, text, face.picture().height(),
                                     face.x(), face.y(), face.z(), face.yaw(), turn, (copy & 1) * gapX, (copy >> 1) * gapY), xf));
                             mine.add(key);
                         }
@@ -947,7 +1019,7 @@ final class LiveScreen implements ScreenSession {
                     if (cell > 0) {
                         double ix = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
                         double iy = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
-                        mine.addAll(pictureLooks(box.key() + "#im", ix, iy, cell, layer + 1,
+                        mine.addAll(pictureLooks(box.key() + "#im", ix, iy, cell, top,
                                 Pictures.glyphs(node.pixels(), node.pixelWidth(), node.pixelHeight(), beneath[depth]),
                                 node.pixelHeight(), wanted, xf));
                     }
@@ -977,7 +1049,7 @@ final class LiveScreen implements ScreenSession {
                         default -> 0x08;
                     } : 0);
                     String key = box.key() + "#t";
-                    wanted.put(key, xf(new TextLook(tx, ty, node.scale() * fit, layer + 1, words, lines, flags), xf));
+                    wanted.put(key, xf(new TextLook(tx, ty, node.scale() * fit, top, words, lines, flags), xf));
                     mine.add(key);
                 }
             }
@@ -1446,6 +1518,69 @@ final class LiveScreen implements ScreenSession {
                 t.lines(), (byte) t.flags());
     }
 
+    /** How much of the layout area a 16:9 window shows around it, each way: where scenes and backdrops are drawn. */
+    private static final double VIEW = 1.35;
+    private static final int BACK_LAYER = -2, SCENE_LAYER = -1;
+
+    /** The backdrop's solid colour, or its gradient's middle: what the root box is mixed over. */
+    private int backdropBase() {
+        ScreenMath.Gradient gradient = ScreenMath.gradient(screen.backdrop());
+        return ScreenMath.over(gradient != null ? gradient.at(0.5) : ScreenMath.argb(screen.backdrop(), 0xFF0B0912),
+                0xFF000000);
+    }
+
+    /** The backdrop: one rect past every edge of the view, or a gradient's bands over the view, the outer two stretched. */
+    private List<RectLook> backdropLooks() {
+        ScreenMath.Gradient gradient = ScreenMath.gradient(screen.backdrop());
+        if (gradient == null) return List.of(new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, BACK_LAYER, backdropBase()));
+        double vw = Screen.WIDTH * VIEW * unit, vh = Screen.HEIGHT * VIEW * unit;
+        List<RectLook> bands = new ArrayList<>(bands(gradient, 0xFF000000, 0, 0, vw, vh, BACK_LAYER,
+                (gradient.vertical() ? Screen.HEIGHT : Screen.WIDTH) * VIEW));
+        for (int i = 0; i < bands.size(); i++) {
+            RectLook b = bands.get(i);
+            if (gradient.vertical()) {
+                double top = i == 0 ? BACKDROP_TALL / 2 : b.y() + b.h() / 2;
+                double bottom = i == bands.size() - 1 ? -BACKDROP_TALL / 2 : b.y() - b.h() / 2;
+                bands.set(i, new RectLook(0, (top + bottom) / 2, BACKDROP_WIDE, top - bottom, BACK_LAYER, b.argb()));
+            } else {
+                double left = i == 0 ? -BACKDROP_WIDE / 2 : b.x() - b.w() / 2;
+                double right = i == bands.size() - 1 ? BACKDROP_WIDE / 2 : b.x() + b.w() / 2;
+                bands.set(i, new RectLook((left + right) / 2, 0, right - left, BACKDROP_TALL, BACK_LAYER, b.argb()));
+            }
+        }
+        return bands;
+    }
+
+    /** The scene cut to cover the view (and its parallax drift) with square pixels, centred. Holds {@link #input}. */
+    private void sceneSetup(Node scene) {
+        int pw = scene.pixelWidth(), ph = scene.pixelHeight();
+        double drift = 2 * screen.parallax() * unit;
+        double vw = Screen.WIDTH * VIEW * unit + drift, vh = Screen.HEIGHT * VIEW * unit + drift;
+        double cell = Math.max(vw / pw, vh / ph);
+        int cols = Math.min(pw, (int) Math.ceil(vw / cell)), rows = Math.min(ph, (int) Math.ceil(vh / cell));
+        int x0 = (pw - cols) / 2, y0 = (ph - rows) / 2;
+        int[] all = scene.pixels(), cut = new int[cols * rows];
+        for (int y = 0; y < rows; y++) System.arraycopy(all, (y0 + y) * pw + x0, cut, y * cols, cols);
+        sceneText = Pictures.glyphs(cut, cols, rows, backdropBase());
+        sceneRows = rows;
+        sceneCell = cell;
+    }
+
+    /** The scene where the cursor puts it: drifting against it by up to the screen's parallax. Holds {@link #input}. */
+    private void scene(List<PacketWrapper<?>> out, int glide) {
+        if (sceneText == null) return;
+        double halfW = screen.width() / 2 * unit, halfH = screen.height() / 2 * unit;
+        double drift = screen.parallax() * unit;
+        double x = halfW == 0 ? 0 : -cursorX / halfW * drift;
+        double y = halfH == 0 ? 0 : -cursorY / halfH * drift;
+        int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
+        int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
+        for (int copy = 0; copy < sceneIds.length; copy++) {
+            out.add(image(sceneIds[copy], new ImageLook(x, y, sceneCell, SCENE_LAYER, sceneText, sceneRows,
+                    (copy & 1) * gapX, (copy >> 1) * gapY), glide));
+        }
+    }
+
     /**
      * The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. The same
      * picture every time, so the wire sends only its move. Holds {@link #input}.
@@ -1462,6 +1597,7 @@ final class LiveScreen implements ScreenSession {
             out.add(image(cursorIds[copy], new ImageLook(cx, cy, pixel, CURSOR_LAYER, arrow, h,
                     (copy & 1) * gapX, (copy >> 1) * gapY), glide));
         }
+        if (screen.parallax() > 0) scene(out, glide);
     }
 
     private static int[] arrowPixels() {
@@ -1664,8 +1800,9 @@ final class LiveScreen implements ScreenSession {
                     case 2 -> dy;
                     default -> dx;
                 };
-                if (along <= 1) continue;
                 double across = direction % 2 == 0 ? Math.abs(dx) : Math.abs(dy);
+                // Only boxes that lie that way (within about 60 degrees): never a far box barely past the cursor.
+                if (along <= 1 || across > along * 2) continue;
                 double score = along + across * 2;
                 if (score < bestScore) {
                     bestScore = score;

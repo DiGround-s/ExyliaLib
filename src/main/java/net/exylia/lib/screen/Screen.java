@@ -48,6 +48,8 @@ public final class Screen {
     private Map<String, Object> state = Map.of();
     private boolean navigate;
     private java.util.function.Predicate<ScreenSession> onBack;
+    private Node scene;
+    private double parallax;
 
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
@@ -65,7 +67,10 @@ public final class Screen {
         return this;
     }
 
-    /** What is drawn behind the layout area, to the edges of the view: a palette token or a hex colour. */
+    /**
+     * What is drawn behind the layout area, to the edges of the view: a palette token or a hex colour, or since
+     * 1.497.0 a {@code linear-gradient(to bottom, {primary}20, {info}10)}, drawn as up to twelve bands.
+     */
     public @NotNull Screen backdrop(@NotNull String colour) {
         this.backdrop = colour;
         return this;
@@ -153,6 +158,40 @@ public final class Screen {
     /** @since 1.496.0 */
     public @Nullable java.util.function.Predicate<ScreenSession> onBack() {
         return onBack;
+    }
+
+    /**
+     * A picture behind everything, covering the whole view (a 16:9 window and some): a starfield, an arena, a
+     * soft glow. Made with {@link Node#image}; 64 by 36 is plenty, every pixel is a glyph. Its clear pixels show
+     * the backdrop, a gradient one included. Four displays, sent once. {@code null} for none.
+     *
+     * @since 1.497.0
+     */
+    public @NotNull Screen scene(@Nullable Node picture) {
+        if (picture != null && picture.pixels() == null) throw new IllegalArgumentException("A scene is a Node.image");
+        this.scene = picture;
+        return this;
+    }
+
+    /** @since 1.497.0 */
+    public @Nullable Node scene() {
+        return scene;
+    }
+
+    /**
+     * How many pixels the {@link #scene} drifts against the cursor, so it reads as far behind the screen; 0 (the
+     * default) keeps it still. 2 to 4 is subtle. Each cursor move then also moves the scene: four transforms.
+     *
+     * @since 1.497.0
+     */
+    public @NotNull Screen parallax(double pixels) {
+        this.parallax = Math.max(0, Math.min(16, pixels));
+        return this;
+    }
+
+    /** @since 1.497.0 */
+    public double parallax() {
+        return parallax;
     }
 
     public @Nullable Consumer<ScreenSession> onClose() {

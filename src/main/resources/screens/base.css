@@ -41,7 +41,7 @@ item { width: 16px; height: 16px; }
 progress { background: {letters_black}20; color: {primary}; height: 4px; }
 .spacer { flex-grow: 1; }
 
-modal { background: #1a1424; outline: 1px {primary}60; padding: 14px 18px; gap: 8px; align-items: center; }
+modal { background: {primary}20; outline: 1px {primary}60; padding: 14px 18px; gap: 8px; align-items: center; }
 modal h1 { font-size: 12px; }
 modal .actions { flex-direction: row; gap: 6px; }
 .danger { background: {error}50; }

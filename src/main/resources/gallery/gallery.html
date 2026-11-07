@@ -1,0 +1,115 @@
+<!--
+  The screens gallery: /exylialib screens gallery. Every element, the component library and the motion, on one
+  screen, for authors to look at and copy from. Edits here show live (hot reload). docs/screens.md has the reference.
+-->
+<screen keys="navigate" scene="img/stars.png" parallax="3"
+        backdrop="linear-gradient(to bottom, {primary}26, {info}0c)">
+  <panel class="gallery">
+    <row class="top">
+      <column class="title"><h1>{primary}Gallery</h1><small>Every element, live</small></column>
+      <box class="spacer"/>
+      <tabs state="tab" default="basics">
+        <tab value="basics">Basics</tab>
+        <tab value="lists">Lists</tab>
+        <tab value="pictures">Pictures</tab>
+        <tab value="motion">Motion</tab>
+      </tabs>
+    </row>
+
+    <switch on="tab">
+      <case value="basics">
+        <row id="page-basics" class="page">
+          <column class="pane grow">
+            <h2>Text</h2>
+            <h1>Heading 1</h1>
+            <b>Bold text</b>
+            <text>Plain text with {success}colour {letters}tokens</text>
+            <small>Small text, dark by default</small>
+            <p>A paragraph wraps onto lines on its own: long text stays inside its box.</p>
+            <box class="spacer"/>
+            <page-head title="Page head" subtitle="From the component library"/>
+          </column>
+          <column class="pane grow">
+            <h2>Controls</h2>
+            <row class="line"><button action="toast success Saved">Button</button><button class="danger" action="toast error Refused">Danger</button><button disabled>Off</button></row>
+            <row class="line"><text>Toggle</text><box class="spacer"/><toggle state="demo_toggle"/></row>
+            <row class="line"><text>Checkbox</text><box class="spacer"/><checkbox state="demo_check"/></row>
+            <row class="line"><text>Progress</text><box class="spacer"/><progress value="64" max="100" class="bar"/></row>
+            <stat label="Stat" value="1,234" tone="success"/>
+            <row class="line"><badge tone="success">Success</badge><badge tone="warning">Warning</badge><badge tone="error">Error</badge></row>
+          </column>
+        </row>
+      </case>
+
+      <case value="lists">
+        <column id="page-lists" class="page">
+          <row class="line">
+            <chips state="kind" default="all">
+              <chip value="all">All</chip>
+              <chip value="tools">Tools</chip>
+              <chip value="food">Food</chip>
+            </chips>
+            <box class="spacer"/>
+            <search state="q" prompt="Search an item" hint="Part of its name" max="16"/>
+          </row>
+          <grid source="items" columns="6" rows="2" track="%item_id%">
+            <card action="toast info Picked %item_name%" action-shift="toast warning Shift-clicked %item_name%"
+                  tooltip="%item_name%<nl>{letters_black}Click or Ctrl-click">
+              <item material="%item_id%"/>
+              <small>%item_name%</small>
+            </card>
+            <empty-state title="Nothing matches" hint="Clear the search or pick another chip"/>
+          </grid>
+          <pager for="items"/>
+        </column>
+      </case>
+
+      <case value="pictures">
+        <row id="page-pictures" class="page">
+          <column class="pane grow">
+            <h2>Items and pictures</h2>
+            <row class="line"><item material="diamond_sword"/><item material="golden_apple"/><icon>ender_pearl</icon><img src="img/stars.png" class="thumb"/></row>
+            <row class="line"><img face="%viewer%" class="face"/><img skin="%viewer%" class="body"/><img skin="%viewer%" class="body" turn/></row>
+          </column>
+          <column class="pane grow">
+            <h2>Backgrounds</h2>
+            <box class="swatch grad-v"><small>linear-gradient</small></box>
+            <box class="swatch grad-h"><small>to right, three colours</small></box>
+            <box class="swatch picture"><small>background-image</small></box>
+          </column>
+        </row>
+      </case>
+
+      <case value="motion">
+        <row id="page-motion" class="page">
+          <column class="pane grow">
+            <h2>Motion</h2>
+            <row class="line"><card class="lift">Hover lifts</card><card class="live">Pulse</card></row>
+            <row class="line">
+              <button action="toast success Saved">Toast</button>
+              <button action="toast warning Careful">Warning</button>
+              <button action="toast error Refused">Error</button>
+            </row>
+            <row class="line">
+              <button class="danger" action="confirm 'Reset the demo?' dangerous yes=Reset then toast success Reset">Confirm</button>
+              <button action="set dialog yes">Dialog</button>
+              <button action="input text name 'Your name' max=16 then toast info Hi %name%">Input</button>
+            </row>
+          </column>
+          <column class="pane grow">
+            <h2>Keys</h2>
+            <key-hint key="W A S D">Move between boxes</key-hint>
+            <key-hint key="Space">Click the focused box</key-hint>
+            <key-hint key="Ctrl">Hold for a shift-click</key-hint>
+            <key-hint key="Shift">Back, held to close</key-hint>
+          </column>
+        </row>
+      </case>
+    </switch>
+  </panel>
+
+  <dialog title="A dialog" when="dialog" dismiss="clear dialog">
+    <small>Click outside it or press Shift to close.</small>
+    <row class="actions"><button action="clear dialog">Close</button></row>
+  </dialog>
+</screen>

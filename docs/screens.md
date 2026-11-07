@@ -126,6 +126,8 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
 - **Focus navigation** (1.496.0): `<screen keys="navigate">` (`Screen#navigate(true)`) makes W, A, S, D move the
   cursor to the nearest clickable box that way and Space click it, so a screen works without the mouse.
   `:focus` styles the focused box (it is the hovered one). Bindings with `key=` are ignored while navigating.
+  Since 1.497.0 a key only moves to boxes that lie that way (within about 60 degrees), never to a far box barely
+  past the cursor. The client sends a key only when it is held across a tick: a tap shorter than that is missed.
 - Damage closes it, as do death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
   another screen opening for the same player (one per player across all plugins).
 
@@ -215,7 +217,7 @@ that is not well-formed throws, when it is read.
 
 | Tag | Does |
 | --- | --- |
-| `screen` | The root. `size="WxH"`, `backdrop="{token}"`, `wheel="true"` |
+| `screen` | The root. `size="WxH"`, `backdrop="{token}"` (or a `linear-gradient(...)`, 1.497.0), `wheel="true"`, `scene="img/x.png"` and `parallax="3"` (1.497.0, see [Backgrounds](#backgrounds-14970)) |
 | `panel`, `column`, `row`, `box` | Boxes; `panel` is a themed column, `row` runs across |
 | `text`, `h1`, `h2`, `b`, `small`, `p`, `span`, `label` | Text; an element with only text is one text box |
 | `button` | A themed box with an `action` |
@@ -307,6 +309,7 @@ card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
 | `white-space` (1.496.0) | `normal` wraps text to its box, `nowrap` (default) keeps one line; inherited |
 | `text-shadow` (1.496.0) | `none` (default) or anything else for the vanilla shadow; inherited |
 | `transform`, `transition`, `enter`, `leave`, `animation` (1.496.0) | see [Motion](#motion-14960) |
+| `background: linear-gradient(...)`, `background-image: url(img/x.png)` (1.497.0) | see [Backgrounds](#backgrounds-14970) |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
 
@@ -507,6 +510,50 @@ queue that changed).
 **Sprites (1.21.11+).** With `sprite-objects: true` (default) a 1.21.11+ client on a 1.21.11+ server gets an
 item as one sprite glyph rather than four pixel copies; others keep the pixel picture.
 
+## Backgrounds (1.497.0)
+
+```html
+<screen backdrop="linear-gradient(to bottom, {primary}1c, {info}06)" scene="img/stars.png" parallax="2">
+```
+
+```css
+.app { background: linear-gradient(to bottom, {primary}0e, {primary}05); }
+.banner { background: {primary}20; background-image: url(img/banner.png); }
+```
+
+- `linear-gradient([to bottom|to top|to right|to left|<n>deg,] colour, colour...)` works wherever a background
+  colour does: `background` in CSS, `Node#background` and `Screen#backdrop` in Java. Colours spread evenly; an
+  angle turns to the nearest side. It is drawn as stepped bands, one each five pixels (2 to 12), neighbours of the
+  same colour merged: one display a band. What a gradient box holds is mixed over its middle colour. A backdrop
+  gradient spans the view, its outer bands stretched to the edges.
+- `background-image: url(path)` (`Node#backgroundImage(Node.image(...))`): a picture from the screen's folder,
+  cut to cover the box with square pixels and centred, over the background colour (clear pixels show it), under
+  the box's content. Four displays.
+- `<screen scene="img/x.png">` (`Screen#scene(Node.image(...))`): a picture behind everything that covers the
+  whole view of a 16:9 window and some; clear pixels show the backdrop. Four displays, sent once: a sparse 96 by 54
+  starfield is about 40 KB on open, nothing after. `parallax="3"` (`Screen#parallax`, 0 to 16 pixels) drifts it
+  against the cursor, so it reads as far behind: four transforms more per cursor move.
+- Pictures follow the 96-a-side limit of `<img>`. Use palette tokens for every colour in the CSS; a picture's own
+  colours are its file's.
+
+## Gallery and preview (1.497.0)
+
+`/exylialib screens gallery` opens every element, the component library, the motion, backgrounds and the keys
+on one screen, from `plugins/ExyliaLib/gallery/` (installed and updated like any plugin's screens, hot-reloaded,
+so authors can try edits there). `/exylialib screens preview <plugin> <id>` opens any plugin's screen as its files
+are now, with no state (permission `exylialib.admin`).
+
+## Words from Java (1.497.0)
+
+`ScreenMarkup#word(key, fallback)` reads a word of the screen's `lang/<code>/screens/<id>.yml`, for text Java puts
+on the screen:
+
+```java
+session.confirm(question, true, hub.word("dialogs.kit.delete", "Delete"), hub.word("dialogs.cancel", "Cancel"), yes);
+```
+
+The in-screen confirm's own default labels ("Confirm", "Cancel") follow the library's language since 1.497.0.
+
 ## Component library (1.496.0)
 
 Every screen knows these templates; a plugin's own template of the same name wins.
@@ -517,7 +564,7 @@ Every screen knows these templates; a plugin's own template of the same name win
 | `<stat label="Wins" value="%wins%" tone="success"/>` | a label and a coloured value on one line |
 | `<badge tone="warning">New</badge>` | a small tag; tones `primary`, `success`, `error`, `warning`, `info` |
 | `<key-hint key="Shift">Back</key-hint>` | a key and what it does |
-| `<empty-state title="No kits" hint="Ask staff to add one"/>` | a list's empty note |
+| `<empty-state title="No kits" hint="Ask staff to add one"/>` | a list's empty note (inside a `grid`/`list` since 1.497.0: before, it was repeated as a row) |
 | `<dialog title="Sure?" when="confirm" dismiss="clear confirm">...</dialog>` | a themed `modal` |
 
 **Shared bindings.** `screens.bindings().value(...).action(...)` registers for every screen of a `ScreenSet`

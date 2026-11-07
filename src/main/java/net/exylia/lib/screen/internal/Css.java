@@ -30,7 +30,9 @@ public final class Css {
             "font-size", "font-weight", "text-align",
             // 1.496.0: motion, placement and text
             "transform", "transition", "animation", "enter", "leave", "margin", "position", "top", "right", "bottom",
-            "left", "z-index", "max-width", "white-space", "text-shadow");
+            "left", "z-index", "max-width", "white-space", "text-shadow",
+            // 1.497.0
+            "background-image");
 
     /** Properties a child takes from its parent when it sets none. */
     static final Set<String> INHERITED = Set.of("color", "font-size", "font-weight", "text-align", "white-space",

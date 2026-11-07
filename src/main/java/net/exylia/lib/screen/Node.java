@@ -57,6 +57,7 @@ public final class Node {
     private final Component text;
     private ItemStack item;
     private int[] pixels;
+    private Node backgroundImage;
     private int pixelWidth;
     private int pixelHeight;
     private boolean overlay;
@@ -635,6 +636,24 @@ public final class Node {
     }
 
     /** The colours an {@link Kind#IMAGE} node draws, row by row; do not change them. @since 1.489.0 */
+    /**
+     * A picture behind the box's content and over its background, cut to cover the box with square pixels and
+     * centred ({@code background-size: cover}); clear pixels show the background. Made with {@link #image}; keep it
+     * near the box's own shape. {@code null} for none.
+     *
+     * @since 1.497.0
+     */
+    public @NotNull Node backgroundImage(@Nullable Node picture) {
+        if (picture != null && picture.pixels == null) throw new IllegalArgumentException("A background image is a Node.image");
+        this.backgroundImage = picture;
+        return this;
+    }
+
+    /** @since 1.497.0 */
+    public @Nullable Node backgroundImage() {
+        return backgroundImage;
+    }
+
     public int @Nullable [] pixels() {
         return pixels;
     }

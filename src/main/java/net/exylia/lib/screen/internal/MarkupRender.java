@@ -540,6 +540,7 @@ public final class MarkupRender {
             }
         }
         box(node, style, parts.css());
+        if (style.containsKey("background-image")) backgroundImage(node, el, style.get("background-image"));
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
         if ("low".equalsIgnoreCase(el.attr("priority"))) node.decoration(true);
         if (el.attr("refresh") != null) node.refresh(Math.max(0, MotionCss.ticks(el.attr("refresh"))));
@@ -607,6 +608,19 @@ public final class MarkupRender {
         return "row".equalsIgnoreCase(style.get("flex-direction")) ? Node.row() : Node.column();
     }
 
+    /** An {@code <empty>}, or a template use ({@code <empty-state>}) that comes out as only empties. */
+    private static boolean emptyNote(El e) {
+        if (e.tag().equals("empty")) return true;
+        if (!e.tag().equals("fragment")) return false;
+        boolean any = false;
+        for (Part part : e.children()) {
+            if (!(part instanceof El child)) continue;
+            if (!emptyNote(child)) return false;
+            any = true;
+        }
+        return any;
+    }
+
     private Node repeat(El el, String source, Scope scope, List<Css.Target> here, Map<String, String> text,
                         Map<String, String> style) {
         Rows all = rows(source);
@@ -614,7 +628,7 @@ public final class MarkupRender {
         // Several empties may each carry an if, so the message can match why the list is empty.
         List<Part> empties = new ArrayList<>();
         for (Part child : el.children()) {
-            if (child instanceof El e && e.tag().equals("empty")) empties.add(e);
+            if (child instanceof El e && emptyNote(e)) empties.add(e);
             else if (child instanceof El) template.add(child);
         }
         Node node = container(style);
@@ -954,6 +968,26 @@ public final class MarkupRender {
         String weight = style.get("font-weight");
         if (weight != null && (weight.equalsIgnoreCase("bold") || weight.equals("700"))) out.append("&l");
         return out.append(words).toString();
+    }
+
+    /** {@code background-image: url(img/x.png)} (or {@code none}), read from the markup's folder like {@code <img src>}. */
+    private void backgroundImage(Node node, El el, String value) {
+        String v = value.trim();
+        if (v.equalsIgnoreCase("none")) return;
+        if (!v.startsWith("url(") || !v.endsWith(")")) {
+            parts.problems().accept(el.pos() + ": background-image wants url(path), not " + v);
+            return;
+        }
+        String path = v.substring(4, v.length() - 1).trim().replaceAll("^['\"]|['\"]$", "");
+        if (parts.images() == null) {
+            parts.problems().accept(el.pos() + ": background-image needs markup read with ScreenMarkup.load or given images(dir)");
+            return;
+        }
+        try {
+            node.backgroundImage(Pictures.file(parts.images(), path).node());
+        } catch (java.io.IOException failure) {
+            parts.problems().accept(el.pos() + ": background-image " + path + ": " + failure.getMessage());
+        }
     }
 
     private static void box(Node node, Map<String, String> style, Css css) {
