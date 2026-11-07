@@ -45,6 +45,18 @@ public final class Pictures {
     private static final Cache<String, Picture> BODIES = Caffeine.newBuilder()
             .maximumSize(512).expireAfterAccess(Duration.ofMinutes(30)).build();
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+    /** The skins themselves, by url, for dressing a body; and bodies dressed, by url and outfit. */
+    private static final Cache<String, Skin> SKINS = Caffeine.newBuilder()
+            .maximumSize(256).expireAfterAccess(Duration.ofMinutes(30)).build();
+    private static final Cache<String, Dressed> DRESSED = Caffeine.newBuilder()
+            .maximumSize(512).expireAfterAccess(Duration.ofMinutes(10)).build();
+    private static final Set<String> DRESSING = ConcurrentHashMap.newKeySet();
+
+    private record Skin(BufferedImage image, boolean slim) {
+    }
+
+    private record Dressed(List<Face> sides, Picture front) {
+    }
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
     private Pictures() {
@@ -164,6 +176,7 @@ public final class Pictures {
                         try (InputStream in = response.body()) {
                             BufferedImage skin = response.statusCode() == 200 ? ImageIO.read(in) : null;
                             if (skin != null && skin.getWidth() == 64 && skin.getHeight() >= 32) {
+                                SKINS.put(url, new Skin(skin, slim));
                                 MODELS.put(url, sides(skin, slim));
                                 BODIES.put(url, front(skin, slim));
                             }
@@ -181,7 +194,11 @@ public final class Pictures {
      * body's centre at 0, y up, z towards the viewer) and which way it faces (degrees about y, 0 towards the
      * viewer).
      */
-    public record Face(Picture picture, double x, double y, double z, double yaw) {
+    public record Face(Picture picture, double x, double y, double z, double yaw, double scale) {
+        /** A side drawn one skin pixel a picture pixel. */
+        public Face(Picture picture, double x, double y, double z, double yaw) {
+            this(picture, x, y, z, yaw, 1);
+        }
     }
 
     /** A player's body as sides to stand in the round, or {@code null} while their skin is on its way. */
@@ -192,51 +209,163 @@ public final class Pictures {
         return url == null ? null : MODELS.get(url);
     }
 
+    /**
+     * A player's body in the round wearing {@code outfit} ({@link Outfit} words), or {@code null} while their skin
+     * is on its way. Until the outfit is dressed (its textures read on an async task) the bare body is answered.
+     */
+    public static @Nullable List<Face> model(String player, @Nullable String outfit) {
+        if (outfit == null || outfit.isBlank()) return model(player);
+        Dressed dressed = dressed(player, outfit);
+        return dressed != null ? dressed.sides() : model(player);
+    }
+
+    /** As {@link #body(String)}, wearing {@code outfit}; the bare front until it is dressed. */
+    public static @Nullable Picture body(String player, @Nullable String outfit) {
+        if (outfit == null || outfit.isBlank()) return body(player);
+        Dressed dressed = dressed(player, outfit);
+        return dressed != null ? dressed.front() : body(player);
+    }
+
+    private static @Nullable Dressed dressed(String player, String outfit) {
+        if (body(player) == null) return null;
+        String texture = Skulls.player(player).build().texture();
+        String url = texture == null ? null : Textures.urlOf(texture);
+        Skin skin = url == null ? null : SKINS.getIfPresent(url);
+        if (skin == null || !VanillaSprites.available()) return null;
+        String key = url + "|" + outfit;
+        Dressed known = DRESSED.getIfPresent(key);
+        if (known != null) return known;
+        if (DRESSING.add(key)) {
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                try {
+                    List<Face> sides = sides(skin.image(), skin.slim(), Outfit.resolve(outfit));
+                    DRESSED.put(key, new Dressed(sides, front(sides)));
+                } finally {
+                    DRESSING.remove(key);
+                }
+            });
+        }
+        return null;
+    }
+
     static List<Face> sides(BufferedImage skin, boolean slim) {
+        return sides(skin, slim, Outfit.NONE);
+    }
+
+    /**
+     * A body's sides with an outfit laid over the skin: each armour piece's layer texture over the parts it
+     * covers, in the order the game draws them (leggings, chestplate, boots, helmet), and the held item.
+     */
+    static List<Face> sides(BufferedImage skin, boolean slim, Outfit outfit) {
         int arm = slim ? 3 : 4;
         boolean modern = skin.getHeight() >= 64;
+        // Each part: the skin's own box and its outer layer, then what is worn over it. A modern skin's left limbs
+        // have their own place on it; an old one, and every armour texture, mirror the right ones.
+        List<Layer> head = layers(skin, 0, 0, 32, 0, 8, false);
+        List<Layer> body = layers(skin, 16, 16, modern ? 16 : -1, 32, 8, false);
+        List<Layer> rightArm = layers(skin, 40, 16, modern ? 40 : -1, 32, arm, false);
+        List<Layer> rightLeg = layers(skin, 0, 16, modern ? 0 : -1, 32, 4, false);
+        List<Layer> leftArm = modern ? layers(skin, 32, 48, 48, 48, arm, false) : layers(skin, 40, 16, -1, 0, arm, true);
+        List<Layer> leftLeg = modern ? layers(skin, 16, 48, 0, 48, 4, false) : layers(skin, 0, 16, -1, 0, 4, true);
+        for (BufferedImage legs : outfit.legs()) {
+            body.add(new Layer(legs, 16, 16, 8, false));
+            rightLeg.add(new Layer(legs, 0, 16, 4, false));
+            leftLeg.add(new Layer(legs, 0, 16, 4, true));
+        }
+        for (BufferedImage chest : outfit.chest()) {
+            body.add(new Layer(chest, 16, 16, 8, false));
+            rightArm.add(new Layer(chest, 40, 16, 4, false));
+            leftArm.add(new Layer(chest, 40, 16, 4, true));
+        }
+        for (BufferedImage feet : outfit.feet()) {
+            rightLeg.add(new Layer(feet, 0, 16, 4, false));
+            leftLeg.add(new Layer(feet, 0, 16, 4, true));
+        }
+        for (BufferedImage helmet : outfit.head()) {
+            head.add(new Layer(helmet, 0, 0, 8, false));
+            head.add(new Layer(helmet, 32, 0, 8, false));
+        }
         List<Face> out = new ArrayList<>();
-        // u, v of the part and of its outer layer (-1 for none), its size, and where its centre stands.
-        part(out, skin, 0, 0, 32, 0, 8, 8, 8, 0, 12, false);
-        part(out, skin, 16, 16, modern ? 16 : -1, 32, 8, 12, 4, 0, 2, false);
-        part(out, skin, 40, 16, modern ? 40 : -1, 32, arm, 12, 4, -(4 + arm / 2.0), 2, false);
-        part(out, skin, 0, 16, modern ? 0 : -1, 32, 4, 12, 4, -2, -10, false);
-        if (modern) {
-            part(out, skin, 32, 48, 48, 48, arm, 12, 4, 4 + arm / 2.0, 2, false);
-            part(out, skin, 16, 48, 0, 48, 4, 12, 4, 2, -10, false);
-        } else {
-            part(out, skin, 40, 16, -1, 0, arm, 12, 4, 4 + arm / 2.0, 2, true);
-            part(out, skin, 0, 16, -1, 0, 4, 12, 4, 2, -10, true);
+        // Its size, where its centre stands, and what is drawn on it.
+        part(out, 8, 8, 8, 0, 12, head);
+        part(out, 8, 12, 4, 0, 2, body);
+        part(out, arm, 12, 4, -(4 + arm / 2.0), 2, rightArm);
+        part(out, 4, 12, 4, -2, -10, rightLeg);
+        part(out, arm, 12, 4, 4 + arm / 2.0, 2, leftArm);
+        part(out, 4, 12, 4, 2, -10, leftLeg);
+        Picture held = outfit.hand();
+        if (held != null && held.width() > 0) {
+            // Upright in the right fist, side on as the game holds it: its handle (the sprite's bottom left) in
+            // the hand, its tip forward and up. Ten skin pixels tall, as a held sword is.
+            double scale = HELD / Math.max(held.width(), held.height());
+            double half = HELD / 2 - 1.5;
+            out.add(new Face(held, -(4 + arm / 2.0), -3 + half, half, -90, scale));
         }
         return List.copyOf(out);
     }
 
-    /** A box's four sides from its place on the skin, the outer layer laid over each. */
-    private static void part(List<Face> out, BufferedImage skin, int u, int v, int ou, int ov, int w, int h, int d,
-                             double x, double y, boolean mirror) {
-        // Front, the wearer's right (seen on the viewer's left), back, the wearer's left: where each lies on the
-        // skin, how wide it is, its centre and the way it faces.
-        int[][] at = {{u + d, v + d, w}, {u, v + d, d}, {u + d + w + d, v + d, w}, {u + d + w, v + d, d}};
+    /** How tall a held item stands, in skin pixels. */
+    private static final double HELD = 10;
+
+    /** A texture drawn on a box: where the box lies on it, its width there, and whether it is mirrored. */
+    private record Layer(BufferedImage image, int u, int v, int w, boolean mirror) {
+    }
+
+    private static List<Layer> layers(BufferedImage skin, int u, int v, int ou, int ov, int w, boolean mirror) {
+        List<Layer> out = new ArrayList<>();
+        out.add(new Layer(skin, u, v, w, mirror));
+        if (ou >= 0) out.add(new Layer(skin, ou, ov, w, mirror));
+        return out;
+    }
+
+    /** A box's four sides, each layer laid over the one before. */
+    private static void part(List<Face> out, int w, int h, int d, double x, double y, List<Layer> layers) {
         double[][] place = {{0, d / 2.0, 0}, {-w / 2.0, 0, -90}, {0, -d / 2.0, 180}, {w / 2.0, 0, 90}};
         for (int side = 0; side < 4; side++) {
-            // A mirrored limb swaps its outer sides and reads each picture backwards.
-            int src = mirror && (side == 1 || side == 3) ? 4 - side : side;
-            int fw = at[src][2];
+            int fw = side % 2 == 0 ? w : d;
             int[] argb = new int[fw * h];
-            region(skin, argb, at[src][0], at[src][1], fw, h, mirror);
-            if (ou >= 0) region(skin, argb, at[src][0] - u + ou, at[src][1] - v + ov, fw, h, mirror);
+            for (Layer layer : layers) {
+                // Front, the wearer's right (seen on the viewer's left), back, the wearer's left: where each lies on
+                // the texture. A mirrored limb swaps its outer sides and reads each picture backwards.
+                int lw = layer.w();
+                int[][] at = {{layer.u() + d, layer.v() + d}, {layer.u(), layer.v() + d},
+                        {layer.u() + d + lw + d, layer.v() + d}, {layer.u() + d + lw, layer.v() + d}};
+                int src = layer.mirror() && (side == 1 || side == 3) ? 4 - side : side;
+                // A slim arm in classic armour takes the armour's first columns.
+                region(layer.image(), argb, at[src][0], at[src][1], fw, h, layer.mirror(), src % 2 == 0 ? lw : d);
+            }
             out.add(new Face(new Picture(fw, h, argb), x + place[side][0], y, place[side][1], place[side][2]));
         }
     }
 
-    private static void region(BufferedImage skin, int[] out, int sx, int sy, int w, int h, boolean mirror) {
-        if (sx < 0 || sy < 0 || sx + w > skin.getWidth() || sy + h > skin.getHeight()) return;
+    private static void region(BufferedImage skin, int[] out, int sx, int sy, int w, int h, boolean mirror, int srcW) {
+        int cols = Math.min(w, srcW);
+        if (sx < 0 || sy < 0 || sx + cols > skin.getWidth() || sy + h > skin.getHeight()) return;
         for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int argb = skin.getRGB(sx + (mirror ? w - 1 - x : x), sy + y);
+            for (int x = 0; x < cols; x++) {
+                int argb = skin.getRGB(sx + (mirror ? srcW - 1 - x : x), sy + y);
                 if ((argb >>> 24) >= 128) out[y * w + x] = argb | 0xFF000000;
             }
         }
+    }
+
+    /** The front of a body in the round: each part's front side where it stands, 16 by 32. */
+    static Picture front(List<Face> sides) {
+        int[] out = new int[16 * 32];
+        for (Face face : sides) {
+            if (face.yaw() != 0 || face.scale() != 1) continue;
+            Picture p = face.picture();
+            int left = (int) Math.round(8 + face.x() - p.width() / 2.0);
+            int top = (int) Math.round(16 - face.y() - p.height() / 2.0);
+            for (int y = 0; y < p.height(); y++) {
+                for (int x = 0; x < p.width(); x++) {
+                    int argb = p.argb()[y * p.width() + x];
+                    int tx = left + x, ty = top + y;
+                    if ((argb >>> 24) >= 128 && tx >= 0 && tx < 16 && ty >= 0 && ty < 32) out[ty * 16 + tx] = argb;
+                }
+            }
+        }
+        return new Picture(16, 32, out);
     }
 
     /** A player's face with its outer layer, 8 by 8, or {@code null} while their skin is on its way. */
@@ -292,42 +421,7 @@ public final class Pictures {
      * layer is laid over it; an old 64 by 32 skin mirrors its right limbs for the left ones.
      */
     static Picture front(BufferedImage skin, boolean slim) {
-        int arm = slim ? 3 : 4;
-        int[] out = new int[16 * 32];
-        boolean modern = skin.getHeight() >= 64;
-        // Head, then body, then the limbs: x, y on the skin, size, where it goes, and whether to mirror it.
-        copy(skin, out, 8, 8, 8, 8, 4, 0, false);
-        copy(skin, out, 40, 8, 8, 8, 4, 0, false);
-        copy(skin, out, 20, 20, 8, 12, 4, 8, false);
-        if (modern) copy(skin, out, 20, 36, 8, 12, 4, 8, false);
-        // Right arm and right leg (on the left of the picture).
-        copy(skin, out, 44, 20, arm, 12, 4 - arm, 8, false);
-        if (modern) copy(skin, out, 44, 36, arm, 12, 4 - arm, 8, false);
-        copy(skin, out, 4, 20, 4, 12, 4, 20, false);
-        if (modern) copy(skin, out, 4, 36, 4, 12, 4, 20, false);
-        // Left arm and left leg.
-        if (modern) {
-            copy(skin, out, 36, 52, arm, 12, 12, 8, false);
-            copy(skin, out, 52, 52, arm, 12, 12, 8, false);
-            copy(skin, out, 20, 52, 4, 12, 8, 20, false);
-            copy(skin, out, 4, 52, 4, 12, 8, 20, false);
-        } else {
-            copy(skin, out, 44, 20, arm, 12, 12, 8, true);
-            copy(skin, out, 4, 20, 4, 12, 8, 20, true);
-        }
-        return new Picture(16, 32, out);
+        return front(sides(skin, slim));
     }
 
-    /** Lays a skin region over {@code out}; see-through pixels of an outer layer leave what is under them. */
-    private static void copy(BufferedImage skin, int[] out, int sx, int sy, int w, int h, int dx, int dy, boolean mirror) {
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                int argb = skin.getRGB(sx + (mirror ? w - 1 - x : x), sy + y);
-                if ((argb >>> 24) < 128) continue;
-                int tx = dx + x;
-                int ty = dy + y;
-                if (tx >= 0 && tx < 16 && ty >= 0 && ty < 32) out[ty * 16 + tx] = argb | 0xFF000000;
-            }
-        }
-    }
 }

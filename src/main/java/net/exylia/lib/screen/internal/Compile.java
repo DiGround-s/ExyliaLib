@@ -38,7 +38,9 @@ public final class Compile {
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
             "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
             // 1.496.0
-            "action-shift", "priority", "refresh", "prompt", "hint");
+            "action-shift", "priority", "refresh", "prompt", "hint",
+            // 1.498.0
+            "action-hover", "wearing");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -345,7 +347,7 @@ public final class Compile {
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));
-        for (String attr : new String[]{"action", "action-right", "action-shift", "dismiss"}) {
+        for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "dismiss"}) {
             String action = el.attr(attr);
             if (action == null) continue;
             for (List<String> step : Actions.steps(action)) {

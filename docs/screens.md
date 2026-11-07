@@ -229,7 +229,7 @@ that is not well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
-| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) |
+| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
 | `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (`⌕ value`) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
@@ -248,6 +248,9 @@ that is not well-formed throws, when it is read.
   spaces in it (`toast 'Saved, see you'`).
 - `action-right="..."` (1.494.0): runs instead of `action` on a right click.
 - `action-shift="..."` (1.496.0): runs instead of `action` on a click with sprint held (see [Input](#input)).
+- `action-hover="..."` (1.498.0): runs once each time the cursor comes onto the box (not again until it
+  leaves): `action-hover="set wear %kit_wearing%"` shows what a card is about elsewhere on the screen. Any action
+  works, but keep it to state: it runs on every pass of the cursor. `Node#onHover` in Java.
 - More built-in actions (1.496.0): `back` (as Shift: the dialog, then the screen before; closes at the root),
   `sound <key> [volume] [pitch]`, `toast <success|error|info|warning> <text>` (the tone colours its edge),
   `confirm '<question>' [dangerous] [yes=Leave] [no=Stay] then <actions>` (an in-screen dialog; what follows
@@ -535,6 +538,45 @@ item as one sprite glyph rather than four pixel copies; others keep the pixel pi
   against the cursor, so it reads as far behind: four transforms more per cursor move.
 - Pictures follow the 96-a-side limit of `<img>`. Use palette tokens for every colour in the CSS; a picture's own
   colours are its file's.
+
+## Bodies wearing a kit (1.498.0)
+
+`<img skin="%me_name%" turn wearing="...">` stands the player's body in the round wearing armour and holding an
+item, with no resource pack: the armour layers, leather dyes and trims are the game's own textures, read once from
+the client jar into the sprite cache (`plugins/ExyliaLib/cache/sprites-<version>-2`, which since 1.498.0 also
+keeps `entity/equipment/humanoid*`, the pre-1.21.2 `models/armor` layers and `trims/`), and laid over the skin's
+own boxes in the order the game draws them: leggings, chestplate, boots, helmet. The held item is its inventory
+sprite, ten skin pixels tall, side on in the right fist as the game holds it. A flat `<img skin wearing>` shows
+the front of the same dressed body.
+
+`wearing` takes one word per item, space-separated, in any order:
+
+| Word | Means |
+| --- | --- |
+| `diamond_helmet`, `iron_chestplate`, `chainmail_leggings`, `golden_boots`, `turtle_helmet` | armour, its slot from its name |
+| `leather_chestplate#a06540` | leather in a dye colour (undyed leather without one) |
+| `netherite_leggings@silence:gold` | a trim: pattern and material, as their keys |
+| any other item (`diamond_sword`, `bow`) | held in the right hand; only the first one |
+
+Words that do not read are left out. From Java, `Screens.outfit(ItemStack...)` writes the words for real items
+(colours and trims included), and `Node#wearing(ItemStack...)` / `Node#wearing(String)` dress a `turntable`.
+The first time an outfit is seen its textures are read on an async task; the body is drawn bare for that moment.
+
+The PracticeCore hub dresses its side bar's body in the kit under the cursor:
+
+```html
+<img skin="%me_name%" class="me-body" turn wearing="${tab == 'play' ? wear : ''}"/>
+...
+<card action="queue %kit_id%" action-hover="set wear %kit_wearing%">...</card>
+```
+
+```java
+row.put("kit_wearing", Screens.outfit(helmet, chestplate, leggings, boots, firstHotbarItem));
+```
+
+Armour is laid flat on the skin's boxes rather than as the game's slightly larger second box, so a helmet sits on
+the head's outer layer; a slim arm wears the first three columns of the classic armour arm. It costs nothing more
+on the wire than the bare body (the same 96 displays turning).
 
 ## Gallery and preview (1.497.0)
 

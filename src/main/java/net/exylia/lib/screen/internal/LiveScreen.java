@@ -224,10 +224,10 @@ final class LiveScreen implements ScreenSession {
 
     /**
      * One side of a turning body: the body's centre ({@code x}, {@code y}), a skin pixel's size, where the side
-     * stands from the centre in skin pixels, the way it faces, and the body's turn.
+     * stands from the centre in skin pixels, the way it faces, the body's turn and the side's own scale.
      */
     private record TurnLook(double x, double y, double cell, int layer, Component text, int rows, double lx,
-                            double ly, double lz, double yaw, double turn, int dx, int dy) {
+                            double ly, double lz, double yaw, double turn, int dx, int dy, double size) {
     }
 
     /** How fast a body turns, degrees a second, and how long each glide to the next angle lasts. */
@@ -572,6 +572,7 @@ final class LiveScreen implements ScreenSession {
             String now = under == null ? null : under.key();
             if (same && Objects.equals(now, hovered) && !resync) return;
             resync = false;
+            entered(under, hovered);
             hovered = now;
             hoveredBox = under;
             sync(false);
@@ -640,10 +641,17 @@ final class LiveScreen implements ScreenSession {
             Layout.Placed under = underPointer();
             String now = under == null ? null : under.key();
             if (Objects.equals(now, hovered)) return;
+            entered(under, hovered);
             hovered = now;
             hoveredBox = under;
             sync(false);
         }
+    }
+
+    /** Runs the {@link Node#onHover} of a box the cursor has just come onto, on the viewer's thread. */
+    private void entered(Layout.Placed under, String before) {
+        if (under == null || under.key().equals(before) || under.node().onHover() == null) return;
+        handle(under.node().onHover(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, under.node().id()));
     }
 
     // ------------------------------------------------------------------
@@ -991,7 +999,7 @@ final class LiveScreen implements ScreenSession {
                 // A body turns every second, and one whose skin is on its way must be looked for again: never skipped.
                 boolean turnable = node.turntable() != null && lod < 2;
                 turns |= turnable;
-                List<Pictures.Face> model = turnable ? Pictures.model(node.turntable()) : null;
+                List<Pictures.Face> model = turnable ? Pictures.model(node.turntable(), node.wearing()) : null;
                 if (model != null) {
                     double innerW = box.w() - node.padLeft() - node.padRight();
                     double innerH = box.h() - node.padTop() - node.padBottom();
@@ -1008,7 +1016,8 @@ final class LiveScreen implements ScreenSession {
                         for (int copy = 0; copy < 4; copy++) {
                             String key = box.key() + "#tt" + f + "." + copy;
                             wanted.put(key, xf(new TurnLook(mx, my, cell * unit, top, text, face.picture().height(),
-                                    face.x(), face.y(), face.z(), face.yaw(), turn, (copy & 1) * gapX, (copy >> 1) * gapY), xf));
+                                    face.x(), face.y(), face.z(), face.yaw(), turn, (copy & 1) * gapX, (copy >> 1) * gapY,
+                                    face.scale()), xf));
                             mine.add(key);
                         }
                     }
@@ -1369,7 +1378,7 @@ final class LiveScreen implements ScreenSession {
             case ImageLook im -> new ImageLook(f.ax(im.x()), f.ay(im.y()), im.cell() * s, im.layer(), im.text(), im.rows(),
                     im.dx(), im.dy());
             case TurnLook t -> new TurnLook(f.ax(t.x()), f.ay(t.y()), t.cell() * s, t.layer(), t.text(), t.rows(), t.lx(),
-                    t.ly(), t.lz(), t.yaw(), t.turn(), t.dx(), t.dy());
+                    t.ly(), t.lz(), t.yaw(), t.turn(), t.dx(), t.dy(), t.size());
             default -> {
                 TextLook t = (TextLook) look;
                 yield new TextLook(f.ax(t.x()), f.ay(t.y()), t.scale() * s, t.layer(), t.text(), t.lines(), t.flags());
@@ -1484,8 +1493,8 @@ final class LiveScreen implements ScreenSession {
     private PacketWrapper<?> turn(int id, TurnLook t, int glide) {
         double k = drawn(t.layer());
         double a = Math.toRadians(t.turn());
-        double fx = t.cell() * k / ScreenPackets.IMAGE_ADVANCE;
-        double fy = t.cell() * k / ScreenPackets.IMAGE_LINE;
+        double fx = t.cell() * t.size() * k / ScreenPackets.IMAGE_ADVANCE;
+        double fy = t.cell() * t.size() * k / ScreenPackets.IMAGE_LINE;
         // About the vertical: x across, z towards the viewer.
         double rx = t.lx() * Math.cos(a) + t.lz() * Math.sin(a);
         double rz = -t.lx() * Math.sin(a) + t.lz() * Math.cos(a);

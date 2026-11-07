@@ -37,6 +37,19 @@ public final class Screens {
         this.plugin = plugin;
     }
 
+    /**
+     * The words a body's {@code wearing} takes for these items ({@link Node#wearing(String)}, {@code <img skin
+     * wearing="...">}): armour finds its slot, leather keeps its colour and armour its trim, the first other item is
+     * held. {@code null} and air are skipped. Give it to a screen as a row field or a value.
+     *
+     * <pre>{@code row.put("kit_wearing", Screens.outfit(helmet, chestplate, leggings, boots, sword));}</pre>
+     *
+     * @since 1.498.0
+     */
+    public static @NotNull String outfit(@Nullable org.bukkit.inventory.ItemStack... items) {
+        return items == null ? "" : net.exylia.lib.screen.internal.Outfit.token(java.util.Arrays.asList(items));
+    }
+
     /** The screens of {@code plugin}. */
     public static @NotNull Screens of(@NotNull Plugin plugin) {
         return BY_PLUGIN.computeIfAbsent(plugin.getName(), name -> new Screens(plugin));

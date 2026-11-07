@@ -49,4 +49,40 @@ class PicturesTest {
         assertEquals(0xFF000004, p[8 * 16 + 14]);
         assertEquals(0, p[8 * 16 + 15]);
     }
+
+    @Test
+    void armourIsLaidOverThePartsItCovers() {
+        // A 64 by 32 armour layer: the chestplate's front of the body and of the right arm painted.
+        BufferedImage chest = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
+        paint(chest, 20, 20, 8, 12, 0xFF0000AA);
+        paint(chest, 44, 20, 4, 12, 0xFF0000BB);
+        BufferedImage boots = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
+        paint(boots, 4, 29, 4, 3, 0xFF0000CC);
+        Outfit outfit = new Outfit(java.util.List.of(), java.util.List.of(chest), java.util.List.of(),
+                java.util.List.of(boots), new Pictures.Picture(16, 16, new int[256]));
+        java.util.List<Pictures.Face> sides = Pictures.sides(skin(), false, outfit);
+        assertEquals(6 * 4 + 1, sides.size());   // six boxes and the held item
+        int[] p = Pictures.front(sides).argb();
+        assertEquals(0xFF0000AA, p[8 * 16 + 4]);  // the chestplate over the body
+        assertEquals(0xFF0000BB, p[8 * 16 + 0]);  // over the right arm
+        assertEquals(0xFF0000BB, p[8 * 16 + 15]); // and, mirrored, the left one
+        assertEquals(0xFF000001, p[1 * 16 + 5]);  // no helmet: the face shows
+        assertEquals(0xFF000005, p[20 * 16 + 4]); // the boots cover only the foot
+        assertEquals(0xFF0000CC, p[31 * 16 + 4]);
+        assertEquals(0xFF0000CC, p[31 * 16 + 8]);
+        assertEquals(0.625, sides.get(sides.size() - 1).scale());
+    }
+
+    @Test
+    void outfitWordsKeepColourAndTrim() {
+        var pieces = Outfit.parse("diamond_helmet LEATHER_CHESTPLATE#A06540 iron_leggings@coast:gold ../../x minecraft:bow");
+        assertEquals(4, pieces.size());
+        assertEquals(0xA06540, pieces.get(1).tint());
+        assertEquals("coast", pieces.get(2).trimPattern());
+        assertEquals("gold", pieces.get(2).trimMaterial());
+        assertEquals("bow", pieces.get(3).material());
+        assertEquals("leather_chestplate#a06540", pieces.get(1).token());
+        assertEquals("gold", Outfit.asset("golden_boots"));
+        assertEquals("turtle_scute", Outfit.asset("turtle_helmet"));
+    }
 }

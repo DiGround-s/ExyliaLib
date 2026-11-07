@@ -65,6 +65,8 @@ public final class Node {
     private String id;
     private String key;
     private String turntable;
+    private String wearing;
+    private Consumer<ScreenEvent> onHover;
     private double width = -1;
     private double height = -1;
     private double grow;
@@ -216,6 +218,46 @@ public final class Node {
     /** @since 1.492.0 */
     public @Nullable String turntable() {
         return turntable;
+    }
+
+    /**
+     * What the body this box draws ({@link #turntable}, or a flat {@code <img skin>}) wears: armour composited onto
+     * the skin from the game's own textures, leather dyed and trims in their colours, and the first other item in
+     * its right hand. Words as {@link Screens#outfit} makes them ({@code diamond_helmet iron_chestplate
+     * leather_leggings#3a6bd1 netherite_boots@silence:gold diamond_sword}); {@code null} or empty wears nothing.
+     *
+     * @since 1.498.0
+     */
+    public @NotNull Node wearing(@Nullable String outfit) {
+        this.wearing = outfit == null || outfit.isBlank() ? null : outfit.trim();
+        return this;
+    }
+
+    /** As {@link #wearing(String)}, from the items themselves (helmet to boots, a held item; {@code null}s skipped). */
+    public @NotNull Node wearing(@Nullable ItemStack... items) {
+        return wearing(items == null ? null : Screens.outfit(items));
+    }
+
+    /** @since 1.498.0 */
+    public @Nullable String wearing() {
+        return wearing;
+    }
+
+    /**
+     * Runs once each time the cursor comes onto this box (not again until it has left), on the viewer's thread:
+     * show what the box is about somewhere else on the screen ({@code session().set("hovered_kit", id)}). The
+     * event's kind is {@link ScreenEvent.Kind#LEFT} and it counts no steps. Makes the box pointable.
+     *
+     * @since 1.498.0
+     */
+    public @NotNull Node onHover(@Nullable Consumer<ScreenEvent> handler) {
+        this.onHover = handler;
+        return this;
+    }
+
+    /** @since 1.498.0 */
+    public @Nullable Consumer<ScreenEvent> onHover() {
+        return onHover;
     }
 
     /** A name for this box, handed back in {@link ScreenEvent#node()}; also keeps it stable between renders. */
@@ -766,6 +808,7 @@ public final class Node {
 
     /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering. */
     public boolean pointable() {
-        return onClick != null || onScroll != null || hover != null || hoverOutline != null || hoverTransform != null;
+        return onClick != null || onScroll != null || onHover != null || hover != null || hoverOutline != null
+                || hoverTransform != null;
     }
 }

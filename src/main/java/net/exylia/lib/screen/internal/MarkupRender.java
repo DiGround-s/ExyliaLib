@@ -749,6 +749,12 @@ public final class MarkupRender {
         List<List<String>> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
         List<List<String>> right = el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope);
         List<List<String>> shift = el.attr("action-shift") == null ? null : actions(el.attr("action-shift"), scope);
+        List<List<String>> hover = el.attr("action-hover") == null ? null : actions(el.attr("action-hover"), scope);
+        if (hover != null) {
+            Object hoverRow = rowOf(scope);
+            node.onHover(event -> runAll(hover, new ScreenEvent(event.session(), event.kind(), 0, event.node(), hoverRow,
+                    false), el));
+        }
         El owner = option == null ? null : stateOwner(path);
         if (shift != null) {
             boolean off = flags.contains("disabled");
@@ -1037,8 +1043,10 @@ public final class MarkupRender {
     private Node image(El el, Scope scope) {
         if (el.attr("skin") != null) {
             String name = fill(el.attr("skin"), scope, false).trim();
-            Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name);
-            Node node = (body == null ? Pictures.stranger(true) : body).node();
+            // wearing="...": armour and a held item over the skin (1.498.0).
+            String wearing = el.attr("wearing") == null ? null : fill(el.attr("wearing"), scope, false).trim();
+            Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name, wearing);
+            Node node = (body == null ? Pictures.stranger(true) : body).node().wearing(wearing);
             // <img skin="..." turn>: the body in the round, turning.
             if (el.attr("turn") != null && !name.isEmpty()) node.turntable(name);
             return node;

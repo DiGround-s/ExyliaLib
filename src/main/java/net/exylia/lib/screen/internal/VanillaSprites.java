@@ -193,13 +193,15 @@ public final class VanillaSprites {
             Plugin library = Bukkit.getPluginManager().getPlugin("ExyliaLib");
             if (library == null) return null;
             String version = Bukkit.getMinecraftVersion();
-            Path target = library.getDataFolder().toPath().resolve("cache/sprites-" + version);
+            // "-2": the cache also holds armour layers and trims since 1.498.0, so an older one is fetched again.
+            Path target = library.getDataFolder().toPath().resolve("cache/sprites-" + version + "-2");
             if (Files.isRegularFile(target.resolve(".complete"))) {
                 folder = target;
                 return target;
             }
             Thread fetcher = new Thread(() -> {
                 try {
+                    deleteQuietly(target.resolveSibling("sprites-" + version));
                     fetch(version, target);
                     folder = target;
                     GENERATION.incrementAndGet();
@@ -214,7 +216,50 @@ public final class VanillaSprites {
         return null;
     }
 
-    /** Reads the item and block textures out of the version's client jar, streamed, never stored whole. */
+    private static void deleteQuietly(Path dir) {
+        if (!Files.isDirectory(dir)) return;
+        try (var old = Files.walk(dir)) {
+            old.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+        } catch (IOException | RuntimeException ignored) {
+            // A folder left behind costs only disk.
+        }
+    }
+
+    /**
+     * The first of these textures that the client jar has, by path under {@code textures/} without
+     * {@code .png} ({@code entity/equipment/humanoid/iron}), or {@code null} when none is, or the textures are
+     * not here yet. Reads the disk: call it off the server threads.
+     */
+    static @Nullable BufferedImage texture(String... paths) {
+        Path dir = ready();
+        if (dir == null) return null;
+        try {
+            return first(dir, paths);
+        } catch (IOException unreadable) {
+            return null;
+        }
+    }
+
+    /** Whether the textures are here (the first call starts fetching them). */
+    static boolean available() {
+        return ready() != null;
+    }
+
+    /** Whether a path inside the client jar is a texture the cache keeps. */
+    static boolean kept(String name) {
+        String prefix = "assets/minecraft/textures/";
+        if (!name.startsWith(prefix) || !name.endsWith(".png")) return false;
+        String rest = name.substring(prefix.length());
+        for (String kind : new String[]{"item/", "block/"}) {
+            if (rest.startsWith(kind) && rest.indexOf('/', kind.length()) < 0) return true;
+        }
+        // Armour layers (1.21.2+ and before) and armour trims with their colour palettes.
+        return rest.startsWith("entity/equipment/humanoid") || rest.startsWith("models/armor/")
+                || rest.startsWith("trims/entity/humanoid") || rest.startsWith("trims/models/armor/")
+                || rest.startsWith("trims/color_palettes/");
+    }
+
+    /** Reads the item, block, armour and trim textures out of the version's client jar, streamed, never stored whole. */
     private static void fetch(String version, Path target) throws IOException, InterruptedException {
         HttpClient http = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(Duration.ofSeconds(10)).build();
@@ -237,15 +282,13 @@ public final class VanillaSprites {
         try (ZipInputStream zip = new ZipInputStream(response.body())) {
             for (ZipEntry e; (e = zip.getNextEntry()) != null; ) {
                 String name = e.getName();
-                for (String kind : new String[]{"item", "block"}) {
-                    String prefix = "assets/minecraft/textures/" + kind + "/";
-                    if (name.startsWith(prefix) && name.endsWith(".png") && name.indexOf('/', prefix.length()) < 0) {
-                        Path out = staging.resolve(kind).resolve(name.substring(prefix.length()).toLowerCase(Locale.ROOT));
-                        Files.createDirectories(out.getParent());
-                        Files.copy(zip, out, StandardCopyOption.REPLACE_EXISTING);
-                        count++;
-                    }
-                }
+                if (!kept(name)) continue;
+                Path out = staging.resolve(name.substring("assets/minecraft/textures/".length()).toLowerCase(Locale.ROOT))
+                        .normalize();
+                if (!out.startsWith(staging)) continue;
+                Files.createDirectories(out.getParent());
+                Files.copy(zip, out, StandardCopyOption.REPLACE_EXISTING);
+                count++;
             }
         }
         if (count < 100) throw new IOException("only " + count + " textures in the client jar");

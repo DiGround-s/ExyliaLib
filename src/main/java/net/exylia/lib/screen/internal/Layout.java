@@ -164,6 +164,7 @@ public final class Layout {
         h = mix(h, node.pixelWidth() * 4099L + node.pixelHeight());
         h = mix(h, node.backgroundImage() == null ? 0 : Arrays.hashCode(node.backgroundImage().pixels()));
         h = mix(h, Objects.hashCode(node.turntable()));
+        h = mix(h, Objects.hashCode(node.wearing()));
         h = mix(h, Objects.hashCode(node.background()));
         h = mix(h, Objects.hashCode(node.hover()));
         h = mix(h, Objects.hashCode(node.outline()));
