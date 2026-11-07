@@ -40,7 +40,9 @@ public final class Compile {
             // 1.496.0
             "action-shift", "priority", "refresh", "prompt", "hint",
             // 1.498.0
-            "action-hover", "wearing", "spin");
+            "action-hover", "wearing", "spin",
+            // 1.501.0
+            "require", "deny", "require-right", "deny-right", "require-shift", "deny-shift");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -313,7 +315,8 @@ public final class Compile {
             String name = attr.getKey();
             String value = attr.getValue();
             try {
-                if (name.equals("if") || (name.equals("else") && !value.isEmpty()) || (name.equals("on") && tag.equals("switch"))) {
+                if (name.equals("if") || name.startsWith("require") || (name.equals("else") && !value.isEmpty())
+                        || (name.equals("on") && tag.equals("switch"))) {
                     Expr.compile(value);
                 } else if (!name.startsWith("action")) {
                     Interp.of(value);
@@ -347,7 +350,8 @@ public final class Compile {
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));
-        for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "dismiss"}) {
+        for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "dismiss", "deny",
+                "deny-right", "deny-shift"}) {
             String action = el.attr(attr);
             if (action == null) continue;
             for (List<String> step : Actions.steps(action)) {

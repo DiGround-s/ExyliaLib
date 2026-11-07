@@ -113,6 +113,25 @@ public final class ScreenSet {
         return bindings;
     }
 
+    /**
+     * Every screen the folder holds now: the {@code <id>.html} files at its top, read or not, in name order
+     * ({@code components/} and other subfolders are parts, never screens). For a plugin whose screens are whatever
+     * the owner puts there.
+     *
+     * @since 1.501.0
+     */
+    public @NotNull List<String> ids() {
+        try (var files = Files.list(dir())) {
+            return files.map(file -> file.getFileName().toString())
+                    .filter(name -> name.endsWith(".html") && name.substring(0, name.length() - 5).matches("[A-Za-z0-9_-]+"))
+                    .map(name -> name.substring(0, name.length() - 5))
+                    .sorted()
+                    .toList();
+        } catch (IOException | RuntimeException none) {
+            return List.of();
+        }
+    }
+
     /** The screens read so far, by id. */
     public @NotNull Map<String, ScreenMarkup> markups() {
         return Map.copyOf(markups);

@@ -16,6 +16,7 @@ import java.util.Map;
  * names       tab  kit.kit_name  %stats_elo%  (a %placeholder% reads the lib's placeholders too)
  * operators   a ? b : c   or ||   and &amp;&amp;   not !   == != &lt; &lt;= &gt; &gt;=   in   + -   * / %   -x   ( )
  * functions   min max abs round floor ceil len upper lower plural(n,'kill','kills') t('key')
+ *             perm('node') balance(['currency']) has_item('diamond', n) level() world()
  *             fmt.number(n) fmt.percent(x) fmt.time(seconds)
  * </pre>
  *
@@ -44,6 +45,11 @@ public final class Expr {
 
         /** A quoted literal, filled with {@code %name%} and {@code ${...}}. */
         Object literal(String text);
+
+        /** Who the screen is drawn for, for {@code perm()}, {@code balance()} and the like; {@code null} off a server. */
+        default org.bukkit.entity.Player viewer() {
+            return null;
+        }
     }
 
     /** Text that is shown as written: never parsed for colours or tags. */
@@ -213,6 +219,35 @@ public final class Expr {
                 Double n = number(a);
                 yield n == null ? text(a) : net.exylia.lib.util.TimeFormats.render(Math.max(0, n));
             }
+            case "perm" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer != null && viewer.hasPermission(text(a));
+            }
+            case "balance" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                if (viewer == null) yield 0d;
+                yield (args.isEmpty() ? net.exylia.lib.economy.Economy.balance(viewer.getUniqueId())
+                        : net.exylia.lib.economy.Economy.of(text(a)).balance(viewer.getUniqueId())).doubleValue();
+            }
+            case "has_item" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                org.bukkit.Material material = org.bukkit.Material.matchMaterial(text(a));
+                Double wanted = args.size() > 1 ? number(args.get(1)) : Double.valueOf(1);
+                if (viewer == null || material == null) yield false;
+                int have = 0;
+                for (org.bukkit.inventory.ItemStack stack : viewer.getInventory().getContents()) {
+                    if (stack != null && stack.getType() == material) have += stack.getAmount();
+                }
+                yield have >= (wanted == null ? 1 : wanted);
+            }
+            case "level" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? 0d : (double) viewer.getLevel();
+            }
+            case "world" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? "" : viewer.getWorld().getName();
+            }
             default -> throw new Bad("unknown function " + name + "()", at);
         };
     }
@@ -228,7 +263,9 @@ public final class Expr {
 
     /** The functions {@link #compile} accepts, so a typo is caught when the file is read. */
     private static final java.util.Set<String> FUNCTIONS = java.util.Set.of("min", "max", "abs", "round", "floor",
-            "ceil", "len", "upper", "lower", "plural", "t", "fmt.number", "fmt.percent", "fmt.time");
+            "ceil", "len", "upper", "lower", "plural", "t", "fmt.number", "fmt.percent", "fmt.time",
+            // 1.501.0: about the viewer
+            "perm", "balance", "has_item", "level", "world");
 
     // ------------------------------------------------------------------
     // Parsing

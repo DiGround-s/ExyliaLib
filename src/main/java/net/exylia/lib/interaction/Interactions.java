@@ -73,7 +73,7 @@ import java.util.function.Consumer;
  */
 public final class Interactions {
 
-    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION");
+    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY");
     private static final Set<Click> ANY = Set.copyOf(EnumSet.allOf(Click.class));
 
     private record Registered(String plugin, InteractionToken handler) {
@@ -197,7 +197,7 @@ public final class Interactions {
     public static @NotNull List<String> starters() {
         List<String> starters = new ArrayList<>(List.of("left:", "right:", "shift_left:", "shift_right:",
                 "shift:", "any:"));
-        java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION"));
+        java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY"));
         tokens.addAll(TOKENS.keySet());
         tokens.addAll(Sequences.tokens());
         for (String token : tokens) {
@@ -317,6 +317,33 @@ public final class Interactions {
                 return (owner, player, click, data) -> Teleports.of(owner)
                         .to(player, place(place.render(player, data))).start().future()
                         .thenApply(result -> true);
+            }
+            case "MONEY" -> {
+                // [MONEY] take|give <amount> [currency] (1.501.0): a take the player cannot afford stops the list.
+                String[] words = required(rest, "take|give <amount> [currency]").split("\\s+");
+                String verb = words[0].toLowerCase(Locale.ROOT);
+                if (words.length < 2 || !(verb.equals("take") || verb.equals("give"))) {
+                    throw new IllegalArgumentException("it needs take|give <amount> [currency]");
+                }
+                Arg amount = Arg.of(words[1]);
+                String currency = words.length > 2 ? words[2] : null;
+                return (owner, player, click, data) -> onPlayer(owner, player, done -> {
+                    java.math.BigDecimal value;
+                    try {
+                        value = new java.math.BigDecimal(amount.render(player, data).replace(",", "").trim());
+                    } catch (NumberFormatException notANumber) {
+                        Debug.of(owner).warn("In " + name + ", [MONEY] " + rest + ": the amount is not a number");
+                        done.complete(false);
+                        return;
+                    }
+                    java.util.UUID who = player.getUniqueId();
+                    boolean take = verb.equals("take");
+                    boolean ok = currency == null
+                            ? (take ? net.exylia.lib.economy.Economy.charge(who, value) : net.exylia.lib.economy.Economy.pay(who, value))
+                            : (take ? net.exylia.lib.economy.Economy.of(currency).charge(who, value)
+                                    : net.exylia.lib.economy.Economy.of(currency).pay(who, value));
+                    done.complete(value.signum() <= 0 || ok);
+                });
             }
             case "ACTION" -> {
                 Arg action = Arg.of(required(rest, "a namespace:id"));

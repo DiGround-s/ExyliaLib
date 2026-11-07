@@ -338,6 +338,7 @@ public final class ScreenMarkup {
 
     private boolean known(String action) {
         if (BUILT_IN.contains(action) || bindings.actions().containsKey(action) || action.contains("%")
+                || net.exylia.lib.screen.internal.MarkupRender.isLine(action)
                 || action.contains("${")) {
             return true;
         }

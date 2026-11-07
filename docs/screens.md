@@ -345,6 +345,8 @@ screens.reload();
   it is where an owner puts their own rules, and it is never touched by an update.
 - `components/*.html` next to the screen is read for [templates](#components), `<include>` reads from the
   same folder (never outside it), and `img src=` too.
+- `ids()` (1.501.0) lists every `<id>.html` at the top of the folder, read or not, for a plugin whose screens are
+  whatever the owner puts there.
 - `markup(id)` returns the same object every time; sources, values and actions registered on it survive every
   reload. `reload()` installs what the jar brought and reads every screen again; a screen that no longer reads
   keeps its last good version and says why in `problems()`.
@@ -397,6 +399,43 @@ placeholder left as written are false. An expression that does not parse is a pr
 <small>${kills + deaths} ${plural(kills, 'kill', 'kills')} · ${ratio > 1.5 ? 'good' : 'keep going'}</small>
 <text if="queued != 0 and tab in 'play duels'">${fmt.time(wait)}</text>
 ```
+
+### Commands, messages and requirements (1.501.0)
+
+Any action step that is an [interaction line](interactions.md) runs as one: a command as the player or the
+console, a `[MESSAGE]`, a `[MONEY]` charge, a `[SERVER]` move, any effect token. Consecutive lines form one list,
+so `[DELAY]` waits before the ones after it and a line that stops (a refused command, a charge the player cannot
+afford) stops everything after it, the screen's own steps included.
+
+```html
+<card action="[MONEY] take 250; [console] give %player_name% diamond 16; [MESSAGE] {success}Bought 16 diamonds.; toast success Bought"
+      require="balance() >= 250" deny="toast error 'You need 250 coins'; sound entity.villager.no">
+```
+
+| Step | Is |
+| --- | --- |
+| `[console] <command>`, `console: <command>` | the console runs it |
+| `[player] <command>`, `player: <command>`, `player-proxy:`, `console-proxy:` | the player (or the proxy) runs it |
+| `[MONEY] take\|give <amount> [currency]` | the lib economy; a take that cannot be paid stops the list |
+| `[MESSAGE] ...`, `[TITLE] ...`, `[SERVER] lobby`, `[TELEPORT] world;x;y;z`, `[ACTION] ns:id`, `[DELAY] 1s` | as in [interactions](interactions.md) |
+
+A line holds everything up to the next `;`, so a step with a `;` of its own (`[TELEPORT] world;0;64;0`) is written
+with commas (`world,0,64,0`); a sound is the screen's `sound` step. Values are filled before the line runs and a
+value never becomes another step.
+
+**Requirements.** `require="<expression>"` gates every click of the element, `require-right` and `require-shift`
+only that click. When it is false the click runs `deny` (`deny-right`, `deny-shift`) instead, or a quiet refusal
+sound when there is none. Show the state too: `disabled="${balance() < 250}"` greys the card.
+
+Expression functions about the viewer, for `if`, `require` and `${...}`:
+
+| Function | Answers |
+| --- | --- |
+| `perm('node')` | whether they have the permission |
+| `balance()`, `balance('points')` | their money in the default (or named) currency |
+| `has_item('diamond', 16)` | whether they carry at least that many (1 when left out) |
+| `level()` | their experience level |
+| `world()` | the name of their world |
 
 ### Choosing what is drawn (1.494.0)
 

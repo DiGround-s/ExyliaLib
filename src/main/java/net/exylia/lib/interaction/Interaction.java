@@ -105,19 +105,31 @@ public final class Interaction {
      */
     public @NotNull CompletableFuture<Void> run(@NotNull Player player, @NotNull Click click,
                                                 @NotNull Map<String, Object> data) {
-        CompletableFuture<Void> done = new CompletableFuture<>();
+        return runToEnd(player, click, data).thenApply(finished -> null);
+    }
+
+    /**
+     * {@link #run(Player, Click, Map)}, telling whether the list got to its end: {@code false} when a line stopped
+     * it (a refused command, an action or charge that did not succeed) or the player left. For callers with more to
+     * do only when every line went through, as a screen running its own steps after these.
+     *
+     * @since 1.501.0
+     */
+    public @NotNull CompletableFuture<Boolean> runToEnd(@NotNull Player player, @NotNull Click click,
+                                                        @NotNull Map<String, Object> data) {
+        CompletableFuture<Boolean> done = new CompletableFuture<>();
         advance(0, player, click, data == null ? Map.of() : data, done);
         return done;
     }
 
     private void advance(int from, Player player, Click click, Map<String, Object> data,
-                         CompletableFuture<Void> done) {
+                         CompletableFuture<Boolean> done) {
         int index = from;
         while (index < lines.size() && !lines.get(index).clicks().contains(click)) {
             index++;
         }
         if (index >= lines.size() || !player.isOnline()) {
-            done.complete(null);
+            done.complete(index >= lines.size());
             return;
         }
         Line line = lines.get(index);
@@ -136,7 +148,7 @@ public final class Interaction {
             } else if (Boolean.TRUE.equals(goOn)) {
                 advance(next, player, click, data, done);
             } else {
-                done.complete(null);
+                done.complete(false);
             }
         });
     }

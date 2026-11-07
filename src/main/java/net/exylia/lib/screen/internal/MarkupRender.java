@@ -218,6 +218,15 @@ public final class MarkupRender {
             public Object literal(String text) {
                 return fill(text, scope, false);
             }
+
+            @Override
+            public org.bukkit.entity.Player viewer() {
+                try {
+                    return session.viewer();
+                } catch (RuntimeException noViewer) {
+                    return null;
+                }
+            }
         };
     }
 
@@ -756,9 +765,11 @@ public final class MarkupRender {
 
     private void click(El el, Node node, Scope scope, Set<String> flags, String option, List<Css.Target> path,
                        String toggleKey) {
-        List<List<String>> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
-        List<List<String>> right = el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope);
-        List<List<String>> shift = el.attr("action-shift") == null ? null : actions(el.attr("action-shift"), scope);
+        List<List<String>> action = gated(el, "", el.attr("action") == null ? null : actions(el.attr("action"), scope), scope);
+        List<List<String>> right = gated(el, "-right",
+                el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope), scope);
+        List<List<String>> shift = gated(el, "-shift",
+                el.attr("action-shift") == null ? null : actions(el.attr("action-shift"), scope), scope);
         List<List<String>> hover = el.attr("action-hover") == null ? null : actions(el.attr("action-hover"), scope);
         if (hover != null) {
             Object hoverRow = rowOf(scope);
@@ -799,6 +810,60 @@ public final class MarkupRender {
     }
 
     /**
+     * {@code require="expr"} (every click) and {@code require-right}/{@code require-shift} (that click): when the
+     * expression is false the click runs {@code deny} (or {@code deny-right}/{@code deny-shift}) instead, or a quiet
+     * refusal sound when there is none (1.501.0).
+     */
+    private List<List<String>> gated(El el, String which, List<List<String>> steps, Scope scope) {
+        if (steps == null) return null;
+        for (String suffix : which.isEmpty() ? List.of("") : List.of(which, "")) {
+            String require = el.attr("require" + suffix);
+            if (require == null || test(require, scope)) continue;
+            String deny = el.attr("deny" + suffix);
+            if (deny == null && !suffix.isEmpty()) deny = el.attr("deny");
+            return deny != null ? actions(deny, scope) : List.of(List.of("sound", "entity.villager.no", "0.4"));
+        }
+        return steps;
+    }
+
+    /**
+     * Whether a step is an {@link net.exylia.lib.interaction.Interactions} line ({@code [console] ...},
+     * {@code [message] ...}, {@code [MONEY] take 100}, {@code console: ...}) rather than a screen action (1.501.0).
+     */
+    public static boolean isLine(String first) {
+        if (first.length() > 2 && first.charAt(0) == '[' && first.indexOf(']') > 1) return true;
+        String lower = first.toLowerCase(java.util.Locale.ROOT);
+        return lower.equals("console:") || lower.equals("player:") || lower.equals("console-proxy:")
+                || lower.equals("player-proxy:");
+    }
+
+    // ponytail: cleared whole when full, since filled lines hold player names; an LRU if it ever matters.
+    private static final Map<String, net.exylia.lib.interaction.Interaction> LINES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Runs consecutive interaction steps as one list, then the steps after them once it got to its end. */
+    private void runLines(List<List<String>> steps, int from, ScreenEvent event, El el) {
+        int end = from;
+        List<String> lines = new ArrayList<>();
+        while (end < steps.size() && !steps.get(end).isEmpty() && isLine(steps.get(end).get(0))) {
+            lines.add(String.join(" ", steps.get(end)));
+            end++;
+        }
+        List<List<String>> rest = List.copyOf(steps.subList(end, steps.size()));
+        org.bukkit.plugin.Plugin lib = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(MarkupRender.class);
+        String key = String.join("\n", lines);
+        if (LINES.size() > 512) LINES.clear();
+        net.exylia.lib.interaction.Interaction compiled = LINES.computeIfAbsent(key, ignored ->
+                net.exylia.lib.interaction.Interactions.compile(lib, lines, "screen " + el.pos()));
+        org.bukkit.entity.Player viewer = event.viewer();
+        net.exylia.lib.interaction.Click click = net.exylia.lib.interaction.Click.of(
+                event.kind() != ScreenEvent.Kind.RIGHT, event.shift());
+        compiled.runToEnd(viewer, click, Map.of()).thenAccept(finished -> {
+            if (!finished || rest.isEmpty() || !viewer.isOnline()) return;
+            net.exylia.lib.task.Tasks.of(lib).runAtEntity(viewer, () -> runAll(rest, event, el), () -> { });
+        });
+    }
+
+    /**
      * Steps split by {@code ;} and words split by spaces as written, then each word filled: a value with a space
      * or a {@code ;} in it stays one argument of one step, whatever it holds.
      */
@@ -821,6 +886,10 @@ public final class MarkupRender {
             List<String> step = steps.get(i);
             if (step.isEmpty()) continue;
             String name = step.get(0);
+            if (isLine(name)) {
+                runLines(steps, i, event, el);
+                return;
+            }
             if (!name.equals("confirm") && !name.equals("input")) {
                 run(step, event, el);
                 continue;

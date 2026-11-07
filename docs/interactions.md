@@ -50,6 +50,7 @@ only the plain left click, as in menus.
 | `[SERVER] lobby` | sends the player to another server — `PluginTeleports.toServer`, no Redis needed |
 | `[TELEPORT] world;x;y;z[;yaw;pitch]` | moves them on this server through the [teleport module](teleport.md) (commas work too) |
 | `[ACTION] namespace:id args` | runs a registered [action](actions.md) for the player |
+| `[MONEY] take\|give <amount> [currency]` | charges or pays them through the [economy](economy.md) (1.501.0); a take they cannot afford stops the lines after it |
 | `[SAY] ...` or any token a plugin registered | that plugin's handler |
 | any other `[TOKEN]` | a [sequence](sequences.md) line — `[MESSAGE]`, `[SOUND]`, `[TITLE]`, `[ACTION_BAR]`, `[TOAST]`, `[PARTICLE]`, `[FIREWORK]`... — played at the player, seen only by them |
 
@@ -68,7 +69,7 @@ with everything after `[SAY]` rendered. Registering after the lines compiled
 works too (since 1.392.0): a token that is not an effect is looked up when the
 line runs, so another plugin that enables later still reaches lines compiled
 before it. A token nobody has registered by the time it is clicked is reported
-once per plugin, naming it, and the line is skipped; the rest still run. `DELAY`, `SERVER`, `TELEPORT` and `ACTION` are built in and
+once per plugin, naming it, and the line is skipped; the rest still run. `DELAY`, `SERVER`, `TELEPORT`, `ACTION` and `MONEY` are built in and
 cannot be taken; a token another plugin holds throws. Tokens are released when
 their plugin disables, and a compiled line whose token was released does
 nothing.
@@ -99,6 +100,8 @@ name, and runs like one. Holograms use it for `[PAGE]`.
   player who leaves. A line that throws is reported and the rest still run.
 - **`[ACTION]` is resolved when it runs**, so an action another plugin registers
   after these lines load still counts; an unknown one is reported each time.
+- `runToEnd(player, click, data)` (1.501.0) is `run` answering whether every line went through (`false` when one
+  stopped the list or the player left), for a caller with more to do afterwards.
 - `handles(click)` says whether any line answers a click, `isEmpty()` whether
   any line survived. `Interaction.empty()` does nothing.
 

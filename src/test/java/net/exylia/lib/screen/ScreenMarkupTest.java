@@ -123,6 +123,25 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void aRequirementPicksTheDenyStepsWhenItFails() {
+        ScreenMarkup markup = ScreenMarkup.parse("req", """
+                <screen>
+                  <button id="b" require="vip" action="hit yes" deny="hit no">Buy</button>
+                  <button id="c" action="[console] say %player_name%; close" require="perm('x') or true">Run</button>
+                </screen>""");
+        List<String> hits = new ArrayList<>();
+        markup.action("hit", (event, args) -> hits.add(args.get(0)));
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+        Fake session = new Fake(markup.screen());
+        session.render();
+        session.click("b");
+        session.set("vip", true);
+        session.render();
+        session.click("b");
+        assertEquals(List.of("no", "yes"), hits);
+    }
+
+    @Test
     void anEmptySourceShowsItsEmpty() {
         ScreenMarkup markup = ScreenMarkup.parse("e", """
                 <screen><list source="kits"><text>%kit_name%</text><empty>0000</empty></list></screen>""");
