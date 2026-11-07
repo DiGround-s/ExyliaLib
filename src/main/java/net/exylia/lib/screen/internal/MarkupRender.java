@@ -492,7 +492,7 @@ public final class MarkupRender {
                 ? el.attr("state") : null;
         if (toggleKey != null && truthy(session.state(toggleKey, false))) flags.add("checked");
 
-        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class")), flags, index, count);
+        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class") == null ? null : fill(el.attr("class"), scope, false)), flags, index, count);
         List<Css.Target> here = new ArrayList<>(path);
         here.add(target);
         Map<String, String> style = parts.css().style(here, false);

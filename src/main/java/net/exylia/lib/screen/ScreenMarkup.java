@@ -363,6 +363,12 @@ public final class ScreenMarkup {
         return this;
     }
 
+    /** The {@code state} keys marked {@code persist="player"} under {@code el}. */
+    private static void persisted(Markup.El el, java.util.Set<String> out) {
+        if (el.attr("state") != null && "player".equalsIgnoreCase(el.attr("persist"))) out.add(el.attr("state"));
+        for (Markup.El child : el.elements()) persisted(child, out);
+    }
+
     /** A screen drawn from this markup; open it with {@link Screens#open}. */
     public @NotNull Screen screen() {
         return screen(Map.of());
@@ -379,6 +385,12 @@ public final class ScreenMarkup {
             return MarkupRender.render(parts, session);
         }).state(state);
         Markup.El root = compiled.root();
+        java.util.Set<String> persisted = new java.util.HashSet<>();
+        persisted(root, persisted);
+        if (!persisted.isEmpty()) {
+            String scope = root.attr("id") != null ? root.attr("id") : name.replaceFirst("\\.[^.]*$", "");
+            screen.persist(scope, persisted);
+        }
         String size = root.attr("size");
         if (size != null && size.matches("\\d+x\\d+")) {
             String[] wh = size.split("x");

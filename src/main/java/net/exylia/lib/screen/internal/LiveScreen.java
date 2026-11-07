@@ -275,6 +275,7 @@ final class LiveScreen implements ScreenSession {
         this.lastYaw = eyes.getYaw();
         this.homeYaw = lastYaw;
         this.lastPitch = eyes.getPitch();
+        state.putAll(Persisted.load(player, screen));
         state.putAll(screen.state());
         this.spriteGlyphs = spritesFor(player);
     }
@@ -514,6 +515,7 @@ final class LiveScreen implements ScreenSession {
     public void set(@NotNull String key, @Nullable Object value) {
         if (value == null) state.remove(key);
         else state.put(key, value);
+        if (screen.persisted().contains(key)) Persisted.save(plugin, player, screen, key, value);
         redraw();
     }
 

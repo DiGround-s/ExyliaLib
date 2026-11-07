@@ -177,6 +177,26 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void dynamicClassesTakePartInMatching() {
+        ScreenMarkup markup = ScreenMarkup.parse("dyn", """
+                <screen><card id="c" class="tile ${on ? 'lit' : 'dim'}">1</card></screen>""",
+                ".tile.lit { background: #222222; } .tile.dim { background: #444444; }");
+        assertEquals("#222222", find(new Fake(markup.screen(Map.of("on", true))).render(), "c").background());
+        assertEquals("#444444", find(new Fake(markup.screen(Map.of("on", false))).render(), "c").background());
+    }
+
+    @Test
+    void persistedStateKeysAreCollected() {
+        ScreenMarkup markup = ScreenMarkup.parse("prefs.html", """
+                <screen><tabs state="tab" default="a" persist="player"><tab value="a">A</tab></tabs>
+                <chips state="cat" default="x"><chip value="x">X</chip></chips></screen>""");
+        Screen screen = markup.screen();
+        assertEquals("prefs", screen.persistScope());
+        assertEquals(java.util.Set.of("tab"), screen.persisted());
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
+
+    @Test
     void problemsNameTheFileAndLine() {
         ScreenMarkup markup = ScreenMarkup.parse("bad.html", "<screen>\n<blink/>\n<pager/>\n</screen>",
                 "card { colour: red; }");

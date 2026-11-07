@@ -39,6 +39,8 @@ public final class Compile {
             "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
             // 1.496.0
             "action-shift", "priority", "refresh", "prompt", "hint",
+            // 1.503.0
+            "persist",
             // 1.498.0
             "action-hover", "wearing", "spin",
             // 1.501.0

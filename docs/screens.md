@@ -267,6 +267,12 @@ that is not well-formed throws, when it is read.
   placeholders) adds that CSS flag. A
   `disabled` box refuses clicks with a quiet villager sound.
 - `state` + `default`: what an option group remembers, and what it shows before the player picks.
+- `persist="player"` next to `state` (1.503.0): the player keeps that choice across sessions and restarts,
+  stored with their player data (`exylialib:screen/<screen>/<key>`, the screen being the root `id` or the
+  file name without `.html`). A state handed in by a route or `screen(Map)` still wins.
+  `<tabs state="tab" default="play" persist="player">`. Java: `Screen#persist(scope, keys)`.
+- `class="${...}"` / `class="tile %tone%"` (1.503.0): classes filled per render take part in CSS matching, so
+  `class="card ${owned ? 'owned' : 'locked'}"` picks `.card.owned` or `.card.locked`.
 - `%name%` anywhere: a row field inside a repeat, a registered `value`/`text`, or session state; then (1.494.0)
   any placeholder the server knows (`%exyliaffa_total_players%`); left as written when none of them knows it.
 - `${expression}` anywhere (1.494.0): the [expression](#expressions-14940)'s result, in text and attributes.

@@ -50,6 +50,8 @@ public final class Screen {
     private java.util.function.Predicate<ScreenSession> onBack;
     private Node scene;
     private double parallax;
+    private String persistScope;
+    private java.util.Set<String> persisted = java.util.Set.of();
 
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
@@ -105,6 +107,29 @@ public final class Screen {
 
     public @NotNull Map<String, Object> state() {
         return state;
+    }
+
+    /**
+     * State keys each player keeps across sessions and restarts (markup {@code persist="player"}), stored with
+     * the player's data under {@code scope}: the last tab or filter they picked comes back the next time. A
+     * value given to {@link #state(Map)} still wins over the stored one.
+     *
+     * @since 1.503.0
+     */
+    public @NotNull Screen persist(@NotNull String scope, @NotNull java.util.Collection<String> keys) {
+        this.persistScope = Objects.requireNonNull(scope, "scope");
+        this.persisted = java.util.Set.copyOf(keys);
+        return this;
+    }
+
+    /** The scope persisted keys are stored under, or {@code null} when none are. @since 1.503.0 */
+    public @Nullable String persistScope() {
+        return persistScope;
+    }
+
+    /** The state keys kept per player. @since 1.503.0 */
+    public @NotNull java.util.Set<String> persisted() {
+        return persisted;
     }
 
     public @NotNull Function<ScreenSession, Node> render() {
