@@ -98,6 +98,30 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void twoGridsOfOneSourceInBranchesEachKeepTheirColumns() {
+        ScreenMarkup markup = ScreenMarkup.parse("grid", """
+                <screen>
+                  <grid if="wide" source="kits" columns="2" rows="1">
+                    <card><b>%playing%</b></card>
+                  </grid>
+                  <grid if="!wide" source="kits" columns="3" rows="1">
+                    <card><b>%playing%</b></card>
+                  </grid>
+                  <pager for="kits"/>
+                </screen>""");
+        markup.source("kits", s -> kits(6));
+        Fake session = new Fake(markup.screen());
+        session.state.put("wide", true);
+        Node root = session.render();
+        // The first branch's grid windows two cells a line, not one column of every row.
+        assertEquals(List.of("10", "20", "‹", "1 / 3", "›"), texts(root), texts(root).toString());
+        session.state.put("wide", false);
+        root = session.render();
+        assertEquals(List.of("10", "20", "30", "‹", "1 / 2", "›"), texts(root), texts(root).toString());
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+    }
+
+    @Test
     void aGridShowsAWindowAndThePagerMovesIt() {
         ScreenMarkup markup = ScreenMarkup.parse("grid", """
                 <screen>

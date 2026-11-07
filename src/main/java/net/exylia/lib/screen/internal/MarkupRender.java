@@ -90,8 +90,10 @@ public final class MarkupRender {
     /** What {@code <item row/>} draws for a row of a {@link UiEntry} source, by that row's own value map. */
     private final Map<Map<String, ?>, java.util.function.Supplier<org.bukkit.inventory.ItemStack>> rowItems =
             new java.util.IdentityHashMap<>();
-    /** Grids by id or source, for pagers. */
+    /** Grids by id or source, for pagers: the one drawn last in this render, else the last in the markup. */
     private final Map<String, El> grids = new HashMap<>();
+    /** Every grid node, so two grids of one source (in different branches) each keep their own window. */
+    private final Set<El> gridNodes = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     /** A {@code state} key's {@code default}, read before the player has picked anything. */
     private final Map<String, String> defaults = new HashMap<>();
     /** Binding values read so far in this render. */
@@ -115,6 +117,7 @@ public final class MarkupRender {
         if (el.attr("state") != null && el.attr("default") != null) defaults.putIfAbsent(el.attr("state"), el.attr("default"));
         if (el.attr("source") != null && (el.attr("columns") != null || el.attr("rows") != null
                 || el.tag().equals("grid") || el.tag().equals("list"))) {
+            gridNodes.add(el);
             grids.put(el.attr("source"), el);
             if (el.attr("id") != null) grids.put(el.attr("id"), el);
         }
@@ -679,7 +682,11 @@ public final class MarkupRender {
             }
             return node;
         }
-        boolean windowed = grids.get(source) == el;
+        boolean windowed = gridNodes.contains(el);
+        if (windowed) {
+            grids.put(source, el);
+            if (el.attr("id") != null) grids.put(el.attr("id"), el);
+        }
         int columns = windowed ? Math.max(1, intAttr(el, "columns", 1)) : 1;
         int window = windowed && el.attr("rows") != null ? columns * Math.max(1, intAttr(el, "rows", 1)) : all.size();
         String key = "scroll." + source;
