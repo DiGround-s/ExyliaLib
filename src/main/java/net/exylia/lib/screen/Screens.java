@@ -82,8 +82,43 @@ public final class Screens {
         return ScreenRuntime.sensitivity(player.getUniqueId());
     }
 
-    /** Sets a player's cursor speed, from 0.2 to 3; it applies at once to an open screen. Kept until they quit. */
+    /**
+     * Sets a player's cursor speed, from 0.2 to 3; it applies at once to an open screen. Kept in the player's data
+     * across restarts since 1.496.0 (until they quit before), and also set in {@code /settings} → Interface.
+     */
     public static void sensitivity(@NotNull Player player, double sensitivity) {
-        ScreenRuntime.sensitivity(player.getUniqueId(), Math.max(0.2, Math.min(3.0, sensitivity)));
+        ScreenRuntime.sensitivity(player, sensitivity);
+    }
+
+    /**
+     * Whether screens move as little as they can for this player: no arrivals, departures or animations, short
+     * straight glides. Their own choice ({@code /settings} → Interface) or the server's ({@code screens.yml}).
+     *
+     * @since 1.496.0
+     */
+    public static boolean reducedMotion(@NotNull Player player) {
+        return ScreenRuntime.reducedMotion(player.getUniqueId());
+    }
+
+    /** Sets a player's own reduced motion, kept in their data. @since 1.496.0 */
+    public static void reducedMotion(@NotNull Player player, boolean reduced) {
+        ScreenRuntime.reducedMotion(player, reduced);
+    }
+
+    /**
+     * Redraws now every screen this plugin has open whose session passes {@code which}, rather than at its next
+     * second: a queue that changed redraws every open hub at once.
+     *
+     * <pre>{@code Screens.of(plugin).redrawAll(session -> "play".equals(session.state("tab", "")));}</pre>
+     *
+     * @since 1.496.0
+     */
+    public void redrawAll(@NotNull java.util.function.Predicate<ScreenSession> which) {
+        ScreenRuntime.redrawAll(plugin, which);
+    }
+
+    /** Redraws every screen this plugin has open. @since 1.496.0 */
+    public void redrawAll() {
+        redrawAll(session -> true);
     }
 }

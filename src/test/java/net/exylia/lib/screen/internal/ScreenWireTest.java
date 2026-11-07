@@ -155,6 +155,103 @@ class ScreenWireTest {
                 + "\n[screen wire] cursor move " + move);
     }
 
+    private static final String MOTION = """
+            <screen>
+              <panel>
+                <row>
+                  <card id="a" action="set dialog true">A</card>
+                  <card id="b" action="toast success Saved">B</card>
+                  <box id="pulse" class="pulse"><text>Live</text></box>
+                </row>
+                <modal id="dlg" if="dialog" dismiss="clear dialog"><text>Sure?</text></modal>
+              </panel>
+            </screen>""";
+    private static final String MOTION_CSS = "panel { padding: 8px; gap: 6px; background: #15111d; }"
+            + " card { padding: 6px 10px; background: #2a2238; transition: transform 4t ease-out; }"
+            + " card:hover { background: #3c3150; transform: translateY(-2px); }"
+            + " modal { padding: 10px; background: #1a1424; enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }"
+            + " .pulse { padding: 2px 4px; background: #2a2238; animation: pulse 40t infinite; }"
+            + " @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }";
+
+    @Test
+    void motionStaysWithinBudget() {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            motion();
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
+    private void motion() {
+        FakeServer.install();
+        FakeServer.reset();
+        FakePlayer viewer = new FakePlayer("Mover").at(new Location(null, 0, 64, 0));
+        viewer.inventory(Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{PlayerInventory.class},
+                (self, method, args) -> FakeServer.defaultValue(method.getReturnType())));
+        ScreenMarkup markup = ScreenMarkup.parse("motion", MOTION, MOTION_CSS);
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+        Screen screen = markup.screen();
+        AtomicInteger ids = new AtomicInteger(1000);
+        List<int[]> destroyed = new ArrayList<>();
+        ScreenPackets.Wire wire = new ScreenPackets.Wire(frame -> {
+            sent.add(frame);
+            for (PacketWrapper<?> p : frame) if (p instanceof WrapperPlayServerDestroyEntities d) destroyed.add(d.getEntityIds());
+        });
+        LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenMotion"), viewer.player(), screen, wire,
+                ids::incrementAndGet);
+        live.start();
+        FakeServer.tick(12);
+        Stats open = take();
+
+        // The badge pulses on its own: a second of it.
+        FakeServer.tick(20);
+        Stats pulse = take();
+        assertTrue(pulse.packets > 0, "an animation keeps moving: " + pulse);
+        assertTrue(pulse.packets <= 30, "a second of one pulse is a handful of packets: " + pulse);
+
+        Layout.Placed card = Layout.lay(screen.render().apply(live), screen.width(), screen.height()).stream()
+                .filter(box -> box.key().equals("#a")).findFirst().orElseThrow();
+        live.turned(0, 0);
+        double[] start = live.pointer();
+        live.turned(1, 0);
+        double perYaw = live.pointer()[0] - start[0];
+        live.turned(1, 1);
+        double perPitch = live.pointer()[1] - start[1];
+        float yaw = (float) (1 + (card.x() + card.w() / 2 - live.pointer()[0]) / perYaw);
+        float pitch = (float) (1 + (card.y() + card.h() / 2 - live.pointer()[1]) / perPitch);
+        FakeServer.tick(1);
+        take();
+        live.turned(yaw, pitch);
+        FakeServer.tick(6); // the lift and its eased steps
+        Stats lift = take();
+        assertTrue(lift.packets > 0 && lift.bytes < 3000, "an eased hover lift is a few steps of one card: " + lift);
+
+        live.set("dialog", true);
+        FakeServer.tick(8);
+        Stats enter = take();
+        assertTrue(enter.packets > 0 && enter.packets < 60, "a dialog arrives in a few frames: " + enter);
+        destroyed.clear();
+        live.set("dialog", null);
+        FakeServer.tick(1);
+        int gone = destroyed.stream().mapToInt(a -> a.length).sum();
+        FakeServer.tick(6);
+        int later = destroyed.stream().mapToInt(a -> a.length).sum() - gone;
+        assertTrue(later > 0, "a leaving dialog is removed after its departure, not at once");
+        Stats leave = take();
+
+        live.toast("success", "Saved");
+        FakeServer.tick(8);
+        Stats toast = take();
+        assertTrue(toast.packets > 0 && toast.packets < 20, "a toast is a box and its words: " + toast);
+
+        live.close();
+        System.out.println("[screen motion] open " + open + "\n[screen motion] pulse second " + pulse
+                + "\n[screen motion] hover lift " + lift + "\n[screen motion] dialog enter " + enter
+                + "\n[screen motion] dialog leave " + leave + "\n[screen motion] toast " + toast);
+    }
+
     private record Stats(int frames, int packets, int bytes, int rawPackets, int rawBytes, Set<Integer> indices) {
         @Override
         public String toString() {

@@ -68,8 +68,11 @@ import java.util.function.Function;
 public final class ScreenMarkup {
 
     private static final String BASE = loadBase();
+    /** The library's own components, known to every screen below the plugin's (since 1.496.0). */
+    private static final List<String[]> LIBRARY = loadLibrary();
     /** Actions every screen knows without registering. */
-    private static final Set<String> BUILT_IN = Set.of("close", "set", "clear", "toggle", "toast");
+    private static final Set<String> BUILT_IN = Set.of("close", "set", "clear", "toggle", "toast", "back", "sound",
+            "confirm", "input");
 
     /** One read of the files: what a render draws until the next read. */
     record Compiled(Markup.El root, Css css, List<String> problems, List<Compile.Reference> references,
@@ -143,6 +146,16 @@ public final class ScreenMarkup {
         return read(file, reader);
     }
 
+    private static List<String[]> loadLibrary() {
+        try (InputStream in = ScreenMarkup.class.getResourceAsStream("/screens/components/library.html")) {
+            if (in == null) return List.of();
+            return List.<String[]>of(new String[]{new String(in.readAllBytes(), StandardCharsets.UTF_8),
+                    "exylialib:components/library.html"});
+        } catch (IOException unreadable) {
+            return List.of();
+        }
+    }
+
     /** Every {@code components/*.html} of a folder, by name, as fragments' sources. */
     static List<String[]> components(Path folder) throws IOException {
         Path dir = folder.resolve("components");
@@ -183,7 +196,9 @@ public final class ScreenMarkup {
         }
         List<String> problems = new ArrayList<>();
         List<Markup.El> fragments = new ArrayList<>();
-        for (String[] component : components) {
+        List<String[]> all = new ArrayList<>(LIBRARY);
+        all.addAll(components);
+        for (String[] component : all) {
             try {
                 fragments.add(Markup.fragment(component[0], component[1]));
             } catch (Markup.Malformed failure) {
@@ -216,6 +231,15 @@ public final class ScreenMarkup {
             problems.add(String.valueOf(broken.getMessage()));
             return false;
         }
+    }
+
+    /** Takes a set's shared names it has none of its own for (see {@link ScreenBindings}). */
+    void share(MarkupRender.Bindings from) {
+        from.sources().forEach(bindings.sources()::putIfAbsent);
+        from.entries().forEach(bindings.entries()::putIfAbsent);
+        from.values().forEach(bindings.values()::putIfAbsent);
+        from.texts().forEach(bindings.texts()::putIfAbsent);
+        from.actions().forEach(bindings.actions()::putIfAbsent);
     }
 
     /** Rows a {@code source="name"} repeats over, each a map of the fields its template reads as {@code %field%}. */
@@ -349,6 +373,8 @@ public final class ScreenMarkup {
         }
         if (root.attr("backdrop") != null) screen.backdrop(root.attr("backdrop"));
         if ("true".equalsIgnoreCase(root.attr("wheel")) || "".equals(root.attr("wheel"))) screen.wheel(true);
+        String keys = root.attr("keys");
+        if (keys != null && keys.trim().equalsIgnoreCase("navigate")) screen.navigate(true);
         return screen;
     }
 

@@ -15,6 +15,13 @@ import java.util.Map;
  * @param plugins        a style for one plugin by its name, over {@code defaultStyle}
  * @param chestSkin      whether a chest menu with no screen of its own is drawn as cards on a screen in SCREEN
  *                       style; off, such menus stay chest windows
+ * @param motion         {@code FULL} or {@code REDUCED} (since 1.496.0): reduced draws no arrivals, departures or
+ *                       animations and glides in a straight line, for every player; each player may also ask for it
+ * @param motionCeiling  the most motion packets a second one screen sends (since 1.496.0); past it, looping
+ *                       animations wait and eased glides become one straight glide
+ * @param cursorAcceleration how much a fast mouse move speeds the cursor up (since 1.496.0): 0 for none
+ * @param spriteObjects  whether items are drawn as one sprite glyph for 1.21.11+ clients on a 1.21.11+ server
+ *                       (since 1.496.0), instead of a picture of four displays
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -54,12 +61,49 @@ public record ScreenSettings(
         @Comment("chest. Off, those menus stay chest windows.")
         @Menu.Label("Cards for chest menus") @Menu.Icon("ITEM_FRAME")
         @Menu.About({"Chest menus with no screen of", "their own are drawn as cards."})
-        boolean chestSkin
+        boolean chestSkin,
+
+        @Comment("FULL draws screens with every arrival, glide and animation.")
+        @Comment("REDUCED keeps only what is needed: no arrivals or departures,")
+        @Comment("no animations, straight short glides. Players may also turn")
+        @Comment("on reduced motion for themselves in /settings.")
+        @Menu.Label("Motion") @Menu.Icon("FEATHER")
+        @Menu.About({"How much screens move:", "everything, or only what is needed."})
+        @Menu.Choices(value = {"FULL", "REDUCED"}, labels = {"Full", "Reduced"})
+        String motion,
+
+        @Comment("The most motion packets one screen sends a second. Past it,")
+        @Comment("looping animations wait and eased glides become straight ones.")
+        @Menu.Label("Motion ceiling") @Menu.Icon("HOPPER")
+        @Menu.About({"Packets a second one screen", "may spend on motion."})
+        int motionCeiling,
+
+        @Comment("How much a fast mouse move speeds the cursor up. 0 turns it")
+        @Comment("off; 0.5 helps players who cross the screen often.")
+        @Menu.Label("Cursor acceleration") @Menu.Icon("SUGAR")
+        @Menu.About({"Fast moves carry the cursor", "further. 0 turns it off."})
+        double cursorAcceleration,
+
+        @Comment("Draw items as one sprite glyph for 1.21.11+ players on a")
+        @Comment("1.21.11+ server, rather than a picture of four displays.")
+        @Menu.Label("Sprite items") @Menu.Icon("ITEM_FRAME")
+        @Menu.About({"Items as one glyph where", "the client can draw it."})
+        boolean spriteObjects
 ) {
 
-    /** CLASSIC for everyone, players may choose, cards on. */
+    /** CLASSIC for everyone, players may choose, cards on, full motion. */
     public ScreenSettings() {
         this("CLASSIC", true, Map.of(), true);
+    }
+
+    /** The settings as they were before 1.496.0, with full motion. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true);
+    }
+
+    /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */
+    public boolean reducedMotion() {
+        return "REDUCED".equalsIgnoreCase(motion);
     }
 
     private static volatile ScreenSettings current = new ScreenSettings();

@@ -387,6 +387,12 @@ public final class MenuRuntime {
      * @param viewer who to send back
      * @return whether there was anywhere to go
      */
+    /** Whether the player came to their open menu from another one (there is somewhere back to go). */
+    public boolean hasHistory(Player viewer) {
+        List<History> stack = history.get(viewer.getUniqueId());
+        return stack != null && !stack.isEmpty();
+    }
+
     public boolean back(Player viewer) {
         List<History> stack = history.get(viewer.getUniqueId());
         if (stack == null || stack.isEmpty()) {

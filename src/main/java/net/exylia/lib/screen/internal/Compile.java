@@ -28,7 +28,7 @@ public final class Compile {
     /** Tags the render draws, beyond the screen's templates. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal", "img",
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal", "img", "search",
             // Structure (1.494.0): drawn as their children, never as a box of their own.
             "fragment", "for", "switch", "case", "default", "else");
 
@@ -36,7 +36,9 @@ public final class Compile {
     public static final Set<String> ATTRIBUTES = Set.of("id", "class", "if", "else", "track", "t", "key", "keybind",
             "action", "action-right", "selected", "disabled", "checked", "state", "default", "value", "source",
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
-            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "wheel", "each", "version", "previous", "next", "routes", "tooltip");
+            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
+            // 1.496.0
+            "action-shift", "priority", "refresh", "prompt", "hint");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -343,11 +345,14 @@ public final class Compile {
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));
-        for (String attr : new String[]{"action", "action-right", "dismiss"}) {
+        for (String attr : new String[]{"action", "action-right", "action-shift", "dismiss"}) {
             String action = el.attr(attr);
             if (action == null) continue;
             for (List<String> step : Actions.steps(action)) {
                 if (!step.isEmpty()) references.add(new Reference("action", step.get(0), el.pos()));
+                // confirm ... then <action>: the action it holds is checked too.
+                int then = step.indexOf("then");
+                if (then >= 0 && then + 1 < step.size()) references.add(new Reference("action", step.get(then + 1), el.pos()));
             }
         }
         El before = null;

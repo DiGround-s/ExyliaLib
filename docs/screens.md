@@ -68,6 +68,11 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 | `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it or Shift runs `onDismiss` |
 | `textAlign(START/CENTER/END)` (1.488.0) | where text sits in a box wider than it |
 | `image(w, h, argb)`, `image(BufferedImage)` (1.489.0) | a small picture (up to 96 a side), one layout pixel a picture pixel unless sized; pixels stay square and the picture is centred in its box |
+| `transform`, `hoverTransform`, `active(background, transform)` (1.496.0) | a `Motion.Transform` (translate in pixels, scale) after layout; while hovered; for a moment after a click |
+| `transition(ticks, ease)`, `enter(tween)`, `leave(tween)`, `animation(keyframes)` (1.496.0) | how changes glide, how the box arrives and departs, a looping or one-shot animation ([Motion](#motion-14960)) |
+| `margin(t, r, b, l)`, `absolute(top, right, bottom, left)` (1.496.0) | room outside the box; out of the flow, pinned to its parent's edges (`Double.NaN` for a side left free) |
+| `layer(n)`, `wrap(width)`, `shadow(true)` (1.496.0) | drawn above its siblings (-4 to 8); text broken onto lines at most `width` pixels wide; text with the vanilla shadow |
+| `decoration(true)`, `refresh(ticks)`, `onShiftClick` (1.496.0) | left out first when a screen is over its display budget; redraw this often while shown; runs on a click with sprint held |
 
 When the children of a row or column need more room than there is, the ones that grow give it back in
 proportion to their size, as `flex-shrink` does; fixed boxes and text keep theirs (1.488.0).
@@ -75,7 +80,8 @@ proportion to their size, as `flex-shrink` does; fixed boxes and text keep their
 **Motion (1.488.0).** The screen zooms in as it opens, a dialog pops out from the centre, and a box that
 appears after a click slides up into place. A clickable box under the cursor rises a pixel, and a box that
 moves or resizes glides there. All of it is client-side interpolation, no extra packets per frame.
-`ScreenSession#toast(text)` shows a short note at the top for three seconds.
+`ScreenSession#toast(text)` shows a short note at the top for three seconds. Since 1.496.0 every one of these can
+be styled, eased and turned off; see [Motion](#motion-14960).
 
 **Pictures (1.489.0).** Each pixel is the vanilla font's full block (`█`) in its colour, one run of a colour
 one component, so no resource pack is needed. The glyph is 8 font pixels in a 9 by 10 cell, so a picture is
@@ -99,14 +105,28 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the
   cursor, gliding one tick so it reads smooth. The client sends rotation at most 20 times a second, so the
   cursor trails the real mouse by about 50 ms; that is the floor for any server-drawn cursor.
-- **Speed:** `Screens.sensitivity(player, value)` from 0.2 to 3 (1 by default), kept until they quit and
-  applied at once.
+- **Speed:** `Screens.sensitivity(player, value)` from 0.2 to 3 (1 by default), applied at once. Since 1.496.0
+  it is kept in the player's data across restarts, and players set it themselves in `/settings` → Interface
+  ("Cursor speed"). `cursor-acceleration` in `screens.yml` (0 by default, 1 is mild) carries a fast mouse
+  further while a slow one stays precise.
+- **Hover** (1.496.0): the box under the cursor keeps its hover 3 pixels past its edges, unless the cursor is
+  inside a box nested in it, so a hover never flickers on a border.
 - **Clicks:** left and right, through an invisible interaction box around the eyes, so a click never has the
   vanilla miss cooldown and never reaches the world.
 - **Wheel:** off by default. The client is then shown as a spectator: no hand, no crosshair, no hotbar, but a
   spectator's wheel sends nothing. `Screen#wheel(true)` keeps the real mode so the wheel scrolls, at the cost
   of the hand and crosshair. Page lists with buttons when the wheel is off.
-- **Shift** closes. So does damage, death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
+- **Shift** steps back (1.496.0): it closes the open in-screen confirm or dialog, then goes back to the screen
+  or menu this one was opened from (`Screen#onBack`), and closes only at the root. Held for 12 ticks it closes
+  from anywhere. Before 1.496.0 Shift always closed.
+- **Shift-click** (1.496.0): Shift itself steps back, so a click with **sprint held** (Ctrl, or the sprint key)
+  is the shift-click: `action-shift` in markup, `Node#onShiftClick` in Java, and `ScreenEvent#shift()` on any
+  click; a chest menu drawn as a screen gets `SHIFT_LEFT`/`SHIFT_RIGHT`. Tell players in a key hint
+  (`<key-hint key="Ctrl">Shift-click</key-hint>`).
+- **Focus navigation** (1.496.0): `<screen keys="navigate">` (`Screen#navigate(true)`) makes W, A, S, D move the
+  cursor to the nearest clickable box that way and Space click it, so a screen works without the mouse.
+  `:focus` styles the focused box (it is the hovered one). Bindings with `key=` are ignored while navigating.
+- Damage closes it, as do death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
   another screen opening for the same player (one per player across all plugins).
 
 - **Keys** (1.492.0): W, A, S, D and Space click the box bound to them (`key=`, `pager keys=`). Show the bindings in
@@ -210,6 +230,8 @@ that is not well-formed throws, when it is read.
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
+| `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (`⌕ value`) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
+| `p` (1.496.0) | Wraps onto lines (base theme: `white-space: normal; max-width: 220px`) |
 
 ### Attributes on any tag
 
@@ -223,6 +245,15 @@ that is not well-formed throws, when it is read.
   one argument after its placeholders are filled, so a value with spaces never splits; quote a word to keep
   spaces in it (`toast 'Saved, see you'`).
 - `action-right="..."` (1.494.0): runs instead of `action` on a right click.
+- `action-shift="..."` (1.496.0): runs instead of `action` on a click with sprint held (see [Input](#input)).
+- More built-in actions (1.496.0): `back` (as Shift: the dialog, then the screen before; closes at the root),
+  `sound <key> [volume] [pitch]`, `toast <success|error|info|warning> <text>` (the tone colours its edge),
+  `confirm '<question>' [dangerous] [yes=Leave] [no=Stay] then <actions>` (an in-screen dialog; what follows
+  `then` and every later action run only on yes), and `input text <key> '<prompt>' [hint=...] [max=n] then
+  <actions>` (asks for a line of text, stores it in state `<key>`, then runs the rest).
+- `priority="low"` (1.496.0): decoration, the first thing left out when the screen is over its display budget.
+- `refresh="5t"` (1.496.0): redraws the screen this often (2 ticks at least) while the element is shown, instead
+  of every second: a countdown.
 - `key="w|a|s|d|space"` (1.492.0; `keybind=` is the same since 1.494.0): pressing that movement key clicks the box while it is on screen and reachable
   (inside the open dialog when one is up). `Node#key` in Java.
 - `selected`, `disabled`, `checked`: present (a bare `disabled` works since 1.494.0, or true after
@@ -239,7 +270,8 @@ that is not well-formed throws, when it is read.
 
 ### CSS subset
 
-Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover`, compounds, descendants and
+Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover`, `:focus` (the same as
+`:hover`) and `:active` (for a moment after a click; 1.496.0), compounds, descendants and
 comma lists, resolved by specificity then order. The base theme comes first, then each sheet given.
 
 Since 1.494.0 also: the child combinator `a > b`; `:root` (the `screen`); `:first-child`, `:last-child`,
@@ -268,6 +300,13 @@ card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
 | `outline`, `border` | `1px {primary}`: a line outside the box |
 | `color`, `font-size`, `font-weight` | inherited; `font-size: 14px` is 1.4 lines, `font-weight: bold` |
 | `text-align` (1.488.0) | `left`, `center`, `right`; inherited |
+| `margin` (1.496.0) | one to four pixel values, outside the box |
+| `position: absolute` + `top`/`right`/`bottom`/`left` (1.496.0) | out of the flow, pinned to the parent's edges; with both sides of an axis and no size it stretches between them, with neither it sits at the start |
+| `z-index` (1.496.0) | -4 to 8: drawn above (or below) its siblings |
+| `max-width` (1.496.0) | on text: wraps it onto lines at most that wide |
+| `white-space` (1.496.0) | `normal` wraps text to its box, `nowrap` (default) keeps one line; inherited |
+| `text-shadow` (1.496.0) | `none` (default) or anything else for the vanilla shadow; inherited |
+| `transform`, `transition`, `enter`, `leave`, `animation` (1.496.0) | see [Motion](#motion-14960) |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
 
@@ -417,6 +456,73 @@ hub.rows("layouts", session -> slots(session).stream()
 `ScreenEvent#row()` is the row the clicked box was drawn for (`null` outside a repeat), `row(Type.class)` the
 same as an `Optional`.
 
+## Motion (1.496.0)
+
+Every movement is the client gliding a display from one transform to the next, so motion costs packets per
+change, never per frame. An eased glide is split into two to four straight glides that follow the curve.
+
+```css
+card { transition: transform 3t ease-out; }            /* how changes glide */
+card:hover { transform: translateY(-2px); }             /* lift while hovered */
+card:active { transform: scale(0.96); }                 /* pressed for a moment */
+modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
+#page-play, #page-duels { enter: translate(0, 6px) 4t ease-out; }
+.live { animation: pulse 40t ease-in-out infinite; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } 100% { transform: scale(1); } }
+```
+
+- `transform`: `translate(x, y)`, `translateX`, `translateY` (pixels, y down), `scale(s)`, after layout and about
+  the box's centre; a parent's transform carries its children.
+- Durations: `4t` or `4` ticks, `200ms`, `0.3s`. Easings: `linear`, `ease-in`, `ease-out` (`ease`),
+  `ease-in-out`, `back` (overshoots a little).
+- `transition: [transform|background|all] <duration> [easing]`, several by commas, the longest wins; inherited
+  by children. With `background` or `all` the colour steps along the glide too; otherwise it changes at once.
+- `enter` and `leave`: how a box arrives and departs, `none` to turn the built-in arrival off. A box that is new
+  arrives with its own `enter` or the nearest enclosing one's, about the outermost new box, so a whole page
+  arrives as one; a box that is gone glides away with its `leave` and is removed after it (the dimmer stays while
+  its dialog leaves). Give each tab's page an `id` so a tab switch is a new page arriving, not the old one
+  changing.
+- `animation: <keyframes> <duration> [easing] [infinite]`: transforms only, sampled every 2 to 10 ticks.
+- The base theme has the house motion: cards lift, buttons, tabs and chips press, dialogs pop and fade out.
+
+**Budget.** A screen may draw 400 displays. Over that it lowers its detail in order: `priority="low"` boxes are
+left out, turning bodies stand still, item sprites become 3D items (one display rather than four); only then is
+the tail cut, with one warning. `screens.yml` `motion-ceiling` (300) caps motion packets a viewer gets each
+second: past it glides go straight and animations wait.
+
+**Reduced motion.** `screens.yml` `motion: REDUCED` for everyone, or a player's own toggle in `/settings` →
+Interface ("Reduced motion"), `Screens.reducedMotion(player, true)` in Java: no arrivals, departures or
+animations, and every glide is two ticks and straight.
+
+**Toasts and confirms.** `session.toast("success", "Joined the queue")`: up to three stack at the top, newest at
+the bottom, each sliding in and out; success and error play a quiet sound. `session.confirm("Leave the party?",
+true, "Leave", null, s -> parties.leave(s.viewer()))` draws the question in a dialog on the screen itself; Cancel,
+a click outside or Shift does nothing. `session.ask(prompt, hint, max, current)` asks for a line of text and
+completes with it, or `null` when cancelled.
+
+**Refresh.** `refresh=` on an element, `Node#refresh(ticks)` in Java, and
+`Screens.of(plugin).redrawAll(session -> ...)` to redraw every open screen of the plugin that matches now (a
+queue that changed).
+
+**Sprites (1.21.11+).** With `sprite-objects: true` (default) a 1.21.11+ client on a 1.21.11+ server gets an
+item as one sprite glyph rather than four pixel copies; others keep the pixel picture.
+
+## Component library (1.496.0)
+
+Every screen knows these templates; a plugin's own template of the same name wins.
+
+| Template | Use |
+| --- | --- |
+| `<page-head title="Kits" subtitle="Pick one"/>` | a centred title and dark subtitle |
+| `<stat label="Wins" value="%wins%" tone="success"/>` | a label and a coloured value on one line |
+| `<badge tone="warning">New</badge>` | a small tag; tones `primary`, `success`, `error`, `warning`, `info` |
+| `<key-hint key="Shift">Back</key-hint>` | a key and what it does |
+| `<empty-state title="No kits" hint="Ask staff to add one"/>` | a list's empty note |
+| `<dialog title="Sure?" when="confirm" dismiss="clear confirm">...</dialog>` | a themed `modal` |
+
+**Shared bindings.** `screens.bindings().value(...).action(...)` registers for every screen of a `ScreenSet`
+(`ScreenBindings`, same methods as `ScreenMarkup`); a screen's own registration of a name wins.
+
 ## Chest windows or screens: menu style (1.495.0)
 
 Every plugin's chest menus can open as screens with no code of its own. Which one a player gets is a
@@ -428,7 +534,8 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
 - otherwise **the chest skin**: the slots as cards in the chest's own layout, each item's name and lore as a
   tooltip while hovered, the title on top, glass panes drawn as the empty part of the card. A left or right click
   on a card is that click on the slot of the chest menu, so every action works as in the window, and a menu
-  opened from a click replaces the cards in place. Shift closes it (Shift-clicks cannot be made on a screen).
+  opened from a click replaces the cards in place. Shift goes back to the menu before, and closes at the first
+  one (1.496.0); a click with sprint held is a shift-click on the slot.
 
 Menus that stay windows whatever the style: those with input slots (the player puts items in them) and those
 that are not chests (hopper, dispenser...). A client that cannot draw screens always gets windows.

@@ -17,17 +17,25 @@ import java.util.Optional;
  * @param row     what the clicked row is about, for a box a markup screen repeated over a source (since 1.494.0):
  *                the row's {@link net.exylia.lib.ui.UiEntry#value()} from {@link ScreenMarkup#rows}, the row map
  *                from {@link ScreenMarkup#source}; {@code null} outside a repeat or for a screen built in Java
+ * @param shift   whether the click was a shift-click: made while the player held sprint (since 1.496.0), since
+ *                Shift itself steps back on a screen
  * @since 1.483.0
  */
 public record ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node,
-                          @Nullable Object row) {
+                          @Nullable Object row, boolean shift) {
 
     /** What the player did. */
     public enum Kind { LEFT, RIGHT, SCROLL }
 
+    /** An event that is not a shift-click, as every event was before 1.496.0. */
+    public ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node,
+                       @Nullable Object row) {
+        this(session, kind, steps, node, row, false);
+    }
+
     /** An event with no row, as every event was before 1.494.0. */
     public ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node) {
-        this(session, kind, steps, node, null);
+        this(session, kind, steps, node, null, false);
     }
 
     /** Who did it. */

@@ -81,6 +81,22 @@ public final class Node {
     private Consumer<ScreenEvent> onClick;
     private Consumer<ScreenEvent> onScroll;
     private List<Component> tooltip;
+    private Motion.Transform transform = Motion.Transform.NONE;
+    private Motion.Transform hoverTransform;
+    private Motion.Transform activeTransform;
+    private String activeBackground;
+    private Motion.Transition transition;
+    private Motion.Tween enter;
+    private Motion.Tween leave;
+    private Motion.Keyframes animation;
+    private double marginTop, marginRight, marginBottom, marginLeft;
+    private double[] absolute;
+    private int layer;
+    private double wrap;
+    private boolean shadow;
+    private boolean decoration;
+    private int refresh;
+    private Consumer<ScreenEvent> onShiftClick;
 
     private Node(Kind kind, Component text) {
         this.kind = kind;
@@ -382,6 +398,230 @@ public final class Node {
         return tooltip;
     }
 
+    // ------------------------------------------------------------------
+    // Motion and placement (1.496.0)
+    // ------------------------------------------------------------------
+
+    /**
+     * Moves and scales the box and everything in it, after layout, as CSS {@code transform}: its place in the
+     * flow and what it can be clicked on stay where layout put it.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node transform(@NotNull Motion.Transform transform) {
+        this.transform = transform;
+        return this;
+    }
+
+    /** The transform while the cursor (or the keyboard focus) is on the box; it also makes it pointable. @since 1.496.0 */
+    public @NotNull Node hoverTransform(@Nullable Motion.Transform transform) {
+        this.hoverTransform = transform;
+        return this;
+    }
+
+    /**
+     * How the box looks for a moment after it is clicked, as CSS {@code :active}: a transform (a press) and a fill,
+     * either {@code null} to keep the hovered one.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node active(@Nullable String background, @Nullable Motion.Transform transform) {
+        this.activeBackground = background;
+        this.activeTransform = transform;
+        return this;
+    }
+
+    /** How a change of this box's transform (and of what is inside it) glides. Two linear ticks when unset. @since 1.496.0 */
+    public @NotNull Node transition(int ticks, @NotNull Motion.Ease ease) {
+        return transition(new Motion.Transition(Math.max(0, ticks), ease, false));
+    }
+
+    /** @since 1.496.0 */
+    public @NotNull Node transition(@Nullable Motion.Transition transition) {
+        this.transition = transition;
+        return this;
+    }
+
+    /**
+     * How the box arrives when it was not on screen before: from {@code tween}'s transform to its place, with
+     * everything that arrives with it. {@link Motion.Tween#NONE} makes it appear at once.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node enter(@Nullable Motion.Tween tween) {
+        this.enter = tween;
+        return this;
+    }
+
+    /** How the box goes: it glides to {@code tween}'s transform and is then removed. @since 1.496.0 */
+    public @NotNull Node leave(@Nullable Motion.Tween tween) {
+        this.leave = tween;
+        return this;
+    }
+
+    /** An animation of the box's transform, from when it first shows. @since 1.496.0 */
+    public @NotNull Node animation(@Nullable Motion.Keyframes animation) {
+        this.animation = animation;
+        return this;
+    }
+
+    /** Room outside each edge, clockwise from the top, as in CSS. @since 1.496.0 */
+    public @NotNull Node margin(double top, double right, double bottom, double left) {
+        this.marginTop = top;
+        this.marginRight = right;
+        this.marginBottom = bottom;
+        this.marginLeft = left;
+        return this;
+    }
+
+    /**
+     * Takes the box out of the flow and places it inside its parent, as CSS {@code position: absolute}: each edge
+     * is a distance from the parent's matching edge, {@link Double#NaN} for none. With neither {@code left} nor
+     * {@code right} it sits at the left; with both it stretches between them (the same for top and bottom).
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node absolute(double top, double right, double bottom, double left) {
+        this.absolute = new double[]{top, right, bottom, left};
+        return this;
+    }
+
+    /** Draws the box (and what is in it) this many layers nearer than its depth puts it, as CSS {@code z-index}. @since 1.496.0 */
+    public @NotNull Node layer(int layer) {
+        this.layer = Math.max(-4, Math.min(8, layer));
+        return this;
+    }
+
+    /**
+     * Wraps a text node's words onto lines no wider than {@code width} pixels (at scale 1 of the font), one display
+     * for the whole paragraph. 0 (the default) keeps one line.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node wrap(double width) {
+        this.wrap = Math.max(0, width);
+        return this;
+    }
+
+    /** Draws a text node's words with the font's shadow, as CSS {@code text-shadow}. Free: a flag of the display. @since 1.496.0 */
+    public @NotNull Node shadow(boolean shadow) {
+        this.shadow = shadow;
+        return this;
+    }
+
+    /**
+     * Marks the box as decoration ({@code priority="low"}): the first thing left out when a screen would draw more
+     * displays than it may.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node decoration(boolean decoration) {
+        this.decoration = decoration;
+        return this;
+    }
+
+    /**
+     * Asks the screen to render this often, in ticks, while the box is on it: a countdown that moves faster than the
+     * one-second redraw. 0 (the default) keeps the second.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node refresh(int ticks) {
+        this.refresh = Math.max(0, ticks);
+        return this;
+    }
+
+    /**
+     * Runs on a click made while the player holds sprint (their shift-click on a screen, where Shift goes back),
+     * instead of {@link #onClick}. Without one, such a click is an ordinary click with {@link ScreenEvent#shift()}.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Node onShiftClick(@Nullable Consumer<ScreenEvent> handler) {
+        this.onShiftClick = handler;
+        return this;
+    }
+
+    /** @since 1.496.0 */
+    public @NotNull Motion.Transform transform() {
+        return transform;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Transform hoverTransform() {
+        return hoverTransform;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Transform activeTransform() {
+        return activeTransform;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable String activeBackground() {
+        return activeBackground;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Transition transition() {
+        return transition;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Tween enter() {
+        return enter;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Tween leave() {
+        return leave;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Motion.Keyframes animation() {
+        return animation;
+    }
+
+    /** {top, right, bottom, left}. @since 1.496.0 */
+    public double[] margin() {
+        return new double[]{marginTop, marginRight, marginBottom, marginLeft};
+    }
+
+    /** {top, right, bottom, left} with NaN for unset, or {@code null} when the box is in the flow. @since 1.496.0 */
+    public double @Nullable [] absolute() {
+        return absolute == null ? null : absolute.clone();
+    }
+
+    /** @since 1.496.0 */
+    public int layer() {
+        return layer;
+    }
+
+    /** @since 1.496.0 */
+    public double wrap() {
+        return wrap;
+    }
+
+    /** @since 1.496.0 */
+    public boolean shadow() {
+        return shadow;
+    }
+
+    /** @since 1.496.0 */
+    public boolean decoration() {
+        return decoration;
+    }
+
+    /** @since 1.496.0 */
+    public int refresh() {
+        return refresh;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable Consumer<ScreenEvent> onShiftClick() {
+        return onShiftClick;
+    }
+
     public @NotNull Kind kind() {
         return kind;
     }
@@ -507,6 +747,6 @@ public final class Node {
 
     /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering. */
     public boolean pointable() {
-        return onClick != null || onScroll != null || hover != null || hoverOutline != null;
+        return onClick != null || onScroll != null || hover != null || hoverOutline != null || hoverTransform != null;
     }
 }

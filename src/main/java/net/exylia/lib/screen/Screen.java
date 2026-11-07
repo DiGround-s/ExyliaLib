@@ -46,6 +46,8 @@ public final class Screen {
     private boolean wheel;
     private Consumer<ScreenSession> onClose;
     private Map<String, Object> state = Map.of();
+    private boolean navigate;
+    private java.util.function.Predicate<ScreenSession> onBack;
 
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
@@ -118,6 +120,39 @@ public final class Screen {
 
     public boolean wheel() {
         return wheel;
+    }
+
+    /**
+     * Keyboard navigation: W, A, S and D move the cursor to the nearest clickable box that way, Space clicks it
+     * ({@code <screen keys="navigate">}). Needs a 1.21.2+ client, which sends its keys; older ones keep the mouse.
+     * While it is on, {@link Node#key} bindings are not used.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Screen navigate(boolean navigate) {
+        this.navigate = navigate;
+        return this;
+    }
+
+    /** @since 1.496.0 */
+    public boolean navigate() {
+        return navigate;
+    }
+
+    /**
+     * What Shift does before it closes the screen, once no dialog is open: go back to where the player came from,
+     * answering whether it did. Answer {@code false} (or set none) and Shift closes.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull Screen onBack(@Nullable java.util.function.Predicate<ScreenSession> handler) {
+        this.onBack = handler;
+        return this;
+    }
+
+    /** @since 1.496.0 */
+    public @Nullable java.util.function.Predicate<ScreenSession> onBack() {
+        return onBack;
     }
 
     public @Nullable Consumer<ScreenSession> onClose() {

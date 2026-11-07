@@ -37,11 +37,34 @@ public final class Layout {
      * @param key   stable between renders: the node's id, or its path from the root
      * @param depth how many boxes it sits inside; drawn nearer the eye the deeper it is
      */
-    public record Placed(Node node, String key, double x, double y, double w, double h, int depth) {
+    public record Placed(Node node, String key, double x, double y, double w, double h, int depth, int parent,
+                         Wrapped wrapped) {
+
+        /** A box with no parent in its list and no wrapped text. */
+        public Placed(Node node, String key, double x, double y, double w, double h, int depth) {
+            this(node, key, x, y, w, h, depth, -1, null);
+        }
 
         public boolean holds(double px, double py) {
             return px >= x && px <= x + w && py >= y && py <= y + h;
         }
+
+        /** Whether the point is inside the box grown by {@code margin} on every side. */
+        public boolean holds(double px, double py, double margin) {
+            return px >= x - margin && px <= x + w + margin && py >= y - margin && py <= y + h + margin;
+        }
+
+        /** The same box under another key, at another place and depth, its parent index moved by {@code shift}. */
+        public Placed moved(String key, double dx, double dy, int depthBy, int shift) {
+            return new Placed(node, key, x + dx, y + dy, w, h, depth + depthBy, parent < 0 ? -1 : parent + shift, wrapped);
+        }
+    }
+
+    /**
+     * A text node's words broken onto lines: what is drawn ({@code text}, lines joined by newlines), how many lines
+     * and the widest one, in font pixels.
+     */
+    public record Wrapped(net.kyori.adventure.text.Component text, int lines, double width) {
     }
 
     /** Every box in the tree, parents before their children, the root filling {@code width} by {@code height}. */
@@ -49,16 +72,18 @@ public final class Layout {
         List<Placed> out = new ArrayList<>();
         List<Node> overlays = new ArrayList<>();
         // Each node is measured once a layout, however deep it sits.
-        Map<Node, double[]> sizes = new IdentityHashMap<>();
-        place(root, "0", 0, 0, width, height, 0, out, overlays, sizes);
+        Ctx ctx = new Ctx();
+        room(root, width, ctx);
+        place(root, "0", 0, 0, width, height, 0, -1, out, overlays, ctx);
         // The last overlay wins: one dialog at a time, centred over everything.
         if (!overlays.isEmpty()) {
             Node top = overlays.get(overlays.size() - 1);
             out.add(new Placed(dimmer(top), "~dim", 0, 0, width, height, OVERLAY - 1));
-            double[] size = measure(top, sizes);
+            room(top, width, ctx);
+            double[] size = measure(top, ctx);
             double w = Math.min(size[0], width);
             double h = Math.min(size[1], height);
-            place(top, "~", (width - w) / 2, (height - h) / 2, w, h, OVERLAY, out, new ArrayList<>(), sizes);
+            place(top, "~", (width - w) / 2, (height - h) / 2, w, h, OVERLAY, -1, out, new ArrayList<>(), ctx);
         }
         return out;
     }
@@ -86,18 +111,43 @@ public final class Layout {
         List<Placed> out = new ArrayList<>(nodes.size());
         for (int i = 0; i < nodes.size(); i++) {
             Placed was = laid.get(i);
-            out.add(new Placed(nodes.get(i), was.key(), was.x(), was.y(), was.w(), was.h(), was.depth()));
+            out.add(new Placed(nodes.get(i), was.key(), was.x(), was.y(), was.w(), was.h(), was.depth(), was.parent(),
+                    was.wrapped()));
         }
         return out;
     }
 
-    /** The nodes in the order {@link #place} lays them. */
+    /** The nodes in the order {@link #place} lays them: flow children first, then the absolute ones. */
     private static void walk(Node node, List<Node> out, List<Node> overlays) {
         out.add(node);
         for (Node child : node.children()) {
             if (child.overlay()) overlays.add(child);
-            else walk(child, out, overlays);
+            else if (child.absolute() == null) walk(child, out, overlays);
         }
+        for (Node child : node.children()) {
+            if (!child.overlay() && child.absolute() != null) walk(child, out, overlays);
+        }
+    }
+
+    /** What one layout remembers: sizes measured, the room text may wrap in, and wrapped text. */
+    private static final class Ctx {
+        final Map<Node, double[]> sizes = new IdentityHashMap<>();
+        final Map<Node, Double> room = new IdentityHashMap<>();
+        final Map<Node, Wrapped> wrapped = new IdentityHashMap<>();
+    }
+
+    /**
+     * How wide each box can be at most, top down, for text that wraps to the room it has: a box's own width, or
+     * what its parent has inside its padding. ponytail: a row hands every child its whole inner width, so a
+     * paragraph beside other boxes wraps late and is drawn smaller to fit; give it a width or max-width there.
+     */
+    private static void room(Node node, double available, Ctx ctx) {
+        double own = node.width() >= 0 ? node.width() : available;
+        double[] m = node.margin();
+        own = Math.max(0, own - (node.width() >= 0 ? 0 : m[1] + m[3]));
+        ctx.room.put(node, own);
+        double inner = Math.max(0, own - node.padLeft() - node.padRight());
+        for (Node child : node.children()) room(child, inner, ctx);
     }
 
     /**
@@ -118,6 +168,11 @@ public final class Layout {
         h = mix(h, Objects.hashCode(node.outline()));
         h = mix(h, Objects.hashCode(node.hoverOutline()));
         h = mix(h, Objects.hashCode(node.tooltip()));
+        h = mix(h, Objects.hash(node.transform(), node.hoverTransform(), node.activeTransform(), node.activeBackground(),
+                node.transition(), node.enter(), node.leave(), node.animation(), node.layer(), node.wrap(),
+                node.shadow(), node.decoration(), node.refresh(), node.onShiftClick() != null));
+        h = mix(h, Arrays.hashCode(node.margin()));
+        h = mix(h, node.absolute() == null ? 7 : Arrays.hashCode(node.absolute()));
         for (double d : new double[]{node.width(), node.height(), node.grow(), node.padTop(), node.padRight(),
                 node.padBottom(), node.padLeft(), node.gap(), node.scale(), node.outlineWidth()}) {
             h = mix(h, Double.doubleToLongBits(d));
@@ -157,10 +212,31 @@ public final class Layout {
 
     /** What a node needs, {width, height}, before any growing or stretching. */
     static double[] measure(Node node) {
-        return measure(node, new IdentityHashMap<>());
+        Ctx ctx = new Ctx();
+        room(node, node.width() >= 0 ? node.width() : 1000, ctx);
+        return measure(node, ctx);
     }
 
-    private static double[] measure(Node node, Map<Node, double[]> sizes) {
+    /** A node's size with its margins, as its parent lays it. */
+    private static double[] outer(Node node, Ctx ctx) {
+        double[] size = measure(node, ctx);
+        double[] m = node.margin();
+        return new double[]{size[0] + m[1] + m[3], size[1] + m[0] + m[2]};
+    }
+
+    /** A wrapping text node's lines, broken to its own wrap width or to the room it has, whichever is less. */
+    private static Wrapped wrapped(Node node, Ctx ctx) {
+        Wrapped known = ctx.wrapped.get(node);
+        if (known != null) return known;
+        double room = ctx.room.getOrDefault(node, node.wrap()) - node.padLeft() - node.padRight();
+        double width = Math.max(10, Math.min(node.wrap(), room) / Math.max(0.01, node.scale()));
+        Wrapped out = TextWrap.wrap(node.text(), width);
+        ctx.wrapped.put(node, out);
+        return out;
+    }
+
+    private static double[] measure(Node node, Ctx ctx) {
+        Map<Node, double[]> sizes = ctx.sizes;
         double[] known = sizes.get(node);
         if (known != null) return known;
         double w;
@@ -171,6 +247,10 @@ public final class Layout {
         } else if (node.kind() == Node.Kind.ITEM) {
             w = ITEM + node.padLeft() + node.padRight();
             h = ITEM + node.padTop() + node.padBottom();
+        } else if (node.kind() == Node.Kind.TEXT && node.wrap() > 0 && node.text() != null) {
+            Wrapped lines = wrapped(node, ctx);
+            w = lines.width() * node.scale() + node.padLeft() + node.padRight();
+            h = LINE * node.scale() * lines.lines() + node.padTop() + node.padBottom();
         } else if (node.kind() == Node.Kind.TEXT) {
             w = textWidth(node) + node.padLeft() + node.padRight();
             h = LINE * node.scale() + node.padTop() + node.padBottom();
@@ -179,9 +259,9 @@ public final class Layout {
             double main = 0;
             double cross = 0;
             List<Node> children = node.children();
-            children = children.stream().filter(child -> !child.overlay()).toList();
+            children = children.stream().filter(child -> !child.overlay() && child.absolute() == null).toList();
             for (Node child : children) {
-                double[] size = measure(child, sizes);
+                double[] size = outer(child, ctx);
                 main += row ? size[0] : size[1];
                 cross = Math.max(cross, row ? size[1] : size[0]);
             }
@@ -196,16 +276,39 @@ public final class Layout {
         return size;
     }
 
-    private static void place(Node node, String path, double x, double y, double w, double h, int depth,
-                              List<Placed> out, List<Node> overlays, Map<Node, double[]> sizes) {
+    private static void place(Node node, String path, double x, double y, double w, double h, int depth, int parent,
+                              List<Placed> out, List<Node> overlays, Ctx ctx) {
         // Children are keyed under their nearest id, so a row that a track= id follows keeps its boxes when it moves.
         String key = node.id() != null ? "#" + node.id() : path;
-        out.add(new Placed(node, key, x, y, w, h, depth));
+        int self = out.size();
+        Wrapped lines = node.kind() == Node.Kind.TEXT && node.wrap() > 0 && node.text() != null ? wrapped(node, ctx) : null;
+        out.add(new Placed(node, key, x, y, w, h, depth, parent, lines));
         List<Node> children = new ArrayList<>();
-        for (Node child : node.children()) {
+        List<Integer> absolutes = new ArrayList<>();
+        for (int i = 0; i < node.children().size(); i++) {
+            Node child = node.children().get(i);
             if (child.overlay()) overlays.add(child);
+            else if (child.absolute() != null) absolutes.add(i);
             else children.add(child);
         }
+        flow(node, key, x, y, w, h, depth, self, children, out, overlays, ctx);
+        for (int i : absolutes) {
+            Node child = node.children().get(i);
+            double[] at = child.absolute();
+            double[] size = measure(child, ctx);
+            double[] m = child.margin();
+            double cw = !Double.isNaN(at[1]) && !Double.isNaN(at[3]) && child.width() < 0 ? w - at[1] - at[3] - m[1] - m[3] : size[0];
+            double ch = !Double.isNaN(at[0]) && !Double.isNaN(at[2]) && child.height() < 0 ? h - at[0] - at[2] - m[0] - m[2] : size[1];
+            double cx = !Double.isNaN(at[3]) ? x + at[3] + m[3] : !Double.isNaN(at[1]) ? x + w - at[1] - m[1] - cw : x + m[3];
+            double cy = !Double.isNaN(at[0]) ? y + at[0] + m[0] : !Double.isNaN(at[2]) ? y + h - at[2] - m[2] - ch : y + m[0];
+            place(child, key + "." + i, cx, cy, Math.max(0, cw), Math.max(0, ch), depth + 1 + child.layer(), self, out,
+                    overlays, ctx);
+        }
+    }
+
+    /** The children in the flow: main axis, grow, shrink, justify and align. */
+    private static void flow(Node node, String key, double x, double y, double w, double h, int depth, int self,
+                             List<Node> children, List<Placed> out, List<Node> overlays, Ctx ctx) {
         if (children.isEmpty()) return;
         boolean row = node.kind() == Node.Kind.ROW;
         double innerX = x + node.padLeft();
@@ -219,7 +322,7 @@ public final class Layout {
         double used = node.gap() * (count - 1);
         double grows = 0;
         for (int i = 0; i < count; i++) {
-            double[] size = measure(children.get(i), sizes);
+            double[] size = outer(children.get(i), ctx);
             mains[i] = row ? size[0] : size[1];
             crosses[i] = row ? size[1] : size[0];
             used += mains[i];
@@ -267,19 +370,23 @@ public final class Layout {
         }
         for (int i = 0; i < count; i++) {
             Node child = children.get(i);
+            double[] m = child.margin();
+            // Margins sit outside the box: along the main axis they were counted in its size, across it they are taken off.
+            double crossMargin = row ? m[0] + m[2] : m[1] + m[3];
             boolean fixedCross = row ? child.height() >= 0 : child.width() >= 0;
-            double cross = node.align() == Node.Align.STRETCH && !fixedCross ? innerCross : crosses[i];
+            double cross = node.align() == Node.Align.STRETCH && !fixedCross ? innerCross - crossMargin : crosses[i] - crossMargin;
             // Nothing that sizes itself is wider than the box it stands in.
-            if (!fixedCross && innerCross > 0) cross = Math.min(cross, innerCross);
+            if (!fixedCross && innerCross > 0) cross = Math.min(cross, innerCross - crossMargin);
             double offset = switch (node.align()) {
-                case CENTER -> (innerCross - cross) / 2;
-                case END -> innerCross - cross;
+                case CENTER -> (innerCross - cross - crossMargin) / 2;
+                case END -> innerCross - cross - crossMargin;
                 default -> 0;
             };
-            double cx = row ? innerX + cursor : innerX + offset;
-            double cy = row ? innerY + offset : innerY + cursor;
-            place(child, key + "." + i, cx, cy, row ? mains[i] : cross, row ? cross : mains[i], depth + 1, out,
-                    overlays, sizes);
+            double cx = row ? innerX + cursor + m[3] : innerX + offset + m[3];
+            double cy = row ? innerY + offset + m[0] : innerY + cursor + m[0];
+            double main = Math.max(0, mains[i] - (row ? m[1] + m[3] : m[0] + m[2]));
+            place(child, key + "." + i, cx, cy, row ? main : Math.max(0, cross), row ? Math.max(0, cross) : main,
+                    depth + 1 + child.layer(), self, out, overlays, ctx);
             cursor += mains[i] + gap;
         }
     }

@@ -67,4 +67,12 @@ public final class ScreenMath {
     public static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }
+
+    /** Part of the way from one opaque colour to another, channel by channel; opaque. */
+    static int blend(int from, int to, double f) {
+        int r = (int) Math.round(((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * f);
+        int g = (int) Math.round(((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * f);
+        int b = (int) Math.round((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * f);
+        return 0xFF000000 | r << 16 | g << 8 | b;
+    }
 }

@@ -82,7 +82,7 @@ final class MenuScreens {
                 && (now.route == null ? route == null : route != null && now.route.markup() == route.markup())) {
             now.menu = menu;
             ScreenSession screen = now.screen;
-            menu.headless(screen::redraw);
+            menu.headless(screen::redraw, route != null);
             if (route != null) {
                 route.state(menu.contextValues()).forEach(screen::set);
                 screen.set(ScreenRoutes.MENU, menu);
@@ -100,6 +100,8 @@ final class MenuScreens {
             screen = route.markup().screen(state);
         }
         screen.onClose(session -> closed(shown));
+        // Shift goes back to the menu this one was opened from, as the window's back button would.
+        screen.onBack(session -> back(shown));
         SHOWN.put(viewer.getUniqueId(), shown);
         ScreenSession opened = Screens.of(plugin).open(viewer, screen);
         if (opened == null) {
@@ -107,8 +109,19 @@ final class MenuScreens {
             return false;
         }
         shown.screen = opened;
-        menu.headless(opened::redraw);
+        menu.headless(opened::redraw, route != null);
         return true;
+    }
+
+    /**
+     * Shift on the screen: back to the menu opened before this one. A routed screen goes back only through menus
+     * the player really came from; the skin also follows the file's parent, as the back button does.
+     */
+    private static boolean back(Shown shown) {
+        Session menu = shown.menu;
+        Player viewer = menu.viewer();
+        if (shown.route != null && !menu.runtime().hasHistory(viewer)) return false;
+        return menu.runtime().back(viewer);
     }
 
     /** Closes the screen showing {@code menu}; its close closes the menu. */
@@ -190,7 +203,10 @@ final class MenuScreens {
         if (!menu.isOpen()) return;
         Rendered rendered = menu.renderedAt(slot);
         if (rendered == null || rendered.item() == null) return;
-        ClickKind kind = event.kind() == ScreenEvent.Kind.RIGHT ? ClickKind.RIGHT : ClickKind.LEFT;
+        boolean right = event.kind() == ScreenEvent.Kind.RIGHT;
+        // Sprint held is the shift of a click on a screen, where Shift itself steps back.
+        ClickKind kind = event.shift() ? (right ? ClickKind.SHIFT_RIGHT : ClickKind.SHIFT_LEFT)
+                : right ? ClickKind.RIGHT : ClickKind.LEFT;
         MenuListener.handle(menu, event.viewer(), slot, kind, rendered, menu.inventory().getItem(slot));
     }
 }

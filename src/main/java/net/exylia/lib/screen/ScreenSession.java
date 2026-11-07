@@ -64,4 +64,53 @@ public interface ScreenSession {
             java.util.function.@NotNull Supplier<? extends java.util.concurrent.CompletionStage<T>> input) {
         return input.get();
     }
+
+    /**
+     * A toast in a tone: {@code success}, {@code error}, {@code info} or {@code warning} colour its edge and play a
+     * quiet sound for success and error. Up to three show at once, newest at the bottom.
+     *
+     * @since 1.496.0
+     */
+    default void toast(@NotNull String tone, @NotNull String text) {
+        toast(text);
+    }
+
+    /**
+     * Asks a yes-or-no question in a dialog drawn on the screen itself (no window, no chat): {@code yes} runs on the
+     * viewer's thread when they confirm; Cancel, a click outside or Shift does nothing.
+     *
+     * @param question  what is asked, written with {@code Text}
+     * @param dangerous whether confirming destroys something: the button is drawn in the error tone
+     * @param yesLabel  the confirm button's words, {@code null} for "Confirm"
+     * @param noLabel   the cancel button's words, {@code null} for "Cancel"
+     * @since 1.496.0
+     */
+    default void confirm(@NotNull String question, boolean dangerous, @Nullable String yesLabel,
+                         @Nullable String noLabel, java.util.function.@NotNull Consumer<ScreenSession> yes) {
+    }
+
+    /**
+     * Asks for a line of text through the library's inputs (a dialog from 1.21.6, a chat prompt before), the
+     * screen stepped aside meanwhile. Completes with the answer, or {@code null} when they cancel.
+     *
+     * @param hint    a line under the prompt, or {@code null}
+     * @param max     the longest answer taken
+     * @param current what the field starts with
+     * @since 1.496.0
+     */
+    default java.util.concurrent.@NotNull CompletionStage<String> ask(@NotNull String prompt, @Nullable String hint,
+                                                                       int max, @NotNull String current) {
+        return java.util.concurrent.CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Steps back as Shift does: closes the open in-screen confirm or dialog, then goes back to the menu this one
+     * was opened from (a chest menu shown as a screen). Does not close the screen.
+     *
+     * @return whether it went back somewhere; {@code false} at the root, where Shift closes
+     * @since 1.496.0
+     */
+    default boolean back() {
+        return false;
+    }
 }

@@ -69,6 +69,7 @@ public final class ScreenSet {
     private final Class<?> anchor;
     private final String folder;
     private final Map<String, ScreenMarkup> markups = new ConcurrentHashMap<>();
+    private final ScreenBindings bindings = new ScreenBindings(this);
     private volatile boolean hotReload = true;
     private volatile TaskHandle watcher;
     private volatile long stamp;
@@ -103,6 +104,15 @@ public final class ScreenSet {
         return folder;
     }
 
+    /**
+     * Sources, values and actions every screen of this set reads; a screen's own registration of a name wins.
+     *
+     * @since 1.496.0
+     */
+    public @NotNull ScreenBindings bindings() {
+        return bindings;
+    }
+
     /** The screens read so far, by id. */
     public @NotNull Map<String, ScreenMarkup> markups() {
         return Map.copyOf(markups);
@@ -121,6 +131,7 @@ public final class ScreenSet {
         refreshWords(id);
         try {
             ScreenMarkup read = ScreenMarkup.read(id + ".html", () -> compile(id));
+            bindings.into(read);
             ScreenMarkup raced = markups.putIfAbsent(id, read);
             stamp = fingerprint();
             ScreenMarkup kept = raced != null ? raced : read;

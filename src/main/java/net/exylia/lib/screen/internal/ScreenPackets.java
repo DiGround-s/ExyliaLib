@@ -308,8 +308,18 @@ final class ScreenPackets extends PacketListenerAbstract {
 
     /** @param glide ticks the client takes to slide and scale to it, 0 to jump */
     static PacketWrapper<?> text(int id, double x, double y, double z, double scale, Component text, int glide) {
+        return text(id, x, y, z, scale, text, glide, 1, (byte) 0);
+    }
+
+    /**
+     * Text of {@code lines} lines (joined by newlines in {@code text}) centred on ({@code x}, {@code y}).
+     *
+     * @param flags the display's text flags: 1 shadow, 8 lines to the left, 16 to the right
+     */
+    static PacketWrapper<?> text(int id, double x, double y, double z, double scale, Component text, int glide,
+                                 int lines, byte flags) {
         Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * scale),
-                (float) (y - (Layout.LINE + 1) * FONT_PIXEL * scale / 2), (float) z);
+                (float) (y - (Layout.LINE * Math.max(1, lines) + 1) * FONT_PIXEL * scale / 2), (float) z);
         return new WrapperPlayServerEntityMetadata(id, List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
@@ -320,7 +330,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 1000),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, 0),
-                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
+                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, flags)));
     }
 
     /**
@@ -420,12 +430,15 @@ final class ScreenPackets extends PacketListenerAbstract {
         } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
             WrapperPlayClientPlayerInput input = new WrapperPlayClientPlayerInput(event);
             screen.shift(input.isShift());
+            screen.sprint(input.isSprint());
             screen.keys((input.isForward() ? 1 : 0) | (input.isLeft() ? 2 : 0) | (input.isBackward() ? 4 : 0)
                     | (input.isRight() ? 8 : 0) | (input.isJump() ? 16 : 0));
         } else if (type == PacketType.Play.Client.ENTITY_ACTION) {
             WrapperPlayClientEntityAction.Action action = new WrapperPlayClientEntityAction(event).getAction();
             if (action == WrapperPlayClientEntityAction.Action.START_SNEAKING) screen.shift(true);
             else if (action == WrapperPlayClientEntityAction.Action.STOP_SNEAKING) screen.shift(false);
+            else if (action == WrapperPlayClientEntityAction.Action.START_SPRINTING) screen.sprint(true);
+            else if (action == WrapperPlayClientEntityAction.Action.STOP_SPRINTING) screen.sprint(false);
         }
     }
 }

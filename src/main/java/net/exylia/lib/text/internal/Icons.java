@@ -126,6 +126,11 @@ public final class Icons {
     private Icons() {
     }
 
+    /** Whether this server reads item sprites from the {@code items} atlas: Minecraft 1.21.11+. */
+    public static boolean itemsAtlas() {
+        return ITEMS_ATLAS;
+    }
+
     /** Whether this server draws sprites: Minecraft 1.21.9+ with an Adventure that has the sprite tag. */
     public static boolean sprites() {
         return SPRITES;

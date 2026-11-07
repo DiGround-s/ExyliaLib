@@ -46,3 +46,25 @@ modal h1 { font-size: 12px; }
 modal .actions { flex-direction: row; gap: 6px; }
 .danger { background: {error}50; }
 .danger:hover { background: {error}; }
+
+/* Motion (1.496.0): short and quiet. A sheet turns any of it off with `none`; reduced motion skips it all. */
+screen { enter: scale(0.96) 5t ease-out; }
+modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
+card, button, tab, chip, toggle { transition: transform 3t ease-out; }
+card:hover { transform: translateY(-2px); }
+button:active, card:active, chip:active, tab:active, toggle:active { transform: scale(0.96); }
+p { white-space: normal; max-width: 220px; }
+
+search { flex-direction: row; gap: 4px; padding: 4px 8px; background: {letters_black}14; color: {letters_black}; }
+search:hover { outline: 1px {primary}; }
+
+/* Component library (components/library.html). */
+.lib-page-head { align-items: center; gap: 2px; }
+.lib-stat { gap: 6px; }
+.lib-badge { padding: 1px 4px; background: {primary}40; }
+.lib-badge-success { background: {success}40; }
+.lib-badge-error { background: {error}50; }
+.lib-badge-warning { background: {warning}40; }
+.lib-badge-info { background: {info}40; }
+.lib-key-hint { gap: 4px; align-items: center; }
+.lib-key { padding: 1px 3px; background: {letters_black}30; outline: 1px {letters_black}60; }

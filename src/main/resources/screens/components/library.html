@@ -1,0 +1,27 @@
+<!--
+  ExyliaLib's component library: templates every screen knows. A plugin's own template of the same name wins.
+  docs/screens.md, "Component library", shows each one.
+-->
+<template name="page-head" props="title subtitle=">
+  <column class="lib-page-head"><h1>${title}</h1><small if="'${subtitle}' != ''">${subtitle}</small></column>
+</template>
+
+<template name="stat" props="label value tone=info">
+  <row class="lib-stat"><small>${label}<slot/></small><box class="spacer"/><b>{${tone}}${value}</b></row>
+</template>
+
+<template name="badge" props="tone=primary">
+  <box class="lib-badge lib-badge-${tone}"><small><slot/></small></box>
+</template>
+
+<template name="key-hint" props="key">
+  <row class="lib-key-hint"><box class="lib-key"><small>${key}</small></box><small><slot/></small></row>
+</template>
+
+<template name="empty-state" props="title hint=">
+  <empty><text>${title}</text><small if="'${hint}' != ''">${hint}</small><slot/></empty>
+</template>
+
+<template name="dialog" props="title when dismiss">
+  <modal if="${when}" dismiss="${dismiss}"><h1>${title}</h1><slot/></modal>
+</template>

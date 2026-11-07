@@ -37,6 +37,8 @@ public final class MarkupRender {
 
     private static final Pattern NUMBER = Pattern.compile("(-?\\d+(?:\\.\\d+)?)(px)?");
     private static final Pattern RANGE = Pattern.compile("(.+?)\\.\\.(.+)");
+    /** The tones {@code toast <tone> <text>} takes. */
+    static final Set<String> TONES = Set.of("success", "error", "info", "warning");
 
     /** The plugin's names for a screen, shared by every compile of its files. */
     public record Bindings(Map<String, Function<ScreenSession, List<? extends Map<String, ?>>>> sources,
@@ -505,6 +507,8 @@ public final class MarkupRender {
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
         } else if (el.tag().equals("img")) {
             node = image(el, scope);
+        } else if (el.tag().equals("search")) {
+            node = search(el, scope, text);
         } else if (el.tag().equals("progress")) {
             node = progress(el, scope, style);
         } else if (el.tag().equals("icon")) {
@@ -535,8 +539,10 @@ public final class MarkupRender {
                 if (own) owners.remove(owners.size() - 1);
             }
         }
-        box(node, style);
+        box(node, style, parts.css());
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
+        if ("low".equalsIgnoreCase(el.attr("priority"))) node.decoration(true);
+        if (el.attr("refresh") != null) node.refresh(Math.max(0, MotionCss.ticks(el.attr("refresh"))));
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
         if (el.attr("tooltip") != null) {
@@ -551,10 +557,7 @@ public final class MarkupRender {
             if (dismiss != null && !dismiss.isBlank()) {
                 List<List<String>> steps = actions(dismiss, scope);
                 Object row = rowOf(scope);
-                node.onDismiss(open -> {
-                    ScreenEvent event = new ScreenEvent(open, ScreenEvent.Kind.LEFT, 0, null, row);
-                    for (List<String> step : steps) run(step, event, el);
-                });
+                node.onDismiss(open -> runAll(steps, new ScreenEvent(open, ScreenEvent.Kind.LEFT, 0, null, row), el));
             }
         }
 
@@ -564,6 +567,15 @@ public final class MarkupRender {
             node.hover(background != null ? background : style.get("background"));
             String[] line = outline(hover.containsKey("outline") ? hover.get("outline") : hover.get("border"));
             if (line != null) node.hoverOutline(line[0]);
+            String moved = hover.get("transform");
+            if (moved != null && !moved.equals(style.get("transform"))) node.hoverTransform(MotionCss.transform(moved));
+        }
+        if (parts.css().activable(here)) {
+            Map<String, String> pressed = parts.css().style(here, Css.HOVER | Css.ACTIVE);
+            String moved = pressed.get("transform");
+            String fill = pressed.get("background");
+            node.active(fill != null && !fill.equals(node.hover()) ? fill : null,
+                    moved != null && !moved.equals(style.get("transform")) ? MotionCss.transform(moved) : null);
         }
         click(el, node, scope, flags, option, path, toggleKey);
         return List.of(node);
@@ -722,7 +734,19 @@ public final class MarkupRender {
                        String toggleKey) {
         List<List<String>> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
         List<List<String>> right = el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope);
+        List<List<String>> shift = el.attr("action-shift") == null ? null : actions(el.attr("action-shift"), scope);
         El owner = option == null ? null : stateOwner(path);
+        if (shift != null) {
+            boolean off = flags.contains("disabled");
+            Object shiftRow = rowOf(scope);
+            node.onShiftClick(event -> {
+                if (off) {
+                    event.viewer().playSound(event.viewer().getLocation(), "entity.villager.no", SoundCategory.MASTER, 0.4f, 1f);
+                    return;
+                }
+                runAll(shift, new ScreenEvent(event.session(), event.kind(), event.steps(), event.node(), shiftRow, true), el);
+            });
+        }
         if (action == null && right == null && owner == null && toggleKey == null) return;
         boolean disabled = flags.contains("disabled");
         String stateKey = owner == null ? null : owner.attr("state");
@@ -732,15 +756,15 @@ public final class MarkupRender {
                 event.viewer().playSound(event.viewer().getLocation(), "entity.villager.no", SoundCategory.MASTER, 0.4f, 1f);
                 return;
             }
-            ScreenEvent here = new ScreenEvent(event.session(), event.kind(), event.steps(), event.node(), row);
+            ScreenEvent here = new ScreenEvent(event.session(), event.kind(), event.steps(), event.node(), row, event.shift());
             // A right click runs action-right when there is one, and everything else otherwise.
             if (right != null && event.kind() == ScreenEvent.Kind.RIGHT) {
-                for (List<String> step : right) run(step, here, el);
+                runAll(right, here, el);
                 return;
             }
             if (stateKey != null) event.session().set(stateKey, option);
             if (toggleKey != null) event.session().set(toggleKey, !truthy(event.session().state(toggleKey, false)));
-            if (action != null) for (List<String> step : action) run(step, here, el);
+            if (action != null) runAll(action, here, el);
         });
     }
 
@@ -759,8 +783,91 @@ public final class MarkupRender {
     }
 
     /**
-     * Built-ins first ({@code close}, {@code set k v}, {@code clear k}, {@code toggle k}, {@code toast text}), then
-     * the screen's, then a global id. Several run in order when separated by {@code ;}.
+     * Runs steps in order. A {@code confirm} or {@code input} step holds the rest: the words after its {@code then}
+     * and every later step run once the player answers, and not at all when they cancel.
+     */
+    private void runAll(List<List<String>> steps, ScreenEvent event, El el) {
+        for (int i = 0; i < steps.size(); i++) {
+            List<String> step = steps.get(i);
+            if (step.isEmpty()) continue;
+            String name = step.get(0);
+            if (!name.equals("confirm") && !name.equals("input")) {
+                run(step, event, el);
+                continue;
+            }
+            int then = step.indexOf("then");
+            List<String> head = step.subList(1, then < 0 ? step.size() : then);
+            List<List<String>> rest = new ArrayList<>();
+            if (then >= 0 && then + 1 < step.size()) rest.add(List.copyOf(step.subList(then + 1, step.size())));
+            rest.addAll(steps.subList(i + 1, steps.size()));
+            if (name.equals("confirm")) confirm(head, rest, event, el);
+            else input(head, rest, event, el);
+            return;
+        }
+    }
+
+    /** {@code confirm '<question>' [dangerous] [yes='<label>'] [no='<label>'] then <steps>}: a dialog in the screen. */
+    private void confirm(List<String> head, List<List<String>> rest, ScreenEvent event, El el) {
+        String question = head.isEmpty() ? "" : head.get(0);
+        boolean dangerous = false;
+        String yes = null;
+        String no = null;
+        for (String word : head.subList(Math.min(1, head.size()), head.size())) {
+            if (word.equalsIgnoreCase("dangerous")) dangerous = true;
+            else if (word.startsWith("yes=")) yes = word.substring(4);
+            else if (word.startsWith("no=")) no = word.substring(3);
+        }
+        event.session().confirm(question, dangerous, yes, no, open -> runAll(rest, event, el));
+    }
+
+    /** {@code input text <key> '<prompt>' [hint='<hint>'] [max=<n>] then <steps>}: asks, stores the answer, goes on. */
+    private void input(List<String> head, List<List<String>> rest, ScreenEvent event, El el) {
+        if (head.size() < 2 || !head.get(0).equals("text")) {
+            parts.problems().accept(el.pos() + ": input needs \"input text <key> '<prompt>'\"");
+            return;
+        }
+        String key = head.get(1);
+        String prompt = head.size() > 2 ? head.get(2) : key;
+        String hint = null;
+        int max = 32;
+        for (String word : head.subList(Math.min(3, head.size()), head.size())) {
+            if (word.startsWith("hint=")) hint = word.substring(5);
+            else if (word.startsWith("max=")) max = Math.max(1, toInt(word.substring(4)));
+        }
+        event.session().ask(prompt, hint, max, String.valueOf(event.session().state(key, ""))).thenAccept(answer -> {
+            if (answer == null) return;
+            event.session().set(key, answer.isBlank() ? null : answer.trim());
+            runAll(rest, event, el);
+        });
+    }
+
+    /**
+     * {@code <search state="q" prompt="Search a player">}: a box showing what was searched (or its own words),
+     * that asks for a new search when clicked, with a clear button beside it while something is searched.
+     */
+    private Node search(El el, Scope scope, Map<String, String> text) {
+        String key = el.attr("state") != null ? el.attr("state") : "search";
+        String prompt = fill(attrOr(el, "prompt", "Search"), scope, false);
+        String hint = el.attr("hint") == null ? null : fill(el.attr("hint"), scope, false);
+        int max = el.attr("max") == null ? 32 : Math.max(1, toInt(el.attr("max")));
+        Object current = session.state(key, "");
+        String label = "".equals(current) ? fill(el.text().isEmpty() ? "⌕ " + prompt : el.text(), scope, true)
+                : "⌕ " + net.exylia.lib.text.Text.escape(String.valueOf(current));
+        Node field = words(label, text).id(key + ".search").onClick(event -> event.session()
+                .ask(prompt, hint, max, String.valueOf(event.session().state(key, "")))
+                .thenAccept(answer -> {
+                    if (answer != null) event.session().set(key, answer.isBlank() ? null : answer.trim());
+                }));
+        if ("".equals(current)) return field;
+        Node clear = words("{error_light}✘", text).id(key + ".clear").padding(0, 3).hover("{error}30")
+                .onClick(event -> event.session().set(key, null));
+        return Node.row(field.grow(1), clear).gap(2).align(Node.Align.CENTER);
+    }
+
+    /**
+     * Built-ins first ({@code close}, {@code back}, {@code set k v}, {@code clear k}, {@code toggle k},
+     * {@code toast [tone] text}, {@code sound key [volume] [pitch]}), then the screen's, then a global id. Several
+     * run in order when separated by {@code ;}.
      */
     private void run(List<String> step, ScreenEvent event, El el) {
         if (step.isEmpty()) return;
@@ -768,13 +875,29 @@ public final class MarkupRender {
         String name = step.get(0);
         switch (name) {
             case "close" -> event.session().close();
+            case "back" -> {
+                if (!event.session().back()) event.session().close();
+            }
+            case "sound" -> {
+                if (!words.isEmpty()) {
+                    float volume = words.size() > 1 ? (float) px(words.get(1), 0.5) : 0.5f;
+                    float pitch = words.size() > 2 ? (float) px(words.get(2), 1) : 1f;
+                    event.viewer().playSound(event.viewer().getLocation(), words.get(0), SoundCategory.MASTER, volume, pitch);
+                }
+            }
             case "set" -> {
                 if (words.size() >= 2) event.session().set(words.get(0), String.join(" ", words.subList(1, words.size())));
             }
             case "clear" -> {
                 for (String key : words) event.session().set(key, null);
             }
-            case "toast" -> event.session().toast(String.join(" ", words));
+            case "toast" -> {
+                if (words.size() > 1 && TONES.contains(words.get(0))) {
+                    event.session().toast(words.get(0), String.join(" ", words.subList(1, words.size())));
+                } else {
+                    event.session().toast(String.join(" ", words));
+                }
+            }
             case "toggle" -> {
                 if (!words.isEmpty()) event.session().set(words.get(0), !truthy(event.session().state(words.get(0), false)));
             }
@@ -811,6 +934,9 @@ public final class MarkupRender {
     static Node words(String words, Map<String, String> text) {
         Node node = Node.text(textOf(words, text));
         if (text.containsKey("font-size")) node.scale(scale(text.get("font-size")));
+        if ("normal".equalsIgnoreCase(text.get("white-space"))) node.wrap(Double.MAX_VALUE);
+        String shadow = text.get("text-shadow");
+        if (shadow != null && !shadow.isBlank() && !shadow.trim().equalsIgnoreCase("none")) node.shadow(true);
         String align = text.get("text-align");
         if (align != null) node.textAlign(switch (align.trim()) {
             case "center" -> Node.Align.CENTER;
@@ -830,16 +956,22 @@ public final class MarkupRender {
         return out.append(words).toString();
     }
 
-    private static void box(Node node, Map<String, String> style) {
-        String padding = style.get("padding");
-        if (padding != null) {
-            String[] p = padding.trim().split("\\s+");
-            double top = px(p[0], 0);
-            double right = p.length > 1 ? px(p[1], 0) : top;
-            double bottom = p.length > 2 ? px(p[2], 0) : top;
-            double left = p.length > 3 ? px(p[3], 0) : right;
-            node.padding(top, right, bottom, left);
+    private static void box(Node node, Map<String, String> style, Css css) {
+        double[] padding = sides(style.get("padding"));
+        if (padding != null) node.padding(padding[0], padding[1], padding[2], padding[3]);
+        double[] margin = sides(style.get("margin"));
+        if (margin != null) node.margin(margin[0], margin[1], margin[2], margin[3]);
+        if (style.containsKey("transform")) node.transform(MotionCss.transform(style.get("transform")));
+        if (style.containsKey("transition")) node.transition(MotionCss.transition(style.get("transition")));
+        if (style.containsKey("enter")) node.enter(MotionCss.tween(style.get("enter")));
+        if (style.containsKey("leave")) node.leave(MotionCss.tween(style.get("leave")));
+        if (style.containsKey("animation")) node.animation(MotionCss.animation(style.get("animation"), css));
+        if ("absolute".equalsIgnoreCase(style.getOrDefault("position", "").trim())) {
+            node.absolute(px(style.get("top"), Double.NaN), px(style.get("right"), Double.NaN),
+                    px(style.get("bottom"), Double.NaN), px(style.get("left"), Double.NaN));
         }
+        if (style.containsKey("z-index")) node.layer((int) px(style.get("z-index"), 0));
+        if (node.kind() == Node.Kind.TEXT && style.containsKey("max-width")) node.wrap(px(style.get("max-width"), 0));
         if (style.containsKey("gap")) node.gap(px(style.get("gap"), 0));
         if (style.containsKey("width")) node.width(px(style.get("width"), -1));
         if (style.containsKey("height")) node.height(px(style.get("height"), -1));
@@ -937,6 +1069,17 @@ public final class MarkupRender {
         if (value > 0) bar.add(Node.box().grow(value).background(colour));
         if (max - value > 0) bar.add(Node.box().grow(max - value));
         return bar;
+    }
+
+    /** One to four pixel values, as CSS padding and margin take them: {top, right, bottom, left}. */
+    private static double[] sides(String value) {
+        if (value == null || value.isBlank()) return null;
+        String[] p = value.trim().split("\\s+");
+        double top = px(p[0], 0);
+        double right = p.length > 1 ? px(p[1], 0) : top;
+        double bottom = p.length > 2 ? px(p[2], 0) : top;
+        double left = p.length > 3 ? px(p[3], 0) : right;
+        return new double[]{top, right, bottom, left};
     }
 
     /** {@code 1px {primary}} as {colour, width}, or {@code null} for none. */

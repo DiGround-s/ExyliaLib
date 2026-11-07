@@ -117,6 +117,8 @@ final class Session implements UiSession {
      * opened, and {@link #painted} is told whenever a slot changes so the screen redraws.
      */
     private Runnable headless;
+    /** Drawn by a routed screen, which reads the rows itself: no slot is rendered for it. */
+    private volatile boolean routed;
 
     /** Set while another menu replaces this one, so the swap makes no close sound. */
     private boolean silentClose;
@@ -429,6 +431,11 @@ final class Session implements UiSession {
             return;
         }
         reread();
+        if (routed) {
+            // The screen redraws on its own second; it only needs the followed lists' rows fresh.
+            pull();
+            return;
+        }
         boolean pulled = pull();
         if (refreshPolicy().mode() == UiRefresh.Mode.FULL) {
             draw();
@@ -762,7 +769,16 @@ final class Session implements UiSession {
 
     /** Draws this menu on a screen from now on: never opened as a window, {@code painted} run on every change. */
     void headless(Runnable painted) {
+        headless(painted, false);
+    }
+
+    /**
+     * The same; {@code routed} when a screen of its own draws it from the rows and context, so a timed refresh only
+     * asks followed lists for their rows again and never renders slots nobody sees.
+     */
+    void headless(Runnable painted, boolean routed) {
         this.headless = painted;
+        this.routed = routed;
     }
 
     /** Whether this menu is drawn on a screen rather than in a window. */
