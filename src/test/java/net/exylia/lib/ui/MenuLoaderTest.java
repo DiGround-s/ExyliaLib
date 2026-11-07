@@ -19,6 +19,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -213,6 +214,10 @@ class MenuLoaderTest {
         assertEquals(34, list.slots().get(20));
         assertEquals(45, list.previous().slot());
         assertEquals(53, list.next().slot());
+        // With nowhere to go an arrow turns muted instead of vanishing.
+        assertNotNull(list.previous().muted());
+        assertNotNull(list.next().muted());
+        assertNotEquals(list.previous().muted(), list.next().muted());
         assertTrue(menu.isPaginated());
     }
 

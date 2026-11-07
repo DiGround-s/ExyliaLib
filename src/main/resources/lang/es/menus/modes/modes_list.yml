@@ -1,4 +1,4 @@
-menu-version: 1
+menu-version: 2
 
 title: '{primary}&lMODOS {letters_black}» {highlight}%modes_title% {muted}%current_page%/%total_pages%'
 size: 54
@@ -20,7 +20,7 @@ filler:
     lore:
       - "{letters_black}Los plugins del servidor añaden los suyos aquí."
 pagination:
-  slots: '0-35'
+  slots: '10-16,19-25,28-34,37-43'
   item_template:
     material: '%icon%'
     name: '%name%'

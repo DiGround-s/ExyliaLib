@@ -1741,3 +1741,7 @@ World: Dünya
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Yeniden okundu {letters_black}» {letters}Ekranlar{letters_black}: {info}{0}'
 'Interface': 'Arayüz'
 '{letters_black}▎ {error}No screen {0} in {1}': '{letters_black}▎ {error}{1} içinde {0} ekranı yok'
+'No previous page': 'Önceki sayfa yok'
+'No more pages': 'Başka sayfa yok'
+'You are on the first page.': 'İlk sayfadasın.'
+'You are on the last page.': 'Son sayfadasın.'

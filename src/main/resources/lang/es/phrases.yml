@@ -1741,3 +1741,7 @@ World: Mundo
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Leídas de nuevo {letters_black}» {letters}Pantallas{letters_black}: {info}{0}'
 'Interface': 'Interfaz'
 '{letters_black}▎ {error}No screen {0} in {1}': '{letters_black}▎ {error}No hay pantalla {0} en {1}'
+'No previous page': 'No hay página anterior'
+'No more pages': 'No hay más páginas'
+'You are on the first page.': 'Estás en la primera página.'
+'You are on the last page.': 'Estás en la última página.'

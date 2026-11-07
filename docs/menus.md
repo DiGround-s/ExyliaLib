@@ -401,11 +401,26 @@ nothing at all.
 Panels are drawn before the background, in file order, so the first one to claim
 a slot keeps it where two overlap.
 
-A page button that has nowhere to go is not drawn either, and its slot goes back
-to whatever would otherwise cover it — the panel that claims it, or the global
-filler, or nothing at all when the menu fills nothing. An arrow that is there
-and does nothing is the same lie in every menu with a single page of rows, which
-is most of them on a quiet server.
+A page button that has nowhere to go turns muted (1.505.0+): a grey arrow head
+named "No previous page" or "No more pages", in the server's language. It does
+nothing when clicked, and the bottom bar keeps its shape on every page, so a
+list with one page still reads as a list that ends there. A `muted` block under
+the arrow restyles it:
+
+```yaml
+navigation:
+  next:
+    slot: 50
+    material: 'basehead-...'
+    name: "{letters}Page {letters_black}▸ <gradient:{success}:{success_light}>Next →</gradient>"
+    muted:
+      material: GRAY_DYE
+      name: "{muted}No more pages"
+```
+
+A button the file itself put in that slot comes back instead, clicks included.
+The `page_first`/`page_last` panels older files declare under the arrows stay
+valid but are covered by the muted arrow.
 
 ## Redrawing
 

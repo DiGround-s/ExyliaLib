@@ -1729,3 +1729,7 @@ World: Мир
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Перечитано {letters_black}» {letters}Экраны{letters_black}: {info}{0}'
 'Interface': 'Интерфейс'
 '{letters_black}▎ {error}No screen {0} in {1}': '{letters_black}▎ {error}Нет экрана {0} в {1}'
+'No previous page': 'Предыдущей страницы нет'
+'No more pages': 'Больше страниц нет'
+'You are on the first page.': 'Вы на первой странице.'
+'You are on the last page.': 'Вы на последней странице.'

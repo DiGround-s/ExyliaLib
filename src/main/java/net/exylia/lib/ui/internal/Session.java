@@ -1264,7 +1264,13 @@ final class Session implements UiSession {
             return;
         }
         if (!reachable) {
-            drawBackground(placed.slot());
+            UiItem beneath = definition.beneath(placed.slot());
+            if (placed.muted() == null || beneath == definition.items().get(placed.slot()) && beneath != null) {
+                drawBackground(placed.slot());
+                return;
+            }
+            paint(placed.slot(), placed.muted(), values, Set.of(), Set.of());
+            slots.put(placed.slot(), Rendered.of(placed.muted()));
             return;
         }
         paint(placed.slot(), placed.item(), values, Set.of(), Set.of());

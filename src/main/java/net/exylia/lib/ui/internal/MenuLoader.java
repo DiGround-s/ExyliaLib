@@ -2,6 +2,7 @@ package net.exylia.lib.ui.internal;
 
 import net.exylia.lib.action.ActionTemplate;
 import net.exylia.lib.item.Items;
+import net.exylia.lib.text.Phrases;
 import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.Slots;
 import net.exylia.lib.ui.UiDefinition;
@@ -710,8 +711,9 @@ public final class MenuLoader {
             return null;
         }
         UiItem item = readItem(section, binder);
+        UiItem muted = mutedArrow(section, key, binder);
         if (!item.bindings().isEmpty()) {
-            return new UiSection.Placed(slot, item);
+            return new UiSection.Placed(slot, item, muted);
         }
         ClickBindings paging;
         try {
@@ -721,11 +723,45 @@ public final class MenuLoader {
             // convenience rather than something the file asked for: an arrow
             // that cannot page is the arrow that would have been drawn anyway,
             // and is not worth refusing to load the menu over.
-            return new UiSection.Placed(slot, item);
+            return new UiSection.Placed(slot, item, muted);
         }
         return new UiSection.Placed(slot,
                 new UiItem(item.item(), paging, item.condition(), item.dependencies(),
-                        item.alternates(), item.sound()));
+                        item.alternates(), item.sound()), muted);
+    }
+
+    /** A grey arrow head pointing back. */
+    static final String MUTED_PREVIOUS_HEAD = "basehead-" + java.util.Base64.getEncoder().encodeToString(
+            ("{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/"
+                    + "c15394a38cccea9f4e9e0e4610822c6d3d2380e2d24588c209fdc1e6828e778a\"}}}")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+    /** A grey arrow head pointing forward. */
+    static final String MUTED_NEXT_HEAD = "basehead-" + java.util.Base64.getEncoder().encodeToString(
+            ("{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/"
+                    + "6c43bac9759d8ec7ab5d40120b3717afecc6db05310e747cffe4727a6dc53e35\"}}}")
+                    .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+    /**
+     * What a page arrow shows when there is no page in its direction.
+     *
+     * <p>Shown rather than hidden, so the bottom bar never changes shape and
+     * the viewer reads that the list ends here instead of wondering where the
+     * arrow went. A file restyles it with a {@code muted} block under the
+     * arrow; without one it is a grey arrow head that says so in words.
+     */
+    private static UiItem mutedArrow(ConfigurationSection arrow, String key, Binder binder) {
+        ConfigurationSection written = arrow.getConfigurationSection("muted");
+        if (written != null) {
+            return readItem(written, binder);
+        }
+        boolean previous = key.equals("previous");
+        org.bukkit.configuration.MemoryConfiguration item = new org.bukkit.configuration.MemoryConfiguration();
+        item.set("material", previous ? MUTED_PREVIOUS_HEAD : MUTED_NEXT_HEAD);
+        item.set("name", "{muted}" + Phrases.tr(previous ? "No previous page" : "No more pages"));
+        item.set("lore", List.of("{letters_black}" + Phrases.tr(previous
+                ? "You are on the first page." : "You are on the last page.")));
+        return readItem(item, binder);
     }
 
     private static Map<String, Object> values(ConfigurationSection section) {

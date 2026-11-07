@@ -1,7 +1,7 @@
 # The modes screens: every way to play the plugins on this server offer.
 # Restyle them freely: the library only adds keys missing from this file.
 # One category's modes, and the categories when there are more than seven.
-menu-version: 1
+menu-version: 2
 
 title: '{primary}&lMODES {letters_black}» {highlight}%modes_title% {muted}%current_page%/%total_pages%'
 size: 54
@@ -23,7 +23,7 @@ filler:
     lore:
       - "{letters_black}Plugins on this server add theirs here."
 pagination:
-  slots: '0-35'
+  slots: '10-16,19-25,28-34,37-43'
   item_template:
     material: '%icon%'
     name: '%name%'

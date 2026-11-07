@@ -1729,3 +1729,7 @@ World: Monde
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Relus {letters_black}» {letters}Écrans{letters_black}: {info}{0}'
 'Interface': 'Interface'
 '{letters_black}▎ {error}No screen {0} in {1}': '{letters_black}▎ {error}Aucun écran {0} dans {1}'
+'No previous page': 'Pas de page précédente'
+'No more pages': 'Plus de pages'
+'You are on the first page.': 'Vous êtes sur la première page.'
+'You are on the last page.': 'Vous êtes sur la dernière page.'

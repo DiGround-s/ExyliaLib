@@ -86,8 +86,18 @@ public record UiSection(
         return !templates.isEmpty();
     }
 
-    /** An item and where it goes. */
-    public record Placed(int slot, @NotNull UiItem item) {
+    /**
+     * An item and where it goes.
+     *
+     * @param muted what a page arrow shows when there is no page in its
+     *              direction, or {@code null} to put back what lies beneath
+     */
+    public record Placed(int slot, @NotNull UiItem item, @Nullable UiItem muted) {
+
+        /** A placed item with no muted look. */
+        public Placed(int slot, @NotNull UiItem item) {
+            this(slot, item, null);
+        }
     }
 
     /** How many rows fit on one page. */
