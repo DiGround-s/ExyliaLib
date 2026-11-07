@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -86,10 +87,11 @@ public final class MarkupRender {
 
     private Object lookup(String name, Scope scope) {
         for (Scope s = scope; s != null; s = s.parent()) {
-            if (s.row() != null && s.row().containsKey(name)) return s.row().get(name);
+            // A value that is there but empty is empty text, never the placeholder's own name on screen.
+            if (s.row() != null && s.row().containsKey(name)) return Objects.requireNonNullElse(s.row().get(name), "");
         }
         Function<ScreenSession, ?> value = parts.values().get(name);
-        if (value != null) return value.apply(session);
+        if (value != null) return Objects.requireNonNullElse(value.apply(session), "");
         Object state = session.state(name, "");
         if (!"".equals(state)) return state;
         String fallback = defaults.get(name);

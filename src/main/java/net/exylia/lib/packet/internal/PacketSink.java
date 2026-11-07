@@ -54,6 +54,15 @@ public interface PacketSink {
                    boolean allowFlight, float flySpeed);
 
     /**
+     * Tells a client its abilities with its walking speed too, which the client also reads as the field of view's
+     * speed scale: zero holds the view still whatever the player's speed, sprint or effects.
+     */
+    default void abilities(Player viewer, boolean invulnerable, boolean flying,
+                           boolean allowFlight, float flySpeed, float walkSpeed) {
+        abilities(viewer, invulnerable, flying, allowFlight, flySpeed);
+    }
+
+    /**
      * Tells a client where its world border is, and where it is going.
      *
      * <p>Sent past the listener, so the filter that keeps the world's own

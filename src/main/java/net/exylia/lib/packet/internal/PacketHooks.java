@@ -179,6 +179,28 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     /** Display slot 1: the sidebar. */
     private static final int SIDEBAR_SLOT = 1;
 
+    /**
+     * A camera view stays one while it lasts: the server's own abilities (a double jump turning flight on and off)
+     * or game mode would hand the client its movement and field of view back, and the view would wander.
+     */
+    private static void holdCameraView(PacketSendEvent event, PacketTypeCommon type) {
+        if (type == PacketType.Play.Server.PLAYER_ABILITIES) {
+            WrapperPlayServerPlayerAbilities abilities = new WrapperPlayServerPlayerAbilities(event);
+            abilities.setInGodMode(true);
+            abilities.setFlying(true);
+            abilities.setFlightAllowed(true);
+            abilities.setFlySpeed(PacketRuntime.STILL);
+            abilities.setFOVModifier(PacketRuntime.STILL);
+            event.markForReEncode(true);
+        } else if (type == PacketType.Play.Server.CHANGE_GAME_STATE) {
+            WrapperPlayServerChangeGameState state = new WrapperPlayServerChangeGameState(event);
+            if (state.getReason() == WrapperPlayServerChangeGameState.Reason.CHANGE_GAME_MODE) {
+                state.setValue(org.bukkit.GameMode.SPECTATOR.getValue());
+                event.markForReEncode(true);
+            }
+        }
+    }
+
     private static void send(Player player, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(player, packet);
     }
@@ -203,6 +225,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
+        if (PacketRuntime.inCameraView(viewer)) holdCameraView(event, type);
         if (PacketRuntime.overlaysAnything()) {
             PacketRuntime.Overlay overlay = PacketRuntime.overlayOf(viewer);
             if (overlay != null) {
@@ -1023,8 +1046,15 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void abilities(Player viewer, boolean invulnerable, boolean flying,
                           boolean allowFlight, float flySpeed) {
+        // The protocol's walking speed is half Bukkit's (0.2 there is 0.1 here).
+        abilities(viewer, invulnerable, flying, allowFlight, flySpeed, viewer.getWalkSpeed() / 2);
+    }
+
+    @Override
+    public void abilities(Player viewer, boolean invulnerable, boolean flying,
+                          boolean allowFlight, float flySpeed, float walkSpeed) {
         send(viewer, new WrapperPlayServerPlayerAbilities(
-                invulnerable, flying, allowFlight, false, flySpeed, 0.1f));
+                invulnerable, flying, allowFlight, false, flySpeed, walkSpeed));
     }
 
     /** How far a portal may place a player, which every border packet repeats. Vanilla's value. */

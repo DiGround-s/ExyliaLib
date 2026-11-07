@@ -50,6 +50,8 @@ final class LiveScreen implements ScreenSession {
     private static final double LAYER = 0.001;
     /** The default layout area spans this many units across at {@link #DISTANCE}: about three quarters of a 16:9 view at FOV 70. */
     private static final double SPAN = 5.6;
+    /** How much wider a camera view's held field of view shows the world than the one the layout was tuned at. */
+    private static final double CAMERA_VIEW_SCALE = 1.255;
     /** The backdrop, in units: past the edge of any view. */
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
@@ -127,7 +129,9 @@ final class LiveScreen implements ScreenSession {
         this.player = player;
         this.screen = screen;
         this.tasks = Tasks.of(plugin);
-        this.unit = SPAN / Screen.WIDTH;
+        // A camera view holds the field of view at its widest (see FakeGameMode#cameraView): drawn larger to
+        // look the size it was designed at.
+        this.unit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
         Location eyes = player.getEyeLocation();
@@ -637,9 +641,10 @@ final class LiveScreen implements ScreenSession {
     private void cursor(List<PacketWrapper<?>> out, int glide) {
         double k = drawn(CURSOR_LAYER);
         for (int i = 0; i < ARROW.length; i++) {
-            double w = ARROW[i] * ARROW_PIXEL;
-            out.add(ScreenPackets.rect(cursorIds[i], (cursorX + w / 2) * k, (cursorY - (i + 0.5) * ARROW_PIXEL) * k,
-                    -DEPTH + CURSOR_LAYER * LAYER, w * k, ARROW_PIXEL * k, 0xFFFFFFFF, glide));
+            double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
+            double w = ARROW[i] * pixel;
+            out.add(ScreenPackets.rect(cursorIds[i], (cursorX + w / 2) * k, (cursorY - (i + 0.5) * pixel) * k,
+                    -DEPTH + CURSOR_LAYER * LAYER, w * k, pixel * k, 0xFFFFFFFF, glide));
         }
     }
 

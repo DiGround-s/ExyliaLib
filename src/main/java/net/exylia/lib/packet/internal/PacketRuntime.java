@@ -136,6 +136,14 @@ public final class PacketRuntime {
      * Whether any plugin draws this player's client as a spectator: such a client
      * draws invisible entities see-through.
      */
+    /**
+     * The flying and walking speed a client in a camera view is told. A flying client's field of view is
+     * 1.1 × (movement speed / walking speed + 1) / 2, held between 0.1 and 1.5: a walking speed next to nothing
+     * holds it at 1.5 whatever the player does (a sprint, a jump, a speed or slowness effect), and the flying
+     * speed next to nothing keeps the keys from moving them. Only a player who set FOV effects to 0% sees 1.0.
+     */
+    static final float STILL = 1.0E-4f;
+
     public static boolean inCameraView(UUID player) {
         return SPECTATING.containsKey(player);
     }
@@ -1247,7 +1255,10 @@ public final class PacketRuntime {
             if (enabled) {
                 boolean started = SPECTATING.putIfAbsent(id, player.getGameMode()) == null;
                 out.gameMode(player, GameMode.SPECTATOR.getValue());
-                out.abilities(player, true, true, true, player.getFlySpeed());
+                // A camera view holds still: no flying off on a key press (the server pulls the player back a
+                // moment later, and the view jumps), and no field of view that swells with a sprint, a jump or a
+                // speed effect.
+                out.abilities(player, true, true, true, STILL, STILL);
                 if (started) cameraViewChanged(player, true);
             } else if (SPECTATING.remove(id) != null) {
                 out.gameMode(player, player.getGameMode().getValue());

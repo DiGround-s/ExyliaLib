@@ -256,6 +256,16 @@ class ScreenMarkupTest {
         assertTrue(markup.problems().stream().anyMatch(p -> p.contains("outside")), markup.problems().toString());
     }
 
+    @Test
+    void anEmptyValueIsEmptyTextNotThePlaceholder() {
+        ScreenMarkup markup = ScreenMarkup.parse("t", """
+                <screen><list source="rows"><text id="name">%who%</text></list></screen>""")
+                .source("rows", s -> { java.util.Map<String, Object> row = new java.util.HashMap<>(); row.put("who", null);
+                    return java.util.List.of(row); });
+        String drawn = String.valueOf(find(new Fake(markup.screen()).render(), "rows.0.0").text());
+        assertFalse(drawn.contains("%"), drawn);
+    }
+
     static Node overlay(Node node) {
         if (node.overlay()) return node;
         for (Node child : node.children()) {
