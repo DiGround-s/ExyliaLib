@@ -284,6 +284,8 @@ public final class SettingsMenu {
 
     static String label(PluginStore store) {
         String name = store.plugin().getName();
+        // The library's own settings are about how everything looks, not about a plugin called "Lib".
+        if (name.equals("ExyliaLib")) return Phrases.tr("Interface");
         return name.startsWith("Exylia") && name.length() > "Exylia".length() ? name.substring("Exylia".length()) : name;
     }
 

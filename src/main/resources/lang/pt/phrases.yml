@@ -1739,3 +1739,4 @@ World: Mundo
 '{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Sem problemas {letters_black}» {letters}Telas{letters_black}: {info}{0}'
 '{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Problemas{letters_black}: {warning}{0} {letters_black}» {letters}Telas{letters_black}: {info}{1}'
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Lidas de novo {letters_black}» {letters}Telas{letters_black}: {info}{0}'
+'Interface': 'Interface'

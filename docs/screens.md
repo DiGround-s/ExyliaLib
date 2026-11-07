@@ -417,6 +417,105 @@ hub.rows("layouts", session -> slots(session).stream()
 `ScreenEvent#row()` is the row the clicked box was drawn for (`null` outside a repeat), `row(Type.class)` the
 same as an `Optional`.
 
+## Chest windows or screens: menu style (1.495.0)
+
+Every plugin's chest menus can open as screens with no code of its own. Which one a player gets is a
+`MenuStyle` (`net.exylia.lib.ui`): `CLASSIC` (chest windows, the default) or `SCREEN`. `Menus.of(plugin).open*`
+asks `MenuStyles` on every open; in `SCREEN` the chest menu still runs as always (rows, context, actions, pages,
+redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it instead:
+
+- **A screen routed to that menu id** (`<screen routes="...">`, below) when the plugin has one;
+- otherwise **the chest skin**: the slots as cards in the chest's own layout, each item's name and lore as a
+  tooltip while hovered, the title on top, glass panes drawn as the empty part of the card. A left or right click
+  on a card is that click on the slot of the chest menu, so every action works as in the window, and a menu
+  opened from a click replaces the cards in place. Shift closes it (Shift-clicks cannot be made on a screen).
+
+Menus that stay windows whatever the style: those with input slots (the player puts items in them) and those
+that are not chests (hopper, dispenser...). A client that cannot draw screens always gets windows.
+
+### Who decides
+
+The first rule that answers wins:
+
+| # | Rule | Where |
+|---|---|---|
+| 1 | A client that cannot draw screens (Bedrock, older than 1.20.2, no PacketEvents) gets `CLASSIC` | `MenuStyles.canShowScreens(player)` |
+| 2 | The player's own choice, when the server lets players choose | `/settings` → Interface → Menu style, kept in the player's data (no database) |
+| 3 | The plugin's own setting; `DEFAULT` passes | `MenuStyles.of(plugin).defaultStyle(() -> settings.menuStyle())` |
+| 4 | The server's choice for that plugin | `plugins/ExyliaLib/screens.yml` `plugins: {ExyliaJobs: SCREEN}` |
+| 5 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |
+
+`screens.yml` (`ScreenSettings`, editable in game with `/exylialib config`):
+
+```yaml
+default-style: CLASSIC     # CLASSIC or SCREEN, for every plugin that does not choose
+player-choice: true        # players may pick their own in /settings
+plugins: {}                # ExyliaJobs: SCREEN
+chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
+```
+
+A plugin with a `menu-style` key of its own hands it over once, on enable:
+
+```java
+MenuStyles.of(this).defaultStyle(() -> settings.get().ui().menuStyle());   // "CLASSIC", "SCREEN" or "DEFAULT"
+```
+
+| Call | Answers |
+|---|---|
+| `MenuStyles.of(plugin).resolve(player)` / `.screens(player)` | the style that player gets for that plugin now |
+| `MenuStyles.canShowScreens(player)` | rule 1 |
+| `MenuStyles.choice(player)` / `MenuStyles.choose(player, style)` | the player's own pick (`null` = the server's); kept across restarts, any thread |
+| `MenuStyles.choosable()` | whether `player-choice` is on |
+
+### Routing a menu id to a screen
+
+A screen of a `ScreenSet` names the menu ids it stands for. In `SCREEN` style, opening any of them opens this
+screen with the state written after the id, `%name%` filled from the menu's context; a key whose placeholder the
+context does not answer is left to the screen's own default. A screen already open is reused (its state set), so
+moving between routed menus never reopens it.
+
+```html
+<screen routes="player/queue_category:tab=play
+                player/queue_kit:tab=play,category=%category_id%
+                player/settings:tab=settings">
+```
+
+Routes are separated by spaces; in each, the parts after a `:` that hold `=` are the state (pairs separated by
+`,`), the rest is the menu id, with or without its namespace (`practice:kits`). The plugin's own checks (permission,
+"already in a game") run before the menu opens, so they apply to the screen too.
+
+### The data contract: a screen for a chest menu reads the menu
+
+A routed screen is drawn from the same data as the chest menu it stands for, so it needs no Java of its own:
+
+- `%name%` reads, after the screen's own values and state, **the menu's context** (`menus.open(player, id, context)`,
+  suppliers included). Then the library placeholders and PlaceholderAPI, as everywhere.
+- `source="<section>"` / `<for each="x in <section>">` reads **the menu's rows** of that section (`main`, or the
+  section ids of a `sections:` menu) when no binding of the screen has that name, refreshed as the plugin refreshes
+  them (`entries(...)`, live suppliers).
+- `ns:id args` actions run with `UiKeys.SESSION` (the chest menu behind the screen), `UiKeys.MENU` and
+  `UiKeys.ENTRY` (the clicked row's object), exactly as from a chest, so the YAML's action strings work unchanged.
+- Bindings registered on the screen (`value`, `text`, `rows`, `action`) are read **once a render** however many rows
+  ask for them.
+
+### Tooltips
+
+`Node#tooltip(lines...)` (Java) and `tooltip="..."` (markup, lines separated by `<nl>`) show a small panel beside a
+box while the cursor is over it, the first line as its title, as an item's lore shows over a slot. It is drawn
+over everything, a dialog included, to the right of the box or to its left near the edge. Cost: two displays plus
+one per line, only while hovered; moving between boxes sends only what changed.
+
+```html
+<card action="practice:select %kit_id%" tooltip="%kit_name%<nl>{letters_black}%kit_mode%">...</card>
+```
+
+### Windows and inputs over a screen
+
+- An input (`Inputs`: chat prompt, dialog, sign, anvil, confirm window) started while a screen is open steps the
+  screen aside until it is answered, then brings it back as it was. If the answer opened a window, the screen
+  closes instead.
+- Any other window opened over a screen (a chest menu that stays a window, another plugin's inventory) closes it.
+
 ## Trying it
 
 `/exylialib screentest open [spectator|wheel]` (permission `exylialib.admin`) opens a demo built with

@@ -151,6 +151,14 @@ This needs **PacketEvents**. Without it the title stays on the page it opened
 at — what every menu did before — and paging, drawing and clicking are
 unaffected.
 
+### As screens (1.495.0)
+
+Every `open*` here asks `MenuStyles` first. In `SCREEN` style (a player's own choice, the plugin's `menu-style`, or
+`screens.yml`) the menu runs exactly as below but is drawn on a screen: the screen a `<screen routes>` names for
+its id, or every slot as a card with its lore as a tooltip. `UiSession` behaves the same (`close()` closes the
+screen, `isOpen()`, `entries`, `refresh`); menus with input slots and non-chest windows always stay windows. See
+`screens.md`, *Chest windows or screens*.
+
 ## What kind of window
 
 ```yaml

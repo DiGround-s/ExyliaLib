@@ -89,6 +89,8 @@ public final class MarkupRender {
     private final Map<String, El> grids = new HashMap<>();
     /** A {@code state} key's {@code default}, read before the player has picked anything. */
     private final Map<String, String> defaults = new HashMap<>();
+    /** Binding values read so far in this render. */
+    private final Map<String, Object> memo = new HashMap<>();
 
     private MarkupRender(Parts parts, ScreenSession session) {
         this.parts = parts;
@@ -142,12 +144,20 @@ public final class MarkupRender {
             if (s.row() != null && s.row().containsKey(name)) return mark(s.row().get(name), s, name);
         }
         Function<ScreenSession, ?> value = parts.bindings().values().get(name);
-        if (value != null) return Objects.requireNonNullElse(value.apply(session), "");
+        // Once a render: a value read by every row of a grid is asked for once.
+        if (value != null) return memo.computeIfAbsent(name, ignored -> Objects.requireNonNullElse(value.apply(session), ""));
         Function<ScreenSession, ?> text = parts.bindings().texts().get(name);
         if (text != null) return literal(Objects.requireNonNullElse(text.apply(session), ""));
         Object state = session.state(name, "");
         // State is the player's doing (a picked name, a search), so it is drawn as plain text.
         if (!"".equals(state)) return literal(state);
+        net.exylia.lib.ui.UiSession menu = menu();
+        if (menu != null) {
+            // A screen opened for a chest menu reads that menu's values, as its YAML does.
+            Object context = menu.context().get(name);
+            if (context instanceof java.util.function.Supplier<?> reader) context = reader.get();
+            if (context != null) return context;
+        }
         String fallback = defaults.get(name);
         if (fallback != null) {
             // A default may itself be a placeholder (default="%first_mode%"); one that names itself stays as written.
@@ -258,9 +268,20 @@ public final class MarkupRender {
         }
     }
 
+    /** The chest menu this screen was opened for in SCREEN style, or {@code null}. */
+    private net.exylia.lib.ui.UiSession menu() {
+        Object menu = session.state(ScreenRoutes.MENU, "");
+        return menu instanceof net.exylia.lib.ui.UiSession open ? open : null;
+    }
+
     private Rows rows(String source) {
         return rows.computeIfAbsent(source, name -> {
             Function<ScreenSession, List<UiEntry>> entries = parts.bindings().entries().get(name);
+            net.exylia.lib.ui.UiSession menu = entries == null && !parts.bindings().sources().containsKey(name) ? menu() : null;
+            if (menu != null && menu.definition().section(name) != null) {
+                // The chest menu's own list, as the plugin filled it.
+                entries = ignored -> menu.entries(name);
+            }
             if (entries != null) {
                 List<UiEntry> list = entries.apply(session);
                 if (list == null) return Rows.NONE;
@@ -518,6 +539,10 @@ public final class MarkupRender {
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
+        if (el.attr("tooltip") != null) {
+            String tip = fill(el.attr("tooltip"), scope, true);
+            if (!tip.isBlank()) node.tooltip(tip.split("<nl>|<br>|\\n"));
+        }
         if (el.tag().equals("modal")) {
             String dismiss = el.attr("dismiss");
             String condition = el.attr("if");
@@ -761,7 +786,16 @@ public final class MarkupRender {
                     StringBuilder call = new StringBuilder(name);
                     // Each argument escaped, so the action reads exactly the words the screen meant.
                     for (String word : words) call.append(' ').append(word.isEmpty() ? "''" : word.replaceAll("([\\s'\"\\\\])", "\\\\$1"));
-                    Actions.compile(call.toString()).execute(ActionContext.forPlayer(event.viewer()).origin("screen").build());
+                    ActionContext.Builder context = ActionContext.forPlayer(event.viewer()).origin("screen");
+                    // As from a chest: the clicked row's object, and the chest menu the screen stands for.
+                    if (event.row() != null && !(event.row() instanceof Map<?, ?>) && !(event.row() instanceof UiEntry)) {
+                        context.put(net.exylia.lib.ui.UiKeys.ENTRY, event.row());
+                    }
+                    net.exylia.lib.ui.UiSession menu = menu();
+                    if (menu != null) {
+                        context.put(net.exylia.lib.ui.UiKeys.SESSION, menu).put(net.exylia.lib.ui.UiKeys.MENU, menu.menuId());
+                    }
+                    Actions.compile(call.toString()).execute(context.build());
                 } else {
                     parts.problems().accept(el.pos() + ": no action \"" + name + "\" is registered");
                 }

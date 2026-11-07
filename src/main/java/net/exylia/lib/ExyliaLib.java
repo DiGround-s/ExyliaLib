@@ -149,6 +149,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
     private ConfigFile<FormatSettings> formats;
     private ConfigFile<EconomySettings> economy;
     private ConfigFile<InputSettings> input;
+    private ConfigFile<net.exylia.lib.screen.ScreenSettings> screens;
     private ConfigFile<DisplaySettings> displays;
 
     /**
@@ -265,6 +266,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         loadFormats();
         loadEconomy();
         loadInput();
+        loadScreens();
         loadDisplays();
         loadRigs();
         loadMessages();
@@ -581,6 +583,14 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         });
     }
 
+    /** Reads {@code screens.yml}, how every plugin's menus open, and offers players their own choice. */
+    private void loadScreens() {
+        screens = Configs.define(this, "screens", net.exylia.lib.screen.ScreenSettings.class).load();
+        net.exylia.lib.screen.ScreenSettings.apply(screens.get());
+        screens.onReload(net.exylia.lib.screen.ScreenSettings::apply);
+        net.exylia.lib.ui.MenuStyles.init(this);
+    }
+
     private void loadInput() {
         input = Configs.define(this, "input", InputSettings.class).load();
         applyInput(input.get());
@@ -646,6 +656,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         formats.reload();
         economy.reload();
         input.reload();
+        screens.reload();
         // Same reason: turning the log sweep on, or keeping fewer days of it,
         // should not need a restart.
         CleanupRuntime.reload();

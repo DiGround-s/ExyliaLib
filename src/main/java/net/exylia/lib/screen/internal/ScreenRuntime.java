@@ -89,8 +89,18 @@ public final class ScreenRuntime {
         SENSITIVITY.put(player, value);
     }
 
+    /**
+     * Steps the player's open screen aside until {@code done} completes, as {@link ScreenSession#aside} does; for
+     * inputs started while a screen is up. Nothing when none is open.
+     */
+    public static void asideUntil(UUID player, java.util.concurrent.CompletionStage<?> done) {
+        LiveScreen live = OPEN.get(player);
+        if (live != null && !live.away()) live.aside(() -> done);
+    }
+
     /** Closes the screens a disabled plugin opened. Called by the library. */
     public static void release(Plugin plugin) {
+        ScreenRoutes.release(plugin);
         for (LiveScreen live : List.copyOf(OPEN.values())) {
             if (live.plugin() == plugin) live.close();
         }
@@ -144,6 +154,16 @@ public final class ScreenRuntime {
                     || event.getFrom().distanceSquared(event.getTo()) > 1) {
                 close(event.getPlayer().getUniqueId());
             }
+        }
+
+        /**
+         * A window opened over a screen (a chest, an anvil, another plugin's inventory) covers it and takes the
+         * input, so the screen closes. Not while it stepped aside for an input, which may be such a window.
+         */
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+        public void onInventory(org.bukkit.event.inventory.InventoryOpenEvent event) {
+            LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
+            if (live != null && !live.away()) live.close();
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

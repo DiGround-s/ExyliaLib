@@ -147,7 +147,7 @@ public final class MenuListener implements Listener {
     }
 
     /** Runs what a button is bound to. */
-    private void handle(Session session, Player viewer, int slot, ClickKind kind,
+    static void handle(Session session, Player viewer, int slot, ClickKind kind,
                         Rendered rendered, ItemStack clicked) {
         UiItem item = rendered.item();
         List<ActionTemplate> actions = item.bindings().forClick(kind);
@@ -219,7 +219,7 @@ public final class MenuListener implements Listener {
      * expressible in a config file. The execution is registered with the
      * session, so a delayed step does not outlive the screen.
      */
-    private void runActions(Session session, Player viewer, int slot, ClickKind kind,
+    private static void runActions(Session session, Player viewer, int slot, ClickKind kind,
                             Rendered rendered, ItemStack clicked,
                             List<ActionTemplate> actions, Map<String, Object> data) {
         ActionContext.Builder context = ActionContext.forPlayer(viewer)
@@ -258,7 +258,7 @@ public final class MenuListener implements Listener {
     }
 
     /** Runs a menu's close actions, if it has any. */
-    private void runClose(Session session, Player viewer) {
+    static void runClose(Session session, Player viewer) {
         UiDefinition definition = session.definition();
         if (definition.closeActions().isEmpty()) {
             return;
@@ -273,7 +273,7 @@ public final class MenuListener implements Listener {
                 compile(session, definition.closeActions(), viewer)).execute(context);
     }
 
-    private List<ActionStep> compile(Session session, List<String> raw, Player viewer) {
+    private static List<ActionStep> compile(Session session, List<String> raw, Player viewer) {
         List<ActionStep> steps = new ArrayList<>(raw.size());
         for (String line : raw) {
             steps.add(new ActionStep(

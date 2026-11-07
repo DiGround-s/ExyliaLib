@@ -243,6 +243,11 @@ public final class SettingsRuntime {
         void open(UUID player) {
             Session session = new Session();
             sessions.put(player, session);
+            // A plugin whose every setting keeps its own value (the library's menu style) has no table to read.
+            if (!settings.isEmpty() && settings.values().stream().allMatch(setting -> setting.store() != null)) {
+                session.loaded = true;
+                return;
+            }
             load(player, session, false);
         }
 

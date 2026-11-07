@@ -123,7 +123,9 @@ public final class ScreenSet {
             ScreenMarkup read = ScreenMarkup.read(id + ".html", () -> compile(id));
             ScreenMarkup raced = markups.putIfAbsent(id, read);
             stamp = fingerprint();
-            return raced != null ? raced : read;
+            ScreenMarkup kept = raced != null ? raced : read;
+            route(kept);
+            return kept;
         } catch (IOException missing) {
             throw new IllegalArgumentException(folder + "/" + id + ".html could not be read: " + missing.getMessage(), missing);
         }
@@ -141,6 +143,7 @@ public final class ScreenSet {
         for (String id : markups.keySet()) {
             refreshWords(id);
             ok &= markups.get(id).reload();
+            route(markups.get(id));
         }
         stamp = fingerprint();
         return ok;
@@ -166,6 +169,14 @@ public final class ScreenSet {
             watch();
         }
         return this;
+    }
+
+    /**
+     * Makes the menu ids {@code <screen routes="...">} names open this screen in SCREEN style
+     * ({@link net.exylia.lib.ui.MenuStyles}).
+     */
+    private void route(ScreenMarkup markup) {
+        net.exylia.lib.screen.internal.ScreenRoutes.declare(plugin, markup, markup.routes());
     }
 
     // ------------------------------------------------------------------
@@ -244,6 +255,7 @@ public final class ScreenSet {
                 stamp = now;
                 for (Map.Entry<String, ScreenMarkup> entry : new LinkedHashMap<>(markups).entrySet()) {
                     boolean read = entry.getValue().reload();
+                    route(entry.getValue());
                     Debug.of(plugin).log((read ? "Read again: " : "Kept the last good version of ") + folder + "/"
                             + entry.getKey() + ".html" + (read ? "" : ", which no longer reads: "
                             + String.join("; ", entry.getValue().problems())));

@@ -1739,3 +1739,4 @@ World: Dünya
 '{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Sorun yok {letters_black}» {letters}Ekranlar{letters_black}: {info}{0}'
 '{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Sorunlar{letters_black}: {warning}{0} {letters_black}» {letters}Ekranlar{letters_black}: {info}{1}'
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Yeniden okundu {letters_black}» {letters}Ekranlar{letters_black}: {info}{0}'
+'Interface': 'Arayüz'

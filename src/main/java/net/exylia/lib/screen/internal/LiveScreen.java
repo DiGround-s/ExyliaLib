@@ -115,6 +115,10 @@ final class LiveScreen implements ScreenSession {
     private volatile View view = View.EMPTY;
     /** A render is queued: set() and redraw() within one tick render once. */
     private final java.util.concurrent.atomic.AtomicBoolean dirty = new java.util.concurrent.atomic.AtomicBoolean();
+    /** A tooltip's panel colour, opaque, and its depth: over everything, a dialog included. */
+    private static final String TIP_BACKGROUND = "#120e1a";
+    private static final int TIP_DEPTH = Layout.OVERLAY + 8;
+
     /** A hover change is queued for the viewer's thread. */
     private final java.util.concurrent.atomic.AtomicBoolean hoverQueued = new java.util.concurrent.atomic.AtomicBoolean();
     /** The last render's tree, laid out without the toast, and what it drew: an unchanged one skips layout and diff. */
@@ -329,6 +333,11 @@ final class LiveScreen implements ScreenSession {
             if (!open || !away) return;
             away = false;
         }
+        // What the input led to may be a window (a chest menu opened from its answer): that covers the screen.
+        if (player.getOpenInventory().getTopInventory().getType() != org.bukkit.event.inventory.InventoryType.CRAFTING) {
+            close();
+            return;
+        }
         show();
     }
 
@@ -481,6 +490,33 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    /**
+     * The hovered box's {@link Node#tooltip}, laid out beside it: to its right, or its left when that is out of
+     * the layout area, kept inside it top to bottom. Above every page and dialog. Holds the lock.
+     */
+    private List<Layout.Placed> tooltip() {
+        Layout.Placed box = hoveredBox;
+        if (box == null || box.node().tooltip() == null) return List.of();
+        Node panel = Node.column().padding(4, 6).gap(1).background(TIP_BACKGROUND).outline("{primary}", 1);
+        for (net.kyori.adventure.text.Component line : box.node().tooltip()) panel.add(Node.text(line));
+        double[] size = Layout.measure(panel);
+        double x = box.x() + box.w() + 6;
+        if (x + size[0] > screen.width()) x = box.x() - 6 - size[0];
+        x = Math.max(2, Math.min(x, screen.width() - size[0] - 2));
+        double y = Math.max(2, Math.min(box.y(), screen.height() - size[1] - 2));
+        List<Layout.Placed> out = new ArrayList<>();
+        for (Layout.Placed part : Layout.lay(panel, size[0], size[1])) {
+            out.add(new Layout.Placed(part.node(), "~tip" + part.key(), part.x() + x, part.y() + y, part.w(), part.h(),
+                    TIP_DEPTH + part.depth()));
+        }
+        return out;
+    }
+
+    /** Whether the screen stepped aside for an input. */
+    synchronized boolean away() {
+        return away;
+    }
+
     /** The pointable box under the cursor now. Holds the lock. */
     private Layout.Placed underPointer() {
         double x, y;
@@ -521,6 +557,11 @@ final class LiveScreen implements ScreenSession {
         if (overlayFrom > 0) {
             drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
             drawing.addAll(placed.subList(0, overlayFrom));
+        }
+        List<Layout.Placed> tip = tooltip();
+        if (!tip.isEmpty()) {
+            drawing = new ArrayList<>(drawing);
+            drawing.addAll(tip);
         }
         for (Layout.Placed box : drawing) {
             if (wanted.size() >= BUDGET) {

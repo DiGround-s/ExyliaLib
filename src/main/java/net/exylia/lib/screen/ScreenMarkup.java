@@ -360,6 +360,11 @@ public final class ScreenMarkup {
         }
     }
 
+    /** What {@code <screen routes="...">} declares, read from the current files; {@code null} when nothing. */
+    @Nullable String routes() {
+        return compiled.root().attr("routes");
+    }
+
     /** Names the screen. */
     @Override
     public String toString() {

@@ -112,6 +112,12 @@ final class Session implements UiSession {
 
     private boolean open = true;
 
+    /**
+     * Set when the menu is drawn on a screen instead of a chest window (MenuStyle SCREEN): the inventory is never
+     * opened, and {@link #painted} is told whenever a slot changes so the screen redraws.
+     */
+    private Runnable headless;
+
     /** Set while another menu replaces this one, so the swap makes no close sound. */
     private boolean silentClose;
 
@@ -746,7 +752,35 @@ final class Session implements UiSession {
 
     @Override
     public void close() {
+        Runnable shown = headless;
+        if (shown != null) {
+            MenuScreens.close(this);
+            return;
+        }
         viewer.closeInventory();
+    }
+
+    /** Draws this menu on a screen from now on: never opened as a window, {@code painted} run on every change. */
+    void headless(Runnable painted) {
+        this.headless = painted;
+    }
+
+    /** Whether this menu is drawn on a screen rather than in a window. */
+    boolean headless() {
+        return headless != null;
+    }
+
+    private void painted() {
+        Runnable shown = headless;
+        if (shown != null) shown.run();
+    }
+
+    /** The title as it reads now, page numbers and values in, for a screen to draw. */
+    net.kyori.adventure.text.Component currentTitle() {
+        UiSection only = definition.section();
+        int page = only == null ? 1 : page(only.id());
+        int pages = only == null ? 1 : only.pagesFor(entries(only.id()).size());
+        return titleText(definition.title(), contextValues(), page, pages).forPlayer(viewer).build();
     }
 
     @Override
@@ -864,6 +898,7 @@ final class Session implements UiSession {
      */
     private void clearOwnSlots() {
         Set<Integer> kept = inputSlots();
+        painted();
         if (kept.isEmpty()) {
             inventory.clear();
             return;
@@ -878,6 +913,7 @@ final class Session implements UiSession {
     /** Writes one slot something other than a definition decided. */
     private void put(int slot, ItemStack item) {
         inventory.setItem(slot, item);
+        painted();
         drawn.forget(slot);
         headWaits.remove(slot);
     }
@@ -928,6 +964,7 @@ final class Session implements UiSession {
         ItemStack rendered = shared != null ? shared : PendingHeads.collect(
                 () -> items.renderIcon(item.item(), viewer, all, parsed, kept), fetching);
         inventory.setItem(slot, rendered);
+        painted();
         drawn.record(slot, item.item(), all, parsed, kept);
         awaitHeads(slot, fetching);
         return rendered;
@@ -1343,6 +1380,10 @@ final class Session implements UiSession {
      * refusing to page for.
      */
     private void retitle() {
+        if (headless != null) {
+            painted();
+            return;
+        }
         String written = definition.title();
         if (written.indexOf('%') < 0 || !namesAPage(written)) {
             return;

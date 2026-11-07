@@ -80,6 +80,13 @@ With Redis on, a write on one server makes the servers sharing the database read
 that player again (`onRemoteChange`); without it, a player moving servers is read
 on join anyway.
 
+## The library's own setting
+
+Since 1.495.0 the library registers one setting of its own, under **Interface**: *Menu style* (`menu-style`:
+server's choice, chest windows or screens), offered while `screens.yml` `player-choice` is on. It is kept in the
+player's data rather than a table (`Setting.store`), so the library needs no database for it. Read it with
+`MenuStyles.choice(player)`.
+
 ## Announcements
 
 `Broadcasts.channel(plugin, key, icon, name, description...)` registers a toggle

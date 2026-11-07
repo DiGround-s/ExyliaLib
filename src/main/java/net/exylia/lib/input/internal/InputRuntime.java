@@ -191,6 +191,12 @@ public final class InputRuntime {
             return;
         }
 
+        // A screen in front of the player would hide a chat prompt or a dialog: it steps aside until the answer.
+        try {
+            net.exylia.lib.screen.internal.ScreenRuntime.asideUntil(session.playerId(), session.future());
+        } catch (RuntimeException | LinkageError noScreens) {
+            // Screens need PacketEvents; without it nothing is open to step aside.
+        }
         for (Transport candidate : candidates) {
             if (session.terminalResult() != null || ACTIVE.get(session.playerId()) != session) {
                 return;

@@ -117,6 +117,7 @@ public final class Layout {
         h = mix(h, Objects.hashCode(node.hover()));
         h = mix(h, Objects.hashCode(node.outline()));
         h = mix(h, Objects.hashCode(node.hoverOutline()));
+        h = mix(h, Objects.hashCode(node.tooltip()));
         for (double d : new double[]{node.width(), node.height(), node.grow(), node.padTop(), node.padRight(),
                 node.padBottom(), node.padLeft(), node.gap(), node.scale(), node.outlineWidth()}) {
             h = mix(h, Double.doubleToLongBits(d));

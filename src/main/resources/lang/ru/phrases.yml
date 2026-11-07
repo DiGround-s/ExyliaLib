@@ -1727,3 +1727,4 @@ World: Мир
 '{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Без проблем {letters_black}» {letters}Экраны{letters_black}: {info}{0}'
 '{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Проблемы{letters_black}: {warning}{0} {letters_black}» {letters}Экраны{letters_black}: {info}{1}'
 '{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Перечитано {letters_black}» {letters}Экраны{letters_black}: {info}{0}'
+'Interface': 'Интерфейс'

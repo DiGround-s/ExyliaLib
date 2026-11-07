@@ -80,6 +80,7 @@ public final class Node {
     private double outlineWidth = 1;
     private Consumer<ScreenEvent> onClick;
     private Consumer<ScreenEvent> onScroll;
+    private List<Component> tooltip;
 
     private Node(Kind kind, Component text) {
         this.kind = kind;
@@ -355,6 +356,30 @@ public final class Node {
     public @NotNull Node onScroll(@Nullable Consumer<ScreenEvent> handler) {
         this.onScroll = handler;
         return this;
+    }
+
+    /**
+     * Lines shown in a small panel beside this box while the cursor is over it, as an item's name and lore
+     * show over a slot: the first line is the title. Lines are written with {@link Text}; {@code null} or no
+     * lines shows none. Costs two displays and one per line, only while hovered.
+     *
+     * @since 1.495.0
+     */
+    public @NotNull Node tooltip(@Nullable List<Component> lines) {
+        this.tooltip = lines == null || lines.isEmpty() ? null : List.copyOf(lines);
+        return this;
+    }
+
+    /** The same, from lines written with {@link Text}. @since 1.495.0 */
+    public @NotNull Node tooltip(@NotNull String... lines) {
+        List<Component> parsed = new ArrayList<>(lines.length);
+        for (String line : lines) parsed.add(Text.of(line).build());
+        return tooltip(parsed);
+    }
+
+    /** The tooltip's lines, or {@code null}. @since 1.495.0 */
+    public @Nullable List<Component> tooltip() {
+        return tooltip;
     }
 
     public @NotNull Kind kind() {

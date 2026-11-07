@@ -143,6 +143,8 @@ public final class MenuRuntime {
      * whether one plugin has menus or twenty.
      */
     public static @Nullable Session anySessionOf(Player viewer) {
+        Session onScreen = OPEN.get(viewer.getUniqueId());
+        if (onScreen != null && onScreen.headless()) return onScreen;
         Inventory top = viewer.getOpenInventory().getTopInventory();
         return net.exylia.lib.internal.Holders.of(top) instanceof MenuHolder holder ? holder.session() : null;
     }
@@ -265,6 +267,9 @@ public final class MenuRuntime {
         Session session = new Session(this, viewer, definition, items, inventory,
                 generations.incrementAndGet(), context);
         holder.bind(session, inventory);
+        // MenuStyle SCREEN: the menu runs as always and a screen draws it; the window never opens.
+        boolean onScreen = MenuScreens.wanted(viewer, definition, this);
+        if (onScreen) session.headless(() -> { });
 
         // Before the seed, which clamps these against the rows this menu has.
         if (where != null) {
@@ -273,6 +278,27 @@ public final class MenuRuntime {
         }
         session.seed(sections);
         session.draw();
+        if (previous != null && previous.headless()) {
+            // A menu on a screen has no window whose close would say it ended: it ends here.
+            previous.silenceClose(true);
+            previous.runtime().closed(previous);
+            MenuListener.runClose(previous, viewer);
+        }
+        if (onScreen && MenuScreens.show(session)) {
+            OPEN.put(viewer.getUniqueId(), session);
+            if (previous == null) {
+                play(viewer, definition.sounds().open());
+            }
+            session.startRefreshing();
+            runOpenActions(session, viewer, definition);
+            return session;
+        }
+        if (onScreen) {
+            session.headless(null);
+        }
+        if (previous != null && previous.headless()) {
+            MenuScreens.drop(viewer);
+        }
         // One menu straight into another is one screen changing, not a close and
         // an open: the click, page turn or back that caused it is the only sound.
         if (previous != null) {
@@ -593,7 +619,7 @@ public final class MenuRuntime {
         for (Player online : org.bukkit.Bukkit.getOnlinePlayers()) {
             Session session = sessionOf(online);
             if (session != null && session.runtime() == this) {
-                online.closeInventory();
+                session.close();
             }
         }
     }

@@ -36,7 +36,7 @@ public final class Compile {
     public static final Set<String> ATTRIBUTES = Set.of("id", "class", "if", "else", "track", "t", "key", "keybind",
             "action", "action-right", "selected", "disabled", "checked", "state", "default", "value", "source",
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
-            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "wheel", "each", "version", "previous", "next");
+            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "wheel", "each", "version", "previous", "next", "routes", "tooltip");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
