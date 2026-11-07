@@ -1,5 +1,7 @@
 # Screens
 
+See also: [Markup reference](screens-markup.md) (every tag, attribute and property), [Cookbook](screens-cookbook.md) (working recipes), [Performance](screens-performance.md) (budgets and wire numbers).
+
 Full-screen 2D menus drawn in front of the player, with a mouse cursor. No resource pack: every box is a
 packet-only text display, so the screen exists only on the viewer's client.
 
