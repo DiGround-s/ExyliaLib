@@ -239,6 +239,8 @@ that is not well-formed throws, when it is read.
 | `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (`⌕ value`) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
 | `p` (1.496.0) | Wraps onto lines (base theme: `white-space: normal; max-width: 220px`) |
 
+A `<nl>` (or `<br>`) inside text or a value, as lore values write their line breaks, starts a new line and is measured as one (1.507.0).
+
 ### Attributes on any tag
 
 - `id`, `class`: for CSS; an `id` also keeps a box's display between renders.
@@ -800,7 +802,7 @@ A routed screen is drawn from the same data as the chest menu it stands for, so 
 
 - `%name%` reads, after the screen's own values and state, **the menu's context** (`menus.open(player, id, context)`,
   suppliers included). Then the library placeholders and PlaceholderAPI, as everywhere.
-- `source="<section>"` / `<for each="x in <section>">` reads **the menu's rows** of that section (`main`, or the
+- `source="<section>"` / `<for each="x in <section>">` (the `<for>` since 1.507.0) reads **the menu's rows** of that section (`main`, or the
   section ids of a `sections:` menu) when no binding of the screen has that name, refreshed as the plugin refreshes
   them (`entries(...)`, live suppliers).
 - Each of those rows also carries `row_template` (1.504.0): the template the chest would draw it with (`empty`,

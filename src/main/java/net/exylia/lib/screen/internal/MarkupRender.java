@@ -412,7 +412,9 @@ public final class MarkupRender {
         String over = m.group(2);
         Rows rows;
         Matcher range = RANGE.matcher(over);
-        if (parts.bindings().hasSource(over)) {
+        net.exylia.lib.ui.UiSession chest = menu();
+        // A routed screen loops over the chest menu's own sections too, as its grids do.
+        if (parts.bindings().hasSource(over) || chest != null && chest.definition().section(over) != null) {
             rows = rows(over);
         } else if (range.matches()) {
             Double from = Expr.number(value("${" + range.group(1) + "}", scope));
@@ -1052,7 +1054,10 @@ public final class MarkupRender {
     static Node words(String words, Map<String, String> text) {
         Node node = Node.text(textOf(words, text));
         if (text.containsKey("font-size")) node.scale(scale(text.get("font-size")));
-        if ("normal".equalsIgnoreCase(text.get("white-space"))) node.wrap(Double.MAX_VALUE);
+        // A line break written in the words (<nl> in a value) is measured as lines too, not drawn over the next box.
+        if ("normal".equalsIgnoreCase(text.get("white-space")) || NEW_LINE.matcher(words).find() || words.indexOf('\n') >= 0) {
+            node.wrap(Double.MAX_VALUE);
+        }
         String shadow = text.get("text-shadow");
         if (shadow != null && !shadow.isBlank() && !shadow.trim().equalsIgnoreCase("none")) node.shadow(true);
         String align = text.get("text-align");
@@ -1071,8 +1076,11 @@ public final class MarkupRender {
         if (color != null) out.append(color.startsWith("#") ? "<" + color + ">" : color);
         String weight = style.get("font-weight");
         if (weight != null && (weight.equalsIgnoreCase("bold") || weight.equals("700"))) out.append("&l");
-        return out.append(words).toString();
+        // A value written for lore breaks its lines with <nl> (or <br>); on a screen that is a new line too.
+        return out.append(NEW_LINE.matcher(words).replaceAll("\n")).toString();
     }
+
+    private static final Pattern NEW_LINE = Pattern.compile("<nl>|<br>|<newline>");
 
     /** {@code background-image: url(img/x.png)} (or {@code none}), read from the markup's folder like {@code <img src>}. */
     private void backgroundImage(Node node, El el, String value) {
