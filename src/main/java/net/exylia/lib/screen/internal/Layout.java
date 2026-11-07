@@ -281,6 +281,9 @@ public final class Layout {
     private static void place(Node node, String path, double x, double y, double w, double h, int depth, int parent,
                               List<Placed> out, List<Node> overlays, Ctx ctx) {
         // Children are keyed under their nearest id, so a row that a track= id follows keeps its boxes when it moves.
+        // A path step is "/": ids are dotted ("kits.0", "kits.0.1"), so a dotted step would let a box without an id
+        // take the key of a box with one ("#kits.0" for a grid's first line and its first cell), nesting it in itself.
+        // Absolute children count in their own series, so they never share a step with a flow child.
         String key = node.id() != null ? "#" + node.id() : path;
         int self = out.size();
         Wrapped lines = node.kind() == Node.Kind.TEXT && node.wrap() > 0 && node.text() != null ? wrapped(node, ctx) : null;
@@ -303,7 +306,7 @@ public final class Layout {
             double ch = !Double.isNaN(at[0]) && !Double.isNaN(at[2]) && child.height() < 0 ? h - at[0] - at[2] - m[0] - m[2] : size[1];
             double cx = !Double.isNaN(at[3]) ? x + at[3] + m[3] : !Double.isNaN(at[1]) ? x + w - at[1] - m[1] - cw : x + m[3];
             double cy = !Double.isNaN(at[0]) ? y + at[0] + m[0] : !Double.isNaN(at[2]) ? y + h - at[2] - m[2] - ch : y + m[0];
-            place(child, key + "." + i, cx, cy, Math.max(0, cw), Math.max(0, ch), depth + 1 + child.layer(), self, out,
+            place(child, key + "/abs" + i, cx, cy, Math.max(0, cw), Math.max(0, ch), depth + 1 + child.layer(), self, out,
                     overlays, ctx);
         }
     }
@@ -387,7 +390,7 @@ public final class Layout {
             double cx = row ? innerX + cursor + m[3] : innerX + offset + m[3];
             double cy = row ? innerY + offset + m[0] : innerY + cursor + m[0];
             double main = Math.max(0, mains[i] - (row ? m[1] + m[3] : m[0] + m[2]));
-            place(child, key + "." + i, cx, cy, row ? main : Math.max(0, cross), row ? Math.max(0, cross) : main,
+            place(child, key + "/" + i, cx, cy, row ? main : Math.max(0, cross), row ? Math.max(0, cross) : main,
                     depth + 1 + child.layer(), self, out, overlays, ctx);
             cursor += mains[i] + gap;
         }

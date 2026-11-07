@@ -77,7 +77,7 @@ class LayoutTest {
     void keysStayStableAndIdsWin() {
         Node root = Node.column(Node.box(), Node.box().id("named"));
         List<Layout.Placed> placed = Layout.lay(root, 10, 10);
-        assertEquals("0.0", placed.get(1).key());
+        assertEquals("0/0", placed.get(1).key());
         assertEquals("#named", placed.get(2).key());
     }
 

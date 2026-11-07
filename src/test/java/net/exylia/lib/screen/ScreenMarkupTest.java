@@ -481,4 +481,21 @@ class ScreenMarkupTest {
         ScreenMarkup markup = ScreenMarkup.parse("r.html", "<screen routes=\"shop\">\n<list source=\"main\"/></screen>");
         assertTrue(markup.problems().isEmpty(), markup.problems().toString());
     }
+
+    @Test
+    void nestedGridsAndTrackedRowsGiveEveryBoxItsOwnKey() {
+        ScreenMarkup markup = ScreenMarkup.parse("nest", """
+                <screen size="300x200">
+                  <grid source="kits" columns="2">
+                    <card><b>%kit_name%</b><text>%playing%</text><text>x</text></card>
+                  </grid>
+                  <list source="more" track="%kit_id%">
+                    <card><b>a</b><b>b</b><b>c</b></card><text>tail</text>
+                  </list>
+                </screen>""");
+        markup.source("kits", s -> kits(4)).source("more", s -> kits(2));
+        List<Layout.Placed> laid = Layout.lay(new Fake(markup.screen()).render(), 300, 200);
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        for (Layout.Placed box : laid) assertTrue(keys.add(box.key()), "two boxes keyed " + box.key());
+    }
 }
