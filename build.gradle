@@ -8,11 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-<<<<<<< Updated upstream
-version = '1.505.1'
-=======
 version = '1.506.0'
->>>>>>> Stashed changes
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
