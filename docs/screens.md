@@ -106,7 +106,22 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
 - **Shift** closes. So does damage, death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
   another screen opening for the same player (one per player across all plugins).
 
-While a screen is open the player is frozen in place (`Packets#movement`).
+- **Keys** (1.492.0): W, A, S, D and Space click the box bound to them (`key=`, `pager keys=`). Show the bindings in
+  the screen itself: a short row of key hints under the content is the house style.
+
+While a screen is open the player is frozen in place (`Packets#movement`), and everything else in the world is
+out of their sight (1.492.0, `Visibility#seal` around the screen): other players, their name tags, mobs and other
+plugins' holograms never show through or at its edges. It all comes back on close or while an input is aside.
+
+## How things are drawn (1.492.0)
+
+- **Items** are drawn as their own inventory sprite, in pixels: a 3D item display is shaded by the world's fixed
+  lights, so it brightened and darkened as the viewer looked around. The sprites are read once from the client jar
+  Mojang serves for the server's version into `plugins/ExyliaLib/cache/sprites-<version>`, in the background; until
+  then, and for items with no flat sprite (heads, chests, shields), the 3D item is drawn.
+- **Words wider than their box** shrink to fit it rather than run over the next box: a long kit name in an
+  equal-width chip or card stays inside it. Rows give way in this order: boxes that grow, then words.
+- **The cursor** is a pixel arrow with a dark outline, one picture moved as a whole.
 
 ## Threads and lifecycle
 
@@ -178,10 +193,10 @@ well-formed throws, when it is read.
 | `card` | A themed box, usually a grid cell |
 | `empty` | Shown by its repeating parent when the source has no rows; several may each carry an `if`. Outside a repeat it is a centred note |
 | `toggle`, `checkbox` | On/off: `state="key"` flips local state, or `checked="%field%"` with an `action`; `on`/`off` change the toggle's words |
-| `pager` | `for="<source>"`: previous, `page / pages`, next |
+| `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
-| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both |
+| `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
 
@@ -193,6 +208,8 @@ well-formed throws, when it is read.
 - `action="name arg ..."`: built-ins `close`, `set <key> <value>`, `toggle <key>`, `clear <key> ...`,
   `toast <text>` (1.488.0); several run in order when split by `;`; then the markup's own
   `action(...)`; then a namespaced ExyliaLib action (`practice:join_queue boxing`).
+- `key="w|a|s|d|space"` (1.492.0): pressing that movement key clicks the box while it is on screen and reachable
+  (inside the open dialog when one is up). `Node#key` in Java.
 - `selected`, `disabled`, `checked`: present (or true after placeholders) adds that CSS flag. A
   `disabled` box refuses clicks with a quiet villager sound.
 - `state` + `default`: what an option group remembers, and what it shows before the player picks.

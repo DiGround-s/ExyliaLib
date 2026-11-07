@@ -58,6 +58,7 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final int TRANSFORM_DURATION = 9;
     private static final int TRANSLATION = 11;
     private static final int SCALE = 12;
+    private static final int LEFT_ROTATION = 13;
     private static final int BILLBOARD = 15;
     private static final int BRIGHTNESS = 16;
     private static final int TEXT = 23;
@@ -246,6 +247,33 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
     }
 
+    /**
+     * A picture standing in the round: as {@link #image}, turned {@code yaw} degrees about the vertical through
+     * its centre. {@code nudge} moves it along its own width, in font pixels.
+     */
+    static PacketWrapper<?> image(int id, double x, double y, double z, double fx, double fy, int rows,
+                                  Component text, int glide, double yaw, double nudge) {
+        double a = Math.toRadians(yaw);
+        double along = (nudge - 0.5) * fx;
+        Vector3f at = new Vector3f((float) (x + Math.cos(a) * along), (float) (y - rows * IMAGE_LINE * fy / 2),
+                (float) (z - Math.sin(a) * along));
+        return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
+                        new Vector3f((float) (fx / FONT_PIXEL), (float) (fy / FONT_PIXEL), 1f)),
+                new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION,
+                        new com.github.retrooper.packetevents.util.Quaternion4f(0f, (float) Math.sin(a / 2), 0f,
+                                (float) Math.cos(a / 2))),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
+                new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
+                new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 4000),
+                new EntityData<>(BACKGROUND, EntityDataTypes.INT, 0),
+                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
+    }
+
     /** Font pixels from one glyph to the next across, and from one line to the next down. */
     static final int IMAGE_ADVANCE = 9;
     static final int IMAGE_LINE = 10;
@@ -289,7 +317,10 @@ final class ScreenPackets extends PacketListenerAbstract {
             event.setCancelled(true);
             screen.wheel(new WrapperPlayClientHeldItemChange(event).getSlot());
         } else if (type == PacketType.Play.Client.PLAYER_INPUT) {
-            screen.shift(new WrapperPlayClientPlayerInput(event).isShift());
+            WrapperPlayClientPlayerInput input = new WrapperPlayClientPlayerInput(event);
+            screen.shift(input.isShift());
+            screen.keys((input.isForward() ? 1 : 0) | (input.isLeft() ? 2 : 0) | (input.isBackward() ? 4 : 0)
+                    | (input.isRight() ? 8 : 0) | (input.isJump() ? 16 : 0));
         } else if (type == PacketType.Play.Client.ENTITY_ACTION) {
             WrapperPlayClientEntityAction.Action action = new WrapperPlayClientEntityAction(event).getAction();
             if (action == WrapperPlayClientEntityAction.Action.START_SNEAKING) screen.shift(true);

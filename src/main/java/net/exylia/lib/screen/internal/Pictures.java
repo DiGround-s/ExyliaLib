@@ -18,6 +18,9 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,6 +40,8 @@ public final class Pictures {
     /** Files are read again after a while, so an owner's edit shows without a restart. */
     private static final Cache<Path, Picture> FILES = Caffeine.newBuilder()
             .maximumSize(256).expireAfterWrite(Duration.ofSeconds(30)).build();
+    /** A player's body in the round: each part's four sides, by skin url. */
+    private static final Map<String, List<Face>> MODELS = new ConcurrentHashMap<>();
     private static final Cache<String, Picture> BODIES = Caffeine.newBuilder()
             .maximumSize(512).expireAfterAccess(Duration.ofMinutes(30)).build();
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -86,6 +91,7 @@ public final class Pictures {
                         try (InputStream in = response.body()) {
                             BufferedImage skin = response.statusCode() == 200 ? ImageIO.read(in) : null;
                             if (skin != null && skin.getWidth() == 64 && skin.getHeight() >= 32) {
+                                MODELS.put(url, sides(skin, slim));
                                 BODIES.put(url, front(skin, slim));
                             }
                         } catch (IOException ignored) {
@@ -95,6 +101,69 @@ public final class Pictures {
                     .whenComplete((done, failure) -> IN_FLIGHT.remove(url));
         }
         return null;
+    }
+
+    /**
+     * One side of one part of a body: its picture as seen from outside, where its centre is (skin pixels, the
+     * body's centre at 0, y up, z towards the viewer) and which way it faces (degrees about y, 0 towards the
+     * viewer).
+     */
+    public record Face(Picture picture, double x, double y, double z, double yaw) {
+    }
+
+    /** A player's body as sides to stand in the round, or {@code null} while their skin is on its way. */
+    public static @Nullable List<Face> model(String player) {
+        if (body(player) == null) return null;
+        String texture = Skulls.player(player).build().texture();
+        String url = texture == null ? null : Textures.urlOf(texture);
+        return url == null ? null : MODELS.get(url);
+    }
+
+    static List<Face> sides(BufferedImage skin, boolean slim) {
+        int arm = slim ? 3 : 4;
+        boolean modern = skin.getHeight() >= 64;
+        List<Face> out = new ArrayList<>();
+        // u, v of the part and of its outer layer (-1 for none), its size, and where its centre stands.
+        part(out, skin, 0, 0, 32, 0, 8, 8, 8, 0, 12, false);
+        part(out, skin, 16, 16, modern ? 16 : -1, 32, 8, 12, 4, 0, 2, false);
+        part(out, skin, 40, 16, modern ? 40 : -1, 32, arm, 12, 4, -(4 + arm / 2.0), 2, false);
+        part(out, skin, 0, 16, modern ? 0 : -1, 32, 4, 12, 4, -2, -10, false);
+        if (modern) {
+            part(out, skin, 32, 48, 48, 48, arm, 12, 4, 4 + arm / 2.0, 2, false);
+            part(out, skin, 16, 48, 0, 48, 4, 12, 4, 2, -10, false);
+        } else {
+            part(out, skin, 40, 16, -1, 0, arm, 12, 4, 4 + arm / 2.0, 2, true);
+            part(out, skin, 0, 16, -1, 0, 4, 12, 4, 2, -10, true);
+        }
+        return List.copyOf(out);
+    }
+
+    /** A box's four sides from its place on the skin, the outer layer laid over each. */
+    private static void part(List<Face> out, BufferedImage skin, int u, int v, int ou, int ov, int w, int h, int d,
+                             double x, double y, boolean mirror) {
+        // Front, the wearer's right (seen on the viewer's left), back, the wearer's left: where each lies on the
+        // skin, how wide it is, its centre and the way it faces.
+        int[][] at = {{u + d, v + d, w}, {u, v + d, d}, {u + d + w + d, v + d, w}, {u + d + w, v + d, d}};
+        double[][] place = {{0, d / 2.0, 0}, {-w / 2.0, 0, -90}, {0, -d / 2.0, 180}, {w / 2.0, 0, 90}};
+        for (int side = 0; side < 4; side++) {
+            // A mirrored limb swaps its outer sides and reads each picture backwards.
+            int src = mirror && (side == 1 || side == 3) ? 4 - side : side;
+            int fw = at[src][2];
+            int[] argb = new int[fw * h];
+            region(skin, argb, at[src][0], at[src][1], fw, h, mirror);
+            if (ou >= 0) region(skin, argb, at[src][0] - u + ou, at[src][1] - v + ov, fw, h, mirror);
+            out.add(new Face(new Picture(fw, h, argb), x + place[side][0], y, place[side][1], place[side][2]));
+        }
+    }
+
+    private static void region(BufferedImage skin, int[] out, int sx, int sy, int w, int h, boolean mirror) {
+        if (sx < 0 || sy < 0 || sx + w > skin.getWidth() || sy + h > skin.getHeight()) return;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int argb = skin.getRGB(sx + (mirror ? w - 1 - x : x), sy + y);
+                if ((argb >>> 24) >= 128) out[y * w + x] = argb | 0xFF000000;
+            }
+        }
     }
 
     /** A player's face with its outer layer, 8 by 8, or {@code null} while their skin is on its way. */

@@ -237,6 +237,7 @@ public final class MarkupRender {
         }
         box(node, style);
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope));
+        if (el.attr("key") != null) node.key(el.attr("key"));
         if (el.tag().equals("modal")) {
             String dismiss = el.attr("dismiss");
             if (dismiss == null && condition != null && condition.trim().matches("[\\w.-]+")) dismiss = "clear " + condition.trim();
@@ -379,6 +380,12 @@ public final class MarkupRender {
         Node next = words(attrOr(el, "next", "›"), text).id(source + ".next")
                 .onClick(event -> event.session().set(key, offset + window < size ? offset + window : offset));
         Node label = words(page + " / " + pages, text).id(source + ".page");
+        // keys="a d": the movement keys that turn the page back and on.
+        String[] keys = attrOr(el, "keys", "").trim().split("\\s+");
+        if (keys.length == 2) {
+            previous.key(keys[0]);
+            next.key(keys[1]);
+        }
         return Node.row(previous, label, next).align(Node.Align.CENTER);
     }
 
@@ -509,7 +516,10 @@ public final class MarkupRender {
         if (el.attr("skin") != null) {
             String name = fill(el.attr("skin"), scope).trim();
             Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name);
-            return (body == null ? Pictures.stranger(true) : body).node();
+            Node node = (body == null ? Pictures.stranger(true) : body).node();
+            // <img skin="..." turn>: the body in the round, turning.
+            if (el.attr("turn") != null && !name.isEmpty()) node.turntable(name);
+            return node;
         }
         if (el.attr("face") != null) {
             String name = fill(el.attr("face"), scope).trim();

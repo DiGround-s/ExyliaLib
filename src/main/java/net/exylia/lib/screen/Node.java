@@ -62,6 +62,8 @@ public final class Node {
     private boolean overlay;
     private Consumer<ScreenSession> onDismiss;
     private String id;
+    private String key;
+    private String turntable;
     private double width = -1;
     private double height = -1;
     private double grow;
@@ -164,6 +166,38 @@ public final class Node {
     /** Adds children from a list, for rows built in a loop. */
     public @NotNull Node add(@NotNull List<Node> more) {
         return add(more.toArray(Node[]::new));
+    }
+
+    /**
+     * A movement key that clicks this box: {@code w}, {@code a}, {@code s}, {@code d} or {@code space}. Pressed,
+     * it acts as a left click on the box wherever the cursor is, when the box is on screen and can be reached.
+     *
+     * @since 1.492.0
+     */
+    public @NotNull Node key(@Nullable String key) {
+        this.key = key == null ? null : key.toLowerCase(java.util.Locale.ROOT);
+        return this;
+    }
+
+    /** @since 1.492.0 */
+    public @Nullable String key() {
+        return key;
+    }
+
+    /**
+     * Draws a player's body in this box in the round, turning slowly on the spot, once their skin is known; until
+     * then the box shows what it holds (a flat picture of them, say). {@code null} turns it off.
+     *
+     * @since 1.492.0
+     */
+    public @NotNull Node turntable(@Nullable String player) {
+        this.turntable = player;
+        return this;
+    }
+
+    /** @since 1.492.0 */
+    public @Nullable String turntable() {
+        return turntable;
     }
 
     /** A name for this box, handed back in {@link ScreenEvent#node()}; also keeps it stable between renders. */

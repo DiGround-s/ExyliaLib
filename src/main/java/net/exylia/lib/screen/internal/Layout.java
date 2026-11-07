@@ -153,6 +153,18 @@ public final class Layout {
                 spare += cut;
             }
         }
+        if (spare < 0) {
+            // Still too little: words give way last, drawn smaller to fit the room they get (never past the box).
+            double words = 0;
+            for (int i = 0; i < count; i++) if (children.get(i).text() != null) words += mains[i];
+            if (words > 0) {
+                double cut = Math.min(-spare, words);
+                for (int i = 0; i < count; i++) {
+                    if (children.get(i).text() != null) mains[i] = Math.max(0, mains[i] - cut * mains[i] / words);
+                }
+                spare += cut;
+            }
+        }
         if (spare > 0 && grows > 0) {
             for (int i = 0; i < count; i++) mains[i] += spare * children.get(i).grow() / grows;
             spare = 0;
@@ -171,6 +183,8 @@ public final class Layout {
             Node child = children.get(i);
             boolean fixedCross = row ? child.height() >= 0 : child.width() >= 0;
             double cross = node.align() == Node.Align.STRETCH && !fixedCross ? innerCross : crosses[i];
+            // Nothing that sizes itself is wider than the box it stands in.
+            if (!fixedCross && innerCross > 0) cross = Math.min(cross, innerCross);
             double offset = switch (node.align()) {
                 case CENTER -> (innerCross - cross) / 2;
                 case END -> innerCross - cross;

@@ -56,9 +56,29 @@ final class LiveScreen implements ScreenSession {
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
     private static final float RECENTRE_PITCH = 40f;
-    /** Cursor arrow rows: how wide each row is, in arrow pixels. */
-    private static final int[] ARROW = {1, 2, 3, 4, 5, 6, 3, 2};
-    private static final double ARROW_PIXEL = 0.014;
+    /** The pointer, a pixel per character: {@code #} outline, {@code o} fill, {@code .} clear. */
+    private static final String[] ARROW = {
+            "#..........",
+            "##.........",
+            "#o#........",
+            "#oo#.......",
+            "#ooo#......",
+            "#oooo#.....",
+            "#ooooo#....",
+            "#oooooo#...",
+            "#ooooooo#..",
+            "#oooooooo#.",
+            "#ooooo#####",
+            "#oo#oo#....",
+            "#o#.#oo#...",
+            "##..#oo#...",
+            "#....#oo#..",
+            ".....#oo#..",
+            "......##...",
+    };
+    /** One pointer pixel, in layout units at the designed size. */
+    private static final double ARROW_PIXEL = 0.0072;
+    private static final int[] ARROW_ARGB = arrowPixels();
     private static final int CURSOR_LAYER = 250;
     /** How long a toast stays, in milliseconds. */
     private static final long TOAST_MILLIS = 3000;
@@ -72,9 +92,10 @@ final class LiveScreen implements ScreenSession {
     private final Map<String, Object> state = new ConcurrentHashMap<>();
     private final Vector3d origin;
     private final double unit;
-    private final int hitboxId = ScreenPackets.newId();
-    private final int backdropId = ScreenPackets.newId();
-    private final int[] cursorIds = new int[ARROW.length];
+    // Given out again on every show, after the world is sealed: only ids newer than the seal are the screen's.
+    private volatile int hitboxId;
+    private volatile int backdropId;
+    private final int[] cursorIds = new int[4];
     private final int serverSlot;
 
     /** What is on the client now, by key. */
@@ -91,6 +112,8 @@ final class LiveScreen implements ScreenSession {
     private static final int SETTLE = 4;
     /** Blocks around the eyes where another player could stand in front of the screen. */
     private static final double HIDE_RADIUS = 4;
+    /** How far around the viewer the world is emptied while a screen is up: past any view distance's entities. */
+    private static final double SEAL_REACH = 192;
     private TaskHandle ticker;
     private double cursorX, cursorY;
     private float lastYaw, lastPitch;
@@ -118,6 +141,18 @@ final class LiveScreen implements ScreenSession {
     private record ImageLook(double x, double y, double cell, int layer, Component text, int rows, int dx, int dy) {
     }
 
+    /**
+     * One side of a turning body: the body's centre ({@code x}, {@code y}), a skin pixel's size, where the side
+     * stands from the centre in skin pixels, the way it faces, and the body's turn.
+     */
+    private record TurnLook(double x, double y, double cell, int layer, Component text, int rows, double lx,
+                            double ly, double lz, double yaw, double turn, int dx, int dy) {
+    }
+
+    /** How fast a body turns, degrees a second, and how long each glide to the next angle lasts. */
+    private static final double TURN_SPEED = 36;
+    private static final int TURN_TICKS = 20;
+
     private record TextLook(double x, double y, double scale, int layer, Component text) {
     }
 
@@ -138,7 +173,6 @@ final class LiveScreen implements ScreenSession {
         this.origin = new Vector3d(eyes.getX(), eyes.getY(), eyes.getZ());
         this.lastYaw = eyes.getYaw();
         this.lastPitch = eyes.getPitch();
-        for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ScreenPackets.newId();
         state.putAll(screen.state());
     }
 
@@ -161,6 +195,14 @@ final class LiveScreen implements ScreenSession {
         // A player standing at the viewer's eyes would be drawn in front of the screen and take its clicks;
         // in a lobby everyone stands at spawn. Hidden for this plugin only, so other plugins' rules stay.
         for (Player other : player.getWorld().getNearbyPlayers(player.getEyeLocation(), HIDE_RADIUS)) hide(other);
+        // Everything else in the world, for this viewer only, while the screen is up: nametags draw through
+        // anything, and mobs, holograms and players far behind the screen would show through or at its edges.
+        // The screen's own pieces are spawned after this, so they stay.
+        Packets.of(plugin).visibility().seal(player, new net.exylia.lib.packet.Volume(origin.x, origin.z,
+                0f, SEAL_REACH, origin.y - SEAL_REACH, origin.y + SEAL_REACH));
+        hitboxId = ScreenPackets.newId();
+        backdropId = ScreenPackets.newId();
+        for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ScreenPackets.newId();
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
         out.add(ScreenPackets.spawnDisplay(backdropId, origin));
         out.add(rect(backdropId, new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, 0,
@@ -194,6 +236,7 @@ final class LiveScreen implements ScreenSession {
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
         }
         Packets.of(plugin).movement().unfreeze(player);
+        Packets.of(plugin).visibility().seal(player, null);
         if (!hidden.isEmpty() && player.isOnline()) {
             // Now when we can, so a screen opened right after this one finds everyone visible to hide again.
             if (org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) reveal();
@@ -221,6 +264,7 @@ final class LiveScreen implements ScreenSession {
         ids.add(backdropId);
         for (int id : cursorIds) ids.add(id);
         ScreenPackets.send(player, List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
+        Packets.of(plugin).visibility().seal(player, null);
         java.util.concurrent.CompletionStage<T> future;
         try {
             future = input.get();
@@ -418,33 +462,56 @@ final class LiveScreen implements ScreenSession {
                 boolean lifted = over || hoveredBox != null && !hoveredBox.key().equals("~dim")
                         && hoveredBox.depth() < box.depth()
                         && hoveredBox.holds(box.x() + box.w() / 2, box.y() + box.h() / 2);
-                wanted.put(key, new ItemLook(ix, iy, side * unit * (lifted ? 1.15 : 1), layer + 1, node.item()));
-                order.add(key);
+                Pictures.Picture sprite = VanillaSprites.of(node.item());
+                if (sprite == null) {
+                    wanted.put(key, new ItemLook(ix, iy, side * unit * (lifted ? 1.15 : 1), layer + 1, node.item()));
+                    order.add(key);
+                } else {
+                    double cell = side * (lifted ? 1.15 : 1) / Math.max(sprite.width(), sprite.height());
+                    pictureLooks(key, ix, iy, cell, layer + 1, picture(sprite.argb(), sprite.width(), sprite.height(),
+                            beneath[depth]), sprite.height(), wanted, order);
+                }
             }
-            if (node.pixels() != null) {
+            List<Pictures.Face> model = node.turntable() == null ? null : Pictures.model(node.turntable());
+            if (model != null) {
+                double innerW = box.w() - node.padLeft() - node.padRight();
+                double innerH = box.h() - node.padTop() - node.padBottom();
+                double cell = Math.min(innerW / 16, innerH / 32);
+                double mx = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
+                double my = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
+                double turn = (System.currentTimeMillis() / 1000.0 * TURN_SPEED) % 360;
+                int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
+                int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
+                for (int f = 0; f < model.size(); f++) {
+                    Pictures.Face face = model.get(f);
+                    Component text = picture(face.picture().argb(), face.picture().width(), face.picture().height(), 0);
+                    for (int copy = 0; copy < 4; copy++) {
+                        String key = box.key() + "#tt" + f + "." + copy;
+                        wanted.put(key, new TurnLook(mx, my, cell * unit, layer + 1, text, face.picture().height(),
+                                face.x(), face.y(), face.z(), face.yaw(), turn, (copy & 1) * gapX, (copy >> 1) * gapY));
+                        order.add(key);
+                    }
+                }
+            } else if (node.pixels() != null) {
                 double innerW = box.w() - node.padLeft() - node.padRight();
                 double innerH = box.h() - node.padTop() - node.padBottom();
                 double cell = Math.min(innerW / node.pixelWidth(), innerH / node.pixelHeight());
                 if (cell > 0) {
                     double ix = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
                     double iy = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
-                    Component picture = picture(node, beneath[depth]);
-                    // A full block is narrower and shorter than the cell it stands in. Four copies, nudged by the
-                    // gaps, cover every cell edge to edge.
-                    int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
-                    int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
-                    for (int copy = 0; copy < 4; copy++) {
-                        String key = box.key() + "#im" + copy;
-                        wanted.put(key, new ImageLook(ix, iy, cell * unit, layer + 1, picture, node.pixelHeight(),
-                                (copy & 1) * gapX, (copy >> 1) * gapY));
-                        order.add(key);
-                    }
+                    pictureLooks(box.key() + "#im", ix, iy, cell, layer + 1,
+                            picture(node.pixels(), node.pixelWidth(), node.pixelHeight(), beneath[depth]),
+                            node.pixelHeight(), wanted, order);
                 }
             }
             if (node.text() != null) {
                 // Text sits in its padding box: centred on what is left inside it.
                 double inner = box.w() - node.padLeft() - node.padRight();
-                double spare = Math.max(0, inner - Layout.textWidth(node));
+                double wide = Layout.textWidth(node);
+                // Words wider than their box (a long name in an equal-width chip) are drawn smaller to fit,
+                // never past its edges.
+                double fit = wide > inner && inner > 0 ? inner / wide : 1;
+                double spare = Math.max(0, inner - wide * fit);
                 double shift = switch (node.textAlign()) {
                     case START, STRETCH -> -spare / 2;
                     case END -> spare / 2;
@@ -454,7 +521,7 @@ final class LiveScreen implements ScreenSession {
                 double ty = (screen.height() / 2 - box.y() - node.padTop()
                         - (box.h() - node.padTop() - node.padBottom()) / 2) * unit;
                 String key = box.key() + "#t";
-                wanted.put(key, new TextLook(tx, ty, node.scale(), layer + 1, node.text()));
+                wanted.put(key, new TextLook(tx, ty, node.scale() * fit, layer + 1, node.text()));
                 order.add(key);
             }
         }
@@ -542,6 +609,7 @@ final class LiveScreen implements ScreenSession {
             case RectLook r -> rect(id, r, glide);
             case ItemLook it -> item(id, it, glide);
             case ImageLook im -> image(id, im, glide);
+            case TurnLook tl -> turn(id, tl, glide);
             default -> text(id, (TextLook) look, glide);
         };
     }
@@ -551,6 +619,7 @@ final class LiveScreen implements ScreenSession {
             case RectLook r -> r.layer();
             case ItemLook it -> it.layer();
             case ImageLook im -> im.layer();
+            case TurnLook tl -> tl.layer();
             default -> ((TextLook) look).layer();
         };
     }
@@ -560,6 +629,7 @@ final class LiveScreen implements ScreenSession {
         return switch (look) {
             case RectLook r -> new RectLook(r.x() * f, r.y() * f + dy, r.w() * f, r.h() * f, r.layer(), r.argb());
             case ItemLook it -> new ItemLook(it.x() * f, it.y() * f + dy, it.size() * f, it.layer(), it.item());
+            case TurnLook tl -> tl;
             case ImageLook im -> new ImageLook(im.x() * f, im.y() * f + dy, im.cell() * f, im.layer(), im.text(),
                     im.rows(), im.dx(), im.dy());
             default -> {
@@ -589,6 +659,20 @@ final class LiveScreen implements ScreenSession {
                 -DEPTH + im.layer() * LAYER, fx, fy, im.rows(), im.text(), glide);
     }
 
+    /** A side of a turning body: once there, it glides a whole turn step to the next angle. */
+    private PacketWrapper<?> turn(int id, TurnLook t, int glide) {
+        double k = drawn(t.layer());
+        double a = Math.toRadians(t.turn());
+        double fx = t.cell() * k / ScreenPackets.IMAGE_ADVANCE;
+        double fy = t.cell() * k / ScreenPackets.IMAGE_LINE;
+        // About the vertical: x across, z towards the viewer.
+        double rx = t.lx() * Math.cos(a) + t.lz() * Math.sin(a);
+        double rz = -t.lx() * Math.sin(a) + t.lz() * Math.cos(a);
+        return ScreenPackets.image(id, (t.x() + rx * t.cell()) * k, (t.y() + t.ly() * t.cell()) * k - t.dy() * fy,
+                -DEPTH + t.layer() * LAYER + rz * t.cell() * k, fx, fy, t.rows(), t.text(),
+                glide == 0 ? 0 : TURN_TICKS, t.yaw() + t.turn(), t.dx());
+    }
+
     /** Pictures already turned into glyphs, by their pixels and the colour behind them. */
     private record PictureKey(int width, int length, int hash, int behind) {
     }
@@ -599,22 +683,43 @@ final class LiveScreen implements ScreenSession {
      * A picture as lines of full blocks, each run of one colour one component. A pixel more than half see-through
      * takes the colour behind it, a partly see-through one is mixed over it: there is no see-through glyph.
      */
-    private Component picture(Node node, int behind) {
-        int[] argb = node.pixels();
-        int w = node.pixelWidth();
+    /**
+     * A picture's four copies: a full block is narrower and shorter than the cell it stands in, and the copies,
+     * nudged by the gaps, cover every cell edge to edge. {@code cell} is one picture pixel in layout units.
+     */
+    private void pictureLooks(String key, double x, double y, double cell, int layer, Component picture, int rows,
+                              Map<String, Object> wanted, List<String> order) {
+        int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
+        int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
+        for (int copy = 0; copy < 4; copy++) {
+            wanted.put(key + copy, new ImageLook(x, y, cell * unit, layer, picture, rows, (copy & 1) * gapX,
+                    (copy >> 1) * gapY));
+            order.add(key + copy);
+        }
+    }
+
+    private Component picture(int[] argb, int w, int h, int behind) {
         // A node copies its pixels, so the same picture is a new array every render: keyed by what it holds.
         PictureKey key = new PictureKey(w, argb.length, java.util.Arrays.hashCode(argb), behind);
         Component known = pictures.get(key);
         if (known != null) return known;
         net.kyori.adventure.text.TextComponent.Builder out = Component.text();
-        for (int y = 0; y < node.pixelHeight(); y++) {
+        for (int y = 0; y < h; y++) {
             if (y > 0) out.append(Component.newline());
             int x = 0;
             while (x < w) {
+                boolean clear = (argb[y * w + x] >>> 24) < 128;
                 int colour = solid(argb[y * w + x], behind);
                 int end = x + 1;
-                while (end < w && solid(argb[y * w + end], behind) == colour) end++;
-                out.append(Component.text("█".repeat(end - x), net.kyori.adventure.text.format.TextColor.color(colour & 0xFFFFFF)));
+                while (end < w && ((argb[y * w + end] >>> 24) < 128) == clear
+                        && (clear || solid(argb[y * w + end], behind) == colour)) end++;
+                if (clear) {
+                    // A clear pixel is a gap as wide as a block: a space (4) and a bold space (5).
+                    out.append(Component.text(" ".repeat(end - x)));
+                    out.append(Component.text(" ".repeat(end - x)).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
+                } else {
+                    out.append(Component.text("█".repeat(end - x), net.kyori.adventure.text.format.TextColor.color(colour & 0xFFFFFF)));
+                }
                 x = end;
             }
         }
@@ -639,13 +744,32 @@ final class LiveScreen implements ScreenSession {
 
     /** The arrow, gliding one tick to where the cursor is: smooth, and never more than a packet behind. */
     private void cursor(List<PacketWrapper<?>> out, int glide) {
-        double k = drawn(CURSOR_LAYER);
-        for (int i = 0; i < ARROW.length; i++) {
-            double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
-            double w = ARROW[i] * pixel;
-            out.add(ScreenPackets.rect(cursorIds[i], (cursorX + w / 2) * k, (cursorY - (i + 0.5) * pixel) * k,
-                    -DEPTH + CURSOR_LAYER * LAYER, w * k, pixel * k, 0xFFFFFFFF, glide));
+        double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
+        int w = ARROW[0].length(), h = ARROW.length;
+        Component arrow = picture(ARROW_ARGB, w, h, 0);
+        // The tip is the pointer's top-left pixel, where the cursor is.
+        double cx = cursorX + w * pixel / 2, cy = cursorY - h * pixel / 2;
+        int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
+        int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
+        for (int copy = 0; copy < cursorIds.length; copy++) {
+            out.add(image(cursorIds[copy], new ImageLook(cx, cy, pixel, CURSOR_LAYER, arrow, h,
+                    (copy & 1) * gapX, (copy >> 1) * gapY), glide));
         }
+    }
+
+    private static int[] arrowPixels() {
+        int w = ARROW[0].length();
+        int[] argb = new int[w * ARROW.length];
+        for (int y = 0; y < ARROW.length; y++) {
+            for (int x = 0; x < w; x++) {
+                argb[y * w + x] = switch (ARROW[y].charAt(x)) {
+                    case '#' -> 0xFF15111D;
+                    case 'o' -> 0xFFFFFFFF;
+                    default -> 0;
+                };
+            }
+        }
+        return argb;
     }
 
     /** The cursor in layout pixels. */
@@ -725,6 +849,26 @@ final class LiveScreen implements ScreenSession {
         Layout.Placed box = Layout.under(targets(), px(), py(), node -> node.onScroll() != null);
         if (box == null) return;
         handle(box.node().onScroll(), new ScreenEvent(this, ScreenEvent.Kind.SCROLL, steps, box.node().id()));
+    }
+
+    private static final String[] KEYS = {"w", "a", "s", "d", "space"};
+    private int keysDown;
+
+    /** Movement keys as bits (w, a, s, d, space): a key just pressed clicks the box bound to it. */
+    synchronized void keys(int down) {
+        int pressed = down & ~keysDown;
+        keysDown = down;
+        if (pressed == 0 || !open || away) return;
+        for (int bit = 0; bit < KEYS.length; bit++) {
+            if ((pressed & 1 << bit) == 0) continue;
+            String key = KEYS[bit];
+            for (Layout.Placed box : targets()) {
+                if (!key.equals(box.node().key()) || box.node().onClick() == null) continue;
+                sound("ui.button.click", 0.35f, 1.4f);
+                handle(box.node().onClick(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, box.node().id()));
+                break;
+            }
+        }
     }
 
     synchronized void shift(boolean down) {
