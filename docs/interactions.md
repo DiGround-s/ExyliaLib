@@ -46,6 +46,7 @@ only the plain left click, as in menus.
 | Action | What it does |
 | --- | --- |
 | `console: ...`, `player: ...`, `player-proxy: ...`, `console-proxy: ...`, a bare line | a command, exactly as [`CommandLine`](../src/main/java/net/exylia/lib/command/CommandLine.java) reads it; bare runs as the player |
+| `[CONSOLE] ...`, `[PLAYER] ...` (1.502.0) | the same as `console: ...` and `player: ...` (the DeluxeMenus spelling) |
 | `[DELAY] 1s` | waits before every line after it: seconds (`0.5`) or written out (`1m30s`) |
 | `[SERVER] lobby` | sends the player to another server — `PluginTeleports.toServer`, no Redis needed |
 | `[TELEPORT] world;x;y;z[;yaw;pitch]` | moves them on this server through the [teleport module](teleport.md) (commas work too) |

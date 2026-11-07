@@ -420,6 +420,61 @@ public final class ScreenMarkup {
     }
 
     /** What {@code <screen routes="...">} declares, read from the current files; {@code null} when nothing. */
+    /**
+     * Whether a screen {@linkplain net.exylia.lib.screen expression} holds for {@code viewer} outside any screen:
+     * {@code %placeholders%} from the library's placeholders (and PlaceholderAPI), the viewer functions
+     * ({@code perm('x')}, {@code balance()}, {@code has_item('diamond', 4)}, {@code level()}, {@code world()}). For a
+     * chest button that must agree with a screen's {@code require}. One that does not read is false.
+     *
+     * @since 1.502.0
+     */
+    public static boolean test(@NotNull String expression, @Nullable org.bukkit.entity.Player viewer) {
+        net.exylia.lib.screen.internal.Expr compiled;
+        try {
+            compiled = net.exylia.lib.screen.internal.Expr.compile(expression.trim());
+        } catch (net.exylia.lib.screen.internal.Expr.Bad bad) {
+            return false;
+        }
+        return compiled.test(new net.exylia.lib.screen.internal.Expr.Env() {
+            @Override
+            public Object name(String name) {
+                return null;
+            }
+
+            @Override
+            public Object placeholder(String name) {
+                String written = "%" + name + "%";
+                String resolved = net.exylia.lib.placeholder.Placeholders.apply(written, viewer);
+                return resolved.equals(written) ? null : resolved;
+            }
+
+            @Override
+            public String word(String key) {
+                return null;
+            }
+
+            @Override
+            public Object literal(String text) {
+                return viewer == null ? text : net.exylia.lib.placeholder.Placeholders.apply(text, viewer);
+            }
+
+            @Override
+            public org.bukkit.entity.Player viewer() {
+                return viewer;
+            }
+        });
+    }
+
+    /**
+     * An attribute of the {@code <screen>} root as written, or {@code null}: for the plugin that opens screens by
+     * what their files say ({@code command}, {@code aliases}, {@code permission}, or any {@code data-*}).
+     *
+     * @since 1.502.0
+     */
+    public @Nullable String attribute(@NotNull String name) {
+        return compiled.root().attr(name);
+    }
+
     @Nullable String routes() {
         return compiled.root().attr("routes");
     }

@@ -423,6 +423,11 @@ A line holds everything up to the next `;`, so a step with a `;` of its own (`[T
 with commas (`world,0,64,0`); a sound is the screen's `sound` step. Values are filled before the line runs and a
 value never becomes another step.
 
+`<screen command="hub" aliases="lobby menu" permission="myserver.hub">` (1.502.0): the lib only keeps these for
+the plugin that opens screens by command (ExyliaScreens) and reads them with `ScreenMarkup#attribute(name)`.
+`ScreenMarkup.test(expression, player)` (1.502.0) evaluates an expression outside any screen, as a chest button
+that must agree with a screen's `require` does.
+
 **Requirements.** `require="<expression>"` gates every click of the element, `require-right` and `require-shift`
 only that click. When it is false the click runs `deny` (`deny-right`, `deny-shift`) instead, or a quiet refusal
 sound when there is none. Show the state too: `disabled="${balance() < 250}"` greys the card.

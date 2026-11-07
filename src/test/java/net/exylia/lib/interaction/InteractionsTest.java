@@ -99,8 +99,12 @@ class InteractionsTest {
                 "[SERVER]",
                 "console: say hi",
                 "[MESSAGE] hi",
+                "[CONSOLE] say hi",
+                "[MONEY] take 10",
+                "[MONEY] steal 10",
                 "  ");
-        assertEquals(List.of("left: arena join", "[NOPE] x", "console: say hi", "[MESSAGE] hi"),
+        assertEquals(List.of("left: arena join", "[NOPE] x", "console: say hi", "[MESSAGE] hi", "[CONSOLE] say hi",
+                        "[MONEY] take 10"),
                 interaction.lines(), "an unknown token may be registered later, so it is kept");
         assertTrue(Interactions.compile(plugin, null).isEmpty());
     }

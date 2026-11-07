@@ -73,7 +73,7 @@ import java.util.function.Consumer;
  */
 public final class Interactions {
 
-    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY");
+    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY", "CONSOLE", "PLAYER");
     private static final Set<Click> ANY = Set.copyOf(EnumSet.allOf(Click.class));
 
     private record Registered(String plugin, InteractionToken handler) {
@@ -286,6 +286,12 @@ public final class Interactions {
         }
         String token = body.substring(1, close).trim().toUpperCase(Locale.ROOT);
         String rest = body.substring(close + 1).trim();
+        if (token.equals("CONSOLE") || token.equals("PLAYER")) {
+            // [CONSOLE] / [PLAYER] (1.502.0): the DeluxeMenus spelling of console: and player:.
+            CommandLine command = CommandLine.compile(token.toLowerCase(Locale.ROOT) + ": " + required(rest, "a command"));
+            return (owner, player, click, data) -> Commands.of(owner).run(command, player, data)
+                    .thenApply(result -> result.continues());
+        }
         switch (token) {
             case "DELAY" -> {
                 double seconds = Ticks.parseSeconds(rest, Double.NaN);
