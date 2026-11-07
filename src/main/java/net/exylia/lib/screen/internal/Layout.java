@@ -197,7 +197,9 @@ public final class Layout {
 
     private static void place(Node node, String path, double x, double y, double w, double h, int depth,
                               List<Placed> out, List<Node> overlays, Map<Node, double[]> sizes) {
-        out.add(new Placed(node, node.id() != null ? "#" + node.id() : path, x, y, w, h, depth));
+        // Children are keyed under their nearest id, so a row that a track= id follows keeps its boxes when it moves.
+        String key = node.id() != null ? "#" + node.id() : path;
+        out.add(new Placed(node, key, x, y, w, h, depth));
         List<Node> children = new ArrayList<>();
         for (Node child : node.children()) {
             if (child.overlay()) overlays.add(child);
@@ -275,7 +277,7 @@ public final class Layout {
             };
             double cx = row ? innerX + cursor : innerX + offset;
             double cy = row ? innerY + offset : innerY + cursor;
-            place(child, path + "." + i, cx, cy, row ? mains[i] : cross, row ? cross : mains[i], depth + 1, out,
+            place(child, key + "." + i, cx, cy, row ? mains[i] : cross, row ? cross : mains[i], depth + 1, out,
                     overlays, sizes);
             cursor += mains[i] + gap;
         }

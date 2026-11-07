@@ -55,8 +55,11 @@ import java.util.stream.Collectors;
  * higher than the one on disk: an untouched file is replaced at once, an edited
  * one waits in {@code /exylialib updates} as a single change, and applying it
  * replaces the file and keeps the old one as {@code <name>.v<old version>}.
- * A file on disk that does not parse is left untouched and reported, and a file
- * that is not YAML is only ever written when missing.
+ * A file on disk that does not parse is left untouched and reported. A file
+ * that is not YAML (a screen's HTML, CSS or pictures) is replaced while the
+ * owner has not edited it; an edited one stays, with the new version written
+ * beside it as {@code <name>.new} and listed in {@code /exylialib updates}
+ * (since 1.494.0).
  *
  * @since 1.158.0
  */
@@ -223,6 +226,49 @@ public final class BundledFiles {
         }
     }
 
+    /**
+     * Removes a file the plugin no longer ships, unless the owner edited it.
+     *
+     * <p>The file is deleted when it still matches what the library last wrote there (or is already gone);
+     * an edited one, or one the library has no record of, stays where it is. Use it when a plugin moves or
+     * drops a bundled file, so servers do not keep a stale copy nobody chose to keep.
+     *
+     * <pre>{@code
+     * if (!BundledFiles.retire(plugin, "lang/en/screens/practice_hub.html")) {
+     *     getLogger().warning("lang/en/screens/practice_hub.html was edited and is no longer read");
+     * }
+     * }</pre>
+     *
+     * @param plugin   the owning plugin
+     * @param resource the path relative to the data folder
+     * @return {@code true} when the file is gone, {@code false} when it was kept
+     * @throws IllegalArgumentException if the path is blank, absolute, or escapes the data folder
+     * @since 1.494.0
+     */
+    public static boolean retire(@NotNull Plugin plugin, @NotNull String resource) {
+        Path relative = BundledResources.relative(resource);
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        BundledResources.inside(dataFolder, relative);
+        Path onDisk = dataFolder.resolve(relative);
+        Path reviewedPath = dataFolder.resolve(REVIEWED).resolve(relative);
+        try {
+            if (Files.exists(onDisk)) {
+                if (Files.notExists(reviewedPath)
+                        || !java.util.Arrays.equals(Files.readAllBytes(onDisk), Files.readAllBytes(reviewedPath))) {
+                    return false;
+                }
+                Files.delete(onDisk);
+            }
+            Files.deleteIfExists(reviewedPath);
+            Files.deleteIfExists(DefaultUpdates.offered(onDisk));
+            DefaultUpdates.forget(plugin, relative.toString().replace('\\', '/'));
+            return true;
+        } catch (IOException failure) {
+            Debug.of(plugin).warn("Could not remove " + resource + ": " + failure.getMessage());
+            return false;
+        }
+    }
+
     private static boolean update(Plugin plugin, Debug debug, Path dataFolder, Path packaged, Path file,
                                   Properties legacy) {
         String name = file.toString().replace('\\', '/');
@@ -238,7 +284,7 @@ public final class BundledFiles {
                 return true;
             }
             if (!name.endsWith(".yml") && !name.endsWith(".yaml")) {
-                return true;
+                return updateWhole(plugin, debug, packaged, onDisk, reviewedPath, name);
             }
 
             String shippedText = Files.readString(packaged);
@@ -297,6 +343,37 @@ public final class BundledFiles {
             debug.warn("Could not update " + name + ": " + failure.getMessage());
             return false;
         }
+    }
+
+    /**
+     * A file that is not YAML has no keys to merge, so it moves as a whole: replaced when the owner never
+     * touched it, and otherwise left alone with the new version written beside it as {@code <name>.new} and
+     * listed in {@code /exylialib updates} (since 1.494.0; before, such a file never updated once installed).
+     */
+    private static boolean updateWhole(Plugin plugin, Debug debug, Path packaged, Path onDisk, Path reviewedPath,
+                                       String name) throws IOException {
+        byte[] shipped = Files.readAllBytes(packaged);
+        byte[] reviewed = Files.exists(reviewedPath) ? Files.readAllBytes(reviewedPath) : null;
+        Path offered = DefaultUpdates.offered(onDisk);
+        if (reviewed != null && java.util.Arrays.equals(shipped, reviewed)) {
+            // Nothing new in the jar; a .new the owner deleted is their answer.
+            if (Files.notExists(offered)) DefaultUpdates.forget(plugin, name);
+            else DefaultUpdates.track(plugin, name, onDisk, reviewedPath, "", null, List.of(DefaultsMerge.wholeFile()));
+            return true;
+        }
+        byte[] disk = Files.readAllBytes(onDisk);
+        if (java.util.Arrays.equals(disk, shipped) || (reviewed != null && java.util.Arrays.equals(disk, reviewed))) {
+            install(packaged, onDisk, reviewedPath);
+            Files.deleteIfExists(offered);
+            DefaultUpdates.forget(plugin, name);
+            if (!java.util.Arrays.equals(disk, shipped)) debug.log("Updated " + name + " to the version this jar ships.");
+            return true;
+        }
+        // Edited by the owner: theirs stays, the new one waits beside it.
+        Files.createDirectories(offered.getParent());
+        Files.copy(packaged, offered, StandardCopyOption.REPLACE_EXISTING);
+        DefaultUpdates.track(plugin, name, onDisk, reviewedPath, "", null, List.of(DefaultsMerge.wholeFile()));
+        return true;
     }
 
     /** Writes a packaged file and records it as the reviewed defaults. */

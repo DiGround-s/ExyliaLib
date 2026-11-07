@@ -202,6 +202,9 @@ public final class DefaultUpdates {
         Debug debug = Debug.of(tracked.plugin());
         try {
             for (Pending pending : chosen) {
+                if (DefaultsMerge.isWholeFile(pending.change())) {
+                    return decideWhole(tracked, apply);
+                }
                 if (DefaultsMerge.isLayout(pending.change())) {
                     return decideLayout(tracked, pending.change(), apply);
                 }
@@ -276,6 +279,34 @@ public final class DefaultUpdates {
             BundledResources.write(tracked.disk(), disk.saveToString());
         }
         BundledResources.write(tracked.reviewed(), tracked.shipped());
+        return 1;
+    }
+
+    /** Where the new version of an edited file that is not YAML waits: {@code <name>.new} beside it. */
+    public static @NotNull Path offered(@NotNull Path disk) {
+        return disk.resolveSibling(disk.getFileName() + ".new");
+    }
+
+    /**
+     * Applies a new version of a file that is not YAML by putting {@code <name>.new} in its place, keeping the
+     * owner's as {@code <name>.old}; keeping theirs records the new version as reviewed and removes the
+     * {@code .new}, so it is not offered again.
+     */
+    private static int decideWhole(Tracked tracked, boolean apply) throws IOException {
+        Path offered = offered(tracked.disk());
+        forget(tracked.plugin(), tracked.file());
+        if (Files.notExists(offered)) {
+            return 0;
+        }
+        Files.createDirectories(tracked.reviewed().getParent());
+        Files.copy(offered, tracked.reviewed(), StandardCopyOption.REPLACE_EXISTING);
+        if (apply) {
+            Path old = tracked.disk().resolveSibling(tracked.disk().getFileName() + ".old");
+            Files.copy(tracked.disk(), old, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(offered, tracked.disk(), StandardCopyOption.REPLACE_EXISTING);
+        } else {
+            Files.delete(offered);
+        }
         return 1;
     }
 

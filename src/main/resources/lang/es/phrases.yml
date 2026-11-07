@@ -1736,3 +1736,6 @@ World: Mundo
 '{muted}Offline: delivered on their next join.': '{muted}Desconectado: se entrega al volver a entrar.'
 '{success}All caught up': '{success}Todo al día'
 '{success}All delivered': '{success}Todo entregado'
+'{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Sin problemas {letters_black}» {letters}Pantallas{letters_black}: {info}{0}'
+'{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Problemas{letters_black}: {warning}{0} {letters_black}» {letters}Pantallas{letters_black}: {info}{1}'
+'{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Leídas de nuevo {letters_black}» {letters}Pantallas{letters_black}: {info}{0}'

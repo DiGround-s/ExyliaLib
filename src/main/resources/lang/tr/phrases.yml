@@ -1736,3 +1736,6 @@ World: Dünya
 '{muted}Offline: delivered on their next join.': '{muted}Çevrimdışı: bir sonraki girişinde teslim edilir.'
 '{success}All caught up': '{success}Hepsi güncel'
 '{success}All delivered': '{success}Hepsi teslim edildi'
+'{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Sorun yok {letters_black}» {letters}Ekranlar{letters_black}: {info}{0}'
+'{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Sorunlar{letters_black}: {warning}{0} {letters_black}» {letters}Ekranlar{letters_black}: {info}{1}'
+'{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Yeniden okundu {letters_black}» {letters}Ekranlar{letters_black}: {info}{0}'

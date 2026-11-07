@@ -32,6 +32,7 @@ public final class LibCommands {
         lamp.register(new EditorCommand());
         lamp.register(new ConfigCommand());
         lamp.register(new ScreenTestCommand());
+        lamp.register(new ScreensCommand());
         LibrarySettings.PlayerSettings.Command settings = LibrarySettings.get().settings().command();
         if (settings.enabled() && settings.name() != null && !settings.name().isBlank()) {
             java.util.List<String> names = new java.util.ArrayList<>();

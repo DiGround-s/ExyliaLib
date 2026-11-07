@@ -1724,3 +1724,6 @@ World: Мир
 '{muted}Offline: delivered on their next join.': '{muted}Офлайн: выдадим при следующем входе.'
 '{success}All caught up': '{success}Всё проверено'
 '{success}All delivered': '{success}Всё выдано'
+'{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Без проблем {letters_black}» {letters}Экраны{letters_black}: {info}{0}'
+'{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Проблемы{letters_black}: {warning}{0} {letters_black}» {letters}Экраны{letters_black}: {info}{1}'
+'{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Перечитано {letters_black}» {letters}Экраны{letters_black}: {info}{0}'

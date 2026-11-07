@@ -282,4 +282,41 @@ class BundledFilesTest {
         assertEquals("title: [unclosed", read("bundled-broken/main.yml"));
         assertTrue(messages.stream().anyMatch(line -> line.contains("could not be read")), messages::toString);
     }
+
+    @Test
+    void aFileThatIsNotYamlFollowsTheJarUntilTheOwnerEditsIt() throws Exception {
+        pack("bundled-html/hub.html", "<screen>one</screen>");
+        assertTrue(refresh("bundled-html"));
+        pack("bundled-html/hub.html", "<screen>two</screen>");
+        assertTrue(refresh("bundled-html"));
+        assertEquals("<screen>two</screen>", read("bundled-html/hub.html"), "untouched follows the jar");
+
+        onDisk("bundled-html/hub.html", "<screen>mine</screen>");
+        pack("bundled-html/hub.html", "<screen>three</screen>");
+        assertTrue(refresh("bundled-html"));
+        assertEquals("<screen>mine</screen>", read("bundled-html/hub.html"), "an edit stays");
+        assertEquals("<screen>three</screen>", read("bundled-html/hub.html.new"), "the new one waits beside it");
+        assertEquals(1, DefaultUpdates.pending().size());
+
+        DefaultUpdates.decide(pending -> true, true);
+        assertEquals("<screen>three</screen>", read("bundled-html/hub.html"));
+        assertEquals("<screen>mine</screen>", read("bundled-html/hub.html.old"));
+        assertTrue(DefaultUpdates.pending().isEmpty());
+        assertTrue(refresh("bundled-html"));
+        assertTrue(DefaultUpdates.pending().isEmpty(), "applied is reviewed");
+    }
+
+    @Test
+    void aRetiredFileGoesUnlessTheOwnerEditedIt() throws Exception {
+        pack("bundled-retire/a.html", "<screen>a</screen>");
+        pack("bundled-retire/b.html", "<screen>b</screen>");
+        assertTrue(refresh("bundled-retire"));
+        onDisk("bundled-retire/b.html", "<screen>mine</screen>");
+
+        assertTrue(BundledFiles.retire(plugin, "bundled-retire/a.html"));
+        assertFalse(java.nio.file.Files.exists(folder.resolve("bundled-retire/a.html")));
+        assertFalse(BundledFiles.retire(plugin, "bundled-retire/b.html"));
+        assertEquals("<screen>mine</screen>", read("bundled-retire/b.html"));
+        assertTrue(BundledFiles.retire(plugin, "bundled-retire/never.html"));
+    }
 }

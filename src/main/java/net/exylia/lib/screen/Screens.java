@@ -62,6 +62,21 @@ public final class Screens {
         return ScreenRuntime.session(plugin, player);
     }
 
+    /**
+     * This plugin's screens kept as files in its data folder: {@code folder/<id>.html} for every language, words in
+     * {@code lang/<code>/folder/<id>.yml}, installed from and updated with the jar's copies under the same path, and
+     * read again when they change. Asking twice gives the same set.
+     *
+     * <pre>{@code ScreenMarkup hub = Screens.of(this).files(MyPlugin.class, "screens").markup("hub");}</pre>
+     *
+     * @param anchor a class packaged with the files
+     * @param folder the folder inside the jar and the data folder, usually {@code screens}
+     * @since 1.494.0
+     */
+    public @NotNull ScreenSet files(@NotNull Class<?> anchor, @NotNull String folder) {
+        return ScreenSet.of(plugin, anchor, folder);
+    }
+
     /** How fast a player's cursor moves: 1 (the default) keeps it under the point their eyes turn to. */
     public static double sensitivity(@NotNull Player player) {
         return ScreenRuntime.sensitivity(player.getUniqueId());

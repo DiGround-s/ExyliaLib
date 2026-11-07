@@ -4,6 +4,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
+
 /**
  * A click or a wheel step on a {@link Node}, handed to its {@link Node#onClick} or {@link Node#onScroll} on the
  * viewer's thread.
@@ -12,15 +14,33 @@ import org.jetbrains.annotations.Nullable;
  * @param kind    what the player did
  * @param steps   for {@link Kind#SCROLL}: wheel steps, positive down the list; 0 otherwise
  * @param node    the {@link Node#id} of the box, or {@code null} when it has none
+ * @param row     what the clicked row is about, for a box a markup screen repeated over a source (since 1.494.0):
+ *                the row's {@link net.exylia.lib.ui.UiEntry#value()} from {@link ScreenMarkup#rows}, the row map
+ *                from {@link ScreenMarkup#source}; {@code null} outside a repeat or for a screen built in Java
  * @since 1.483.0
  */
-public record ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node) {
+public record ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node,
+                          @Nullable Object row) {
 
     /** What the player did. */
     public enum Kind { LEFT, RIGHT, SCROLL }
 
+    /** An event with no row, as every event was before 1.494.0. */
+    public ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node) {
+        this(session, kind, steps, node, null);
+    }
+
     /** Who did it. */
     public @NotNull Player viewer() {
         return session.viewer();
+    }
+
+    /**
+     * The clicked row's object when it is a {@code type}: {@code event.row(KitEntity.class)}.
+     *
+     * @since 1.494.0
+     */
+    public <T> @NotNull Optional<T> row(@NotNull Class<T> type) {
+        return type.isInstance(row) ? Optional.of(type.cast(row)) : Optional.empty();
     }
 }

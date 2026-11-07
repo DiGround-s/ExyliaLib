@@ -8,6 +8,7 @@ import net.exylia.lib.screen.ScreenSession;
 import net.exylia.lib.screen.internal.Markup.El;
 import net.exylia.lib.screen.internal.Markup.Part;
 import net.exylia.lib.screen.internal.Markup.Words;
+import net.exylia.lib.ui.UiEntry;
 import org.bukkit.SoundCategory;
 
 import java.util.ArrayList;
@@ -25,30 +26,65 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Turns a screen's markup and style into a {@link Node} tree for one session, once per render.
+ * Turns a screen's compiled markup and style into a {@link Node} tree for one session, once per render.
  *
  * <p>Internal: free to change without notice.
  */
 public final class MarkupRender {
 
     /** Every tag a screen knows; anything else is reported when the markup is read. */
-    public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
-            "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "progress", "modal", "img");
+    public static final Set<String> TAGS = Compile.TAGS;
 
-    private static final Pattern PLACEHOLDER = Pattern.compile("%([\\w.-]+)%");
     private static final Pattern NUMBER = Pattern.compile("(-?\\d+(?:\\.\\d+)?)(px)?");
+    private static final Pattern RANGE = Pattern.compile("(.+?)\\.\\.(.+)");
 
-    /** What a render reads: the markup's own parts, handed over by {@code ScreenMarkup}. */
-    public record Parts(El root, Css css, Map<String, Function<ScreenSession, List<? extends Map<String, ?>>>> sources,
-                        Map<String, Function<ScreenSession, ?>> values,
-                        Map<String, BiConsumer<ScreenEvent, List<String>>> actions, Consumer<String> problems,
-                        java.nio.file.@org.jetbrains.annotations.Nullable Path images) {
+    /** The plugin's names for a screen, shared by every compile of its files. */
+    public record Bindings(Map<String, Function<ScreenSession, List<? extends Map<String, ?>>>> sources,
+                           Map<String, Function<ScreenSession, List<UiEntry>>> entries,
+                           Map<String, Function<ScreenSession, ?>> values,
+                           Map<String, Function<ScreenSession, ?>> texts,
+                           Map<String, BiConsumer<ScreenEvent, List<String>>> actions) {
+        public static Bindings create() {
+            return new Bindings(new java.util.concurrent.ConcurrentHashMap<>(), new java.util.concurrent.ConcurrentHashMap<>(),
+                    new java.util.concurrent.ConcurrentHashMap<>(), new java.util.concurrent.ConcurrentHashMap<>(),
+                    new java.util.concurrent.ConcurrentHashMap<>());
+        }
+
+        public boolean hasSource(String name) {
+            return sources.containsKey(name) || entries.containsKey(name);
+        }
+    }
+
+    /** What a render reads: the compiled markup, its style and words, and the plugin's bindings. */
+    public record Parts(El root, Css css, Bindings bindings, Consumer<String> problems,
+                        java.nio.file.@org.jetbrains.annotations.Nullable Path images, Function<String, String> words) {
+
+        /** The shape before 1.494.0: no words, bindings given one map at a time. */
+        public Parts(El root, Css css, Map<String, Function<ScreenSession, List<? extends Map<String, ?>>>> sources,
+                     Map<String, Function<ScreenSession, ?>> values,
+                     Map<String, BiConsumer<ScreenEvent, List<String>>> actions, Consumer<String> problems,
+                     java.nio.file.@org.jetbrains.annotations.Nullable Path images) {
+            this(root, css, new Bindings(sources, Map.of(), values, Map.of(), actions), problems, images, key -> null);
+        }
+    }
+
+    /** One source's rows for this render: their fields, which are formatted, and what each row is about. */
+    private record Rows(List<Map<String, ?>> maps, List<Set<String>> formatted, List<Object> objects) {
+        static final Rows NONE = new Rows(List.of(), List.of(), List.of());
+
+        int size() {
+            return maps.size();
+        }
+
+        Scope scope(int i, String alias, Map<String, Object> loop, Scope parent) {
+            return new Scope(maps.get(i), formatted.get(i), objects.get(i), alias, alias == null ? null : maps.get(i),
+                    loop, parent);
+        }
     }
 
     private final Parts parts;
     private final ScreenSession session;
-    private final Map<String, List<? extends Map<String, ?>>> rows = new HashMap<>();
+    private final Map<String, Rows> rows = new HashMap<>();
     /** Grids by id or source, for pagers. */
     private final Map<String, El> grids = new HashMap<>();
     /** A {@code state} key's {@code default}, read before the player has picked anything. */
@@ -63,7 +99,8 @@ public final class MarkupRender {
     /** The node tree of {@code parts} for {@code session}, as it stands now. */
     public static Node render(Parts parts, ScreenSession session) {
         MarkupRender render = new MarkupRender(parts, session);
-        List<Node> nodes = render.build(parts.root(), new Scope(null, null), new ArrayList<>(), Map.of());
+        Scope top = new Scope(null, null, null, null, null, null, null);
+        List<Node> nodes = render.build(new Inst(parts.root(), top, null), new ArrayList<>(), Map.of(), 1, 1);
         return nodes.isEmpty() ? Node.box() : nodes.get(0);
     }
 
@@ -81,87 +118,319 @@ public final class MarkupRender {
     // Values
     // ------------------------------------------------------------------
 
-    /** Where names are looked up: the row being repeated (innermost first), then values, then state. */
-    private record Scope(Map<String, ?> row, Scope parent) {
+    /**
+     * Where names are looked up: the row being repeated (innermost first), then values, then state.
+     *
+     * @param formatted the row's fields that carry their own formatting; {@code null} when all of them do
+     * @param object    what the row is about, handed to a click as {@link ScreenEvent#row()}
+     * @param alias     the name a {@code <for each="kit in kits">} gives the row, or {@code null}
+     * @param aliased   what that name reads
+     * @param loop      {@code loop.index}, {@code loop.count}... inside a {@code <for>}
+     */
+    private record Scope(Map<String, ?> row, Set<String> formatted, Object object, String alias, Object aliased,
+                         Map<String, Object> loop, Scope parent) {
     }
 
     private Object lookup(String name, Scope scope) {
         for (Scope s = scope; s != null; s = s.parent()) {
+            if (s.alias() != null) {
+                if (name.equals(s.alias())) return s.aliased();
+                if (name.startsWith(s.alias() + ".")) return field(s.aliased(), name.substring(s.alias().length() + 1), s);
+            }
+            if (s.loop() != null && name.startsWith("loop.")) return s.loop().get(name.substring(5));
             // A value that is there but empty is empty text, never the placeholder's own name on screen.
-            if (s.row() != null && s.row().containsKey(name)) return Objects.requireNonNullElse(s.row().get(name), "");
+            if (s.row() != null && s.row().containsKey(name)) return mark(s.row().get(name), s, name);
         }
-        Function<ScreenSession, ?> value = parts.values().get(name);
+        Function<ScreenSession, ?> value = parts.bindings().values().get(name);
         if (value != null) return Objects.requireNonNullElse(value.apply(session), "");
+        Function<ScreenSession, ?> text = parts.bindings().texts().get(name);
+        if (text != null) return literal(Objects.requireNonNullElse(text.apply(session), ""));
         Object state = session.state(name, "");
-        if (!"".equals(state)) return state;
+        // State is the player's doing (a picked name, a search), so it is drawn as plain text.
+        if (!"".equals(state)) return literal(state);
         String fallback = defaults.get(name);
-        // A default may itself be a placeholder (default="%first_mode%"); one that names itself stays as written.
-        return fallback == null || fallback.contains("%" + name + "%") ? fallback : fill(fallback, scope);
+        if (fallback != null) {
+            // A default may itself be a placeholder (default="%first_mode%"); one that names itself stays as written.
+            return fallback.contains("%" + name + "%") ? fallback : fill(fallback, scope, false);
+        }
+        int dot = name.indexOf('.');
+        if (dot > 0) {
+            Object head = lookup(name.substring(0, dot), scope);
+            if (head != null && !"".equals(head)) return field(head, name.substring(dot + 1), null);
+        }
+        return null;
     }
 
-    /** {@code %name%} replaced from the scope; an unknown name is left as written. */
-    String fill(String text, Scope scope) {
-        if (text == null || text.indexOf('%') < 0) return text;
-        Matcher m = PLACEHOLDER.matcher(text);
-        StringBuilder out = new StringBuilder();
-        while (m.find()) {
-            Object value = lookup(m.group(1), scope);
-            m.appendReplacement(out, Matcher.quoteReplacement(value == null ? m.group() : String.valueOf(value)));
+    /** A field of a row map read by a dotted name: {@code kit.kit_name}. */
+    private static Object field(Object value, String path, Scope scope) {
+        Object at = Expr.plain(value);
+        for (String part : path.split("\\.")) {
+            if (at instanceof UiEntry entry) at = entry.values();
+            if (!(at instanceof Map<?, ?> map)) return null;
+            Object next = map.get(part);
+            if (next == null) return map.containsKey(part) ? "" : null;
+            at = scope != null && scope.formatted() != null && !scope.formatted().contains(part) ? literal(next) : next;
         }
-        m.appendTail(out);
-        return out.toString();
+        return at;
+    }
+
+    private static Object mark(Object value, Scope scope, String name) {
+        if (value == null) return "";
+        return scope.formatted() == null || scope.formatted().contains(name) ? value : literal(value);
+    }
+
+    private static Object literal(Object value) {
+        return value instanceof String text ? new Expr.Lit(text) : value;
+    }
+
+    /** What expressions read in a scope. */
+    private Expr.Env env(Scope scope) {
+        return new Expr.Env() {
+            @Override
+            public Object name(String name) {
+                return lookup(name, scope);
+            }
+
+            @Override
+            public Object placeholder(String name) {
+                Object known = lookup(name, scope);
+                return known != null ? known : library(name);
+            }
+
+            @Override
+            public String word(String key) {
+                return parts.words().apply(key);
+            }
+
+            @Override
+            public Object literal(String text) {
+                return fill(text, scope, false);
+            }
+        };
+    }
+
+    /** A {@code %name%} none of the screen's names answer, from the lib's placeholders (and PlaceholderAPI). */
+    private Object library(String name) {
+        try {
+            String written = "%" + name + "%";
+            String resolved = net.exylia.lib.placeholder.Placeholders.apply(written, session.viewer());
+            return resolved.equals(written) ? null : resolved;
+        } catch (RuntimeException | LinkageError noServer) {
+            // Only without a server (a unit test) or a viewer.
+            return null;
+        }
+    }
+
+    /**
+     * {@code %name%} and {@code ${...}} filled from the scope; an unknown name is left as written.
+     *
+     * @param draw whether the text is drawn, so plain values are escaped
+     */
+    String fill(String text, Scope scope, boolean draw) {
+        if (!Interp.dynamic(text)) return text;
+        try {
+            return Interp.of(text).fill(env(scope), draw);
+        } catch (Expr.Bad bad) {
+            // Reported when the file was read; drawn as nothing rather than as broken code.
+            return "";
+        }
+    }
+
+    private Object value(String text, Scope scope) {
+        if (!Interp.dynamic(text)) return text;
+        try {
+            return Interp.of(text).value(env(scope));
+        } catch (Expr.Bad bad) {
+            return "";
+        }
     }
 
     static boolean truthy(Object value) {
-        if (value == null) return false;
-        if (value instanceof Boolean b) return b;
-        String text = String.valueOf(value).trim().toLowerCase(Locale.ROOT);
-        return !(text.isEmpty() || text.equals("false") || text.equals("0") || text.equals("no") || text.startsWith("%"));
+        return Expr.truthy(value);
     }
 
-    /** {@code name}, {@code !name}, {@code name == 'x'}, {@code name != 'x'}, joined by {@code &&} and {@code ||}. */
+    /** An {@code if}: the whole expression language, which reads the conditions written before 1.494.0 the same. */
     boolean test(String expression, Scope scope) {
-        String text = expression.trim();
-        // || binds looser than &&, as in every language the markup's authors know; no brackets.
-        if (text.contains("||")) {
-            for (String part : text.split("\\|\\|")) if (test(part, scope)) return true;
+        try {
+            return Expr.compile(expression.trim()).test(env(scope));
+        } catch (Expr.Bad bad) {
             return false;
         }
-        if (text.contains("&&")) {
-            for (String part : text.split("&&")) if (!test(part, scope)) return false;
-            return true;
-        }
-        for (String op : new String[]{"==", "!="}) {
-            int at = text.indexOf(op);
-            if (at < 0) continue;
-            String left = operand(text.substring(0, at), scope);
-            String right = operand(text.substring(at + 2), scope);
-            return left.equals(right) == op.equals("==");
-        }
-        if (text.startsWith("!")) return !test(text.substring(1), scope);
-        return truthy(text.startsWith("%") ? fill(text, scope) : lookup(text, scope));
     }
 
-    private String operand(String raw, Scope scope) {
-        String text = raw.trim();
-        if (text.length() >= 2 && (text.startsWith("'") && text.endsWith("'") || text.startsWith("\"") && text.endsWith("\""))) {
-            return fill(text.substring(1, text.length() - 1), scope);
-        }
-        if (text.startsWith("%")) return fill(text, scope);
-        Object value = lookup(text, scope);
-        return value == null ? "" : String.valueOf(value);
-    }
-
-    private List<? extends Map<String, ?>> rows(String source) {
+    private Rows rows(String source) {
         return rows.computeIfAbsent(source, name -> {
-            Function<ScreenSession, List<? extends Map<String, ?>>> supplier = parts.sources().get(name);
+            Function<ScreenSession, List<UiEntry>> entries = parts.bindings().entries().get(name);
+            if (entries != null) {
+                List<UiEntry> list = entries.apply(session);
+                if (list == null) return Rows.NONE;
+                List<Map<String, ?>> maps = new ArrayList<>(list.size());
+                List<Set<String>> formatted = new ArrayList<>(list.size());
+                List<Object> objects = new ArrayList<>(list.size());
+                for (UiEntry entry : list) {
+                    UiEntry now = entry.isLive() ? entry.refreshed() : entry;
+                    maps.add(now.values());
+                    formatted.add(now.formatted());
+                    objects.add(now.value() != null ? now.value() : now);
+                }
+                return new Rows(maps, formatted, objects);
+            }
+            Function<ScreenSession, List<? extends Map<String, ?>>> supplier = parts.bindings().sources().get(name);
             if (supplier == null) {
                 parts.problems().accept("no source \"" + name + "\" is registered");
-                return List.of();
+                return Rows.NONE;
             }
             List<? extends Map<String, ?>> list = supplier.apply(session);
-            return list == null ? List.of() : list;
+            if (list == null) return Rows.NONE;
+            List<Map<String, ?>> maps = new ArrayList<>(list);
+            List<Set<String>> formatted = new ArrayList<>(list.size());
+            for (int i = 0; i < list.size(); i++) formatted.add(null);
+            return new Rows(maps, formatted, new ArrayList<>(list));
         });
+    }
+
+    // ------------------------------------------------------------------
+    // Structure: if, else, for, switch, fragments
+    // ------------------------------------------------------------------
+
+    /**
+     * One element to draw, in the scope it is drawn in.
+     *
+     * @param id the id it takes, when a {@code track} gave its row one
+     */
+    private record Inst(El el, Scope scope, String id) {
+    }
+
+    /** The parts of {@code children} that are drawn, structure resolved: words stay words. */
+    private List<Object> expand(List<Part> children, Scope scope) {
+        List<Object> out = new ArrayList<>();
+        boolean chain = false;
+        boolean satisfied = false;
+        for (Part part : children) {
+            if (part instanceof Words) {
+                out.add(part);
+                continue;
+            }
+            El el = (El) part;
+            boolean otherwise = el.tag().equals("else") || el.attr("else") != null;
+            String condition = el.attr("if");
+            if (otherwise) {
+                if (!chain || satisfied) continue;
+                if (condition != null && !test(condition, scope)) continue;
+                satisfied = true;
+            } else if (condition != null) {
+                chain = true;
+                satisfied = test(condition, scope);
+                if (!satisfied) continue;
+            } else {
+                chain = false;
+            }
+            switch (el.tag()) {
+                case "else", "fragment", "case", "default" -> out.addAll(expand(el.children(), scope));
+                case "switch" -> out.addAll(expand(cases(el, scope), scope));
+                case "for" -> out.addAll(loop(el, scope));
+                default -> out.add(new Inst(el, scope, null));
+            }
+        }
+        return out;
+    }
+
+    private List<Part> cases(El el, Scope scope) {
+        String on = Expr.text(value("${" + el.attr("on") + "}", scope));
+        El fallback = null;
+        for (El option : el.elements()) {
+            if (option.tag().equals("default")) {
+                fallback = option;
+                continue;
+            }
+            String value = option.attr("value");
+            if (value == null) continue;
+            for (String one : fill(value, scope, false).split("\\|")) {
+                if (Expr.equal(one.trim(), on)) return option.children();
+            }
+        }
+        return fallback == null ? List.of() : fallback.children();
+    }
+
+    /** {@code <for each="kit in kits">}: its children once per row, a range or a list. */
+    private List<Object> loop(El el, Scope scope) {
+        String each = el.attr("each");
+        Matcher m = each == null ? null : Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*").matcher(each);
+        if (m == null || !m.matches()) return List.of();
+        String alias = m.group(1);
+        String over = m.group(2);
+        Rows rows;
+        Matcher range = RANGE.matcher(over);
+        if (parts.bindings().hasSource(over)) {
+            rows = rows(over);
+        } else if (range.matches()) {
+            Double from = Expr.number(value("${" + range.group(1) + "}", scope));
+            Double to = Expr.number(value("${" + range.group(2) + "}", scope));
+            List<Map<String, ?>> maps = new ArrayList<>();
+            List<Object> objects = new ArrayList<>();
+            if (from != null && to != null) {
+                int a = (int) Math.round(from), b = (int) Math.round(to);
+                // A range is a counter, not a list to page: kept short so a typo cannot draw a thousand boxes.
+                for (int i = a; (a <= b ? i <= b : i >= b) && maps.size() < 256; i += a <= b ? 1 : -1) {
+                    maps.add(null);
+                    objects.add((double) i);
+                }
+            }
+            List<Set<String>> formatted = new ArrayList<>();
+            for (int i = 0; i < maps.size(); i++) formatted.add(null);
+            rows = new Rows(maps, formatted, objects);
+        } else {
+            Object list = Expr.plain(value("${" + over + "}", scope));
+            List<Map<String, ?>> maps = new ArrayList<>();
+            List<Object> objects = new ArrayList<>();
+            if (list instanceof java.util.Collection<?> collection) {
+                for (Object one : collection) {
+                    maps.add(one instanceof Map<?, ?> map ? cast(map) : null);
+                    objects.add(one);
+                }
+            } else if (list != null && !"".equals(list)) {
+                parts.problems().accept(el.pos() + ": <for each=\"" + each + "\"> reads no source or list");
+            }
+            List<Set<String>> formatted = new ArrayList<>();
+            for (int i = 0; i < maps.size(); i++) formatted.add(null);
+            rows = new Rows(maps, formatted, objects);
+        }
+        String prefix = el.attr("id") != null ? el.attr("id") : "for" + el.pos().line() + "_" + el.pos().col();
+        Set<String> seen = new HashSet<>();
+        List<Object> out = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> meta = Map.of("index", (double) i, "number", (double) (i + 1), "count",
+                    (double) rows.size(), "first", i == 0, "last", i == rows.size() - 1);
+            Scope row = rows.maps().get(i) == null
+                    ? new Scope(null, null, rows.objects().get(i), alias, rows.objects().get(i), meta, scope)
+                    : rows.scope(i, alias, meta, scope);
+            String track = track(el, row, prefix, seen);
+            List<Object> drawn = expand(el.children(), row);
+            int n = 0;
+            for (Object one : drawn) {
+                if (one instanceof Inst inst && track != null) {
+                    out.add(new Inst(inst.el(), inst.scope(), track + (n++ == 0 ? "" : "." + n)));
+                } else {
+                    out.add(one);
+                }
+            }
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, ?> cast(Map<?, ?> map) {
+        return (Map<String, ?>) map;
+    }
+
+    /** A row's identity from {@code track="%kit_id%"}, unique within its list, or {@code null} without one. */
+    private String track(El el, Scope row, String prefix, Set<String> seen) {
+        String track = el.attr("track");
+        if (track == null) return null;
+        String key = fill(track, row, false);
+        String id = prefix + "@" + key;
+        for (int n = 2; !seen.add(id); n++) id = prefix + "@" + key + "~" + n;
+        return id;
     }
 
     // ------------------------------------------------------------------
@@ -173,15 +442,17 @@ public final class MarkupRender {
      *
      * @param path      the targets of its ancestors, root first
      * @param inherited the text properties it inherits: color, font-size, font-weight
+     * @param index     its place among its parent's drawn elements, from 1
+     * @param count     how many its parent draws
      */
-    private List<Node> build(El el, Scope scope, List<Css.Target> path, Map<String, String> inherited) {
-        String condition = el.attr("if");
-        if (condition != null && !test(condition, scope)) return List.of();
+    private List<Node> build(Inst inst, List<Css.Target> path, Map<String, String> inherited, int index, int count) {
+        El el = inst.el();
+        Scope scope = inst.scope();
 
         Set<String> flags = new HashSet<>();
         for (String flag : new String[]{"selected", "disabled", "checked"}) {
             String raw = el.attr(flag);
-            if (raw != null && (raw.isEmpty() || truthy(fill(raw, scope)))) flags.add(flag);
+            if (raw != null && (raw.isEmpty() || truthy(value(raw, scope)))) flags.add(flag);
         }
         String option = option(el, path, scope);
         if (option != null && option.equals(current(stateOwner(path), scope))) flags.add("selected");
@@ -189,13 +460,13 @@ public final class MarkupRender {
                 ? el.attr("state") : null;
         if (toggleKey != null && truthy(session.state(toggleKey, false))) flags.add("checked");
 
-        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class")), flags);
+        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class")), flags, index, count);
         List<Css.Target> here = new ArrayList<>(path);
         here.add(target);
         Map<String, String> style = parts.css().style(here, false);
         if ("none".equalsIgnoreCase(style.get("display"))) return List.of();
         Map<String, String> text = new HashMap<>(inherited);
-        for (String p : new String[]{"color", "font-size", "font-weight", "text-align"}) if (style.containsKey(p)) text.put(p, style.get(p));
+        for (String p : Css.INHERITED) if (style.containsKey(p)) text.put(p, style.get(p));
 
         Node node;
         String source = el.attr("source");
@@ -207,7 +478,7 @@ public final class MarkupRender {
             boolean on = flags.contains("checked");
             String label = el.tag().equals("checkbox") ? (on ? "✔" : " ")
                     : (on ? attrOr(el, "on", "On") : attrOr(el, "off", "Off"));
-            node = words(fill(label, scope), text);
+            node = words(fill(label, scope, true), text);
         } else if (el.tag().equals("item")) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
@@ -216,37 +487,48 @@ public final class MarkupRender {
         } else if (el.tag().equals("progress")) {
             node = progress(el, scope, style);
         } else if (el.tag().equals("icon")) {
-            String material = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope).trim();
+            String material = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope, false).trim();
             // ponytail: block items whose sprite lives under block/ fall back to the glyph; map them when needed.
             String glyph = attrOr(el, "glyph", "◆");
             node = words("{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}", text);
         } else if (el.elements().isEmpty() && !el.text().isEmpty()) {
-            node = words(fill(el.text(), scope), text);
+            node = words(fill(el.text(), scope, true), text);
         } else {
             node = container(style);
             boolean own = el.attr("state") != null;
             if (own) owners.add(el);
             try {
-                for (Part part : el.children()) {
-                    if (part instanceof Words words) node.add(words(fill(words.text(), scope), text));
-                    else if (part instanceof El child) node.add(build(child, scope, here, text));
+                List<Object> drawn = expand(el.children(), scope);
+                int elements = 0;
+                for (Object one : drawn) if (one instanceof Inst) elements++;
+                int at = 0;
+                for (Object one : drawn) {
+                    if (one instanceof Words words) node.add(words(fill(words.text(), scope, true), text));
+                    else if (one instanceof Inst child) {
+                        for (Node built : build(child, here, text, ++at, elements)) {
+                            node.add(child.id() != null ? built.id(child.id()) : built);
+                        }
+                    }
                 }
             } finally {
                 if (own) owners.remove(owners.size() - 1);
             }
         }
         box(node, style);
-        if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope));
-        if (el.attr("key") != null) node.key(el.attr("key"));
+        if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
+        String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
+        if (key != null) node.key(key);
         if (el.tag().equals("modal")) {
             String dismiss = el.attr("dismiss");
+            String condition = el.attr("if");
             if (dismiss == null && condition != null && condition.trim().matches("[\\w.-]+")) dismiss = "clear " + condition.trim();
             node.overlay(true);
             if (dismiss != null && !dismiss.isBlank()) {
-                List<String> actions = actions(dismiss, scope);
-                node.onDismiss(session -> {
-                    ScreenEvent event = new ScreenEvent(session, ScreenEvent.Kind.LEFT, 0, null);
-                    for (String one : actions) run(one, event);
+                List<List<String>> steps = actions(dismiss, scope);
+                Object row = rowOf(scope);
+                node.onDismiss(open -> {
+                    ScreenEvent event = new ScreenEvent(open, ScreenEvent.Kind.LEFT, 0, null, row);
+                    for (List<String> step : steps) run(step, event, el);
                 });
             }
         }
@@ -266,7 +548,7 @@ public final class MarkupRender {
     private String option(El el, List<Css.Target> path, Scope scope) {
         String value = el.attr("value");
         if (value == null || stateOwner(path) == null) return null;
-        return fill(value, scope);
+        return fill(value, scope, false);
     }
 
     /** Owners of state, innermost last; set while building so options find theirs. */
@@ -281,7 +563,7 @@ public final class MarkupRender {
         Object value = session.state(owner.attr("state"), "");
         if (!"".equals(value)) return String.valueOf(value);
         String fallback = owner.attr("default");
-        return fallback == null ? null : fill(fallback, scope);
+        return fallback == null ? null : fill(fallback, scope, false);
     }
 
     private Node container(Map<String, String> style) {
@@ -290,18 +572,20 @@ public final class MarkupRender {
 
     private Node repeat(El el, String source, Scope scope, List<Css.Target> here, Map<String, String> text,
                         Map<String, String> style) {
-        List<? extends Map<String, ?>> all = rows(source);
-        List<El> template = new ArrayList<>();
+        Rows all = rows(source);
+        List<Part> template = new ArrayList<>();
         // Several empties may each carry an if, so the message can match why the list is empty.
-        List<El> empties = new ArrayList<>();
-        for (El child : el.elements()) {
-            if (child.tag().equals("empty")) empties.add(child);
-            else template.add(child);
+        List<Part> empties = new ArrayList<>();
+        for (Part child : el.children()) {
+            if (child instanceof El e && e.tag().equals("empty")) empties.add(e);
+            else if (child instanceof El) template.add(child);
         }
         Node node = container(style);
         node.id(el.attr("id") != null ? el.attr("id") : source);
-        if (all.isEmpty()) {
-            for (El empty : empties) for (Node built : build(empty, scope, here, text)) node.add(built.id(source + ".empty"));
+        if (all.size() == 0) {
+            for (Object one : expand(empties, scope)) {
+                if (one instanceof Inst empty) for (Node built : build(empty, here, text, 1, 1)) node.add(built.id(source + ".empty"));
+            }
             return node;
         }
         boolean windowed = grids.get(source) == el;
@@ -309,43 +593,57 @@ public final class MarkupRender {
         int window = windowed && el.attr("rows") != null ? columns * Math.max(1, intAttr(el, "rows", 1)) : all.size();
         String key = "scroll." + source;
         int offset = offset(key, all.size(), window, columns);
-        List<? extends Map<String, ?>> visible = all.subList(offset, Math.min(all.size(), offset + window));
+        int end = Math.min(all.size(), offset + window);
+        int visible = end - offset;
         boolean own = el.attr("state") != null;
+        Set<String> seen = new HashSet<>();
         if (own) owners.add(el);
         try {
-            if (columns == 1) {
-                for (int i = 0; i < visible.size(); i++) {
-                    Scope row = new Scope(visible.get(i), scope);
-                    for (El child : template) for (Node built : build(child, row, here, text)) {
-                        node.add(built.id(source + "." + (offset + i) + "." + template.indexOf(child)));
+            Node line = null;
+            for (int i = offset; i < end; i++) {
+                Scope row = all.scope(i, null, null, scope);
+                String track = track(el, row, source, seen);
+                String base = track != null ? track : source + "." + i;
+                List<Object> drawn = expand(template, row);
+                List<Node> built = new ArrayList<>();
+                List<Integer> slots = new ArrayList<>();
+                for (Object one : drawn) {
+                    if (!(one instanceof Inst inst)) continue;
+                    // Which child of the template it is, so a hidden sibling never renames the others.
+                    int slot = template.indexOf(inst.el());
+                    for (Node b : build(inst, here, text, i - offset + 1, visible)) {
+                        built.add(b);
+                        slots.add(slot >= 0 ? slot : slots.size());
                     }
                 }
-            } else {
-                double gap = px(style.get("gap"), 0);
-                for (int start = 0; start < visible.size(); start += columns) {
-                    // A line fills its container: stretched across a column, grown along a row.
-                    Node line = Node.row().gap(gap).grow(node.kind() == Node.Kind.ROW ? 1 : 0);
-                    for (int c = 0; c < columns; c++) {
-                        int i = start + c;
-                        if (i >= visible.size()) {
-                            line.add(Node.box().width(0).grow(1));
-                            continue;
-                        }
-                        Scope row = new Scope(visible.get(i), scope);
-                        for (El child : template) for (Node built : build(child, row, here, text)) {
-                            // Every column the same width, whatever its words need, as CSS grid columns are.
-                            if (built.width() < 0) built.width(0);
-                            line.add(built.grow(1).id(source + "." + (offset + i)));
-                        }
+                if (columns == 1) {
+                    for (int c = 0; c < built.size(); c++) {
+                        // Untracked rows keep the ids they had before 1.494.0: source.row.child.
+                        String id = track != null ? (c == 0 ? base : base + "." + slots.get(c)) : base + "." + slots.get(c);
+                        node.add(built.get(c).id(id));
                     }
+                    continue;
+                }
+                int column = (i - offset) % columns;
+                if (column == 0) {
+                    // A line fills its container: stretched across a column, grown along a row.
+                    line = Node.row().gap(px(style.get("gap"), 0)).grow(node.kind() == Node.Kind.ROW ? 1 : 0);
                     node.add(line);
                 }
+                for (int c = 0; c < built.size(); c++) {
+                    Node cell = built.get(c);
+                    // Every column the same width, whatever its words need, as CSS grid columns are.
+                    if (cell.width() < 0) cell.width(0);
+                    line.add(cell.grow(1).id(c == 0 ? base : base + "." + c));
+                }
+                if (i == end - 1) for (int pad = column + 1; pad < columns; pad++) line.add(Node.box().width(0).grow(1));
             }
         } finally {
             if (own) owners.remove(owners.size() - 1);
         }
         if (windowed && window < all.size()) {
-            node.onScroll(event -> event.session().set(key, offset(key, all.size(), window, columns)
+            int size = all.size();
+            node.onScroll(event -> event.session().set(key, offset(key, size, window, columns)
                     + event.steps() * columns));
         }
         return node;
@@ -362,7 +660,7 @@ public final class MarkupRender {
     private Node pager(El el, Scope scope, Map<String, String> text) {
         El grid = grids.get(el.attr("for"));
         if (grid == null) {
-            parts.problems().accept("line " + el.line() + ": pager for \"" + el.attr("for") + "\" finds no grid");
+            parts.problems().accept(el.pos() + ": pager for \"" + el.attr("for") + "\" finds no grid");
             return Node.row();
         }
         String source = grid.attr("source");
@@ -375,9 +673,9 @@ public final class MarkupRender {
         // One page needs no pager.
         if (pages == 1) return Node.row();
         int page = Math.min(pages, (offset + window - 1) / window + 1);
-        Node previous = words(attrOr(el, "previous", "‹"), text).id(source + ".previous")
+        Node previous = words(fill(attrOr(el, "previous", "‹"), scope, true), text).id(source + ".previous")
                 .onClick(event -> event.session().set(key, Math.max(0, offset - window)));
-        Node next = words(attrOr(el, "next", "›"), text).id(source + ".next")
+        Node next = words(fill(attrOr(el, "next", "›"), scope, true), text).id(source + ".next")
                 .onClick(event -> event.session().set(key, offset + window < size ? offset + window : offset));
         Node label = words(page + " / " + pages, text).id(source + ".page");
         // keys="a d": the movement keys that turn the page back and on.
@@ -389,28 +687,49 @@ public final class MarkupRender {
         return Node.row(previous, label, next).align(Node.Align.CENTER);
     }
 
+    /** What the innermost row is about, for {@link ScreenEvent#row()}. */
+    private static Object rowOf(Scope scope) {
+        for (Scope s = scope; s != null; s = s.parent()) if (s.object() != null) return s.object();
+        return null;
+    }
+
     private void click(El el, Node node, Scope scope, Set<String> flags, String option, List<Css.Target> path,
                        String toggleKey) {
-        List<String> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
+        List<List<String>> action = el.attr("action") == null ? null : actions(el.attr("action"), scope);
+        List<List<String>> right = el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope);
         El owner = option == null ? null : stateOwner(path);
-        if (action == null && owner == null && toggleKey == null) return;
+        if (action == null && right == null && owner == null && toggleKey == null) return;
         boolean disabled = flags.contains("disabled");
         String stateKey = owner == null ? null : owner.attr("state");
+        Object row = rowOf(scope);
         node.onClick(event -> {
             if (disabled) {
                 event.viewer().playSound(event.viewer().getLocation(), "entity.villager.no", SoundCategory.MASTER, 0.4f, 1f);
                 return;
             }
+            ScreenEvent here = new ScreenEvent(event.session(), event.kind(), event.steps(), event.node(), row);
+            // A right click runs action-right when there is one, and everything else otherwise.
+            if (right != null && event.kind() == ScreenEvent.Kind.RIGHT) {
+                for (List<String> step : right) run(step, here, el);
+                return;
+            }
             if (stateKey != null) event.session().set(stateKey, option);
             if (toggleKey != null) event.session().set(toggleKey, !truthy(event.session().state(toggleKey, false)));
-            if (action != null) for (String one : action) run(one, event);
+            if (action != null) for (List<String> step : action) run(step, here, el);
         });
     }
 
-    /** Split on {@code ;} before filling, so a {@code ;} inside a placeholder's value never starts an action. */
-    private List<String> actions(String raw, Scope scope) {
-        List<String> out = new ArrayList<>();
-        for (String one : raw.split(";")) if (!one.isBlank()) out.add(fill(one, scope));
+    /**
+     * Steps split by {@code ;} and words split by spaces as written, then each word filled: a value with a space
+     * or a {@code ;} in it stays one argument of one step, whatever it holds.
+     */
+    private List<List<String>> actions(String raw, Scope scope) {
+        List<List<String>> out = new ArrayList<>();
+        for (List<String> step : Compile.Actions.steps(raw)) {
+            List<String> filled = new ArrayList<>(step.size());
+            for (String word : step) filled.add(Expr.text(value(word, scope)));
+            out.add(filled);
+        }
         return out;
     }
 
@@ -418,9 +737,10 @@ public final class MarkupRender {
      * Built-ins first ({@code close}, {@code set k v}, {@code clear k}, {@code toggle k}, {@code toast text}), then
      * the screen's, then a global id. Several run in order when separated by {@code ;}.
      */
-    private void run(String action, ScreenEvent event) {
-        List<String> words = new ArrayList<>(List.of(action.trim().split("\\s+")));
-        String name = words.remove(0);
+    private void run(List<String> step, ScreenEvent event, El el) {
+        if (step.isEmpty()) return;
+        List<String> words = step.subList(1, step.size());
+        String name = step.get(0);
         switch (name) {
             case "close" -> event.session().close();
             case "set" -> {
@@ -434,13 +754,16 @@ public final class MarkupRender {
                 if (!words.isEmpty()) event.session().set(words.get(0), !truthy(event.session().state(words.get(0), false)));
             }
             default -> {
-                BiConsumer<ScreenEvent, List<String>> handler = parts.actions().get(name);
+                BiConsumer<ScreenEvent, List<String>> handler = parts.bindings().actions().get(name);
                 if (handler != null) {
                     handler.accept(event, List.copyOf(words));
                 } else if (name.contains(":")) {
-                    Actions.compile(action.trim()).execute(ActionContext.forPlayer(event.viewer()).origin("screen").build());
+                    StringBuilder call = new StringBuilder(name);
+                    // Each argument escaped, so the action reads exactly the words the screen meant.
+                    for (String word : words) call.append(' ').append(word.isEmpty() ? "''" : word.replaceAll("([\\s'\"\\\\])", "\\\\$1"));
+                    Actions.compile(call.toString()).execute(ActionContext.forPlayer(event.viewer()).origin("screen").build());
                 } else {
-                    parts.problems().accept("no action \"" + name + "\" is registered");
+                    parts.problems().accept(el.pos() + ": no action \"" + name + "\" is registered");
                 }
             }
         }
@@ -507,14 +830,13 @@ public final class MarkupRender {
         });
     }
 
-    /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
     /**
      * {@code <img src="badge.png">} from the folder the markup was read from, or {@code <img skin="name">}: a player's
      * body. A picture that cannot be had is an empty box of its size, so the layout never jumps.
      */
     private Node image(El el, Scope scope) {
         if (el.attr("skin") != null) {
-            String name = fill(el.attr("skin"), scope).trim();
+            String name = fill(el.attr("skin"), scope, false).trim();
             Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name);
             Node node = (body == null ? Pictures.stranger(true) : body).node();
             // <img skin="..." turn>: the body in the round, turning.
@@ -522,23 +844,23 @@ public final class MarkupRender {
             return node;
         }
         if (el.attr("face") != null) {
-            String name = fill(el.attr("face"), scope).trim();
+            String name = fill(el.attr("face"), scope, false).trim();
             Pictures.Picture face = name.isEmpty() ? null : Pictures.face(name);
             return (face == null ? Pictures.stranger(false) : face).node();
         }
-        String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope).trim();
+        String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope, false).trim();
         if (src.isEmpty()) {
-            parts.problems().accept("<img> needs src, skin or face");
+            parts.problems().accept(el.pos() + ": <img> needs src, skin or face");
             return Node.box();
         }
         if (parts.images() == null) {
-            parts.problems().accept("<img src> needs markup read with ScreenMarkup.load or given images(dir)");
+            parts.problems().accept(el.pos() + ": <img src> needs markup read with ScreenMarkup.load or given images(dir)");
             return Node.box();
         }
         try {
             return Pictures.file(parts.images(), src).node();
         } catch (java.io.IOException failure) {
-            parts.problems().accept("<img src=\"" + src + "\">: " + failure.getMessage());
+            parts.problems().accept(el.pos() + ": <img src=\"" + src + "\">: " + failure.getMessage());
             return Node.box();
         }
     }
@@ -552,20 +874,21 @@ public final class MarkupRender {
         }
     }
 
+    /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
     private org.bukkit.inventory.ItemStack itemOf(El el, Scope scope) {
         String head = el.attr("head");
-        if (head != null && !(head = fill(head, scope).trim()).isEmpty() && !head.startsWith("%")) {
+        if (head != null && !(head = fill(head, scope, false).trim()).isEmpty() && !head.startsWith("%")) {
             return net.exylia.lib.skull.Skulls.player(head).item();
         }
         String texture = el.attr("texture");
-        if (texture != null && !(texture = fill(texture, scope).trim()).isEmpty() && !texture.startsWith("%")) {
+        if (texture != null && !(texture = fill(texture, scope, false).trim()).isEmpty() && !texture.startsWith("%")) {
             return net.exylia.lib.skull.Skulls.texture(texture).item();
         }
         String url = el.attr("url");
-        if (url != null && !(url = fill(url, scope).trim()).isEmpty() && !url.startsWith("%")) {
+        if (url != null && !(url = fill(url, scope, false).trim()).isEmpty() && !url.startsWith("%")) {
             return net.exylia.lib.skull.Skulls.url(url).item();
         }
-        String name = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope).trim();
+        String name = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope, false).trim();
         org.bukkit.Material material = name.isEmpty() ? null : org.bukkit.Material.matchMaterial(name);
         if (material == null || !material.isItem() || material.isAir()) material = org.bukkit.Material.PAPER;
         return new org.bukkit.inventory.ItemStack(material);
@@ -573,8 +896,8 @@ public final class MarkupRender {
 
     /** A bar: {@code value} of {@code max} filled in the text colour over the background. */
     private Node progress(El el, Scope scope, Map<String, String> style) {
-        double max = Math.max(0, px(fill(attrOr(el, "max", "100"), scope), 100));
-        double value = Math.max(0, Math.min(max, px(fill(attrOr(el, "value", "0"), scope), 0)));
+        double max = Math.max(0, px(fill(attrOr(el, "max", "100"), scope, false), 100));
+        double value = Math.max(0, Math.min(max, px(fill(attrOr(el, "value", "0"), scope, false), 0)));
         String colour = style.getOrDefault("color", "{primary}");
         Node bar = Node.row().height(4);
         if (value > 0) bar.add(Node.box().grow(value).background(colour));

@@ -130,6 +130,23 @@ public final class DefaultsMerge {
         return new Change(List.of(versionKey), Kind.CHANGED, current, shipped);
     }
 
+    /** What a whole-file change is called in {@code /exylialib updates}. */
+    private static final String WHOLE_FILE = "whole file";
+
+    /**
+     * A new version of a file that is not YAML, waiting beside the owner's edited copy as {@code <name>.new}.
+     *
+     * @since 1.494.0
+     */
+    public static @NotNull Change wholeFile() {
+        return new Change(List.of(WHOLE_FILE), Kind.CHANGED, "your edited file", "the new version (.new beside it)");
+    }
+
+    /** Whether a change is a {@link #wholeFile}. */
+    public static boolean isWholeFile(@NotNull Change change) {
+        return change.path().size() == 1 && change.path().get(0).equals(WHOLE_FILE) && "your edited file".equals(change.current());
+    }
+
     /** Whether a change is a {@link #layout}, which replaces the file rather than one key. */
     public static boolean isLayout(@NotNull Change change) {
         return change.path().size() == 1 && LAYOUT_KEYS.contains(change.path().get(0));

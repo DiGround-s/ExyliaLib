@@ -188,8 +188,8 @@ card[selected] { outline: 1px {success}; background: {success}18; }
 ```
 
 `problems()` lists what is outside the subset (an unknown tag, an unknown CSS property, a pager with no grid,
-an action or source that is not registered), each once, with its file and line. Only markup that is not
-well-formed throws, when it is read.
+an action or source that is not registered), each once, with its `file:line:col` (since 1.494.0). Only markup
+that is not well-formed throws, when it is read.
 
 ### Tags
 
@@ -214,23 +214,46 @@ well-formed throws, when it is read.
 ### Attributes on any tag
 
 - `id`, `class`: for CSS; an `id` also keeps a box's display between renders.
-- `if="tab == 'play'"`: `name`, `!name`, `name == 'x'`, `name != 'x'`, joined with `&&` and `||` (1.488.0;
-  `&amp;&amp;` in the file). Names are row fields, values, then state.
+- `if="tab == 'play'"`: an [expression](#expressions-14940) (1.494.0; before, only `name`, `!name`, `==`, `!=`,
+  `&&`, `||`). `&&` and `<` may be written bare. An `else` right after it is shown when it is not
+  (see [Choosing what is drawn](#choosing-what-is-drawn-14940)).
 - `action="name arg ..."`: built-ins `close`, `set <key> <value>`, `toggle <key>`, `clear <key> ...`,
   `toast <text>` (1.488.0); several run in order when split by `;`; then the markup's own
-  `action(...)`; then a namespaced ExyliaLib action (`practice:join_queue boxing`).
-- `key="w|a|s|d|space"` (1.492.0): pressing that movement key clicks the box while it is on screen and reachable
+  `action(...)`; then a namespaced ExyliaLib action (`practice:join_queue boxing`). Since 1.494.0 each word is
+  one argument after its placeholders are filled, so a value with spaces never splits; quote a word to keep
+  spaces in it (`toast 'Saved, see you'`).
+- `action-right="..."` (1.494.0): runs instead of `action` on a right click.
+- `key="w|a|s|d|space"` (1.492.0; `keybind=` is the same since 1.494.0): pressing that movement key clicks the box while it is on screen and reachable
   (inside the open dialog when one is up). `Node#key` in Java.
-- `selected`, `disabled`, `checked`: present (or true after placeholders) adds that CSS flag. A
+- `selected`, `disabled`, `checked`: present (a bare `disabled` works since 1.494.0, or true after
+  placeholders) adds that CSS flag. A
   `disabled` box refuses clicks with a quiet villager sound.
 - `state` + `default`: what an option group remembers, and what it shows before the player picks.
-- `%name%` anywhere: a row field inside a repeat, a registered `value`, or session state; left as written when
-  none of them knows it.
+- `%name%` anywhere: a row field inside a repeat, a registered `value`/`text`, or session state; then (1.494.0)
+  any placeholder the server knows (`%exyliaffa_total_players%`); left as written when none of them knows it.
+- `${expression}` anywhere (1.494.0): the [expression](#expressions-14940)'s result, in text and attributes.
+- `track="%kit_id%"` on a `grid`, `list` or `chips` (1.494.0): what makes a row the same row when the list
+  changes. Its boxes keep their identity (`kits@k2`) and glide to their new place when the order changes,
+  instead of every cell redrawing.
+- `t="key"` and `t-<attribute>="key"` (1.494.0): [words](#words-14940).
 
 ### CSS subset
 
 Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover`, compounds, descendants and
 comma lists, resolved by specificity then order. The base theme comes first, then each sheet given.
+
+Since 1.494.0 also: the child combinator `a > b`; `:root` (the `screen`); `:first-child`, `:last-child`,
+`:only-child`, `:nth-child(odd|even|3)` (rows of a repeat count as children); `:not(<simple selector>)`;
+`:selected`, `:disabled`, `:checked` as the attribute flags. Custom properties: `--name: value` on any rule,
+inherited, read with `var(--name)` or `var(--name, fallback)` in any value.
+
+```css
+:root { --accent: {primary}; }
+.danger-zone { --accent: {error}; }
+button { background: var(--accent); }
+list > row:nth-child(even) { background: {letters_black}10; }
+card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
+```
 
 | Property | Values |
 | --- | --- |
@@ -247,6 +270,152 @@ comma lists, resolved by specificity then order. The base theme comes first, the
 | `text-align` (1.488.0) | `left`, `center`, `right`; inherited |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
+
+## Authoring (1.494.0)
+
+Everything below works with `ScreenMarkup.parse`/`load` too, but a plugin ships screens through a
+`ScreenSet`, which owns the files, the words and the reloads.
+
+### Screen files
+
+```java
+ScreenSet screens = Screens.of(plugin).files(MyPlugin.class, "screens");
+ScreenMarkup hub = screens.markup("practice_hub")          // screens/practice_hub.html
+        .rows("players", session -> players(session))     // List<UiEntry>
+        .text("invite_query", session -> session.state("invite_query", ""))
+        .action("duel_pick", (event, args) -> pick(event, args.get(0)));
+hub.problems().forEach(plugin.getLogger()::warning);
+// on the plugin's reload:
+screens.reload();
+```
+
+- The jar's `screens/` folder is installed into the data folder and kept up to date by `BundledFiles`: a file
+  the owner never edited is replaced with each new jar; an edited one stays, with the new version written next
+  to it as `<name>.new` and listed in `/exylialib updates` (apply swaps them and keeps yours as `.old`). This
+  holds for HTML, CSS and pictures, so shipped screens improve on servers without losing anyone's edits.
+- Sheets, later ones winning: the library's base theme, `plugins/ExyliaLib/screens/theme.css` (one network
+  look for every plugin), `theme.css`, `<id>.css`, then `custom.css`. The plugin never ships `custom.css`:
+  it is where an owner puts their own rules, and it is never touched by an update.
+- `components/*.html` next to the screen is read for [templates](#components), `<include>` reads from the
+  same folder (never outside it), and `img src=` too.
+- `markup(id)` returns the same object every time; sources, values and actions registered on it survive every
+  reload. `reload()` installs what the jar brought and reads every screen again; a screen that no longer reads
+  keeps its last good version and says why in `problems()`.
+- **Hot reload**: edits to any of those files, or to the words, show on open screens within two seconds (the
+  dates are checked off the main thread). `hotReload(false)` turns it off.
+- `/exylialib screens check [plugin]` lists every problem with its `file:line:col`; `/exylialib screens reload
+  [plugin]` reads them again (permission `exylialib.admin`).
+- `BundledFiles.retire(plugin, "lang/en/screens/old.html")` deletes a file a plugin stopped shipping unless the
+  owner edited it (it returns `false` then, so the plugin can say so).
+
+### Words (1.494.0)
+
+One HTML serves every language. An element with `t="key"` shows the word `key` of
+`lang/<code>/screens/<id>.yml` (the server's language, then English), and the text written in the HTML when
+neither has it. `t-<attribute>="key"` does the same for an attribute (`t-on`, `t-off`, `t-title`). Words may
+hold colour tokens, `%placeholders%` and `${...}`; `t('key', 'fallback')` reads one inside an expression.
+
+```html
+<h1 t="play.title">Play</h1>
+<toggle checked="%party_open%" action="party_open" on="Open" off="Private" t-on="party.open" t-off="party.private"/>
+```
+
+```yaml
+# lang/es/screens/practice_hub.yml
+play:
+  title: 'Jugar'
+party:
+  open: 'Abierta'
+  private: 'Privada'
+```
+
+An element with `t` holds only text (words replace its children).
+
+### Expressions (1.494.0)
+
+`${...}` in any text or attribute, and the whole of `if`, `else if` and `switch on`, is an expression:
+
+| | |
+| --- | --- |
+| Values | `'text'` or `"text"`, numbers, `true`, `false`, `null`, `%placeholder%`, names (`kills`, `kit.kit_name`, `loop.index`) |
+| Operators | `?:`, `or`/`\|\|`, `and`/`&&`, `not`/`!`, `== != < <= > >=`, `in` (a word of a text, an item of a list), `+ - * / %`, unary `-`, parentheses |
+| Functions | `min`, `max`, `abs`, `round`, `floor`, `ceil`, `len`, `upper`, `lower`, `plural(n, 'one', 'many')`, `t('key', 'fallback')`, `fmt.number(1234)` → `1,234`, `fmt.percent(0.53)` → `53%`, `fmt.time(seconds)` → `1h 1m 5s` |
+
+Names are looked up as a `for` alias, `loop.*`, a row field, a value, a text, session state, then the defaults;
+a `%placeholder%` the screen does not know is asked of the server's placeholders. `+` adds numbers and joins
+anything else; comparisons are numeric when both sides are numbers. Empty, `0`, `false`, `no`, null and a
+placeholder left as written are false. An expression that does not parse is a problem at its `file:line:col`.
+
+```html
+<small>${kills + deaths} ${plural(kills, 'kill', 'kills')} · ${ratio > 1.5 ? 'good' : 'keep going'}</small>
+<text if="queued != 0 and tab in 'play duels'">${fmt.time(wait)}</text>
+```
+
+### Choosing what is drawn (1.494.0)
+
+```html
+<text if="match_win">W</text>
+<text else if="match_loss">L</text>
+<text else>D</text>
+
+<switch on="tab">
+  <case value="play">...</case>
+  <case value="duels|party">...</case>   <!-- | lists several -->
+  <default>...</default>
+</switch>
+
+<for each="kit in kits"><text>${loop.number}. ${kit.kit_name}</text></for>   <!-- a source -->
+<for each="i in 1..5"><box class="star"/></for>                              <!-- a range, up to 256 -->
+```
+
+`else` is an attribute (with an optional `if`, for else-if) or an `<else>` element, and must follow an element
+with `if`. Inside a `for`, `loop.index` (from 0), `loop.number` (from 1), `loop.count`, `loop.first` and
+`loop.last` are known; a `for` draws its children once per row, in place, without a grid's window or pager.
+`<fragment>` groups elements without a box of its own.
+
+### Components
+
+```html
+<!-- components/hub.html -->
+<template name="stat" props="label value tone=info">
+  <row class="stat"><small t="${label}"><slot/></small><box class="spacer"/><b>{${tone}}${value}</b></row>
+</template>
+```
+
+```html
+<stat label="stats.kills" value="%me_kills%" tone="success">Kills</stat>
+<include src="parts/dialogs.html"/>
+```
+
+- `<template name props>` declares a tag; `props` lists its attributes, `name=default` for optional ones.
+  Templates in `components/*.html` are known to every screen of the folder; one in a screen is known there.
+- A use writes each prop into the template where it says `${prop}`, puts its own children where `<slot/>` is,
+  keeps its `if`/`else`, and adds any other attribute (`id`, `class`, `action`) to the template's root.
+- `<include src="...">` inlines another file of the folder (any number of roots), up to 16 deep.
+
+### Values that cannot restyle a screen (1.494.0)
+
+A value a player chose (a name, a typed search, a layout name) must never inject colours or markup:
+
+- `text(name, session -> ...)` registers a value drawn exactly as written.
+- `rows(name, session -> List<UiEntry>)` registers a source whose rows are `UiEntry`s: fields set with
+  `with(...)` are drawn as written, `withFormatted(...)` keep their colours (a kit's display name). The row's
+  `value` object comes back on a click as `event.row()`.
+- Session state (what `set`, chips, tabs and inputs store) is drawn as written.
+- `value(...)` and `source(...)` with maps stay as they were: formatted, for text the plugin controls.
+
+```java
+hub.rows("layouts", session -> slots(session).stream()
+        .map(slot -> UiEntry.of(slot)
+                .with("slot_name", slot.name())                 // typed by the player
+                .withFormatted("kit_name", slot.kit().displayName())
+                .build())
+        .toList())
+   .action("layout_delete", (event, args) -> event.row(KitSlot.class).ifPresent(slots::delete));
+```
+
+`ScreenEvent#row()` is the row the clicked box was drawn for (`null` outside a repeat), `row(Type.class)` the
+same as an `Optional`.
 
 ## Trying it
 

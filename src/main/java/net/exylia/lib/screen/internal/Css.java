@@ -7,32 +7,67 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The CSS subset a screen reads: rules of selectors and declarations, matched by specificity then order.
  *
- * <p>Selectors: a tag, {@code #id}, {@code .class}, {@code [attr]}, {@code :hover}, compounds of those, and
- * descendants separated by spaces; several selectors per rule separated by commas. Comments are
- * {@code /* ... * /}.
+ * <p>Selectors: a tag, {@code *}, {@code #id}, {@code .class}, {@code [attr]}, {@code :hover}, {@code :root},
+ * {@code :first-child}, {@code :last-child}, {@code :only-child}, {@code :nth-child(odd|even|n)},
+ * {@code :not(simple)}, {@code :disabled}/{@code :checked}/{@code :selected} (aliases of the attributes), compounds
+ * of those, descendants separated by spaces and children by {@code >}; several selectors per rule separated by
+ * commas. Custom properties ({@code --accent: {primary}}) are inherited and read with {@code var(--accent)} or
+ * {@code var(--accent, fallback)}. Comments are {@code /* ... * /}.
  *
  * <p>Internal: free to change without notice.
  */
 public final class Css {
 
-    /** Every property the screen reads; anything else is reported. */
+    /** Every property the screen reads; anything else is reported. Custom properties ({@code --x}) always are. */
     public static final Set<String> PROPERTIES = Set.of("flex-direction", "display", "gap", "padding", "width",
             "height", "flex-grow", "align-items", "justify-content", "background", "outline", "border", "color",
             "font-size", "font-weight", "text-align");
 
-    /** One selector step: what one element must have. */
-    record Step(String tag, String id, List<String> classes, List<String> attrs, boolean hover) {
+    /** Properties a child takes from its parent when it sets none. */
+    static final Set<String> INHERITED = Set.of("color", "font-size", "font-weight", "text-align");
+
+    private static final Pattern COMPOUND = Pattern.compile(
+            "([a-zA-Z][\\w-]*|\\*)?((?:#[\\w-]+|\\.[\\w-]+|\\[[\\w-]+]|:[\\w-]+(?:\\([^)]*\\))?)*)");
+    private static final Pattern BIT = Pattern.compile("#([\\w-]+)|\\.([\\w-]+)|\\[([\\w-]+)]|:([\\w-]+)(?:\\(([^)]*)\\))?");
+    private static final Pattern VAR = Pattern.compile("var\\(\\s*(--[\\w-]+)\\s*(?:,\\s*([^()]*))?\\)");
+
+    /**
+     * One selector step: what one element must have.
+     *
+     * @param child whether the step before it must be its parent ({@code >}) rather than any ancestor
+     * @param nth   {@code first}, {@code last}, {@code only}, {@code odd}, {@code even}, a number, or {@code null}
+     */
+    record Step(String tag, String id, List<String> classes, List<String> attrs, boolean hover, boolean root,
+                String nth, List<Step> not, boolean child) {
 
         boolean matches(Target target, boolean hovered) {
             if (tag != null && !tag.equals(target.tag())) return false;
+            if (root && !target.tag().equals("screen")) return false;
             if (id != null && !id.equals(target.id())) return false;
             for (String c : classes) if (!target.classes().contains(c)) return false;
             for (String a : attrs) if (!target.flags().contains(a)) return false;
+            if (nth != null && !nth(target)) return false;
+            for (Step negated : not) if (negated.matches(target, hovered)) return false;
             return !hover || hovered;
+        }
+
+        private boolean nth(Target target) {
+            int i = target.index();
+            if (i <= 0) return false;
+            return switch (nth) {
+                case "first" -> i == 1;
+                case "last" -> i == target.count();
+                case "only" -> target.count() == 1;
+                case "odd" -> i % 2 == 1;
+                case "even" -> i % 2 == 0;
+                default -> nth.equals(Integer.toString(i));
+            };
         }
     }
 
@@ -47,14 +82,21 @@ public final class Css {
      * What a selector sees of one element.
      *
      * @param flags attribute names present (and true) on it, such as {@code selected} or {@code disabled}
+     * @param index its place among its parent's elements, from 1; 0 when unknown
+     * @param count how many elements its parent has
      */
-    public record Target(String tag, String id, Set<String> classes, Set<String> flags) {
+    public record Target(String tag, String id, Set<String> classes, Set<String> flags, int index, int count) {
+
+        public Target(String tag, String id, Set<String> classes, Set<String> flags) {
+            this(tag, id, classes, flags, 0, 0);
+        }
     }
 
     private final List<Rule> rules = new ArrayList<>();
     /** Computed styles by element path and hover: the same element in every row and every render asks again. */
     private final com.github.benmanes.caffeine.cache.Cache<Object, Object> computed =
             com.github.benmanes.caffeine.cache.Caffeine.newBuilder().maximumSize(4096).build();
+    private boolean variables;
 
     private record Key(List<Target> path, int hovered) {
     }
@@ -62,7 +104,7 @@ public final class Css {
     /** Reads {@code source} after any rules already here, so later sheets win ties. */
     public Css add(String source, String name, Consumer<String> problems) {
         // Palette tokens ({primary}) use the same braces as rules: set them aside while splitting.
-        String text = source.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("\\{([\\w-]+)}", "\uE000$1\uE001");
+        String text = source.replaceAll("(?s)/\\*.*?\\*/", " ").replaceAll("\\{([\\w-]+)}", "$1");
         int at = 0;
         while (true) {
             int open = text.indexOf('{', at);
@@ -81,13 +123,15 @@ public final class Css {
                     problems.accept(name + ":" + line(text, open) + ": \"" + declaration.trim() + "\" has no value");
                     continue;
                 }
-                String property = declaration.substring(0, colon).trim().toLowerCase(java.util.Locale.ROOT);
-                if (!PROPERTIES.contains(property)) {
+                String property = declaration.substring(0, colon).trim();
+                if (!property.startsWith("--")) property = property.toLowerCase(java.util.Locale.ROOT);
+                if (!property.startsWith("--") && !PROPERTIES.contains(property)) {
                     problems.accept(name + ":" + line(text, open) + ": unknown property \"" + property + "\"");
                     continue;
                 }
-                declarations.put(property, declaration.substring(colon + 1).trim()
-                        .replace('\uE000', '{').replace('\uE001', '}'));
+                String value = declaration.substring(colon + 1).trim().replace('', '{').replace('', '}');
+                if (property.startsWith("--") || value.contains("var(")) variables = true;
+                declarations.put(property, value);
             }
             for (String selector : selectors.split(",")) {
                 Selector parsed = selector(selector.trim());
@@ -109,42 +153,127 @@ public final class Css {
     static Selector selector(String text) {
         if (text.isEmpty()) return null;
         List<Step> steps = new ArrayList<>();
-        int ids = 0, classes = 0, tags = 0;
-        for (String part : text.split("\\s+")) {
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("([a-zA-Z][\\w-]*|\\*)?((?:#[\\w-]+|\\.[\\w-]+|\\[[\\w-]+]|:hover)*)").matcher(part);
-            if (!m.matches()) return null;
-            String tag = m.group(1) == null || m.group(1).equals("*") ? null : m.group(1);
-            String id = null;
-            List<String> cls = new ArrayList<>();
-            List<String> attrs = new ArrayList<>();
-            boolean hover = false;
-            java.util.regex.Matcher bits = java.util.regex.Pattern.compile("#([\\w-]+)|\\.([\\w-]+)|\\[([\\w-]+)]|(:hover)")
-                    .matcher(m.group(2));
-            while (bits.find()) {
-                if (bits.group(1) != null) id = bits.group(1);
-                else if (bits.group(2) != null) cls.add(bits.group(2));
-                else if (bits.group(3) != null) attrs.add(bits.group(3));
-                else hover = true;
+        int[] weight = new int[3];
+        boolean child = false;
+        // "a > b" and "a>b" both name a child.
+        for (String part : text.replace(">", " > ").trim().split("\\s+")) {
+            if (part.equals(">")) {
+                if (steps.isEmpty() || child) return null;
+                child = true;
+                continue;
             }
-            if (tag != null) tags++;
-            if (id != null) ids++;
-            classes += cls.size() + attrs.size() + (hover ? 1 : 0);
-            steps.add(new Step(tag, id, cls, attrs, hover));
+            Step step = step(part, child, weight);
+            if (step == null) return null;
+            steps.add(step);
+            child = false;
         }
-        return new Selector(steps, ids * 10000 + classes * 100 + tags);
+        if (child || steps.isEmpty()) return null;
+        return new Selector(steps, weight[0] * 10000 + weight[1] * 100 + weight[2]);
+    }
+
+    private static Step step(String part, boolean child, int[] weight) {
+        Matcher m = COMPOUND.matcher(part);
+        if (!m.matches()) return null;
+        String tag = m.group(1) == null || m.group(1).equals("*") ? null : m.group(1);
+        String id = null;
+        List<String> cls = new ArrayList<>();
+        List<String> attrs = new ArrayList<>();
+        List<Step> not = new ArrayList<>();
+        boolean hover = false;
+        boolean root = false;
+        String nth = null;
+        Matcher bits = BIT.matcher(m.group(2));
+        while (bits.find()) {
+            if (bits.group(1) != null) {
+                id = bits.group(1);
+                weight[0]++;
+            } else if (bits.group(2) != null) {
+                cls.add(bits.group(2));
+                weight[1]++;
+            } else if (bits.group(3) != null) {
+                attrs.add(bits.group(3));
+                weight[1]++;
+            } else {
+                String pseudo = bits.group(4);
+                String arg = bits.group(5) == null ? null : bits.group(5).trim();
+                switch (pseudo) {
+                    case "hover" -> hover = true;
+                    case "root" -> root = true;
+                    case "disabled", "checked", "selected" -> attrs.add(pseudo);
+                    case "first-child" -> nth = "first";
+                    case "last-child" -> nth = "last";
+                    case "only-child" -> nth = "only";
+                    case "nth-child" -> {
+                        if (arg == null || !arg.matches("odd|even|\\d+")) return null;
+                        nth = arg;
+                    }
+                    case "not" -> {
+                        if (arg == null || arg.contains(" ")) return null;
+                        Step negated = step(arg, false, weight);
+                        if (negated == null) return null;
+                        not.add(negated);
+                    }
+                    default -> {
+                        return null;
+                    }
+                }
+                if (!pseudo.equals("not")) weight[1]++;
+            }
+        }
+        if (tag != null) weight[2]++;
+        return new Step(tag, id, cls, attrs, hover, root, nth, not, child);
     }
 
     /**
-     * The declarations that apply to {@code path}'s last element, the cascade already resolved.
+     * The declarations that apply to {@code path}'s last element, the cascade already resolved and every
+     * {@code var()} filled.
      *
      * @param path    the element and its ancestors, root first
      * @param hovered whether {@code :hover} on the last element matches
      */
     @SuppressWarnings("unchecked")
     public Map<String, String> style(List<Target> path, boolean hovered) {
-        return (Map<String, String>) computed.get(new Key(List.copyOf(path), hovered ? 1 : 0),
-                key -> java.util.Collections.unmodifiableMap(cascade(path, hovered)));
+        Key key = new Key(List.copyOf(path), hovered ? 1 : 0);
+        Object known = computed.getIfPresent(key);
+        if (known != null) return (Map<String, String>) known;
+        // Not computed inside the cache: a var() reads the parent's style, which is another entry.
+        Map<String, String> style = java.util.Collections.unmodifiableMap(resolve(path, hovered));
+        computed.put(key, style);
+        return style;
+    }
+
+    private Map<String, String> resolve(List<Target> path, boolean hovered) {
+        Map<String, String> own = cascade(path, hovered);
+        if (!variables) return own;
+        // Custom properties inherit: the parent's, then this element's own.
+        Map<String, String> vars = new LinkedHashMap<>();
+        if (path.size() > 1) {
+            for (Map.Entry<String, String> e : style(path.subList(0, path.size() - 1), false).entrySet()) {
+                if (e.getKey().startsWith("--")) vars.put(e.getKey(), e.getValue());
+            }
+        }
+        for (Map.Entry<String, String> e : own.entrySet()) {
+            if (e.getKey().startsWith("--")) vars.put(e.getKey(), fill(e.getValue(), vars, 0));
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : own.entrySet()) {
+            if (!e.getKey().startsWith("--")) out.put(e.getKey(), fill(e.getValue(), vars, 0));
+        }
+        out.putAll(vars);
+        return out;
+    }
+
+    private static String fill(String value, Map<String, String> vars, int depth) {
+        if (!value.contains("var(") || depth > 8) return value;
+        Matcher m = VAR.matcher(value);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            String found = vars.get(m.group(1));
+            String replacement = found != null ? found : m.group(2) != null ? m.group(2).trim() : "";
+            m.appendReplacement(out, Matcher.quoteReplacement(fill(replacement, vars, depth + 1)));
+        }
+        m.appendTail(out);
+        return out.toString();
     }
 
     private Map<String, String> cascade(List<Target> path, boolean hovered) {
@@ -173,17 +302,24 @@ public final class Css {
 
     private static boolean matches(Selector selector, List<Target> path, boolean hovered) {
         List<Step> steps = selector.steps();
-        int at = path.size() - 1;
-        if (!steps.get(steps.size() - 1).matches(path.get(at), hovered)) return false;
-        // Descendant steps: each one somewhere further up, in order. :hover only means the element itself.
-        for (int s = steps.size() - 2; s >= 0; s--) {
-            Step step = steps.get(s);
-            do {
-                at--;
-            } while (at >= 0 && !step.matches(path.get(at), false));
-            if (at < 0) return false;
+        int last = path.size() - 1;
+        if (!steps.get(steps.size() - 1).matches(path.get(last), hovered)) return false;
+        return ancestors(steps, steps.size() - 2, path, last - 1, steps.get(steps.size() - 1).child());
+    }
+
+    /**
+     * Whether steps {@code 0..s} match the ancestors from {@code at} up, the step after {@code s} being a child
+     * of the one at {@code s} when {@code child}. Backtracks, so {@code .a .b > c} finds the right {@code .b}.
+     */
+    private static boolean ancestors(List<Step> steps, int s, List<Target> path, int at, boolean child) {
+        if (s < 0) return true;
+        Step step = steps.get(s);
+        for (int i = at; i >= 0; i--) {
+            // :hover only means the element itself.
+            if (step.matches(path.get(i), false) && ancestors(steps, s - 1, path, i - 1, step.child())) return true;
+            if (child) return false;
         }
-        return true;
+        return false;
     }
 
     /** Names in a class attribute. */

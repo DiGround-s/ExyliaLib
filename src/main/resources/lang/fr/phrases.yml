@@ -1724,3 +1724,6 @@ World: Monde
 '{muted}Offline: delivered on their next join.': '{muted}Hors ligne : livrées à sa prochaine connexion.'
 '{success}All caught up': '{success}Tout est à jour'
 '{success}All delivered': '{success}Tout est livré'
+'{letters_black}▎ {success}No problems {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Aucun problème {letters_black}» {letters}Écrans{letters_black}: {info}{0}'
+'{letters_black}▎ {warning}Problems{letters_black}: {warning}{0} {letters_black}» {letters}Screens{letters_black}: {info}{1}': '{letters_black}▎ {warning}Problèmes{letters_black}: {warning}{0} {letters_black}» {letters}Écrans{letters_black}: {info}{1}'
+'{letters_black}▎ {success}Read again {letters_black}» {letters}Screens{letters_black}: {info}{0}': '{letters_black}▎ {success}Relus {letters_black}» {letters}Écrans{letters_black}: {info}{0}'
