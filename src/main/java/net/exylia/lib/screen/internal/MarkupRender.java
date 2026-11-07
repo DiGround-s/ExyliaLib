@@ -87,6 +87,9 @@ public final class MarkupRender {
     private final Parts parts;
     private final ScreenSession session;
     private final Map<String, Rows> rows = new HashMap<>();
+    /** What {@code <item row/>} draws for a row of a {@link UiEntry} source, by that row's own value map. */
+    private final Map<Map<String, ?>, java.util.function.Supplier<org.bukkit.inventory.ItemStack>> rowItems =
+            new java.util.IdentityHashMap<>();
     /** Grids by id or source, for pagers. */
     private final Map<String, El> grids = new HashMap<>();
     /** A {@code state} key's {@code default}, read before the player has picked anything. */
@@ -296,7 +299,8 @@ public final class MarkupRender {
         return rows.computeIfAbsent(source, name -> {
             Function<ScreenSession, List<UiEntry>> entries = parts.bindings().entries().get(name);
             net.exylia.lib.ui.UiSession menu = entries == null && !parts.bindings().sources().containsKey(name) ? menu() : null;
-            if (menu != null && menu.definition().section(name) != null) {
+            boolean chest = menu != null && menu.definition().section(name) != null;
+            if (chest) {
                 // The chest menu's own list, as the plugin filled it; row_template says which template the chest
                 // would draw it with ("" for the default), so a screen can tell a locked row apart. A row that
                 // carries nothing at all only holds a chest slot empty, so it is left out.
@@ -314,6 +318,9 @@ public final class MarkupRender {
                 for (UiEntry entry : list) {
                     UiEntry now = entry.isLive() ? entry.refreshed() : entry;
                     maps.add(now.values());
+                    // The chest's own drawing of the row, or the item a binding's row brought: <item row/>.
+                    if (chest) rowItems.put(now.values(), () -> menu.render(name, now));
+                    else if (now.item() != null) rowItems.put(now.values(), now::item);
                     formatted.add(now.formatted());
                     objects.add(now.value() != null ? now.value() : now);
                 }
@@ -1175,6 +1182,17 @@ public final class MarkupRender {
 
     /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
     private org.bukkit.inventory.ItemStack itemOf(El el, Scope scope) {
+        if (el.attr("row") != null) {
+            // The row's own item: what the chest menu draws for it (a banner, a dyed armour piece, a stored
+            // stack), when the row is one of a UiEntry source; the attributes below are the fallback.
+            for (Scope s = scope; s != null; s = s.parent()) {
+                if (s.row() == null) continue;
+                java.util.function.Supplier<org.bukkit.inventory.ItemStack> own = rowItems.get(s.row());
+                org.bukkit.inventory.ItemStack stack = own == null ? null : own.get();
+                if (stack != null && !stack.getType().isAir()) return stack;
+                break;
+            }
+        }
         String head = el.attr("head");
         if (head != null && !(head = fill(head, scope, false).trim()).isEmpty() && !head.startsWith("%")) {
             return net.exylia.lib.skull.Skulls.player(head).item();

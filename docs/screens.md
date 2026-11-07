@@ -809,6 +809,15 @@ A routed screen is drawn from the same data as the chest menu it stands for, so 
   value of its own keeps it. A row that carries nothing (no object, values or item: a chest's placeholder that only
   keeps a slot empty, `UiEntry.row().template("empty")`) is left out, so the screen's grid has no holes. `screens check` does not report a source of a routed screen that no
   binding registers, since the menu's sections answer it.
+- `<item row/>` (1.506.0) draws **the item the chest draws for that row**: its template filled with the row's
+  values and the menu's context, so what no material names (a shield's banner patterns, a dyed piece, a player's
+  stored stack) shows as it does in the chest. `material=`/`head=`... are the fallback while it draws nothing. A row of
+  a screen's own `rows(...)` binding draws the item it brought with `UiEntry.Builder#item`. Java:
+  `UiSession#render(section, row)`.
+
+  ```html
+  <grid source="main" columns="7" rows="2"><card action="shield:open_editor"><item row material="shield"/></card></grid>
+  ```
 - `ns:id args` actions run with `UiKeys.SESSION` (the chest menu behind the screen), `UiKeys.MENU` and
   `UiKeys.ENTRY` (the clicked row's object), exactly as from a chest, so the YAML's action strings work unchanged.
 - Bindings registered on the screen (`value`, `text`, `rows`, `action`) are read **once a render** however many rows

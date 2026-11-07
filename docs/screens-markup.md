@@ -68,6 +68,7 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `for` | On `pager`: the grid's `source` or `id` | `for="kits"` | 1.485.0 | - |
 | `on`, `off` | Words of a `toggle` (on `switch`, `on` is the expression) | `on="Open" off="Private"` | 1.485.0 | - |
 | `material`, `glyph`, `head`, `texture`, `url` | Item choice for `icon`/`item`/`item3d`; `glyph` is the sub-1.21.9 stand-in | `head="%player_name%"` | 1.488.0 | a skin lookup runs on an async task the first time |
+| `row` | On `item`/`item3d` inside a repeat over `UiEntry` rows: the row's own item, as the chest menu draws it (template filled, banner patterns, dyes, a stored stack); `material=` etc. are the fallback | `<item row material="shield"/>` | 1.506.0 | the chest's item render, once a render per row shown |
 | `src`, `skin`, `face`, `turn`, `wearing`, `spin` | Pictures and bodies, see tags `img` and `item3d` | `wearing="diamond_helmet diamond_sword"` | see tags | see tags |
 | `max`, `value` | `progress` (`max` default 100); `max` on `search` is the longest text (default 32); `value` on options/`case` | `max="16"` | 1.485.0 | - |
 | `prompt`, `hint` | Texts of a `search` | `prompt="Search a kit"` | 1.496.0 | - |

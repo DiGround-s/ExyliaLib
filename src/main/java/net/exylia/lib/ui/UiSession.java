@@ -105,6 +105,20 @@ public interface UiSession {
     @NotNull List<UiEntry> entries(@NotNull String section);
 
     /**
+     * The item this menu draws for one row of a list: the row's own item when it brought one, else its template
+     * filled with its values and the menu's context, as the chest shows it. A screen standing for the menu draws it
+     * with {@code <item row/>}.
+     *
+     * @param section which list the row belongs to
+     * @param row     the row
+     * @return the item, or {@code null} when the row's template (or its condition) draws nothing
+     * @since 1.506.0
+     */
+    default @Nullable org.bukkit.inventory.ItemStack render(@NotNull String section, @NotNull UiEntry row) {
+        return row.item();
+    }
+
+    /**
      * Replaces the rows of a list and redraws it.
      *
      * <p>The page is kept where it was, clamped to what still exists. A

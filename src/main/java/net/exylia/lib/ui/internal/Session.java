@@ -1159,6 +1159,18 @@ final class Session implements UiSession {
         drawNavigation(list, rows.size());
     }
 
+    @Override
+    public @Nullable ItemStack render(@NotNull String section, @NotNull UiEntry entry) {
+        if (entry.hasItem()) return entry.item();
+        UiSection list = definition.section(section);
+        UiItem template = list == null ? null : list.template(entry.template());
+        if (template == null || !passes(template, entry.values())) return null;
+        Map<String, String> context = contextText();
+        Map<String, String> all = context.isEmpty() ? entry.values() : merged(context, entry.values());
+        Set<String> parsed = context.isEmpty() ? entry.formatted() : parsed(context, entry.values(), entry.formatted());
+        return items.renderIcon(template.item(), viewer, all, parsed, verbatim(entry.verbatim()));
+    }
+
     /** Draws one row of a list into its slot. */
     private void drawRow(UiSection list, int slot, UiEntry entry) {
         UiItem template = list.template(entry.template());

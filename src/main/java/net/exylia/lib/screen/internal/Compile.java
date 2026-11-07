@@ -46,7 +46,9 @@ public final class Compile {
             // 1.501.0
             "require", "deny", "require-right", "deny-right", "require-shift", "deny-shift",
             // 1.502.0: on <screen>, read by whichever plugin opens screens by command (ExyliaScreens)
-            "command", "aliases", "permission");
+            "command", "aliases", "permission",
+            // 1.506.0: <item row/>, the row's own item
+            "row");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
