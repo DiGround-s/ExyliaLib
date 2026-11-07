@@ -525,11 +525,24 @@ public final class OverlayView {
             runActions(index, kind, target, block, actions);
         }
         if (!commands.isEmpty()) {
-            Commands.of(plugin).run(commands, viewer, Map.of());
+            Commands.of(plugin).run(commands, viewer, commandData(target));
         }
         if (definition.refresh().isOnClick()) {
             drawSlot(index);
         }
+    }
+
+    /**
+     * What a bound command can read about the press: {@code %target%} and
+     * {@code %target_uuid%} when it landed on an entity, so a line such as
+     * {@code right: player: inspect %target%} is about the player under the
+     * crosshair rather than an empty argument.
+     */
+    static Map<String, Object> commandData(@Nullable Entity target) {
+        if (target == null) {
+            return Map.of();
+        }
+        return Map.of("target", target.getName(), "target_uuid", target.getUniqueId().toString());
     }
 
     private void runActions(int index, ClickKind kind, @Nullable Entity target,

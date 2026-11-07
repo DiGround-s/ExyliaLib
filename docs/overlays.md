@@ -200,7 +200,9 @@ well as on the inventory screen:
 
 Actions are given `overlay.id`, `overlay.slot`, `overlay.click`, and —
 when the press was on something — `overlay.target` (the entity) and
-`overlay.block`. `OverlayKeys` names them.
+`overlay.block`. `OverlayKeys` names them. Commands read the entity as
+`%target%` (its name) and `%target_uuid%`, so `right: player: inspect %target%`
+inspects the player that was clicked.
 
 Left-clicking **air** is the swing of the arm, because that is the only packet
 the client sends for it. A block press stops reaching the server as soon as the
