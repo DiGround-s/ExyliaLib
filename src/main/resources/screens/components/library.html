@@ -25,3 +25,62 @@
 <template name="dialog" props="title when dismiss">
   <modal if="${when}" dismiss="${dismiss}"><h1>${title}</h1><slot/></modal>
 </template>
+
+<!--
+  The game frame (docs/screens.md, "Giving a game its screen form"): one 400 by 225 frame for every game. Java binds it
+  with net.exylia.lib.screen.GameFrame. Every word is the library's, translated, unless the screen's own words say
+  otherwise (frame.play, frame.how, frame.payouts, frame.again, frame.change, frame.leave).
+-->
+<template name="game-frame" props="title">
+  <column id="game-frame" class="game-frame">
+    <row class="game-head">
+      <h2 class="game-title">${title}</h2>
+      <box class="spacer"/>
+      <tabs class="game-tabs" state="game_tab" default="play">
+        <tab value="play" t="frame.play">${tr('Play')}</tab>
+        <tab value="how" t="frame.how">${tr('How to play')}</tab>
+        <tab value="payouts" t="frame.payouts">${tr('Payouts')}</tab>
+      </tabs>
+    </row>
+    <slot/>
+  </column>
+</template>
+
+<template name="game-play">
+  <row if="game_tab == 'play'" id="game-page-play" class="game-play"><slot/></row>
+</template>
+
+<template name="game-board">
+  <box class="game-board"><slot/></box>
+</template>
+
+<template name="game-side">
+  <column class="game-side"><slot/></column>
+</template>
+
+<template name="game-figure" props="value tone=letters">
+  <row class="game-figure"><slot/><box class="spacer"/><b>{${tone}}${value}</b></row>
+</template>
+
+<template name="game-action" props="action disabled=false">
+  <button class="game-action" action="${action}" disabled="${disabled}"><slot/></button>
+</template>
+
+<template name="game-result">
+  <column if="game_result" id="game-result" class="game-result game-result-${game_tone}">
+    <b class="game-result-title">%game_result%</b>
+    <text if="game_detail" class="game-result-detail">%game_detail%</text>
+    <column if="game_offer" id="game-offer" class="game-offer">
+      <button class="game-again" action="game_again" disabled="${game_refused != ''}">%game_again%</button>
+      <small if="game_refused" class="game-refused">%game_refused%</small>
+      <row class="game-choices">
+        <button if="game_can_change" class="game-choice" action="game_change" t="frame.change">${tr('Change stake')}</button>
+        <button class="game-choice" action="game_leave" t="frame.leave">${tr('Leave')}</button>
+      </row>
+    </column>
+  </column>
+</template>
+
+<template name="game-page" props="tab">
+  <column if="game_tab == '${tab}'" id="game-page-${tab}" class="game-page"><slot/></column>
+</template>

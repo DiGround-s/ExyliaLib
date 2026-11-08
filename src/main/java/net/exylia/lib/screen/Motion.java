@@ -71,12 +71,18 @@ public final class Motion {
 
     /**
      * A move of {@code x}, {@code y} screen pixels (y down) and a scale about the box's centre, applied to the box and
-     * everything inside it, as CSS {@code transform: translate(x, y) scale(s)}.
+     * everything inside it, as CSS {@code transform: translate(x, y) scale(s)}. {@code squeeze} (since 1.531.0) narrows
+     * it across on top of that, as CSS {@code scaleX}: 0 is its edge, which is how a tile or a card flips.
      */
-    public record Transform(double x, double y, double scale) {
+    public record Transform(double x, double y, double scale, double squeeze) {
 
         /** No move, no scale. */
-        public static final Transform NONE = new Transform(0, 0, 1);
+        public static final Transform NONE = new Transform(0, 0, 1, 1);
+
+        /** A move and a scale, not narrowed. */
+        public Transform(double x, double y, double scale) {
+            this(x, y, scale, 1);
+        }
 
         public static @NotNull Transform translate(double x, double y) {
             return new Transform(x, y, 1);
@@ -86,19 +92,25 @@ public final class Motion {
             return new Transform(0, 0, scale);
         }
 
+        /** Narrowed across to {@code squeeze} of its width, about its centre. @since 1.531.0 */
+        public static @NotNull Transform squeeze(double squeeze) {
+            return new Transform(0, 0, 1, squeeze);
+        }
+
         /** Whether it changes nothing. */
         public boolean none() {
-            return x == 0 && y == 0 && scale == 1;
+            return x == 0 && y == 0 && scale == 1 && squeeze == 1;
         }
 
         /** This one and {@code other} together, as if written one after the other. */
         public @NotNull Transform with(@NotNull Transform other) {
-            return new Transform(x + other.x, y + other.y, scale * other.scale);
+            return new Transform(x + other.x, y + other.y, scale * other.scale, squeeze * other.squeeze);
         }
 
         /** Part of the way from this one to {@code to}: 0 is this, 1 is {@code to}. */
         public @NotNull Transform toward(@NotNull Transform to, double f) {
-            return new Transform(x + (to.x - x) * f, y + (to.y - y) * f, scale + (to.scale - scale) * f);
+            return new Transform(x + (to.x - x) * f, y + (to.y - y) * f, scale + (to.scale - scale) * f,
+                    squeeze + (to.squeeze - squeeze) * f);
         }
     }
 

@@ -42,6 +42,9 @@ import java.util.function.Supplier;
  *   <li>{@code screens.yml}'s {@code default-style}, CLASSIC as shipped.</li>
  * </ol>
  *
+ * <p>Games ask {@link #gameForm} instead, once at the start of a round: the same answer, except that a player on chest
+ * windows plays in the world, since a game has no chest form.
+ *
  * @since 1.495.0
  */
 public final class MenuStyles {
@@ -54,6 +57,8 @@ public final class MenuStyles {
     private static final Map<UUID, MenuStyle> CHOSEN = new ConcurrentHashMap<>();
     /** Staff overrides of {@code /exylialib style}: per player, by plugin name or {@link #ALL}. Not kept across restarts. */
     private static final Map<UUID, Map<String, MenuStyle>> STAFF = new ConcurrentHashMap<>();
+    /** Staff overrides of {@code /exylialib style game}: per player, by plugin name or {@link #ALL}. Not kept across restarts. */
+    private static final Map<UUID, Map<String, GameForm>> STAFF_FORMS = new ConcurrentHashMap<>();
     private static final String ALL = "*";
     private static final NamespacedKey KEY = new NamespacedKey("exylialib", "menu_style");
     private static volatile Plugin library;
@@ -97,6 +102,64 @@ public final class MenuStyles {
     /** Whether {@code player} gets screens for this plugin's menus now. */
     public boolean screens(@NotNull Player player) {
         return resolve(player) == MenuStyle.SCREEN;
+    }
+
+    /**
+     * The form {@code player} gets for a game of this plugin: a screen for a player whose menu style is SCREEN, the
+     * world for one on chest windows. Ask once, at the start of a round. Safe from any thread.
+     *
+     * @since 1.531.0
+     */
+    public @NotNull GameForm gameForm(@NotNull Player player) {
+        return gameForm(player, null);
+    }
+
+    /**
+     * As {@link #gameForm(Player)}, for a game that says what it wants: its config's {@code SCREEN} or {@code WORLD}
+     * ({@code AUTO} or {@code null} leave it to the player's style). A client that cannot draw screens, or whose view a
+     * camera holds, gets the world whatever is asked; a staff override wins over everything else.
+     *
+     * @since 1.531.0
+     */
+    public @NotNull GameForm gameForm(@NotNull Player player, @Nullable Object forced) {
+        return decideForm(canShowScreens(player) && !net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player),
+                staffForm(player), GameForm.parse(forced), resolve(player));
+    }
+
+    /** The rules of {@link #gameForm}, first answer wins; package-private for tests. */
+    static @NotNull GameForm decideForm(boolean capable, @Nullable GameForm staff, @Nullable GameForm forced, @NotNull MenuStyle style) {
+        if (!capable) return GameForm.WORLD;
+        if (staff != null) return staff;
+        if (forced != null) return forced;
+        return style == MenuStyle.SCREEN ? GameForm.SCREEN : GameForm.WORLD;
+    }
+
+    private @Nullable GameForm staffForm(Player player) {
+        Map<String, GameForm> own = STAFF_FORMS.get(player.getUniqueId());
+        if (own == null) return null;
+        GameForm forPlugin = own.get(plugin.getName());
+        return forPlugin != null ? forPlugin : own.get(ALL);
+    }
+
+    /**
+     * Staff override for testing ({@code /exylialib style game}): {@code form} for {@code plugin}'s games only, or for
+     * every plugin when {@code plugin} is {@code null}; a {@code null} form clears it (all of the player's when
+     * {@code plugin} is {@code null}). Wins over everything except a client that cannot draw screens.
+     *
+     * @since 1.531.0
+     */
+    @ApiStatus.Internal
+    public static void overrideForm(@NotNull Player player, @Nullable String plugin, @Nullable GameForm form) {
+        if (form == null && plugin == null) {
+            STAFF_FORMS.remove(player.getUniqueId());
+            return;
+        }
+        String key = plugin == null ? ALL : BY_PLUGIN.keySet().stream().filter(plugin::equalsIgnoreCase).findFirst().orElse(plugin);
+        if (form == null) STAFF_FORMS.computeIfPresent(player.getUniqueId(), (id, m) -> {
+            m.remove(key);
+            return m.isEmpty() ? null : m;
+        });
+        else STAFF_FORMS.computeIfAbsent(player.getUniqueId(), id -> new ConcurrentHashMap<>()).put(key, form);
     }
 
     /** The rules themselves, first answer wins; package-private for tests. */
@@ -195,6 +258,7 @@ public final class MenuStyles {
             public void onQuit(PlayerQuitEvent event) {
                 CHOSEN.remove(event.getPlayer().getUniqueId());
                 STAFF.remove(event.getPlayer().getUniqueId());
+                STAFF_FORMS.remove(event.getPlayer().getUniqueId());
             }
         }, lib);
         for (Player online : lib.getServer().getOnlinePlayers()) Tasks.of(lib).runAtEntity(online, () -> read(online));

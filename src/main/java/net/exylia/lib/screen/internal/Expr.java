@@ -207,6 +207,7 @@ public final class Expr {
                 String word = env.word(text(a));
                 yield word != null ? word : args.size() > 1 ? args.get(1) : text(a);
             }
+            case "tr" -> net.exylia.lib.text.Phrases.tr(text(a));
             case "fmt.number" -> {
                 Double n = number(a);
                 yield n == null ? text(a) : GROUPED.get().format(n);
@@ -263,7 +264,7 @@ public final class Expr {
 
     /** The functions {@link #compile} accepts, so a typo is caught when the file is read. */
     private static final java.util.Set<String> FUNCTIONS = java.util.Set.of("min", "max", "abs", "round", "floor",
-            "ceil", "len", "upper", "lower", "plural", "t", "fmt.number", "fmt.percent", "fmt.time",
+            "ceil", "len", "upper", "lower", "plural", "t", "tr", "fmt.number", "fmt.percent", "fmt.time",
             // 1.501.0: about the viewer
             "perm", "balance", "has_item", "level", "world");
 

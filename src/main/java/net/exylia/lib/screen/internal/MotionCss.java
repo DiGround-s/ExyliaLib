@@ -24,8 +24,8 @@ public final class MotionCss {
     }
 
     /**
-     * {@code translate(x, y)}, {@code translateX(x)}, {@code translateY(y)}, {@code scale(s)} in any order and
-     * number, pixels; {@code none} or nothing it can read is {@link Motion.Transform#NONE}.
+     * {@code translate(x, y)}, {@code translateX(x)}, {@code translateY(y)}, {@code scale(s)}, {@code scaleX(s)} in any
+     * order and number, pixels; {@code none} or nothing it can read is {@link Motion.Transform#NONE}.
      */
     public static Motion.Transform transform(String value) {
         if (value == null) return Motion.Transform.NONE;
@@ -40,6 +40,7 @@ public final class MotionCss {
                 case "translatex" -> Motion.Transform.translate(a, 0);
                 case "translatey" -> Motion.Transform.translate(0, a);
                 case "scale" -> Motion.Transform.scale(args[0].isEmpty() ? 1 : a);
+                case "scalex" -> Motion.Transform.squeeze(args[0].isEmpty() ? 1 : a);
                 default -> Motion.Transform.NONE;
             });
         }

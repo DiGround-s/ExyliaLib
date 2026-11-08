@@ -281,7 +281,12 @@ final class ScreenPackets extends PacketListenerAbstract {
      * Flattened along the view so a block's cube never reaches through the layers in front of or behind it.
      */
     static PacketWrapper<?> item(int id, double x, double y, double z, double size, ItemStack item, int glide) {
-        List<EntityData<?>> data = new ArrayList<>(itemPose(x, y, z, size, glide));
+        return item(id, x, y, z, size, 1, item, glide);
+    }
+
+    /** @param squeeze how narrowed across, 1 for not at all */
+    static PacketWrapper<?> item(int id, double x, double y, double z, double size, double squeeze, ItemStack item, int glide) {
+        List<EntityData<?>> data = new ArrayList<>(itemPose(x, y, z, size, squeeze, glide));
         data.add(new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)));
         data.add(new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI));
         return new WrapperPlayServerEntityMetadata(id, data);
@@ -297,12 +302,16 @@ final class ScreenPackets extends PacketListenerAbstract {
 
     /** Where and how big {@link #item} draws, without the item itself. */
     static List<EntityData<?>> itemPose(double x, double y, double z, double size, int glide) {
+        return itemPose(x, y, z, size, 1, glide);
+    }
+
+    private static List<EntityData<?>> itemPose(double x, double y, double z, double size, double squeeze, int glide) {
         return List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
                 new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION, FACING_VIEWER),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) (size * FLAT))),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (size * squeeze), (float) size, (float) (size * FLAT))),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
     }
@@ -434,13 +443,19 @@ final class ScreenPackets extends PacketListenerAbstract {
      */
     static PacketWrapper<?> text(int id, double x, double y, double z, double scale, Component text, int glide,
                                  int lines, byte flags) {
-        Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * scale),
+        return text(id, x, y, z, scale, 1, text, glide, lines, flags);
+    }
+
+    /** @param squeeze how narrowed across, 1 for not at all */
+    static PacketWrapper<?> text(int id, double x, double y, double z, double scale, double squeeze, Component text, int glide,
+                                 int lines, byte flags) {
+        Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * scale * squeeze),
                 (float) (y - (Layout.LINE * Math.max(1, lines) + 1) * FONT_PIXEL * scale / 2), (float) z);
         return new WrapperPlayServerEntityMetadata(id, List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) scale, (float) scale, 1f)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (scale * squeeze), (float) scale, 1f)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),

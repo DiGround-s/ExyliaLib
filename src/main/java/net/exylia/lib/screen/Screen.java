@@ -53,6 +53,8 @@ public final class Screen {
     private String persistScope;
     private java.util.Set<String> persisted = java.util.Set.of();
 
+    private Consumer<ScreenSession> onInput;
+
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
     }
@@ -60,6 +62,21 @@ public final class Screen {
     /** A screen drawn by {@code render}, which returns the root box; it fills the layout area. */
     public static @NotNull Screen of(@NotNull Function<ScreenSession, Node> render) {
         return new Screen(Objects.requireNonNull(render, "render"));
+    }
+
+    /**
+     * Runs on the viewer's thread before every handler a click or a key reaches, whichever box it was: a game restarts
+     * its idle clock here, tabs included.
+     *
+     * @since 1.531.0
+     */
+    public @NotNull Screen onInput(@Nullable Consumer<ScreenSession> handler) {
+        this.onInput = handler;
+        return this;
+    }
+
+    public @Nullable Consumer<ScreenSession> onInput() {
+        return onInput;
     }
 
     /** A layout area other than {@link #WIDTH} by {@link #HEIGHT}; drawn at the same pixel size. */

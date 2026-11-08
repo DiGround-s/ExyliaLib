@@ -20,6 +20,21 @@ class MenuStylesTest {
     }
 
     @Test
+    void aGameAsksItsFormOfTheStyleWithNoChestForm() {
+        MenuStyle c = MenuStyle.CLASSIC, s = MenuStyle.SCREEN;
+        GameForm screen = GameForm.SCREEN, world = GameForm.WORLD;
+        assertEquals(world, MenuStyles.decideForm(false, screen, screen, s));   // a client that cannot draw screens
+        assertEquals(screen, MenuStyles.decideForm(true, screen, world, c));    // a staff override, over the game's own
+        assertEquals(world, MenuStyles.decideForm(true, null, world, s));       // a game forced to the world
+        assertEquals(screen, MenuStyles.decideForm(true, null, screen, c));     // a game forced onto a screen
+        assertEquals(screen, MenuStyles.decideForm(true, null, null, s));       // the player's style
+        assertEquals(world, MenuStyles.decideForm(true, null, null, c));        // chest windows play in the world
+        assertEquals(world, GameForm.parse("3d"));
+        assertEquals(screen, GameForm.parse(" Screen "));
+        assertNull(GameForm.parse("auto"));
+    }
+
+    @Test
     void parsesWhatConfigsWrite() {
         assertEquals(MenuStyle.SCREEN, MenuStyle.parse(" screen "));
         assertEquals(MenuStyle.CLASSIC, MenuStyle.parse("CLASSIC"));

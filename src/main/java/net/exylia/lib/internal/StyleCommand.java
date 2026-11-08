@@ -2,6 +2,7 @@ package net.exylia.lib.internal;
 
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.ui.GameForm;
 import net.exylia.lib.ui.MenuStyle;
 import net.exylia.lib.ui.MenuStyles;
 import org.bukkit.command.CommandSender;
@@ -24,6 +25,8 @@ import java.util.Locale;
 /**
  * {@code /exylialib style <classic|screen|default> [player] [plugin]}: switches a player's menu style on the spot,
  * for one plugin or all, to compare chest and screen menus without editing any config. {@code default} clears it.
+ * {@code /exylialib style game <screen|3d|default> [player] [plugin]} does the same for the form games are played in,
+ * leaving menus alone.
  */
 @Command("exylialib")
 @CommandPermission("exylialib.admin")
@@ -55,6 +58,32 @@ public final class StyleCommand {
         }
     }
 
+    @Subcommand("style game")
+    public void game(@NotNull CommandSender sender, @Single @SuggestWith(Forms.class) String form,
+                     @Optional Player target, @Optional @Single @SuggestWith(Plugins.class) String plugin) {
+        Player who = target != null ? target : sender instanceof Player self ? self : null;
+        if (who == null) {
+            reply(sender, Phrases.tr("{letters_black}▎ {error}Name a player"));
+            return;
+        }
+        String wanted = form.toLowerCase(Locale.ROOT);
+        GameForm parsed = GameForm.parse(wanted);
+        if (parsed == null && !wanted.equals("default")) {
+            reply(sender, Phrases.tr("{letters_black}▎ {error}Form must be screen, 3d or default"));
+            return;
+        }
+        MenuStyles.overrideForm(who, plugin, parsed);
+        if (parsed == null) {
+            reply(sender, Phrases.tr("{letters_black}▎ {success}Game form cleared {letters_black}» {letters}{0}", who.getName()));
+            return;
+        }
+        reply(sender, Phrases.tr("{letters_black}▎ {success}Game form set {letters_black}» {letters}{0}{letters_black}: {info}{1}",
+                who.getName(), wanted + (plugin == null ? "" : " · " + plugin)));
+        if (parsed == GameForm.SCREEN && !MenuStyles.canShowScreens(who)) {
+            reply(sender, Phrases.tr("{letters_black}▎ {warning}{0} cannot draw screens, they still play in 3D", who.getName()));
+        }
+    }
+
     private static void reply(CommandSender sender, String line) {
         Text.of("{primary}&lSTYLE\n" + line).send(sender);
     }
@@ -63,6 +92,13 @@ public final class StyleCommand {
         @Override
         public Collection<String> getSuggestions(@NotNull ExecutionContext<BukkitCommandActor> context) {
             return List.of("classic", "screen", "default");
+        }
+    }
+
+    public static final class Forms implements SuggestionProvider<BukkitCommandActor> {
+        @Override
+        public Collection<String> getSuggestions(@NotNull ExecutionContext<BukkitCommandActor> context) {
+            return List.of("screen", "3d", "default");
         }
     }
 

@@ -253,7 +253,11 @@ final class LiveScreen implements ScreenSession {
     }
 
     /** One of a picture's four copies: x, y its centre, cell one picture pixel, dx and dy the copy's nudge. */
-    private record ImageLook(double x, double y, double cell, int layer, Component text, int rows, int dx, int dy) {
+    private record ImageLook(double x, double y, double cell, int layer, Component text, int rows, int dx, int dy,
+                             double squeeze) {
+        ImageLook(double x, double y, double cell, int layer, Component text, int rows, int dx, int dy) {
+            this(x, y, cell, layer, text, rows, dx, dy, 1);
+        }
     }
 
     /**
@@ -293,7 +297,11 @@ final class LiveScreen implements ScreenSession {
     }
 
     /** Words: {@code lines} of them joined by newlines, {@code flags} the display's text flags (shadow, alignment). */
-    private record TextLook(double x, double y, double scale, int layer, Component text, int lines, int flags) {
+    private record TextLook(double x, double y, double scale, int layer, Component text, int lines, int flags,
+                            double squeeze) {
+        TextLook(double x, double y, double scale, int layer, Component text, int lines, int flags) {
+            this(x, y, scale, layer, text, lines, flags, 1);
+        }
     }
 
     /**
@@ -301,9 +309,14 @@ final class LiveScreen implements ScreenSession {
      * leans towards the viewer so its top shows, what is drawn from a sprite ({@code leans} false) stands upright.
      */
     private record ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item,
-                            boolean solid, double angle, boolean leans) {
+                            boolean solid, double angle, boolean leans, double squeeze) {
         ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item) {
-            this(x, y, size, layer, item, false, 0, false);
+            this(x, y, size, layer, item, false, 0, false, 1);
+        }
+
+        ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item,
+                 boolean solid, double angle, boolean leans) {
+            this(x, y, size, layer, item, solid, angle, leans, 1);
         }
     }
 
@@ -806,10 +819,35 @@ final class LiveScreen implements ScreenSession {
     }
 
     private final Map<String, net.exylia.lib.screen.ScreenScene> scenes = new java.util.concurrent.ConcurrentHashMap<>();
+    private final net.exylia.lib.screen.ScreenScene.Host sceneHost = new net.exylia.lib.screen.ScreenScene.Host() {
+        @Override
+        public void redraw() {
+            LiveScreen.this.redraw();
+        }
+
+        @Override
+        public void later(int ticks, Runnable step) {
+            tasks.runAtEntityLater(player, Math.max(1, ticks), () -> {
+                if (open()) guarded(step);
+            });
+        }
+
+        @Override
+        public boolean reduced() {
+            return LiveScreen.this.reduced();
+        }
+
+        @Override
+        public boolean spare() {
+            synchronized (LiveScreen.this) {
+                return motionAllowed();
+            }
+        }
+    };
 
     @Override
     public net.exylia.lib.screen.@NotNull ScreenScene scene(@NotNull String id) {
-        return scenes.computeIfAbsent(id, name -> new net.exylia.lib.screen.ScreenScene(name, this::redraw));
+        return scenes.computeIfAbsent(id, name -> new net.exylia.lib.screen.ScreenScene(name, sceneHost));
     }
 
     /** Runs the {@link Node#onHover} of a box the cursor has just come onto, on the viewer's thread. */
@@ -960,9 +998,13 @@ final class LiveScreen implements ScreenSession {
      * A transform after layout, applied to a look: its own about a box's centre, then each enclosing one, in look
      * units (x right, y up from the screen's centre).
      */
-    private record Xf(double ox, double oy, double tx, double ty, double s, Xf outer) {
+    private record Xf(double ox, double oy, double tx, double ty, double s, double sq, Xf outer) {
+        Xf(double ox, double oy, double tx, double ty, double s, Xf outer) {
+            this(ox, oy, tx, ty, s, 1, outer);
+        }
+
         double ax(double x) {
-            double v = ox + (x - ox) * s + tx;
+            double v = ox + (x - ox) * s * sq + tx;
             return outer == null ? v : outer.ax(v);
         }
 
@@ -973,6 +1015,11 @@ final class LiveScreen implements ScreenSession {
 
         double as() {
             return outer == null ? s : s * outer.as();
+        }
+
+        /** How narrowed across, on top of {@link #as}. */
+        double asq() {
+            return outer == null ? sq : sq * outer.asq();
         }
     }
 
@@ -1017,7 +1064,7 @@ final class LiveScreen implements ScreenSession {
                 animated = true;
             }
             Xf xf = parent == null ? null : parent.xf();
-            if (!own.none()) xf = new Xf(centreX(b), centreY(b), own.x() * unit, -own.y() * unit, own.scale(), xf);
+            if (!own.none()) xf = new Xf(centreX(b), centreY(b), own.x() * unit, -own.y() * unit, own.scale(), own.squeeze(), xf);
             Motion.Transition transition = n.transition() != null ? n.transition() : parent == null ? null : parent.transition();
             at[i] = new Cx(xf, transition, animated, n.decoration() || parent != null && parent.low());
             out.put(b, at[i]);
@@ -1307,7 +1354,7 @@ final class LiveScreen implements ScreenSession {
                 if (away != null && away.ticks() > 0 && !(d.look() instanceof TurnLook)) {
                     Box root = departureRoot(d.box(), frame.boxes());
                     Xf to = new Xf(root.cx(), root.cy(), away.transform().x() * unit, -away.transform().y() * unit,
-                            away.transform().scale(), null);
+                            away.transform().scale(), away.transform().squeeze(), null);
                     glide(d.id(), d.look(), xf(d.look(), to), new Motion.Transition(away.ticks(), away.ease(), false),
                             0, out, later);
                     leave(d.id(), away.ticks() + 1);
@@ -1383,6 +1430,7 @@ final class LiveScreen implements ScreenSession {
                     transition = new Motion.Transition(transition.ticks(), Motion.Ease.LINEAR, transition.colours());
                 }
                 glide(id, current.look(), look, transition, 0, out, later);
+                motionPackets++;
             }
             drawn.put(key, new Drawn(id, look, box));
         }
@@ -1476,7 +1524,7 @@ final class LiveScreen implements ScreenSession {
         Motion.Tween tween = arrival(root, boxes);
         if (tween == null || tween.ticks() <= 0 || tween.transform().none()) return null;
         return new Arrival(tween, new Xf(top.cx(), top.cy(), tween.transform().x() * unit, -tween.transform().y() * unit,
-                tween.transform().scale(), null));
+                tween.transform().scale(), tween.transform().squeeze(), null));
     }
 
     /** The tween a box arriving as a root takes: its own, the nearest enclosing box's, or the built-in one. */
@@ -1559,17 +1607,19 @@ final class LiveScreen implements ScreenSession {
     private static Object xf(Object look, Xf f) {
         if (f == null) return look;
         double s = f.as();
+        double sq = f.asq();
         return switch (look) {
-            case RectLook r -> new RectLook(f.ax(r.x()), f.ay(r.y()), r.w() * s, r.h() * s, r.layer(), r.argb());
+            case RectLook r -> new RectLook(f.ax(r.x()), f.ay(r.y()), r.w() * s * sq, r.h() * s, r.layer(), r.argb());
             case ItemLook it -> new ItemLook(f.ax(it.x()), f.ay(it.y()), it.size() * s, it.layer(), it.item(), it.solid(),
-                    it.angle(), it.leans());
+                    it.angle(), it.leans(), it.squeeze() * sq);
             case ImageLook im -> new ImageLook(f.ax(im.x()), f.ay(im.y()), im.cell() * s, im.layer(), im.text(), im.rows(),
-                    im.dx(), im.dy());
+                    im.dx(), im.dy(), im.squeeze() * sq);
             case TurnLook t -> new TurnLook(f.ax(t.x()), f.ay(t.y()), t.cell() * s, t.layer(), t.text(), t.rows(), t.lx(),
                     t.ly(), t.lz(), t.yaw(), t.turn(), t.dx(), t.dy(), t.size());
             default -> {
                 TextLook t = (TextLook) look;
-                yield new TextLook(f.ax(t.x()), f.ay(t.y()), t.scale() * s, t.layer(), t.text(), t.lines(), t.flags());
+                yield new TextLook(f.ax(t.x()), f.ay(t.y()), t.scale() * s, t.layer(), t.text(), t.lines(), t.flags(),
+                        t.squeeze() * sq);
             }
         };
     }
@@ -1586,17 +1636,17 @@ final class LiveScreen implements ScreenSession {
             case ItemLook it -> {
                 ItemLook q = (ItemLook) a;
                 yield new ItemLook(mix(q.x(), it.x(), f), mix(q.y(), it.y(), f), mix(q.size(), it.size(), f), it.layer(), it.item(),
-                        it.solid(), it.angle(), it.leans());
+                        it.solid(), it.angle(), it.leans(), mix(q.squeeze(), it.squeeze(), f));
             }
             case ImageLook im -> {
                 ImageLook q = (ImageLook) a;
                 yield new ImageLook(mix(q.x(), im.x(), f), mix(q.y(), im.y(), f), mix(q.cell(), im.cell(), f), im.layer(),
-                        im.text(), im.rows(), im.dx(), im.dy());
+                        im.text(), im.rows(), im.dx(), im.dy(), mix(q.squeeze(), im.squeeze(), f));
             }
             case TextLook t -> {
                 TextLook q = (TextLook) a;
                 yield new TextLook(mix(q.x(), t.x(), f), mix(q.y(), t.y(), f), mix(q.scale(), t.scale(), f), t.layer(),
-                        t.text(), t.lines(), t.flags());
+                        t.text(), t.lines(), t.flags(), mix(q.squeeze(), t.squeeze(), f));
             }
             default -> b;
         };
@@ -1616,15 +1666,15 @@ final class LiveScreen implements ScreenSession {
             }
             case ItemLook it -> {
                 ItemLook q = (ItemLook) b;
-                yield it.x() == q.x() && it.y() == q.y() && it.size() == q.size();
+                yield it.x() == q.x() && it.y() == q.y() && it.size() == q.size() && it.squeeze() == q.squeeze();
             }
             case ImageLook im -> {
                 ImageLook q = (ImageLook) b;
-                yield im.x() == q.x() && im.y() == q.y() && im.cell() == q.cell();
+                yield im.x() == q.x() && im.y() == q.y() && im.cell() == q.cell() && im.squeeze() == q.squeeze();
             }
             case TextLook t -> {
                 TextLook q = (TextLook) b;
-                yield t.x() == q.x() && t.y() == q.y() && t.scale() == q.scale();
+                yield t.x() == q.x() && t.y() == q.y() && t.scale() == q.scale() && t.squeeze() == q.squeeze();
             }
             default -> true;
         };
@@ -1671,12 +1721,12 @@ final class LiveScreen implements ScreenSession {
                     look.item(), glide == 0 ? 0 : TURN_TICKS, look.angle(), look.leans());
         }
         return ScreenPackets.item(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
-                look.item(), glide);
+                look.squeeze(), look.item(), glide);
     }
 
     private PacketWrapper<?> image(int id, ImageLook im, int glide) {
         double k = drawn(im.layer());
-        double fx = im.cell() * k / ScreenPackets.IMAGE_ADVANCE;
+        double fx = im.cell() * im.squeeze() * k / ScreenPackets.IMAGE_ADVANCE;
         double fy = im.cell() * k / ScreenPackets.IMAGE_LINE;
         return ScreenPackets.image(id, im.x() * k + im.dx() * fx, im.y() * k - im.dy() * fy,
                 -DEPTH + im.layer() * LAYER, fx, fy, im.rows(), im.text(), glide);
@@ -1716,7 +1766,7 @@ final class LiveScreen implements ScreenSession {
     private PacketWrapper<?> text(int id, TextLook t, int glide) {
         double k = drawn(t.layer());
         double scale = t.scale() * unit * k / ScreenPackets.fontPixel();
-        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.text(), glide,
+        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.squeeze(), t.text(), glide,
                 t.lines(), (byte) t.flags());
     }
 
@@ -2127,6 +2177,8 @@ final class LiveScreen implements ScreenSession {
     private void handle(Consumer<ScreenEvent> handler, ScreenEvent event) {
         tasks.runAtEntity(player, () -> {
             if (!open()) return;
+            Consumer<ScreenSession> input = screen.onInput();
+            if (input != null) guarded(() -> input.accept(this));
             guarded(() -> handler.accept(event));
             renderNow();
         });

@@ -11,12 +11,15 @@ import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
 import net.exylia.lib.screen.Screen;
 import net.exylia.lib.screen.ScreenMarkup;
+import net.exylia.lib.screen.ScreenScene;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.inventory.PlayerInventory;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -321,6 +324,109 @@ class ScreenWireTest {
         assertEquals(Set.of(8, 9, 11), move.indices, "translation only: " + move);
         live.close();
         System.out.println("[screen paint] open " + open + "\n[screen paint] parallax move " + move);
+    }
+
+    /**
+     * The dearest moment of a game kit screen: the game frame, 25 tiles, every gem shown, a burst on each and the whole
+     * board shaking, all at once. Measured here for docs/screens-performance.md; the live number is taken on a client.
+     */
+    @Test
+    void aFullGameBoardStaysWithinBudget() throws Exception {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            gameBoard();
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
+    private void gameBoard() throws Exception {
+        FakeServer.install();
+        FakeServer.reset();
+        FakePlayer viewer = new FakePlayer("Gambler").at(new Location(null, 0, 64, 0));
+        viewer.inventory(Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{PlayerInventory.class},
+                (self, method, args) -> FakeServer.defaultValue(method.getReturnType())));
+        ScreenMarkup markup = net.exylia.lib.screen.GameFrame.install(ScreenMarkup.parse("board", """
+                <screen><game-frame title="Mines">
+                  <game-play>
+                    <game-board><canvas id="board"/></game-board>
+                    <game-side>
+                      <game-figure value="$100"><small>Stake</small></game-figure><game-figure value="x1.10"><small>Now</small></game-figure>
+                      <game-figure value="x1.24"><small>Next</small></game-figure><game-figure value="3"><small>Mines</small></game-figure>
+                      <game-action action="noop"><b>Cash out</b></game-action>
+                    </game-side>
+                  </game-play>
+                </game-frame></screen>""", Files.readString(Path.of("src/main/resources/screens/base.css")) + " canvas { width: 190px; height: 190px; }"));
+        assertTrue(markup.problems().stream().noneMatch(p -> !p.contains("no action")), markup.problems().toString());
+        int[] gem = new int[16 * 16];
+        java.util.Arrays.fill(gem, 0xFF8FFFC1);
+        AtomicInteger ids = new AtomicInteger(1000);
+        int[] alive = {0}, peak = {0};
+        ScreenPackets.Wire wire = new ScreenPackets.Wire(frame -> {
+            sent.add(frame);
+            for (PacketWrapper<?> p : frame) {
+                if (p instanceof WrapperPlayServerSpawnEntity) alive[0]++;
+                if (p instanceof WrapperPlayServerDestroyEntities d) alive[0] -= d.getEntityIds().length;
+            }
+            peak[0] = Math.max(peak[0], alive[0]);
+        });
+        LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenBoard"), viewer.player(), markup.screen(), wire, ids::incrementAndGet);
+        live.start();
+        FakeServer.tick(10);
+        Stats open = take();
+        ScreenScene board = live.scene("board");
+        for (int i = 0; i < 25; i++) {
+            board.sprite("tile" + i).rect(34, 34, "#8a51c4").at(19 + i % 5 * 38, 19 + i / 5 * 38);
+        }
+        FakeServer.tick(4);
+        Stats tiles = take();
+
+        // Every gem but the last flips in at once, past the ceiling: only the final state of the board matters here.
+        for (int i = 0; i < 23; i++) reveal(board, gem, i);
+        FakeServer.tick(10);
+        take();
+
+        // The richest reveal, on a real clock since the ceiling is per second: the 24th tile with a burst of 12.
+        Thread.sleep(1050);
+        reveal(board, gem, 23);
+        FakeServer.tick(12);
+        Stats reveal = take();
+        int allGems = alive[0];
+
+        // The dearest second, on a real clock: a blast shakes the whole board and a chain of 24 bursts runs across it.
+        Thread.sleep(1050);
+        int before = peak[0];
+        peak[0] = 0;
+        long used = 0;
+        for (int tick = 0; tick < 20; tick++) {
+            long start = System.nanoTime();
+            if (tick == 0) board.shake(4, 10);
+            if (tick % 2 == 0) board.burst(19 + tick % 5 * 38, 19 + tick / 5 * 38, 10, 24, 8, "#a33b53");
+            FakeServer.tick(1);
+            used = Math.max(used, System.nanoTime() - start);
+            Thread.sleep(50);
+        }
+        FakeServer.tick(12);
+        Stats worst = take();
+        int worstPeak = peak[0];
+        peak[0] = Math.max(before, worstPeak);
+        int after = alive[0];
+        live.close();
+
+        System.out.println("[game board] open " + open + "\n[game board] 25 tiles " + tiles
+                + "\n[game board] one reveal " + reveal
+                + "\n[game board] all gems shown: " + allGems + " displays"
+                + "\n[game board] worst second " + worst + ", peak " + worstPeak + " displays, slowest tick " + used / 1_000_000 + " ms");
+        assertTrue(peak[0] <= LiveScreen.BUDGET, "within the screen's budget: " + peak[0]);
+        assertEquals(allGems, after, "bursts leave nothing behind");
+        assertTrue(worst.packets <= 1200, "the ceiling holds a blast's cost: " + worst);
+    }
+
+    private static void reveal(ScreenScene board, int[] gem, int tile) {
+        board.sprite("tile" + tile).flip(4, () -> { });
+        board.sprite("gem" + tile).image(16, 16, gem).at(19 + tile % 5 * 38, 19 + tile / 5 * 38).layer(2).pop(1.25, 5);
+        board.burst(19 + tile % 5 * 38, 19 + tile / 5 * 38, 12, 24, 8, "#8fffc1", "#a1ffc3");
     }
 
     private record Stats(int frames, int packets, int bytes, int rawPackets, int rawBytes, Set<Integer> indices) {

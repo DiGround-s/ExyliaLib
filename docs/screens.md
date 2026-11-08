@@ -721,6 +721,11 @@ table.remove("coin");
 | `at(x, y)`, `move(x, y, ticks, ease)` | its top left in canvas pixels, at once or gliding |
 | `scale(s, ticks, ease)` | about its centre; 0 hides it |
 | `layer(z)`, `remove()` | above or below its siblings (-4 to 8); off the scene |
+| `to(x, y, s, ticks, ease)` | place and scale in one glide (1.531.0) |
+| `squeeze(s, ticks, ease)` | narrows it across only, its height untouched (1.531.0) |
+| `flip(ticks, face)` | squeezes to its edge, runs `face` (change what it shows there) and opens again (1.531.0) |
+| `pop(peak, ticks)` | swells to `peak` and settles at 1; from scale 0, it appears (1.531.0) |
+| `shake(pixels, ticks)` | jolts about its place, dying away (1.531.0) |
 
 - Sprites persist: they stay put until moved, unlike a render function's nodes. Every change redraws the screen
   once (changes in the same tick are drawn together) and only changed sprites go out, one transform each.
@@ -736,6 +741,38 @@ table.remove("coin");
 ExyliaCasino's coinflip is the reference: for a player whose menu style is SCREEN the toss is a sprite on
 `screens/coinflip.html`'s canvas (`modules/coinflip/CoinScreen.java`), and table games with seats and watchers
 keep drawing in the world.
+
+### Motion kit (1.531.0)
+
+On a `ScreenScene`, for what several sprites do together. Every step runs on the viewer's thread and a closed screen
+runs no more of them. Reduced motion (`reduced-motion`) jumps to the end: a flip just changes the face, a count shows
+its target, a burst and a shake do nothing.
+
+| `ScreenScene` | Does |
+| --- | --- |
+| `timeline().at(tick, step).after(ticks, step).play()` | steps in order, some ticks after `play`; `cancel()` runs no more. Tick 0 runs inside `play`; what one step does in a tick is drawn together |
+| `burst(x, y, count, radius, ticks, colours...)` | squares flying out and shrinking away, one display each while they fly. Decoration: left out first over the display budget, and nothing at all past the motion ceiling |
+| `shake(pixels, ticks)` | the whole scene jolts. Every display of the scene takes a transform each step, so past the motion ceiling it stops early, back in its place |
+| `countUp(from, to, ticks, show)` | hands `show` a rising number every two ticks and exactly `to` at the end. It draws nothing itself: `show` sets a value the markup reads |
+
+```java
+ScreenScene board = session.scene("board");
+ScreenScene.Sprite tile = board.sprite("tile7");
+tile.flip(5, () -> {
+    tile.rect(36, 36, "{success}38");
+    board.sprite("gem7").item(gem).size(24, 24).at(40, 6).scale(0, 0, Motion.Ease.LINEAR);
+    board.timeline().at(1, () -> board.sprite("gem7").pop(1.3, 5)).play();   // a tick later: it glides from what the client has
+    board.burst(58, 18, 8, 22, 8, "{success}", "{success_light}");
+});
+board.countUp(1.10, 1.24, 8, value -> session.set("prize", money(value)));
+```
+
+A display only glides from a transform the client already has: a new sprite shown at its start and moved in the same
+tick jumps. Show it first, then move it from a timeline step at least one tick later, as above.
+
+**Rotation.** A sprite does not rotate, and a flip is a squeeze rather than a turn about the upright: a display turned
+out of the screen's plane cuts through whatever is behind it. Turning *within* the plane, which a wheel needs, is
+possible and was not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
 
 ## Gallery and preview (1.497.0)
 
@@ -767,9 +804,105 @@ Every screen knows these templates; a plugin's own template of the same name win
 | `<key-hint key="Shift">Close</key-hint>` | a key and what it does |
 | `<empty-state title="No kits" hint="Ask staff to add one"/>` | a list's empty note (inside a `grid`/`list` since 1.497.0: before, it was repeated as a row) |
 | `<dialog title="Sure?" when="confirm" dismiss="clear confirm">...</dialog>` | a themed `modal` |
+| `<game-frame title="...">`, `<game-play>`, `<game-board>`, `<game-side>`, `<game-figure value tone>`, `<game-action action disabled>`, `<game-result/>`, `<game-page tab="how">` (1.531.0) | the frame of a game: see [Giving a game its screen form](#giving-a-game-its-screen-form) |
 
 **Shared bindings.** `screens.bindings().value(...).action(...)` registers for every screen of a `ScreenSet`
 (`ScreenBindings`, same methods as `ScreenMarkup`); a screen's own registration of a name wins.
+
+## Giving a game its screen form
+
+A game can be played in the world or on a screen, the rules and the money the same in both. Mines in ExyliaCasino is
+the reference: `modules/mines/`, `screens/mines.html`, `lang/<code>/screens/mines.yml`.
+
+**1. Which form.** Ask once, as the game starts:
+
+```java
+GameForm form = MenuStyles.of(plugin).gameForm(player);                 // the player's menu style
+GameForm form = MenuStyles.of(plugin).gameForm(player, config.form());  // SCREEN or WORLD force one; AUTO or null follow
+```
+
+A chest-window style plays in the world, and so does a client that cannot draw screens. `GameForm` is its own enum:
+`MenuStyle` is switched on exhaustively by consumers, and "where is a game played" is not a menu style. Staff try
+either with `/exylialib style game screen|3d|default [player] [plugin]`, cleared on quit.
+
+**2. Split the round from its drawing.** The rules, the odds, the money and the order (decide first, then animate)
+stay in the round. Write the small interface it talks to, what happened and never how it looks (`MinesTable`: `show`,
+`safe`, `boom`, `cashed`, `tension`), and make the existing view implement it. The round imports no stage, screen,
+display, sound or text class. Move sounds and particles to the view with the rest of the drawing. Test the round
+against a recording table, with a pinned script for one seed.
+
+**3. The markup.** `screens/<game>.html`, one file for every language, words in `lang/<code>/screens/<game>.yml`
+(`t="key"`; see [Words](#words-14940)). The frame is 400 by 225 and the components come with the library:
+
+```html
+<screen>
+  <game-frame title="{primary}%game%">                <!-- title, and tabs Play / How to play / Payouts -->
+    <game-play>
+      <game-board><canvas id="board"/></game-board>   <!-- size the canvas in the game's css -->
+      <game-side>
+        <game-figure value="%stake%"><small t="side.stake">Stake</small></game-figure>
+        <game-figure value="%multiplier%" tone="success"><small t="side.now">Multiplier</small></game-figure>
+        <box class="spacer"/>
+        <game-action if="!game_result" action="my_cash" disabled="${!can_cash}">
+          <h2 t="side.cash">Cash out</h2>             <!-- the main action, large, muted while it cannot be used -->
+        </game-action>
+        <game-result/>                                <!-- what happened, and Again / Change stake / Leave -->
+      </game-side>
+    </game-play>
+    <game-page tab="how">...</game-page>              <!-- fills the frame; only while its tab is open -->
+    <game-page tab="payouts">...</game-page>
+  </game-frame>
+</screen>
+```
+
+Tabs and buttons speak the library's words, translated. A screen's own words replace them under `frame.play`,
+`frame.how`, `frame.payouts`, `frame.again`, `frame.change` and `frame.leave`.
+
+**4. Bind the frame.** `GameFrame.install(markup)` once; `GameFrame.of(session, markup)` for each screen:
+
+```java
+frame.result("success", "{success}&lCASHED OUT", "{letters}You take {success}$241");
+frame.offer(new GameFrame.Offer("$100", refused, this::again, this::change, this::leave));
+frame.withdraw();   // the choice was made
+frame.clear();      // the next round, on the same screen
+```
+
+`refused` is the reason Again cannot be pressed now (the stake cannot be paid), shown under the muted button, or
+`null`. The markup object is shared by every player: actions read the table from session state, never from a field
+captured when the markup was taken.
+
+**5. The form-specific view.** A scene of sprites plus `session.set` for what the markup reads:
+
+- Nothing hidden leaves the server early. A screen has one viewer, but the mines still reach the view only when the
+  round is over. A view can only ever show what the round told it.
+- Keep the view's own record of what is shown, enough to draw the scene from nothing: the player can close the
+  screen and come back.
+- Hover reacts, click decides, the result stays in place with the board in view. Quiet, short sounds.
+- A number that changes goes through `countUp`. A rich streak spends more shards, not longer ones.
+- `Screen#onInput` is told of every click, for an idle clock.
+
+**6. Closing mid-round.** Shift always closes a screen. Treat it as walking away by whatever rule the game already has:
+keeps what was earned, leaves at once; loses the stake, asks first (a dangerous confirm), and brings the screen back on
+no. Nothing is decided by a closed screen on its own.
+
+**7. Check it.** Budget and motion from [Screen performance](screens-performance.md#games-on-a-screen), every tab in
+every state on a real client, in two languages: a win, a loss, a stake that cannot be paid, closing mid-round.
+
+### What the kit does not cover yet
+
+Added when a game needs it, on the same `ScreenScene`, none of it changes what exists:
+
+- **Rotation** (roulette, a wheel). The client can do it: a display turns about the axis facing the viewer without
+  cutting anything, by `LEFT_ROTATION`, interpolated the short way, so a glide is under 180° and 90° a glide is the
+  practical step. Three things to build: `Sprite#rotate`; correcting the pivot, which is the display's origin (a text
+  display's bottom centre) rather than the sprite's centre; and pictures, whose four nudged copies must have their
+  nudges turned too, so an item picture is four transforms a step against one for a 3D item or a text glyph. Hit
+  testing stays with the unrotated box.
+- **Reels** (slots). A column of symbols moving down, wrapping past its window: sprites clipped by the frame or masked
+  above and below, since a scene has no clip.
+- **Cards** (blackjack, baccarat). A flip and a deal path are there; a card face built from sprites is not.
+- **Dice.** A 3D item with `item3d` turns; a die with chosen faces is not.
+- **Watchers.** A screen has one viewer. A table standing in the world, the point of which is to be seen, stays in 3D.
 
 ## Chest windows or screens: menu style (1.495.0)
 
@@ -809,6 +942,9 @@ The first rule that answers wins:
 | 6 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |
 
 ### Trying a style: `/exylialib style`
+
+`/exylialib style game screen|3d|default [player] [plugin]` (1.531.0) tries which form a game is played in, on top of
+the style, until it is cleared or the player leaves: see [Giving a game its screen form](#giving-a-game-its-screen-form).
 
 `/exylialib style <classic|screen|default> [player] [plugin]` (permission `exylialib.admin`) switches a player's
 menu style instantly, with no config edit: without a player it is you, without a plugin it covers every plugin,

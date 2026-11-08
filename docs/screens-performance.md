@@ -89,6 +89,24 @@ Other figures stated in [Screens](screens.md) (not asserted in this test): a spa
 40 KB on open and nothing after; a spinning `item3d` is one transform a second; a dressed body costs the same as
 a bare one (96 displays turning).
 
+## Games on a screen
+
+`ScreenWireTest#aFullGameBoardStaysWithinBudget`: the game frame, 25 tiles, 24 gem pictures (the worst case: an item
+sprite's four copies), on a real clock since the ceiling is per second, on the test harness.
+
+| Moment | Displays | Packets | Bytes |
+| --- | --- | --- | --- |
+| Frame open | 53 | 106 | 18 KB |
+| 25 tiles appear | 78 | 50 | 10 KB |
+| One reveal (flip, gem, burst of 12) | 163 at most | 91 | 13 KB |
+| Every gem shown | 151 | | |
+| The dearest second: a blast shakes the board and 10 bursts of 10 run across it | 201 at most | 1001 | 43 KB |
+
+Within the budget of 400, with room for a richer burst. The slowest tick drew in 10 ms on a cold JVM with no network.
+A burst is decoration, so 24 at once (288 displays on top of the board) lose their shards to the detail ladder rather
+than the board. The shake is the dear part, every display of the scene a transform per step: it stops early past the
+ceiling, which is what holds that second near a thousand packets rather than growing with the board.
+
 ## What each thing costs
 
 | Thing | Displays |

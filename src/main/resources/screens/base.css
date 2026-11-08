@@ -68,3 +68,30 @@ search:hover { outline: 1px {primary}; }
 .lib-badge-info { background: {info}40; }
 .lib-key-hint { gap: 4px; align-items: center; }
 .lib-key { padding: 1px 3px; background: {letters_black}30; outline: 1px {letters_black}60; }
+
+/* Game frame (components/library.html): the 400 by 225 frame of every game drawn on a screen. */
+.game-frame { width: 400px; height: 225px; padding: 4px 6px 6px 6px; gap: 4px; }
+.game-head { align-items: center; height: 19px; }
+.game-title { font-size: 11px; }
+.game-tabs tab { padding: 4px 10px; font-size: 9px; }
+.game-play { flex-grow: 1; gap: 6px; }
+.game-board { background: {primary}0a; outline: 1px {primary}20; align-items: center; justify-content: center; }
+.game-side { flex-grow: 1; padding: 7px; gap: 4px; background: {primary}12; outline: 1px {primary}28; }
+.game-figure { align-items: center; gap: 4px; }
+.game-figure small { font-size: 8px; }
+.game-action { align-items: center; justify-content: center; gap: 2px; padding: 7px 4px; background: {success}48; outline: 1px {success}70;
+  transition: transform 3t ease-out; }
+.game-action:hover { background: {success}80; transform: scale(1.02); }
+.game-action[disabled] { background: {neutral}24; outline: 1px {neutral}40; color: {muted}; }
+.game-result { gap: 3px; align-items: stretch; enter: translateY(4px) 4t ease-out; }
+.game-result-title { font-size: 11px; text-align: center; }
+.game-result-detail { text-align: center; }
+.game-offer { gap: 3px; margin: 3px 0 0 0; enter: translateY(3px) 3t ease-out; }
+.game-again { align-items: center; padding: 7px 4px; background: {primary}70; outline: 1px {primary}; }
+.game-again:hover { background: {primary}; }
+.game-again[disabled] { background: {neutral}24; outline: 1px {neutral}40; color: {muted}; }
+.game-refused { text-align: center; color: {warning}; }
+.game-choices { gap: 3px; }
+.game-choice { flex-grow: 1; align-items: center; padding: 4px 2px; font-size: 8px; background: {letters_black}18; }
+.game-choice:hover { background: {primary}50; }
+.game-page { flex-grow: 1; padding: 8px 10px; gap: 5px; background: {primary}0c; outline: 1px {primary}20; enter: translateY(3px) 3t ease-out; }
