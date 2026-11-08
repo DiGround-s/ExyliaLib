@@ -1777,3 +1777,9 @@ Server's choice: Выбор сервера
 Chest windows: Окна сундука
 Screens: Экраны
 Ctrl + Space opens this from anywhere: Ctrl + Пробел открывает это откуда угодно
+Type to narrow it down: 'Вводите, чтобы сузить поиск'
+Loading: 'Загрузка'
+Could not load these right now: 'Сейчас не удалось загрузить'
+No matches: 'Нет совпадений'
+found: 'найдено'
+space: 'пробел'

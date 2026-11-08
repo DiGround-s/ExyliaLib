@@ -634,7 +634,9 @@ public final class MenuRuntime {
 
     /** The session a menu API call is about, as the public type. */
     public @Nullable UiSession publicSessionOf(Player viewer) {
-        return sessionOf(viewer);
+        // Only this plugin's: another's redraw written into this session would draw the wrong plugin's rows.
+        Session session = sessionOf(viewer);
+        return session != null && session.runtime() == this ? session : null;
     }
 
     /**

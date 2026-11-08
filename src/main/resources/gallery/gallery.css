@@ -1,5 +1,5 @@
 /* The gallery's look: palette tokens only. */
-.gallery { width: 380px; height: 205px; gap: 6px; background: linear-gradient(to bottom, {primary}1c, {primary}0a); }
+.gallery { width: 400px; height: 225px; gap: 6px; background: linear-gradient(to bottom, {primary}1c, {primary}0a); }
 .top { align-items: center; }
 .title { gap: 1px; }
 .top tab { padding: 4px 8px; }

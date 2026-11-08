@@ -7,7 +7,7 @@ small { font-size: 7px; }
 .spacer { flex-grow: 1; }
 .fill { flex-grow: 1; }
 
-.frame { width: 372px; height: 208px; gap: 7px; padding: 10px 12px; outline: 1px {info}40;
+.frame { width: 400px; height: 225px; gap: 7px; padding: 10px 12px; outline: 1px {info}40;
          background: linear-gradient(to bottom, {info}0c, {primary}05); }
 .head { flex-direction: row; align-items: center; gap: 6px; }
 .head-icon { width: 18px; height: 18px; }

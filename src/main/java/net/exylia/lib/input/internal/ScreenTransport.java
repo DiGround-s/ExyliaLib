@@ -6,6 +6,7 @@ import net.exylia.lib.input.FlagInput;
 import net.exylia.lib.input.InputParser;
 import net.exylia.lib.input.InputOutcome;
 import net.exylia.lib.input.InputRequest;
+import net.exylia.lib.input.SearchInput;
 import net.exylia.lib.screen.Motion;
 import net.exylia.lib.screen.Node;
 import net.exylia.lib.screen.Screen;
@@ -32,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Confirms, yes/no flags and choices for a player whose menus are screens (MenuStyle SCREEN): drawn as a
  * dialog on a screen of their own instead of a small chest window. Cancel, Shift or anything closing the screen
  * cancels the request. A choice of more than twelve answers pages, turned with A and D or the arrows (1.517.0).
+ * A search is a grid with its own keys (1.525.0, {@link ScreenSearch}).
  * Anything else (text, numbers) is left to the next transport.
  *
  * @since 1.516.0
@@ -60,13 +62,15 @@ public final class ScreenTransport implements Transport {
         Player player = Bukkit.getPlayer(session.playerId());
         if (player == null || !player.isOnline()) return false;
         if (!(session.request() instanceof InputRequest<?, ?> request)) return false;
+        ScreenSearch<?> search = request instanceof SearchInput<?> input ? search(session, input) : null;
         List<Option> options = options(request);
-        if (options == null) return false;
+        if (options == null && search == null) return false;
         Plugin owner = Bukkit.getPluginManager().getPlugin(session.pluginName());
         if (owner == null || !owner.isEnabled()) owner = library;
         // Held by a camera the question goes through the next transport: a dialog or chat is seen from anywhere.
         if (!MenuStyles.of(owner).screens(player) || net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player)) return false;
-        Screen screen = Screen.of(s -> dialog(s, session, request, options))
+        ScreenSearch<?> finder = search == null ? null : search.owner(owner);
+        Screen screen = Screen.of(s -> finder != null ? finder.draw(s) : dialog(s, session, request, options))
                 .onClose(s -> {
                     shown.remove(session.playerId(), s);
                     session.end(InputOutcome.CANCELLED);
@@ -99,6 +103,10 @@ public final class ScreenTransport implements Transport {
         }
         if (request instanceof ChoiceInput<?> choice) return choices(choice);
         return null;
+    }
+
+    private static <T> @Nullable ScreenSearch<T> search(InputSession session, SearchInput<T> input) {
+        return input.choices().isEmpty() && input.source() == null ? null : new ScreenSearch<>(session, input);
     }
 
     private static <T> @Nullable List<Option> choices(ChoiceInput<T> choice) {
@@ -139,7 +147,7 @@ public final class ScreenTransport implements Transport {
     }
 
     /** {@code ‹ 2 / 3 ›}, turned by a click or by A and D. */
-    private static Node pager(int page, int pages) {
+    static Node pager(int page, int pages) {
         Node previous = Node.text(Text.of(page > 0 ? "{letters}‹" : "{muted}‹").build()).padding(2, 6)
                 .hover("{primary}50").key("a").onClick(event -> event.session().set(PAGE_KEY, Math.max(0, page - 1)));
         Node next = Node.text(Text.of(page < pages - 1 ? "{letters}›" : "{muted}›").build()).padding(2, 6)

@@ -468,6 +468,9 @@ inputs.search(player, "Pick a sound", List.of(Sound.values()))
       .open(sound -> config.setSound(sound));
 ```
 
+With the SCREEN menu style (1.525.0) the same request is a grid on a screen with its own letter keys and `‹ 1 / 3 ›`
+pager: no chest, nothing steps aside. Otherwise:
+
 The player types into an anvil's rename box; the matches appear in a chest
 window and refilter as they type.
 

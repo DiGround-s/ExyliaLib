@@ -359,7 +359,7 @@ final class SearchView<T> implements InventoryHolder {
      * 4000 entries a one-character typo promotes dozens of unrelated rows above
      * the exact name the player finished typing.
      */
-    private static <T> List<T> filter(SearchInput<T> request, Map<T, String> normalized, String query) {
+    static <T> List<T> filter(SearchInput<T> request, Map<T, String> normalized, String query) {
         if (query.isEmpty()) {
             return request.choices();
         }

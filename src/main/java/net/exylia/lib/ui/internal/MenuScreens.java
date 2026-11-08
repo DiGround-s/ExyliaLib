@@ -163,8 +163,8 @@ final class MenuScreens {
     // ------------------------------------------------------------------
 
     /** The layout area the skin fills, in screen pixels (the screen's default). */
-    private static final double AREA_W = Screen.WIDTH - 28;
-    private static final double AREA_H = Screen.HEIGHT - 20;
+    private static final double AREA_W = Screen.WIDTH;
+    private static final double AREA_H = Screen.HEIGHT;
     private static final double GAP = 3;
     private static final double PAD = 8;
     private static final double TITLE = 9;
@@ -191,7 +191,7 @@ final class MenuScreens {
                 maxCol = Math.max(maxCol, c);
             }
         }
-        Node panel = Node.column(Node.text(menu.currentTitle()).scale(0.9)).padding(PAD, PAD + 2).gap(6)
+        Node panel = Node.column(Node.text(menu.currentTitle()).scale(0.9)).size(AREA_W, AREA_H).padding(PAD, PAD + 2).gap(6)
                 .background(PANEL).outline("{primary}", 1);
         Node barRows = bar ? bar(menu, inventory, (rows - 1) * 9) : null;
         double barH = bar ? (barRows.children().size() > 1 ? 2 * BAR + GAP : BAR) + 7 : 0;
@@ -202,7 +202,7 @@ final class MenuScreens {
             double w = clamp(Math.floor((AREA_W - 2 * PAD - (cols - 1) * GAP) / cols), 34, 72);
             double h = clamp(Math.floor((AREA_H - 2 * PAD - TITLE - 6 - barH - (shownRows.size() - 1) * GAP)
                     / shownRows.size()), 22, 48);
-            Node grid = Node.column().gap(GAP).align(Node.Align.CENTER);
+            Node grid = Node.column().gap(GAP).align(Node.Align.CENTER).justify(Node.Justify.CENTER).grow(1);
             for (int r : shownRows) {
                 Node row = Node.row().gap(GAP);
                 for (int c = minCol; c <= maxCol; c++) {
