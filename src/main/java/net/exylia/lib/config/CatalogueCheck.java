@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  *
  * <p>Needs no server, only {@code paper-api} and this library on the test classpath.
  *
- * @since 1.533.0
+ * @since 1.534.0
  */
 public final class CatalogueCheck {
 
@@ -52,10 +52,31 @@ public final class CatalogueCheck {
      */
     public static @NotNull List<String> problems(@NotNull Class<?> anchor, @NotNull String resource,
                                                  @NotNull List<String> languages, @NotNull Pattern text, int maxLine) {
+        return against(anchor, resource, resource, languages, text, maxLine);
+    }
+
+    /**
+     * The same for a file that only lives per language: {@code lang/<code>/<resource>} against
+     * {@code lang/en/<resource>}.
+     *
+     * @param anchor    a class packaged with the resources
+     * @param resource  the path inside a language folder, such as {@code menus/hub.yml}
+     * @param languages the language codes that must be packaged
+     * @param text      which dotted keys hold text a player reads
+     * @param maxLine   the widest line of a {@code description} or {@code lore}, in visible characters
+     * @return the problems, empty when everything holds
+     */
+    public static @NotNull List<String> againstEnglish(@NotNull Class<?> anchor, @NotNull String resource,
+                                                       @NotNull List<String> languages, @NotNull Pattern text, int maxLine) {
+        return against(anchor, "lang/" + Languages.ENGLISH + "/" + resource, resource, languages, text, maxLine);
+    }
+
+    private static List<String> against(Class<?> anchor, String baseFile, String resource, List<String> languages,
+                                        Pattern text, int maxLine) {
         List<String> problems = new ArrayList<>();
-        YamlConfiguration base = packaged(anchor, resource);
+        YamlConfiguration base = packaged(anchor, baseFile);
         if (base == null) {
-            return List.of(resource + " is not packaged");
+            return List.of(baseFile + " is not packaged");
         }
         for (String code : languages) {
             String where = code + "/" + resource + " ";

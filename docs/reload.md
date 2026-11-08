@@ -27,6 +27,10 @@ that one.
 | `/exylialib logs <player\|*> [plugin] [action]` (since 1.296.0) | The staff audit log every plugin records into: a menu in game, the newest lines in the console. Its own permission, `exylialib.logs`; see [logs.md](logs.md) |
 | `/exylialib editor [plugin]`, `editor apply <code> [confirm]`, `editor trust <code> <challenge>` (since 1.304.0) | The browser editor: open a session, bring its changes down, trust a second browser. Its own permission, `exylialib.editor`; see [web-editor.md](web-editor.md) |
 
+When `/exylialib reload` finds a plugin's language changed (`language: default` following a new library language),
+it runs that plugin's whole declared `Reloads` once, so its menus, messages and catalogues read the new language
+without a second command (1.534.0+).
+
 ### `/exylialib reload`
 
 Reloads **five files**, not just `colors.yml`: `config.yml`

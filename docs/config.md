@@ -382,7 +382,7 @@ then follows the usual rules above: new keys arrive, changed defaults wait in `/
 - **Everything that writes** (editors, importers, the web editor) goes through `Languages.file` or
   `Languages.path`. Nothing keeps a path to the old folder.
 
-Test each language file in the plugin with `CatalogueCheck` (1.533.0): only keys the base has, every text key
+Test each language file in the plugin with `CatalogueCheck` (1.534.0): only keys the base has, every text key
 translated, every `%placeholder%`, `{token}` and `<tag>` of the base line still there and none added, and no
 description or lore line wider than you allow.
 

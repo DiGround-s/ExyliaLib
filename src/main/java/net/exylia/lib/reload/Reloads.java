@@ -1,5 +1,6 @@
 package net.exylia.lib.reload;
 
+import net.exylia.lib.config.Languages;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Prefixes;
@@ -60,10 +61,13 @@ public final class Reloads {
     private final Plugin plugin;
     private final Debug debug;
     private final List<Step> steps = new ArrayList<>();
+    /** The language this plugin's files were last read in. */
+    private volatile String language;
 
     private Reloads(Plugin plugin) {
         this.plugin = plugin;
         this.debug = Debug.of(plugin);
+        this.language = languageOf(plugin);
     }
 
     /**
@@ -132,6 +136,7 @@ public final class Reloads {
      * @return the report
      */
     public @NotNull Report run() {
+        language = languageOf(plugin);
         long started = System.currentTimeMillis();
         List<String> failed = new ArrayList<>();
 
@@ -227,7 +232,7 @@ public final class Reloads {
      * @return how many listeners ran
      */
     public static int fireLibraryReload() {
-        int ran = 0;
+        int ran = reloadWhereTheLanguageChanged();
         for (List<Listener> listeners : LIBRARY_LISTENERS.values()) {
             for (Listener listener : listeners) {
                 try {
@@ -244,6 +249,28 @@ public final class Reloads {
             }
         }
         return ran;
+    }
+
+    /**
+     * A plugin that follows the library's language reads every file in the new one when it changes: its menus,
+     * messages and catalogues are not only colours a menu keeps, and without this they stay in the old language
+     * until the plugin's own reload. A plugin that names its own language is not touched.
+     */
+    private static int reloadWhereTheLanguageChanged() {
+        int ran = 0;
+        for (Reloads declared : DECLARED.values()) {
+            String now = languageOf(declared.plugin);
+            if (!now.equals(declared.language)) {
+                declared.run();
+                ran++;
+            }
+        }
+        return ran;
+    }
+
+    /** Empty for a plugin with no folder, which only a test has. */
+    private static String languageOf(Plugin plugin) {
+        return plugin.getDataFolder() == null ? "" : Languages.code(plugin);
     }
 
     /** Drops one plugin's listeners. Called when it disables. */

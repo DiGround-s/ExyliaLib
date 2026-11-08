@@ -294,6 +294,27 @@ class ReloadsTest {
     }
 
     @Test
+    @DisplayName("a language change reloads the plugin with the library, once")
+    void aLanguageChangeReloadsThePluginWithTheLibrary() throws Exception {
+        java.nio.file.Path folder = java.nio.file.Files.createTempDirectory("reloads").resolve("MyPlugin");
+        java.nio.file.Files.createDirectories(folder);
+        java.nio.file.Path config = folder.resolve("config.yml");
+        java.nio.file.Files.writeString(config, "language: es\n");
+        java.util.concurrent.atomic.AtomicInteger read = new java.util.concurrent.atomic.AtomicInteger();
+        Reloads.of(FakeServer.newPlugin("Translated", folder.toFile())).step("files", read::incrementAndGet);
+
+        Reloads.fireLibraryReload();
+        assertEquals(0, read.get(), "the same language has nothing to read again");
+
+        java.nio.file.Files.writeString(config, "language: fr\n");
+        Reloads.fireLibraryReload();
+        assertEquals(1, read.get());
+
+        Reloads.fireLibraryReload();
+        assertEquals(1, read.get(), "once");
+    }
+
+    @Test
     @DisplayName("such a step still runs on the plugin's own reload")
     void libraryStepStillRunsNormally() {
         AtomicInteger rebuilt = new AtomicInteger();
