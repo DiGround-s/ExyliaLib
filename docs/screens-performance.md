@@ -100,13 +100,15 @@ sprite's four copies), on a real clock since the ceiling is per second, on the t
 | 25 tiles appear | 78 | 50 | 10 KB |
 | One reveal (flip, gem, burst of 12) | 163 at most | 91 | 13 KB |
 | Every gem shown | 151 | | |
-| The dearest second: a blast shakes the board and 10 bursts of 10 run across it | 201 at most | 1001 | 43 KB |
+| The dearest second: a blast shakes the board and 10 bursts of 10 run across it | 181 at most | 637 | 27 KB |
 
 Within the budget of 400. The slowest tick took 10 to 16 ms on a cold JVM with no network. These are harness numbers,
 not a client's: frame rate and stutter are not measured here. A burst is decoration, so 24 at once (288 displays on top
 of the board) lose their shards to the detail ladder rather than the board. The shake is the dear part, every display
-of the scene a transform per step, and it stops early past the ceiling. That second is well over the ceiling of 300
-all the same, since the ceiling counts glides and spawned shards are not counted.
+of the scene a transform per step, and it stops early past the ceiling. A shard counts against the ceiling (3 for its
+spawn, first look and removal, 1 for its flight), so a burst asked for past it is left out; what already started
+finishes, and the test's window runs past one wall second, which is why that row reads above 300 (1001 before shards
+counted).
 
 ## What each thing costs
 

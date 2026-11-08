@@ -420,7 +420,8 @@ class ScreenWireTest {
                 + "\n[game board] worst second " + worst + ", peak " + worstPeak + " displays, slowest tick " + used / 1_000_000 + " ms");
         assertTrue(peak[0] <= LiveScreen.BUDGET, "within the screen's budget: " + peak[0]);
         assertEquals(allGems, after, "bursts leave nothing behind");
-        assertTrue(worst.packets <= 1200, "the ceiling holds a blast's cost: " + worst);
+        // 1001 before spawned shards counted against the ceiling.
+        assertTrue(worst.packets <= 700, "the ceiling holds a blast's cost: " + worst);
     }
 
     private static void reveal(ScreenScene board, int[] gem, int tile) {

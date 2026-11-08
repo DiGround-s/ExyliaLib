@@ -57,6 +57,10 @@ public final class ScreenScene {
         boolean spare();
     }
 
+    /** What a burst's sprites are named after: the screen counts them against its motion ceiling. */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public static final String SHARD = "~shard";
+
     private final String id;
     private final Host host;
     private final Runnable redraw;
@@ -209,7 +213,7 @@ public final class ScreenScene {
             to[i][1] = y + Math.sin(angle) * reach - size / 2;
             String name;
             synchronized (this) {
-                name = "~shard" + shards++;
+                name = SHARD + shards++;
             }
             Sprite shard = sprite(name).rect(size, size, colours[i % colours.length]).at(x - size / 2, y - size / 2).layer(8);
             shard.decoration();

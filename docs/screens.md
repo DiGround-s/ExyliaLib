@@ -771,8 +771,8 @@ A display only glides from a transform the client already has: a new sprite show
 tick jumps. Show it first, then move it from a timeline step at least one tick later, as above.
 
 **Rotation.** A sprite does not rotate, and a flip is a squeeze rather than a turn about the upright: a display turned
-out of the screen's plane cuts through whatever is behind it. Turning *within* the plane, which a wheel needs, is
-should be possible but is untested and not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
+out of the screen's plane cuts through whatever is behind it. Turning *within* the plane, which a wheel needs, works on a
+client but is not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
 
 ## Gallery and preview (1.497.0)
 
@@ -883,22 +883,30 @@ captured when the markup was taken.
 
 **6. Closing mid-round.** Shift always closes a screen. Treat it as walking away by whatever rule the game already has:
 keeps what was earned, leaves at once; loses the stake, asks first (a dangerous confirm), and brings the screen back on
-no. Nothing is decided by a closed screen on its own.
+no. Ask with `.transports(TransportKind.SCREEN, ...)` and the question is drawn on a screen whatever the player's menus
+are, so it never meets a chest window. Nothing is decided by a closed screen on its own.
 
 **7. Check it.** Budget and motion from [Screen performance](screens-performance.md#games-on-a-screen), every tab in
 every state on a real client, in two languages: a win, a loss, a stake that cannot be paid, closing mid-round.
+Two checks catch what cost the pilot most, and belong in the plugin's tests from the first commit (Casino's
+`ScreenFilesTest` and `GameScreenFit`, a new game is one more line):
+
+- **Clashes.** `theme.css` styles a whole plugin, so a class a game names for itself must not be one of its selectors
+  (`.pays` collapsed every payout cell to no width), and it defines no `.game-*`, which are the kit's.
+- **Overflow.** Lay every tab in every state out, in every language, with the widest values the game can show: nothing
+  may leave the 400 by 225 frame or its parent, and no text may end up in a box with no width.
 
 ### What the kit does not cover yet
 
 Added when a game needs it, on the same `ScreenScene`, none of it changes what exists:
 
-- **Rotation** (roulette, a wheel). Not exposed on `Sprite`, and not yet tried on a client. By the display transform
-  it should work: `LEFT_ROTATION` about the axis facing the viewer stays in the plane, so it cuts nothing, and it is
-  interpolated the short way, so a glide is under 180° and about 90° a glide is the practical step. Try it first with
-  one rect. Three things to build: `Sprite#rotate`; correcting the pivot, which is the display's origin (a text
-  display's bottom centre) rather than the sprite's centre; and pictures, whose four nudged copies must have their
-  nudges turned too, so an item picture is four transforms a step against one for a 3D item or a text glyph. Hit
-  testing stays with the unrotated box.
+- **Rotation** (roulette, a wheel). Not exposed on `Sprite`. Tried on a 1.21.4 client with a throwaway build that gave
+  every rect a `LEFT_ROTATION` about the axis facing the viewer: at 30 and 60 degrees rects stay crisp and in the plane
+  and cut nothing, a kept rect going from 0 to 60 turns through the angles between, and the pivot is the display's
+  origin, a rect's bottom centre rather than its centre. Text and pictures were not tried. Three things to build:
+  `Sprite#rotate`; correcting the pivot; and pictures, whose four nudged copies must have their nudges turned too, so
+  an item picture is four transforms a step against one for a 3D item or a text glyph. Keep each glide under 180 degrees,
+  since the client interpolates the short way. Hit testing stays with the unrotated box.
 - **Reels** (slots). A column of symbols moving down, wrapping past its window: sprites clipped by the frame or masked
   above and below, since a scene has no clip.
 - **Cards** (blackjack, baccarat). A flip and a deal path are there; a card face built from sprites is not.

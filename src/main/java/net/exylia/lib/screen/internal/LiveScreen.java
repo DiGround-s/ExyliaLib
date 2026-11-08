@@ -5,6 +5,7 @@ import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import net.exylia.lib.packet.Packets;
 import net.exylia.lib.screen.Motion;
 import net.exylia.lib.screen.Node;
+import net.exylia.lib.screen.ScreenScene;
 import net.exylia.lib.screen.Screen;
 import net.exylia.lib.screen.ScreenEvent;
 import net.exylia.lib.screen.ScreenSession;
@@ -1403,6 +1404,8 @@ final class LiveScreen implements ScreenSession {
             String box = frame.boxOf().get(key);
             if (current == null) {
                 out.add(look instanceof ItemLook ? ScreenPackets.spawnItem(id, origin) : ScreenPackets.spawnDisplay(id, origin));
+                // A burst's shard: its spawn, first look and removal are motion too (its flight counts as a glide).
+                if (key.contains(ScreenScene.SHARD)) motionPackets += 3;
                 Arrival in = key.startsWith("~dim") || reduced || box == null ? null
                         : arrivals.computeIfAbsent(box, b -> arrivalOf(b, frame.boxes()));
                 if (in != null && in.tween().ticks() > 0) {
