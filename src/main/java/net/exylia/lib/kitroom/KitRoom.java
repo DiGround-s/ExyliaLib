@@ -22,7 +22,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * One plugin's kit room: categories of items players take copies of to build
@@ -51,7 +53,7 @@ public final class KitRoom {
     private final Map<String, KitRoomCategory> categories = new ConcurrentHashMap<>();
     private final CompletableFuture<Void> loaded;
 
-    KitRoom(@NotNull Plugin plugin) {
+    KitRoom(@NotNull Plugin plugin, @NotNull Supplier<? extends CompletionStage<List<KitRoomCategory>>> seed) {
         this.plugin = plugin;
         this.repository = Databases.of(plugin).repository(KitRoomCategory.class);
         this.loaded = repository.findAll().thenCompose(rows -> {
@@ -59,9 +61,11 @@ public final class KitRoom {
             if (!rows.isEmpty()) return CompletableFuture.completedFuture(null);
             // ponytail: seeded whenever the table is empty, so a room staff
             // emptied on purpose comes back on restart; add a flag if anyone wants that.
-            List<KitRoomCategory> defaults = KitRoomDefaults.build();
-            defaults.forEach(row -> categories.put(row.id(), row));
-            return repository.saveAll(defaults);
+            return seed.get().toCompletableFuture().thenCompose(seeded -> {
+                List<KitRoomCategory> first = seeded.isEmpty() ? KitRoomDefaults.build() : seeded;
+                first.forEach(row -> categories.put(row.id(), row));
+                return repository.saveAll(first);
+            });
         }).exceptionally(failure -> {
             Debug.of(plugin).error("The kit room could not be loaded.", failure);
             return null;
@@ -119,7 +123,19 @@ public final class KitRoom {
      * @param categories which categories to show, every one when empty
      */
     public void open(@NotNull Player viewer, @NotNull Collection<String> categories) {
-        KitRoomMenu.open(this, viewer, List.copyOf(categories));
+        open(viewer, categories, "");
+    }
+
+    /**
+     * Opens the room on one tab.
+     *
+     * @param viewer     who browses; any thread
+     * @param categories which categories to show, every one when empty
+     * @param first      the tab shown first; the first one when it is not among them
+     * @since 1.512.0
+     */
+    public void open(@NotNull Player viewer, @NotNull Collection<String> categories, @NotNull String first) {
+        KitRoomMenu.open(this, viewer, List.copyOf(categories), first);
     }
 
     /**

@@ -7,8 +7,10 @@ import net.exylia.lib.kitroom.KitRoom;
 import net.exylia.lib.kitroom.KitRoomCategory;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Lore;
+import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.ui.ClickKind;
 import net.exylia.lib.ui.PluginMenus;
 import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiKeys;
@@ -17,10 +19,12 @@ import org.bukkit.Sound;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,16 +93,42 @@ public final class KitRoomMenu {
             return ActionResult.success();
         });
         actions.registerSync("kitroom_take", (context, arguments) -> {
-            if (!(context.require(UiKeys.ENTRY) instanceof ItemStack item)) return ActionResult.stop("no item");
+            if (!(context.require(UiKeys.ENTRY) instanceof ItemStack stored)) return ActionResult.stop("no item");
             Player player = context.player();
-            if (!player.getInventory().addItem(item.clone()).isEmpty()) {
-                Text.of(Phrases.tr("{error}✘ {letters}Your inventory is full.")).send(player);
-                player.playSound(player, Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
-                return ActionResult.success();
+            // Held-down clicks would otherwise fill the inventory in a blink.
+            if (!Cooldowns.forPlugin(plugin).tryStart(player, "kitroom-take", Duration.ofMillis(150))) {
+                return ActionResult.denied("kit room click cooldown");
             }
-            player.playSound(player, Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.4f);
+            take(player, stored.clone(), context.get(UiKeys.CLICK).orElse(ClickKind.LEFT));
             return ActionResult.success();
         });
+    }
+
+    /**
+     * Hands a copy over the way the same click does anywhere else: shift for a
+     * full stack, the swap key straight into the off hand.
+     */
+    static void take(Player player, ItemStack item, ClickKind click) {
+        PlayerInventory inventory = player.getInventory();
+        if (click == ClickKind.SWAP) {
+            // The off hand is a slot, not a stack to add to: what was in it goes
+            // back to the inventory, and what does not fit lands at their feet.
+            ItemStack previous = inventory.getItemInOffHand();
+            inventory.setItemInOffHand(item);
+            if (!previous.getType().isAir()) {
+                inventory.addItem(previous).values()
+                        .forEach(left -> player.getWorld().dropItemNaturally(player.getLocation(), left));
+            }
+            player.playSound(player, Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.4f);
+            return;
+        }
+        if (click == ClickKind.SHIFT_LEFT || click == ClickKind.SHIFT_RIGHT) item.setAmount(item.getMaxStackSize());
+        if (!inventory.addItem(item).isEmpty()) {
+            Text.of(Phrases.tr("{error}✘ {letters}Your inventory is full.")).send(player);
+            player.playSound(player, Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+            return;
+        }
+        player.playSound(player, Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.4f);
     }
 
     /** Compiles the screen into the library's menus. */
@@ -112,12 +142,13 @@ public final class KitRoomMenu {
         library = null;
     }
 
-    /** Opens a room on its first allowed tab; any thread. */
-    public static void open(@NotNull KitRoom room, @NotNull Player viewer, @NotNull List<String> allowed) {
+    /** Opens a room on one tab, or its first allowed one when {@code first} is not among them; any thread. */
+    public static void open(@NotNull KitRoom room, @NotNull Player viewer, @NotNull List<String> allowed,
+                            @NotNull String first) {
         Plugin plugin = library;
         PluginMenus current = menus;
         if (plugin == null || current == null) return;
-        State state = new State(room, allowed, "");
+        State state = new State(room, allowed, first);
         Map<String, Object> context = new HashMap<>();
         context.put(STATE, state);
         context.put("kitroom_tab", (Supplier<String>) () -> {
@@ -205,6 +236,8 @@ public final class KitRoomMenu {
                 .section(Phrases.tr("Information"))
                 .line(Phrases.tr(" {letters}Click an item to take a copy;"))
                 .line(Phrases.tr(" {letters}it lands in your inventory."))
+                .line(Phrases.tr(" {highlight}Shift {letters}takes a full stack,"))
+                .line(Phrases.tr(" {highlight}F {letters}puts it in your off hand."))
                 .line(Phrases.tr(" {letters}The tabs below switch category."))
                 .lines());
         return yaml;

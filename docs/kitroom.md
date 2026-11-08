@@ -20,6 +20,8 @@ if (!room.allows(items, List.of("gear", "potions"))) refuse();   // before savin
 | `KitRooms.of(plugin)` | the plugin's room, read from its own database (table `exylia_kitroom`, `DataKind.SETUP`) |
 | `categories()` / `categories(ids)` / `category(id)` | the tabs in order; `ids` filters, empty means all |
 | `open(player, ids)` | the player screen: items in rows 0-3, up to six tabs in 45-47 and 51-53, header at 49 |
+| `open(player, ids, first)` (1.512.0) | the same, on one tab first |
+| `KitRooms.of(plugin, seed)` (1.512.0) | the room, filled from `seed` the first time its table is empty: how a plugin moves a kit room it kept itself into this one (ExyliaSandBox does) |
 | `edit(viewer, back)` | the staff editor: a list editor of categories; editing one asks its name, then opens its items in the item list editor |
 | `allows(items, ids)` | whether every non-empty stack is one of those categories' items (`isSimilar`, amount ignored) |
 | `loaded()` | completes once the room is read |
@@ -29,6 +31,8 @@ if (!room.allows(items, List.of("gear", "potions"))) refuse();   // before savin
 - **An empty room starts with defaults**: gear in three tiers, consumables,
   splash potions and arrows, all items from 1.21.0. Emptying it on purpose seeds
   it again on the next start.
+- **A click takes one stack as stored; shift takes a full stack; F puts it in
+  the off hand**, sending what was there back to the inventory (1.512.0).
 - **Amounts are not checked.** Players take as many copies as they like; what a
   room limits is *which* items, not how many.
 - **Saving a build is the plugin's job**, and so is the place it is built in

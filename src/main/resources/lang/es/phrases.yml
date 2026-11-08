@@ -1773,3 +1773,5 @@ World: Mundo
 '{primary}&lKIT ROOM': '{primary}&lSALA DE KITS'
 '{primary}&lKIT ROOM {letters_black}» {highlight}Categories': '{primary}&lSALA DE KITS {letters_black}» {highlight}Categorías'
 '{primary}&lKIT ROOM {letters_black}» {highlight}{0}': '{primary}&lSALA DE KITS {letters_black}» {highlight}{0}'
+' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}toma un stack completo,'
+' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}lo pone en tu mano secundaria.'
