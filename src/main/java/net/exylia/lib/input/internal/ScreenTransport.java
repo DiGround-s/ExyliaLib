@@ -29,17 +29,19 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Confirms, yes/no flags and short choices for a player whose menus are screens (MenuStyle SCREEN): drawn as a
+ * Confirms, yes/no flags and choices for a player whose menus are screens (MenuStyle SCREEN): drawn as a
  * dialog on a screen of their own instead of a small chest window. Cancel, Shift or anything closing the screen
- * cancels the request. Anything else (text, numbers, long lists) is left to the next transport.
+ * cancels the request. A choice of more than twelve answers pages, turned with A and D or the arrows (1.517.0).
+ * Anything else (text, numbers) is left to the next transport.
  *
  * @since 1.516.0
  */
 public final class ScreenTransport implements Transport {
 
-    // ponytail: no paging; a longer list falls back to the chest picker, which pages.
-    private static final int MOST = 12;
+    /** Choices a page shows; a longer list pages with A/D or the arrows under it. */
+    private static final int PAGE = 12;
     private static final int PER_ROW = 4;
+    private static final String PAGE_KEY = "page";
 
     private final Plugin library;
     private final Map<UUID, ScreenSession> shown = new ConcurrentHashMap<>();
@@ -63,7 +65,7 @@ public final class ScreenTransport implements Transport {
         Plugin owner = Bukkit.getPluginManager().getPlugin(session.pluginName());
         if (owner == null || !owner.isEnabled()) owner = library;
         if (!MenuStyles.of(owner).screens(player)) return false;
-        Screen screen = Screen.of(s -> dialog(session, request, options))
+        Screen screen = Screen.of(s -> dialog(s, session, request, options))
                 .onClose(s -> {
                     shown.remove(session.playerId(), s);
                     session.end(InputOutcome.CANCELLED);
@@ -99,7 +101,7 @@ public final class ScreenTransport implements Transport {
     }
 
     private static <T> @Nullable List<Option> choices(ChoiceInput<T> choice) {
-        if (choice.choices().isEmpty() || choice.choices().size() > MOST) return null;
+        if (choice.choices().isEmpty()) return null;
         List<Option> out = new ArrayList<>();
         for (T value : choice.choices()) {
             out.add(new Option(choice.keyOf(value), ChoiceOptions.labelOf(choice, value), choice.iconOf(value),
@@ -109,20 +111,23 @@ public final class ScreenTransport implements Transport {
     }
 
     /** The dialog: the question, then the answers as buttons (a confirm) or cards (a choice), then Cancel. */
-    private static Node dialog(InputSession session, InputRequest<?, ?> request, List<Option> options) {
+    private static Node dialog(ScreenSession screen, InputSession session, InputRequest<?, ?> request, List<Option> options) {
         boolean choice = options.get(0).icon() != null;
         Node panel = Node.column(Node.text(Text.of(request.prompt()).build()).wrap(240).textAlign(Node.Align.CENTER))
                 .padding(12, 16).gap(10).align(Node.Align.CENTER).background("#17131f")
                 .outline(danger(request) ? "{error}80" : "{primary}60", 1)
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.9), 5, Motion.Ease.BACK));
         if (choice) {
+            int pages = (options.size() + PAGE - 1) / PAGE;
+            int page = Math.max(0, Math.min(pages - 1, screen.state(PAGE_KEY, 0)));
             Node grid = Node.column().gap(4).align(Node.Align.CENTER);
             Node row = null;
-            for (int i = 0; i < options.size(); i++) {
+            for (int i = page * PAGE; i < Math.min(options.size(), (page + 1) * PAGE); i++) {
                 if (i % PER_ROW == 0) grid.add(row = Node.row().gap(4));
                 row.add(card(session, request, options.get(i)));
             }
             panel.add(grid);
+            if (pages > 1) panel.add(pager(page, pages));
             panel.add(button(session, request, null, Phrases.tr("Cancel"), "{letters_black}20"));
         } else {
             Node row = Node.row().gap(6);
@@ -130,6 +135,16 @@ public final class ScreenTransport implements Transport {
             panel.add(row);
         }
         return Node.column(panel).align(Node.Align.CENTER).justify(Node.Justify.CENTER);
+    }
+
+    /** {@code ‹ 2 / 3 ›}, turned by a click or by A and D. */
+    private static Node pager(int page, int pages) {
+        Node previous = Node.text(Text.of(page > 0 ? "{letters}‹" : "{muted}‹").build()).padding(2, 6)
+                .hover("{primary}50").key("a").onClick(event -> event.session().set(PAGE_KEY, Math.max(0, page - 1)));
+        Node next = Node.text(Text.of(page < pages - 1 ? "{letters}›" : "{muted}›").build()).padding(2, 6)
+                .hover("{primary}50").key("d").onClick(event -> event.session().set(PAGE_KEY, Math.min(pages - 1, page + 1)));
+        Node label = Node.text(Text.of("{letters_black}" + (page + 1) + " / " + pages).build()).scale(0.8);
+        return Node.row(previous, label, next).gap(6).align(Node.Align.CENTER);
     }
 
     private static boolean danger(InputRequest<?, ?> request) {

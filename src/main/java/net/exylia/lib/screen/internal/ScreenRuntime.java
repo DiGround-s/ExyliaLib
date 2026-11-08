@@ -243,10 +243,25 @@ public final class ScreenRuntime {
         try {
             click.run();
         } finally {
-            if (before == null) AS_CHEST.remove();
-            else AS_CHEST.set(before);
+            if (before == null) {
+                AS_CHEST.remove();
+                // A close the click asked for happens once it finished: when the click went on to ask something
+                // (closeInventory() then a prompt, as chest code does) the screen steps aside for it and comes
+                // back after the answer instead (1.517.0).
+                LiveScreen asked = CLOSE_AFTER.get();
+                CLOSE_AFTER.remove();
+                if (asked != null && OPEN.get(viewer) == asked && !asked.away()
+                        && !net.exylia.lib.input.internal.InputRuntime.hasActive(viewer)) {
+                    asked.close();
+                }
+            } else {
+                AS_CHEST.set(before);
+            }
         }
     }
+
+    /** The screen a chest click closed with closeInventory(), closed when that click ends. */
+    private static final ThreadLocal<LiveScreen> CLOSE_AFTER = new ThreadLocal<>();
 
     /** Whether a window close is {@code closeInventory()} called with nothing but the player's own inventory open. */
     static boolean closesScreen(org.bukkit.event.inventory.InventoryCloseEvent event) {
@@ -325,7 +340,7 @@ public final class ScreenRuntime {
             LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
             // Only a close made by the screen's own click (an action that closes the menu before a game or a
             // prompt): plugins also call closeInventory() defensively from state changes, which must not.
-            if (live != null && !live.away() && event.getPlayer().getUniqueId().equals(AS_CHEST.get())) live.close();
+            if (live != null && !live.away() && event.getPlayer().getUniqueId().equals(AS_CHEST.get())) CLOSE_AFTER.set(live);
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

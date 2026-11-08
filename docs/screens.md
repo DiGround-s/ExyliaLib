@@ -867,7 +867,10 @@ sends only what changed.
   counts (a real window closing is not the screen), and never while the screen stepped aside for an input. Since
   1.514.0 only a `closeInventory()` made by a click written for a chest closes it: a chest-skin card handed to its
   menu, or a plugin action (`plugin:action`) a screen calls. One from anywhere else (a screen's own Java binding,
-  a party update refreshing lobby items, a state change) leaves the screen up. Before 1.509.0 such an action left the screen up; `UiSession#close` closes
+  a party update refreshing lobby items, a state change) leaves the screen up. Since 1.517.0 that close happens when the click ends, and not at all when the click went on to ask something
+  (`closeInventory()` then `inputs().confirm(...)`, as chest code does): the screen steps aside for the question and
+  comes back after it. A confirm or choice for a player on screens is drawn as a screen dialog; a choice of more than
+  twelve answers pages with A/D. Before 1.509.0 such an action left the screen up; `UiSession#close` closes
   either style in every version.
 
 ## Trying it
