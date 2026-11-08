@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -184,5 +187,33 @@ class ActionsTest {
 
         assertTrue(result.isSuccess());
         assertTrue(thread.get().startsWith("FakeServer-async"), thread.get());
+    }
+
+    @Test @DisplayName("a failed action is logged with its id and cause, once however often it fails")
+    void failureIsLoggedOnce() throws Exception {
+        List<LogRecord> records = new ArrayList<>();
+        Handler handler = new Handler() {
+            @Override public void publish(LogRecord record) { records.add(record); }
+            @Override public void flush() { }
+            @Override public void close() { }
+        };
+        Logger logger = Logger.getLogger("ExyliaLib");
+        logger.addHandler(handler);
+        try {
+            actions.registerSync("broken", (ctx, args) -> { throw new IllegalStateException("boom"); });
+            actions.registerSync("refuses", (ctx, args) -> ActionResult.denied("nope"));
+            ActionCall broken = actions.compile("practice:broken");
+            ActionCall refuses = actions.compile("practice:refuses");
+            for (int i = 0; i < 3; i++) {
+                ActionResult result = broken.execute(context).toCompletableFuture().get(1, TimeUnit.SECONDS);
+                assertEquals(ActionResult.Status.FAILED, result.status());
+            }
+            refuses.execute(context).toCompletableFuture().get(1, TimeUnit.SECONDS);
+            assertEquals(1, records.size());
+            assertTrue(records.get(0).getMessage().contains("practice:broken"), records.get(0).getMessage());
+            assertEquals("boom", records.get(0).getThrown().getMessage());
+        } finally {
+            logger.removeHandler(handler);
+        }
     }
 }

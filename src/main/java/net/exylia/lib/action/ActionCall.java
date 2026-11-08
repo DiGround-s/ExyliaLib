@@ -34,18 +34,31 @@ public final class ActionCall {
     public @NotNull ActionId id() { return id; }
     public @NotNull ActionArguments arguments() { return arguments; }
 
-    /** Executes the already-resolved handler. */
+    /**
+     * Executes the already-resolved handler. A run that ends in
+     * {@link ActionResult.Status#FAILED} is logged here, so no adapter can lose it.
+     */
     public @NotNull CompletionStage<ActionResult> execute(@NotNull ActionContext context) {
         try {
             CompletionStage<ActionResult> stage = action.handler().execute(context, arguments);
             if (stage == null) {
-                return ActionHandler.completed(ActionResult.failed(
-                        "Action " + id + " returned no result"));
+                return ActionHandler.completed(report(ActionResult.failed(
+                        "Action " + id + " returned no result")));
             }
-            return stage.exceptionally(error -> ActionResult.failed(unwrap(error)));
+            return stage.exceptionally(error -> ActionResult.failed(unwrap(error)))
+                    .thenApply(this::report);
         } catch (Throwable error) {
-            return ActionHandler.completed(ActionResult.failed(error));
+            return ActionHandler.completed(report(ActionResult.failed(error)));
         }
+    }
+
+    private ActionResult report(ActionResult result) {
+        if (result == null) {
+            action.warnFailed("no result", null);
+        } else if (result.status() == ActionResult.Status.FAILED) {
+            action.warnFailed(result.reason(), result.error());
+        }
+        return result;
     }
 
     private static Throwable unwrap(Throwable error) {

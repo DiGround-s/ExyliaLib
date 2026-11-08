@@ -151,6 +151,8 @@ ActionResult.failed("bad value");   // invalid input or defect
 Only `SUCCESS` advances a sequence. `STOP`, `DENIED` and `FAILED` finish it with
 that result. Exceptions become `FAILED`; they do not escape into an inventory
 click listener.
+A `FAILED` run is logged as a warning with the action id and its cause, at most
+once a minute per action.
 
 There is no metadata map, execution UUID, audit record or nanosecond timer
 allocated for every click. A consumer that needs metrics can measure at its
