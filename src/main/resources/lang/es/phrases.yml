@@ -1776,3 +1776,16 @@ World: Mundo
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}toma un stack completo,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}lo pone en tu mano secundaria.'
 '{warning}Menus open again when this view ends.': "{warning}Los menús se abren de nuevo cuando termine esta vista."
+Screen settings: Ajustes de pantalla
+Cursor speed: Velocidad del cursor
+Reduced motion: Movimiento reducido
+Menu style: Estilo de menú
+Screen size: Tamaño de pantalla
+'On': Sí
+'Off': 'No'
+Reset: Restablecer
+Done: Listo
+Server's choice: Lo que elija el servidor
+Chest windows: Ventanas de cofre
+Screens: Pantallas
+Ctrl + Space opens this from anywhere: Ctrl + Espacio lo abre desde cualquier lado

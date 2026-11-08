@@ -53,10 +53,28 @@ A small flexbox in screen pixels. The layout area is `Screen.WIDTH` × `Screen.H
 of the view every common window shape shows at the default field of view; `Screen#size` changes it. The
 backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 
-How much of the window that area fills depends on the player's FOV and FOV Effects sliders, which the server
-cannot see: about three quarters of the width at the default sliders, nearly all of it at an effective FOV of 90,
-and a low FOV with FOV Effects off cuts off the top and bottom. `screen-size` in `screens.yml` (percent, 50 to 120,
-100 by default; 1.519.0) draws every screen larger or smaller, and applies to screens opened after a reload.
+A screen's field of view is left to the player's FOV slider alone (since 1.521.0): FOV Effects, a sprint, a jump and
+speed effects change nothing. At FOV 70 the layout area fills three quarters of a 16:9 window; a wider slider draws it
+smaller (about half at FOV 110). The server cannot see the slider, so each player sets their own size in the settings
+panel, kept in their data. `screen-size` in `screens.yml` (percent, 50 to 250, 100 by default) is the size of those who
+did not choose one. `Screens.size(player)` and `Screens.size(player, percent)` read and set it from Java.
+
+## The settings button
+
+Every screen draws a small button at its bottom right, in the gutter outside the layout, which the cursor reaches:
+it moves 24 pixels past the layout's sides and 6 past its top and bottom. Under a dialog the button is gone. It opens an
+in-screen panel:
+
+- **Size**, 50% to 250% in steps of 10. Applied at once to everything on screen, the cursor and the backdrop included.
+- **Cursor speed**, 0.2 to 3, as `Screens.sensitivity`.
+- **Reduced motion**, as `Screens.reducedMotion`.
+- **Menu style**, while `player-choice` is on: the server's choice, chest windows or screens, for menus opened after.
+- **Reset** forgets all four.
+
+Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a size so large the button is out of view.
+Those two keys never reach a screen's own `keys`, and clients older than 1.21.2 do not send jump, so they have the
+button only. The same choices are in `/settings` → Interface.
+
 
 | Node call | Effect |
 | --- | --- |

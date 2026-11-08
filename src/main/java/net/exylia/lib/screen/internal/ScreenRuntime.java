@@ -39,6 +39,11 @@ public final class ScreenRuntime {
     private static final java.util.Set<UUID> REDUCED = ConcurrentHashMap.newKeySet();
     private static final org.bukkit.NamespacedKey SPEED_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_speed");
     private static final org.bukkit.NamespacedKey MOTION_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_motion");
+    private static final org.bukkit.NamespacedKey SIZE_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_size");
+    /** Players who chose their own screen size, in percent. */
+    private static final Map<UUID, Integer> SIZE = new ConcurrentHashMap<>();
+    /** How large a screen may be drawn, in percent. 100 fills three quarters of a window at FOV 70, 200 at FOV 110. */
+    static final int SIZE_MIN = 50, SIZE_MAX = 250, SIZE_STEP = 10;
     private static volatile Plugin library;
     private static volatile boolean warned;
 
@@ -65,7 +70,7 @@ public final class ScreenRuntime {
         }
     }
 
-    /** Cursor speed and reduced motion in /settings, under Interface beside the menu style. */
+    /** Cursor speed, reduced motion and size in /settings, under Interface beside the menu style. */
     private static void settings(Plugin library) {
         net.exylia.lib.settings.Settings.register(library, net.exylia.lib.settings.Setting
                 .number("screen-cursor-speed", 1, 0.2, 3, 0.1)
@@ -83,6 +88,28 @@ public final class ScreenRuntime {
                     public void set(Player player, String value) {
                         try {
                             sensitivity(player, Double.parseDouble(value));
+                        } catch (NumberFormatException ignored) {
+                            // A value the setting itself never writes.
+                        }
+                    }
+                })
+                .build());
+        net.exylia.lib.settings.Settings.register(library, net.exylia.lib.settings.Setting
+                .number("screen-size", 100, SIZE_MIN, SIZE_MAX, SIZE_STEP)
+                .category("interface")
+                .icon("SPYGLASS")
+                .name("Screen size")
+                .description("How large full-screen menus", "are drawn, in percent.")
+                .store(new net.exylia.lib.settings.Setting.Store() {
+                    @Override
+                    public String get(Player player) {
+                        return Integer.toString(size(player.getUniqueId()));
+                    }
+
+                    @Override
+                    public void set(Player player, String value) {
+                        try {
+                            size(player, (int) Math.round(Double.parseDouble(value)));
                         } catch (NumberFormatException ignored) {
                             // A value the setting itself never writes.
                         }
@@ -120,6 +147,9 @@ public final class ScreenRuntime {
         } else {
             REDUCED.remove(player.getUniqueId());
         }
+        Integer size = data.get(SIZE_KEY, org.bukkit.persistence.PersistentDataType.INTEGER);
+        if (size != null) SIZE.put(player.getUniqueId(), clampSize(size));
+        else SIZE.remove(player.getUniqueId());
     }
 
     /** Writes a choice into the player's data on their thread, so it survives restarts. */
@@ -223,6 +253,40 @@ public final class ScreenRuntime {
         });
     }
 
+    /** A size in percent, inside what screens can be drawn at. */
+    static int clampSize(int percent) {
+        return Math.max(SIZE_MIN, Math.min(SIZE_MAX, percent));
+    }
+
+    /** How large this player's screens are drawn, in percent: their own choice over {@code screen-size}. */
+    public static int size(UUID player) {
+        Integer own = SIZE.get(player);
+        return clampSize(own != null ? own : net.exylia.lib.screen.ScreenSettings.get().screenSize());
+    }
+
+    /** Sets and keeps a player's own size, applied at once to a screen they have open; {@code null} forgets it. */
+    public static void size(Player player, Integer percent) {
+        if (percent == null) {
+            SIZE.remove(player.getUniqueId());
+            store(player, data -> data.remove(SIZE_KEY));
+        } else {
+            int clamped = clampSize(percent);
+            SIZE.put(player.getUniqueId(), clamped);
+            store(player, data -> data.set(SIZE_KEY, org.bukkit.persistence.PersistentDataType.INTEGER, clamped));
+        }
+        LiveScreen live = OPEN.get(player.getUniqueId());
+        if (live != null) live.rescale();
+    }
+
+    /** Back to what the server says: size, cursor speed, reduced motion and menu style. */
+    static void reset(Player player) {
+        size(player, null);
+        SENSITIVITY.remove(player.getUniqueId());
+        store(player, data -> data.remove(SPEED_KEY));
+        reducedMotion(player, false);
+        net.exylia.lib.ui.MenuStyles.choose(player, null);
+    }
+
     /** Redraws every screen {@code plugin} has open whose session passes {@code which}. */
     public static void redrawAll(Plugin plugin, java.util.function.Predicate<ScreenSession> which) {
         for (LiveScreen live : OPEN.values()) {
@@ -322,6 +386,7 @@ public final class ScreenRuntime {
             close(event.getPlayer().getUniqueId());
             SENSITIVITY.remove(event.getPlayer().getUniqueId());
             REDUCED.remove(event.getPlayer().getUniqueId());
+            SIZE.remove(event.getPlayer().getUniqueId());
             // A new login starts with nobody hidden.
             REVEAL.remove(event.getPlayer().getUniqueId());
         }

@@ -55,8 +55,20 @@ final class LiveScreen implements ScreenSession {
     private static final double LAYER = 0.001;
     /** The default layout area spans this many units across at {@link #DISTANCE}: about three quarters of a 16:9 view at FOV 70. */
     private static final double SPAN = 5.6;
-    /** How much wider a camera view's held field of view shows the world than the one the layout was tuned at. */
-    private static final double CAMERA_VIEW_SCALE = 1.255;
+    /**
+     * What a camera view draws the layout at, against {@link #SPAN}: with the field of view left to the player's FOV
+     * slider alone (see {@link net.exylia.lib.packet.internal.PacketRuntime#sliderFov}), 400 pixels are three quarters
+     * of a 16:9 window at FOV 70.
+     */
+    private static final double CAMERA_VIEW_SCALE = 0.674;
+    /** Layout pixels the cursor crosses per degree the mouse turns, at speed 1: the same however large the screen is drawn. */
+    private static final double DEGREE = DISTANCE * Math.PI / 180 / (SPAN * 1.255 / Screen.WIDTH);
+    /** How far past the layout's edges the cursor goes, in layout pixels: far enough for the settings button. */
+    private static final double GUTTER_X = 24, GUTTER_Y = 6;
+    /** Sprint and jump together open the settings from anywhere, whatever the screen binds its keys to. */
+    static final String SETTINGS_KEYS = "sprint + jump";
+    /** The settings button's side, in layout pixels. */
+    private static final double GEAR = 16;
     /** The backdrop, in units: past the edge of any view. */
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
@@ -98,9 +110,12 @@ final class LiveScreen implements ScreenSession {
     private final TaskScheduler tasks;
     private final Map<String, Object> state = new ConcurrentHashMap<>();
     private final Vector3d origin;
-    private final double unit;
-    /** {@link #unit} at the full size: the backdrop has to reach the view's edges however small the screen is. */
-    private final double viewUnit;
+    /** Blocks a layout pixel stands for; read everywhere, written under {@code this} and {@link #input}. */
+    private volatile double unit;
+    /** {@link #unit} at 100%. */
+    private final double fullUnit;
+    /** What scenes and backdrops are measured in: they have to reach the view's edges however small the screen is. */
+    private volatile double viewUnit;
     // Given out again on every show, after the world is sealed: only ids newer than the seal are the screen's.
     private volatile int hitboxId;
     private volatile int[] backdropIds = new int[0];
@@ -175,6 +190,10 @@ final class LiveScreen implements ScreenSession {
     private int lastToastVersion = -1;
     private record Toast(Component text, String tone, long until, int seq) {
     }
+    /** Whether the settings panel is open. */
+    private volatile boolean settingsOpen;
+    /** The size changed: the next frame sends every look again, though each may compare equal. Guarded by {@code this}. */
+    private boolean rescaled;
     /** The in-screen confirm waiting for an answer, or {@code null}. */
     private volatile Confirm confirm;
     private record Confirm(Component question, boolean dangerous, String yes, String no, Consumer<ScreenSession> then) {
@@ -297,11 +316,9 @@ final class LiveScreen implements ScreenSession {
         this.tasks = Tasks.of(plugin);
         this.wire = wire;
         this.ids = ids;
-        // A camera view holds the field of view at its widest (see FakeGameMode#cameraView): drawn larger to
-        // look the size it was designed at.
-        double size = Math.clamp(ScreenSettings.get().screenSize(), 50, 120) / 100.0;
-        this.unit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) * size / Screen.WIDTH;
-        this.viewUnit = unit / size;
+        this.fullUnit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
+        this.unit = fullUnit * ScreenRuntime.size(player.getUniqueId()) / 100.0;
+        this.viewUnit = Math.max(unit, fullUnit);
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
         Location eyes = player.getEyeLocation();
@@ -340,7 +357,10 @@ final class LiveScreen implements ScreenSession {
 
     /** On the viewer's thread. */
     void show() {
-        if (!screen.wheel()) Packets.of(plugin).fakeGameMode().cameraView(player, true);
+        if (!screen.wheel()) {
+            Packets.of(plugin).fakeGameMode().cameraView(player, true);
+            net.exylia.lib.packet.internal.PacketRuntime.sliderFov(player, true);
+        }
         Packets.of(plugin).movement().freeze(player);
         // A player standing at the viewer's eyes would be drawn in front of the screen and take its clicks;
         // in a lobby everyone stands at spawn. Hidden for this plugin only, so other plugins' rules stay.
@@ -422,7 +442,10 @@ final class LiveScreen implements ScreenSession {
             if (org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) reveal();
             else if (plugin.isEnabled()) tasks.runAtEntity(player, this::reveal);
         }
-        if (!screen.wheel()) Packets.of(plugin).fakeGameMode().cameraView(player, false);
+        if (!screen.wheel()) {
+            net.exylia.lib.packet.internal.PacketRuntime.sliderFov(player, false);
+            Packets.of(plugin).fakeGameMode().cameraView(player, false);
+        }
         Consumer<ScreenSession> onClose = screen.onClose();
         if (onClose != null && player.isOnline() && plugin.isEnabled()) {
             tasks.runAtEntity(player, () -> guarded(() -> onClose.accept(this)));
@@ -599,6 +622,7 @@ final class LiveScreen implements ScreenSession {
             close();
             return;
         }
+        if (settingsOpen) root = over(root, SettingsPanel.of(this));
         Confirm ask = confirm;
         if (ask != null) root = withConfirm(root, ask);
         // The tree's fingerprint covers everything layout and drawing read from it, and a sprite arriving changes
@@ -617,8 +641,10 @@ final class LiveScreen implements ScreenSession {
             lastToastVersion = toastVersion;
             List<Layout.Placed> laid = new ArrayList<>(core);
             addToasts(laid);
-            placed = laid;
             overlayFrom = Layout.overlayStart(laid);
+            // Outside the layout, and gone under a dialog: a dialog takes every click.
+            if (overlayFrom < 0) laid.add(new Layout.Placed(gear(), "~gear", screen.width() + 3, screen.height() - GEAR, GEAR, GEAR, 0));
+            placed = laid;
             view = new View(laid, overlayFrom);
             retime(core);
             Layout.Placed under = underPointer();
@@ -630,6 +656,54 @@ final class LiveScreen implements ScreenSession {
             hoveredBox = under;
             sync(false);
         }
+    }
+
+    private Node gearNode;
+
+    /** The settings button, one node for the whole screen. Holds the lock. */
+    private Node gear() {
+        if (gearNode == null) gearNode = SettingsPanel.button(this);
+        return gearNode;
+    }
+
+    /** On the viewer's thread: opens or closes the settings panel. */
+    void settings(boolean open) {
+        settingsOpen = open;
+        renderNow();
+    }
+
+    /**
+     * Applies the viewer's size, on an open screen too: every look is measured in {@link #unit}, so a full redraw
+     * covers the boxes, the items and the cursor; the backdrop and the scene are sent here.
+     */
+    void rescale() {
+        double next = fullUnit * ScreenRuntime.size(player.getUniqueId()) / 100.0;
+        List<PacketWrapper<?>> out = new ArrayList<>();
+        synchronized (this) {
+            if (!open || next == unit) return;
+            synchronized (input) {
+                double by = next / unit;
+                cursorX *= by;
+                cursorY *= by;
+                unit = next;
+                viewUnit = Math.max(next, fullUnit);
+                Node scene = screen.scene();
+                if (scene != null) sceneSetup(scene);
+                if (!away) {
+                    cursor(out, 0);
+                    if (scene != null && screen.parallax() <= 0) scene(out, 0);
+                }
+            }
+            if (!away) {
+                List<RectLook> back = backdropLooks();
+                int[] backIds = backdropIds;
+                for (int i = 0; i < Math.min(backIds.length, back.size()); i++) out.add(rect(backIds[i], back.get(i), 0));
+            }
+            rescaled = true;
+            resync = true;
+        }
+        wire.send(out);
+        redraw();
     }
 
     /**
@@ -795,6 +869,12 @@ final class LiveScreen implements ScreenSession {
         };
     }
 
+    /** The tree with a dialog over it: the last overlay is the one drawn. */
+    private static Node over(Node root, Node dialog) {
+        if (root.kind() == Node.Kind.ROW || root.kind() == Node.Kind.COLUMN) return root.add(dialog);
+        return Node.column(root).add(dialog);
+    }
+
     /** The tree with the open confirm dialog over it, the last overlay, so it is the one drawn. */
     private Node withConfirm(Node root, Confirm ask) {
         String fill = ask.dangerous() ? "{error}" : "{primary}";
@@ -810,8 +890,7 @@ final class LiveScreen implements ScreenSession {
                 .outline(ask.dangerous() ? "{error}80" : "{primary}60", 1).overlay(true).onDismiss(session -> answer(false))
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.9), 5, Motion.Ease.BACK))
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.94), 3, Motion.Ease.IN));
-        if (root.kind() == Node.Kind.ROW || root.kind() == Node.Kind.COLUMN) return root.add(dialog);
-        return Node.column(root).add(dialog);
+        return over(root, dialog);
     }
 
     /** On the viewer's thread, from a confirm's buttons or its dismissal. */
@@ -1188,6 +1267,8 @@ final class LiveScreen implements ScreenSession {
             order = new ArrayList<>(order.subList(0, BUDGET));
         }
         boolean reduced = reduced();
+        boolean resend = rescaled;
+        rescaled = false;
         // Animations start where a box first shows, after it has arrived.
         for (Map.Entry<String, Box> box : frame.boxes().entrySet()) {
             if (box.getValue().node().animation() != null && !animStart.containsKey(box.getKey())) {
@@ -1256,7 +1337,7 @@ final class LiveScreen implements ScreenSession {
         for (String key : order) {
             Object look = wanted.get(key);
             Drawn current = drawn.get(key);
-            if (current != null && current.look().equals(look)) continue;
+            if (current != null && !resend && current.look().equals(look)) continue;
             int id = current != null ? current.id() : ids.getAsInt();
             if (current != null && current.look().getClass() != look.getClass()) {
                 out.add(ScreenPackets.destroy(new int[]{id}));
@@ -1756,9 +1837,9 @@ final class LiveScreen implements ScreenSession {
             // A fast move carries further: precise when slow, quick across the screen.
             double accel = ScreenSettings.get().cursorAcceleration();
             double boost = accel <= 0 ? 1 : Math.min(3, 1 + accel * Math.hypot(dx, dy) / 4);
-            double perDegree = DISTANCE * Math.PI / 180 * ScreenRuntime.sensitivity(player.getUniqueId()) * boost;
-            double halfW = screen.width() / 2 * unit;
-            double halfH = screen.height() / 2 * unit;
+            double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * ScreenRuntime.sensitivity(player.getUniqueId()) * boost;
+            double halfW = (screen.width() / 2 + GUTTER_X) * unit;
+            double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
             cursorX = ScreenMath.clamp(cursorX + dx * perDegree, -halfW, halfW);
             cursorY = ScreenMath.clamp(cursorY - dy * perDegree, -halfH, halfH);
             lastYaw = yaw;
@@ -1878,6 +1959,17 @@ final class LiveScreen implements ScreenSession {
             keysDown = down;
         }
         if (pressed == 0 || !open || away) return;
+        boolean sprint;
+        synchronized (input) {
+            sprint = sprinting;
+        }
+        if ((pressed & 16) != 0 && sprint) {
+            sound("ui.button.click", 0.35f, 1.4f);
+            tasks.runAtEntity(player, () -> {
+                if (open() && confirm == null) settings(!settingsOpen);
+            });
+            return;
+        }
         if (screen.navigate()) {
             if ((pressed & 16) != 0) {
                 click(false);

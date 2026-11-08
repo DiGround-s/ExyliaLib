@@ -90,11 +90,13 @@ public record ScreenSettings(
         @Menu.About({"Items as one glyph where", "the client can draw it."})
         boolean spriteObjects,
 
-        @Comment("How large screens are drawn, in percent. The server cannot see a")
-        @Comment("player's FOV or FOV Effects sliders, and both change how much of")
-        @Comment("the view a screen fills: lower this if screens look too large.")
+        @Comment("How large screens are drawn, in percent, for players who did not")
+        @Comment("choose their own size. 100 fills three quarters of the window at")
+        @Comment("FOV 70; each player's FOV slider changes that (FOV 110 needs about")
+        @Comment("200), and the server cannot see it, so players set their own with")
+        @Comment("the button at the bottom right of every screen.")
         @Menu.Label("Screen size") @Menu.Icon("SPYGLASS")
-        @Menu.About({"How large screens are drawn,", "in percent, from 50 to 120."})
+        @Menu.About({"How large screens are drawn,", "in percent, from 50 to 250."})
         int screenSize
 ) {
 

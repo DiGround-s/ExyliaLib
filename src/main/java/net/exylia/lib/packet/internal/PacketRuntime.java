@@ -146,6 +146,36 @@ public final class PacketRuntime {
      */
     static final float STILL = 1.0E-4f;
 
+    /**
+     * A movement speed the client holds whatever a sprint adds (the attribute stops at this) with a walking speed that
+     * makes its field of view scale exactly 1 in the air: 1.1 x (speed / walk + 1) / 2. FOV Effects then has
+     * nothing to scale and only the FOV slider counts.
+     */
+    static final double FOV_SPEED = 1024;
+    static final float FOV_WALK = (float) (FOV_SPEED * 1.1 / 0.9);
+    /** Players whose camera view leaves the field of view to their FOV slider. */
+    private static final java.util.Set<UUID> SLIDER_FOV = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Leaves the field of view of a camera view to the player's FOV slider alone, or gives the client its real movement
+     * speed back. Call it after starting the view and before ending it.
+     */
+    public static void sliderFov(Player player, boolean on) {
+        PacketSink out = sink();
+        if (out == null) return;
+        if (on) {
+            SLIDER_FOV.add(player.getUniqueId());
+            out.abilities(player, true, true, true, STILL, FOV_WALK);
+            out.movementSpeed(player, true);
+        } else if (SLIDER_FOV.remove(player.getUniqueId())) {
+            out.movementSpeed(player, false);
+        }
+    }
+
+    static boolean sliderFov(UUID player) {
+        return SLIDER_FOV.contains(player);
+    }
+
     public static boolean inCameraView(UUID player) {
         return SPECTATING.containsKey(player);
     }
@@ -356,6 +386,7 @@ public final class PacketRuntime {
         FAKED.clear();
         OUTLINED.clear();
         SPECTATING.clear();
+        SLIDER_FOV.clear();
         REVEALING.clear();
         OVERLAYS.clear();
         MESSAGE_RULES.clear();
@@ -654,6 +685,7 @@ public final class PacketRuntime {
         if (sink != null) Scenes.forget(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
+        SLIDER_FOV.remove(id);
         CAMERA_HELD.remove(id);
         REVEALING.remove(id);
         OVERLAYS.remove(id);

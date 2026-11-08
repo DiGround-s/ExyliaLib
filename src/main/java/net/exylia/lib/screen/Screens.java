@@ -149,4 +149,17 @@ public final class Screens {
     public void redrawAll() {
         redrawAll(session -> true);
     }
+
+    /** How large {@code player}'s screens are drawn, in percent: their own choice over {@code screen-size}. @since 1.521.0 */
+    public static int size(@NotNull Player player) {
+        return ScreenRuntime.size(player.getUniqueId());
+    }
+
+    /**
+     * Sets and keeps {@code player}'s own screen size, from 50 to 250 percent, applied at once to a screen they have
+     * open; {@code null} goes back to {@code screen-size}. @since 1.521.0
+     */
+    public static void size(@NotNull Player player, @Nullable Integer percent) {
+        ScreenRuntime.size(player, percent);
+    }
 }

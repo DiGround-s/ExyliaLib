@@ -1764,3 +1764,16 @@ World: Мир
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}берёт полный стак,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}кладёт во вторую руку.'
 '{warning}Menus open again when this view ends.': "{warning}Меню снова откроются, когда этот вид закончится."
+Screen settings: Настройки экрана
+Cursor speed: Скорость курсора
+Reduced motion: Меньше анимации
+Menu style: Стиль меню
+Screen size: Размер экрана
+'On': Вкл
+'Off': Выкл
+Reset: Сбросить
+Done: Готово
+Server's choice: Выбор сервера
+Chest windows: Окна сундука
+Screens: Экраны
+Ctrl + Space opens this from anywhere: Ctrl + Пробел открывает это откуда угодно

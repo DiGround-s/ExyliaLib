@@ -1764,3 +1764,16 @@ World: Monde
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Maj {letters}prend une pile complète,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}le met dans ta seconde main.'
 '{warning}Menus open again when this view ends.': "{warning}Les menus s'ouvriront de nouveau à la fin de cette vue."
+Screen settings: Réglages de l'écran
+Cursor speed: Vitesse du curseur
+Reduced motion: Mouvement réduit
+Menu style: Style de menu
+Screen size: Taille de l'écran
+'On': Oui
+'Off': Non
+Reset: Réinitialiser
+Done: Terminé
+Server's choice: Choix du serveur
+Chest windows: Fenêtres de coffre
+Screens: Écrans
+Ctrl + Space opens this from anywhere: Ctrl + Espace l'ouvre depuis n'importe où

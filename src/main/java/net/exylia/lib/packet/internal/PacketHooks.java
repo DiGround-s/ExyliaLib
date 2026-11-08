@@ -59,6 +59,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHu
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerInitializeWorldBorder;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerMultiBlockChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerAbilities;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoRemove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerInfoUpdate;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
@@ -184,7 +185,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * A camera view stays one while it lasts: the server's own abilities (a double jump turning flight on and off)
      * or game mode would hand the client its movement and field of view back, and the view would wander.
      */
-    private static void holdCameraView(PacketSendEvent event, PacketTypeCommon type) {
+    private static void holdCameraView(PacketSendEvent event, PacketTypeCommon type, UUID viewer) {
         if (type == PacketType.Play.Server.PLAYER_ABILITIES) {
             WrapperPlayServerPlayerAbilities abilities = new WrapperPlayServerPlayerAbilities(event);
             abilities.setInGodMode(true);
@@ -192,8 +193,20 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             abilities.setFlightAllowed(true);
             abilities.setInCreativeMode(false);
             abilities.setFlySpeed(PacketRuntime.STILL);
-            abilities.setFOVModifier(PacketRuntime.STILL);
+            abilities.setFOVModifier(PacketRuntime.sliderFov(viewer) ? PacketRuntime.FOV_WALK : PacketRuntime.STILL);
             event.markForReEncode(true);
+        } else if (type == PacketType.Play.Server.UPDATE_ATTRIBUTES) {
+            // A sprint or a speed effect starting on the server must not move the speed the field of view rests on.
+            if (!PacketRuntime.sliderFov(viewer) || !(event.getPlayer() instanceof Player player)) return;
+            WrapperPlayServerUpdateAttributes attributes = new WrapperPlayServerUpdateAttributes(event);
+            if (attributes.getEntityId() != player.getEntityId()) return;
+            for (WrapperPlayServerUpdateAttributes.Property property : attributes.getProperties()) {
+                if (property.getAttribute() == com.github.retrooper.packetevents.protocol.attribute.Attributes.MOVEMENT_SPEED) {
+                    property.setValue(PacketRuntime.FOV_SPEED);
+                    property.setModifiers(List.of());
+                    event.markForReEncode(true);
+                }
+            }
         } else if (type == PacketType.Play.Server.CHANGE_GAME_STATE) {
             WrapperPlayServerChangeGameState state = new WrapperPlayServerChangeGameState(event);
             if (state.getReason() == WrapperPlayServerChangeGameState.Reason.CHANGE_GAME_MODE) {
@@ -227,7 +240,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         PacketTypeCommon type = event.getPacketType();
-        if (PacketRuntime.inCameraView(viewer)) holdCameraView(event, type);
+        if (PacketRuntime.inCameraView(viewer)) holdCameraView(event, type, viewer);
         if ((type == PacketType.Play.Server.CAMERA || type == PacketType.Play.Server.RESPAWN) && event.getPlayer() instanceof Player looking) {
             // A respawn gives the client a new body, and its view goes back to it without a camera packet.
             PacketRuntime.cameraMoved(looking, type == PacketType.Play.Server.CAMERA
@@ -1062,6 +1075,23 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                           boolean allowFlight, float flySpeed, float walkSpeed) {
         send(viewer, new WrapperPlayServerPlayerAbilities(invulnerable, flying, allowFlight,
                 viewer.getGameMode() == org.bukkit.GameMode.CREATIVE, flySpeed, walkSpeed));
+    }
+
+    @Override
+    public void movementSpeed(Player viewer, boolean held) {
+        org.bukkit.attribute.AttributeInstance real = viewer.getAttribute(net.exylia.lib.platform.Attributes.MOVEMENT_SPEED);
+        if (!held && real == null) return;
+        List<WrapperPlayServerUpdateAttributes.PropertyModifier> modifiers = new ArrayList<>();
+        if (!held) {
+            for (org.bukkit.attribute.AttributeModifier modifier : real.getModifiers()) {
+                modifiers.add(new WrapperPlayServerUpdateAttributes.PropertyModifier(
+                        new com.github.retrooper.packetevents.resources.ResourceLocation(modifier.getKey().toString()), modifier.getAmount(),
+                        WrapperPlayServerUpdateAttributes.PropertyModifier.Operation.values()[modifier.getOperation().ordinal()]));
+            }
+        }
+        send(viewer, new WrapperPlayServerUpdateAttributes(viewer.getEntityId(), List.of(new WrapperPlayServerUpdateAttributes.Property(
+                com.github.retrooper.packetevents.protocol.attribute.Attributes.MOVEMENT_SPEED,
+                held ? PacketRuntime.FOV_SPEED : real.getBaseValue(), modifiers))));
     }
 
     /** How far a portal may place a player, which every border packet repeats. Vanilla's value. */

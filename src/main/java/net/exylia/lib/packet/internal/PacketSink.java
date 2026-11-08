@@ -62,6 +62,10 @@ public interface PacketSink {
         abilities(viewer, invulnerable, flying, allowFlight, flySpeed);
     }
 
+    /** Tells a client its movement speed: the held one of a camera view's field of view, or the real one. */
+    default void movementSpeed(Player viewer, boolean held) {
+    }
+
     /**
      * Tells a client where its world border is, and where it is going.
      *

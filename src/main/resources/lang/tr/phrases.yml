@@ -1776,3 +1776,16 @@ World: Dünya
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}tam bir yığın alır,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}onu ikinci eline koyar.'
 '{warning}Menus open again when this view ends.': "{warning}Menüler bu görünüm bitince yeniden açılır."
+Screen settings: Ekran ayarları
+Cursor speed: İmleç hızı
+Reduced motion: Azaltılmış hareket
+Menu style: Menü stili
+Screen size: Ekran boyutu
+'On': Açık
+'Off': Kapalı
+Reset: Sıfırla
+Done: Tamam
+Server's choice: Sunucunun seçimi
+Chest windows: Sandık pencereleri
+Screens: Ekranlar
+Ctrl + Space opens this from anywhere: Ctrl + Boşluk bunu her yerden açar
