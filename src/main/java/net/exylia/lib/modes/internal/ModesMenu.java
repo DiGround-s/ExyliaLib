@@ -9,6 +9,8 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.modes.Mode;
 import net.exylia.lib.modes.Modes;
 import net.exylia.lib.modes.Modes.Category;
+import net.exylia.lib.screen.ScreenSet;
+import net.exylia.lib.screen.Screens;
 import net.exylia.lib.settings.internal.SettingsMenu;
 import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Lore;
@@ -17,6 +19,7 @@ import net.exylia.lib.text.Text;
 import net.exylia.lib.ui.PluginMenus;
 import net.exylia.lib.ui.UiEntry;
 import net.exylia.lib.ui.UiKeys;
+import net.exylia.lib.ui.UiSession;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -94,6 +97,22 @@ public final class ModesMenu {
         target.load(LIST, list);
         target.load(ROOT_LIST, withoutBack(list));
         menus = target;
+        screens(owner);
+    }
+
+    /**
+     * The full-screen version of these menus, for the SCREEN menu style: {@code modes/modes.html} routes every one
+     * of their ids, so the menus above open it with no other code. A file the owner broke keeps the chest menus.
+     */
+    private static void screens(Plugin owner) {
+        if (anchor != ModesMenu.class) return;
+        try {
+            ScreenSet screens = Screens.of(owner).files(ModesMenu.class, "modes");
+            screens.reload();
+            screens.markup("modes").problems().forEach(problem -> Debug.of(owner).warn("Screen " + problem));
+        } catch (RuntimeException broken) {
+            Debug.of(owner).warn("The modes screen could not be read, its chest menus open instead: " + broken.getMessage());
+        }
     }
 
     /**
@@ -167,19 +186,21 @@ public final class ModesMenu {
         if (row instanceof Category category) {
             openFromHub(player, category.id());
         } else if (row instanceof Mode mode) {
-            play(player, mode);
+            play(context, mode);
         }
         return ActionResult.success();
     }
 
-    private static void play(Player player, Mode mode) {
+    private static void play(ActionContext context, Mode mode) {
+        Player player = context.player();
         // Asked again: the card may have been drawn a second before the mode closed or went away.
         if (!Modes.modes().contains(mode) || !mode.allowed(player) || !mode.isOpen()) {
             Text.of(Phrases.tr("[sound:ENTITY_VILLAGER_NO|0.7|1.0]{error}✘ {letters}That mode is not open right now."))
                     .send(player);
             return;
         }
-        player.closeInventory();
+        // Through the menu, so its screen closes too in the SCREEN menu style.
+        context.get(UiKeys.SESSION).ifPresentOrElse(UiSession::close, player::closeInventory);
         try {
             mode.action().accept(player);
         } catch (RuntimeException failure) {
@@ -204,6 +225,10 @@ public final class ModesMenu {
                 .withFormatted("name", Lore.name(TONE, Phrases.tr("Mode"), mode.name()))
                 .with("glow", false)
                 .withFormatted("lore", lore(mode, allowed, open))
+                .withFormatted("entry_name", mode.name())
+                .withFormatted("entry_about", String.join("<nl>", mode.description()))
+                .with("entry_state", !allowed ? "locked" : open ? "open" : "closed")
+                .with("entry_players", mode.players())
                 .template(allowed && open ? null : "inert")
                 .build();
     }
@@ -250,6 +275,11 @@ public final class ModesMenu {
                 .withFormatted("name", Lore.name(TONE, Phrases.tr("Modes"), category.name()))
                 .with("glow", false)
                 .withFormatted("lore", String.join(Lines.NEWLINE, lore.lines()))
+                .withFormatted("entry_name", category.name())
+                .withFormatted("entry_about", String.join("<nl>", category.description()))
+                .with("entry_state", "category")
+                .with("entry_players", playing)
+                .with("entry_count", modes.size())
                 .build();
     }
 

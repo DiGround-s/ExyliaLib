@@ -1,0 +1,12 @@
+# Words of the modes screen (modes/modes.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+subtitle: '{letters_black}Oynamak için birini seç · okumak için bir kartın üstüne gel'
+count: '{info}%entry_count% {letters_black}mod'
+open: '{success}● Açık'
+closed: '{error}● Kapalı'
+locked: '{error}✘ {letters_black}Rütbende yok'
+playing: '{letters_black}· {info}%entry_players% {letters_black}oynuyor'
+empty:
+  title: 'Henüz mod yok'
+  hint: 'Sunucudaki eklentiler kendi modlarını buraya ekler'
+back: '‹ %modes_parent%'

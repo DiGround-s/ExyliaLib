@@ -1,0 +1,12 @@
+# Words of the modes screen (modes/modes.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+subtitle: '{letters_black}Choisis-en un · survole une carte pour la lire'
+count: '{info}%entry_count% {letters_black}modes'
+open: '{success}● Ouvert'
+closed: '{error}● Fermé'
+locked: '{error}✘ {letters_black}Pas dans ton grade'
+playing: '{letters_black}· {info}%entry_players% {letters_black}en jeu'
+empty:
+  title: 'Aucun mode pour l''instant'
+  hint: 'Les plugins du serveur ajoutent les leurs ici'
+back: '‹ %modes_parent%'

@@ -1,0 +1,52 @@
+<!--
+  The modes screen (/casino, /tabletop and every Modes.open) in the SCREEN menu style: the categories, or one
+  category's modes, as cards with what each is, whether it is open and how many play it. It stands for the chest
+  menus of lang/<code>/menus/modes/ and reads their rows, so a click does what the chest's does.
+
+  One file for every language: the words come from lang/<code>/modes/modes.yml (t="key"). The look is in
+  theme.css; put your own rules in custom.css next to it and this file keeps updating with the library.
+  /exylialib screens check lists anything wrong with file:line:col; edits show on open screens within seconds.
+
+  Values: modes_title (the category, or "Categories"), modes_parent (where back leads).
+  Rows (source="main"): icon, entry_name, entry_about (lines split by <nl>), entry_state (category, open, closed,
+  locked), entry_players (-1 when the mode does not count), entry_count (a category's modes); row_template is
+  "inert" for a mode that cannot be played now.
+  State: back (1 on a category opened from the categories, where Back leads up).
+  Actions: exylialib:modes_click (opens the category or plays the mode), exylialib:modes_back.
+-->
+<screen backdrop="linear-gradient(to bottom, {info}14, {primary}06)"
+        routes="modes_list:back=1 modes_list_root:back=0 modes_hub_1:back=0 modes_hub_2:back=0 modes_hub_3:back=0
+                modes_hub_4:back=0 modes_hub_5:back=0 modes_hub_6:back=0 modes_hub_7:back=0">
+  <column class="frame">
+    <row class="head">
+      <item material="compass" class="head-icon"/>
+      <column class="heading">
+        <h1>{highlight}%modes_title%</h1>
+        <small t="subtitle">{letters_black}Pick one to play · hover a card to read it</small>
+      </column>
+    </row>
+
+    <grid source="main" columns="4" rows="2" class="fill">
+      <card class="entry ${entry_state}" disabled="${row_template == 'inert'}" action="exylialib:modes_click">
+        <item material="%icon%" class="entry-icon"/>
+        <b>%entry_name%</b>
+        <p class="about">%entry_about%</p>
+        <box class="spacer"/>
+        <row class="status">
+          <small if="entry_state == 'category'" t="count">{info}%entry_count% {letters_black}modes</small>
+          <small else if="entry_state == 'open'" t="open">{success}● Open</small>
+          <small else if="entry_state == 'closed'" t="closed">{error}● Closed</small>
+          <small else t="locked">{error}✘ {letters_black}Not in your rank</small>
+          <small if="entry_players >= 0" t="playing">{letters_black}· {info}%entry_players% {letters_black}playing</small>
+        </row>
+      </card>
+      <empty><text t="empty.title">No modes yet</text><small t="empty.hint">Plugins on this server add theirs here</small></empty>
+    </grid>
+
+    <row class="foot">
+      <button if="back == 1" class="ghost small" action="exylialib:modes_back" t="back">‹ %modes_parent%</button>
+      <box class="spacer"/>
+      <pager for="main" keys="a d"/>
+    </row>
+  </column>
+</screen>

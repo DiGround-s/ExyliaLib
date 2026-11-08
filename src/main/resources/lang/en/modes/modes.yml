@@ -1,0 +1,12 @@
+# Words of the modes screen (modes/modes.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+subtitle: '{letters_black}Pick one to play · hover a card to read it'
+count: '{info}%entry_count% {letters_black}modes'
+open: '{success}● Open'
+closed: '{error}● Closed'
+locked: '{error}✘ {letters_black}Not in your rank'
+playing: '{letters_black}· {info}%entry_players% {letters_black}playing'
+empty:
+  title: 'No modes yet'
+  hint: 'Plugins on this server add theirs here'
+back: '‹ %modes_parent%'

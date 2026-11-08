@@ -1,0 +1,12 @@
+# Words of the modes screen (modes/modes.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+subtitle: '{letters_black}Выбери, во что играть · наведи на карточку, чтобы прочитать'
+count: '{info}%entry_count% {letters_black}режимов'
+open: '{success}● Открыт'
+closed: '{error}● Закрыт'
+locked: '{error}✘ {letters_black}Не входит в твой ранг'
+playing: '{letters_black}· {info}%entry_players% {letters_black}играют'
+empty:
+  title: 'Режимов пока нет'
+  hint: 'Плагины сервера добавляют сюда свои'
+back: '‹ %modes_parent%'

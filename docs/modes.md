@@ -94,6 +94,18 @@ file that does not parse is reported and the packaged English one is shown. The
 hub leaves `pagination.slots` to the library. The cards' own text is the
 library's phrase table.
 
+**SCREEN menu style (1.508.0).** For a player whose menu style for ExyliaLib is
+`SCREEN` (their own choice in `/settings`, or `screens.yml` `plugins: {ExyliaLib:
+SCREEN}`), the hub and the lists open as one full screen,
+`plugins/ExyliaLib/modes/modes.html` with `theme.css`, words in
+`lang/<code>/modes/modes.yml`: the categories or modes as cards (icon, name,
+description, open/closed/locked, players), a pager and, on a list opened from the
+hub, a back button. It routes every id above and reads the same rows, which also
+carry `entry_name`, `entry_about` (lines split by `<nl>`), `entry_state`
+(`category`, `open`, `closed`, `locked`), `entry_players` (`-1` when not counted)
+and `entry_count` (a category's modes). Playing a mode closes the menu through its
+session, so the screen closes as the chest does.
+
 ## Lifecycle
 
 Everything a plugin registered, its modes and the categories it described, is
