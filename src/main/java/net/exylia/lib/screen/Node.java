@@ -834,9 +834,9 @@ public final class Node {
         return onScroll;
     }
 
-    /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering. */
+    /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering, or has a tooltip to show. */
     public boolean pointable() {
         return onClick != null || onScroll != null || onHover != null || hover != null || hoverOutline != null
-                || hoverTransform != null;
+                || hoverTransform != null || tooltip != null;
     }
 }

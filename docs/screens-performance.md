@@ -99,7 +99,7 @@ a bare one (96 displays turning).
 | Turning body | 96 |
 | Item sprite | 1 (sprite glyph, 1.21.11+) or 4; 3D item 1 |
 | Gradient | 1 per band: 5 px each, 2 to 12 |
-| Tooltip | 2 + 1 per line, only while hovered |
+| Tooltip | 3 (panel, title, lore block), only while hovered |
 | Canvas sprite | item 1, picture 4, rect 1-2 |
 
 ## Tips

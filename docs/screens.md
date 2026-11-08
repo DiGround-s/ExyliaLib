@@ -738,11 +738,17 @@ asks `MenuStyles` on every open; in `SCREEN` the chest menu still runs as always
 redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it instead:
 
 - **A screen routed to that menu id** (`<screen routes="...">`, below) when the plugin has one;
-- otherwise **the chest skin**: the slots as cards in the chest's own layout, each item's name and lore as a
-  tooltip while hovered, the title on top, glass panes drawn as the empty part of the card. A left or right click
-  on a card is that click on the slot of the chest menu, so every action works as in the window, and a menu
-  opened from a click replaces the cards in place. Shift goes back to the menu before, and closes at the first
-  one (1.496.0); a click with sprint held is a shift-click on the slot.
+- otherwise **the chest skin**: the chest's title as a header, then only its items as cards (icon, the name
+  without its `Context ▸` part, and the first lore line when there is room), kept at their slot positions; glass
+  panes and empty slots are not drawn, and rows or columns with nothing in them are left out (1.513.0). When the
+  last row holds buttons (back, page arrows, the main action) it becomes a bar under a divider, its buttons kept
+  left, centre and right as in the chest. A list with no items shows what its empty slots say. Each item's name
+  and lore are its tooltip while hovered. Cards that do something light up under the cursor; the others only show
+  their tooltip. A left or right click on a card is that click on the slot of the chest menu, so every action
+  works as in the window, and a menu opened from a click replaces the cards in place. Shift goes back to the menu
+  before, and closes at the first one (1.496.0); a click with sprint held is a shift-click on the slot, or the
+  plain click when the button binds no shift-click, so a client with toggle sprint never meets a dead button
+  (1.513.0).
 
 Menus that stay windows whatever the style: those with input slots (the player puts items in them) and those
 that are not chests (hopper, dispenser...). A client that cannot draw screens always gets windows.
@@ -840,8 +846,12 @@ A routed screen is drawn from the same data as the chest menu it stands for, so 
 
 `Node#tooltip(lines...)` (Java) and `tooltip="..."` (markup, lines separated by `<nl>`) show a small panel beside a
 box while the cursor is over it, the first line as its title, as an item's lore shows over a slot. It is drawn
-over everything, a dialog included, to the right of the box or to its left near the edge. Cost: two displays plus
-one per line, only while hovered; moving between boxes sends only what changed.
+over everything, a dialog included, to the right of the box or to its left near the edge, kept on screen. Since
+1.513.0 it reads as an item tooltip: the title at 0.8 scale, the rest one left-aligned block at 0.7 (so every line
+starts at the same x on every client), at most 150 pixels wide, sized to its content, blank lines at its ends left
+out. Leading spaces become a small indent (at most two spaces), never a run pushing the line right. A box with a
+tooltip is hoverable even without a hover style. Cost: three displays, only while hovered; moving between boxes
+sends only what changed.
 
 ```html
 <card action="practice:select %kit_id%" tooltip="%kit_name%<nl>{letters_black}%kit_mode%">...</card>

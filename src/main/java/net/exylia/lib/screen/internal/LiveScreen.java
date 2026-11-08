@@ -131,6 +131,10 @@ final class LiveScreen implements ScreenSession {
     /** A toast's panel: the primary colour over the black it is mixed on (toasts stand over everything). */
     private static final String TOAST_BACKGROUND = "{primary}30";
     private static final int TIP_DEPTH = Layout.OVERLAY + 8;
+    /** A tooltip's widest line, in layout pixels, and its text sizes: the name, then the lines under it. */
+    static final double TIP_WIDTH = 150;
+    static final double TIP_NAME = 0.8;
+    static final double TIP_LORE = 0.7;
 
     /** A hover change is queued for the viewer's thread. */
     private final java.util.concurrent.atomic.AtomicBoolean hoverQueued = new java.util.concurrent.atomic.AtomicBoolean();
@@ -595,18 +599,18 @@ final class LiveScreen implements ScreenSession {
     }
 
     /**
-     * The hovered box's {@link Node#tooltip}, laid out beside it: to its right, or its left when that is out of
-     * the layout area, kept inside it top to bottom. Above every page and dialog. Holds the lock.
+     * The hovered box's {@link Node#tooltip}, laid out beside it as an item tooltip is: the first line its name, the
+     * rest one left-aligned block in small text (one text display, so every line starts at the same x on every
+     * client), at most {@value #TIP_WIDTH} pixels wide. To the box's right, or its left when that is out of the
+     * layout area, kept inside it top to bottom. Above every page and dialog. Holds the lock.
      */
     private List<Layout.Placed> tooltip() {
         Layout.Placed box = hoveredBox;
-        if (box == null || box.node().tooltip() == null) return List.of();
-        Node panel = Node.column().padding(4, 6).gap(1).background(TIP_BACKGROUND).outline("{primary}", 1)
-                .enter(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.OUT));
-        for (net.kyori.adventure.text.Component line : box.node().tooltip()) panel.add(Node.text(line));
+        if (box == null || box.node().tooltip() == null || box.node().tooltip().isEmpty()) return List.of();
+        Node panel = tipPanel(box.node().tooltip());
         double[] size = Layout.measure(panel);
-        double x = box.x() + box.w() + 6;
-        if (x + size[0] > screen.width()) x = box.x() - 6 - size[0];
+        double x = box.x() + box.w() + 4;
+        if (x + size[0] > screen.width()) x = box.x() - 4 - size[0];
         x = Math.max(2, Math.min(x, screen.width() - size[0] - 2));
         double y = Math.max(2, Math.min(box.y(), screen.height() - size[1] - 2));
         List<Layout.Placed> out = new ArrayList<>();
@@ -614,6 +618,28 @@ final class LiveScreen implements ScreenSession {
             out.add(part.moved("~tip" + part.key(), x, y, TIP_DEPTH, 0));
         }
         return out;
+    }
+
+    /** A tooltip's panel: the name, then the rest as one block, blank lines at its ends left out. */
+    static Node tipPanel(List<net.kyori.adventure.text.Component> lines) {
+        Node panel = Node.column().align(Node.Align.START).padding(4, 5).gap(2).background(TIP_BACKGROUND)
+                .outline("{primary}", 1).enter(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.OUT));
+        panel.add(Node.text(lines.get(0)).scale(TIP_NAME).wrap(TIP_WIDTH));
+        int from = 1;
+        int to = lines.size();
+        while (from < to && blank(lines.get(from))) from++;
+        while (to > from && blank(lines.get(to - 1))) to--;
+        if (from < to) {
+            panel.add(Node.text(net.kyori.adventure.text.Component.join(
+                    net.kyori.adventure.text.JoinConfiguration.newlines(), lines.subList(from, to)))
+                    .scale(TIP_LORE).wrap(TIP_WIDTH));
+        }
+        return panel;
+    }
+
+    private static boolean blank(net.kyori.adventure.text.Component line) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                .serialize(line).isBlank();
     }
 
     /** Whether the screen stepped aside for an input. */

@@ -58,6 +58,23 @@ class MotionTest {
     }
 
     @Test
+    void linesKeepASmallIndent() {
+        String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+                TextWrap.wrap(Component.text("Status\n      · Money: 3\n Body text"), 400).text());
+        // A run of spaces opening a line is cut to the indent, never stretched across the tooltip.
+        assertEquals("Status\n  · Money: 3\n Body text", plain);
+    }
+
+    @Test
+    void tooltipsAreANameAndOneBlock() {
+        var panel = LiveScreen.tipPanel(java.util.List.of(Component.text("Name"), Component.text("Kind"),
+                Component.empty(), Component.text("  · Stat: 1"), Component.empty()));
+        assertEquals(2, panel.children().size());
+        assertEquals(LiveScreen.TIP_LORE, panel.children().get(1).scale());
+        assertEquals(3, TextWrap.wrap(panel.children().get(1).text(), 400).lines());
+    }
+
+    @Test
     void libraryComponentsCompile() {
         var markup = net.exylia.lib.screen.ScreenMarkup.parse("lib", """
                 <screen keys="navigate">

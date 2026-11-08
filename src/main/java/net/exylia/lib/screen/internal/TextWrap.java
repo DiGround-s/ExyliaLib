@@ -16,6 +16,9 @@ import java.util.List;
  */
 final class TextWrap {
 
+    /** The most leading spaces a line keeps as its indent. */
+    static final int MAX_INDENT = 2;
+
     private TextWrap() {
     }
 
@@ -33,6 +36,10 @@ final class TextWrap {
         double widest = 0;
         Component pendingSpace = null;
         double spaceWidth = 0;
+        // Spaces opening a line the text itself starts (its start, or after a newline) are its indent: up to
+        // MAX_INDENT of them are kept, so lore keeps its shape without a run of spaces pushing it far right.
+        int indent = 0;
+        boolean opening = true;
         for (Piece piece : pieces) {
             if (piece.whole() != null) {
                 double w = Centering.pixelWidth(piece.whole());
@@ -48,6 +55,7 @@ final class TextWrap {
                     used += spaceWidth;
                 }
                 pendingSpace = null;
+                opening = false;
                 line.add(piece.whole());
                 used += w;
                 continue;
@@ -62,11 +70,21 @@ final class TextWrap {
                     line = new ArrayList<>();
                     used = 0;
                     pendingSpace = null;
+                    opening = true;
+                    indent = 0;
                     at++;
                     continue;
                 }
                 if (c == ' ') {
                     Component space = Component.text(" ", piece.style());
+                    if (opening) {
+                        if (indent++ < MAX_INDENT) {
+                            line.add(space);
+                            used += Centering.pixelWidth(space);
+                        }
+                        at++;
+                        continue;
+                    }
                     // Spaces at the start of a line are not drawn; several in a row count once.
                     if (!line.isEmpty() && pendingSpace == null) {
                         pendingSpace = space;
@@ -75,6 +93,7 @@ final class TextWrap {
                     at++;
                     continue;
                 }
+                opening = false;
                 int end = at;
                 while (end < s.length() && s.charAt(end) != ' ' && s.charAt(end) != '\n') end++;
                 Component word = Component.text(s.substring(at, end), piece.style());

@@ -75,7 +75,7 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `dismiss` | On `modal`: action on a click outside or Shift | `dismiss="clear confirm"` | 1.488.0 | - |
 | `priority` | `priority="low"`: decoration, the first thing left out when over budget | `priority="low"` | 1.496.0 | frees displays when the screen is full |
 | `refresh` | Redraw this often while shown (2 ticks at least; default every second) | `refresh="5t"` | 1.496.0 | re-renders every N ticks for that viewer: use sparingly |
-| `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 2 displays + 1 per line, only while hovered |
+| `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 3 displays, only while hovered |
 | `routes` | On `screen`: chest menu ids this screen stands for, with state | `routes="player/queue_kit:tab=play"` | 1.495.0 | free |
 | `command`, `aliases`, `permission` | On `screen`: read by the plugin that opens screens by command (ExyliaScreens) | `command="hub" aliases="lobby"` | 1.502.0 | free |
 
