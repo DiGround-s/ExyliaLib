@@ -26,7 +26,7 @@ public final class GameFrame {
     /** The state that holds the open tab: {@code play}, {@code how} or {@code payouts}. */
     public static final String TAB = "game_tab";
     /** What the frame reads in markup: {@code game_tone} is {@code success}, {@code error} or any tone's name. */
-    private static final String[] VALUES = {"game_result", "game_detail", "game_tone", "game_again", "game_refused"};
+    private static final String[] VALUES = {"game_result", "game_detail", "game_tone", "game_again", "game_refused", "game_idle"};
     private static final String OFFER = "game_offer";
 
     /**
@@ -37,9 +37,16 @@ public final class GameFrame {
      * @param again   runs when Again is pressed
      * @param change  runs when Change stake is pressed; {@code null} leaves the button out
      * @param leave   runs when Leave is pressed
+     * @param auto    runs when Auto is pressed, for a game that can play itself; {@code null} leaves the button out
      */
     public record Offer(@NotNull String stake, @Nullable String refused, @NotNull Runnable again,
-                        @Nullable Runnable change, @NotNull Runnable leave) {
+                        @Nullable Runnable change, @NotNull Runnable leave, @Nullable Runnable auto) {
+
+        /** An offer with no Auto. */
+        public Offer(@NotNull String stake, @Nullable String refused, @NotNull Runnable again,
+                     @Nullable Runnable change, @NotNull Runnable leave) {
+            this(stake, refused, again, change, leave, null);
+        }
     }
 
     private final ScreenSession session;
@@ -57,6 +64,7 @@ public final class GameFrame {
         markup.action("game_again", (event, args) -> choose(event, Offer::again));
         markup.action("game_change", (event, args) -> choose(event, Offer::change));
         markup.action("game_leave", (event, args) -> choose(event, Offer::leave));
+        markup.action("game_auto", (event, args) -> choose(event, Offer::auto));
         return markup;
     }
 
@@ -95,6 +103,7 @@ public final class GameFrame {
         session.set("game_again", "{letters}" + markup.word("frame.again", Phrases.tr("Again")) + " {letters_black}· {letters}" + offer.stake());
         session.set("game_refused", offer.refused() == null ? "" : offer.refused());
         session.set("game_can_change", offer.change() != null);
+        session.set("game_can_auto", offer.auto() != null);
         session.set(OFFER, offer);
     }
 
@@ -107,6 +116,16 @@ public final class GameFrame {
     public void clear() {
         session.set(OFFER, null);
         for (String name : VALUES) session.set(name, "");
+    }
+
+    /**
+     * A line in the frame's head, whatever tab is open: a warning that the player's time is running out.
+     *
+     * @param text what it says, with its colours; empty takes it down
+     * @since 1.532.0
+     */
+    public void notice(@NotNull String text) {
+        session.set("game_idle", text);
     }
 
     /** The tab on view. */

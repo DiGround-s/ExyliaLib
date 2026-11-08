@@ -35,7 +35,8 @@ import java.util.function.Supplier;
  * glides of what a sprite already does, so a reel, a card or a wheel is more of the same. A player on reduced motion
  * gets the end of each at once; past the screen's motion ceiling, bursts and shakes are left out first.
  *
- * <p>A sprite cannot rotate yet. The client can, about the axis facing the viewer; docs/screens.md has what a wheel needs.
+ * <p>Cards, dice, reels, wheels and curves are built from these in {@code net.exylia.lib.screen.kit}. A sprite does not
+ * rotate; a wheel's segments go round upright ({@code ScreenOrbit}).
  *
  * @since 1.500.0
  */
@@ -155,6 +156,11 @@ public final class ScreenScene {
     // ------------------------------------------------------------------
     // Motion kit (1.531.0)
     // ------------------------------------------------------------------
+
+    /** Whether the viewer asked for reduced motion: a kit that draws many steps jumps to the end. @since 1.532.0 */
+    public boolean reducedMotion() {
+        return host.reduced();
+    }
 
     /** A new timeline: add steps, then {@link Timeline#play}. */
     public @NotNull Timeline timeline() {

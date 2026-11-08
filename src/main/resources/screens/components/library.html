@@ -29,13 +29,14 @@
 <!--
   The game frame (docs/screens.md, "Giving a game its screen form"): one 400 by 225 frame for every game. Java binds it
   with net.exylia.lib.screen.GameFrame. Every word is the library's, translated, unless the screen's own words say
-  otherwise (frame.play, frame.how, frame.payouts, frame.again, frame.change, frame.leave).
+  otherwise (frame.play, frame.how, frame.payouts, frame.again, frame.change, frame.auto, frame.leave).
 -->
 <template name="game-frame" props="title">
   <column id="game-frame" class="game-frame">
     <row class="game-head">
       <h2 class="game-title">${title}</h2>
       <box class="spacer"/>
+      <small if="game_idle" id="game-idle" class="game-idle">%game_idle%</small>
       <tabs class="game-tabs" state="game_tab" default="play">
         <tab value="play" t="frame.play">${tr('Play')}</tab>
         <tab value="how" t="frame.how">${tr('How to play')}</tab>
@@ -75,6 +76,7 @@
       <small if="game_refused" class="game-refused">%game_refused%</small>
       <row class="game-choices">
         <button if="game_can_change" class="game-choice" action="game_change" t="frame.change">${tr('Change stake')}</button>
+        <button if="game_can_auto" class="game-choice" action="game_auto" t="frame.auto">${tr('Auto')}</button>
         <button class="game-choice" action="game_leave" t="frame.leave">${tr('Leave')}</button>
       </row>
     </column>

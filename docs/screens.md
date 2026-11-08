@@ -856,7 +856,7 @@ against a recording table, with a pinned script for one seed.
 ```
 
 Tabs and buttons speak the library's words, translated. A screen's own words replace them under `frame.play`,
-`frame.how`, `frame.payouts`, `frame.again`, `frame.change` and `frame.leave`.
+`frame.how`, `frame.payouts`, `frame.again`, `frame.change`, `frame.auto` and `frame.leave`.
 
 **4. Bind the frame.** `GameFrame.install(markup)` once; `GameFrame.of(session, markup)` for each screen:
 
@@ -896,22 +896,35 @@ Two checks catch what cost the pilot most, and belong in the plugin's tests from
 - **Overflow.** Lay every tab in every state out, in every language, with the widest values the game can show: nothing
   may leave the 400 by 225 frame or its parent, and no text may end up in a box with no width.
 
-### What the kit does not cover yet
+### The game kit (1.532.0)
 
-Added when a game needs it, on the same `ScreenScene`, none of it changes what exists:
+`net.exylia.lib.screen.kit`, built from sprites and timelines, shared by every game. Each returns or holds the timeline it
+plays, to cancel with the round. What is hidden stays on the server until it is shown: a face is sent at the flip's edge, a
+reel's landing only as it comes in, a die's value last.
 
-- **Rotation** (roulette, a wheel). Not exposed on `Sprite`. Tried on a 1.21.4 client with a throwaway build that gave
-  every rect a `LEFT_ROTATION` about the axis facing the viewer: at 30 and 60 degrees rects stay crisp and in the plane
-  and cut nothing, a kept rect going from 0 to 60 turns through the angles between, and the pivot is the display's
-  origin, a rect's bottom centre rather than its centre. Text and pictures were not tried. Three things to build:
-  `Sprite#rotate`; correcting the pivot; and pictures, whose four nudged copies must have their nudges turned too, so
-  an item picture is four transforms a step against one for a 3D item or a text glyph. Keep each glide under 180 degrees,
-  since the client interpolates the short way. Hit testing stays with the unrotated box.
-- **Reels** (slots). A column of symbols moving down, wrapping past its window: sprites clipped by the frame or masked
-  above and below, since a scene has no clip.
-- **Cards** (blackjack, baccarat). A flip and a deal path are there; a card face built from sprites is not.
-- **Dice.** A 3D item with `item3d` turns; a die with chosen faces is not.
-- **Watchers.** A screen has one viewer. A table standing in the world, the point of which is to be seen, stays in 3D.
+| Class | Does | Costs |
+| --- | --- | --- |
+| `ScreenCards` | a card as one sprite: `up`, `down`, `dealt` (slides in face down), `turn` (flips to a face), `hide`; `Look.standard()`, `.sized(w, h)`, `.with(deck)` for the Spanish deck | 2 to 3 displays |
+| `ScreenDice` | a die with real pips: `show`, `roll` (tumbles on decoys and lands on the value) | 1 + its pips |
+| `ScreenReel<T>` | a column running down its window, shrinking away at both ends since a scene has no clip: `rest`, `spin(ticks, decoy, landing, landed)` | `rows + 2` sprites, one transform each per step |
+| `ScreenOrbit` | sprites going round a centre upright, slowing to an angle: `add`, `landing(offset, turns)`, `spin(to, ticks, stepTicks, shrinkTo, eachStep, landed)`. A wheel's segments, or one ball round a fixed ring of numbers | one transform per display per step: a ball when there are many numbers |
+| `ScreenTrail` | a curve as dots gliding to where they are asked: `draw(points, colour, ticks)`, `colour`, `clear` | one display a dot, one transform per dot per call |
+
+```java
+ScreenCards cards = new ScreenCards(ScreenCards.Look.standard());
+cards.dealt(board.sprite("d0"), board, 170, -50, 20, 10, 6);
+cards.turn(board.sprite("d0"), card, 6);
+new ScreenDice(ScreenDice.Look.standard()).roll(board.sprite("die"), board, 20, 40, 3, 16);
+```
+
+**The frame's other two.** `GameFrame#notice(text)` puts a line in the frame's head on every tab, for a warning that time
+is running out. An `Offer` with an `auto` puts an Auto button with Change stake and Leave (`frame.auto`).
+
+**Rotation.** Sprites stay upright. A wheel keeps its words readable that way, and a turned rect pivots on its bottom
+centre rather than its centre, so `Sprite#rotate` is left unbuilt until a game cannot do without it. Tried on a 1.21.4 client
+with a throwaway build: rects stay crisp at 30 and 60 degrees and turn smoothly; text and pictures were not tried.
+
+**Watchers.** A screen has one viewer. A table standing in the world, the point of which is to be seen, stays in 3D.
 
 ## Chest windows or screens: menu style (1.495.0)
 
