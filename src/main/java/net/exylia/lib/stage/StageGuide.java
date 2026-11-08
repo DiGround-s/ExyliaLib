@@ -72,6 +72,42 @@ public final class StageGuide {
         if (!rightRows.isEmpty()) page(side(viewer, seat, displays, theme, look, 90), look, right, rightRows);
     }
 
+    private StageGuide() {
+    }
+
+    /**
+     * The same two pages side by side straight ahead, flat towards the seat, on a dark backing: rules brought up on
+     * demand in front of the board, instead of standing at the player's sides.
+     *
+     * @param look    where they stand; pass a distance nearer than what they should cover
+     * @param width   the whole backing across, in blocks
+     * @param height  the whole backing down, in blocks
+     * @since 1.535.0
+     */
+    public static @NotNull StageGuide ahead(@NotNull Player viewer, @NotNull Location seat, @NotNull PluginDisplays displays,
+                                            @NotNull StageTheme theme, @NotNull Look look, double width, double height,
+                                            @Nullable Component left, @NotNull List<Row> leftRows,
+                                            @Nullable Component right, @NotNull List<Row> rightRows) {
+        StageGuide guide = new StageGuide();
+        Stage back = guide.onWall(viewer, seat, displays, theme, look, 0);
+        back.block(org.bukkit.Material.BLACK_CONCRETE.createBlockData(), back.plane().point(0, 0, -0.02), width, height, 0.02);
+        boolean both = !leftRows.isEmpty() && !rightRows.isEmpty();
+        double shift = both ? width / 4 : 0;
+        if (!leftRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, -shift), look, left, leftRows);
+        if (!rightRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, shift), look, right, rightRows);
+        return guide;
+    }
+
+    private Stage onWall(Player viewer, Location seat, PluginDisplays displays, StageTheme theme, Look look, double across) {
+        double yaw = Math.toRadians(seat.getYaw());
+        Location at = seat.clone().add(Math.cos(yaw) * -across, 0, Math.sin(yaw) * -across);
+        at.setPitch(0);
+        Stage view = new Stage(viewer, StagePlane.inFrontOf(at, EYE_HEIGHT, look.distance(), look.lift(), 1, 1, 1, 1),
+                displays, LIFE, theme);
+        sides.add(view);
+        return view;
+    }
+
     /** Message lines as rows without an item, placeholders filled. */
     public static @NotNull List<Row> rows(@NotNull List<String> lines, @Nullable Values values) {
         return lines.stream().map(line -> new Row(null, StageHud.line(line, values))).toList();
