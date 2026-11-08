@@ -140,6 +140,11 @@ client draws it well) on top of the base; the authoritative answer stays in
 - By name plus material: same methods with a `key` first — a named item
   (`"fire-wand"` on a blaze rod) gets its own key and still shows its
   material's overlay.
+- Items sharing a material: `separate(stack, group)` gives a stack its own
+  cooldown group (Minecraft 1.21.4+), and `start/clear/redraw(player, key,
+  ItemStack, ...)` draw on that group, so a custom pearl on cooldown leaves
+  other pearls free. Vanilla restarts a sweep after the item is used; started
+  during that use, `redraw` a tick later.
 - `anyActive(player)` answers for every item at once: an action bar that
   would otherwise ask about sixty items per tick asks once, and a player who
   is waiting on nothing costs one lookup.

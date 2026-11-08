@@ -300,7 +300,9 @@ public final class Args {
             if (palette != null) {
                 return Color.fromRGB(palette.value());
             }
-            problems.found(key, "there is no palette colour called \"" + token + "\"");
+            problems.found(key, Colors.names().contains(token)
+                    ? "the palette colour \"" + token + "\" in colors.yml is not a valid colour"
+                    : "there is no palette colour called \"" + token + "\"");
             return fallback;
         }
         if (value.startsWith("#")) {

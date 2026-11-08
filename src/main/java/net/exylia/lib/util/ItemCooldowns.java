@@ -1,7 +1,13 @@
 package net.exylia.lib.util;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.UseCooldown;
+import net.exylia.lib.platform.Features;
+import net.exylia.lib.platform.RequiresServer;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
@@ -38,6 +44,17 @@ import java.util.Locale;
  *
  * <pre>{@code
  * ItemCooldowns.tryStart(player, "fire-wand", Material.BLAZE_ROD, Duration.ofSeconds(30));
+ * }</pre>
+ *
+ * <h2>Items that share a material</h2>
+ * The client keeps its sweep per material, so a custom ender pearl on cooldown
+ * would block every other pearl. {@link #separate} gives a stack its own
+ * cooldown group, and the {@code ItemStack} overloads draw on that group alone.
+ * Below Minecraft 1.21.4 there are no groups, and the sweep stays per material.
+ *
+ * <pre>{@code
+ * ItemCooldowns.separate(stack, new NamespacedKey(plugin, "fake_pearl"));
+ * ItemCooldowns.start(player, "fake_pearl", stack, Duration.ofSeconds(30));
  * }</pre>
  *
  * @since 1.11.0
@@ -171,6 +188,98 @@ public final class ItemCooldowns {
         Cooldowns.clear(player, NAMESPACE + key);
         overlay.show(player, material, 0);
         net.exylia.lib.client.Clients.cooldowns().remove(player, NAMESPACE + key);
+    }
+
+    // ------------------------------------------------------------------
+    // By stack, for items that must not share their material's sweep
+    // ------------------------------------------------------------------
+
+    /**
+     * Gives a stack a cooldown group of its own, so its sweep and its
+     * material's never touch. Does nothing below Minecraft 1.21.4.
+     *
+     * <p>The cooldown vanilla gives the material on use (a second on an ender
+     * pearl) is kept, and falls on the new group.
+     *
+     * @param stack the stack to change
+     * @param group the group, shared by every stack that cools down together
+     * @since 1.527.0
+     */
+    public static void separate(@NotNull ItemStack stack, @NotNull NamespacedKey group) {
+        if (Features.dataComponents()) {
+            Groups.separate(stack, group);
+        }
+    }
+
+    /**
+     * Puts a named item on cooldown and shows the overlay on its stack's group.
+     *
+     * @param key  what this item is
+     * @param item a stack whose group gets the sweep; see {@link #separate}
+     * @since 1.527.0
+     */
+    public static void start(@NotNull Player player, @NotNull String key,
+                             @NotNull ItemStack item, @NotNull Duration duration) {
+        Cooldowns.start(player, NAMESPACE + key, duration);
+        draw(player, item, ticksOf(duration));
+        net.exylia.lib.client.Clients.cooldowns().show(player,
+                net.exylia.lib.client.Cooldown.of(NAMESPACE + key, duration)
+                        .icon(net.exylia.lib.client.Cooldown.Icon.item(item.getType().name())));
+    }
+
+    /**
+     * Ends a named item's cooldown early, clearing its stack's overlay.
+     *
+     * @since 1.527.0
+     */
+    public static void clear(@NotNull Player player, @NotNull String key, @NotNull ItemStack item) {
+        Cooldowns.clear(player, NAMESPACE + key);
+        draw(player, item, 0);
+        net.exylia.lib.client.Clients.cooldowns().remove(player, NAMESPACE + key);
+    }
+
+    /**
+     * Draws the overlay again for what is left on a named item.
+     *
+     * <p>Vanilla restarts an item's sweep at its own length after the item is
+     * used, over anything set while it was being used. Call this a tick later.
+     *
+     * @since 1.527.0
+     */
+    public static void redraw(@NotNull Player player, @NotNull String key, @NotNull ItemStack item) {
+        long left = Cooldowns.remaining(player, NAMESPACE + key).toMillis();
+        if (left > 0) {
+            draw(player, item, (int) (left / 50L));
+        }
+    }
+
+    private static void draw(Player player, ItemStack item, int ticks) {
+        if (Features.dataComponents()) {
+            Groups.draw(player, item, ticks);
+        } else {
+            overlay.show(player, item.getType(), ticks);
+        }
+    }
+
+    @RequiresServer("1.21.4")
+    private static final class Groups {
+
+        /** One tick, the shortest a {@code use_cooldown} may be. */
+        private static final float SHORTEST = 0.05F;
+
+        static void separate(ItemStack stack, NamespacedKey group) {
+            UseCooldown current = stack.getData(DataComponentTypes.USE_COOLDOWN);
+            if (current != null && group.equals(current.cooldownGroup())) {
+                return;
+            }
+            float seconds = current != null ? current.seconds() : SHORTEST;
+            stack.setData(DataComponentTypes.USE_COOLDOWN,
+                    UseCooldown.useCooldown(seconds).cooldownGroup(group).build());
+        }
+
+        static void draw(Player player, ItemStack item, int ticks) {
+            player.setCooldown(item, ticks);
+        }
     }
 
     /**

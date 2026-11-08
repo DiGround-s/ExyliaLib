@@ -1,6 +1,7 @@
 package net.exylia.lib.text;
 
 import net.exylia.lib.text.internal.TextEngine;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,7 +41,7 @@ public final class Colors {
         }
         // Tokens are stored as MiniMessage tags, so strip the angle brackets.
         String value = tag.substring(1, tag.length() - 1);
-        return value.startsWith("#") ? TextColor.fromHexString(value) : null;
+        return value.startsWith("#") ? TextColor.fromHexString(value) : NamedTextColor.NAMES.value(value);
     }
 
     /**
