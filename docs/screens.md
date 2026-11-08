@@ -926,6 +926,40 @@ with a throwaway build: rects stay crisp at 30 and 60 degrees and turn smoothly;
 
 **Watchers.** A screen has one viewer. A table standing in the world, the point of which is to be seen, stays in 3D.
 
+## Shared matches (1.533.0)
+
+A game played by several players, each on their own screen. `SharedMatch` is what they share, and it is deliberately
+little: a screen has one viewer, so the way to keep a hand, a ship or a secret word off a client is never to hand it to
+that viewer's seat. ExyliaTabletop is the reference (`game/TableScreen`, `match/MatchService`, `modules/twentyone`).
+
+```java
+SharedMatch match = SharedMatch.of(plugin, markup, (seat, stay) -> askToLeave(seat.viewer(), stay));
+SharedMatch.Seat seat = match.seat(player, Map.of("game", name));   // on the player's thread
+if (seat == null) playInTheWorld(player);                           // a camera holds them, no PacketEvents
+seat.drawing(this::drawFromMyRecord);                               // the scene, after they closed it and came back
+match.everyone("pot", "$200");                                      // what anyone at the table may see, by name
+seat.set("total", "17");                                            // this viewer's alone; survives closing
+seat.scene("board").sprite("hole").content(() -> cardBack());       // sprites go to this client only
+match.end();                                                        // closes every screen; none of it counts as closing
+```
+
+| Case | What happens |
+| --- | --- |
+| **Hidden information** | Values, scenes and records are per seat. The round tells each seat's table only what that player may see: a rival's card is told as "a card, face down", and its face comes in the call that turns it. A table cannot leak what it was never told, so check the contract, not the drawing: one recording table per seat, assert the secret is not in the rival's script before the reveal (see Tabletop's `TwentyOneFormsTest`). |
+| **Mixed forms** | Only players on a screen have a seat. Their rivals play the same round in the world through the game's other table. The round holds one table per player and never asks which form it is. |
+| **Closing** | Shift, damage or a camera closes one screen and tells `Closed`. It decides nothing by itself: run the game's rule for walking out, and call `stay` to bring it back. The match keeps running meanwhile: the table keeps its record while `seat.open()` is false. |
+| **Disconnect** | The plugin's quit rule. `seat.close()` closes the screen without counting as a player closing it. |
+| **The end** | `match.end()`. Late clicks and closes do nothing. |
+| **More players** | Any number of seats. A seat that leaves closes alone, the rest play on, by the round's rule. |
+| **Watchers** | A screen cannot be watched. A table that stands in the world to be seen plays in the world for everyone at it. |
+
+**Threads.** `seat()` opens a screen, so it runs on that player's thread; on Folia seats live on different threads and
+a round lives on one of them. Everything else on a seat is safe from any thread. A click arrives on the viewer's thread:
+hop to the round's before it touches the game.
+
+**Shared words.** `lang/<code>/screens/shared.yml` (1.533.0) is read by every screen of the folder, under its own file:
+the words twenty screens of one kit have in common.
+
 ## Chest windows or screens: menu style (1.495.0)
 
 Every plugin's chest menus can open as screens with no code of its own. Which one a player gets is a

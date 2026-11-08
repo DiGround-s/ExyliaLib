@@ -64,6 +64,8 @@ public final class ScreenSet {
 
     private static final Map<String, ScreenSet> ALL = new ConcurrentHashMap<>();
     private static final long POLL_TICKS = 40;
+    /** Words every screen of the folder reads: {@code lang/<code>/screens/shared.yml}, under each screen's own file. */
+    private static final String SHARED_WORDS = "shared";
 
     private final Plugin plugin;
     private final Class<?> anchor;
@@ -234,6 +236,11 @@ public final class ScreenSet {
     }
 
     private void refreshWords(String id) {
+        refreshWordsFile(SHARED_WORDS);
+        refreshWordsFile(id);
+    }
+
+    private void refreshWordsFile(String id) {
         String words = folder + "/" + id + ".yml";
         if (jarHas("lang/" + Languages.ENGLISH + "/" + words) || jarHas("lang/" + Languages.code(plugin) + "/" + words)) {
             Languages.refresh(plugin, anchor, words);
@@ -261,14 +268,19 @@ public final class ScreenSet {
 
     /** The words of a screen, by dotted key. */
     private Map<String, String> words(String id) {
-        Path file = wordsFile(id);
         Map<String, String> out = new HashMap<>();
-        if (!Files.isRegularFile(file)) return out;
+        // The folder's shared words first (1.533.0): a screen's own file wins over them.
+        read(wordsFile(SHARED_WORDS), out);
+        read(wordsFile(id), out);
+        return out;
+    }
+
+    private static void read(Path file, Map<String, String> into) {
+        if (!Files.isRegularFile(file)) return;
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file.toFile());
         for (String key : yaml.getKeys(true)) {
-            if (!yaml.isConfigurationSection(key)) out.put(key, String.valueOf(yaml.get(key)));
+            if (!yaml.isConfigurationSection(key)) into.put(key, String.valueOf(yaml.get(key)));
         }
-        return out;
     }
 
     // ------------------------------------------------------------------
@@ -300,6 +312,7 @@ public final class ScreenSet {
     private long fingerprint() {
         long hash = 17;
         List<Path> roots = new ArrayList<>(List.of(dir(), networkTheme()));
+        roots.add(wordsFile(SHARED_WORDS));
         for (String id : markups.keySet()) roots.add(wordsFile(id));
         for (Path root : roots) {
             if (!Files.exists(root)) continue;
