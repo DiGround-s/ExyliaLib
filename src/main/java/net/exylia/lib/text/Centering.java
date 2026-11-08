@@ -83,6 +83,19 @@ public final class Centering {
     }
 
     /**
+     * How many pixels a character takes in the vanilla font, its one-pixel gap included.
+     *
+     * @param codePoint the character
+     * @param bold      whether it is bold
+     * @return its advance
+     * @since 1.528.0
+     */
+    public static int pixelWidth(int codePoint, boolean bold) {
+        char drawn = codePoint > Character.MAX_VALUE ? 'a' : (char) codePoint;
+        return (bold ? FontWidths.boldWidthOf(drawn) : FontWidths.widthOf(drawn)) + 1;
+    }
+
+    /**
      * Returns the spaces that put a line of the given width in the middle.
      *
      * <p>Separate from {@link #centerWithin} because a line whose placeholders

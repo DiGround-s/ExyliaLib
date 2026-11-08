@@ -59,6 +59,10 @@ interface CameraSink {
     default void mount(List<Player> viewers, int vehicleId, int[] passengers) {
     }
 
+    /** Puts an invisible box round the camera, so a click lands on it from the camera's eye. */
+    default void spawnHitbox(List<Player> viewers, int entityId, CameraPath.Frame at) {
+    }
+
     /** Replaces a panel's text. */
     default void text(List<Player> viewers, int entityId, Component text) {
     }

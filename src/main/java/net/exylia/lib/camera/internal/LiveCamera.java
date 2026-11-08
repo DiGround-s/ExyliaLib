@@ -6,6 +6,9 @@ import net.exylia.lib.packet.Packets;
 import net.exylia.lib.packet.PluginPackets;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import net.kyori.adventure.text.Component;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import java.util.List;
 
@@ -28,6 +31,8 @@ import java.util.List;
  */
 final class LiveCamera implements CameraHandle {
 
+    private static final long PRESS_GAP = 250L;
+
     private final Plugin plugin;
     private final List<Player> viewers;
     private final int entityId;
@@ -35,7 +40,18 @@ final class LiveCamera implements CameraHandle {
     private final boolean loop;
     /** What rides the camera, or {@code null} for a bare shot. */
     private final CameraOverlay overlay;
-    private long startedAt;
+    private volatile long startedAt;
+
+    /** The moment to hold at, or {@code -1}; the moment it is held at, or {@code -1}. */
+    private volatile long holdAt = -1;
+    private volatile long heldAt = -1;
+
+    /** Who hears presses while it is held, and the click catcher for it. */
+    private volatile Consumer<Player> press;
+    private volatile int hitboxId = -1;
+    private volatile long lastPress;
+    private volatile double drift;
+    private long lastBreath;
 
     /** What was already true of each viewer before the shot touched them. */
     private final boolean[] wasFrozen;
@@ -121,7 +137,16 @@ final class LiveCamera implements CameraHandle {
         if (gone) {
             return true;
         }
+        long target = holdAt;
+        if (target >= 0 && now - startedAt >= target) {
+            heldAt = target;
+            holdAt = -1;
+        }
         long due = sendDue(sink, now);
+        if (heldAt >= 0) {
+            breathe(sink, now);
+            return false;
+        }
         // One hold past the last position, not on it: the client is still
         // drawing its way into that position when the moment arrives, and
         // ending there takes the last beat off every shot.
@@ -149,16 +174,35 @@ final class LiveCamera implements CameraHandle {
         return false;
     }
 
+    /** A slow circle round the place a held shot stands at, one sample at a time. */
+    private void breathe(CameraSink sink, long now) {
+        if (drift <= 0 || nextFrame <= 0 || now - lastBreath < CameraShot.SAMPLE_MILLIS) {
+            return;
+        }
+        lastBreath = now;
+        CameraPath.Frame at = frames.get(Math.min(shown, frames.size() - 1));
+        double t = now / 1000.0;
+        sink.move(viewers, entityId, new CameraPath.Frame(at.x() + drift * Math.sin(t * 0.7),
+                at.y() + drift * 0.6 * Math.sin(t * 0.43 + 1), at.z() + drift * Math.cos(t * 0.53),
+                at.yaw(), at.pitch(), false));
+    }
+
+    /** How far the camera breathes while held. */
+    void drift(double blocks) {
+        drift = blocks;
+    }
+
     /** Sends every position the clock has reached, and answers where it is. */
     private long sendDue(CameraSink sink, long now) {
-        long due = (now - startedAt) / CameraShot.SAMPLE_MILLIS;
+        long elapsed = heldAt >= 0 ? heldAt : now - startedAt;
+        long due = elapsed / CameraShot.SAMPLE_MILLIS;
         while (nextFrame < frames.size() && nextFrame <= due) {
             sink.move(viewers, entityId, frames.get(nextFrame));
             shown = nextFrame;
             nextFrame++;
         }
         if (overlay != null) {
-            overlay.update(sink, viewers, now - startedAt);
+            overlay.update(sink, viewers, elapsed, now);
         }
         return due;
     }
@@ -176,6 +220,12 @@ final class LiveCamera implements CameraHandle {
             return;
         }
         gone = true;
+        press = null;
+        int hitbox = hitboxId;
+        if (hitbox >= 0) {
+            hitboxId = -1;
+            sink.destroy(viewers, hitbox);
+        }
         PluginPackets packets = Packets.of(plugin);
         for (int index = 0; index < viewers.size(); index++) {
             Player viewer = viewers.get(index);
@@ -207,6 +257,93 @@ final class LiveCamera implements CameraHandle {
         }
         CameraPath.Frame at = frames.get(Math.min(shown, frames.size() - 1));
         return new double[]{at.x(), at.y(), at.z(), at.yaw(), at.pitch()};
+    }
+
+    @Override
+    public void pauseAt(long millis) {
+        holdAt = Math.max(0, millis);
+    }
+
+    @Override
+    public void resume() {
+        long held = heldAt;
+        holdAt = -1;
+        if (held >= 0) {
+            startedAt = CameraRuntime.now() - held;
+            heldAt = -1;
+        }
+    }
+
+    @Override
+    public boolean isPaused() {
+        return heldAt >= 0;
+    }
+
+    @Override
+    public long elapsedMillis() {
+        long held = heldAt;
+        return held >= 0 ? held : CameraRuntime.now() - startedAt;
+    }
+
+    @Override
+    public void onPress(Consumer<Player> listener) {
+        if (gone) {
+            return;
+        }
+        press = listener;
+        CameraSink sink = CameraRuntime.sink();
+        int hitbox = hitboxId;
+        if (listener == null && hitbox >= 0) {
+            hitboxId = -1;
+            sink.destroy(viewers, hitbox);
+        } else if (listener != null && hitbox < 0) {
+            int id = sink.newEntityId();
+            sink.spawnHitbox(viewers, id, frames.get(Math.min(shown, frames.size() - 1)));
+            hitboxId = id;
+        }
+    }
+
+    /** Whether this shot takes a click on this entity: its catcher. */
+    boolean catches(int entityId) {
+        return entityId == hitboxId;
+    }
+
+    /** A viewer pressed something; one press may arrive as a click and a swing. */
+    void pressed(UUID who) {
+        Consumer<Player> listener = press;
+        if (listener == null || heldAt < 0) {
+            return;
+        }
+        long now = CameraRuntime.now();
+        if (now - lastPress < PRESS_GAP) {
+            return;
+        }
+        lastPress = now;
+        for (Player viewer : viewers) {
+            if (viewer.getUniqueId().equals(who)) {
+                listener.accept(viewer);
+                return;
+            }
+        }
+    }
+
+    @Override
+    public void revealAll() {
+        if (overlay != null) {
+            overlay.revealAll();
+        }
+    }
+
+    @Override
+    public boolean isRevealing() {
+        return overlay != null && overlay.revealing();
+    }
+
+    @Override
+    public void caption(Component line) {
+        if (overlay != null) {
+            overlay.caption(line);
+        }
     }
 
     @Override

@@ -126,6 +126,10 @@ public final class WorldShot {
     private final long fadeIn;
     private final long fadeOut;
     private final long duration;
+    private final double reveal;
+    private final boolean caption;
+    private final double drift;
+    private final List<double[]> shakes;
 
     private WorldShot(Builder builder, long[] times, double[][] keys, Ease[] eases, boolean[] cuts) {
         this.world = builder.world;
@@ -155,6 +159,10 @@ public final class WorldShot {
         this.titleStyle = builder.titleStyle;
         this.fadeIn = Math.min(builder.fadeIn, duration / 2);
         this.fadeOut = Math.min(builder.fadeOut, duration / 2);
+        this.reveal = builder.reveal;
+        this.caption = builder.caption;
+        this.drift = builder.drift;
+        this.shakes = List.copyOf(builder.shakes);
     }
 
     /**
@@ -335,7 +343,55 @@ public final class WorldShot {
 
     /** Whether anything at all rides the camera: subtitles, title cards, bars or a fade. */
     public boolean hasOverlay() {
-        return letterbox || !subtitles.isEmpty() || !titles.isEmpty() || fades();
+        return letterbox || !subtitles.isEmpty() || !titles.isEmpty() || fades() || caption;
+    }
+
+    /**
+     * How many characters a second subtitles are written out at; {@code 0} shows them whole.
+     *
+     * @since 1.528.0
+     */
+    public double reveal() {
+        return reveal;
+    }
+
+    /**
+     * How far, in blocks, the camera breathes round its place while the shot is held; {@code 0} stands still.
+     *
+     * @since 1.528.0
+     */
+    public double drift() {
+        return drift;
+    }
+
+    /**
+     * How far the camera is thrown off its path by shakes at a moment of the shot, {@code x, y, z}.
+     * Deterministic, so a shot plays the same every time.
+     *
+     * @since 1.528.0
+     */
+    public double[] shakeAt(long millis) {
+        double[] out = new double[3];
+        for (double[] shake : shakes) {
+            double from = shake[0], length = shake[1];
+            if (millis < from || millis >= from + length) continue;
+            double left = 1 - (millis - from) / length;
+            double t = millis / 1000.0;
+            double reach = shake[2] * left;
+            out[0] += reach * Math.sin(t * 37.1) * Math.cos(t * 13.7);
+            out[1] += reach * Math.sin(t * 41.3 + 1.7) * Math.cos(t * 11.9);
+            out[2] += reach * Math.sin(t * 29.3 + 3.1) * Math.cos(t * 17.3);
+        }
+        return out;
+    }
+
+    /**
+     * Whether the shot keeps a line at the foot of the view for {@link CameraHandle#caption}.
+     *
+     * @since 1.528.0
+     */
+    public boolean captioned() {
+        return caption;
     }
 
     /**
@@ -624,6 +680,10 @@ public final class WorldShot {
         private World world;
         private boolean letterbox;
         private double barSize = DEFAULT_BAR_SIZE;
+        private double reveal;
+        private boolean caption;
+        private double drift;
+        private final List<double[]> shakes = new ArrayList<>();
         private TextStyle subtitleStyle = TextStyle.SUBTITLE;
         private TextStyle titleStyle = TextStyle.TITLE;
         private long fadeIn;
@@ -841,6 +901,57 @@ public final class WorldShot {
         public @NotNull Builder fade(double inSeconds, double outSeconds) {
             this.fadeIn = Math.max(0L, Math.round(inSeconds * 1000));
             this.fadeOut = Math.max(0L, Math.round(outSeconds * 1000));
+            return this;
+        }
+
+        /**
+         * Writes subtitles out a character at a time instead of showing them whole. The speaker's name shows
+         * at once and the panel keeps its final size from the first letter, so nothing on screen shifts. A
+         * line's clock runs while the shot is held, so one reached just before a hold still finishes.
+         *
+         * @param charactersPerSecond how fast; {@code 0} for whole lines
+         * @return this builder
+         * @since 1.528.0
+         */
+        public @NotNull Builder reveal(double charactersPerSecond) {
+            this.reveal = Math.max(0, charactersPerSecond);
+            return this;
+        }
+
+        /**
+         * Lets the camera breathe round its place while the shot is held, so a long hold is not a still picture.
+         *
+         * @param blocks how far; about {@code 0.05} is felt and not seen
+         * @return this builder
+         * @since 1.528.0
+         */
+        public @NotNull Builder drift(double blocks) {
+            this.drift = Math.clamp(blocks, 0.0, 1.0);
+            return this;
+        }
+
+        /**
+         * Shakes the camera for a moment, dying away.
+         *
+         * @param seconds  when, from the start of the shot
+         * @param length   how long, in seconds
+         * @param strength how far it is thrown, in blocks
+         * @return this builder
+         * @since 1.528.0
+         */
+        public @NotNull Builder shake(double seconds, double length, double strength) {
+            shakes.add(new double[]{Math.max(0, seconds) * 1000, Math.max(0.05, length) * 1000, Math.clamp(strength, 0.0, 3.0)});
+            return this;
+        }
+
+        /**
+         * Keeps a small line at the foot of the view, set through {@link CameraHandle#caption}.
+         *
+         * @return this builder
+         * @since 1.528.0
+         */
+        public @NotNull Builder caption() {
+            this.caption = true;
             return this;
         }
 

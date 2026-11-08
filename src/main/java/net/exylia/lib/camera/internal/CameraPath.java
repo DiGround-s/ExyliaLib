@@ -102,7 +102,9 @@ final class CameraPath {
             long millis = Math.min(duration, step * CameraShot.SAMPLE_MILLIS);
             double[] where = shot.at(millis);
             boolean cut = step > 0 && shot.cutBetween((step - 1) * CameraShot.SAMPLE_MILLIS, millis);
-            frames.add(new Frame(where[0], where[1], where[2], (float) where[3], (float) where[4], cut));
+            double[] shake = shot.shakeAt(millis);
+            frames.add(new Frame(where[0] + shake[0], where[1] + shake[1], where[2] + shake[2],
+                    (float) where[3], (float) where[4], cut));
         }
         return frames;
     }

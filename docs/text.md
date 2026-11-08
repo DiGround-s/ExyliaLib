@@ -666,3 +666,10 @@ stale.
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
   `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`,
   `GradientsTest.java`, `CharMapsTest.java`.
+
+## Writing a line out (since 1.528.0)
+
+`Typewriter.of(component, lineWidth)` wraps a formatted line once and answers `frame(n)`, the line with its first `n`
+characters written and spaces as wide as the rest, so a centred panel keeps its size from the first letter to the last.
+`length()` is how many characters there are and `whole()` the finished line. Camera subtitles use it through
+`WorldShot.Builder#reveal`; anything else that redraws a text display or a view text can call it directly.

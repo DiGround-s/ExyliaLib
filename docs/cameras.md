@@ -292,6 +292,43 @@ WorldShot scene = WorldShot.builder()
   are symmetric. A higher field of view sees larger bars: the server is never
   told it. Before 1.397.0 the bottom bar was not drawn at all.
 
+### Waiting for the viewer (since 1.528.0)
+
+```java
+WorldShot scene = WorldShot.builder()
+        .key(0, gate, "smooth").key(4, square, "smooth").key(4.2, square, "linear").key(9, castle, "smooth")
+        .subtitle(0.5, 3.8, guideName, line)
+        .reveal(45)                         // written out at 45 characters a second
+        .caption()                          // keeps a small line at the foot of the view
+        .drift(0.05)                        // breathes while held
+        .shake(6, 0.6, 0.25)                // thrown about for a moment, dying away
+        .build();
+
+CameraHandle camera = cameras.play(player, scene);
+camera.pauseAt(4200);                       // stands there until resume()
+// once camera.isPaused():
+camera.caption(Text.of("{letters_black}Click to continue").build());
+camera.onPress(viewer -> onThread(viewer, () -> {
+    if (camera.isRevealing()) camera.revealAll();     // first press: the whole line
+    else { camera.onPress(null); camera.caption(null); camera.resume(); }
+}));
+```
+
+- **A hold is the shot's clock standing still.** Position, subtitles, title card and fade all wait; `elapsedMillis()`
+  says where the clock is. Nothing ends a held shot but `resume()` and what ends any shot, so give the viewer a way on
+  (a timeout of your own) or an AFK player stares at it forever. A move into a hold should settle: put a still key a
+  moment after the one it stops on, as above, or the spline arrives at speed and stops dead.
+- **What counts as a press:** a left or right click on an invisible box round the still camera, the swing of a click
+  that missed it, a sneak and a jump, a quarter of a second apart at the least. `onPress` runs on a network thread.
+  The box exists only while someone listens and only makes sense on a still camera; a press while the shot is moving is
+  not delivered.
+- **`reveal`** writes the text out with the panel at its final size from the first letter (rows are wrapped by the
+  library, with spaces standing in for what is not written). The speaker's name shows at once. A line keeps being
+  written during a hold; `revealAll()` finishes every line on screen and `isRevealing()` says whether one is unfinished.
+- **`caption`** is one small line in the bottom bar (above the foot of the view without bars), `null` to take it off.
+- **`drift`** moves the camera a little while held; **`shake`** is solved into the path when the shot starts. Rotation
+  is not shaken: it travels as a byte and would step.
+
 ### Hiding the HUD (since 1.397.0)
 
 ```java

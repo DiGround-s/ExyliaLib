@@ -62,6 +62,10 @@ final class CameraPackets implements CameraSink {
     private static final int BACKGROUND = 25;
     private static final int TEXT_FLAGS = 27;
     private static final byte BILLBOARD_CENTER = 3;
+    private static final int INTERACTION_WIDTH = 8;
+    private static final int INTERACTION_HEIGHT = 9;
+    /** Blocks across the click catcher: the camera's eye is inside it, so every click lands at no distance. */
+    private static final float HITBOX_SIZE = 3f;
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
 
     private CameraPackets() {
@@ -153,6 +157,16 @@ final class CameraPackets implements CameraSink {
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, panel.lineWidth()),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, panel.background()),
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, flags))));
+    }
+
+    @Override
+    public void spawnHitbox(List<Player> viewers, int entityId, CameraPath.Frame at) {
+        send(viewers, new WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()),
+                EntityTypes.INTERACTION, new Vector3d(at.x(), at.y() - HITBOX_SIZE / 2, at.z()),
+                0f, 0f, 0f, 0, Optional.empty()));
+        send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(INTERACTION_WIDTH, EntityDataTypes.FLOAT, HITBOX_SIZE),
+                new EntityData<>(INTERACTION_HEIGHT, EntityDataTypes.FLOAT, HITBOX_SIZE))));
     }
 
     @Override

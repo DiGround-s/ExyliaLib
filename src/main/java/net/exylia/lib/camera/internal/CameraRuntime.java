@@ -89,6 +89,7 @@ public final class CameraRuntime {
             available = CameraPackets.ready();
             if (available) {
                 HudShade.install();
+                CameraInput.install();
             }
             if (driver != null) {
                 driver.cancel();
@@ -200,12 +201,27 @@ public final class CameraRuntime {
         LiveCamera camera = new LiveCamera(plugin, List.copyOf(watching), sink.newEntityId(),
                 CameraPath.of(shot), false, clock.getAsLong(),
                 shot.hasOverlay() ? new CameraOverlay(shot, sink) : null);
+        camera.drift(shot.drift());
         for (Player viewer : watching) {
             FILMING.put(viewer.getUniqueId(), camera);
         }
         camera.start(sink);
         LIVE.add(camera);
         return camera;
+    }
+
+    /** The clock shots run on. */
+    static long now() {
+        return clock.getAsLong();
+    }
+
+    static CameraSink sink() {
+        return sink;
+    }
+
+    /** The shot a player is looking through, or {@code null}. */
+    static LiveCamera filming(UUID player) {
+        return FILMING.get(player);
     }
 
     /** Ends whatever one player is looking through, if anything. */

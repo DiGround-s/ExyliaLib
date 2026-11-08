@@ -1,6 +1,7 @@
 package net.exylia.lib.camera.internal;
 
 import net.exylia.lib.camera.WorldShot;
+import net.exylia.lib.text.Typewriter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
@@ -117,6 +118,9 @@ final class CameraOverlay {
     private static final float BAR_HEIGHT = BAR_LINES * LINE_PIXELS * PIXEL * BAR_LINE_SCALE;
     private static final Component BAR_TEXT = Component.text(String.join("\n", Collections.nCopies(BAR_LINES, " ")));
 
+    /** Where the caption's centre sits: inside a 4:3 screen, toward its right edge. */
+    private static final float CAPTION_X = 0.55f;
+
     /** A title card: in front of the fade, so it reads over black. */
     private static final float TITLE_SCALE = 0.45f;
     private static final float TITLE_DISTANCE = 0.7f;
@@ -128,12 +132,32 @@ final class CameraOverlay {
     private final int fadeId;
     private final int titleId;
     private final float barEdge;
+    private final int captionId;
+
+    /** The written-out state of each line that has shown; empty on a shot that shows lines whole. */
+    private final Map<WorldShot.Subtitle, Writing> writing = new java.util.HashMap<>();
+    private volatile boolean flush;
+    private volatile boolean revealing;
+    /** A caption waiting to be sent: a space takes it away. */
+    private volatile Component pendingCaption;
 
     /** What each subtitle panel shows and how it was last drawn. */
     private final WorldShot.Subtitle[] showing;
     private final Panel[] drawn;
     private WorldShot.Title card;
     private int alpha = -1;
+
+    /** One line being written out, from the moment it first showed. */
+    private static final class Writing {
+        final Typewriter text;
+        final long since;
+        boolean done;
+
+        Writing(Typewriter text, long since) {
+            this.text = text;
+            this.since = since;
+        }
+    }
 
     CameraOverlay(WorldShot shot, CameraSink sink) {
         this.shot = shot;
@@ -146,6 +170,7 @@ final class CameraOverlay {
         this.bottomBarId = shot.letterbox() ? sink.newEntityId() : -1;
         this.fadeId = shot.fades() ? sink.newEntityId() : -1;
         this.titleId = shot.titles().isEmpty() ? -1 : sink.newEntityId();
+        this.captionId = shot.captioned() ? sink.newEntityId() : -1;
         this.barEdge = (float) (HALF_VIEW * (1 - 2 * shot.barSize()));
         this.showing = new WorldShot.Subtitle[lines];
         this.drawn = new Panel[lines];
@@ -157,7 +182,7 @@ final class CameraOverlay {
         for (int id : subtitleIds) {
             ids.add(id);
         }
-        for (int id : new int[]{topBarId, bottomBarId, fadeId, titleId}) {
+        for (int id : new int[]{topBarId, bottomBarId, fadeId, titleId, captionId}) {
             if (id >= 0) {
                 ids.add(id);
             }
@@ -170,7 +195,7 @@ final class CameraOverlay {
         Map<WorldShot.Subtitle, Panel> layout = layout(shot.subtitlesAt(0));
         assign(layout.keySet());
         for (int index = 0; index < subtitleIds.length; index++) {
-            Panel panel = showing[index] != null ? layout.get(showing[index])
+            Panel panel = showing[index] != null ? written(showing[index], layout.get(showing[index]), CameraRuntime.now())
                     : place(new WorldShot.Subtitle(0, 0, null, Component.empty()), 0, 0);
             drawn[index] = panel;
             sink.spawnPanel(viewers, subtitleIds[index], at, panel);
@@ -192,6 +217,9 @@ final class CameraOverlay {
             card = shot.titleAt(0);
             sink.spawnPanel(viewers, titleId, at, title(card));
         }
+        if (captionId >= 0) {
+            sink.spawnPanel(viewers, captionId, at, captionPanel());
+        }
         int[] passengers = ids();
         if (passengers.length > 0) {
             sink.mount(viewers, cameraId, passengers);
@@ -207,12 +235,25 @@ final class CameraOverlay {
      * camera sample.
      */
     void update(CameraSink sink, List<Player> viewers, long millis) {
+        update(sink, viewers, millis, millis);
+    }
+
+    /**
+     * @param millis where the shot's clock is: it stands still while the shot is held
+     * @param real   the wall clock: a line goes on being written out during a hold
+     */
+    void update(CameraSink sink, List<Player> viewers, long millis, long real) {
+        Component line0 = pendingCaption;
+        if (line0 != null && captionId >= 0) {
+            pendingCaption = null;
+            sink.text(viewers, captionId, line0);
+        }
         if (subtitleIds.length > 0) {
             Map<WorldShot.Subtitle, Panel> layout = layout(shot.subtitlesAt(millis));
             assign(layout.keySet());
             for (int index = 0; index < subtitleIds.length; index++) {
                 WorldShot.Subtitle line = showing[index];
-                Panel wanted = line == null ? drawn[index].with(Component.empty(), 0) : layout.get(line);
+                Panel wanted = line == null ? drawn[index].with(Component.empty(), 0) : written(line, layout.get(line), real);
                 Panel before = drawn[index];
                 if (!wanted.sameShape(before)) {
                     sink.restyle(viewers, subtitleIds[index], wanted);
@@ -226,6 +267,13 @@ final class CameraOverlay {
                 }
                 drawn[index] = wanted;
             }
+            flush = false;
+            boolean still = false;
+            for (WorldShot.Subtitle line : showing) {
+                Writing state = line == null ? null : writing.get(line);
+                still |= state != null && !state.done;
+            }
+            revealing = still;
         }
         if (titleId >= 0) {
             WorldShot.Title now = shot.titleAt(millis);
@@ -241,6 +289,43 @@ final class CameraOverlay {
                 sink.background(viewers, fadeId, next << 24);
             }
         }
+    }
+
+    /** A line's panel as far as it has been written out. */
+    private Panel written(WorldShot.Subtitle line, Panel whole, long real) {
+        if (shot.reveal() <= 0) {
+            return whole;
+        }
+        Writing state = writing.computeIfAbsent(line, key -> new Writing(Typewriter.of(key.text(), width(key)), real));
+        int shown = (int) Math.min(Integer.MAX_VALUE, Math.max(0, real - state.since) * shot.reveal() / 1000);
+        if (flush || shown >= state.text.length()) {
+            state.done = true;
+        }
+        Component text = state.done ? state.text.whole() : state.text.frame(shown);
+        return whole.with(line.speaker() == null ? text : line.speaker().append(Component.newline()).append(text), whole.background());
+    }
+
+    void revealAll() {
+        flush = true;
+    }
+
+    boolean revealing() {
+        return revealing;
+    }
+
+    void caption(Component line) {
+        pendingCaption = line == null ? Component.text(" ") : line;
+    }
+
+    /** Small, at the right of the foot of the view: inside the bottom bar when there is one. */
+    private Panel captionPanel() {
+        float scale = 0.14f;
+        float rowHeight = LINE_PIXELS * PIXEL * scale;
+        float y = shot.letterbox()
+                ? -barEdge - Math.max(rowHeight, (HALF_VIEW - barEdge)) / 2 - rowHeight / 2
+                : -HALF_VIEW * 0.92f;
+        return new Panel(Component.empty(), 0, CAPTION_X, y, SUBTITLE_DISTANCE, scale, scale, 400,
+                WorldShot.Align.RIGHT, true);
     }
 
     /** Keeps each line on the panel it already had, and gives new lines the free ones. */
