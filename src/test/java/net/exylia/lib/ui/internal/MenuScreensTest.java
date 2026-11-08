@@ -36,4 +36,12 @@ class MenuScreensTest {
         ClickBindings any = new ClickBindings.Builder().addCommand("player: spawn").build();
         assertEquals(ClickKind.SHIFT_LEFT, MenuScreens.kindOf(false, true, any));
     }
+
+    @Test
+    void aBarThatDoesNotFitWrapsEvenly() {
+        double[] seven = {50, 50, 50, 50, 50, 50, 50};
+        assertEquals(7, MenuScreens.barBreak(seven, 400, 3));
+        assertEquals(3, MenuScreens.barBreak(seven, 300, 3));
+        assertEquals(1, MenuScreens.barBreak(new double[]{200, 20}, 100, 3));
+    }
 }

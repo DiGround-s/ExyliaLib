@@ -229,7 +229,7 @@ that is not well-formed throws, when it is read.
 | `toggle`, `checkbox` | On/off: `state="key"` flips local state, or `checked="%field%"` with an `action`; `on`/`off` change the toggle's words |
 | `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
-| `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"` |
+| `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"`. Since 1.518.0 `material=` takes whatever a chest template's `material:` does: a `bytes:` snapshot, `basehead-...`, `playerhead-...`, a custom item (`nexo:ruby`) |
 | `canvas` (1.500.0) | `id="table"`: a sprite layer the plugin moves from Java (`session.scene("table")`), sized by CSS `width`/`height`. See [Scenes and games](#scenes-and-games-15000) |
 | `item3d` (1.499.0) | The item's real 3D model, lit, with enchantment glint: `material=`/`head=`/`texture=`/`url=` as `<item>`; `spin` turns it slowly about its upright (36° a second, or `spin="72"`). See [3D items](#3d-items-14990) |
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
@@ -741,7 +741,7 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
   without its `Context ▸` part, and the first lore line when there is room), kept at their slot positions; glass
   panes and empty slots are not drawn, and rows or columns with nothing in them are left out (1.513.0). When the
   last row holds buttons (back, page arrows, the main action) it becomes a bar under a divider, its buttons kept
-  left, centre and right as in the chest. A list with no items shows what its empty slots say. Each item's name
+  left, centre and right as in the chest; buttons that do not fit across wrap onto two centred rows (1.518.0). A list with no items shows what its empty slots say. Each item's name
   and lore are its tooltip while hovered. Cards that do something light up under the cursor; the others only show
   their tooltip. A left or right click on a card is that click on the slot of the chest menu, so every action
   works as in the window, and a menu opened from a click replaces the cards in place. Shift closes it (1.514.0); the

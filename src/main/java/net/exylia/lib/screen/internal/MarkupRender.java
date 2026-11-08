@@ -1224,6 +1224,8 @@ public final class MarkupRender {
         }
         String name = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope, false).trim();
         org.bukkit.Material material = name.isEmpty() ? null : org.bukkit.Material.matchMaterial(name);
+        // What no material names is read as a chest template's material: bytes: snapshots, heads, custom items.
+        if (material == null && !name.isEmpty()) return net.exylia.lib.item.Items.icon(name);
         material = net.exylia.lib.platform.ItemForms.orElse(material, org.bukkit.Material.PAPER);
         return new org.bukkit.inventory.ItemStack(material);
     }

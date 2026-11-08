@@ -190,7 +190,8 @@ final class MenuScreens {
         }
         Node panel = Node.column(Node.text(menu.currentTitle()).scale(0.9)).padding(PAD, PAD + 2).gap(6)
                 .background(PANEL).outline("{primary}", 1);
-        double barH = bar ? BAR + 7 : 0;
+        Node barRows = bar ? bar(menu, inventory, (rows - 1) * 9) : null;
+        double barH = bar ? (barRows.children().size() > 1 ? 2 * BAR + GAP : BAR) + 7 : 0;
         if (shownRows.isEmpty()) {
             panel.add(emptyState(inventory, bodyRows));
         } else {
@@ -212,7 +213,7 @@ final class MenuScreens {
         }
         if (bar) {
             panel.add(Node.box().height(1).background("{primary}30"));
-            panel.add(bar(menu, inventory, (rows - 1) * 9));
+            panel.add(barRows);
         }
         return Node.column(panel).align(Node.Align.CENTER).justify(Node.Justify.CENTER);
     }
@@ -247,17 +248,54 @@ final class MenuScreens {
         return card.hover(CARD_HOVER).hoverOutline("{primary}").onClick(event -> click(menu, slot, event));
     }
 
-    /** The last row as a bar: its buttons kept left, centre and right, as the chest has them. */
+    /**
+     * The last row as a bar: its buttons kept left, centre and right, as the chest has them. Buttons that do not fit
+     * across the screen wrap onto two centred rows of about the same width.
+     */
     private static Node bar(Session menu, Inventory inventory, int first) {
+        List<Integer> slots = new ArrayList<>();
+        for (int c = 0; c < 9; c++) if (shown(inventory.getItem(first + c))) slots.add(first + c);
+        double[] widths = slots.stream().mapToDouble(slot -> buttonWidth(inventory.getItem(slot))).toArray();
+        int wrap = barBreak(widths, AREA_W - 2 * (PAD + 2), GAP);
+        Node out = Node.column().gap(GAP);
+        if (wrap < slots.size()) {
+            Node top = Node.row().gap(GAP).justify(Node.Justify.CENTER);
+            Node bottom = Node.row().gap(GAP).justify(Node.Justify.CENTER);
+            for (int i = 0; i < slots.size(); i++) {
+                (i < wrap ? top : bottom).add(button(menu, slots.get(i), inventory.getItem(slots.get(i))));
+            }
+            return out.add(top).add(bottom);
+        }
         Node left = Node.row().gap(GAP).grow(1).justify(Node.Justify.START);
         Node centre = Node.row().gap(GAP).grow(1).justify(Node.Justify.CENTER);
         Node right = Node.row().gap(GAP).grow(1).justify(Node.Justify.END);
-        for (int c = 0; c < 9; c++) {
-            ItemStack item = inventory.getItem(first + c);
-            if (!shown(item)) continue;
-            (c < 3 ? left : c < 6 ? centre : right).add(button(menu, first + c, item));
+        for (int slot : slots) {
+            int c = slot - first;
+            (c < 3 ? left : c < 6 ? centre : right).add(button(menu, slot, inventory.getItem(slot)));
         }
-        return Node.row(left, centre, right).height(BAR);
+        return out.add(Node.row(left, centre, right).height(BAR));
+    }
+
+    /**
+     * Where a bar's second row starts: past the end when every button fits on one row, otherwise the break that
+     * leaves the wider row narrowest.
+     */
+    static int barBreak(double[] widths, double room, double gap) {
+        double[] upTo = new double[widths.length + 1];
+        for (int i = 0; i < widths.length; i++) upTo[i + 1] = upTo[i] + widths[i] + gap;
+        if (upTo[widths.length] - gap <= room) return widths.length;
+        int best = 1;
+        for (int i = 1; i < widths.length; i++) {
+            double wider = Math.max(upTo[i], upTo[widths.length] - upTo[i]);
+            if (wider < Math.max(upTo[best], upTo[widths.length] - upTo[best])) best = i;
+        }
+        return best;
+    }
+
+    /** What {@link #button} takes across: padding, icon, gap and name. */
+    private static double buttonWidth(ItemStack item) {
+        List<Component> lines = lines(item);
+        return 23 + (lines == null ? 0 : net.exylia.lib.text.Centering.pixelWidth(subject(lines.get(0))) * 0.6);
     }
 
     private static Node button(Session menu, int slot, ItemStack item) {
