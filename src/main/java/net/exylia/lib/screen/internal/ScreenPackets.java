@@ -3,6 +3,7 @@ package net.exylia.lib.screen.internal;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
 import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData;
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
@@ -26,6 +27,11 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHeldItemChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChatMessage;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisguisedChat;
+import com.github.retrooper.packetevents.protocol.chat.ChatType;
+import com.github.retrooper.packetevents.protocol.chat.message.ChatMessage_v1_19_3;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
@@ -98,16 +104,67 @@ final class ScreenPackets extends PacketListenerAbstract {
     }
 
     private static ScreenPackets installed;
+    /** The most lines a client's chat shows at once at its default height. */
+    private static final int CHAT_HEIGHT = 20;
 
     private ScreenPackets() {
         super(PacketListenerPriority.LOWEST);
     }
 
-    /** Starts reading input, once. */
+    /** Starts reading input and following chat, once. */
     static synchronized void install() {
         if (installed != null) return;
         installed = new ScreenPackets();
         PacketEvents.getAPI().getEventManager().registerListener(installed);
+        PacketEvents.getAPI().getEventManager().registerListener(new ChatLines());
+    }
+
+    /**
+     * Follows the chat a client is sent, late, to see what a translating plugin wrote. What nothing signs (system
+     * messages, the server's own {@code /say}) can wait. A signed line is only remembered: dropping one breaks the
+     * chain the client checks, so other players' chat is stopped before it exists, in {@code ScreenRuntime.Closer#onChat}.
+     */
+    private static final class ChatLines extends PacketListenerAbstract {
+
+        ChatLines() {
+            super(PacketListenerPriority.HIGHEST);
+        }
+
+        @Override
+        public void onPacketSend(PacketSendEvent event) {
+            PacketTypeCommon type = event.getPacketType();
+            if (type != PacketType.Play.Server.SYSTEM_CHAT_MESSAGE && type != PacketType.Play.Server.DISGUISED_CHAT
+                    && type != PacketType.Play.Server.CHAT_MESSAGE) return;
+            UUID player = event.getUser() == null ? null : event.getUser().getUUID();
+            if (player == null || event.isCancelled()) return;
+            if (type == PacketType.Play.Server.SYSTEM_CHAT_MESSAGE) {
+                WrapperPlayServerSystemChatMessage line = new WrapperPlayServerSystemChatMessage(event);
+                if (!line.isOverlay() && ScreenRuntime.chatLine(player, line.getMessage())) event.setCancelled(true);
+            } else if (type == PacketType.Play.Server.DISGUISED_CHAT) {
+                WrapperPlayServerDisguisedChat line = new WrapperPlayServerDisguisedChat(event);
+                if (ScreenRuntime.chatLine(player, decorated(line.getMessage(), line.getChatFormatting()))) {
+                    event.setCancelled(true);
+                }
+            } else if (new WrapperPlayServerChatMessage(event).getMessage() instanceof ChatMessage_v1_19_3 line) {
+                ScreenRuntime.chatSeen(player, decorated(line.getUnsignedChatContent().orElse(line.getChatContent()),
+                        line.getChatFormatting()));
+            }
+        }
+
+        /** The line as the client draws it: {@code <name> text} or whatever the chat type says. */
+        private static Component decorated(Component text, ChatType.Bound format) {
+            try {
+                return format.getType().getChatDecoration().decorate(text, format);
+            } catch (RuntimeException unknownType) {
+                return text;
+            }
+        }
+    }
+
+    /** Blank lines, past every listener, so what was in view leaves it while the screen is up. */
+    static void pushChatOut(Player player) {
+        WrapperPlayServerSystemChatMessage blank = new WrapperPlayServerSystemChatMessage(false, Component.empty());
+        for (int i = 0; i < CHAT_HEIGHT; i++) PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, blank);
     }
 
     static int newId() {

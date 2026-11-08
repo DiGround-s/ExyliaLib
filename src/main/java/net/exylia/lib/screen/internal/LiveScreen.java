@@ -185,6 +185,9 @@ final class LiveScreen implements ScreenSession {
     private static final int MAX_TOASTS = 3;
     /** Toasts on screen, oldest first; guarded by {@code this}. */
     private final List<Toast> toasts = new ArrayList<>();
+    /** A chat line this soon after a click is the answer to it. */
+    private static final long ANSWER_MILLIS = 1000;
+    private volatile long lastPress;
     private int toastSeq;
     private int toastVersion;
     private int lastToastVersion = -1;
@@ -827,7 +830,7 @@ final class LiveScreen implements ScreenSession {
     private void addToasts(List<Layout.Placed> laid) {
         double y = 6;
         for (Toast t : toasts) {
-            Node note = Node.text(t.text()).padding(5, 12).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
+            Node note = Node.text(t.text()).wrap(screen.width() - 44).padding(5, 12).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
                     .enter(Motion.Tween.of(Motion.Transform.translate(0, -8), 5, Motion.Ease.OUT))
                     .leave(Motion.Tween.of(new Motion.Transform(0, -6, 0.96), 3, Motion.Ease.IN));
             double[] size = Layout.measure(note);
@@ -1919,6 +1922,7 @@ final class LiveScreen implements ScreenSession {
 
     /** Shows a box pressed for a moment (its {@code :active} style). */
     private void press(String key) {
+        lastPress = System.currentTimeMillis();
         tasks.runAtEntity(player, () -> {
             synchronized (this) {
                 if (!open || away) return;
@@ -2089,6 +2093,12 @@ final class LiveScreen implements ScreenSession {
         return overlayFrom < 0 ? placed : placed.subList(overlayFrom, placed.size());
     }
 
+    /** On a network thread. A held chat line that answers the click just made also shows on the screen. */
+    void answer(Component line) {
+        if (System.currentTimeMillis() - lastPress > ANSWER_MILLIS || !open() || !plugin.isEnabled()) return;
+        tasks.runAtEntity(player, () -> toastLine(line, null));
+    }
+
     @Override
     public void toast(@NotNull String text) {
         toast(null, text);
@@ -2096,9 +2106,12 @@ final class LiveScreen implements ScreenSession {
 
     @Override
     public void toast(@Nullable String tone, @NotNull String text) {
+        toastLine(net.exylia.lib.text.Text.of(text).build(), tone);
+    }
+
+    private void toastLine(Component text, @Nullable String tone) {
         synchronized (this) {
-            toasts.add(new Toast(net.exylia.lib.text.Text.of(text).build(), tone, System.currentTimeMillis() + TOAST_MILLIS,
-                    ++toastSeq));
+            toasts.add(new Toast(text, tone, System.currentTimeMillis() + TOAST_MILLIS, ++toastSeq));
             while (toasts.size() > MAX_TOASTS) toasts.remove(0);
             toastVersion++;
         }

@@ -134,6 +134,12 @@ plugin or vanilla board draws it, team colour slots included. Only the display s
 as usual, so on close it comes back as it is by then, or not at all if it was removed. Hopping between screens does not
 flicker it, and it is back while a screen stepped aside for an input.
 
+`quiet-chat` (default on, since 1.523.0) keeps the chat quiet while a screen is open. Other players' chat is not sent to
+that player at all, since a signed chat packet cannot be dropped once the server made it. System messages and `/say` wait, up to the
+newest 200, and arrive when the screen closes; one that comes within a second of a click also shows as a toast. If chat
+was on view when the screen opened (anything in the last 10 seconds), blank lines push it out and those lines come back
+on close. An input that steps the screen aside (a text prompt) gives the chat back at once.
+
 ## Input
 
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the

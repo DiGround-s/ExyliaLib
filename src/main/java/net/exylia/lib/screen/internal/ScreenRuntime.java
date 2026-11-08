@@ -13,6 +13,8 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.Plugin;
 
+import net.kyori.adventure.text.Component;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -44,6 +46,7 @@ public final class ScreenRuntime {
     private static final Map<UUID, Integer> SIZE = new ConcurrentHashMap<>();
     /** How large a screen may be drawn, in percent. 100 fills three quarters of a window at FOV 70, 200 at FOV 110. */
     static final int SIZE_MIN = 50, SIZE_MAX = 250, SIZE_STEP = 10;
+    private static final Map<UUID, ChatHold> CHAT = new ConcurrentHashMap<>();
     private static volatile Plugin library;
     private static volatile boolean warned;
 
@@ -60,7 +63,9 @@ public final class ScreenRuntime {
                 net.exylia.lib.task.Tasks.of(library).runAtEntity(held, () -> close(held.getUniqueId()));
             }
         });
+        if (net.exylia.lib.packet.internal.PacketRuntime.isAvailable()) ScreenPackets.install();
         for (Player online : library.getServer().getOnlinePlayers()) {
+            CHAT.put(online.getUniqueId(), new ChatHold());
             net.exylia.lib.task.Tasks.of(library).runAtEntity(online, () -> read(online));
         }
         try {
@@ -215,14 +220,46 @@ public final class ScreenRuntime {
 
     /** What a screen quiets while it is up. Safe to repeat: a screen coming back from an input does. */
     static void quietBegin(Player player) {
-        if (net.exylia.lib.screen.ScreenSettings.get().hideSidebar()) {
+        net.exylia.lib.screen.ScreenSettings settings = net.exylia.lib.screen.ScreenSettings.get();
+        if (settings.hideSidebar()) {
             net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, true);
+        }
+        ChatHold chat = CHAT.get(player.getUniqueId());
+        if (settings.quietChat() && chat != null && chat.begin(System.currentTimeMillis())) {
+            ScreenPackets.pushChatOut(player);
         }
     }
 
     /** Gives it all back, whatever the settings say by now. */
     static void quietEnd(Player player) {
         net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, false);
+        ChatHold chat = CHAT.get(player.getUniqueId());
+        if (chat != null) chat.end().forEach(player::sendMessage);
+    }
+
+    /** On a network thread. A line {@code player}'s client draws. */
+    static void chatSeen(UUID player, Component line) {
+        ChatHold chat = CHAT.get(player);
+        if (chat != null) chat.shown(line, System.currentTimeMillis());
+    }
+
+    /** On a network thread. A chat line that could wait reached {@code player}: whether it must. */
+    static boolean chatLine(UUID player, Component line) {
+        ChatHold chat = CHAT.get(player);
+        if (chat == null) return false;
+        if (!chat.holding()) {
+            chat.shown(line, System.currentTimeMillis());
+            return false;
+        }
+        chat.hold(line);
+        LiveScreen live = OPEN.get(player);
+        if (live != null) live.answer(line);
+        return true;
+    }
+
+    private static boolean holdsChat(UUID player) {
+        ChatHold chat = CHAT.get(player);
+        return chat != null && chat.holding();
     }
 
     /** A screen closed: a moment later, so hopping from one screen to the next does not flicker. */
@@ -389,11 +426,23 @@ public final class ScreenRuntime {
 
     static final class Closer implements Listener {
 
+        /** Chat is sent per viewer and signed, so a viewer is taken off the list and the packet never exists. */
+        @EventHandler(priority = EventPriority.HIGHEST)
+        public void onChat(io.papermc.paper.event.player.AsyncChatEvent event) {
+            try {
+                event.viewers().removeIf(viewer -> viewer instanceof Player other && !other.equals(event.getPlayer())
+                        && holdsChat(other.getUniqueId()));
+            } catch (UnsupportedOperationException fixedList) {
+                // A plugin called this event with a list that cannot change: that chat is shown.
+            }
+        }
+
         /** Whoever joins stays out of sight of every open screen, as everyone online did when it opened. */
         @EventHandler(priority = EventPriority.MONITOR)
         public void onJoin(org.bukkit.event.player.PlayerJoinEvent event) {
             Player joined = event.getPlayer();
             read(joined);
+            CHAT.put(joined.getUniqueId(), new ChatHold());
             for (LiveScreen screen : OPEN.values()) screen.hideLater(joined);
             REVEAL.forEach((viewerId, pending) -> {
                 Plugin owner = pending.remove(joined.getUniqueId());
@@ -412,6 +461,7 @@ public final class ScreenRuntime {
             SENSITIVITY.remove(event.getPlayer().getUniqueId());
             REDUCED.remove(event.getPlayer().getUniqueId());
             SIZE.remove(event.getPlayer().getUniqueId());
+            CHAT.remove(event.getPlayer().getUniqueId());
             // A new login starts with nobody hidden.
             REVEAL.remove(event.getPlayer().getUniqueId());
         }

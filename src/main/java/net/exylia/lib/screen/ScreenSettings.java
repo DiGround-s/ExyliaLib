@@ -24,6 +24,7 @@ import java.util.Map;
  *                       (since 1.496.0), instead of a picture of four displays
  * @param screenSize   how large screens are drawn, in percent, for players who did not choose (since 1.519.0)
  * @param hideSidebar  whether a player's sidebar is hidden while a screen is open (since 1.522.0)
+ * @param quietChat    whether chat is kept quiet while a screen is open (since 1.523.0)
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -106,7 +107,14 @@ public record ScreenSettings(
         @Comment("screen closes.")
         @Menu.Label("Hide sidebar") @Menu.Icon("OAK_SIGN")
         @Menu.About({"The sidebar steps out of the", "way while a screen is open."})
-        boolean hideSidebar
+        boolean hideSidebar,
+
+        @Comment("Keep the chat quiet while a screen is open: other players' chat")
+        @Comment("is not shown, and system messages wait until the screen closes.")
+        @Comment("A message that answers a click also shows on the screen.")
+        @Menu.Label("Quiet chat") @Menu.Icon("WRITABLE_BOOK")
+        @Menu.About({"No chat over a screen: messages", "wait until it closes."})
+        boolean quietChat
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -116,7 +124,7 @@ public record ScreenSettings(
 
     /** The settings as they were before 1.496.0, with full motion. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin) {
-        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true, 100, true);
+        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true, 100, true, true);
     }
 
     /** The settings as they were before 1.519.0, at the full size. */
@@ -130,6 +138,14 @@ public record ScreenSettings(
                           String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
                 screenSize, true);
+    }
+
+    /** The settings as they were before 1.523.0, with the chat kept quiet. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, true);
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */
