@@ -66,7 +66,7 @@ import java.util.stream.Collectors;
 public final class BundledFiles {
 
     /** Where the reviewed defaults of bundled files are kept, inside the data folder. */
-    private static final String REVIEWED = ".defaults/files";
+    static final String REVIEWED = ".defaults/files";
 
     /** What 1.157.0 recorded: the hash of each file it installed. */
     private static final String LEGACY_LEDGER = ".bundled-files";

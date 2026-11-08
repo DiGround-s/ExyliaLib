@@ -353,6 +353,9 @@ as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
   re-quote strings. A file with nothing new is never rewritten.
 - A file that is not YAML is only written when missing.
 
+Text in a bundled catalogue follows the server's language through
+[content translations](content-translations.md), without being rewritten.
+
 ## When the file is wrong
 
 A typo in the user's file never crashes the plugin: each problem becomes a

@@ -3,6 +3,7 @@ package net.exylia.lib.config;
 import net.exylia.lib.config.internal.BundledResources;
 import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.debug.Debug;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -60,6 +61,9 @@ import java.util.regex.Pattern;
  * <p>{@code config.yml} is read straight from disk every time, so it has to be
  * loaded before the files that follow it, and a reload picks up a changed
  * language without a restart.
+ *
+ * <p>Text in a plugin's catalogues (a job's name, a kit's lore) is the server's file rather than a
+ * language's: {@link #translate} lays the language over it where the owner has not edited it.
  *
  * @since 1.214.0
  */
@@ -229,6 +233,46 @@ public final class Languages {
                     + failure.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Translates a catalogue the plugin just read from the server's file, in memory.
+     *
+     * <p>{@code lang/<code>/content/<catalogue>.yml} holds the translated text, keyed by where it sits:
+     * for {@code jobs/explorer.yml} the catalogue is {@code jobs} and {@code explorer.perks.10.a.name} is
+     * {@code perks.10.a.name} in that file; for a single {@code kits.yml} the keys are its own paths. A
+     * value is replaced only while it still equals what the plugin shipped at {@code resource}, so text
+     * the owner edited stays, and so does anything with no translation. Nothing is written to disk:
+     * read the file afresh, without calling this, before writing it back.
+     *
+     * <p>Call it between reading the file and using it. Everything the plugin reads from {@code yaml}
+     * afterwards, in any screen, sees the language. Guide: {@code docs/content-translations.md}.
+     *
+     * @param plugin   the plugin
+     * @param anchor   a class packaged with the resources
+     * @param resource the file in the jar and the data folder, such as {@code jobs/explorer.yml}
+     * @param yaml     what the server's file holds
+     * @since 1.529.0
+     */
+    public static void translate(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource,
+                                 @NotNull ConfigurationSection yaml) {
+        ContentOverlay.apply(plugin, anchor, code(plugin), resource, yaml);
+    }
+
+    /**
+     * What is wrong with a packaged translation, for a plugin's tests: keys {@code resource} does not
+     * have, and text that would be refused for losing a {@code %placeholder%} or a {@code {token}}, or
+     * for being empty or the wrong shape.
+     *
+     * @param anchor   a class packaged with the resources
+     * @param code     the language, such as {@code es}
+     * @param resource the file in the jar, such as {@code jobs/explorer.yml}
+     * @return one line per problem, empty when there is none or no translation at all
+     * @since 1.529.0
+     */
+    public static @NotNull List<String> translationProblems(@NotNull Class<?> anchor, @NotNull String code,
+                                                            @NotNull String resource) {
+        return ContentOverlay.problems(anchor, code, resource);
     }
 
     /**
