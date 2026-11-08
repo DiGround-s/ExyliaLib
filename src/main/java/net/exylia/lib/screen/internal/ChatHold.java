@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * One player's chat while screens come and go: what they saw lately, so it can be pushed out of view and put back,
- * and the system messages held while a screen is up. Pure, and called from the network threads.
+ * and the messages held while a screen is up. Pure, and called from the network threads.
  */
 final class ChatHold {
 
@@ -48,10 +48,12 @@ final class ChatHold {
         return holding;
     }
 
-    /** Keeps a line for later; past the cap the oldest goes. */
-    synchronized void hold(Component line) {
+    /** Keeps a line for later, if holding; past the cap the oldest goes. Whether it was kept. */
+    synchronized boolean hold(Component line) {
+        if (!holding) return false;
         held.addLast(line);
         while (held.size() > HELD_LINES) held.removeFirst();
+        return true;
     }
 
     /** Stops holding: what to send now, in order, the lines pushed out first. */

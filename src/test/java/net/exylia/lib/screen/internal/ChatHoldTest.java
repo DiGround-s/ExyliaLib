@@ -56,4 +56,11 @@ class ChatHoldTest {
         assertEquals(line("m50"), out.get(0));
         assertEquals(line("m249"), out.get(199));
     }
+
+    @Test
+    void notHoldingKeepsNothing() {
+        ChatHold hold = new ChatHold();
+        assertFalse(hold.hold(line("late")), "the caller shows it");
+        assertEquals(List.of(), hold.end());
+    }
 }

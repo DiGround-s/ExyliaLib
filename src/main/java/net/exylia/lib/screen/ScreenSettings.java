@@ -110,7 +110,7 @@ public record ScreenSettings(
         boolean hideSidebar,
 
         @Comment("Keep the chat quiet while a screen is open: other players' chat")
-        @Comment("is not shown, and system messages wait until the screen closes.")
+        @Comment("and system messages wait until the screen closes.")
         @Comment("A message that answers a click also shows on the screen.")
         @Menu.Label("Quiet chat") @Menu.Icon("WRITABLE_BOOK")
         @Menu.About({"No chat over a screen: messages", "wait until it closes."})

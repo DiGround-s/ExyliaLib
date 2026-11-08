@@ -247,19 +247,19 @@ public final class ScreenRuntime {
     static boolean chatLine(UUID player, Component line) {
         ChatHold chat = CHAT.get(player);
         if (chat == null) return false;
-        if (!chat.holding()) {
+        if (!chat.hold(line)) {
             chat.shown(line, System.currentTimeMillis());
             return false;
         }
-        chat.hold(line);
         LiveScreen live = OPEN.get(player);
         if (live != null) live.answer(line);
         return true;
     }
 
-    private static boolean holdsChat(UUID player) {
-        ChatHold chat = CHAT.get(player);
-        return chat != null && chat.holding();
+    private static boolean holdChat(Player viewer, io.papermc.paper.event.player.AsyncChatEvent event) {
+        ChatHold chat = CHAT.get(viewer.getUniqueId());
+        if (chat == null || !chat.holding()) return false;
+        return chat.hold(event.renderer().render(event.getPlayer(), event.getPlayer().displayName(), event.message(), viewer));
     }
 
     /** A screen closed: a moment later, so hopping from one screen to the next does not flicker. */
@@ -426,12 +426,16 @@ public final class ScreenRuntime {
 
     static final class Closer implements Listener {
 
-        /** Chat is sent per viewer and signed, so a viewer is taken off the list and the packet never exists. */
-        @EventHandler(priority = EventPriority.HIGHEST)
+        /**
+         * Chat is sent per viewer and signed, so a viewer is taken off the list and the packet never exists. What they
+         * would have read is rendered for them and waits with the system messages. Last in line, so the text, the
+         * renderer and the viewers are final and a cancelled message is not held.
+         */
+        @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onChat(io.papermc.paper.event.player.AsyncChatEvent event) {
             try {
                 event.viewers().removeIf(viewer -> viewer instanceof Player other && !other.equals(event.getPlayer())
-                        && holdsChat(other.getUniqueId()));
+                        && holdChat(other, event));
             } catch (UnsupportedOperationException fixedList) {
                 // A plugin called this event with a list that cannot change: that chat is shown.
             }
