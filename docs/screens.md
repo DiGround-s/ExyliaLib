@@ -749,8 +749,9 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
   plain click when the button binds no shift-click, so a client with toggle sprint never meets a dead button
   (1.513.0).
 
-Menus that stay windows whatever the style: those with input slots (the player puts items in them) and those
-that are not chests (hopper, dispenser...). A client that cannot draw screens always gets windows.
+Menus that stay windows whatever the style: those with input slots (the player puts items in them), those
+that are not chests (hopper, dispenser...) and the kit room (it hands items into the inventory the player is
+building in, so that has to show). A client that cannot draw screens always gets windows.
 
 ### Who decides
 

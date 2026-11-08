@@ -9,6 +9,7 @@ import net.exylia.lib.screen.Screens;
 import net.exylia.lib.screen.internal.ScreenRoutes;
 import net.exylia.lib.ui.ClickBindings;
 import net.exylia.lib.ui.ClickKind;
+import net.exylia.lib.kitroom.internal.KitRoomMenu;
 import net.exylia.lib.ui.MenuStyles;
 import net.exylia.lib.ui.UiDefinition;
 import net.kyori.adventure.text.Component;
@@ -66,6 +67,8 @@ final class MenuScreens {
     static boolean wanted(Player viewer, UiDefinition definition, MenuRuntime runtime) {
         // A window the player puts items into, or one that is not a chest, keeps its window.
         if (definition.kind().type() != null || !definition.inputSlots().isEmpty()) return false;
+        // The kit room hands items into the inventory the player is building in, so that inventory has to show.
+        if (definition.id().endsWith(":" + KitRoomMenu.ID)) return false;
         if (!MenuStyles.of(runtime.plugin()).screens(viewer)) return false;
         return ScreenRoutes.find(runtime.plugin(), definition.id()) != null || ScreenSettings.get().chestSkin();
     }

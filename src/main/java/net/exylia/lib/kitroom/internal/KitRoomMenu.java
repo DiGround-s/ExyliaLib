@@ -41,7 +41,7 @@ import java.util.function.Supplier;
  */
 public final class KitRoomMenu {
 
-    static final String ID = "kitroom";
+    public static final String ID = "kitroom";
     private static final String STATE = "kitroom_state";
     private static final String ITEMS = "items";
     private static final String TABS = "tabs";

@@ -35,6 +35,7 @@ if (!room.allows(items, List.of("gear", "potions"))) refuse();   // before savin
   the off hand**, sending what was there back to the inventory (1.512.0).
 - **Amounts are not checked.** Players take as many copies as they like; what a
   room limits is *which* items, not how many.
+- **It is always a chest window**, in the SCREEN menu style too: the player builds in their own inventory.
 - **Saving a build is the plugin's job**, and so is the place it is built in
   (FFA uses its kit editor room, with the inventory put away in a snapshot).
 
