@@ -48,6 +48,7 @@ import java.util.logging.Logger;
 public final class InputRuntime {
 
     private static final List<String> BUILT_INS = List.of(
+            "net.exylia.lib.input.internal.ScreenTransport",
             "net.exylia.lib.input.internal.DialogTransport",
             "net.exylia.lib.input.internal.BedrockTransport",
             "net.exylia.lib.input.internal.SearchTransport",

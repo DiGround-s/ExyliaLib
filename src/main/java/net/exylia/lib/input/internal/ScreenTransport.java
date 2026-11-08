@@ -1,0 +1,166 @@
+package net.exylia.lib.input.internal;
+
+import net.exylia.lib.input.ChoiceInput;
+import net.exylia.lib.input.ConfirmInput;
+import net.exylia.lib.input.FlagInput;
+import net.exylia.lib.input.InputParser;
+import net.exylia.lib.input.InputOutcome;
+import net.exylia.lib.input.InputRequest;
+import net.exylia.lib.screen.Motion;
+import net.exylia.lib.screen.Node;
+import net.exylia.lib.screen.Screen;
+import net.exylia.lib.screen.ScreenSession;
+import net.exylia.lib.screen.Screens;
+import net.exylia.lib.text.Phrases;
+import net.exylia.lib.text.Text;
+import net.exylia.lib.ui.MenuStyles;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Confirms, yes/no flags and short choices for a player whose menus are screens (MenuStyle SCREEN): drawn as a
+ * dialog on a screen of their own instead of a small chest window. Cancel, Shift or anything closing the screen
+ * cancels the request. Anything else (text, numbers, long lists) is left to the next transport.
+ *
+ * @since 1.516.0
+ */
+public final class ScreenTransport implements Transport {
+
+    // ponytail: no paging; a longer list falls back to the chest picker, which pages.
+    private static final int MOST = 12;
+    private static final int PER_ROW = 4;
+
+    private final Plugin library;
+    private final Map<UUID, ScreenSession> shown = new ConcurrentHashMap<>();
+
+    /** Creates the transport used by ExyliaLib. */
+    public ScreenTransport(@NotNull Plugin plugin) {
+        this.library = java.util.Objects.requireNonNull(plugin, "plugin");
+    }
+
+    /** One answer: what it parses as, how it reads, its icon (none for a confirm) and its tone. */
+    private record Option(String raw, String label, @Nullable Material icon, @Nullable String description, String fill) {
+    }
+
+    @Override
+    public boolean show(@NotNull InputSession session) {
+        Player player = Bukkit.getPlayer(session.playerId());
+        if (player == null || !player.isOnline()) return false;
+        if (!(session.request() instanceof InputRequest<?, ?> request)) return false;
+        List<Option> options = options(request);
+        if (options == null) return false;
+        Plugin owner = Bukkit.getPluginManager().getPlugin(session.pluginName());
+        if (owner == null || !owner.isEnabled()) owner = library;
+        if (!MenuStyles.of(owner).screens(player)) return false;
+        Screen screen = Screen.of(s -> dialog(session, request, options))
+                .onClose(s -> {
+                    shown.remove(session.playerId(), s);
+                    session.end(InputOutcome.CANCELLED);
+                });
+        ScreenSession opened = Screens.of(owner).open(player, screen);
+        if (opened == null) return false;
+        shown.put(session.playerId(), opened);
+        return true;
+    }
+
+    @Override
+    public void close(@NotNull InputSession session) {
+        ScreenSession screen = shown.remove(session.playerId());
+        if (screen != null && screen.open()) screen.close();
+    }
+
+    @Override
+    public @NotNull TransportKind kind() {
+        return TransportKind.SCREEN;
+    }
+
+    private static @Nullable List<Option> options(InputRequest<?, ?> request) {
+        if (request instanceof ConfirmInput confirm) {
+            return List.of(new Option("false", confirm.denyLabel(), null, null, "{letters_black}20"),
+                    new Option("true", confirm.confirmLabel(), null, null, confirm.isDangerous() ? "{error}" : "{primary}"));
+        }
+        if (request instanceof FlagInput) {
+            return List.of(new Option("false", Phrases.tr("No"), null, null, "{letters_black}20"),
+                    new Option("true", Phrases.tr("Yes"), null, null, "{primary}"));
+        }
+        if (request instanceof ChoiceInput<?> choice) return choices(choice);
+        return null;
+    }
+
+    private static <T> @Nullable List<Option> choices(ChoiceInput<T> choice) {
+        if (choice.choices().isEmpty() || choice.choices().size() > MOST) return null;
+        List<Option> out = new ArrayList<>();
+        for (T value : choice.choices()) {
+            out.add(new Option(choice.keyOf(value), ChoiceOptions.labelOf(choice, value), choice.iconOf(value),
+                    choice.descriptionOf(value), "{letters_black}20"));
+        }
+        return out;
+    }
+
+    /** The dialog: the question, then the answers as buttons (a confirm) or cards (a choice), then Cancel. */
+    private static Node dialog(InputSession session, InputRequest<?, ?> request, List<Option> options) {
+        boolean choice = options.get(0).icon() != null;
+        Node panel = Node.column(Node.text(Text.of(request.prompt()).build()).wrap(240).textAlign(Node.Align.CENTER))
+                .padding(12, 16).gap(10).align(Node.Align.CENTER).background("#17131f")
+                .outline(danger(request) ? "{error}80" : "{primary}60", 1)
+                .enter(Motion.Tween.of(Motion.Transform.scale(0.9), 5, Motion.Ease.BACK));
+        if (choice) {
+            Node grid = Node.column().gap(4).align(Node.Align.CENTER);
+            Node row = null;
+            for (int i = 0; i < options.size(); i++) {
+                if (i % PER_ROW == 0) grid.add(row = Node.row().gap(4));
+                row.add(card(session, request, options.get(i)));
+            }
+            panel.add(grid);
+            panel.add(button(session, request, null, Phrases.tr("Cancel"), "{letters_black}20"));
+        } else {
+            Node row = Node.row().gap(6);
+            for (Option option : options) row.add(button(session, request, option.raw(), option.label(), option.fill()));
+            panel.add(row);
+        }
+        return Node.column(panel).align(Node.Align.CENTER).justify(Node.Justify.CENTER);
+    }
+
+    private static boolean danger(InputRequest<?, ?> request) {
+        return request instanceof ConfirmInput confirm && confirm.isDangerous();
+    }
+
+    private static Node card(InputSession session, InputRequest<?, ?> request, Option option) {
+        Node card = Node.column(Node.item(new ItemStack(option.icon())).size(18, 18),
+                        Node.text(Text.of("{letters}" + option.label()).build()).scale(0.7).textAlign(Node.Align.CENTER))
+                .size(64, 40).padding(3).gap(3).align(Node.Align.CENTER).justify(Node.Justify.CENTER)
+                .background("#201a2b").hover("#2e2541").hoverOutline("{primary}")
+                .active(null, Motion.Transform.scale(0.95)).onClick(event -> answer(session, request, option.raw()));
+        if (option.description() != null && !option.description().isBlank()) {
+            card.tooltip(option.label(), option.description());
+        }
+        return card;
+    }
+
+    private static Node button(InputSession session, InputRequest<?, ?> request, @Nullable String raw, String label,
+                               String fill) {
+        return Node.text(Text.of("{letters}" + label).build()).padding(4, 12).background(fill).hover("{primary}50")
+                .active(null, Motion.Transform.scale(0.95))
+                .onClick(event -> {
+                    if (raw == null) session.end(InputOutcome.CANCELLED);
+                    else answer(session, request, raw);
+                });
+    }
+
+    private static void answer(InputSession session, InputRequest<?, ?> request, String raw) {
+        InputParser.Parsed<?> parsed = request.parseRaw(raw);
+        if (parsed.ok()) session.complete(parsed.value());
+        else session.end(InputOutcome.CANCELLED);
+    }
+}

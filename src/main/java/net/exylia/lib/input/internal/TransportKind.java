@@ -13,6 +13,14 @@ package net.exylia.lib.input.internal;
 public enum TransportKind {
 
     /**
+     * Chosen first for a player whose menus are screens (MenuStyle SCREEN), for confirms, yes/no flags and short
+     * choices: a dialog on a screen, so they never meet a small chest window in the middle of screen menus.
+     *
+     * @since 1.516.0
+     */
+    SCREEN,
+
+    /**
      * Chosen first when the client supports native dialog packets, because a
      * purpose-built form keeps validation and cancellation visible without
      * occupying chat or a container.
