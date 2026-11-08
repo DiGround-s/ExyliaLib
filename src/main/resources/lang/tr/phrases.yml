@@ -1745,3 +1745,8 @@ World: Dünya
 'No more pages': 'Başka sayfa yok'
 'You are on the first page.': 'İlk sayfadasın.'
 'You are on the last page.': 'Son sayfadasın.'
+'{letters_black}▎ {error}Name a player': '{letters_black}▎ {error}Bir oyuncu belirtin'
+'{letters_black}▎ {error}Style must be classic, screen or default': '{letters_black}▎ {error}Stil classic, screen veya default olmalı'
+'{letters_black}▎ {success}Menu style cleared {letters_black}» {letters}{0}': '{letters_black}▎ {success}Menü stili kaldırıldı {letters_black}» {letters}{0}'
+'{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}': '{letters_black}▎ {success}Menü stili uygulandı {letters_black}» {letters}{0}{letters_black}: {info}{1}'
+'{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus': '{letters_black}▎ {warning}{0} ekranları gösteremiyor, klasik menüler kalacak'

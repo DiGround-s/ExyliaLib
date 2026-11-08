@@ -1733,3 +1733,8 @@ World: Мир
 'No more pages': 'Больше страниц нет'
 'You are on the first page.': 'Вы на первой странице.'
 'You are on the last page.': 'Вы на последней странице.'
+'{letters_black}▎ {error}Name a player': '{letters_black}▎ {error}Укажите игрока'
+'{letters_black}▎ {error}Style must be classic, screen or default': '{letters_black}▎ {error}Стиль должен быть classic, screen или default'
+'{letters_black}▎ {success}Menu style cleared {letters_black}» {letters}{0}': '{letters_black}▎ {success}Стиль меню сброшен {letters_black}» {letters}{0}'
+'{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}': '{letters_black}▎ {success}Стиль меню применён {letters_black}» {letters}{0}{letters_black}: {info}{1}'
+'{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus': '{letters_black}▎ {warning}{0} не может показывать экраны, у него останутся обычные меню'

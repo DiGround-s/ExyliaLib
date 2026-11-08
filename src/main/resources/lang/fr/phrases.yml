@@ -1733,3 +1733,8 @@ World: Monde
 'No more pages': 'Plus de pages'
 'You are on the first page.': 'Vous êtes sur la première page.'
 'You are on the last page.': 'Vous êtes sur la dernière page.'
+'{letters_black}▎ {error}Name a player': '{letters_black}▎ {error}Nommez un joueur'
+'{letters_black}▎ {error}Style must be classic, screen or default': '{letters_black}▎ {error}Le style doit être classic, screen ou default'
+'{letters_black}▎ {success}Menu style cleared {letters_black}» {letters}{0}': '{letters_black}▎ {success}Style de menu retiré {letters_black}» {letters}{0}'
+'{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}': '{letters_black}▎ {success}Style de menu appliqué {letters_black}» {letters}{0}{letters_black}: {info}{1}'
+'{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus': '{letters_black}▎ {warning}{0} ne peut pas afficher d''écrans, il garde les menus classiques'

@@ -754,10 +754,19 @@ The first rule that answers wins:
 | # | Rule | Where |
 |---|---|---|
 | 1 | A client that cannot draw screens (Bedrock, older than 1.20.2, no PacketEvents) gets `CLASSIC` | `MenuStyles.canShowScreens(player)` |
-| 2 | The player's own choice, when the server lets players choose | `/settings` → Interface → Menu style, kept in the player's data (no database) |
-| 3 | The plugin's own setting; `DEFAULT` passes | `MenuStyles.of(plugin).defaultStyle(() -> settings.menuStyle())` |
-| 4 | The server's choice for that plugin | `plugins/ExyliaLib/screens.yml` `plugins: {ExyliaJobs: SCREEN}` |
-| 5 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |
+| 2 | A staff override, always (even with `player-choice: false`) | `/exylialib style`, below; in memory, cleared on quit or restart |
+| 3 | The player's own choice, when the server lets players choose (optional, off by default: `/settings` is disabled unless enabled) | `/settings` → Interface → Menu style, kept in the player's data (no database) |
+| 4 | The plugin's own setting; `DEFAULT` passes | `MenuStyles.of(plugin).defaultStyle(() -> settings.menuStyle())` |
+| 5 | The server's choice for that plugin | `plugins/ExyliaLib/screens.yml` `plugins: {ExyliaJobs: SCREEN}` |
+| 6 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |
+
+### Trying a style: `/exylialib style`
+
+`/exylialib style <classic|screen|default> [player] [plugin]` (permission `exylialib.admin`) switches a player's
+menu style instantly, with no config edit: without a player it is you, without a plugin it covers every plugin,
+with one only that plugin's menus (names tab-complete from the plugins that use `MenuStyles`). `default` clears
+the player's overrides (all of them, or just that plugin's when one is named). It applies to the next menu opened.
+A client that cannot draw screens still gets `CLASSIC`, and the command says so.
 
 `screens.yml` (`ScreenSettings`, editable in game with `/exylialib config`):
 

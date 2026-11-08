@@ -34,6 +34,8 @@ import java.util.function.Supplier;
  * <p>The first rule that answers wins:
  * <ol>
  *   <li>a client that cannot draw screens (Bedrock, older than 1.20.2, no PacketEvents) gets CLASSIC;</li>
+ *   <li>a staff override from {@code /exylialib style} (for this plugin, else for all), even when players cannot
+ *       choose and {@code /settings} is off;</li>
  *   <li>the player's own choice in {@code /settings}, when {@code screens.yml} lets players choose;</li>
  *   <li>the plugin's {@link #defaultStyle} ({@code DEFAULT} or nothing passes);</li>
  *   <li>{@code screens.yml}'s {@code plugins.<Plugin>} entry;</li>
@@ -50,6 +52,9 @@ public final class MenuStyles {
     private static final Map<String, MenuStyles> BY_PLUGIN = new ConcurrentHashMap<>();
     /** Each online player's own choice, read from their data on join. */
     private static final Map<UUID, MenuStyle> CHOSEN = new ConcurrentHashMap<>();
+    /** Staff overrides of {@code /exylialib style}: per player, by plugin name or {@link #ALL}. Not kept across restarts. */
+    private static final Map<UUID, Map<String, MenuStyle>> STAFF = new ConcurrentHashMap<>();
+    private static final String ALL = "*";
     private static final NamespacedKey KEY = new NamespacedKey("exylialib", "menu_style");
     private static volatile Plugin library;
 
@@ -84,7 +89,7 @@ public final class MenuStyles {
             own = null;
         }
         Map<String, String> plugins = settings.plugins();
-        return decide(canShowScreens(player), settings.playerChoice() ? CHOSEN.get(player.getUniqueId()) : null,
+        return decide(canShowScreens(player), staffOverride(player), settings.playerChoice() ? CHOSEN.get(player.getUniqueId()) : null,
                 MenuStyle.parse(own), plugins == null ? null : MenuStyle.parse(plugins.get(plugin.getName())),
                 MenuStyle.parse(settings.defaultStyle()));
     }
@@ -95,9 +100,10 @@ public final class MenuStyles {
     }
 
     /** The rules themselves, first answer wins; package-private for tests. */
-    static @NotNull MenuStyle decide(boolean capable, @Nullable MenuStyle chosen, @Nullable MenuStyle plugin,
+    static @NotNull MenuStyle decide(boolean capable, @Nullable MenuStyle staff, @Nullable MenuStyle chosen, @Nullable MenuStyle plugin,
                                      @Nullable MenuStyle server, @Nullable MenuStyle fallback) {
         if (!capable) return MenuStyle.CLASSIC;
+        if (staff != null) return staff;
         if (chosen != null) return chosen;
         if (plugin != null) return plugin;
         if (server != null) return server;
@@ -114,6 +120,38 @@ public final class MenuStyles {
         } catch (RuntimeException | LinkageError noPacketEvents) {
             return false;
         }
+    }
+
+    private @Nullable MenuStyle staffOverride(Player player) {
+        Map<String, MenuStyle> own = STAFF.get(player.getUniqueId());
+        if (own == null) return null;
+        MenuStyle forPlugin = own.get(plugin.getName());
+        return forPlugin != null ? forPlugin : own.get(ALL);
+    }
+
+    /**
+     * Staff override for testing ({@code /exylialib style}): {@code style} for {@code plugin}'s menus only, or for
+     * every plugin when {@code plugin} is {@code null}; a {@code null} style clears it (all of the player's
+     * overrides when {@code plugin} is {@code null}). Wins over everything except an incapable client.
+     */
+    @ApiStatus.Internal
+    public static void override(@NotNull Player player, @Nullable String plugin, @Nullable MenuStyle style) {
+        if (style == null && plugin == null) {
+            STAFF.remove(player.getUniqueId());
+            return;
+        }
+        String key = plugin == null ? ALL : BY_PLUGIN.keySet().stream().filter(plugin::equalsIgnoreCase).findFirst().orElse(plugin);
+        if (style == null) STAFF.computeIfPresent(player.getUniqueId(), (id, m) -> {
+            m.remove(key);
+            return m.isEmpty() ? null : m;
+        });
+        else STAFF.computeIfAbsent(player.getUniqueId(), id -> new ConcurrentHashMap<>()).put(key, style);
+    }
+
+    /** Names of the plugins that resolve a menu style. */
+    @ApiStatus.Internal
+    public static @NotNull java.util.Collection<String> plugins() {
+        return java.util.List.copyOf(BY_PLUGIN.keySet());
     }
 
     /** The style the player picked for themselves, or {@code null} for the server's choice. */
@@ -156,6 +194,7 @@ public final class MenuStyles {
             @EventHandler(priority = EventPriority.MONITOR)
             public void onQuit(PlayerQuitEvent event) {
                 CHOSEN.remove(event.getPlayer().getUniqueId());
+                STAFF.remove(event.getPlayer().getUniqueId());
             }
         }, lib);
         for (Player online : lib.getServer().getOnlinePlayers()) Tasks.of(lib).runAtEntity(online, () -> read(online));

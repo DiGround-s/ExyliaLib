@@ -1745,3 +1745,8 @@ World: Mundo
 'No more pages': 'Não há mais páginas'
 'You are on the first page.': 'Você está na primeira página.'
 'You are on the last page.': 'Você está na última página.'
+'{letters_black}▎ {error}Name a player': '{letters_black}▎ {error}Indique um jogador'
+'{letters_black}▎ {error}Style must be classic, screen or default': '{letters_black}▎ {error}O estilo deve ser classic, screen ou default'
+'{letters_black}▎ {success}Menu style cleared {letters_black}» {letters}{0}': '{letters_black}▎ {success}Estilo de menu removido {letters_black}» {letters}{0}'
+'{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}': '{letters_black}▎ {success}Estilo de menu aplicado {letters_black}» {letters}{0}{letters_black}: {info}{1}'
+'{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus': '{letters_black}▎ {warning}{0} não consegue mostrar telas, continua com menus clássicos'

@@ -10,12 +10,13 @@ class MenuStylesTest {
     @Test
     void firstRuleThatAnswersWins() {
         MenuStyle c = MenuStyle.CLASSIC, s = MenuStyle.SCREEN;
-        assertEquals(c, MenuStyles.decide(false, s, s, s, s));     // a client that cannot draw screens
-        assertEquals(c, MenuStyles.decide(true, c, s, s, s));      // the player's own choice
-        assertEquals(s, MenuStyles.decide(true, null, s, c, c));   // the plugin's config
-        assertEquals(s, MenuStyles.decide(true, null, null, s, c)); // screens.yml plugins.<name>
-        assertEquals(s, MenuStyles.decide(true, null, null, null, s));
-        assertEquals(c, MenuStyles.decide(true, null, null, null, null));
+        assertEquals(c, MenuStyles.decide(false, s, s, s, s, s));     // a client that cannot draw screens
+        assertEquals(s, MenuStyles.decide(true, s, c, c, c, c));      // staff override, even over the player's choice
+        assertEquals(c, MenuStyles.decide(true, null, c, s, s, s));   // the player's own choice
+        assertEquals(s, MenuStyles.decide(true, null, null, s, c, c));   // the plugin's config
+        assertEquals(s, MenuStyles.decide(true, null, null, null, s, c)); // screens.yml plugins.<name>
+        assertEquals(s, MenuStyles.decide(true, null, null, null, null, s));
+        assertEquals(c, MenuStyles.decide(true, null, null, null, null, null));
     }
 
     @Test
