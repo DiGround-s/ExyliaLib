@@ -249,6 +249,12 @@ public final class CameraRuntime {
     }
 
     /** Whether a player's HUD is hidden right now. */
+    public static void screenSidebar(Player player, boolean hide) {
+        if (HudShade.active()) {
+            HudShade.screenSidebar(player, hide);
+        }
+    }
+
     public static boolean isHudHidden(Player player) {
         return HudShade.active() && HudShade.hidden(player.getUniqueId());
     }

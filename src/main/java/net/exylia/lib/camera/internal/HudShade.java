@@ -12,6 +12,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerClearTitles;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisguisedChat;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisplayScoreboard;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerScoreboardObjective;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
 import net.exylia.lib.camera.Hud;
 import net.kyori.adventure.bossbar.BossBar;
@@ -30,9 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Clears a viewer's HUD while they watch, and gives back exactly what was there.
  *
- * <p>Boss bars and the sidebar are known only from the packets that built them,
+ * <p>Boss bars and the sidebars are known only from the packets that built them,
  * so those two are followed for every player all the time (a map entry per bar,
- * a string per player). While a player is shaded, the packets for what is hidden
+ * one per sidebar slot). While a player is shaded, the packets for what is hidden
  * are cancelled but still followed, so what comes back at the end is the state
  * as it is then, not as it was. What the shade itself sends goes out silently,
  * past every listener, this one included.
@@ -43,13 +44,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 final class HudShade extends PacketListenerAbstract {
 
-    private static final int SIDEBAR = 1;
+    /** The generic sidebar; 3 to 18 are the sidebars of team colours, shown instead of it to a coloured team's members. */
+    private static final int SIDEBAR = 1, TEAM_SIDEBARS = 3, TEAM_SIDEBARS_END = 18;
     private static final int HELD_CHAT = 100;
 
     /** Every bar a client has, by player then bar: the last full state, as an ADD. */
     private static final Map<UUID, Map<UUID, Bar>> BARS = new ConcurrentHashMap<>();
-    /** The objective each client shows in its sidebar, "" for none. */
-    private static final Map<UUID, String> SIDEBARS = new ConcurrentHashMap<>();
+    /** The objective each client shows in each sidebar slot it has one in. */
+    private static final Map<UUID, Map<Integer, String>> SIDEBARS = new ConcurrentHashMap<>();
+    /** Whose sidebar an open screen hides. Apart from a camera's shade: each gives back only what the other does not hold. */
+    private static final Set<UUID> SCREEN_SIDEBAR = ConcurrentHashMap.newKeySet();
     private static final Map<UUID, Shade> SHADED = new ConcurrentHashMap<>();
 
     /** One bar as the client has it. */
@@ -106,8 +110,8 @@ final class HudShade extends PacketListenerAbstract {
                 quiet(player, new WrapperPlayServerBossBar(bar, WrapperPlayServerBossBar.Action.REMOVE));
             }
         }
-        if (fresh.contains(Hud.SCOREBOARD) && !SIDEBARS.getOrDefault(id, "").isEmpty()) {
-            quiet(player, new WrapperPlayServerDisplayScoreboard(SIDEBAR, ""));
+        if (fresh.contains(Hud.SCOREBOARD)) {
+            blankSidebars(player);
         }
         if (fresh.contains(Hud.TITLES)) {
             quiet(player, new WrapperPlayServerClearTitles(true));
@@ -129,12 +133,50 @@ final class HudShade extends PacketListenerAbstract {
                 quiet(player, add(bar.getKey(), bar.getValue()));
             }
         }
-        String sidebar = SIDEBARS.getOrDefault(player.getUniqueId(), "");
-        if (shade.hidden.contains(Hud.SCOREBOARD) && !sidebar.isEmpty()) {
-            quiet(player, new WrapperPlayServerDisplayScoreboard(SIDEBAR, sidebar));
+        if (shade.hidden.contains(Hud.SCOREBOARD) && !SCREEN_SIDEBAR.contains(player.getUniqueId())) {
+            restoreSidebars(player);
         }
         for (PacketWrapper<?> line : held) {
             quiet(player, line);
+        }
+    }
+
+    /**
+     * Hides or gives back a player's sidebar for an open screen. Safe to repeat. The board keeps updating underneath:
+     * only which objective the slot shows is held, so what comes back is the board as it is by then, or nothing if it
+     * was removed meanwhile.
+     */
+    static void screenSidebar(Player player, boolean hide) {
+        UUID id = player.getUniqueId();
+        boolean changed = hide ? SCREEN_SIDEBAR.add(id) : SCREEN_SIDEBAR.remove(id);
+        if (!changed || cameraHidesSidebar(id)) {
+            return;
+        }
+        if (hide) {
+            blankSidebars(player);
+        } else {
+            restoreSidebars(player);
+        }
+    }
+
+    private static boolean cameraHidesSidebar(UUID player) {
+        Shade shade = SHADED.get(player);
+        return shade != null && shade.hidden.contains(Hud.SCOREBOARD);
+    }
+
+    private static void blankSidebars(Player player) {
+        Map<Integer, String> slots = SIDEBARS.get(player.getUniqueId());
+        if (slots != null) {
+            for (Integer slot : slots.keySet()) {
+                quiet(player, new WrapperPlayServerDisplayScoreboard(slot, ""));
+            }
+        }
+    }
+
+    private static void restoreSidebars(Player player) {
+        Map<Integer, String> slots = SIDEBARS.get(player.getUniqueId());
+        if (slots != null) {
+            slots.forEach((slot, objective) -> quiet(player, new WrapperPlayServerDisplayScoreboard(slot, objective)));
         }
     }
 
@@ -151,6 +193,7 @@ final class HudShade extends PacketListenerAbstract {
     static void forget(UUID player) {
         BARS.remove(player);
         SIDEBARS.remove(player);
+        SCREEN_SIDEBAR.remove(player);
         SHADED.remove(player);
     }
 
@@ -159,7 +202,8 @@ final class HudShade extends PacketListenerAbstract {
         PacketTypeCommon type = event.getPacketType();
         boolean bar = type == PacketType.Play.Server.BOSS_BAR;
         boolean sidebar = type == PacketType.Play.Server.DISPLAY_SCOREBOARD;
-        if (!bar && !sidebar && SHADED.isEmpty()) {
+        boolean objective = type == PacketType.Play.Server.SCOREBOARD_OBJECTIVE;
+        if (!bar && !sidebar && !objective && SHADED.isEmpty()) {
             return;
         }
         UUID id = event.getUser() == null ? null : event.getUser().getUUID();
@@ -178,13 +222,33 @@ final class HudShade extends PacketListenerAbstract {
         }
         if (sidebar) {
             WrapperPlayServerDisplayScoreboard display = new WrapperPlayServerDisplayScoreboard(event);
-            if (display.getPosition() == SIDEBAR) {
-                SIDEBARS.put(id, display.getScoreName() == null ? "" : display.getScoreName());
-                if (shade != null && shade.hidden.contains(Hud.SCOREBOARD)) {
+            int slot = display.getPosition();
+            if (slot == SIDEBAR || (slot >= TEAM_SIDEBARS && slot <= TEAM_SIDEBARS_END)) {
+                Map<Integer, String> slots = SIDEBARS.computeIfAbsent(id, key -> new ConcurrentHashMap<>());
+                String name = display.getScoreName();
+                if (name == null || name.isEmpty()) {
+                    slots.remove(slot);
+                } else {
+                    slots.put(slot, name);
+                }
+                if (SCREEN_SIDEBAR.contains(id) || cameraHidesSidebar(id)) {
                     event.setCancelled(true);
                 }
             }
             return;
+        }
+        if (objective) {
+            // A removed objective leaves its slots on the client: nothing of it may come back.
+            Map<Integer, String> slots = SIDEBARS.get(id);
+            if (slots != null && !slots.isEmpty()) {
+                WrapperPlayServerScoreboardObjective packet = new WrapperPlayServerScoreboardObjective(event);
+                if (packet.getMode() == WrapperPlayServerScoreboardObjective.ObjectiveMode.REMOVE) {
+                    slots.values().removeIf(packet.getName()::equals);
+                }
+            }
+            if (SHADED.isEmpty()) {
+                return;
+            }
         }
         if (shade == null || event.isCancelled()) {
             return;

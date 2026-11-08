@@ -127,6 +127,13 @@ visibility rules stay), so a crowded spawn never stands in front of it.
 A click goes to the topmost box under the cursor that has `onClick`; a wheel step to the topmost that has
 `onScroll`, so a list's rows can take clicks while the list itself scrolls.
 
+## What steps out of the way
+
+`hide-sidebar` in `screens.yml` (default on, since 1.522.0) hides the player's sidebar while a screen is open, whichever
+plugin or vanilla board draws it, team colour slots included. Only the display slot is held: the board's own packets flow
+as usual, so on close it comes back as it is by then, or not at all if it was removed. Hopping between screens does not
+flicker it, and it is back while a screen stepped aside for an input.
+
 ## Input
 
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the

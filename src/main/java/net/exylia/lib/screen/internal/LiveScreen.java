@@ -357,6 +357,7 @@ final class LiveScreen implements ScreenSession {
 
     /** On the viewer's thread. */
     void show() {
+        ScreenRuntime.quietBegin(player);
         if (!screen.wheel()) {
             Packets.of(plugin).fakeGameMode().cameraView(player, true);
             net.exylia.lib.packet.internal.PacketRuntime.sliderFov(player, true);
@@ -446,6 +447,7 @@ final class LiveScreen implements ScreenSession {
             net.exylia.lib.packet.internal.PacketRuntime.sliderFov(player, false);
             Packets.of(plugin).fakeGameMode().cameraView(player, false);
         }
+        if (player.isOnline()) ScreenRuntime.quietEndSoon(player);
         Consumer<ScreenSession> onClose = screen.onClose();
         if (onClose != null && player.isOnline() && plugin.isEnabled()) {
             tasks.runAtEntity(player, () -> guarded(() -> onClose.accept(this)));
@@ -475,6 +477,7 @@ final class LiveScreen implements ScreenSession {
         for (int id : cursorIds) ids.add(id);
         wire.send(List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
         Packets.of(plugin).visibility().seal(player, null);
+        ScreenRuntime.quietEnd(player);
         java.util.concurrent.CompletionStage<T> future;
         try {
             future = input.get();

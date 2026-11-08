@@ -213,6 +213,31 @@ public final class ScreenRuntime {
         OPEN.remove(live.viewer().getUniqueId(), live);
     }
 
+    /** What a screen quiets while it is up. Safe to repeat: a screen coming back from an input does. */
+    static void quietBegin(Player player) {
+        if (net.exylia.lib.screen.ScreenSettings.get().hideSidebar()) {
+            net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, true);
+        }
+    }
+
+    /** Gives it all back, whatever the settings say by now. */
+    static void quietEnd(Player player) {
+        net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, false);
+    }
+
+    /** A screen closed: a moment later, so hopping from one screen to the next does not flicker. */
+    static void quietEndSoon(Player player) {
+        Plugin owner = library;
+        if (owner == null || !owner.isEnabled()) {
+            quietEnd(player);
+            return;
+        }
+        net.exylia.lib.task.Tasks.of(owner).runAtEntityLater(player, 2L, () -> {
+            LiveScreen open = OPEN.get(player.getUniqueId());
+            if (open == null || open.away()) quietEnd(player);
+        });
+    }
+
     private static void close(UUID player) {
         LiveScreen live = OPEN.get(player);
         if (live != null) live.close();

@@ -22,6 +22,8 @@ import java.util.Map;
  * @param cursorAcceleration how much a fast mouse move speeds the cursor up (since 1.496.0): 0 for none
  * @param spriteObjects  whether items are drawn as one sprite glyph for 1.21.11+ clients on a 1.21.11+ server
  *                       (since 1.496.0), instead of a picture of four displays
+ * @param screenSize   how large screens are drawn, in percent, for players who did not choose (since 1.519.0)
+ * @param hideSidebar  whether a player's sidebar is hidden while a screen is open (since 1.522.0)
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -97,7 +99,14 @@ public record ScreenSettings(
         @Comment("the button at the bottom right of every screen.")
         @Menu.Label("Screen size") @Menu.Icon("SPYGLASS")
         @Menu.About({"How large screens are drawn,", "in percent, from 50 to 250."})
-        int screenSize
+        int screenSize,
+
+        @Comment("Hide the sidebar while a screen is open, whichever plugin draws")
+        @Comment("it. It keeps updating and comes back as it is by then when the")
+        @Comment("screen closes.")
+        @Menu.Label("Hide sidebar") @Menu.Icon("OAK_SIGN")
+        @Menu.About({"The sidebar steps out of the", "way while a screen is open."})
+        boolean hideSidebar
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -107,13 +116,20 @@ public record ScreenSettings(
 
     /** The settings as they were before 1.496.0, with full motion. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin) {
-        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true, 100);
+        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true, 100, true);
     }
 
     /** The settings as they were before 1.519.0, at the full size. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
                           String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects, 100);
+    }
+
+    /** The settings as they were before 1.522.0, with the sidebar hidden. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, true);
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */
