@@ -185,6 +185,14 @@ public final class Icons {
         return copied == 0 ? text : result.append(text, copied, text.length()).toString();
     }
 
+    /**
+     * A {@code <sprite:...>} written by hand has no glyph to stand in, and a
+     * server whose Adventure lacks the tag would print it as text.
+     */
+    static String withoutRawSprites(String text) {
+        return !SPRITES && text.contains("<sprite:") ? text.replaceAll("<sprite:[^>]*>", "✦") : text;
+    }
+
     /** What one token draws, or {@code null} when it names nothing. */
     static @Nullable String draw(String body) {
         Icon icon = parse(body);

@@ -439,6 +439,7 @@ public final class TextEngine {
         }
 
         prepared = LegacyTranslator.toMiniMessage(prepared, flags);
+        prepared = Icons.withoutRawSprites(prepared);
 
         try {
             return shadowed(shallow(parser.deserialize(prepared)));
