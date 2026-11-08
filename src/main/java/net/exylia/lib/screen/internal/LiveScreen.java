@@ -325,7 +325,9 @@ final class LiveScreen implements ScreenSession {
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
         Location eyes = player.getEyeLocation();
-        this.origin = new Vector3d(eyes.getX(), eyes.getY(), eyes.getZ());
+        // A camera-view client stands up as it turns spectator, so a sneaking or swimming viewer's eyes rise.
+        double eyeY = screen.wheel() ? eyes.getY() : eyes.getY() - player.getEyeHeight() + player.getEyeHeight(true);
+        this.origin = new Vector3d(eyes.getX(), eyeY, eyes.getZ());
         this.lastYaw = eyes.getYaw();
         this.homeYaw = lastYaw;
         this.lastPitch = eyes.getPitch();
