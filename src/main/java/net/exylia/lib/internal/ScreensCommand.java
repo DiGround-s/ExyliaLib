@@ -16,7 +16,14 @@ import revxrsal.commands.annotation.Optional;
 import revxrsal.commands.annotation.Subcommand;
 import revxrsal.commands.bukkit.annotation.CommandPermission;
 
+import revxrsal.commands.annotation.Single;
+import revxrsal.commands.annotation.SuggestWith;
+import revxrsal.commands.autocomplete.SuggestionProvider;
+import revxrsal.commands.bukkit.actor.BukkitCommandActor;
+import revxrsal.commands.node.ExecutionContext;
+
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -32,7 +39,7 @@ public final class ScreensCommand {
 
     /** Compiles every screen (of one plugin) and lists its problems. */
     @Subcommand("check")
-    public void check(@NotNull CommandSender sender, @Optional String plugin) {
+    public void check(@NotNull CommandSender sender, @Optional @Single @SuggestWith(Plugins.class) String plugin) {
         List<String> problems = new ArrayList<>();
         int screens = 0;
         for (ScreenSet set : sets(plugin)) {
@@ -53,7 +60,7 @@ public final class ScreensCommand {
 
     /** Reads every screen (of one plugin) again from its files. */
     @Subcommand("reload")
-    public void reload(@NotNull CommandSender sender, @Optional String plugin) {
+    public void reload(@NotNull CommandSender sender, @Optional @Single @SuggestWith(Plugins.class) String plugin) {
         int screens = 0;
         for (ScreenSet set : sets(plugin)) {
             set.reload();
@@ -73,8 +80,8 @@ public final class ScreensCommand {
 
     /** Opens a plugin's screen by id, as its files are now, with no state: for authors checking an edit. */
     @Subcommand("preview")
-    public void preview(@NotNull Player player, @revxrsal.commands.annotation.Single String plugin,
-                        @revxrsal.commands.annotation.Single String id) {
+    public void preview(@NotNull Player player, @Single @SuggestWith(Plugins.class) String plugin,
+                        @Single @SuggestWith(Ids.class) String id) {
         for (ScreenSet set : sets(plugin)) {
             ScreenMarkup markup = set.markups().get(id);
             if (markup == null) continue;
@@ -110,6 +117,23 @@ public final class ScreensCommand {
                     }
                     return rows;
                 });
+    }
+
+    /** Suggests the plugins that have screen files. */
+    public static final class Plugins implements SuggestionProvider<BukkitCommandActor> {
+        @Override
+        public Collection<String> getSuggestions(@NotNull ExecutionContext<BukkitCommandActor> context) {
+            return ScreenSet.all().stream().map(set -> set.plugin().getName()).distinct().sorted().toList();
+        }
+    }
+
+    /** Suggests the screen ids of the plugin typed before, or of every plugin. */
+    public static final class Ids implements SuggestionProvider<BukkitCommandActor> {
+        @Override
+        public Collection<String> getSuggestions(@NotNull ExecutionContext<BukkitCommandActor> context) {
+            String plugin = context.getResolvedArgumentOrNull("plugin");
+            return sets(plugin).stream().flatMap(set -> set.markups().keySet().stream()).distinct().sorted().toList();
+        }
     }
 
     private static List<ScreenSet> sets(String plugin) {
