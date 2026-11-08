@@ -1,9 +1,10 @@
 package net.exylia.lib.config;
 
 import net.exylia.lib.config.internal.BundledResources;
+import net.exylia.lib.config.internal.DefaultsMerge;
 import net.exylia.lib.config.internal.InstalledFiles;
 import net.exylia.lib.debug.Debug;
-import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +12,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -62,8 +65,9 @@ import java.util.regex.Pattern;
  * loaded before the files that follow it, and a reload picks up a changed
  * language without a restart.
  *
- * <p>Text in a plugin's catalogues (a job's name, a kit's lore) is the server's file rather than a
- * language's: {@link #translate} lays the language over it where the owner has not edited it.
+ * <p>A catalogue (a plugin's jobs, kits or items) works the same way: {@code items/<id>.yml} holds the whole
+ * entry, {@code lang/<code>/items/<id>.yml} only its text, and {@link #refresh} installs the two laid together.
+ * A plugin that moves a catalogue here after it already had a language calls {@link #adoptCatalogue} first.
  *
  * @since 1.214.0
  */
@@ -236,43 +240,81 @@ public final class Languages {
     }
 
     /**
-     * Translates a catalogue the plugin just read from the server's file, in memory.
+     * Moves a catalogue from its place before it was per language into the language the plugin is on.
      *
-     * <p>{@code lang/<code>/content/<catalogue>.yml} holds the translated text, keyed by where it sits:
-     * for {@code jobs/explorer.yml} the catalogue is {@code jobs} and {@code explorer.perks.10.a.name} is
-     * {@code perks.10.a.name} in that file; for a single {@code kits.yml} the keys are its own paths. A
-     * value is replaced only while it still equals what the plugin shipped at {@code resource}, so text
-     * the owner edited stays, and so does anything with no translation. Nothing is written to disk:
-     * read the file afresh, without calling this, before writing it back.
+     * <p>For a plugin whose {@code config.yml} already names a language when its catalogue moves under
+     * {@code lang/}: {@link #ADOPT_EXISTING} never runs for it, and {@link #path} alone would park the files
+     * in {@code lang/custom/}, a language the server is not on, and install fresh ones in their place.
      *
-     * <p>Call it between reading the file and using it. Everything the plugin reads from {@code yaml}
-     * afterwards, in any screen, sees the language. Guide: {@code docs/content-translations.md}.
+     * <p>Call it before anything asks for the catalogue's path. A YAML file still equal to what the jar
+     * packages is dropped, so {@link #refresh} installs it translated. Any other file moves with every edit
+     * it holds; the jar's copy becomes its reviewed defaults, so the keys the owner did not change wait in
+     * {@code /exylialib updates} with their translation. A file already at the new place is left for
+     * {@link #path}, which moves it to {@code lang/custom/}, never over anything.
      *
      * @param plugin   the plugin
      * @param anchor   a class packaged with the resources
-     * @param resource the file in the jar and the data folder, such as {@code jobs/explorer.yml}
-     * @param yaml     what the server's file holds
-     * @since 1.529.0
+     * @param resource the file or directory, the same in the jar and at its old place in the data folder
+     * @since 1.530.0
      */
-    public static void translate(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource,
-                                 @NotNull ConfigurationSection yaml) {
-        ContentOverlay.apply(plugin, anchor, code(plugin), resource, yaml);
+    public static void adoptCatalogue(@NotNull Plugin plugin, @NotNull Class<?> anchor, @NotNull String resource) {
+        Path dataFolder = plugin.getDataFolder().toPath().toAbsolutePath().normalize();
+        Path legacy = BundledResources.inside(dataFolder, BundledResources.relative(resource));
+        if (!Files.exists(legacy)) {
+            return;
+        }
+        Path language = dataFolder.resolve(FOLDER).resolve(code(plugin));
+        Path reviewed = dataFolder.resolve(BundledFiles.REVIEWED);
+        try (var files = Files.walk(legacy)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) {
+                Path inner = dataFolder.relativize(file);
+                Path target = language.resolve(inner);
+                if (Files.exists(target)) {
+                    continue;
+                }
+                String shipped = packagedYaml(anchor, inner);
+                if (shipped != null && isSameYaml(file, shipped)) {
+                    Files.delete(file);
+                    Files.deleteIfExists(reviewed.resolve(inner));
+                } else {
+                    BundledResources.move(file, target);
+                    Path review = reviewed.resolve(dataFolder.relativize(language)).resolve(inner);
+                    if (Files.exists(reviewed.resolve(inner))) {
+                        BundledResources.move(reviewed.resolve(inner), review);
+                    } else if (shipped != null) {
+                        BundledResources.write(review, shipped);
+                    }
+                    Debug.of(plugin).log("Moved " + slashed(inner) + " to " + slashed(dataFolder.relativize(target))
+                            + " so the edits it holds are kept.");
+                }
+                removeEmptyParents(dataFolder, file.getParent());
+            }
+        } catch (IOException | SecurityException failure) {
+            Debug.of(plugin).warn("Could not move " + slashed(dataFolder.relativize(legacy)) + " into "
+                    + slashed(dataFolder.relativize(language)) + ": " + failure.getMessage());
+        }
     }
 
-    /**
-     * What is wrong with a packaged translation, for a plugin's tests: keys {@code resource} does not
-     * have, and text that would be refused for losing a {@code %placeholder%} or a {@code {token}}, or
-     * for being empty or the wrong shape.
-     *
-     * @param anchor   a class packaged with the resources
-     * @param code     the language, such as {@code es}
-     * @param resource the file in the jar, such as {@code jobs/explorer.yml}
-     * @return one line per problem, empty when there is none or no translation at all
-     * @since 1.529.0
-     */
-    public static @NotNull List<String> translationProblems(@NotNull Class<?> anchor, @NotNull String code,
-                                                            @NotNull String resource) {
-        return ContentOverlay.problems(anchor, code, resource);
+    private static @Nullable String packagedYaml(Class<?> anchor, Path inner) throws IOException {
+        String name = slashed(inner);
+        if (!name.endsWith(".yml") && !name.endsWith(".yaml")) {
+            return null;
+        }
+        try (InputStream in = BundledResources.open(anchor.getClassLoader(), name)) {
+            return in == null ? null : new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static boolean isSameYaml(Path file, String text) throws IOException {
+        try {
+            YamlConfiguration disk = DefaultsMerge.yaml();
+            disk.load(file.toFile());
+            YamlConfiguration shipped = DefaultsMerge.yaml();
+            shipped.loadFromString(text);
+            return DefaultsMerge.same(disk, shipped);
+        } catch (InvalidConfigurationException broken) {
+            return false;
+        }
     }
 
     /**

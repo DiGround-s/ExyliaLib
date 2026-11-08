@@ -353,8 +353,52 @@ as **new** in `/exylialib updates` rather than added. Reviewed defaults live in
   re-quote strings. A file with nothing new is never rewritten.
 - A file that is not YAML is only written when missing.
 
-Text in a bundled catalogue follows the server's language through
-[content translations](content-translations.md), without being rewritten.
+### A catalogue per language
+
+Text a player reads in a catalogue (an item's lore, a job's perks) is translated like a menu: one real
+file per language under `plugins/<Plugin>/lang/<code>/`, the owner's to edit. ExyliaSpecials' `items/`
+is the reference.
+
+```java
+Languages.adoptCatalogue(plugin, MyPlugin.class, "items");   // only when moving an existing catalogue
+Languages.refresh(plugin, MyPlugin.class, "items");
+File[] files = Languages.file(plugin, "items").listFiles();
+```
+
+The jar holds `items/<id>.yml`, the whole entry, and `lang/<code>/items/<id>.yml` with only the text.
+`refresh` installs the two laid together at `lang/<code>/items/<id>.yml`, for the language in force, and
+then follows the usual rules above: new keys arrive, changed defaults wait in `/exylialib updates`.
+
+- **How they combine.** Key by key, the language wins and a key only the base has is added, in the base's
+  order and with its comments. A file no language translates arrives in English.
+- **A list is one value.** A translated list replaces the base's whole, so a list of maps (`rewards`) has to
+  repeat every key, not just `name`. Add a test that those keys still equal the base.
+- **Each language is its own copy.** Switching language installs that language's files; edits stay in the
+  folder they were made in, and a switch does not carry them over. An entry the owner added exists only in
+  the language it was added under. A plugin that keeps data by entry id must tolerate one going missing.
+- **A missing file comes back.** A shipped file the owner deleted is written again on the next refresh. If
+  the plugin has a delete button, refresh file by file and skip what it marked as removed (ExyliaJobs:
+  `<id>.yml.deleted`).
+- **Everything that writes** (editors, importers, the web editor) goes through `Languages.file` or
+  `Languages.path`. Nothing keeps a path to the old folder.
+
+Test each language file in the plugin (ExyliaJobs' `ShippedContentTest`): only keys the base has, and every
+`%placeholder%` and `{token}` of the base line still there.
+
+**Moving an existing catalogue.** Which call adopts the files depends on whether `config.yml` already has
+a `language` key:
+
+| The plugin's `config.yml` | What to do | Where the server's files end up |
+| --- | --- | --- |
+| has no `language` yet | `Languages.ADOPT_EXISTING` migration, then just `refresh`/`file` | `lang/custom/`, and the plugin moves to it |
+| already has `language` | `Languages.adoptCatalogue` before the first `refresh`/`file` | the language in force |
+
+Without `adoptCatalogue` in the second case, `Languages.path` still moves the old files to `lang/custom/`
+while the plugin reads the language it is on: every edit is kept on disk but out of force. A file equal to
+the jar's is dropped so it installs translated. An edited one keeps every edit, and the jar's copy becomes
+its reviewed defaults, so its untranslated text is offered in `/exylialib updates`; a key the owner deleted
+stays deleted. A plugin with a delete button marks what its old folder was already missing as removed before
+adopting, or those files come back.
 
 ## When the file is wrong
 

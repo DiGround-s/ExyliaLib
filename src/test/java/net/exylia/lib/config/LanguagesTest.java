@@ -290,4 +290,49 @@ class LanguagesTest {
 
         assertEquals(Languages.ENGLISH, Languages.code(plugin));
     }
+
+    @Test
+    void aCatalogueAdoptedIntoALanguageKeepsItsEditsAndTakesTheRestTranslated() throws Exception {
+        onDisk("config.yml", "language: es\n");
+        pack("lang-adopted/edited.yml", "name: Miner\nmoney: 1\nicon: STONE\n");
+        pack("lang-adopted/fresh.yml", "name: Hunter\nmoney: 2\n");
+        pack("lang/es/lang-adopted/edited.yml", "name: Minero\n");
+        pack("lang/es/lang-adopted/fresh.yml", "name: Cazador\n");
+        onDisk("lang-adopted/edited.yml", "name: Miner\nmoney: 9\n");
+        onDisk("lang-adopted/fresh.yml", "name: Hunter\nmoney: 2\n");
+        onDisk("lang-adopted/own.yml", "name: Baker\n");
+
+        Languages.adoptCatalogue(plugin, LanguagesTest.class, "lang-adopted");
+        Languages.refresh(plugin, LanguagesTest.class, "lang-adopted");
+
+        assertFalse(Files.exists(folder.resolve("lang-adopted")), "the old folder is gone");
+        assertFalse(Files.exists(folder.resolve("lang/custom")), "nothing is parked in a language the server is not on");
+        assertEquals("Baker", yaml("lang/es/lang-adopted/own.yml").getString("name"), "a job the plugin never shipped");
+        assertEquals("Cazador", yaml("lang/es/lang-adopted/fresh.yml").getString("name"), "untouched, so translated");
+        assertEquals(2, yaml("lang/es/lang-adopted/fresh.yml").getInt("money"));
+
+        YamlConfiguration edited = yaml("lang/es/lang-adopted/edited.yml");
+        assertEquals(9, edited.getInt("money"), "the owner's value stays");
+        assertEquals("Miner", edited.getString("name"), "a changed default waits for the owner");
+        assertFalse(edited.contains("icon"), "the jar's copy is what was reviewed, so a key it has counts as deleted");
+        assertEquals(List.of("name"), DefaultUpdates.pending().stream().map(pending -> pending.change().dotted()).toList());
+    }
+
+    @Test
+    void aCatalogueAdoptedTwiceNeverOverwritesTheLanguageFile() throws Exception {
+        onDisk("config.yml", "language: es\n");
+        pack("lang-twice/job.yml", "name: Miner\n");
+        onDisk("lang/es/lang-twice/job.yml", "name: Mine\n");
+        onDisk("lang-twice/job.yml", "name: Old\n");
+
+        Languages.adoptCatalogue(plugin, LanguagesTest.class, "lang-twice");
+        Languages.file(plugin, "lang-twice");
+
+        assertEquals("name: Mine\n", read("lang/es/lang-twice/job.yml"));
+        assertEquals("name: Old\n", read("lang/custom/lang-twice/job.yml"), "left over, kept where nothing is lost");
+    }
+
+    private YamlConfiguration yaml(String path) {
+        return YamlConfiguration.loadConfiguration(folder.resolve(path).toFile());
+    }
 }
