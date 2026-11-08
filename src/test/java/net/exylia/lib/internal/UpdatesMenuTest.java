@@ -62,6 +62,7 @@ class UpdatesMenuTest {
         assertTrue(menus.definition(UpdatesMenu.CHANGES).isPresent());
         assertTrue(menus.definition("logs").isPresent());
         assertTrue(menus.definition("logs_entry").isPresent());
+        assertTrue(menus.definition("kitroom").isPresent());
         assertTrue(messages.isEmpty(), messages::toString);
     }
 

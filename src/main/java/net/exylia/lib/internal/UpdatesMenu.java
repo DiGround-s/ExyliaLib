@@ -102,6 +102,7 @@ public final class UpdatesMenu {
         net.exylia.lib.modes.internal.ModesMenu.init(plugin, NAMESPACE);
         net.exylia.lib.util.crate.internal.AdminScreens.init(plugin, NAMESPACE);
         net.exylia.lib.database.wipe.internal.WipeMenu.init(plugin, NAMESPACE);
+        net.exylia.lib.kitroom.internal.KitRoomMenu.init(plugin, NAMESPACE);
 
         PluginMenus built = Menus.of(plugin, NAMESPACE);
         load(built);
@@ -127,6 +128,7 @@ public final class UpdatesMenu {
         net.exylia.lib.modes.internal.ModesMenu.release();
         net.exylia.lib.util.crate.internal.AdminScreens.release();
         net.exylia.lib.database.wipe.internal.WipeMenu.release();
+        net.exylia.lib.kitroom.internal.KitRoomMenu.release();
     }
 
     /**
@@ -163,6 +165,7 @@ public final class UpdatesMenu {
         net.exylia.lib.modes.internal.ModesMenu.load(target);
         net.exylia.lib.util.crate.internal.AdminScreens.load(target);
         net.exylia.lib.database.wipe.internal.WipeMenu.load(target);
+        net.exylia.lib.kitroom.internal.KitRoomMenu.load(target);
     }
 
     private static YamlConfiguration yaml(String text) {
