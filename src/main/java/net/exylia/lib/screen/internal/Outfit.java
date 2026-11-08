@@ -85,6 +85,41 @@ public record Outfit(List<BufferedImage> head, List<BufferedImage> chest, List<B
         return out;
     }
 
+    /**
+     * What {@code words} lists as real items by the slot they go on, for a body to wear: armour by its name, the first
+     * other item in the hand. Anything the server does not know is left out.
+     */
+    @SuppressWarnings({"deprecation", "removal"}) // Registry.TRIM_*: the one spelling 1.21.1 to 1.21.4 share.
+    static java.util.Map<org.bukkit.inventory.EquipmentSlot, ItemStack> equipment(@Nullable String words) {
+        java.util.Map<org.bukkit.inventory.EquipmentSlot, ItemStack> out = new java.util.EnumMap<>(org.bukkit.inventory.EquipmentSlot.class);
+        for (Piece piece : parse(words)) {
+            org.bukkit.Material material = org.bukkit.Material.matchMaterial(piece.material());
+            if (material == null || !material.isItem() || material.isAir()) continue;
+            String name = piece.material();
+            org.bukkit.inventory.EquipmentSlot slot = name.endsWith("_helmet") ? org.bukkit.inventory.EquipmentSlot.HEAD
+                    : name.endsWith("_chestplate") ? org.bukkit.inventory.EquipmentSlot.CHEST
+                    : name.endsWith("_leggings") ? org.bukkit.inventory.EquipmentSlot.LEGS
+                    : name.endsWith("_boots") ? org.bukkit.inventory.EquipmentSlot.FEET
+                    : org.bukkit.inventory.EquipmentSlot.HAND;
+            if (slot == org.bukkit.inventory.EquipmentSlot.HAND && out.containsKey(slot)) continue;
+            ItemStack item = new ItemStack(material);
+            if (item.getItemMeta() instanceof LeatherArmorMeta leather && piece.tint() >= 0) {
+                leather.setColor(org.bukkit.Color.fromRGB(piece.tint()));
+                item.setItemMeta(leather);
+            }
+            if (piece.trimPattern() != null && item.getItemMeta() instanceof ArmorMeta armor) {
+                org.bukkit.inventory.meta.trim.TrimPattern pattern = org.bukkit.Registry.TRIM_PATTERN.get(org.bukkit.NamespacedKey.minecraft(piece.trimPattern()));
+                org.bukkit.inventory.meta.trim.TrimMaterial trim = org.bukkit.Registry.TRIM_MATERIAL.get(org.bukkit.NamespacedKey.minecraft(piece.trimMaterial()));
+                if (pattern != null && trim != null) {
+                    armor.setTrim(new org.bukkit.inventory.meta.trim.ArmorTrim(trim, pattern));
+                    item.setItemMeta(armor);
+                }
+            }
+            out.put(slot, item);
+        }
+        return out;
+    }
+
     /** Only names a texture path can be made of: nothing reaches outside the cache. */
     private static boolean clean(String name) {
         return !name.isEmpty() && name.chars().allMatch(c -> c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_');

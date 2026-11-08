@@ -123,6 +123,25 @@ public final class ScreenMath {
     }
 
     /**
+     * What is left of a rect with a hole taken out, each {centre x, centre y, width, height}: up to four rects, sides
+     * first. All are centred, y up.
+     */
+    public static java.util.List<double[]> around(double x, double y, double w, double h,
+                                                  double hx, double hy, double hw, double hh) {
+        double left = x - w / 2, right = x + w / 2, bottom = y - h / 2, top = y + h / 2;
+        double holeLeft = Math.max(left, hx - hw / 2), holeRight = Math.min(right, hx + hw / 2);
+        double holeBottom = Math.max(bottom, hy - hh / 2), holeTop = Math.min(top, hy + hh / 2);
+        java.util.List<double[]> out = new java.util.ArrayList<>(4);
+        for (double[] p : new double[][]{{left, holeLeft, bottom, top}, {holeRight, right, bottom, top},
+                {holeLeft, holeRight, holeTop, top}, {holeLeft, holeRight, bottom, holeBottom}}) {
+            if (p[1] - p[0] >= 1e-4 && p[3] - p[2] >= 1e-4) {
+                out.add(new double[]{(p[0] + p[1]) / 2, (p[2] + p[3]) / 2, p[1] - p[0], p[3] - p[2]});
+            }
+        }
+        return out;
+    }
+
+    /**
      * How far the view turned sideways between two packets, in degrees from -180 to 180. The client never wraps
      * its yaw and the server does, so a raw difference can be a whole turn off.
      */

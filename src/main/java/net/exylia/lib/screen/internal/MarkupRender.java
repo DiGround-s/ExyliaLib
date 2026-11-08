@@ -542,6 +542,33 @@ public final class MarkupRender {
             // <canvas id="table">: the session's scene of that id, sized by CSS (1.500.0).
             String id = el.attr("id") == null ? "canvas" : el.attr("id");
             node = session.scene(id).node(px(style.get("width"), 160), px(style.get("height"), 90));
+        } else if (el.tag().equals("window")) {
+            // <window preview="name">: a window onto what the value of that name previews; its children stand in
+            // when that is nothing (1.532.0).
+            Function<ScreenSession, ?> wanted = el.attr("preview") == null ? null : parts.bindings().values().get(el.attr("preview"));
+            Object shown = wanted == null ? null : wanted.apply(session);
+            net.exylia.lib.spatial.SpatialPreview preview = shown instanceof net.exylia.lib.spatial.SpatialPreview it ? it : null;
+            // <window wearing="diamond_helmet iron_leggings@coast:gold">: the viewer's own body in those.
+            if (el.attr("wearing") != null) {
+                preview = net.exylia.lib.spatial.SpatialPreview.npc(session.viewer(),
+                        Outfit.equipment(fill(el.attr("wearing"), scope, false)));
+            }
+            if (preview != null && preview != net.exylia.lib.spatial.SpatialPreview.none()) {
+                node = Node.window(preview).vanish(el.attr("vanish") != null);
+            } else {
+                node = container(style);
+                List<Object> drawn = expand(el.children(), scope);
+                int elements = 0;
+                for (Object one : drawn) if (one instanceof Inst) elements++;
+                int at = 0;
+                for (Object one : drawn) {
+                    if (one instanceof Inst child) {
+                        for (Node built : build(child, here, text, ++at, elements)) {
+                            node.add(child.id() != null ? built.id(child.id()) : built);
+                        }
+                    }
+                }
+            }
         } else if (el.tag().equals("item3d")) {
             // <item3d material="..." spin="36">: the real model, turning; a bare spin turns 36 degrees a second.
             org.bukkit.inventory.ItemStack stack = item(el, scope);

@@ -28,12 +28,12 @@ public final class Compile {
     /** Tags the render draws, beyond the screen's templates. */
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
-            "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "canvas", "progress", "modal", "img", "search",
+            "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "window", "canvas", "progress", "modal", "img", "search",
             // Structure (1.494.0): drawn as their children, never as a box of their own.
             "fragment", "for", "switch", "case", "default", "else");
 
     /** Attributes any tag may carry; a template's props are allowed on its uses too. */
-    public static final Set<String> ATTRIBUTES = Set.of("id", "class", "if", "else", "track", "t", "key", "keybind",
+    public static final Set<String> ATTRIBUTES = Set.of("preview", "id", "class", "if", "else", "track", "t", "key", "keybind",
             "action", "action-right", "selected", "disabled", "checked", "state", "default", "value", "source",
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
             "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
@@ -42,7 +42,7 @@ public final class Compile {
             // 1.503.0
             "persist",
             // 1.498.0
-            "action-hover", "wearing", "spin",
+            "vanish", "action-hover", "wearing", "spin",
             // 1.501.0
             "require", "deny", "require-right", "deny-right", "require-shift", "deny-shift",
             // 1.502.0: on <screen>, read by whichever plugin opens screens by command (ExyliaScreens)

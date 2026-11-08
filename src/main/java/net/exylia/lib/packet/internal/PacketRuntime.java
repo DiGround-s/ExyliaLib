@@ -1172,6 +1172,11 @@ public final class PacketRuntime {
                 Tasks.of(plugin).runAtLocation(at, () -> {
                     if (viewer.isOnline() && at.getWorld().equals(viewer.getWorld())) {
                         viewer.sendBlockChange(at, at.getBlock().getBlockData());
+                        // A block change alone brings a sign back blank: what it holds comes separately.
+                        if (!at.getBlock().getType().isAir()
+                                && at.getBlock().getState(false) instanceof org.bukkit.block.TileState tile) {
+                            viewer.sendBlockUpdate(at, tile);
+                        }
                     }
                 });
             }

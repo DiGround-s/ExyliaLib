@@ -272,6 +272,7 @@ that is not well-formed throws, when it is read.
 | `pager` | `for="<source>"`: previous, `page / pages`, next; `keys="a d"` (1.492.0) turns the page with those movement keys |
 | `icon` | An item sprite by material (`<icon>diamond_sword</icon>` or `material=`), `glyph=` below 1.21.9 |
 | `item` (1.488.0) | A real item model, no resource pack: `material="diamond_sword"`, `head="<player>"`, `texture="<base64>"` or `url="<skin url>"`. Since 1.518.0 `material=` takes whatever a chest template's `material:` does: a `bytes:` snapshot, `basehead-...`, `playerhead-...`, a custom item (`nexo:ruby`) |
+| `window` (1.538.0) | A hole in the screen looking at a preview played for real behind it: `preview="<value>"` or `wearing="<outfit>"`; its children stand in when there is nothing to show. See [Windows](#windows-a-preview-in-the-screen-15380) |
 | `canvas` (1.500.0) | `id="table"`: a sprite layer the plugin moves from Java (`session.scene("table")`), sized by CSS `width`/`height`. See [Scenes and games](#scenes-and-games-15000) |
 | `item3d` (1.499.0) | The item's real 3D model, lit, with enchantment glint: `material=`/`head=`/`texture=`/`url=` as `<item>`; `spin` turns it slowly about its upright (36° a second, or `spin="72"`). See [3D items](#3d-items-14990) |
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
@@ -774,6 +775,69 @@ tick jumps. Show it first, then move it from a timeline step at least one tick l
 out of the screen's plane cuts through whatever is behind it. Turning *within* the plane, which a wheel needs, works on a
 client but is not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
 
+## Windows: a preview in the screen (1.538.0)
+
+A cosmetic is made of what the world draws: bodies, displays, particles. A screen is an opaque panel in front of the
+camera, so none of that shows through, and redrawing hundreds of effects as sprites does not scale. A `<window>` is a
+hole cut in the panel that looks at the real thing: the same lines, played for real on a stage in the world behind it,
+sent to this viewer alone. No effect needs any code or any change to be seen.
+
+```html
+<window preview="effect_preview" class="window"><item3d material="%effect_material%" spin class="hero"/></window>
+<window wearing="${wear ? wear : outfit}" class="window"/>
+```
+
+```java
+screens.markup("effects").value("effect_preview", session -> {
+    EffectDefinition effect = registry.resolve(session.state("focus", ""));
+    return effect == null ? SpatialPreview.none() : SpatialPreview.sequence(registry.sequenceOf(effect.id()), null);
+});
+```
+
+```css
+.window { width: 122px; height: 104px; background: {accent}0c; outline: 1px {accent}40; }
+```
+
+- `preview="name"` reads the value of that name, a `SpatialPreview`, the same object a spatial menu's pedestal plays:
+  `sequence` (an effect on a mannequin), `performance` and `duet` (an emote), `flight` (an arrow and its trail), `npc`,
+  `item`. A plugin with a spatial menu already has it. Set the focus with `action-hover="set focus %id%"`.
+- `wearing="<outfit>"` is the viewer's own body in those pieces, in the words `<img wearing>` takes: a hover swaps what
+  it wears in place, with real armour, trims and glint.
+- **Nothing to show:** a `none()` or missing value makes it a plain box drawing what is inside it, so what cannot be
+  previewed (no permission, nothing chosen) keeps its icon.
+- `vanish` makes the mannequin disappear while the effect plays, so a kill reads as a death (a spatial layout's
+  `vanish-on-play`). Without it the mannequin stands and takes the effect.
+- Java: `Node.window(preview).vanish(true)`. One a screen; a second is an ordinary box. A `scene=` background is not cut.
+
+How it stays honest:
+
+- **Hover.** A new hover stops what is on stage at once, and the next one starts after the cursor rested 180 ms, so
+  sweeping down a list draws and plays nothing. Only a change of what a body wears skips the wait.
+- **Private.** Everything goes through `onlyTo(viewer)` and packet-only entities; a player beside the viewer is sent
+  nothing about it. Nothing is placed in the world.
+- **The world is kept out.** Blocks inside the window's view are kept as air for the viewer (`FakeBlocks#keep`) up to a
+  back wall, a display coloured by the window's `background`, and two fake light blocks light the stage at night or
+  underground. The floor is a block display.
+- **Closing leaves nothing.** Hover change, leaving the page, an input stepping the screen aside and closing all cancel
+  the run, destroy every piece and put the real blocks back. Particles the client already drew are the client's and
+  fade by themselves within a second or so; the panel hides them on a hover change, on close they may finish in the
+  open.
+- **The camera is tipped and held.** Opening the window tips the eyes a few degrees down so the floor shows, and closing
+  the screen gives that back. An upright body in a window far from the centre of the screen leans a little, as anything
+  does near the edge of a wide view.
+- **The camera stays near.** The hole shows the world, so the camera may not wander as it does behind a solid panel: while
+  a window is on screen it stays within a degree of its place, and the moment the mouse rests it goes back exactly. The
+  stage is seen from a little above. While the mouse moves the picture in the hole can shake by that degree.
+- **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
+  included, so one past the window's edge would show on them.
+- **Display budget.** What plays on the stage is not part of a screen's 400 displays: it costs what the same effect
+  costs in the world, doubled on the first play of an effect since the server started (a miniature rehearsal out of
+  sight learns how to turn and size it). See [Performance](screens-performance.md).
+
+**What cannot preview:** anything that acts on a player rather than the world around them is left out of a preview as it
+is on a spatial menu (a title, a potion, a command). A pure sound has nothing to see. Words in chat need no window: draw
+the line itself (ExyliaChatCosmetics' rows).
+
 ## Gallery and preview (1.497.0)
 
 `/exylialib screens gallery` opens every element, the component library, the motion, backgrounds and the keys
@@ -896,7 +960,7 @@ Two checks catch what cost the pilot most, and belong in the plugin's tests from
 - **Overflow.** Lay every tab in every state out, in every language, with the widest values the game can show: nothing
   may leave the 400 by 225 frame or its parent, and no text may end up in a box with no width.
 
-### The game kit (1.532.0)
+### The game kit (1.538.0)
 
 `net.exylia.lib.screen.kit`, built from sprites and timelines, shared by every game. Each returns or holds the timeline it
 plays, to cancel with the round. What is hidden stays on the server until it is shown: a face is sent at the flip's edge, a

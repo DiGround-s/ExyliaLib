@@ -130,6 +130,10 @@ Avoid:
 - `refresh="1t"` or a render that reads a database: the render runs on the viewer's thread, so read memory.
 - Pictures larger than needed (the limit is 96 a side; badges 16, logos up to 64): every pixel is a glyph the
   client lays out.
+- A `<window>`: measured on ExyliaKillEffect's effects screen (Paper 1.21.4, one viewer, 16 effects hovered in
+  turn): the screen draws about 205 displays, and the stage took the total to 373 at its highest, rehearsals included,
+  never past 400. Particles are not displays and are not counted. An author's own effect can cost more: what the stage
+  plays is not cut to fit.
 - Long lists with no window: a `grid` without `columns`/`rows` draws every row. Window it and add a `pager`.
 - More than one `turn` body, or bodies in a list of players: use `<img face>` (4 displays) or `<item head>`.
 - Hover actions that do work: `action-hover` runs on every pass of the cursor; set state only.

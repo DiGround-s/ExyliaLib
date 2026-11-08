@@ -532,6 +532,26 @@ final class ScreenPackets extends PacketListenerAbstract {
     // In
     // ------------------------------------------------------------------
 
+    /**
+     * A glowing piece's outline is drawn over everything, the screen's panels too, so a piece of an effect past the
+     * edge of a window would show on them: on the stage's viewer nothing glows while it is up.
+     */
+    @Override
+    public void onPacketSend(PacketSendEvent event) {
+        if (event.getPacketType() != PacketType.Play.Server.ENTITY_METADATA || event.getUser() == null
+                || event.getUser().getUUID() == null) return;
+        LiveScreen screen = ScreenRuntime.live(event.getUser().getUUID());
+        if (screen == null || !screen.windowed()) return;
+        WrapperPlayServerEntityMetadata data = new WrapperPlayServerEntityMetadata(event);
+        for (EntityData<?> field : data.getEntityMetadata()) {
+            if (field.getIndex() == 0 && field.getValue() instanceof Byte flags && (flags & 0x40) != 0) {
+                @SuppressWarnings("unchecked") EntityData<Byte> own = (EntityData<Byte>) field;
+                own.setValue((byte) (flags & ~0x40));
+                event.markForReEncode(true);
+            }
+        }
+    }
+
     @Override
     public void onPacketReceive(PacketReceiveEvent event) {
         if (event.getUser() == null || event.getUser().getUUID() == null) return;

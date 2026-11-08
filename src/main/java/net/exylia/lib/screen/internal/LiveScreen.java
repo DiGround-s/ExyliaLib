@@ -76,6 +76,10 @@ final class LiveScreen implements ScreenSession {
     private static final float RECENTRE_PITCH = 40f;
     /** How far the camera may turn from where the screen opened while a 3D item is on screen, in degrees. */
     private static final float CONE = 8f;
+    /** As {@link #CONE} while a window is on screen: the world moves behind the hole with the camera, so it barely may. */
+    private static final float WINDOW_CONE = 1f;
+    /** How long the mouse rests before the camera is put back exactly, while a window is on screen. */
+    private static final long SETTLE_MILLIS = 120L;
     /** The pointer, a pixel per character: {@code #} outline, {@code o} fill, {@code .} clear. */
     private static final String[] ARROW = {
             "#..........",
@@ -231,6 +235,18 @@ final class LiveScreen implements ScreenSession {
     private float recentreYaw;
     /** Where the camera faced when the screen opened: with a 3D item on screen the camera is kept near it. */
     private float homeYaw;
+    /** The stage a window looks at. On the viewer's thread, under this lock. */
+    private @Nullable PreviewStage stage;
+    /** The window the last frame cut, or {@code null}, and whether the camera is held for it. */
+    private @Nullable RectLook lastHole;
+    private volatile boolean windowed;
+    /** When the mouse last turned the camera. */
+    private volatile long lastTurn;
+    /** The pitch the camera is held at while a window is on screen. */
+    private volatile float homePitch;
+    /** Where the eyes looked when the screen opened: a window tips them, and closing gives that back. */
+    private final float openPitch;
+    private volatile boolean tipped;
     /** Whether a 3D item is on screen, which keeps the camera within {@link #CONE} of {@link #homeYaw}. */
     private volatile boolean cone;
     private int heldSlot;
@@ -345,6 +361,7 @@ final class LiveScreen implements ScreenSession {
         this.lastYaw = eyes.getYaw();
         this.homeYaw = lastYaw;
         this.lastPitch = eyes.getPitch();
+        this.openPitch = lastPitch;
         state.putAll(Persisted.load(player, screen));
         state.putAll(screen.state());
         this.spriteGlyphs = spritesFor(player);
@@ -417,6 +434,7 @@ final class LiveScreen implements ScreenSession {
         synchronized (this) {
             // Drawn afresh: nothing on the client is the last render's any more.
             lastLaid = null;
+            lastHole = null;
             lastBoxes = Map.of();
             refreshPeriod = 20;
             synchronized (input) {
@@ -446,6 +464,7 @@ final class LiveScreen implements ScreenSession {
         }
         ScreenRuntime.closed(this);
         if (ticker != null) ticker.cancel();
+        closeStage();
         ids.add(hitboxId);
         for (int id : backdropIds) ids.add(id);
         if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
@@ -454,6 +473,10 @@ final class LiveScreen implements ScreenSession {
             wire.send(List.of(
                     ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray()),
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
+            if (tipped) {
+                wire.send(List.of(ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
+                        (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
+            }
         }
         Packets.of(plugin).movement().unfreeze(player);
         Packets.of(plugin).visibility().seal(player, null);
@@ -490,6 +513,7 @@ final class LiveScreen implements ScreenSession {
             animator = null;
         }
         if (ticker != null) ticker.cancel();
+        closeStage();
         ids.add(hitboxId);
         for (int id : backdropIds) ids.add(id);
         if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
@@ -659,6 +683,7 @@ final class LiveScreen implements ScreenSession {
             // The handlers are this render's either way: a click acts on what it shows now.
             if (core == null) core = Layout.lay(root, screen.width(), screen.height());
             lastLaid = core;
+            stage(core);
             lastPrint = print;
             lastToastVersion = toastVersion;
             List<Layout.Placed> laid = new ArrayList<>(core);
@@ -717,9 +742,7 @@ final class LiveScreen implements ScreenSession {
                 }
             }
             if (!away) {
-                List<RectLook> back = backdropLooks();
-                int[] backIds = backdropIds;
-                for (int i = 0; i < Math.min(backIds.length, back.size()); i++) out.add(rect(backIds[i], back.get(i), 0));
+                sendBackdrop(out);
             }
             rescaled = true;
             resync = true;
@@ -1033,7 +1056,7 @@ final class LiveScreen implements ScreenSession {
     }
 
     /** What one frame wants on the client. */
-    private record Frame(Map<String, Object> wanted, List<String> order, Map<String, String> boxOf,
+    private record Frame(@Nullable RectLook hole, Map<String, Object> wanted, List<String> order, Map<String, String> boxOf,
                          Map<String, Box> boxes, Map<String, Motion.Transition> transitions, Set<String> animated,
                          boolean turns, boolean animates) {
     }
@@ -1106,6 +1129,7 @@ final class LiveScreen implements ScreenSession {
         List<Layout.Placed> drawing = placed;
         boolean turns = false;
         boolean animates = false;
+        RectLook hole = null;
         if (overlayFrom > 0) {
             drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
             drawing.addAll(placed.subList(0, overlayFrom));
@@ -1154,7 +1178,10 @@ final class LiveScreen implements ScreenSession {
                     wanted.put(key, xf(new RectLook(cxu, cyu, (box.w() + grow) * unit, (box.h() + grow) * unit, layer - 1, line), xf));
                     mine.add(key);
                 }
-                if (argb != 0 && box.w() > 0 && box.h() > 0) {
+                if (node.preview() != null) {
+                    // A window: no fill of its own, its colour is the stage's back wall.
+                    hole = (RectLook) xf(new RectLook(cxu, cyu, box.w() * unit, box.h() * unit, layer, argb), xf);
+                } else if (argb != 0 && box.w() > 0 && box.h() > 0) {
                     String key = box.key() + "#bg";
                     double rise = rises ? 2 * unit : 0;
                     if (gradient != null) {
@@ -1297,7 +1324,127 @@ final class LiveScreen implements ScreenSession {
                 if (here != null && here.animated()) animatedLooks.add(key);
             }
         }
-        return new Frame(wanted, new ArrayList<>(wanted.keySet()), boxOf, boxes, transitions, animatedLooks, turns, animates);
+        if (hole != null) wanted = cut(wanted, hole, boxOf, transitions, animatedLooks);
+        return new Frame(hole, wanted, new ArrayList<>(wanted.keySet()), boxOf, boxes, transitions, animatedLooks, turns, animates);
+    }
+
+    /**
+     * Every rect behind the window, in pieces around it, and the backdrop's. A dialog or a tooltip over the window
+     * stands nearer the eye than it, and stays whole.
+     */
+    private Map<String, Object> cut(Map<String, Object> wanted, RectLook hole, Map<String, String> boxOf,
+                                    Map<String, Motion.Transition> transitions, Set<String> animated) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : wanted.entrySet()) {
+            String key = entry.getKey();
+            if (!(entry.getValue() instanceof RectLook rect) || rect.layer() >= hole.layer() || !overlaps(rect, hole)) {
+                out.put(key, entry.getValue());
+                continue;
+            }
+            List<RectLook> pieces = around(rect, hole);
+            for (int i = 0; i < pieces.size(); i++) {
+                String piece = key + "^" + i;
+                out.put(piece, pieces.get(i));
+                if (boxOf.containsKey(key)) boxOf.put(piece, boxOf.get(key));
+                if (transitions.containsKey(key)) transitions.put(piece, transitions.get(key));
+                if (animated.contains(key)) animated.add(piece);
+            }
+        }
+        List<RectLook> back = backdropLooks();
+        for (int b = 0; b < back.size(); b++) {
+            if (!overlaps(back.get(b), hole)) continue;
+            List<RectLook> pieces = around(back.get(b), hole);
+            for (int i = 0; i < pieces.size(); i++) out.put("~back" + b + "^" + i, pieces.get(i));
+        }
+        return out;
+    }
+
+    private static boolean overlaps(RectLook a, RectLook b) {
+        return Math.abs(a.x() - b.x()) * 2 < a.w() + b.w() && Math.abs(a.y() - b.y()) * 2 < a.h() + b.h();
+    }
+
+    /** What is left of {@code rect} with {@code hole} taken out. */
+    private static List<RectLook> around(RectLook rect, RectLook hole) {
+        List<RectLook> out = new ArrayList<>(4);
+        for (double[] piece : ScreenMath.around(rect.x(), rect.y(), rect.w(), rect.h(), hole.x(), hole.y(), hole.w(), hole.h())) {
+            out.add(new RectLook(piece[0], piece[1], piece[2], piece[3], rect.layer(), rect.argb()));
+        }
+        return out;
+    }
+
+    /** The backdrop's displays: a band a window cuts is drawn by its pieces instead, so it shrinks away. Holds the lock. */
+    private void sendBackdrop(List<PacketWrapper<?>> out) {
+        List<RectLook> back = backdropLooks();
+        int[] backIds = backdropIds;
+        for (int i = 0; i < Math.min(backIds.length, back.size()); i++) {
+            RectLook band = back.get(i);
+            if (lastHole != null && overlaps(band, lastHole)) band = new RectLook(band.x(), band.y(), 1e-3, 1e-3, band.layer(), band.argb());
+            out.add(rect(backIds[i], band, 0));
+        }
+    }
+
+    /** Opens, moves or closes the stage the laid-out window looks at, and hands it what to play. Holds the lock. */
+    private void stage(List<Layout.Placed> core) {
+        Layout.Placed window = null;
+        for (Layout.Placed box : core) {
+            if (box.node().preview() != null) {
+                window = box;
+                break;
+            }
+        }
+        if (window == null) {
+            if (stage != null) {
+                stage.close();
+                stage = null;
+            }
+            return;
+        }
+        double x = centreX(window), y = centreY(window), w = window.w() * unit, h = window.h() * unit;
+        if (stage != null && !stage.framedBy(x, y, w, h)) {
+            stage.close();
+            stage = null;
+        }
+        if (stage == null) {
+            int wall = ScreenMath.argb(window.node().background(), 0);
+            wall = wall == 0 ? backdropBase() : ScreenMath.over(wall, backdropBase());
+            homePitch = PreviewStage.pitch(DISTANCE, y);
+            tipped = true;
+            stage = new PreviewStage(plugin, player, tasks, wire, ids.getAsInt(), origin, homeYaw, homePitch, DISTANCE, x, y, w, h,
+                    wall, window.node().vanish(), this::settle);
+        }
+        stage.want(window.node().preview());
+    }
+
+    /** Takes the stage down, on the viewer's thread when it can be reached. Safe from any thread. */
+    private void closeStage() {
+        PreviewStage going;
+        synchronized (this) {
+            going = stage;
+            stage = null;
+            windowed = false;
+        }
+        if (going == null) return;
+        if (!player.isOnline() || !plugin.isEnabled() || org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) going.close();
+        else tasks.runAtEntity(player, going::close);
+    }
+
+    /** Whether a window is on screen. Safe from any thread. */
+    boolean windowed() {
+        return windowed;
+    }
+
+    /** Brings a camera the mouse has left at rest back to where the stage was placed from. */
+    private void settle() {
+        synchronized (input) {
+            if (away || recentreId != 0 || !windowed || System.currentTimeMillis() - lastTurn < SETTLE_MILLIS) return;
+            float off = (float) ScreenMath.turn(homeYaw, lastYaw);
+            float down = lastPitch - homePitch;
+            if (Math.abs(off) < 0.02f && Math.abs(down) < 0.02f) return;
+            recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+            recentreBy = down;
+            recentreYaw = off;
+            wire.send(List.of(ScreenPackets.recentre(recentreId, recentreYaw, recentreBy)));
+        }
     }
 
     /** The item as one sprite glyph, for a client and server that draw sprites; {@code null} otherwise. */
@@ -1321,6 +1468,13 @@ final class LiveScreen implements ScreenSession {
             }
             for (String key : new ArrayList<>(order.subList(BUDGET, order.size()))) wanted.remove(key);
             order = new ArrayList<>(order.subList(0, BUDGET));
+        }
+        if (!Objects.equals(frame.hole(), lastHole)) {
+            lastHole = frame.hole();
+            windowed = lastHole != null;
+            List<PacketWrapper<?>> back = new ArrayList<>();
+            sendBackdrop(back);
+            wire.send(back);
         }
         boolean reduced = reduced();
         boolean resend = rescaled;
@@ -1441,7 +1595,7 @@ final class LiveScreen implements ScreenSession {
         turning = frame.turns();
         boolean holds = false;
         for (Object look : wanted.values()) holds |= look instanceof ItemLook it && it.solid();
-        cone = holds;
+        cone = holds || windowed;
         lastBoxes = frame.boxes();
         if (!out.isEmpty()) wire.send(out);
         later.forEach((delay, segments) -> tasks.runAtEntityLater(player, delay, () -> segments(segments)));
@@ -1905,6 +2059,7 @@ final class LiveScreen implements ScreenSession {
             cursorY = ScreenMath.clamp(cursorY - dy * perDegree, -halfH, halfH);
             lastYaw = yaw;
             lastPitch = pitch;
+            lastTurn = System.currentTimeMillis();
             List<PacketWrapper<?>> out = new ArrayList<>();
             cursor(out, 1);
             moved = pointerMoved();
@@ -1913,11 +2068,13 @@ final class LiveScreen implements ScreenSession {
             // eye whatever it looks at, so the snap is not seen.
             float off = (float) ScreenMath.turn(homeYaw, yaw);
             boolean held = cone;
-            if (recentreId == 0 && (Math.abs(pitch) > (held ? CONE : RECENTRE_PITCH) || held && Math.abs(off) > CONE)) {
+            float limit = windowed ? WINDOW_CONE : CONE;
+            float down = windowed ? pitch - homePitch : pitch;
+            if (recentreId == 0 && (Math.abs(down) > (held ? limit : RECENTRE_PITCH) || held && Math.abs(off) > limit)) {
                 recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-                recentreBy = pitch;
+                recentreBy = down;
                 recentreYaw = held ? off : 0;
-                out.add(ScreenPackets.recentre(recentreId, recentreYaw, pitch));
+                out.add(ScreenPackets.recentre(recentreId, recentreYaw, down));
             }
             wire.send(out);
         }

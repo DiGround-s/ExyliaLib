@@ -67,6 +67,8 @@ public final class Node {
     private String turntable;
     private String wearing;
     private boolean solid;
+    private net.exylia.lib.spatial.SpatialPreview preview;
+    private boolean vanish;
     private double spin;
     private Consumer<ScreenEvent> onHover;
     private double width = -1;
@@ -154,6 +156,41 @@ public final class Node {
         node.solid = true;
         node.spin = spin;
         return node;
+    }
+
+    /**
+     * A window cut in the screen, looking at {@code preview} played for real on a private stage in the world behind
+     * it: an effect's bodies, displays and particles, whatever it is made of. Sized by {@code size} or {@code grow};
+     * its background colours the stage's back wall. {@code null} or {@link net.exylia.lib.spatial.SpatialPreview#none}
+     * is a plain box, drawing whatever else is put in it, so what cannot be previewed keeps its icon. One a screen.
+     *
+     * @since 1.538.0
+     */
+    public static @NotNull Node window(@org.jetbrains.annotations.Nullable net.exylia.lib.spatial.SpatialPreview preview) {
+        Node node = box();
+        node.preview = preview == net.exylia.lib.spatial.SpatialPreview.none() ? null : preview;
+        return node;
+    }
+
+    /**
+     * Whether a {@link #window}'s mannequin disappears while an effect plays, so a kill reads as a death (a spatial
+     * layout's {@code vanish-on-play}). Off by default: it stands there and takes the effect.
+     *
+     * @since 1.538.0
+     */
+    public @NotNull Node vanish(boolean vanish) {
+        this.vanish = vanish;
+        return this;
+    }
+
+    /** Whether {@link #vanish(boolean)} is on. @since 1.538.0 */
+    public boolean vanish() {
+        return vanish;
+    }
+
+    /** What this box plays as a {@link #window}, or {@code null} for a plain box. @since 1.538.0 */
+    public @org.jetbrains.annotations.Nullable net.exylia.lib.spatial.SpatialPreview preview() {
+        return preview;
     }
 
     /** Whether this item is drawn as a 3D model ({@link #item3d}). @since 1.499.0 */
