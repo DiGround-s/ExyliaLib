@@ -245,16 +245,43 @@ final class LiveScreen implements ScreenSession {
     /** How fast a body turns, degrees a second, and how long each glide to the next angle lasts. */
     private static final double TURN_SPEED = 36;
     private static final int TURN_TICKS = 20;
+    /** How far a body reaches from its centre as it turns, in skin pixels. */
+    private static final double BODY_RADIUS = 8;
+
+    /**
+     * The layer a turning model stands on: far enough out of {@code layer} that the half swinging away, {@code radius}
+     * layout units at most and flattened by {@link ScreenPackets#TURN_DEPTH}, never goes behind the box holding it.
+     * On a nearer layer {@link #drawn} keeps its place and size on screen.
+     */
+    private static int turnLayer(int layer, double radius) {
+        return layer + 1 + (int) Math.ceil(radius * K * ScreenPackets.TURN_DEPTH / LAYER);
+    }
+
+    /** How far a flat item swings either way, degrees: its face always shows, never a sliver of its edge. */
+    private static final double SWING = 40;
+
+    /**
+     * A 3D item's angle at {@code millis}: {@code spin} degrees a second round and round, or for a flat item the same
+     * speed at most, swinging {@value #SWING} degrees either way.
+     */
+    static double turnAngle(double spin, boolean flat, long millis) {
+        if (spin == 0) return 0;
+        double seconds = millis / 1000.0;
+        return flat ? SWING * Math.sin(seconds * spin / SWING) : seconds * spin;
+    }
 
     /** Words: {@code lines} of them joined by newlines, {@code flags} the display's text flags (shadow, alignment). */
     private record TextLook(double x, double y, double scale, int layer, Component text, int lines, int flags) {
     }
 
-    /** An item: flat ({@code solid} false), or a 3D model turned {@code angle} degrees about the upright. */
+    /**
+     * An item: flat ({@code solid} false), or a 3D model turned {@code angle} degrees about the upright; a block
+     * leans towards the viewer so its top shows, what is drawn from a sprite ({@code leans} false) stands upright.
+     */
     private record ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item,
-                            boolean solid, double angle) {
+                            boolean solid, double angle, boolean leans) {
         ItemLook(double x, double y, double size, int layer, org.bukkit.inventory.ItemStack item) {
-            this(x, y, size, layer, item, false, 0);
+            this(x, y, size, layer, item, false, 0, false);
         }
     }
 
@@ -1040,9 +1067,12 @@ final class LiveScreen implements ScreenSession {
                             ? spriteGlyph(node.item()) : null;
                     if (node.solid()) {
                         // <item3d>: the model itself, turning a step every second like a body.
-                        double angle = node.spin() == 0 ? 0 : System.currentTimeMillis() / 1000.0 * node.spin();
+                        boolean flat = VanillaSprites.flat(node.item().getType());
+                        double angle = turnAngle(node.spin(), flat, System.currentTimeMillis());
                         turns |= node.spin() != 0;
-                        wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, top, node.item(), true, angle), xf));
+                        double size = side * unit * grow;
+                        wanted.put(key, xf(new ItemLook(ix, iy, size, turnLayer(top, size * (flat ? 0.5 : 0.71)),
+                                node.item(), true, angle, !flat), xf));
                         mine.add(key);
                     } else if (sprite == VanillaSprites.LOADING) {
                         // Nothing yet, rather than the 3D item for a moment.
@@ -1070,6 +1100,7 @@ final class LiveScreen implements ScreenSession {
                     double mx = (box.x() + node.padLeft() + innerW / 2 - screen.width() / 2) * unit;
                     double my = (screen.height() / 2 - box.y() - node.padTop() - innerH / 2) * unit;
                     double turn = (System.currentTimeMillis() / 1000.0 * TURN_SPEED) % 360;
+                    int bodyLayer = turnLayer(top, BODY_RADIUS * cell * unit);
                     int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
                     int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
                     for (int f = 0; f < model.size(); f++) {
@@ -1078,7 +1109,7 @@ final class LiveScreen implements ScreenSession {
                                 face.picture().height(), 0);
                         for (int copy = 0; copy < 4; copy++) {
                             String key = box.key() + "#tt" + f + "." + copy;
-                            wanted.put(key, xf(new TurnLook(mx, my, cell * unit, top, text, face.picture().height(),
+                            wanted.put(key, xf(new TurnLook(mx, my, cell * unit, bodyLayer, text, face.picture().height(),
                                     face.x(), face.y(), face.z(), face.yaw(), turn, (copy & 1) * gapX, (copy >> 1) * gapY,
                                     face.scale()), xf));
                             mine.add(key);
@@ -1442,7 +1473,7 @@ final class LiveScreen implements ScreenSession {
         return switch (look) {
             case RectLook r -> new RectLook(f.ax(r.x()), f.ay(r.y()), r.w() * s, r.h() * s, r.layer(), r.argb());
             case ItemLook it -> new ItemLook(f.ax(it.x()), f.ay(it.y()), it.size() * s, it.layer(), it.item(), it.solid(),
-                    it.angle());
+                    it.angle(), it.leans());
             case ImageLook im -> new ImageLook(f.ax(im.x()), f.ay(im.y()), im.cell() * s, im.layer(), im.text(), im.rows(),
                     im.dx(), im.dy());
             case TurnLook t -> new TurnLook(f.ax(t.x()), f.ay(t.y()), t.cell() * s, t.layer(), t.text(), t.rows(), t.lx(),
@@ -1466,7 +1497,7 @@ final class LiveScreen implements ScreenSession {
             case ItemLook it -> {
                 ItemLook q = (ItemLook) a;
                 yield new ItemLook(mix(q.x(), it.x(), f), mix(q.y(), it.y(), f), mix(q.size(), it.size(), f), it.layer(), it.item(),
-                        it.solid(), it.angle());
+                        it.solid(), it.angle(), it.leans());
             }
             case ImageLook im -> {
                 ImageLook q = (ImageLook) a;
@@ -1548,7 +1579,7 @@ final class LiveScreen implements ScreenSession {
         double k = drawn(look.layer());
         if (look.solid()) {
             return ScreenPackets.item3d(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
-                    look.item(), glide == 0 ? 0 : TURN_TICKS, look.angle());
+                    look.item(), glide == 0 ? 0 : TURN_TICKS, look.angle(), look.leans());
         }
         return ScreenPackets.item(id, look.x() * k, look.y() * k, -DEPTH + look.layer() * LAYER, look.size() * k,
                 look.item(), glide);
@@ -1572,7 +1603,7 @@ final class LiveScreen implements ScreenSession {
         double rx = t.lx() * Math.cos(a) + t.lz() * Math.sin(a);
         double rz = -t.lx() * Math.sin(a) + t.lz() * Math.cos(a);
         return ScreenPackets.image(id, (t.x() + rx * t.cell()) * k, (t.y() + t.ly() * t.cell()) * k - t.dy() * fy,
-                -DEPTH + t.layer() * LAYER + rz * t.cell() * k, fx, fy, t.rows(), t.text(),
+                -DEPTH + t.layer() * LAYER + rz * ScreenPackets.TURN_DEPTH * t.cell() * k, fx, fy, t.rows(), t.text(),
                 glide == 0 ? 0 : TURN_TICKS, t.yaw() + t.turn(), t.dx());
     }
 

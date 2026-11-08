@@ -253,26 +253,33 @@ final class ScreenPackets extends PacketListenerAbstract {
     /** How far a 3D item leans towards the viewer, degrees, so a block shows its top as it turns. */
     private static final double ITEM3D_TILT = 25;
     private static final byte CONTEXT_FIXED = 8;
+    /**
+     * How much of its depth a turning model keeps along the view, after it has turned. In the round it would reach
+     * its own radius behind the box holding it and be cut there, and it would have to stand that much nearer the eye,
+     * swelling as it swings; squeezed, it turns as a model in an inventory does, without perspective.
+     */
+    static final double TURN_DEPTH = 0.2;
 
     /**
-     * A 3D item: its model in the round ({@code size} deep as well), turned {@code angle} degrees about its upright
-     * and leaned towards the viewer. Shaded by the world's lights, so the screen keeps the camera still around it.
+     * A 3D item: its model turned {@code angle} degrees about its upright and, when {@code lean}, leaned towards the
+     * viewer. Shaded by the world's lights, so the screen keeps the camera still around it.
      */
     static PacketWrapper<?> item3d(int id, double x, double y, double z, double size, ItemStack item, int glide,
-                                   double angle) {
+                                   double angle, boolean lean) {
         double a = Math.toRadians(angle) / 2;
-        double t = Math.toRadians(ITEM3D_TILT) / 2;
+        double t = lean ? Math.toRadians(ITEM3D_TILT) / 2 : 0;
+        double sa = Math.sin(a), ca = Math.cos(a), st = Math.sin(t), ct = Math.cos(t);
         // No size-up for blocks: the item-frame view already draws a block cube at half the box, so turned and leaned
         // its corners reach the box's edge, as a flat item's do. Cake, saplings and doors are flat items, not cubes.
         return new WrapperPlayServerEntityMetadata(id, List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
-                new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION,
-                        new com.github.retrooper.packetevents.util.Quaternion4f((float) Math.sin(t), 0f, 0f, (float) Math.cos(t))),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) size)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) size, (float) size, (float) (size * TURN_DEPTH))),
+                // The lean after the turn, both before the squeeze: the depth is squeezed along the view.
                 new EntityData<>(RIGHT_ROTATION, EntityDataTypes.QUATERNION,
-                        new com.github.retrooper.packetevents.util.Quaternion4f(0f, (float) Math.sin(a), 0f, (float) Math.cos(a))),
+                        new com.github.retrooper.packetevents.util.Quaternion4f((float) (st * ca), (float) (ct * sa),
+                                (float) (st * sa), (float) (ct * ca))),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)),
@@ -419,14 +426,15 @@ final class ScreenPackets extends PacketListenerAbstract {
         double a = Math.toRadians(yaw);
         double along = (nudge - 0.5) * fx;
         Vector3f at = new Vector3f((float) (x + Math.cos(a) * along), (float) (y - rows * IMAGE_LINE * fy / 2),
-                (float) (z - Math.sin(a) * along));
+                (float) (z - Math.sin(a) * along * TURN_DEPTH));
         return new WrapperPlayServerEntityMetadata(id, List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
-                        new Vector3f((float) (fx / FONT_PIXEL), (float) (fy / FONT_PIXEL), 1f)),
-                new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION,
+                // The turn before the squeeze, as item3d does.
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (fx / FONT_PIXEL),
+                        (float) (fy / FONT_PIXEL), (float) (fx / FONT_PIXEL * TURN_DEPTH))),
+                new EntityData<>(RIGHT_ROTATION, EntityDataTypes.QUATERNION,
                         new com.github.retrooper.packetevents.util.Quaternion4f(0f, (float) Math.sin(a / 2), 0f,
                                 (float) Math.cos(a / 2))),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),

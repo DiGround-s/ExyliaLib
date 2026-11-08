@@ -108,4 +108,13 @@ class MotionTest {
         assertEquals(boxR.y() + 2, boxP.y(), 1e-6);
         assertEquals(laid.indexOf(boxR), boxA.parent());
     }
+
+    @org.junit.jupiter.api.Test
+    void flatItemsSwingAndBlocksTurn() {
+        for (long ms = 0; ms < 60_000; ms += 137) {
+            org.junit.jupiter.api.Assertions.assertTrue(Math.abs(LiveScreen.turnAngle(36, true, ms)) <= 40);
+            org.junit.jupiter.api.Assertions.assertEquals(ms / 1000.0 * 36, LiveScreen.turnAngle(36, false, ms), 1e-9);
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(0, LiveScreen.turnAngle(0, true, 5000));
+    }
 }

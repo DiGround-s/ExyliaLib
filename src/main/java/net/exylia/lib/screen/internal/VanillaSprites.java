@@ -94,6 +94,25 @@ public final class VanillaSprites {
         return LOADING;
     }
 
+    private static final Map<Material, Boolean> FLAT = new ConcurrentHashMap<>();
+
+    /**
+     * Whether a material's item is a flat sprite rather than a block's model: anything that is not a block (once
+     * {@link net.exylia.lib.platform.ItemForms} has mapped a crop to its item), a block with an item texture of its
+     * own (cake, a door) and a block with no solid shape, whose item shows its block texture (a sapling, a torch).
+     */
+    static boolean flat(Material material) {
+        Boolean known = FLAT.get(material);
+        if (known != null) return known;
+        Material form = net.exylia.lib.platform.ItemForms.orElse(material, material);
+        if (!form.isBlock() || !form.isSolid()) return true;
+        Path dir = folder;
+        if (dir == null) return false;
+        boolean flat = Files.isRegularFile(dir.resolve("item/" + form.getKey().getKey() + ".png"));
+        FLAT.put(material, flat);
+        return flat;
+    }
+
     /** Changes whenever a sprite or the sprite folder arrives. */
     static int generation() {
         return GENERATION.get();
