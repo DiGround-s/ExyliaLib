@@ -1775,3 +1775,4 @@ World: Mundo
 '{primary}&lKIT ROOM {letters_black}» {highlight}{0}': '{primary}&lSALA DE KITS {letters_black}» {highlight}{0}'
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}toma un stack completo,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}lo pone en tu mano secundaria.'
+'{warning}Menus open again when this view ends.': "{warning}Los menús se abren de nuevo cuando termine esta vista."

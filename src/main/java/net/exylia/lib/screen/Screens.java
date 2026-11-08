@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * }</pre>
  *
  * <p>While a screen is open the player stands still, their clicks and wheel go to the screen instead of the
- * world, and Shift closes it. It also closes when they take damage, die, change world, are teleported (since 1.485.1), quit, or when the
+ * world, and Shift closes it. It also closes when they take damage, die, change world, are teleported (since 1.485.1), a camera takes their view (since 1.518.4), quit, or when the
  * plugin that opened it is disabled. A player has one screen at a time: opening another replaces it.
  *
  * <p>Drawn with packets only, so it needs PacketEvents; without it {@link #open} returns {@code null} and logs
@@ -58,7 +58,11 @@ public final class Screens {
     /**
      * Shows {@code screen} to {@code player}, closing whatever screen they had open. On the player's thread.
      *
-     * @return the open session, or {@code null} when PacketEvents is missing
+     * <p>A camera holding the player (a cinematic, a replay, a spectator's target: anything that moved their view to
+     * another entity) refuses the open, and a player gets a line saying why, since 1.518.4: a screen stands at their
+     * eyes and could be neither seen nor clicked from there. A camera that starts closes an open screen.
+     *
+     * @return the open session, or {@code null} when PacketEvents is missing or a camera holds the player
      */
     public @Nullable ScreenSession open(@NotNull Player player, @NotNull Screen screen) {
         return ScreenRuntime.open(plugin, player, screen);

@@ -284,6 +284,8 @@ public final class MenuRuntime {
             previous.runtime().closed(previous);
             MenuListener.runClose(previous, viewer);
         }
+        // Held by a camera, nothing can show it: the session is made and let go, no window opens instead.
+        if (onScreen && net.exylia.lib.screen.internal.ScreenRuntime.refused(viewer)) return session;
         if (onScreen && MenuScreens.show(session)) {
             OPEN.put(viewer.getUniqueId(), session);
             if (previous == null) {

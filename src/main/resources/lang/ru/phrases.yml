@@ -1763,3 +1763,4 @@ World: Мир
 '{primary}&lKIT ROOM {letters_black}» {highlight}{0}': '{primary}&lКОМНАТА НАБОРОВ {letters_black}» {highlight}{0}'
 ' {highlight}Shift {letters}takes a full stack,': ' {highlight}Shift {letters}берёт полный стак,'
 ' {highlight}F {letters}puts it in your off hand.': ' {highlight}F {letters}кладёт во вторую руку.'
+'{warning}Menus open again when this view ends.': "{warning}Меню снова откроются, когда этот вид закончится."

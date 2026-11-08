@@ -96,6 +96,8 @@ public final class PacketRuntime {
     /** faked spectator -> real game mode at the time. */
     private static final Map<UUID, GameMode> SPECTATING = new ConcurrentHashMap<>();
     /** Told when a client starts ({@code true}) or stops drawing a camera view. */
+    private static final Set<UUID> CAMERA_HELD = ConcurrentHashMap.newKeySet();
+    private static final List<java.util.function.Consumer<Player>> CAMERA_HELD_HOOKS = new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final List<java.util.function.BiConsumer<Player, Boolean>> CAMERA_VIEW_HOOKS =
             new java.util.concurrent.CopyOnWriteArrayList<>();
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
@@ -146,6 +148,25 @@ public final class PacketRuntime {
 
     public static boolean inCameraView(UUID player) {
         return SPECTATING.containsKey(player);
+    }
+
+    /** Whether the client looks out of another entity's eyes: a cinematic, a replay, a spectator's target. */
+    public static boolean cameraHeld(UUID player) {
+        return CAMERA_HELD.contains(player);
+    }
+
+    /** Registers what to tell when a client's view goes to another entity. May run on any thread. */
+    public static void onCameraHeld(java.util.function.Consumer<Player> hook) {
+        CAMERA_HELD_HOOKS.add(hook);
+    }
+
+    /** From the camera packets on their way out: the one record that covers every camera, ours or not. */
+    static void cameraMoved(Player player, boolean toAnother) {
+        if (!toAnother) {
+            CAMERA_HELD.remove(player.getUniqueId());
+        } else if (CAMERA_HELD.add(player.getUniqueId())) {
+            for (java.util.function.Consumer<Player> hook : CAMERA_HELD_HOOKS) hook.accept(player);
+        }
     }
 
     /** Registers what to tell when a client starts or stops drawing a camera view. */
@@ -633,6 +654,7 @@ public final class PacketRuntime {
         if (sink != null) Scenes.forget(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);
+        CAMERA_HELD.remove(id);
         REVEALING.remove(id);
         OVERLAYS.remove(id);
         Mirrors.forget(player);

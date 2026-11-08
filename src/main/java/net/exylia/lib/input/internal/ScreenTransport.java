@@ -64,7 +64,8 @@ public final class ScreenTransport implements Transport {
         if (options == null) return false;
         Plugin owner = Bukkit.getPluginManager().getPlugin(session.pluginName());
         if (owner == null || !owner.isEnabled()) owner = library;
-        if (!MenuStyles.of(owner).screens(player)) return false;
+        // Held by a camera the question goes through the next transport: a dialog or chat is seen from anywhere.
+        if (!MenuStyles.of(owner).screens(player) || net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player)) return false;
         Screen screen = Screen.of(s -> dialog(s, session, request, options))
                 .onClose(s -> {
                     shown.remove(session.playerId(), s);

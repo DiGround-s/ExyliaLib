@@ -49,6 +49,12 @@ public final class ScreenRuntime {
     public static void init(Plugin library) {
         ScreenRuntime.library = library;
         library.getServer().getPluginManager().registerEvents(new Closer(), library);
+        // A screen stands in front of the player's eyes; a camera looks from somewhere else, at a small panel in the world.
+        net.exylia.lib.packet.internal.PacketRuntime.onCameraHeld(held -> {
+            if (OPEN.containsKey(held.getUniqueId()) && library.isEnabled()) {
+                net.exylia.lib.task.Tasks.of(library).runAtEntity(held, () -> close(held.getUniqueId()));
+            }
+        });
         for (Player online : library.getServer().getOnlinePlayers()) {
             net.exylia.lib.task.Tasks.of(library).runAtEntity(online, () -> read(online));
         }
@@ -132,12 +138,30 @@ public final class ScreenRuntime {
             }
             return null;
         }
+        if (refused(player)) return null;
         ScreenPackets.install();
         close(player.getUniqueId());
         LiveScreen live = new LiveScreen(plugin, player, screen);
         OPEN.put(player.getUniqueId(), live);
         live.show();
         return live;
+    }
+
+    /**
+     * Whether a camera holds this player (a cinematic, a replay, a spectator's target), telling them so: a screen is
+     * drawn at their eyes and could not be seen or clicked from there. It can be opened again once the view is back.
+     */
+    public static boolean refused(Player player) {
+        if (!cameraHeld(player)) return false;
+        net.exylia.lib.camera.internal.CameraRuntime.say(player, net.exylia.lib.text.Text.of(
+                net.exylia.lib.text.Phrases.tr("{warning}Menus open again when this view ends.")).build());
+        return true;
+    }
+
+    /** Whether a camera holds this player now. */
+    public static boolean cameraHeld(Player player) {
+        return net.exylia.lib.packet.Packets.isAvailable()
+                && net.exylia.lib.packet.internal.PacketRuntime.cameraHeld(player.getUniqueId());
     }
 
     public static ScreenSession session(Plugin plugin, Player player) {

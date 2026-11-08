@@ -36,6 +36,7 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPl
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientVehicleMove;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCamera;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChangeGameState;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDamageEvent;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
@@ -226,6 +227,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         PacketTypeCommon type = event.getPacketType();
         if (PacketRuntime.inCameraView(viewer)) holdCameraView(event, type);
+        if ((type == PacketType.Play.Server.CAMERA || type == PacketType.Play.Server.RESPAWN) && event.getPlayer() instanceof Player looking) {
+            // A respawn gives the client a new body, and its view goes back to it without a camera packet.
+            PacketRuntime.cameraMoved(looking, type == PacketType.Play.Server.CAMERA
+                    && PacketPeek.leadingVarInt(event, e -> new WrapperPlayServerCamera(e).getCameraId()) != looking.getEntityId());
+        }
         if (PacketRuntime.overlaysAnything()) {
             PacketRuntime.Overlay overlay = PacketRuntime.overlayOf(viewer);
             if (overlay != null) {

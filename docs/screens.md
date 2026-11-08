@@ -129,6 +129,9 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
   `:focus` styles the focused box (it is the hovered one). Bindings with `key=` are ignored while navigating.
   Since 1.497.0 a key only moves to boxes that lie that way (within about 60 degrees), never to a far box barely
   past the cursor. The client sends a key only when it is held across a tick: a tap shorter than that is missed.
+- A screen stands at the player's eyes, so it cannot be seen or clicked from a camera (a cinematic, a replay, a spectator's target). A camera that
+  takes the view closes it, and while one holds the player opens are refused with a line in chat: `Screens.open` returns `null`, a routed or skinned
+  menu opens no window, and an input goes through its Dialog or chat instead (1.518.4). It opens again once the view is back.
 - Damage closes it, as do death, a world change, a teleport of more than a block (1.485.1), quitting, the opening plugin being disabled, and
   another screen opening for the same player (one per player across all plugins).
 
