@@ -190,6 +190,7 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             abilities.setInGodMode(true);
             abilities.setFlying(true);
             abilities.setFlightAllowed(true);
+            abilities.setInCreativeMode(false);
             abilities.setFlySpeed(PacketRuntime.STILL);
             abilities.setFOVModifier(PacketRuntime.STILL);
             event.markForReEncode(true);
@@ -1059,8 +1060,8 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void abilities(Player viewer, boolean invulnerable, boolean flying,
                           boolean allowFlight, float flySpeed, float walkSpeed) {
-        send(viewer, new WrapperPlayServerPlayerAbilities(
-                invulnerable, flying, allowFlight, false, flySpeed, walkSpeed));
+        send(viewer, new WrapperPlayServerPlayerAbilities(invulnerable, flying, allowFlight,
+                viewer.getGameMode() == org.bukkit.GameMode.CREATIVE, flySpeed, walkSpeed));
     }
 
     /** How far a portal may place a player, which every border packet repeats. Vanilla's value. */

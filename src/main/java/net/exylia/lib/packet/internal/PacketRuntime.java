@@ -1284,10 +1284,23 @@ public final class PacketRuntime {
                 if (started) cameraViewChanged(player, true);
             } else if (SPECTATING.remove(id) != null) {
                 out.gameMode(player, player.getGameMode().getValue());
-                out.abilities(player, player.isInvulnerable(), player.isFlying(),
-                        player.getAllowFlight(), player.getFlySpeed());
+                trueAbilities(out, player);
                 cameraViewChanged(player, false);
+                // Once more when things have settled: a client left on a view's fly speed cannot fly.
+                if (plugin.isEnabled()) {
+                    Tasks.of(plugin).runAtEntityLater(player, 2, () -> {
+                        PacketSink now = sink();
+                        if (now != null && player.isOnline() && !SPECTATING.containsKey(id)) trueAbilities(now, player);
+                    });
+                }
             }
+        }
+
+        /** What the server holds for this player. The protocol's fly and walk speeds are half Bukkit's. */
+        private static void trueAbilities(PacketSink out, Player player) {
+            GameMode mode = player.getGameMode();
+            out.abilities(player, player.isInvulnerable() || mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR,
+                    player.isFlying(), player.getAllowFlight(), player.getFlySpeed() / 2, player.getWalkSpeed() / 2);
         }
 
         @Override
