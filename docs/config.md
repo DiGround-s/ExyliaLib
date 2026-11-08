@@ -382,8 +382,17 @@ then follows the usual rules above: new keys arrive, changed defaults wait in `/
 - **Everything that writes** (editors, importers, the web editor) goes through `Languages.file` or
   `Languages.path`. Nothing keeps a path to the old folder.
 
-Test each language file in the plugin (ExyliaJobs' `ShippedContentTest`): only keys the base has, and every
-`%placeholder%` and `{token}` of the base line still there.
+Test each language file in the plugin with `CatalogueCheck` (1.533.0): only keys the base has, every text key
+translated, every `%placeholder%`, `{token}` and `<tag>` of the base line still there and none added, and no
+description or lore line wider than you allow.
+
+```java
+assertEquals(List.of(), CatalogueCheck.problems(MyPlugin.class, "effects.yml", List.of("es", "fr", "pt", "ru", "tr"),
+        Pattern.compile("^(categories|effects)\\.[^.]+\\.(name|description)$"), 40));
+```
+
+Words the code writes in English but a server may keep as they ship (a rarity's `Common`, `Rare`) go through
+`Phrases.tr` at the point they are shown: a word the owner changed has no phrase and stays theirs.
 
 **Moving an existing catalogue.** Which call adopts the files depends on whether `config.yml` already has
 a `language` key:

@@ -468,7 +468,7 @@ public final class CrateScreens<T> implements Listener {
         String tierId = prizes.tierOf(reward);
         CrateTier tier = tiers.get(tierId);
         int rank = tiers.ids().indexOf(tiers.resolveId(tierId)) + 1;
-        return new CrateFace(prizes.idOf(reward), icon, catalogue.name(reward), tier.color() + tier.name(),
+        return new CrateFace(prizes.idOf(reward), icon, catalogue.name(reward), tier.color() + net.exylia.lib.text.Phrases.tr(tier.name()),
                 tier.color(), rank, tiers.ids().size());
     }
 
@@ -711,7 +711,7 @@ public final class CrateScreens<T> implements Listener {
 
     private String tierName(String tierId) {
         CrateTier tier = prizes.tiers().get(tierId);
-        return tier.color() + tier.name();
+        return tier.color() + net.exylia.lib.text.Phrases.tr(tier.name());
     }
 
     private void say(Player player, String line) {

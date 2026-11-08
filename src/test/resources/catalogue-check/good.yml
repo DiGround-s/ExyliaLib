@@ -1,0 +1,5 @@
+a:
+  name: '{primary}Ember %count% %count:coal|coals%'
+  description:
+    - 'A long line that a script wraps.'
+  power: 1

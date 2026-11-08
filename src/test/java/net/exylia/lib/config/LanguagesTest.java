@@ -319,6 +319,35 @@ class LanguagesTest {
     }
 
     @Test
+    void aSingleFileCatalogueIsAdoptedLikeAFolder() throws Exception {
+        onDisk("config.yml", "language: es\n");
+        pack("lang-single.yml", "effects:\n  a:\n    name: Ember\n    power: 1\n");
+        pack("lang/es/lang-single.yml", "effects:\n  a:\n    name: Ascua\n");
+        onDisk("lang-single.yml", "effects:\n  a:\n    name: Ember\n    power: 7\n");
+
+        Languages.adoptCatalogue(plugin, LanguagesTest.class, "lang-single.yml");
+        Languages.refresh(plugin, LanguagesTest.class, "lang-single.yml");
+
+        assertFalse(Files.exists(folder.resolve("lang-single.yml")), "the old file is gone");
+        assertEquals(7, yaml("lang/es/lang-single.yml").getInt("effects.a.power"), "the owner's value stays");
+        assertEquals("Ember", yaml("lang/es/lang-single.yml").getString("effects.a.name"), "a changed default waits");
+        assertEquals(List.of("effects.a.name"), DefaultUpdates.pending().stream().map(pending -> pending.change().dotted()).toList());
+    }
+
+    @Test
+    void aSingleFileCatalogueNobodyEditedIsInstalledTranslated() throws Exception {
+        onDisk("config.yml", "language: es\n");
+        pack("lang-plain.yml", "name: Ember\n");
+        pack("lang/es/lang-plain.yml", "name: Ascua\n");
+        onDisk("lang-plain.yml", "name: Ember\n");
+
+        Languages.adoptCatalogue(plugin, LanguagesTest.class, "lang-plain.yml");
+        Languages.refresh(plugin, LanguagesTest.class, "lang-plain.yml");
+
+        assertEquals("Ascua", yaml("lang/es/lang-plain.yml").getString("name"));
+    }
+
+    @Test
     void aCatalogueAdoptedTwiceNeverOverwritesTheLanguageFile() throws Exception {
         onDisk("config.yml", "language: es\n");
         pack("lang-twice/job.yml", "name: Miner\n");

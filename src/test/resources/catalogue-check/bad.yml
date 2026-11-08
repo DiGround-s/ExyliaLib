@@ -1,0 +1,5 @@
+a:
+  name: '{primary}Ember %count%'
+  description: 'A line'
+b:
+  name: 'Coal'

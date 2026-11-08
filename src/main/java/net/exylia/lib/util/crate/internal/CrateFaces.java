@@ -83,7 +83,7 @@ public final class CrateFaces<T> {
                 materials.computeIfAbsent(id, ignored -> material(reward)),
                 catalogue.description(reward),
                 tierId,
-                tier.color() + tier.name(),
+                tier.color() + net.exylia.lib.text.Phrases.tr(tier.name()),
                 tier.color()};
 
         UiEntry.Builder entry = UiEntry.of(reward);

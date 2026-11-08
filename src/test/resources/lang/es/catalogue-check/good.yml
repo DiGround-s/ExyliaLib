@@ -1,0 +1,4 @@
+a:
+  name: '{primary}Ascua %count% %count:brasa|brasas%'
+  description:
+    - 'Una línea larga que se corta.'
