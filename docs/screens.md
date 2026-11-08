@@ -772,7 +772,7 @@ tick jumps. Show it first, then move it from a timeline step at least one tick l
 
 **Rotation.** A sprite does not rotate, and a flip is a squeeze rather than a turn about the upright: a display turned
 out of the screen's plane cuts through whatever is behind it. Turning *within* the plane, which a wheel needs, is
-possible and was not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
+should be possible but is untested and not built: see [What the kit does not cover yet](#what-the-kit-does-not-cover-yet).
 
 ## Gallery and preview (1.497.0)
 
@@ -892,9 +892,10 @@ every state on a real client, in two languages: a win, a loss, a stake that cann
 
 Added when a game needs it, on the same `ScreenScene`, none of it changes what exists:
 
-- **Rotation** (roulette, a wheel). The client can do it: a display turns about the axis facing the viewer without
-  cutting anything, by `LEFT_ROTATION`, interpolated the short way, so a glide is under 180° and 90° a glide is the
-  practical step. Three things to build: `Sprite#rotate`; correcting the pivot, which is the display's origin (a text
+- **Rotation** (roulette, a wheel). Not exposed on `Sprite`, and not yet tried on a client. By the display transform
+  it should work: `LEFT_ROTATION` about the axis facing the viewer stays in the plane, so it cuts nothing, and it is
+  interpolated the short way, so a glide is under 180° and about 90° a glide is the practical step. Try it first with
+  one rect. Three things to build: `Sprite#rotate`; correcting the pivot, which is the display's origin (a text
   display's bottom centre) rather than the sprite's centre; and pictures, whose four nudged copies must have their
   nudges turned too, so an item picture is four transforms a step against one for a 3D item or a text glyph. Hit
   testing stays with the unrotated box.
