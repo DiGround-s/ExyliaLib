@@ -603,7 +603,7 @@ public final class Node {
     }
 
     /**
-     * Runs on a click made while the player holds sprint (their shift-click on a screen, where Shift goes back),
+     * Runs on a click made while the player holds sprint (their shift-click on a screen, where Shift closes it),
      * instead of {@link #onClick}. Without one, such a click is an ordinary click with {@link ScreenEvent#shift()}.
      *
      * @since 1.496.0

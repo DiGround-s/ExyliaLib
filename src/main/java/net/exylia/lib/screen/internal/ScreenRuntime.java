@@ -228,6 +228,26 @@ public final class ScreenRuntime {
         for (LiveScreen live : List.copyOf(OPEN.values())) live.close();
     }
 
+    /** The player whose screen click is running as a chest click now, on this thread. */
+    private static final ThreadLocal<UUID> AS_CHEST = new ThreadLocal<>();
+
+    /**
+     * Runs a screen click that stands for a click in a chest menu (a chest-skin card, or a plugin action a routed
+     * screen calls with the menu behind it): code written for the chest closes the menu with
+     * {@code closeInventory()} before a game or a prompt, and that close closes the screen. A
+     * {@code closeInventory()} made anywhere else (a screen's own action, a state change) leaves it up.
+     */
+    public static void asChest(UUID viewer, Runnable click) {
+        UUID before = AS_CHEST.get();
+        AS_CHEST.set(viewer);
+        try {
+            click.run();
+        } finally {
+            if (before == null) AS_CHEST.remove();
+            else AS_CHEST.set(before);
+        }
+    }
+
     /** Whether a window close is {@code closeInventory()} called with nothing but the player's own inventory open. */
     static boolean closesScreen(org.bukkit.event.inventory.InventoryCloseEvent event) {
         return event.getReason() == org.bukkit.event.inventory.InventoryCloseEvent.Reason.PLUGIN
@@ -296,13 +316,16 @@ public final class ScreenRuntime {
          * screen, as it would the chest: an action that closes the menu before a game, a teleport or a prompt
          * takes over works in both menu styles. Only the plugin's own close of the player's own inventory: a real
          * window closing (an input's, another plugin's) is not the screen, and nothing closes while it stepped
-         * aside for an input.
+         * aside for an input. Since 1.514.0 only inside {@link #asChest}: a click written for a chest; a
+         * closeInventory() from anywhere else leaves the screen alone.
          */
         @EventHandler(priority = EventPriority.MONITOR)
         public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
             if (!closesScreen(event)) return;
             LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
-            if (live != null && !live.away()) live.close();
+            // Only a close made by the screen's own click (an action that closes the menu before a game or a
+            // prompt): plugins also call closeInventory() defensively from state changes, which must not.
+            if (live != null && !live.away() && event.getPlayer().getUniqueId().equals(AS_CHEST.get())) live.close();
         }
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

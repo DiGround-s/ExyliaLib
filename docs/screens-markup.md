@@ -72,7 +72,7 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `src`, `skin`, `face`, `turn`, `wearing`, `spin` | Pictures and bodies, see tags `img` and `item3d` | `wearing="diamond_helmet diamond_sword"` | see tags | see tags |
 | `max`, `value` | `progress` (`max` default 100); `max` on `search` is the longest text (default 32); `value` on options/`case` | `max="16"` | 1.485.0 | - |
 | `prompt`, `hint` | Texts of a `search` | `prompt="Search a kit"` | 1.496.0 | - |
-| `dismiss` | On `modal`: action on a click outside or Shift | `dismiss="clear confirm"` | 1.488.0 | - |
+| `dismiss` | On `modal`: action on a click outside | `dismiss="clear confirm"` | 1.488.0 | - |
 | `priority` | `priority="low"`: decoration, the first thing left out when over budget | `priority="low"` | 1.496.0 | frees displays when the screen is full |
 | `refresh` | Redraw this often while shown (2 ticks at least; default every second) | `refresh="5t"` | 1.496.0 | re-renders every N ticks for that viewer: use sparingly |
 | `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 3 displays, only while hovered |
@@ -146,7 +146,7 @@ Detail in [`action`](screens.md#attributes-on-any-tag) and
 | `close` | Closes the screen | 1.485.0 |
 | `set <key> <value>`, `toggle <key>`, `clear <key> ...` | Session state | 1.485.0 |
 | `toast <text>` / `toast <success\|error\|info\|warning> <text>` | Short note at the top | 1.488.0 / 1.496.0 |
-| `back` | As Shift: the dialog, then the screen before; closes at the root | 1.496.0 |
+| `back` | The dialog, then the screen before; closes at the root | 1.496.0 |
 | `sound <key> [volume] [pitch]` | A UI sound to the viewer | 1.496.0 |
 | `confirm '<question>' [dangerous] [yes=..] [no=..] then <actions>` | In-screen dialog; what follows `then` runs only on yes | 1.496.0 |
 | `input text <key> '<prompt>' [hint=..] [max=n] then <actions>` | Asks for a line of text into state `<key>` | 1.496.0 |

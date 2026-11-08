@@ -164,7 +164,7 @@ final class LiveScreen implements ScreenSession {
     /** A hovered box keeps its hover this many pixels past its edges. */
     private static final double HYSTERESIS = 3;
     /** How long a clicked box shows pressed, and how long Shift is held to close from anywhere. */
-    private static final int ACTIVE_TICKS = 3, HOLD_TICKS = 12;
+    private static final int ACTIVE_TICKS = 3;
     private static final int MAX_TOASTS = 3;
     /** Toasts on screen, oldest first; guarded by {@code this}. */
     private final List<Toast> toasts = new ArrayList<>();
@@ -210,7 +210,6 @@ final class LiveScreen implements ScreenSession {
     private volatile boolean cone;
     private int heldSlot;
     private boolean shifting;
-    private long shiftStamp;
     private boolean sprinting;
     private String hovered;
     /** What the netty thread last saw under the pointer. Guarded by {@link #input}. */
@@ -1911,24 +1910,14 @@ final class LiveScreen implements ScreenSession {
 
     void shift(boolean down) {
         boolean pressed;
-        long stamp;
         synchronized (input) {
             pressed = down && !shifting;
             shifting = down;
-            stamp = pressed ? ++shiftStamp : shiftStamp;
         }
         if (!pressed || !open || away) return;
-        // Shift steps back (a dialog, then the menu before); held, it closes from anywhere.
+        // Shift closes the screen, from anywhere: going back is the Back button's (or the back action's) job.
         tasks.runAtEntity(player, () -> {
-            if (!open()) return;
-            if (!back()) close();
-        });
-        tasks.runAtEntityLater(player, HOLD_TICKS, () -> {
-            boolean held;
-            synchronized (input) {
-                held = shifting && shiftStamp == stamp;
-            }
-            if (held && open()) close();
+            if (open()) close();
         });
     }
 
@@ -1993,6 +1982,7 @@ final class LiveScreen implements ScreenSession {
             renderNow();
         });
     }
+
 
     private void guarded(Runnable task) {
         try {

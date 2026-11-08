@@ -67,7 +67,7 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 | `background`, `hover` | `{token}`, `#rrggbb` or `#aarrggbb`; `hover` also makes the box pointable |
 | `onClick`, `onScroll` | handlers, on the viewer's thread; the screen redraws after them |
 | `item(ItemStack)` (1.488.0) | the item's own model, flat, 16 px by default; a hovered one grows a little |
-| `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it or Shift runs `onDismiss` |
+| `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it runs `onDismiss` (Shift closes the whole screen) |
 | `textAlign(START/CENTER/END)` (1.488.0) | where text sits in a box wider than it |
 | `image(w, h, argb)`, `image(BufferedImage)` (1.489.0) | a small picture (up to 96 a side), one layout pixel a picture pixel unless sized; pixels stay square and the picture is centred in its box |
 | `transform`, `hoverTransform`, `active(background, transform)` (1.496.0) | a `Motion.Transform` (translate in pixels, scale) after layout; while hovered; for a moment after a click |
@@ -118,10 +118,9 @@ A click goes to the topmost box under the cursor that has `onClick`; a wheel ste
 - **Wheel:** off by default. The client is then shown as a spectator: no hand, no crosshair, no hotbar, but a
   spectator's wheel sends nothing. `Screen#wheel(true)` keeps the real mode so the wheel scrolls, at the cost
   of the hand and crosshair. Page lists with buttons when the wheel is off.
-- **Shift** steps back (1.496.0): it closes the open in-screen confirm or dialog, then goes back to the screen
-  or menu this one was opened from (`Screen#onBack`), and closes only at the root. Held for 12 ticks it closes
-  from anywhere. Before 1.496.0 Shift always closed.
-- **Shift-click** (1.496.0): Shift itself steps back, so a click with **sprint held** (Ctrl, or the sprint key)
+- **Shift** closes the screen, from anywhere, a dialog included (1.514.0). Going back is the Back button's job
+  (the `back` action, `ScreenSession#back()`). From 1.496.0 to 1.513.0 Shift stepped back instead.
+- **Shift-click** (1.496.0): Shift itself closes the screen, so a click with **sprint held** (Ctrl, or the sprint key)
   is the shift-click: `action-shift` in markup, `Node#onShiftClick` in Java, and `ScreenEvent#shift()` on any
   click; a chest menu drawn as a screen gets `SHIFT_LEFT`/`SHIFT_RIGHT`. Tell players in a key hint
   (`<key-hint key="Ctrl">Shift-click</key-hint>`).
@@ -235,7 +234,7 @@ that is not well-formed throws, when it is read.
 | `item3d` (1.499.0) | The item's real 3D model, lit, with enchantment glint: `material=`/`head=`/`texture=`/`url=` as `<item>`; `spin` turns it slowly about its upright (36° a second, or `spin="72"`). See [3D items](#3d-items-14990) |
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
-| `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside or Shift, `clear <key>` by default when the `if` is a plain name |
+| `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside, `clear <key>` by default when the `if` is a plain name |
 | `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (`⌕ value`) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
 | `p` (1.496.0) | Wraps onto lines (base theme: `white-space: normal; max-width: 220px`) |
 
@@ -257,7 +256,7 @@ A `<nl>` (or `<br>`) inside text or a value, as lore values write their line bre
 - `action-hover="..."` (1.498.0): runs once each time the cursor comes onto the box (not again until it
   leaves): `action-hover="set wear %kit_wearing%"` shows what a card is about elsewhere on the screen. Any action
   works, but keep it to state: it runs on every pass of the cursor. `Node#onHover` in Java.
-- More built-in actions (1.496.0): `back` (as Shift: the dialog, then the screen before; closes at the root),
+- More built-in actions (1.496.0): `back` (the dialog, then the screen before; closes at the root),
   `sound <key> [volume] [pitch]`, `toast <success|error|info|warning> <text>` (the tone colours its edge),
   `confirm '<question>' [dangerous] [yes=Leave] [no=Stay] then <actions>` (an in-screen dialog; what follows
   `then` and every later action run only on yes), and `input text <key> '<prompt>' [hint=...] [max=n] then
@@ -559,7 +558,7 @@ animations, and every glide is two ticks and straight.
 **Toasts and confirms.** `session.toast("success", "Joined the queue")`: up to three stack at the top, newest at
 the bottom, each sliding in and out; success and error play a quiet sound. `session.confirm("Leave the party?",
 true, "Leave", null, s -> parties.leave(s.viewer()))` draws the question in a dialog on the screen itself; Cancel,
-a click outside or Shift does nothing. `session.ask(prompt, hint, max, current)` asks for a line of text and
+or a click outside does nothing (Shift closes the screen). `session.ask(prompt, hint, max, current)` asks for a line of text and
 completes with it, or `null` when cancelled.
 
 **Refresh.** `refresh=` on an element, `Node#refresh(ticks)` in Java, and
@@ -723,7 +722,7 @@ Every screen knows these templates; a plugin's own template of the same name win
 | `<page-head title="Kits" subtitle="Pick one"/>` | a centred title and dark subtitle |
 | `<stat label="Wins" value="%wins%" tone="success"/>` | a label and a coloured value on one line |
 | `<badge tone="warning">New</badge>` | a small tag; tones `primary`, `success`, `error`, `warning`, `info` |
-| `<key-hint key="Shift">Back</key-hint>` | a key and what it does |
+| `<key-hint key="Shift">Close</key-hint>` | a key and what it does |
 | `<empty-state title="No kits" hint="Ask staff to add one"/>` | a list's empty note (inside a `grid`/`list` since 1.497.0: before, it was repeated as a row) |
 | `<dialog title="Sure?" when="confirm" dismiss="clear confirm">...</dialog>` | a themed `modal` |
 
@@ -745,8 +744,8 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
   left, centre and right as in the chest. A list with no items shows what its empty slots say. Each item's name
   and lore are its tooltip while hovered. Cards that do something light up under the cursor; the others only show
   their tooltip. A left or right click on a card is that click on the slot of the chest menu, so every action
-  works as in the window, and a menu opened from a click replaces the cards in place. Shift goes back to the menu
-  before, and closes at the first one (1.496.0); a click with sprint held is a shift-click on the slot, or the
+  works as in the window, and a menu opened from a click replaces the cards in place. Shift closes it (1.514.0); the
+  chest's own back button goes back; a click with sprint held is a shift-click on the slot, or the
   plain click when the button binds no shift-click, so a client with toggle sprint never meets a dead button
   (1.513.0).
 
@@ -865,8 +864,11 @@ sends only what changed.
 - Any other window opened over a screen (a chest menu that stays a window, another plugin's inventory) closes it.
 - `player.closeInventory()` closes the screen as it would the chest (1.509.0): an action that closes the menu before
   a game, a teleport or a prompt takes over needs no change for the SCREEN style. Only a close with no window open
-  counts (a real window closing is not the screen), and never while the screen stepped aside for an input. Before
-  1.509.0 such an action left the screen up; `UiSession#close` closes either style in every version.
+  counts (a real window closing is not the screen), and never while the screen stepped aside for an input. Since
+  1.514.0 only a `closeInventory()` made by a click written for a chest closes it: a chest-skin card handed to its
+  menu, or a plugin action (`plugin:action`) a screen calls. One from anywhere else (a screen's own Java binding,
+  a party update refreshing lobby items, a state change) leaves the screen up. Before 1.509.0 such an action left the screen up; `UiSession#close` closes
+  either style in every version.
 
 ## Trying it
 

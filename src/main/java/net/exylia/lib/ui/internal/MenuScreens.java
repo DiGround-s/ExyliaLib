@@ -103,7 +103,7 @@ final class MenuScreens {
             screen = route.markup().screen(state);
         }
         screen.onClose(session -> closed(shown));
-        // Shift goes back to the menu this one was opened from, as the window's back button would.
+        // The back action goes to the menu this one was opened from, as the window's back button would.
         screen.onBack(session -> back(shown));
         SHOWN.put(viewer.getUniqueId(), shown);
         ScreenSession opened = Screens.of(plugin).open(viewer, screen);
@@ -117,7 +117,7 @@ final class MenuScreens {
     }
 
     /**
-     * Shift on the screen: back to the menu opened before this one. A routed screen goes back only through menus
+     * The back action on the screen: back to the menu opened before this one. A routed screen goes back only through menus
      * the player really came from; the skin also follows the file's parent, as the back button does.
      */
     private static boolean back(Shown shown) {
@@ -235,10 +235,11 @@ final class MenuScreens {
     private static Node card(Session menu, int slot, ItemStack item, double w, double h) {
         List<Component> lines = lines(item);
         boolean live = clickable(menu, slot);
-        double icon = clamp(h - (h >= 28 ? 16 : 6), 12, h >= 40 ? 20 : 18);
-        Node card = Node.column(Node.item(item).size(icon, icon)).size(w, h).padding(2, 3).gap(2)
+        // Every card keeps its name (a six-row chest leaves cards about 27 pixels tall): the icon gives way first.
+        double icon = clamp(h - (lines != null ? 13 : 6), 10, h >= 40 ? 20 : 18);
+        Node card = Node.column(Node.item(item).size(icon, icon)).size(w, h).padding(2, 3).gap(1)
                 .align(Node.Align.CENTER).justify(Node.Justify.CENTER).background(CARD).tooltip(lines).id("s" + slot);
-        if (lines != null && h >= 28) {
+        if (lines != null) {
             card.add(Node.text(subject(lines.get(0))).scale(0.6).textAlign(Node.Align.CENTER));
             if (h >= 40 && lines.size() > 1) card.add(Node.text(lines.get(1)).scale(0.5).textAlign(Node.Align.CENTER));
         }
@@ -345,12 +346,13 @@ final class MenuScreens {
         Rendered rendered = menu.renderedAt(slot);
         if (rendered == null || rendered.item() == null) return;
         ClickKind kind = kindOf(event.kind() == ScreenEvent.Kind.RIGHT, event.shift(), rendered.item().bindings());
-        MenuListener.handle(menu, event.viewer(), slot, kind, rendered, menu.inventory().getItem(slot));
+        net.exylia.lib.screen.internal.ScreenRuntime.asChest(event.viewer().getUniqueId(),
+                () -> MenuListener.handle(menu, event.viewer(), slot, kind, rendered, menu.inventory().getItem(slot)));
     }
 
     /**
      * The chest click a screen click stands for. Sprint held is the shift of a click on a screen, where Shift itself
-     * steps back; a client with toggle sprint holds it all the time, so a shift click on a button that binds none
+     * closes it; a client with toggle sprint holds it all the time, so a shift click on a button that binds none
      * is the plain click, never a dead one.
      */
     static ClickKind kindOf(boolean right, boolean shift, ClickBindings bindings) {

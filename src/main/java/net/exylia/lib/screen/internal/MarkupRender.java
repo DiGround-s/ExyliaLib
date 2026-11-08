@@ -1045,7 +1045,9 @@ public final class MarkupRender {
                     if (menu != null) {
                         context.put(net.exylia.lib.ui.UiKeys.SESSION, menu).put(net.exylia.lib.ui.UiKeys.MENU, menu.menuId());
                     }
-                    Actions.compile(call.toString()).execute(context.build());
+                    // Written for a chest: a closeInventory() it makes closes this screen as it would the chest.
+                    ScreenRuntime.asChest(event.viewer().getUniqueId(),
+                            () -> Actions.compile(call.toString()).execute(context.build()));
                 } else {
                     parts.problems().accept(el.pos() + ": no action \"" + name + "\" is registered");
                 }

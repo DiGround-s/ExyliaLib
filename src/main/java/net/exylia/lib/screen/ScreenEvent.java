@@ -18,7 +18,7 @@ import java.util.Optional;
  *                the row's {@link net.exylia.lib.ui.UiEntry#value()} from {@link ScreenMarkup#rows}, the row map
  *                from {@link ScreenMarkup#source}; {@code null} outside a repeat or for a screen built in Java
  * @param shift   whether the click was a shift-click: made while the player held sprint (since 1.496.0), since
- *                Shift itself steps back on a screen
+ *                Shift itself closes a screen
  * @since 1.483.0
  */
 public record ScreenEvent(@NotNull ScreenSession session, @NotNull Kind kind, int steps, @Nullable String node,

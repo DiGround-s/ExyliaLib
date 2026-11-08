@@ -170,8 +170,8 @@ public final class Screen {
     }
 
     /**
-     * What Shift does before it closes the screen, once no dialog is open: go back to where the player came from,
-     * answering whether it did. Answer {@code false} (or set none) and Shift closes.
+     * What going back does once no dialog is open (the {@code back} action, {@link ScreenSession#back()}): go back
+     * to where the player came from, answering whether it did. Shift itself always closes the screen (1.514.0).
      *
      * @since 1.496.0
      */

@@ -104,10 +104,11 @@ public interface ScreenSession {
     }
 
     /**
-     * Steps back as Shift does: closes the open in-screen confirm or dialog, then goes back to the menu this one
-     * was opened from (a chest menu shown as a screen). Does not close the screen.
+     * Steps back, as the {@code back} action does: closes the open in-screen confirm or dialog, then goes back to
+     * the menu this one was opened from (a chest menu shown as a screen). Does not close the screen. (Shift closes
+     * the screen since 1.514.0; it no longer steps back.)
      *
-     * @return whether it went back somewhere; {@code false} at the root, where Shift closes
+     * @return whether it went back somewhere; {@code false} at the root
      * @since 1.496.0
      */
     default boolean back() {
