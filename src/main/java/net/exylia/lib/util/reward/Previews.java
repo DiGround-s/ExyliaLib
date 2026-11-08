@@ -91,16 +91,22 @@ final class Previews {
 
     private static String amountPrefix(RewardEntry entry) {
         if (entry.isRanged()) {
-            return entry.minAmount() + "-" + entry.maxAmount() + "x ";
+            return range(entry) + "x ";
         }
         return entry.itemAmount() > 1 ? entry.itemAmount() + "x " : "";
     }
 
     private static String amounts(RewardEntry entry) {
         if (entry.isRanged()) {
-            return entry.minAmount() + "-" + entry.maxAmount();
+            return range(entry);
         }
         return entry.value() != null ? entry.value() : Phrases.tr("(not set)");
+    }
+
+    private static String range(RewardEntry entry) {
+        return entry.minAmount().equals(entry.maxAmount())
+                ? String.valueOf(entry.minAmount())
+                : entry.minAmount() + "-" + entry.maxAmount();
     }
 
     private static String orMissing(String value) {
