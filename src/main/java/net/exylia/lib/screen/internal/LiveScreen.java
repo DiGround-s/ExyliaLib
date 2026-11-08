@@ -475,6 +475,10 @@ final class LiveScreen implements ScreenSession {
         hidden.add(other.getUniqueId());
     }
 
+    boolean hides(Player other) {
+        return hidden.contains(other.getUniqueId());
+    }
+
     /** Hides a player who arrived while the screen is open. */
     void hideLater(Player other) {
         tasks.runAtEntity(player, () -> {

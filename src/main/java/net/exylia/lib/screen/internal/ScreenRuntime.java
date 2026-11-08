@@ -164,6 +164,11 @@ public final class ScreenRuntime {
                 && net.exylia.lib.packet.internal.PacketRuntime.cameraHeld(player.getUniqueId());
     }
 
+    public static boolean hides(Player viewer, Player target) {
+        LiveScreen live = OPEN.get(viewer.getUniqueId());
+        return live != null && live.hides(target);
+    }
+
     public static ScreenSession session(Plugin plugin, Player player) {
         LiveScreen live = OPEN.get(player.getUniqueId());
         return live != null && live.plugin() == plugin ? live : null;

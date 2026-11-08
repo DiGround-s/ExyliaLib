@@ -96,6 +96,8 @@ sets the folder for markup given as a string; `load` uses the markup file's own 
 away while the input runs (a chat prompt below 1.21.6, a dialog from 1.21.6 on, both ends) and brings it back,
 state and page kept, when it ends. Never open an input from a screen without it: the prompt would sit behind it.
 
+A list of players that follows `viewer.canSee(target)` also asks `Screens.hides(viewer, target)` (1.518.5): a player the screen itself hid is `canSee` false until it closes.
+
 **Other players** are hidden from the viewer while a screen is open (only by this plugin, so other plugins'
 visibility rules stay), so a crowded spawn never stands in front of it.
 

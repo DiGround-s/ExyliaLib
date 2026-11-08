@@ -94,6 +94,17 @@ public final class Screens {
         return ScreenSet.of(plugin, anchor, folder);
     }
 
+    /**
+     * Whether {@code target} is out of {@code viewer}'s sight only because the viewer's open screen hid them (a player
+     * standing at the viewer's eyes would be drawn in front of it). {@link Player#canSee} says {@code false} for them
+     * until the screen closes, so a list of players that follows {@code canSee} asks this too. On the viewer's thread.
+     *
+     * @since 1.518.5
+     */
+    public static boolean hides(@NotNull Player viewer, @NotNull Player target) {
+        return ScreenRuntime.hides(viewer, target);
+    }
+
     /** How fast a player's cursor moves: 1 (the default) keeps it under the point their eyes turn to. */
     public static double sensitivity(@NotNull Player player) {
         return ScreenRuntime.sensitivity(player.getUniqueId());
