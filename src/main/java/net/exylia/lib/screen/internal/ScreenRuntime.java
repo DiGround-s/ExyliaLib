@@ -228,6 +228,12 @@ public final class ScreenRuntime {
         for (LiveScreen live : List.copyOf(OPEN.values())) live.close();
     }
 
+    /** Whether a window close is {@code closeInventory()} called with nothing but the player's own inventory open. */
+    static boolean closesScreen(org.bukkit.event.inventory.InventoryCloseEvent event) {
+        return event.getReason() == org.bukkit.event.inventory.InventoryCloseEvent.Reason.PLUGIN
+                && event.getView().getTopInventory().getType() == org.bukkit.event.inventory.InventoryType.CRAFTING;
+    }
+
     static final class Closer implements Listener {
 
         /** Whoever joins stays out of sight of every open screen, as everyone online did when it opened. */
@@ -281,6 +287,20 @@ public final class ScreenRuntime {
          */
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onInventory(org.bukkit.event.inventory.InventoryOpenEvent event) {
+            LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
+            if (live != null && !live.away()) live.close();
+        }
+
+        /**
+         * {@code player.closeInventory()} with no window open (a menu drawn on a screen never opens one) closes the
+         * screen, as it would the chest: an action that closes the menu before a game, a teleport or a prompt
+         * takes over works in both menu styles. Only the plugin's own close of the player's own inventory: a real
+         * window closing (an input's, another plugin's) is not the screen, and nothing closes while it stepped
+         * aside for an input.
+         */
+        @EventHandler(priority = EventPriority.MONITOR)
+        public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+            if (!closesScreen(event)) return;
             LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
             if (live != null && !live.away()) live.close();
         }

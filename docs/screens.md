@@ -844,6 +844,10 @@ one per line, only while hovered; moving between boxes sends only what changed.
   screen aside until it is answered, then brings it back as it was. If the answer opened a window, the screen
   closes instead.
 - Any other window opened over a screen (a chest menu that stays a window, another plugin's inventory) closes it.
+- `player.closeInventory()` closes the screen as it would the chest (1.509.0): an action that closes the menu before
+  a game, a teleport or a prompt takes over needs no change for the SCREEN style. Only a close with no window open
+  counts (a real window closing is not the screen), and never while the screen stepped aside for an input. Before
+  1.509.0 such an action left the screen up; `UiSession#close` closes either style in every version.
 
 ## Trying it
 
