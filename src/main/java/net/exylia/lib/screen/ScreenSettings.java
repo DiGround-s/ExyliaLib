@@ -88,7 +88,14 @@ public record ScreenSettings(
         @Comment("1.21.11+ server, rather than a picture of four displays.")
         @Menu.Label("Sprite items") @Menu.Icon("ITEM_FRAME")
         @Menu.About({"Items as one glyph where", "the client can draw it."})
-        boolean spriteObjects
+        boolean spriteObjects,
+
+        @Comment("How large screens are drawn, in percent. The server cannot see a")
+        @Comment("player's FOV or FOV Effects sliders, and both change how much of")
+        @Comment("the view a screen fills: lower this if screens look too large.")
+        @Menu.Label("Screen size") @Menu.Icon("SPYGLASS")
+        @Menu.About({"How large screens are drawn,", "in percent, from 50 to 120."})
+        int screenSize
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -98,7 +105,13 @@ public record ScreenSettings(
 
     /** The settings as they were before 1.496.0, with full motion. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin) {
-        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true);
+        this(defaultStyle, playerChoice, plugins, chestSkin, "FULL", 300, 0, true, 100);
+    }
+
+    /** The settings as they were before 1.519.0, at the full size. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects, 100);
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */

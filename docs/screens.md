@@ -53,6 +53,11 @@ A small flexbox in screen pixels. The layout area is `Screen.WIDTH` × `Screen.H
 of the view every common window shape shows at the default field of view; `Screen#size` changes it. The
 backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 
+How much of the window that area fills depends on the player's FOV and FOV Effects sliders, which the server
+cannot see: about three quarters of the width at the default sliders, nearly all of it at an effective FOV of 90,
+and a low FOV with FOV Effects off cuts off the top and bottom. `screen-size` in `screens.yml` (percent, 50 to 120,
+100 by default; 1.519.0) draws every screen larger or smaller, and applies to screens opened after a reload.
+
 | Node call | Effect |
 | --- | --- |
 | `row(...)`, `column(...)` | children across or down |

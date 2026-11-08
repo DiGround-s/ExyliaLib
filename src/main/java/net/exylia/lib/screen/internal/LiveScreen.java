@@ -99,6 +99,8 @@ final class LiveScreen implements ScreenSession {
     private final Map<String, Object> state = new ConcurrentHashMap<>();
     private final Vector3d origin;
     private final double unit;
+    /** {@link #unit} at the full size: the backdrop has to reach the view's edges however small the screen is. */
+    private final double viewUnit;
     // Given out again on every show, after the world is sealed: only ids newer than the seal are the screen's.
     private volatile int hitboxId;
     private volatile int[] backdropIds = new int[0];
@@ -270,7 +272,9 @@ final class LiveScreen implements ScreenSession {
         this.ids = ids;
         // A camera view holds the field of view at its widest (see FakeGameMode#cameraView): drawn larger to
         // look the size it was designed at.
-        this.unit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
+        double size = Math.clamp(ScreenSettings.get().screenSize(), 50, 120) / 100.0;
+        this.unit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) * size / Screen.WIDTH;
+        this.viewUnit = unit / size;
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
         Location eyes = player.getEyeLocation();
@@ -1611,7 +1615,7 @@ final class LiveScreen implements ScreenSession {
     private List<RectLook> backdropLooks() {
         ScreenMath.Gradient gradient = ScreenMath.gradient(screen.backdrop());
         if (gradient == null) return List.of(new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, BACK_LAYER, backdropBase()));
-        double vw = Screen.WIDTH * VIEW * unit, vh = Screen.HEIGHT * VIEW * unit;
+        double vw = Screen.WIDTH * VIEW * viewUnit, vh = Screen.HEIGHT * VIEW * viewUnit;
         List<RectLook> bands = new ArrayList<>(bands(gradient, 0xFF000000, 0, 0, vw, vh, BACK_LAYER,
                 (gradient.vertical() ? Screen.HEIGHT : Screen.WIDTH) * VIEW));
         for (int i = 0; i < bands.size(); i++) {
@@ -1633,7 +1637,7 @@ final class LiveScreen implements ScreenSession {
     private void sceneSetup(Node scene) {
         int pw = scene.pixelWidth(), ph = scene.pixelHeight();
         double drift = 2 * screen.parallax() * unit;
-        double vw = Screen.WIDTH * VIEW * unit + drift, vh = Screen.HEIGHT * VIEW * unit + drift;
+        double vw = Screen.WIDTH * VIEW * viewUnit + drift, vh = Screen.HEIGHT * VIEW * viewUnit + drift;
         double cell = Math.max(vw / pw, vh / ph);
         int cols = Math.min(pw, (int) Math.ceil(vw / cell)), rows = Math.min(ph, (int) Math.ceil(vh / cell));
         int x0 = (pw - cols) / 2, y0 = (ph - rows) / 2;

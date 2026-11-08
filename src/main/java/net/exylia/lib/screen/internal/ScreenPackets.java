@@ -84,7 +84,8 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final double GRID_WIDE = GRID * 6 + 1;
     /** A space advances four pixels. */
     private static final double CLEAR_WIDE = GRID * 4 + 1;
-    private static final double GRID_TALL = GRID * 10 + 1;
+    /** Sixteen lines of ten pixels: unlike the width, the client's background adds nothing to the height. */
+    private static final double GRID_TALL = GRID * 10;
 
     static {
         StringBuilder grid = new StringBuilder();
