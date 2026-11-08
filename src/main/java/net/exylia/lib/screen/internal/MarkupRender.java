@@ -1224,7 +1224,7 @@ public final class MarkupRender {
         }
         String name = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope, false).trim();
         org.bukkit.Material material = name.isEmpty() ? null : org.bukkit.Material.matchMaterial(name);
-        if (material == null || !material.isItem() || material.isAir()) material = org.bukkit.Material.PAPER;
+        material = net.exylia.lib.platform.ItemForms.orElse(material, org.bukkit.Material.PAPER);
         return new org.bukkit.inventory.ItemStack(material);
     }
 

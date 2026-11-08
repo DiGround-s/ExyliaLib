@@ -120,6 +120,7 @@ Root classes that are not a module:
 
 - `net.exylia.lib.ExyliaLib` — the plugin itself; only lifecycle and cleanup.
 - `net.exylia.lib.platform.Platform` — `current()`, `isFolia()`, `isPaper()`.
+- `net.exylia.lib.platform.ItemForms` (1.515.0) — `of(material)`, `orElse(material, fallback)`: the item that stands for a block with no item (`CARROTS` → carrot, `COCOA` → cocoa beans, `WALL_TORCH` → torch). Menu icons, item templates and screen `<item>` use it, so a crop never draws as paper.
 - [Server versions](server-versions.md) — running on 1.21.1 while compiling
   against 1.21.4: `Features` probes, `Attributes`, `Constants`,
   `@RequiresServer`, and the `check-compat.sh` bytecode check.

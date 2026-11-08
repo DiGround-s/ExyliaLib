@@ -62,7 +62,12 @@ public final class Registries {
      * menu asks again for the same handful of names on each redraw.
      */
     public static Material material(String name) {
-        return MATERIALS.computeIfAbsent(name.trim(), Material::matchMaterial);
+        return MATERIALS.computeIfAbsent(name.trim(), written -> {
+            // A block with no item of its own (CARROTS, WALL_TORCH) is shown as the item that stands for it.
+            Material raw = Material.matchMaterial(written);
+            Material form = net.exylia.lib.platform.ItemForms.of(raw);
+            return form != null ? form : raw;
+        });
     }
 
     /** An enchantment by key or legacy name. */
