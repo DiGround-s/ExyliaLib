@@ -78,7 +78,7 @@ public final class ScreenCards {
         double h = look.height();
         Node suit = Node.text(ink + card.suit().symbol()).scale(big);
         return Node.box().size(w, h).background(look.face()).outline(look.edge(), 1)
-                .add(Node.text(ink + label(card)).absolute(2, Double.NaN, Double.NaN, 3),
+                .add(Node.text(ink + label(card)).scale(Math.max(1, h / 36)).absolute(2, Double.NaN, Double.NaN, 3),
                         suit.width(w).textAlign(Node.Align.CENTER).absolute((h - 9 * big) / 2 + 3, Double.NaN, Double.NaN, 0));
     }
 
