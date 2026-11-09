@@ -68,7 +68,7 @@ final class CameraInput extends PacketListenerAbstract {
         } else if (type == PacketType.Play.Client.ANIMATION) {
             camera.pressed(who);
         } else {
-            EntityClicks.Press click = EntityClicks.read(event);
+            EntityClicks.Press click = EntityClicks.readSpectating(event);
             if (click != null && camera.catches(click.entityId())) {
                 event.setCancelled(true);
                 if (click.counts()) {

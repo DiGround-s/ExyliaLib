@@ -7,7 +7,6 @@ import com.github.retrooper.packetevents.event.PacketReceiveEvent;
 import com.github.retrooper.packetevents.event.PacketSendEvent;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
 import com.github.retrooper.packetevents.protocol.player.User;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPong;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPing;
@@ -20,6 +19,7 @@ import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEffect;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerExplosion;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSoundEffect;
+import net.exylia.lib.packet.internal.EntityClicks;
 import net.exylia.lib.replay.ReplayMark;
 import net.exylia.lib.util.world.TemporaryWorld;
 import org.bukkit.Location;
@@ -94,10 +94,10 @@ final class ReplayCapture extends PacketListenerAbstract {
                 com.github.retrooper.packetevents.protocol.world.Location at =
                         new WrapperPlayClientPlayerFlying(event).getLocation();
                 view.look(ReplayClock.now(), at.getYaw(), at.getPitch());
-            } else if (type == PacketType.Play.Client.INTERACT_ENTITY) {
-                WrapperPlayClientInteractEntity interact = new WrapperPlayClientInteractEntity(event);
-                if (interact.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
-                    view.attack(ReplayClock.now(), interact.getEntityId());
+            } else if (type == PacketType.Play.Client.INTERACT_ENTITY || type == PacketType.Play.Client.ATTACK) {
+                EntityClicks.Press press = EntityClicks.read(event);
+                if (press != null && press.attack()) {
+                    view.attack(ReplayClock.now(), press.entityId());
                 }
             } else if (view.waiting()) {
                 // A position, a bare flying packet or the end of the client's
@@ -118,6 +118,7 @@ final class ReplayCapture extends PacketListenerAbstract {
                 || type == PacketType.Play.Client.PLAYER_FLYING
                 || type == PacketType.Play.Client.CLIENT_TICK_END
                 || type == PacketType.Play.Client.INTERACT_ENTITY
+                || type == PacketType.Play.Client.ATTACK
                 || type == PacketType.Play.Client.PONG;
     }
 

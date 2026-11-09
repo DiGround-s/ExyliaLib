@@ -33,7 +33,6 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
@@ -889,11 +888,9 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             }
             event.setCancelled(true);
             snapBack(user, anchor, locked);
-        } else if (pen != null && type == PacketType.Play.Client.INTERACT_ENTITY) {
+        } else if (pen != null && EntityClicks.read(event) instanceof EntityClicks.Press press && press.entityId() == pen.hitbox()) {
             // A click on the pen's hitbox: the server never spawned it, and the swing that came with it is the click.
-            if (new WrapperPlayClientInteractEntity(event).getEntityId() == pen.hitbox()) {
-                event.setCancelled(true);
-            }
+            event.setCancelled(true);
         } else if (pen == null && type == PacketType.Play.Client.PLAYER_INPUT) {
             // WASD held while frozen: swallowed so a vehicle does not creep. On foot, sneaking still goes
             // through: the client lowers its own camera either way, and a server that never hears of it

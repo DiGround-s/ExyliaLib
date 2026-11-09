@@ -7,6 +7,7 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientAttack;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientSpectateEntity;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -67,6 +68,18 @@ public final class EntityClicks {
         return new Press(packet.getEntityId(), attack,
                 attack ? InteractionHand.MAIN_HAND : packet.getHand(),
                 packet.isSneaking().orElse(null), twin);
+    }
+
+    /**
+     * {@link #read}, for a client held in a fake spectator view: from 26.1 its left-click on an entity
+     * arrives as a spectate request, which is a left-click to whoever keeps that view.
+     */
+    public static @Nullable Press readSpectating(PacketReceiveEvent event) {
+        if (event.getPacketType() == PacketType.Play.Client.SPECTATE_ENTITY) {
+            return new Press(new WrapperPlayClientSpectateEntity(event).getEntityId(), true,
+                    InteractionHand.MAIN_HAND, null, tuning(event));
+        }
+        return read(event);
     }
 
     /** Read only for a click: every other packet passes through {@link #read} too. */

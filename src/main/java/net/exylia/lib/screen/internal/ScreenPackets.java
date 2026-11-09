@@ -10,14 +10,12 @@ import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.protocol.packettype.PacketTypeCommon;
-import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.protocol.teleport.RelativeFlag;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientEntityAction;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientHeldItemChange;
-import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientInteractEntity;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientTeleportConfirm;
@@ -32,6 +30,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisguisedChat;
 import com.github.retrooper.packetevents.protocol.chat.ChatType;
 import com.github.retrooper.packetevents.protocol.chat.message.ChatMessage_v1_19_3;
+import net.exylia.lib.packet.internal.EntityClicks;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
@@ -563,16 +562,6 @@ final class ScreenPackets extends PacketListenerAbstract {
             if (packet.hasRotationChanged()) screen.turned(packet.getLocation().getYaw(), packet.getLocation().getPitch());
         } else if (type == PacketType.Play.Client.TELEPORT_CONFIRM) {
             if (screen.confirmed(new WrapperPlayClientTeleportConfirm(event).getTeleportId())) event.setCancelled(true);
-        } else if (type == PacketType.Play.Client.INTERACT_ENTITY) {
-            WrapperPlayClientInteractEntity packet = new WrapperPlayClientInteractEntity(event);
-            if (packet.getEntityId() != screen.hitboxId()) return;
-            event.setCancelled(true);
-            if (packet.getAction() == WrapperPlayClientInteractEntity.InteractAction.ATTACK) {
-                screen.click(false);
-            } else if (packet.getAction() == WrapperPlayClientInteractEntity.InteractAction.INTERACT
-                    && packet.getHand() == InteractionHand.MAIN_HAND) {
-                screen.click(true);
-            }
         } else if (type == PacketType.Play.Client.ANIMATION) {
             // The swing that comes with every click: the click itself arrived as the interaction.
             event.setCancelled(true);
@@ -591,6 +580,11 @@ final class ScreenPackets extends PacketListenerAbstract {
             else if (action == WrapperPlayClientEntityAction.Action.STOP_SNEAKING) screen.shift(false);
             else if (action == WrapperPlayClientEntityAction.Action.START_SPRINTING) screen.sprint(true);
             else if (action == WrapperPlayClientEntityAction.Action.STOP_SPRINTING) screen.sprint(false);
+        } else {
+            EntityClicks.Press press = EntityClicks.readSpectating(event);
+            if (press == null || press.entityId() != screen.hitboxId()) return;
+            event.setCancelled(true);
+            if (press.counts()) screen.click(!press.attack());
         }
     }
 }
