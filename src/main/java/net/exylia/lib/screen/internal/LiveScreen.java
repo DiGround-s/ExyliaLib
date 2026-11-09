@@ -922,6 +922,12 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    /** The four sides of a frame {@code w} by {@code h} around {@code x, y}, each {@code [x, y, w, h]}. */
+    static double[][] edges(double x, double y, double w, double h, double thick) {
+        double across = (w - thick) / 2, up = (h - thick) / 2, inner = h - 2 * thick;
+        return new double[][]{{x, y + up, w, thick}, {x, y - up, w, thick}, {x - across, y, thick, inner}, {x + across, y, thick, inner}};
+    }
+
     /**
      * A gradient over a rect centred on {@code x}, {@code y}, {@code w} by {@code h} units: bands one each five
      * pixels of {@code length}, each mixed over {@code base}; neighbours of the same colour are one band.
@@ -1193,8 +1199,19 @@ final class LiveScreen implements ScreenSession {
                 if (line != 0 && node.outlineWidth() > 0) {
                     double grow = node.outlineWidth() * 2 + (rises ? 2 : 0);
                     String key = box.key() + "#ol";
-                    wanted.put(key, xf(new RectLook(cxu, cyu, (box.w() + grow) * unit, (box.h() + grow) * unit, layer - 1, line), xf));
-                    mine.add(key);
+                    double wide = (box.w() + grow) * unit, tall = (box.h() + grow) * unit;
+                    if (argb == 0 && node.preview() == null && node.backgroundImage() == null) {
+                        // The outline is a rect behind the fill: with no fill to cover its middle, four edges instead.
+                        double[][] edges = edges(cxu, cyu, wide, tall, node.outlineWidth() * unit);
+                        for (int i = 0; i < edges.length; i++) {
+                            double[] e = edges[i];
+                            wanted.put(key + i, xf(new RectLook(e[0], e[1], e[2], e[3], layer - 1, line), xf));
+                            mine.add(key + i);
+                        }
+                    } else {
+                        wanted.put(key, xf(new RectLook(cxu, cyu, wide, tall, layer - 1, line), xf));
+                        mine.add(key);
+                    }
                 }
                 if (node.preview() != null) {
                     // A window: no fill of its own, its colour is the stage's back wall.
