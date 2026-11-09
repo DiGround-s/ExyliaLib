@@ -52,6 +52,8 @@ public final class StageGuide {
     private static final int BACKDROP = 0;
 
     private final List<Stage> sides = new ArrayList<>(2);
+    /** Whose outlines it holds off while it stands in front of their board, or {@code null}. */
+    private @Nullable Player covering;
 
     /**
      * @param viewer   the one player who sees it
@@ -77,7 +79,8 @@ public final class StageGuide {
 
     /**
      * The same two pages side by side straight ahead, flat towards the seat, on a dark backing: rules brought up on
-     * demand in front of the board, instead of standing at the player's sides.
+     * demand in front of the board, instead of standing at the player's sides. While it stands, the outlines of
+     * the player's other stages are {@linkplain Stage#outlines held off} (1.550.0), since they would draw through it.
      *
      * @param look    where they stand; pass a distance nearer than what they should cover
      * @param width   the whole backing across, in blocks
@@ -89,6 +92,9 @@ public final class StageGuide {
                                             @Nullable Component left, @NotNull List<Row> leftRows,
                                             @Nullable Component right, @NotNull List<Row> rightRows) {
         StageGuide guide = new StageGuide();
+        // Glow outlines draw through everything: the board's would cross the page.
+        Stage.outlines(viewer, false);
+        guide.covering = viewer;
         Stage back = guide.onWall(viewer, seat, displays, theme, look, 0);
         back.block(org.bukkit.Material.BLACK_CONCRETE.createBlockData(), back.plane().point(0, 0, -0.02), width, height, 0.02);
         boolean both = !leftRows.isEmpty() && !rightRows.isEmpty();
@@ -118,10 +124,12 @@ public final class StageGuide {
         return lines.stream().map(line -> new Row(null, line)).toList();
     }
 
-    /** Takes both panels down. Safe to call twice. */
+    /** Takes both panels down, and gives back the outlines an {@link #ahead} page held off. Safe to call twice. */
     public void close() {
         sides.forEach(Stage::close);
         sides.clear();
+        if (covering != null) Stage.outlines(covering, true);
+        covering = null;
     }
 
     /** A panel a quarter turn to one side of the seat ({@code -90} the left, {@code 90} the right), facing it. */

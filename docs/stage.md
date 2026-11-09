@@ -50,7 +50,7 @@ a stage with a table, a heading and a few buttons.
 | `Enclosure` / `EnclosureTheme` | The room: six inward-facing slabs and faint stars, the blocks inside sent as air and kept so, the entities inside hidden, the player hidden from everyone and everyone from them (see [The room](#the-room-1420)) |
 | `PlaySpot` | Where an admin set a plugin's rooms up, and the way back for each player sent there (1.420.0) |
 | `StageHud` | One deadline and one boss bar per seat: `clock`, `expired`, `secondsLeft`, `ticked`, `bar`, `stop`, `stopAll`; static `line(text, values)`, `lines`, `row` |
-| `StageGuide` | Two panels at a seated player's sides, a quarter turn away from the board, or `StageGuide.ahead(...)` (1.535.0): one flat black page straight ahead with both halves, nothing tilted, for a rules button to bring up: a title over lines on each, rows optionally with an item. `new StageGuide(viewer, seat, displays, theme, look, leftTitle, leftRows, rightTitle, rightRows)`, `rows(lines, values)`, `close()`; `Look(distance, lift, scale)` embeds in a plugin's config (since 1.362.0) |
+| `StageGuide` | Two panels at a seated player's sides, a quarter turn away from the board, or `StageGuide.ahead(...)` (1.535.0): one flat black page straight ahead with both halves, nothing tilted, for a rules button to bring up, holding the player's board outlines off while it stands (1.550.0, glow draws through everything): a title over lines on each, rows optionally with an item. `new StageGuide(viewer, seat, displays, theme, look, leftTitle, leftRows, rightTitle, rightRows)`, `rows(lines, values)`, `close()`; `Look(distance, lift, scale)` embeds in a plugin's config (since 1.362.0) |
 | `StageLook` | Helpers: `rgb(token, fallback)`, `block(name, fallback)`, `item`, `play(player, "NAME\|vol\|pitch"[, factor])`, `pitch`, `facing(plane)`, `still`, `pop` (staggered entrances), `pulse`, `fit`, `width`, `hex` |
 | `kit/PlayingCard` | The 52-card deck: `shuffledDeck()`, `decks(n[, random])`, `label()`, `Suit`; the 40-card Spanish deck: `spanishDeck()`, `spanishLabel()` (since 1.361.0) |
 | `kit/CardSprite` | A card dealt with a glide, face up or down: `reveal`, `glow`, `lift`, `muck`, `remove`. Draws on a `CardSprite.Canvas`, which `Stage` is. `Style.with(Deck.SPANISH)` draws Spanish faces: the number over a sword, club, coin or cup in the suit's colour (since 1.361.0) |
@@ -84,6 +84,15 @@ table (with room for a heading) still spans no more than `maxWide` by `maxTall`
 degrees and stands no nearer than `nearest` blocks. It only moves a plane
 nothing was placed on yet, so **call `table` before anything reads the plane**:
 a point taken before it is where the board was before the zoom.
+
+## Outlines under a page (1.550.0)
+
+A glow outline is drawn through everything in front of it, so a page put up over a board is crossed by the
+board's frame, tiles and bulbs. `Stage.outlines(viewer, false)` holds the outlines of every stage the player has
+open off, and of every one drawn for them meanwhile; `Stage.outlines(viewer, true)` gives them back. Each piece
+keeps its colour, and a glow given while held off comes back with the rest. `StageGuide.ahead` does both itself,
+so a rules page needs nothing else; the hold also ends when the player's last stage closes. One display:
+`DisplayHandle#outline(shown)`.
 
 ## Tables in the world (1.367.0)
 

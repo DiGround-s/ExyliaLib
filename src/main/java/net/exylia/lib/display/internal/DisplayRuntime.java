@@ -414,6 +414,13 @@ public final class DisplayRuntime {
         }
     }
 
+    static void outline(LiveDisplay display, boolean shown) {
+        DisplaySink target = sink;
+        if (target != null) {
+            display.outline(target, shown);
+        }
+    }
+
     /** Where a display is on screen right now. */
     static DisplayKeyframe poseOf(LiveDisplay display) {
         return display.poseAt(clock.getAsLong());

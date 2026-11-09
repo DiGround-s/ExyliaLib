@@ -86,6 +86,9 @@ final class LiveDisplay implements DisplayHandle {
 
     private volatile boolean gone;
 
+    /** Whether its outline is held off, its model's glow kept for when it comes back. */
+    private boolean outlineOff;
+
     LiveDisplay(String owner, int entityId, DisplayModel model, DisplayMotion motion,
                 List<Player> viewers, long now, int vehicleId) {
         this.vehicleId = vehicleId;
@@ -135,7 +138,12 @@ final class LiveDisplay implements DisplayHandle {
     /** Sends the first pose along with the spawn. */
     synchronized void spawn(DisplaySink sink, Location at) {
         this.at = at;
-        sink.spawn(viewers, entityId, model, at, poses.get(0));
+        sink.spawn(viewers, entityId, drawn(), at, poses.get(0));
+    }
+
+    /** The model as the client is sent it: without its outline while that is held off. */
+    private DisplayModel drawn() {
+        return outlineOff && model.glowArgb() >= 0 ? model.glow(-1) : model;
     }
 
     /** Who it is meant for, or {@code null} when its viewers were fixed at spawn. */
@@ -194,7 +202,7 @@ final class LiveDisplay implements DisplayHandle {
             sink.destroy(left, entityId);
         }
         if (!joined.isEmpty()) {
-            sink.spawn(joined, entityId, model, at, poseAt(now));
+            sink.spawn(joined, entityId, drawn(), at, poseAt(now));
             if (!settling && nextPose > 1) {
                 DisplayKeyframe heading = poses.get(nextPose - 1);
                 long remaining = (long) ((heading.atMillis() - elapsed(now)) / speed);
@@ -214,7 +222,18 @@ final class LiveDisplay implements DisplayHandle {
             return;
         }
         model = next;
-        sink.restyle(viewers, entityId, next);
+        sink.restyle(viewers, entityId, drawn());
+    }
+
+    /** Holds its outline off, or gives it back, keeping the glow its model asks for. */
+    synchronized void outline(DisplaySink sink, boolean shown) {
+        if (gone || outlineOff == !shown) {
+            return;
+        }
+        outlineOff = !shown;
+        if (model.glowArgb() >= 0) {
+            sink.restyle(viewers, entityId, drawn());
+        }
     }
 
     /** How far through its motion the clock is, in the motion's own time. */
@@ -407,6 +426,11 @@ final class LiveDisplay implements DisplayHandle {
     @Override
     public void restyle(DisplayModel next) {
         DisplayRuntime.restyle(this, next);
+    }
+
+    @Override
+    public void outline(boolean shown) {
+        DisplayRuntime.outline(this, shown);
     }
 
     @Override

@@ -142,6 +142,17 @@ public interface DisplayHandle {
     }
 
     /**
+     * Holds its outline off, or gives it back, without forgetting the colour: an outline is drawn through
+     * everything in front of it, so a page put up over a board hides the board's. A {@link #glow} while it is
+     * held off is kept for when it comes back.
+     *
+     * @param shown {@code false} to hold it off, {@code true} to give it back
+     * @since 1.550.0
+     */
+    default void outline(boolean shown) {
+    }
+
+    /**
      * Fixes its light level, or gives it back to the world.
      *
      * @param level 0 to 15, or a negative number for the world's light

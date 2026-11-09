@@ -86,6 +86,8 @@ public class Stage implements CardSprite.Canvas {
     private static final Map<UUID, Player> SHOWING = new ConcurrentHashMap<>();
     /** Every stage drawn for a player and not closed, so watchers who arrive are shown it. */
     private static final Map<UUID, Set<Stage>> LIVE = new ConcurrentHashMap<>();
+    /** The players whose stages draw no outlines, while a page stands over them: see {@link #outlines}. */
+    private static final Set<UUID> DARK = ConcurrentHashMap.newKeySet();
 
     /** Who sees a piece: everyone watching, the viewer alone, or everyone watching but the viewer. */
     private enum Scope { ALL, VIEWER, OTHERS }
@@ -273,6 +275,29 @@ public class Stage implements CardSprite.Canvas {
             }
         }
         return best;
+    }
+
+    /**
+     * Holds the outlines of every stage a player has open off, and of every one drawn for them while they
+     * are held, or gives them back. A glow outline is drawn through everything in front of it, so a page put
+     * up over a board (a game's rules, {@link StageGuide#ahead}, which calls this itself) would be crossed by
+     * the board's frame, tiles and bulbs. Each piece keeps its colour, and a glow given while held off comes
+     * back with the rest. Ends by itself when the player's last stage closes. Call it on the thread their
+     * stages are drawn from.
+     *
+     * @param shown {@code false} to hold them off, {@code true} to give them back
+     * @since 1.550.0
+     */
+    public static void outlines(@NotNull Player viewer, boolean shown) {
+        UUID id = viewer.getUniqueId();
+        if (shown ? !DARK.remove(id) : !DARK.add(id)) return;
+        Set<Stage> live = LIVE.get(id);
+        if (live == null) return;
+        List<Stage> stages;
+        synchronized (live) {
+            stages = List.copyOf(live);
+        }
+        for (Stage stage : stages) List.copyOf(stage.pieces).forEach(piece -> piece.outline(shown));
     }
 
     /**
@@ -632,7 +657,9 @@ public class Stage implements CardSprite.Canvas {
         forget(this);
         LIVE.computeIfPresent(viewer.getUniqueId(), (id, live) -> {
             live.remove(this);
-            return live.isEmpty() ? null : live;
+            if (!live.isEmpty()) return live;
+            DARK.remove(id);
+            return null;
         });
     }
 
@@ -659,6 +686,7 @@ public class Stage implements CardSprite.Canvas {
                 ? displays.showKept(model, motion, at, seenBy(scope, audience))
                 : displays.show(model, motion, at, seenBy(scope, audience));
         if (handle == null) return null;
+        if (DARK.contains(viewer.getUniqueId())) handle.outline(false);
         pieces.add(handle);
         if (scope != Scope.ALL) scoped.put(handle, scope);
         return handle;
@@ -693,6 +721,7 @@ public class Stage implements CardSprite.Canvas {
         WATCHED.clear();
         SHOWING.clear();
         LIVE.clear();
+        DARK.clear();
     }
 
     /**
@@ -744,6 +773,11 @@ public class Stage implements CardSprite.Canvas {
         @Override
         public void glow(int rgb) {
             piece.glow(rgb);
+        }
+
+        @Override
+        public void outline(boolean shown) {
+            piece.outline(shown);
         }
 
         @Override

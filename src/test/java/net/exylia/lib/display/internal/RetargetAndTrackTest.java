@@ -132,6 +132,33 @@ class RetargetAndTrackTest {
     }
 
     @Test
+    @DisplayName("an outline held off keeps its colour, takes a new glow quietly, and comes back with it")
+    void outlineHeldOff() {
+        LiveDisplay display = sliding(List.of());
+        display.restyle(sink, display.model().glow(0x112233));
+        sent.clear();
+
+        display.outline(sink, false);
+        display.outline(sink, false);
+        display.restyle(sink, display.model().glow(0x445566));
+        display.outline(sink, true);
+
+        assertEquals(List.of("restyle glow -1", "restyle glow -1", "restyle glow " + 0x445566), sent);
+        assertEquals(0x445566, display.model().glowArgb(), "the model keeps the colour asked for");
+    }
+
+    @Test
+    @DisplayName("holding off a display that does not glow sends nothing")
+    void outlineWithoutGlow() {
+        LiveDisplay display = sliding(List.of());
+
+        display.outline(sink, false);
+        display.outline(sink, true);
+
+        assertTrue(sent.isEmpty());
+    }
+
+    @Test
     @DisplayName("someone who walks up is shown the frame everyone sees; someone who leaves loses it")
     void tracking() {
         Player first = new FakePlayer("First").player();
