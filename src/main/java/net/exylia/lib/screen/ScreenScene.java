@@ -142,7 +142,8 @@ public final class ScreenScene {
         synchronized (this) {
             now = new ArrayList<>(sprites.values());
         }
-        Node box = Node.box().size(width, height);
+        // What moves on a scene is a game's board: cursor assist stays off it.
+        Node box = Node.box().size(width, height).assist(false);
         synchronized (this) {
             if (joltX != 0 || joltY != 0) box.transform(Motion.Transform.translate(joltX, joltY));
         }

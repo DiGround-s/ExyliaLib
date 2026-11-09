@@ -61,6 +61,7 @@ public final class Node {
     private int pixelWidth;
     private int pixelHeight;
     private boolean overlay;
+    private boolean assist = true;
     private Consumer<ScreenSession> onDismiss;
     private String id;
     private String key;
@@ -460,6 +461,18 @@ public final class Node {
     }
 
     /**
+     * {@code false} keeps cursor assist away from this box and everything over it: no friction, no bend toward it and
+     * no click tolerance, so a click lands exactly where the pointer is. For boards, stakes and anything dangerous. A
+     * scene, a dangerous confirm and {@code <game-frame>} are set already.
+     *
+     * @since 1.547.0
+     */
+    public @NotNull Node assist(boolean assist) {
+        this.assist = assist;
+        return this;
+    }
+
+    /**
      * What dismissing an {@link #overlay} does, usually clearing the state that shows it. Without one, Shift
      * closes the screen as usual and the dimmer does nothing.
      *
@@ -783,6 +796,11 @@ public final class Node {
     /** @since 1.488.0 */
     public boolean overlay() {
         return overlay;
+    }
+
+    /** @since 1.547.0 */
+    public boolean assist() {
+        return assist;
     }
 
     /** @since 1.488.0 */

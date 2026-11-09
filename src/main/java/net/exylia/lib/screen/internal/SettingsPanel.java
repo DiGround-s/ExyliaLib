@@ -54,6 +54,11 @@ final class SettingsPanel {
                 event -> ScreenRuntime.cursorMode(player, cursor.next())).width(70)
                 .tooltip("{letters}" + Phrases.tr(cursor.about))));
 
+        boolean assist = ScreenRuntime.cursorAssist(id);
+        panel.add(row("Cursor assist", button("assist", (assist ? "{success}" : "{letters_black}")
+                        + Phrases.tr(assist ? "On" : "Off"), event -> ScreenRuntime.cursorAssist(player, !assist)).width(70)
+                .tooltip("{letters}" + Phrases.tr("Makes buttons easier to hit, never on a game board"))));
+
         boolean reduced = ScreenRuntime.reducedMotionChosen(id);
         panel.add(row("Reduced motion", button("motion", (reduced ? "{success}" : "{letters_black}")
                         + Phrases.tr(reduced ? "On" : "Off"), event -> ScreenRuntime.reducedMotion(player, !reduced)).width(70)));
@@ -65,7 +70,7 @@ final class SettingsPanel {
         }
 
         panel.add(Node.row(
-                button("reset", "{error}" + Phrases.tr("Reset"), event -> ScreenRuntime.reset(player)).grow(1),
+                button("reset", "{error}" + Phrases.tr("Reset"), event -> ScreenRuntime.reset(player)).grow(1).assist(false),
                 button("done", "{letters}" + Phrases.tr("Done"), event -> live.settings(false)).background("{primary}").grow(1))
                 .gap(4));
         panel.add(words("{letters_black}" + Phrases.tr("Ctrl + Space opens this from anywhere")).scale(0.7)

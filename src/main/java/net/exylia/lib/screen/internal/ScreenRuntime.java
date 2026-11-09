@@ -38,10 +38,13 @@ public final class ScreenRuntime {
     }
     private static final Map<UUID, Double> SENSITIVITY = new ConcurrentHashMap<>();
     private static final Map<UUID, CursorLead.Mode> CURSOR = new ConcurrentHashMap<>();
+    /** Players who chose whether cursor assist is on. */
+    private static final Map<UUID, Boolean> ASSIST = new ConcurrentHashMap<>();
     /** Players who asked for reduced motion. */
     private static final java.util.Set<UUID> REDUCED = ConcurrentHashMap.newKeySet();
     private static final org.bukkit.NamespacedKey SPEED_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_speed");
     private static final org.bukkit.NamespacedKey CURSOR_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_cursor");
+    private static final org.bukkit.NamespacedKey ASSIST_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_assist");
     private static final org.bukkit.NamespacedKey MOTION_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_motion");
     private static final org.bukkit.NamespacedKey SIZE_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_size");
     /** Players who chose their own screen size, in percent. */
@@ -152,6 +155,9 @@ public final class ScreenRuntime {
         String cursor = data.get(CURSOR_KEY, org.bukkit.persistence.PersistentDataType.STRING);
         if (cursor != null) CURSOR.put(player.getUniqueId(), CursorLead.Mode.of(cursor));
         else CURSOR.remove(player.getUniqueId());
+        Boolean assist = data.get(ASSIST_KEY, org.bukkit.persistence.PersistentDataType.BOOLEAN);
+        if (assist != null) ASSIST.put(player.getUniqueId(), assist);
+        else ASSIST.remove(player.getUniqueId());
         if (Boolean.TRUE.equals(data.get(MOTION_KEY, org.bukkit.persistence.PersistentDataType.BOOLEAN))) {
             REDUCED.add(player.getUniqueId());
         } else {
@@ -312,6 +318,18 @@ public final class ScreenRuntime {
         store(player, data -> data.set(CURSOR_KEY, org.bukkit.persistence.PersistentDataType.STRING, mode.name()));
     }
 
+    /** Whether cursor assist is on for a player: their choice, or the server's. */
+    static boolean cursorAssist(UUID player) {
+        Boolean chosen = ASSIST.get(player);
+        return chosen != null ? chosen : net.exylia.lib.screen.ScreenSettings.get().cursorAssist();
+    }
+
+    /** Sets and keeps a player's cursor assist. */
+    static void cursorAssist(Player player, boolean on) {
+        ASSIST.put(player.getUniqueId(), on);
+        store(player, data -> data.set(ASSIST_KEY, org.bukkit.persistence.PersistentDataType.BOOLEAN, on));
+    }
+
     /** Whether the player asked for reduced motion, or the server did for everyone. */
     public static boolean reducedMotion(UUID player) {
         return REDUCED.contains(player) || net.exylia.lib.screen.ScreenSettings.get().reducedMotion();
@@ -357,13 +375,15 @@ public final class ScreenRuntime {
         if (live != null) live.rescale();
     }
 
-    /** Back to what the server says: size, cursor speed and mode, reduced motion and menu style. */
+    /** Back to what the server says: size, cursor speed, mode and assist, reduced motion and menu style. */
     static void reset(Player player) {
         size(player, null);
         SENSITIVITY.remove(player.getUniqueId());
         store(player, data -> data.remove(SPEED_KEY));
         CURSOR.remove(player.getUniqueId());
         store(player, data -> data.remove(CURSOR_KEY));
+        ASSIST.remove(player.getUniqueId());
+        store(player, data -> data.remove(ASSIST_KEY));
         reducedMotion(player, false);
         net.exylia.lib.ui.MenuStyles.choose(player, null);
     }
@@ -483,6 +503,7 @@ public final class ScreenRuntime {
             close(event.getPlayer().getUniqueId());
             SENSITIVITY.remove(event.getPlayer().getUniqueId());
             CURSOR.remove(event.getPlayer().getUniqueId());
+            ASSIST.remove(event.getPlayer().getUniqueId());
             REDUCED.remove(event.getPlayer().getUniqueId());
             SIZE.remove(event.getPlayer().getUniqueId());
             CHAT.remove(event.getPlayer().getUniqueId());

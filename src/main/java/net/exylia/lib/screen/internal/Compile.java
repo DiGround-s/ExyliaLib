@@ -38,7 +38,7 @@ public final class Compile {
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
             "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
             // 1.496.0
-            "action-shift", "priority", "refresh", "prompt", "hint",
+            "action-shift", "assist", "priority", "refresh", "prompt", "hint",
             // 1.503.0
             "persist",
             // 1.498.0

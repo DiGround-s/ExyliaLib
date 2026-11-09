@@ -621,6 +621,7 @@ public final class MarkupRender {
         if (el.attr("refresh") != null) node.refresh(Math.max(0, MotionCss.ticks(el.attr("refresh"))));
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
+        if ("false".equalsIgnoreCase(el.attr("assist")) || asksDangerously(el)) node.assist(false);
         if (el.attr("tooltip") != null) {
             String tip = fill(el.attr("tooltip"), scope, true);
             if (!tip.isBlank()) node.tooltip(tip.split("<nl>|<br>|\\n"));
@@ -963,6 +964,15 @@ public final class MarkupRender {
             else input(head, rest, event, el);
             return;
         }
+    }
+
+    /** Whether a click on the box asks a dangerous confirm: cursor assist stays off it. */
+    private static boolean asksDangerously(El el) {
+        for (String name : new String[]{"action", "action-right", "action-shift"}) {
+            String action = el.attr(name);
+            if (action != null && action.contains("dangerous")) return true;
+        }
+        return false;
     }
 
     /** {@code confirm '<question>' [dangerous] [yes='<label>'] [no='<label>'] then <steps>}: a dialog in the screen. */

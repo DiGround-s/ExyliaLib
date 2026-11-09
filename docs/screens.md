@@ -68,6 +68,7 @@ in-screen panel:
 - **Size**, 50% to 250% in steps of 10. Applied at once to everything on screen, the cursor and the backdrop included.
 - **Cursor speed**, 0.2 to 3, as `Screens.sensitivity`.
 - **Cursor**, how the arrow follows the mouse (1.546.0): Normal, Raw or Prediction. See "The cursor modes".
+- **Cursor assist**, Off or On (1.547.0): makes buttons easier to hit. See "Cursor assist".
 - **Reduced motion**, as `Screens.reducedMotion`.
 - **Menu style**, while `player-choice` is on: the server's choice, chest windows or screens, for menus opened after.
 - **Reset** forgets all of them.
@@ -203,6 +204,29 @@ player's to judge, which is why they choose.
 
 The lit box waits for the server's next tick on top of that, up to about 50 ms, since the viewer's thread owns the frame.
 
+
+### Cursor assist (1.547.0)
+
+An optional help each player turns on in the settings panel ("Cursor assist", kept in their data); `cursor-assist` in
+`screens.yml` is the choice of everyone who did not, off by default. The cursor modes only change what is drawn; assist
+moves the real pointer, so it works under any mode and the arrow always shows where a click lands.
+
+- **Friction:** a slow move over a clickable box travels about 70% as far; a fast one travels in full, so leaving on
+  purpose is not slowed.
+- **Magnet:** a slow move within 12 pixels of a clickable box, heading for it, bends slightly toward it. It is a part of
+  the player's own move and only toward where they already head: a fast move gets none, moving away is never held back,
+  and it never steps from button to button.
+- **Click tolerance:** a click up to 8 pixels past the box that was just lit, within 200 ms of leaving it and with no
+  other clickable box under the pointer, goes to that box. A click on another box always goes to that box.
+
+Where it never acts: anything inside `<game-frame>` (every Casino and Tabletop game on the frame, the stake and the Cash
+out included), every scene (`<canvas>`), the Yes of a dangerous confirm, and any box with `action="confirm ... dangerous"`.
+Elsewhere a screen says so itself with `assist="false"` on any box (`Node#assist(false)` from Java), which also covers
+what is drawn inside it and any dialog over it. A screen whose clicks place a bet outside the frame needs it on its root
+box. A clickable box larger than a quarter of the screen counts as a background and gets no help.
+
+The strengths are constants in `screen/internal/CursorAssist.java`, in one place, to tune by feel.
+
 ## How things are drawn (1.492.0)
 
 - **The panel stands 0.09 blocks from the eyes** (1.545.0). A player's eyes are at least 0.3 from a wall and 0.18 under a
@@ -322,6 +346,7 @@ A `<nl>` (or `<br>`) inside text or a value, as lore values write their line bre
   spaces in it (`toast 'Saved, see you'`).
 - `action-right="..."` (1.494.0): runs instead of `action` on a right click.
 - `action-shift="..."` (1.496.0): runs instead of `action` on a click with sprint held (see [Input](#input)).
+- `assist="false"` (1.547.0): cursor assist stays off this box and everything over it. See "Cursor assist".
 - `action-hover="..."` (1.498.0): runs once each time the cursor comes onto the box (not again until it
   leaves): `action-hover="set wear %kit_wearing%"` shows what a card is about elsewhere on the screen. Any action
   works, but keep it to state: it runs on every pass of the cursor. `Node#onHover` in Java.
@@ -1113,6 +1138,7 @@ player-choice: true        # players may pick their own in /settings
 plugins: {}                # ExyliaJobs: SCREEN
 chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
 cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
+cursor-assist: false       # makes buttons easier to hit, for players who did not choose (1.547.0)
 ```
 
 A plugin with a `menu-style` key of its own hands it over once, on enable:

@@ -27,6 +27,7 @@ import java.util.Map;
  * @param quietChat    whether chat is kept quiet while a screen is open (since 1.523.0)
  * @param cursorMode   how the cursor follows the mouse for players who did not choose (since 1.546.0): {@code NORMAL},
  *                     {@code RAW} or {@code PREDICTION}
+ * @param cursorAssist whether cursor assist is on for players who did not choose (since 1.547.0)
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -125,7 +126,15 @@ public record ScreenSettings(
         @Menu.Label("Cursor mode") @Menu.Icon("COMPASS")
         @Menu.About({"How the cursor follows the mouse,", "unless the player picks their own."})
         @Menu.Choices(value = {"NORMAL", "RAW", "PREDICTION"}, labels = {"Normal", "Raw", "Prediction"})
-        String cursorMode
+        String cursorMode,
+
+        @Comment("Whether cursor assist is on for players who did not choose. It makes")
+        @Comment("buttons easier to hit: a little friction over them, a slight pull")
+        @Comment("toward them on a slow move, and a click just off one still lands.")
+        @Comment("It never acts on game boards, stakes or dangerous buttons.")
+        @Menu.Label("Cursor assist") @Menu.Icon("SLIME_BALL")
+        @Menu.About({"Makes buttons easier to hit,", "unless the player says otherwise."})
+        boolean cursorAssist
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -165,6 +174,14 @@ public record ScreenSettings(
                           boolean hideSidebar, boolean quietChat) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
                 screenSize, hideSidebar, quietChat, "NORMAL");
+    }
+
+    /** The settings as they were before 1.547.0, with no cursor assist. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat, String cursorMode) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, cursorMode, false);
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */

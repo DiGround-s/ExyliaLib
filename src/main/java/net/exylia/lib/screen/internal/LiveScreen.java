@@ -299,6 +299,9 @@ final class LiveScreen implements ScreenSession {
     /** What the netty thread last saw under the pointer. Guarded by {@link #input}. */
     private String pointed;
     private Layout.Placed pointedBox;
+    /** The clickable box the pointer just left and when, for cursor assist's click tolerance. Guarded by {@link #input}. */
+    private String leftKey;
+    private long leftAt;
     /** Where the open overlay's boxes start in {@link #placed}, or -1. */
     private int overlayFrom = -1;
     private Layout.Placed hoveredBox;
@@ -1014,7 +1017,7 @@ final class LiveScreen implements ScreenSession {
         String fill = ask.dangerous() ? "{error}" : "{primary}";
         Node yes = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.yes() == null ? phrase("Confirm") : ask.yes())).build())
                 .padding(4, 12).background(fill).hover(ask.dangerous() ? "{error_light}" : "{secondary}")
-                .active(null, Motion.Transform.scale(0.95)).id("~confirm.yes").onClick(event -> answer(true));
+                .active(null, Motion.Transform.scale(0.95)).id("~confirm.yes").assist(!ask.dangerous()).onClick(event -> answer(true));
         Node no = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.no() == null ? phrase("Cancel") : ask.no())).build())
                 .padding(4, 12).background("{letters_black}20").hover("{primary}50")
                 .active(null, Motion.Transform.scale(0.95)).id("~confirm.no").onClick(event -> answer(false));
@@ -2179,8 +2182,14 @@ final class LiveScreen implements ScreenSession {
             double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * ScreenRuntime.sensitivity(player.getUniqueId()) * boost;
             double halfW = (screen.width() / 2 + GUTTER_X) * unit;
             double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
-            cursorX = ScreenMath.clamp(cursorX + dx * perDegree, -halfW, halfW);
-            cursorY = ScreenMath.clamp(cursorY - dy * perDegree, -halfH, halfH);
+            double moveX = dx * perDegree, moveY = dy * perDegree;
+            if (ScreenRuntime.cursorAssist(player.getUniqueId())) {
+                double[] assisted = assisted(moveX / unit, moveY / unit);
+                moveX = assisted[0] * unit;
+                moveY = assisted[1] * unit;
+            }
+            cursorX = ScreenMath.clamp(cursorX + moveX, -halfW, halfW);
+            cursorY = ScreenMath.clamp(cursorY - moveY, -halfH, halfH);
             lastYaw = yaw;
             lastPitch = pitch;
             lastTurn = System.currentTimeMillis();
@@ -2241,11 +2250,68 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    /** The move cursor assist makes of the mouse's, in layout pixels. Holds {@link #input}. */
+    private double[] assisted(double dx, double dy) {
+        View now = view;
+        double x = px(), y = py();
+        double[] raw = {dx, dy};
+        if (assistBarred(now, x, y)) return raw;
+        Layout.Placed over = pick(now.targets(), x, y, pointedBox);
+        if (over != null && !helped(now, over)) over = null;
+        List<Layout.Placed> near = new ArrayList<>();
+        if (over == null) {
+            for (Layout.Placed box : now.targets()) {
+                if (box.holds(x, y, CursorAssist.MAGNET_RANGE) && helped(now, box)) near.add(box);
+            }
+        }
+        double[] move = CursorAssist.move(x, y, dx, dy, over, near);
+        // A bend never lands the pointer on what assist must stay off.
+        return over == null && assistBarred(now, x + move[0], y + move[1]) ? raw : move;
+    }
+
+    /** Whether the point lies on a box marked to keep assist away, a dialog over one included. */
+    private static boolean assistBarred(View view, double x, double y) {
+        for (Layout.Placed box : view.placed()) {
+            if (!box.node().assist() && box.holds(x, y)) return true;
+        }
+        return false;
+    }
+
+    /** Whether assist may act for this box: a button, not a background, away from anything marked to keep it off. */
+    private boolean helped(View view, Layout.Placed box) {
+        return box.node().onClick() != null && !box.key().equals("~dim")
+                && box.w() * box.h() <= screen.width() * screen.height() * CursorAssist.LARGEST_SHARE
+                && !assistBarred(view, box.x() + box.w() / 2, box.y() + box.h() / 2);
+    }
+
+    /** The box a click with nothing clickable under it goes to by cursor assist's tolerance, {@code null} for none. */
+    private Layout.Placed forgiven(List<Layout.Placed> targets, double x, double y) {
+        String key;
+        long at;
+        synchronized (input) {
+            key = leftKey;
+            at = leftAt;
+        }
+        if (key == null || !ScreenRuntime.cursorAssist(player.getUniqueId())) return null;
+        View now = view;
+        for (Layout.Placed box : targets) {
+            if (!box.key().equals(key)) continue;
+            return helped(now, box) && CursorAssist.forgives(box, x, y, System.currentTimeMillis() - at) ? box : null;
+        }
+        return null;
+    }
+
     /** Whether the box under the cursor changed; plays the hover tick. Holds {@link #input}. */
     private boolean pointerMoved() {
         Layout.Placed under = pick(view.targets(), px(), py(), pointedBox);
         String now = under == null ? null : under.key();
         if (Objects.equals(now, pointed)) return false;
+        if (under != null && under.node().onClick() != null && !now.equals("~dim")) {
+            leftKey = null;
+        } else if (pointedBox != null && pointedBox.node().onClick() != null && !pointedBox.key().equals("~dim")) {
+            leftKey = pointedBox.key();
+            leftAt = System.currentTimeMillis();
+        }
         pointed = now;
         pointedBox = under;
         if (now != null && under.node().hover() != null) sound("ui.button.click", 0.15f, 2.0f);
@@ -2284,6 +2350,14 @@ final class LiveScreen implements ScreenSession {
         Layout.Placed box = shown != null && (shown.node().onClick() != null || shift && shown.node().onShiftClick() != null)
                 ? shown : Layout.under(targets, at[0], at[1],
                 node -> node.onClick() != null || shift && node.onShiftClick() != null);
+        // Just off the box that was lit, with no other to go to: the click was meant for it.
+        if (box == null || box.key().equals("~dim")) {
+            Layout.Placed kept = forgiven(targets, at[0], at[1]);
+            if (kept != null) box = kept;
+        }
+        synchronized (input) {
+            leftKey = null;
+        }
         if (box == null) return;
         // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.
         if (box.key().equals("~dim") && Layout.under(targets, at[0], at[1], node -> true) != box) return;
