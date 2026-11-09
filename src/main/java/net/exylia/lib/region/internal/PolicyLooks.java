@@ -52,6 +52,9 @@ public final class PolicyLooks {
                 flag(Phrases.tr("Interact")), Phrases.tr("Blocks and entities can be used.")));
         BUILT_IN.put(CommonRegionPolicies.PLAYER_BUILD_ONLY, () -> new Look("SCAFFOLDING",
                 flag(Phrases.tr("Player blocks only")), Phrases.tr("Only blocks a player placed can break.")));
+        BUILT_IN.put(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY, () -> new Look("TNT",
+                flag(Phrases.tr("Explosion-proof map")),
+                Phrases.tr("Explosions only break blocks a player placed.")));
         BUILT_IN.put(CommonRegionPolicies.ALLOWED_BLOCKS_ONLY, () -> new Look("CRAFTING_TABLE",
                 flag(Phrases.tr("Allowed blocks only")), Phrases.tr("Only the allowed blocks can be placed.")));
         BUILT_IN.put(CommonRegionPolicies.BREAKABLE_BLOCKS_ONLY, () -> new Look("GOLDEN_PICKAXE",

@@ -136,9 +136,9 @@ class PolicyDraftTest {
     }
 
     @Test
-    @DisplayName("every common policy has a look, and the default rows are its fifteen booleans")
+    @DisplayName("every common policy has a look, and the default rows are its sixteen booleans")
     void builtIns() {
-        assertEquals(15, PolicyLooks.BOOLEANS.size());
+        assertEquals(16, PolicyLooks.BOOLEANS.size());
         assertEquals(PVP, PolicyLooks.BOOLEANS.get(0));
         for (PolicyKey<?> key : List.of(CommonRegionPolicies.TEMPORARY_BLOCKS_SECONDS,
                 CommonRegionPolicies.ALLOWED_BLOCKS, CommonRegionPolicies.BREAKABLE_BLOCKS)) {

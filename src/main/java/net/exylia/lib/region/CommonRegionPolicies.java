@@ -14,6 +14,19 @@ public final class CommonRegionPolicies {
     public static final PolicyKey<Boolean> BREAK = bool("break", true);
     public static final PolicyKey<Boolean> INTERACT = bool("interact", true);
     public static final PolicyKey<Boolean> PLAYER_BUILD_ONLY = bool("player_build_only", false);
+    /**
+     * Explosions break only the blocks a player placed, and leave the map's alone.
+     *
+     * <p>The explosion itself still happens: players and entities still take its damage
+     * and knockback, and blocks players built still go. Only the map's own blocks are
+     * taken out of its block list. Enforced by {@link PluginRegions#enforce()} over every
+     * region of the owner at the block, whatever its audience says: an explosion has no
+     * player to ask about, and the map is the map whoever lit the fuse.
+     *
+     * @since 1.536.0
+     */
+    public static final PolicyKey<Boolean> EXPLOSION_PLAYER_BLOCKS_ONLY =
+            bool("explosion_player_blocks_only", false);
     public static final PolicyKey<Boolean> ALLOWED_BLOCKS_ONLY = bool("allowed_blocks_only", false);
     public static final PolicyKey<Boolean> BREAKABLE_BLOCKS_ONLY = bool("breakable_blocks_only", false);
     public static final PolicyKey<Boolean> TEMPORARY_BLOCKS = bool("temporary_blocks", false);

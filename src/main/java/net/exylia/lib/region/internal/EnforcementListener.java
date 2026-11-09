@@ -15,10 +15,12 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.AreaEffectCloudApplyEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
@@ -44,8 +46,9 @@ import java.util.List;
  *
  * <h2>What is not here</h2>
  * {@code entry}, {@code exit} and {@code region_members_only} have one consumer and no
- * member concept in the library; explosions have no player to put through an audience;
- * temporary and re-given blocks belong to {@link PlacedBlockRuntime}.
+ * member concept in the library; explosions have no player to put through an audience, so
+ * the one explosion rule here, {@code explosion_player_blocks_only}, asks none; temporary
+ * and re-given blocks belong to {@link PlacedBlockRuntime}.
  *
  * <p>Every handler returns on {@link RegionEnforcement#active()} first. Handlers run on
  * the thread that owns the event, as Folia requires, and schedule nothing.
@@ -85,6 +88,24 @@ public final class EnforcementListener implements Listener {
         if (denies(event.getPlayer(), event.getBlock(), Check.BUILD, event.getBucket())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * TNT, creepers, crystals, fireballs: the explosion goes off and still hurts, but the
+     * map's blocks are taken out of what it breaks. The block record is armed for every
+     * region declaring the flag, so a server without one returns on its gate.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityExplode(EntityExplodeEvent event) {
+        if (!RegionEnforcement.active() || !PlacedBlockRuntime.tracking()) return;
+        spareMap(event.blockList());
+    }
+
+    /** Beds and respawn anchors set off in the wrong dimension. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockExplode(BlockExplodeEvent event) {
+        if (!RegionEnforcement.active() || !PlacedBlockRuntime.tracking()) return;
+        spareMap(event.blockList());
     }
 
     /**
@@ -192,6 +213,11 @@ public final class EnforcementListener implements Listener {
             if (effect.getType().getCategory() == PotionEffectTypeCategory.HARMFUL) return true;
         }
         return false;
+    }
+
+    private static void spareMap(List<Block> blocks) {
+        blocks.removeIf(block -> RegionEnforcement.sparesFromExplosion(block.getWorld().getUID(),
+                block.getX(), block.getY(), block.getZ()));
     }
 
     /** At the block's minimum corner, which is the coordinate region shapes agree with. */

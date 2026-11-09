@@ -194,6 +194,41 @@ class RegionEnforcementTest {
     }
 
     @Test
+    @DisplayName("explosion_player_blocks_only spares the map but not what a player placed")
+    void explosionPlayerBlocksOnly() {
+        register(regions, "zone", 0, PolicySet.of(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY, true));
+        assertFalse(RegionEnforcement.sparesFromExplosion(world.getUID(), 5, 5, 5),
+                "nothing is spared until the owner enforces");
+
+        regions.enforce();
+        assertTrue(RegionEnforcement.sparesFromExplosion(world.getUID(), 5, 5, 5));
+        assertFalse(RegionEnforcement.sparesFromExplosion(world.getUID(), 100, 5, 100),
+                "outside the region the explosion breaks as usual");
+        assertFalse(denies(Check.BREAK, Material.STONE), "players breaking blocks is a separate flag");
+
+        PlacedBlockRuntime.placed(regions.get("zone").orElseThrow(), null, Material.STONE, 5, 5, 5);
+        assertFalse(RegionEnforcement.sparesFromExplosion(world.getUID(), 5, 5, 5));
+    }
+
+    @Test
+    @DisplayName("explosions ask no audience, and a higher region turning the flag off wins")
+    void explosionIgnoresAudience() {
+        register(regions, "zone", 0, PolicySet.of(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY, true));
+        regions.enforce((who, region) -> false);
+        assertTrue(RegionEnforcement.sparesFromExplosion(world.getUID(), 5, 5, 5));
+
+        register(regions, "crater", 5, PolicySet.of(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY, false));
+        assertFalse(RegionEnforcement.sparesFromExplosion(world.getUID(), 5, 5, 5));
+    }
+
+    @Test
+    @DisplayName("declaring explosion_player_blocks_only arms the block record")
+    void explosionFlagArmsTracking() {
+        register(regions, "zone", 0, PolicySet.of(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY, true));
+        assertTrue(PlacedBlockRuntime.tracks(regions.get("zone").orElseThrow()));
+    }
+
+    @Test
     @DisplayName("PvP is refused from either end, and hurting yourself never is")
     void pvpEitherSide() {
         register(regions, "safe", 0, PolicySet.of(CommonRegionPolicies.PVP, false));

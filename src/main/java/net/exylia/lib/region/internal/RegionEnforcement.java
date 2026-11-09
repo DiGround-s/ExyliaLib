@@ -131,6 +131,25 @@ public final class RegionEnforcement {
     }
 
     /**
+     * Whether an explosion must leave a block standing: some enforcing owner's regions at
+     * the block declare {@code explosion_player_blocks_only} and no player placed it.
+     *
+     * <p>No audience is asked. An explosion has no player to put through one, and the
+     * flag protects the map itself, so every region of the owner at the block counts,
+     * highest priority first, as it would for a player every region applied to.
+     */
+    public static boolean sparesFromExplosion(@NotNull UUID worldId, int x, int y, int z) {
+        if (!active) return false;
+        for (String owner : AUDIENCES.keySet()) {
+            List<RegionSnapshot> regions = RegionRuntime.queryOwner(owner, worldId, x, y, z);
+            if (regions.isEmpty()) continue;
+            if (value(regions, CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY)
+                    && !placedByPlayer(regions, x, y, z)) return true;
+        }
+        return false;
+    }
+
+    /**
      * One owner's verdict over its regions at the point, highest priority first.
      *
      * <p>A {@code *_only} flag that holds makes its list the whole answer for the

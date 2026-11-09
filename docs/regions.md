@@ -273,8 +273,9 @@ regions.enforce();                     // everyone but creative mode
 That replaces the listener every consumer used to write: breaking and scooping
 a bucket (`break`), placing and pouring (`build`), the block lists
 (`allowed_blocks_only` + `allowed_blocks`, `breakable_blocks_only` +
-`breakable_blocks`), `player_build_only`, using blocks and
-entities (`interact`), PvP (`pvp`), fall damage, dropping and picking up.
+`breakable_blocks`), `player_build_only`, `explosion_player_blocks_only`, using
+blocks and entities (`interact`), PvP (`pvp`), fall damage, dropping and picking
+up.
 
 The flags themselves are edited on the library's
 [policy editor](editors.md#the-policy-editor): `regions.policyEditor(policies)`
@@ -325,6 +326,7 @@ thread on Folia — so it must be cheap and read only thread-safe state.
 | `breakable_blocks_only` | when it holds, `breakable_blocks` alone decides for the material, even where `break` is false |
 | `allowed_blocks_only` | when it holds, `allowed_blocks` alone decides; a bucket counts as its item, such as `WATER_BUCKET` |
 | `player_build_only` | breaking (or scooping) what no player placed; independent of `break`, which still refuses on its own |
+| `explosion_player_blocks_only` | an explosion (TNT, creeper, crystal, fireball, bed, anchor) breaking what no player placed. The explosion still goes off, hurts and knocks back, and player-built blocks still go; only the map's blocks leave its block list. No audience is asked: the explosion has no player, so every region of the owner at the block counts (since 1.536.0) |
 | `build_max_y` | placing or pouring above that block Y; `0` (the default) is no limit. Absolute, so an arena copy pasted elsewhere on X/Z keeps it (since 1.429.0) |
 | `interact` | using a clicked block — the item in hand still works, so eating, pearls and bows go through; stepping on plates and farmland; right-clicking any entity but a player: armour stands, frames, villagers, mounts, leads |
 | `pvp` | a player hurting a player, directly or through an arrow, TNT, a crystal, a harmful potion or a tamed pet, when a region applying to the victim at the victim's place, or to the attacker at the attacker's, says no |
@@ -337,8 +339,9 @@ zone.
 
 Not enforced, on purpose: `entry`, `exit` and `region_members_only` have a single
 consumer and the library has no concept of members; explosions have no player
-to put through an audience, so each consumer keeps its own explosion rules;
-temporary and re-given blocks were already the library's, and are unchanged.
+to put through an audience, so beyond `explosion_player_blocks_only` (which asks
+none) each consumer keeps its own explosion rules; temporary and re-given blocks
+were already the library's, and are unchanged.
 
 `stopEnforcing()` ends it, and so does disabling the plugin. A server where no
 plugin enforces pays one volatile read per event the listener handles, and
@@ -365,8 +368,8 @@ if (regions.resolve(location, CommonRegionPolicies.PLAYER_BUILD_ONLY).value()
 }
 ```
 
-Blocks are recorded only for regions that declare `player_build_only` or
-`temporary_blocks`. What counts as placed:
+Blocks are recorded only for regions that declare `player_build_only`,
+`explosion_player_blocks_only` or `temporary_blocks`. What counts as placed:
 
 - a block a player places, both halves of a bed, a door or a tall plant included;
 - the fluid a player pours from a bucket, unless it only waterlogs a block that
@@ -389,7 +392,8 @@ stays registered.
 
 A break is not the only way a block leaves. A consumer enforcing
 `player_build_only` asks the same question of an explosion's block list and of a
-bucket fill:
+bucket fill (under `enforce`, declaring `explosion_player_blocks_only` does the
+explosion half for you):
 
 ```java
 if (regions.resolve(event.getLocation(), CommonRegionPolicies.PLAYER_BUILD_ONLY).value()) {

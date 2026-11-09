@@ -96,8 +96,8 @@ public final class PlacedBlockRuntime {
      *
      * <p>The gate the block listener reads before doing anything at all.
      *
-     * @return {@code true} when at least one region declares {@code player_build_only}
-     *         or {@code temporary_blocks}
+     * @return {@code true} when at least one region declares {@code player_build_only},
+     *         {@code explosion_player_blocks_only} or {@code temporary_blocks}
      */
     public static boolean tracking() {
         return tracking;
@@ -106,6 +106,7 @@ public final class PlacedBlockRuntime {
     /** Whether one region declares a policy that requires recording its blocks. */
     public static boolean tracks(@NotNull RegionSnapshot region) {
         return region.policySet().explicit(CommonRegionPolicies.PLAYER_BUILD_ONLY).orElse(false)
+                || region.policySet().explicit(CommonRegionPolicies.EXPLOSION_PLAYER_BLOCKS_ONLY).orElse(false)
                 || region.policySet().explicit(CommonRegionPolicies.TEMPORARY_BLOCKS).orElse(false);
     }
 

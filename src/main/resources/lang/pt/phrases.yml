@@ -328,6 +328,7 @@ One command per line, without the slash: Um comando por linha, sem a barra
 One line; add another for a second.: Uma linha; adicione outra para uma segunda.
 One skill of the group per period, picked by weight. 1s at least.: Uma habilidade do grupo por período, escolhida por peso. 1s no mínimo.
 Only blocks a player placed can break.: Só blocos colocados por jogadores podem quebrar.
+'Explosions only break blocks a player placed.': 'Explosões só quebram blocos colocados por jogadores.'
 Only in phase: Só na fase
 Only matters while the particles are shown.: Só importa enquanto as partículas aparecem.
 Only region members can act inside.: Só membros da região podem agir dentro.
@@ -1629,6 +1630,7 @@ World: Mundo
 'Pending rewards': 'Recompensas pendentes'
 'Place': 'Local'
 'Player blocks only': 'Só blocos de jogadores'
+'Explosion-proof map': 'Mapa à prova de explosões'
 'Player trade': 'Troca entre jogadores'
 'Players': 'Jogadores'
 'Playing': 'Jogando'
