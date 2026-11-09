@@ -822,17 +822,19 @@ How it stays honest:
   the run, destroy every piece and put the real blocks back. Particles the client already drew are the client's and
   fade by themselves within a second or so; the panel hides them on a hover change, on close they may finish in the
   open.
-- **The camera is tipped and held.** Opening the window tips the eyes a few degrees down so the floor shows, and closing
-  the screen gives that back. An upright body in a window far from the centre of the screen leans a little, as anything
-  does near the edge of a wide view.
+- **The camera is tipped and held.** Opening the window tips the eyes a few degrees down so the floor shows; closing the
+  screen, or an input stepping it aside, gives that back. An upright body in a window far from the centre leans a
+  little, as anything does near the edge of a wide view: keep a tall window on the screen's vertical middle, where the
+  tip is smallest (ExyliaArmorTrims' and ExyliaArmorSkin's left column).
 - **The camera stays near.** The hole shows the world, so the camera may not wander as it does behind a solid panel: while
   a window is on screen it stays within a degree of its place, and the moment the mouse rests it goes back exactly. The
   stage is seen from a little above. While the mouse moves the picture in the hole can shake by that degree.
 - **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
   included, so one past the window's edge would show on them.
-- **Display budget.** What plays on the stage is not part of a screen's 400 displays: it costs what the same effect
-  costs in the world, doubled on the first play of an effect since the server started (a miniature rehearsal out of
-  sight learns how to turn and size it). See [Performance](screens-performance.md).
+- **Display budget.** The stage shares the screen's 400 displays: it gets what the screen leaves. An effect that wants
+  more plays with its later pieces missing, and the console says so once per plugin. On the first play of an effect
+  a miniature rehearsal out of sight learns how to turn and size it, kept to a quarter of that room so the real play
+  has the rest. See [Performance](screens-performance.md).
 
 **What cannot preview:** anything that acts on a player rather than the world around them is left out of a preview as it
 is on a spatial menu (a title, a potion, a command). A pure sound has nothing to see. Words in chat need no window: draw

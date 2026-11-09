@@ -51,7 +51,7 @@ public abstract class PreviewPlayer {
     /** The longest a rehearsal is watched before the view is chosen from what it showed. */
     private static final long WATCH_MILLIS = 6000L;
     /** How far over the board a rehearsal plays, and how small: out of sight and out of earshot. */
-    private static final double REHEARSAL_UP = 48;
+    protected static final double REHEARSAL_UP = 48;
     private static final double REHEARSAL_SCALE = 0.05;
     /**
      * What each effect's first play taught (by sequence, facing, zone and scale): the turn and the fit, so every

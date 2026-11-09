@@ -194,6 +194,12 @@ public final class DisplayRuntime {
         return max > 0 ? max : Integer.MAX_VALUE;
     }
 
+    private record Room(java.util.function.IntSupplier room, double rehearsalAbove) {
+    }
+
+    private static final java.util.Map<java.util.UUID, Room> ROOM = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Set<String> FULL_STAGE_WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** Swaps the clock, the ids and the sink. For tests. */
     static void testHooks(LongSupplier testClock, EntityIds testIds, DisplaySink testSink) {
         synchronized (LOCK) {
@@ -277,6 +283,9 @@ public final class DisplayRuntime {
             return null;
         }
         if (viewers.isEmpty() && !kept || ids == null) {
+            return null;
+        }
+        if (viewers.size() == 1 && outOfRoom(owner, viewers.get(0), at)) {
             return null;
         }
         // Refused before the packets are built, not after: the point of the
@@ -519,6 +528,54 @@ public final class DisplayRuntime {
         logger.warning(dropped + " display effect(s) were dropped because the server reached"
                 + " max-viewer-displays (" + limits.maxViewerDisplays() + ")."
                 + " Raise it in plugins/ExyliaLib/displays.yml, or use smaller effects.");
+    }
+
+    /**
+     * Holds what is shown to this one player alone to {@code room} displays (asked on every show): a screen's window,
+     * whose stage shares the screen's budget. What is shown from {@code rehearsalAbove} up is a rehearsal nobody sees,
+     * kept to a quarter of the room and refused quietly so the real play keeps the rest.
+     */
+    public static void limitViewer(java.util.UUID viewer, java.util.function.IntSupplier room, double rehearsalAbove) {
+        ROOM.put(viewer, new Room(room, rehearsalAbove));
+    }
+
+    /** Lets go of {@link #limitViewer}. */
+    public static void freeViewer(java.util.UUID viewer) {
+        ROOM.remove(viewer);
+    }
+
+    private static int rehearsing(Player viewer, double above) {
+        int shown = 0;
+        for (LiveDisplay display : LIVE) {
+            List<Player> who = display.viewers();
+            Location at = display.location();
+            if (who != null && who.size() == 1 && who.get(0).equals(viewer) && at != null && at.getY() >= above) shown++;
+        }
+        return shown;
+    }
+
+    /** How many displays are shown to this player alone right now. */
+    public static int shownOnlyTo(Player viewer) {
+        int shown = 0;
+        for (LiveDisplay display : LIVE) {
+            List<Player> who = display.viewers();
+            if (who != null && who.size() == 1 && who.get(0).equals(viewer)) shown++;
+        }
+        return shown;
+    }
+
+    private static boolean outOfRoom(String owner, Player viewer, Location at) {
+        if (ROOM.isEmpty()) return false;
+        Room limit = ROOM.get(viewer.getUniqueId());
+        if (limit == null) return false;
+        int room = limit.room().getAsInt();
+        if (at.getY() >= limit.rehearsalAbove()) return rehearsing(viewer, limit.rehearsalAbove()) * 4 >= room;
+        if (shownOnlyTo(viewer) < room) return false;
+        if (FULL_STAGE_WARNED.add(owner) && logger != null) {
+            logger.warning(owner + "'s preview ran out of room in a screen's window and plays with pieces missing: the"
+                    + " screen and its stage share one display budget. Use a smaller effect to see all of it.");
+        }
+        return true;
     }
 
     /** Displays multiplied by their viewers, right now. For diagnostics. */

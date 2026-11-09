@@ -252,6 +252,8 @@ final class LiveScreen implements ScreenSession {
     /** Where the eyes looked when the screen opened: a window tips them, and closing gives that back. */
     private final float openPitch;
     private volatile boolean tipped;
+    /** How many displays the screen itself has drawn: what a window's stage has left of the budget. */
+    private volatile int drawnCount;
     /** Whether a 3D item is on screen, which keeps the camera within {@link #CONE} of {@link #homeYaw}. */
     private volatile boolean cone;
     private int heldSlot;
@@ -478,10 +480,7 @@ final class LiveScreen implements ScreenSession {
             wire.send(List.of(
                     ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray()),
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
-            if (tipped) {
-                wire.send(List.of(ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
-                        (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
-            }
+            giveBackPitch();
         }
         Packets.of(plugin).movement().unfreeze(player);
         Packets.of(plugin).visibility().seal(player, null);
@@ -524,6 +523,7 @@ final class LiveScreen implements ScreenSession {
         if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
         for (int id : cursorIds) ids.add(id);
         wire.send(List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
+        giveBackPitch();
         Packets.of(plugin).visibility().seal(player, null);
         ScreenRuntime.quietEnd(player);
         java.util.concurrent.CompletionStage<T> future;
@@ -1413,7 +1413,7 @@ final class LiveScreen implements ScreenSession {
             homePitch = PreviewStage.pitch(DISTANCE, y);
             tipped = true;
             stage = new PreviewStage(plugin, player, tasks, wire, ids.getAsInt(), origin, homeYaw, homePitch, DISTANCE, x, y, w, h,
-                    wall, window.node().vanish(), this::settle);
+                    wall, window.node().vanish(), () -> BUDGET - drawnCount, this::settle);
         }
         stage.want(window.node().preview());
     }
@@ -1429,6 +1429,14 @@ final class LiveScreen implements ScreenSession {
         if (going == null) return;
         if (!player.isOnline() || !plugin.isEnabled() || org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) going.close();
         else tasks.runAtEntity(player, going::close);
+    }
+
+    /** The eyes back where they looked when the screen opened, if a window tipped them. */
+    private void giveBackPitch() {
+        if (!tipped) return;
+        tipped = false;
+        wire.send(List.of(ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
+                (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
     }
 
     /** Whether a window is on screen. Safe from any thread. */
@@ -1463,6 +1471,7 @@ final class LiveScreen implements ScreenSession {
         Frame frame = detailed;
         Map<String, Object> wanted = frame.wanted();
         List<String> order = frame.order();
+        drawnCount = Math.min(wanted.size(), BUDGET);
         if (wanted.size() > BUDGET) {
             // Past every level of detail: the tail is left out (the dialog is drawn first, so it stays).
             if (!overBudget) {

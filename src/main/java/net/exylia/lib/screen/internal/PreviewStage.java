@@ -66,6 +66,8 @@ final class PreviewStage extends PreviewPlayer {
     private final int wallId;
     private final double x, y, w, h;
     private final Runnable settle;
+    /** How many displays the screen leaves the stage. */
+    private final java.util.function.IntSupplier room;
     private final SpatialLayout.Preview look;
     private final List<DisplayHandle> pieces = new ArrayList<>();
     private final List<Location> kept;
@@ -87,7 +89,7 @@ final class PreviewStage extends PreviewPlayer {
      * @param settle   run every poll, to bring the camera back while the mouse rests
      */
     PreviewStage(Plugin plugin, Player viewer, TaskScheduler tasks, ScreenPackets.Wire wire, int wallId, Vector3d eyes, float yaw,
-                 float pitch, double distance, double x, double y, double w, double h, int wall, boolean vanish, Runnable settle) {
+                 float pitch, double distance, double x, double y, double w, double h, int wall, boolean vanish, java.util.function.IntSupplier room, Runnable settle) {
         super(plugin, viewer, plane(viewer.getWorld(), eyes, yaw, pitch, distance, x, y, h),
                 StageLook.facing(plane(viewer.getWorld(), eyes, yaw, pitch, distance, x, y, h)));
         this.displays = Displays.of(plugin);
@@ -99,6 +101,8 @@ final class PreviewStage extends PreviewPlayer {
         this.w = w;
         this.h = h;
         this.settle = settle;
+        this.room = room;
+        net.exylia.lib.display.internal.DisplayRuntime.limitViewer(viewer.getUniqueId(), room, eyes.y + REHEARSAL_UP / 2);
         double ahead = ahead(distance, h);
         double wide = w / distance * ahead;
         this.look = new SpatialLayout.Preview(List.of(0.0, 0.0, 0.0), TURN_SPEED, false, SCALE, vanish, EFFECT_SCALE,
@@ -222,6 +226,7 @@ final class PreviewStage extends PreviewPlayer {
         closed = true;
         poll.cancel();
         remove();
+        net.exylia.lib.display.internal.DisplayRuntime.freeViewer(viewer.getUniqueId());
         drop(floor);
         for (DisplayHandle piece : new ArrayList<>(pieces)) drop(piece);
         wire.send(List.of(ScreenPackets.destroy(new int[]{wallId})));
