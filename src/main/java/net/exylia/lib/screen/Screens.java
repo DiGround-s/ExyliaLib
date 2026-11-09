@@ -111,7 +111,7 @@ public final class Screens {
     }
 
     /**
-     * Sets a player's cursor speed, from 0.2 to 3; it applies at once to an open screen. Kept in the player's data
+     * Sets a player's cursor speed, from 0.1 to 10 (3 by default); it applies at once to an open screen. Kept in the player's data
      * across restarts since 1.496.0 (until they quit before), and also set in {@code /settings} → Interface.
      */
     public static void sensitivity(@NotNull Player player, double sensitivity) {

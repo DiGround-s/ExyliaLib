@@ -66,7 +66,7 @@ it moves 24 pixels past the layout's sides and 6 past its top and bottom. Under 
 in-screen panel:
 
 - **Size**, 50% to 250% in steps of 10. Applied at once to everything on screen, the cursor and the backdrop included.
-- **Cursor speed**, 0.2 to 3, as `Screens.sensitivity`.
+- **Cursor speed**, 0.1 to 10 (3 by default), as `Screens.sensitivity`.
 - **Cursor**, how the arrow follows the mouse (1.546.0): Normal, Raw or Prediction. See "The cursor modes".
 - **Cursor assist**, Off or On (1.547.0): makes buttons easier to hit. See "Cursor assist".
 - **Reduced motion**, as `Screens.reducedMotion`.
@@ -148,7 +148,7 @@ on close. An input that steps the screen aside (a text prompt) gives the chat ba
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the
   cursor, gliding one tick so it reads smooth. The arrow is the client's rendering of a server packet, so it can not be
   closer to the hand than the client's own ticks allow. See "The cursor modes" below.
-- **Speed:** `Screens.sensitivity(player, value)` from 0.2 to 3 (1 by default), applied at once. Since 1.496.0
+- **Speed:** `Screens.sensitivity(player, value)` from 0.1 to 10 (3 by default), applied at once. Since 1.496.0
   it is kept in the player's data across restarts, and players set it themselves in `/settings` → Interface
   ("Cursor speed"). `cursor-acceleration` in `screens.yml` (0 by default, 1 is mild) carries a fast mouse
   further while a slow one stays precise.

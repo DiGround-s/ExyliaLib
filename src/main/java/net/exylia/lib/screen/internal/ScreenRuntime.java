@@ -36,6 +36,8 @@ public final class ScreenRuntime {
     static void revealOnJoin(Player viewer, UUID hidden, Plugin plugin) {
         REVEAL.computeIfAbsent(viewer.getUniqueId(), id -> new ConcurrentHashMap<>()).put(hidden, plugin);
     }
+    /** Cursor speed for a player who never chose one, and the range they may choose from. */
+    static final double DEFAULT_SPEED = 3.0, MIN_SPEED = 0.1, MAX_SPEED = 10.0;
     private static final Map<UUID, Double> SENSITIVITY = new ConcurrentHashMap<>();
     private static final Map<UUID, CursorLead.Mode> CURSOR = new ConcurrentHashMap<>();
     /** Players who chose whether cursor assist is on. */
@@ -83,7 +85,7 @@ public final class ScreenRuntime {
     /** Cursor speed, reduced motion and size in /settings, under Interface beside the menu style. */
     private static void settings(Plugin library) {
         net.exylia.lib.settings.Settings.register(library, net.exylia.lib.settings.Setting
-                .number("screen-cursor-speed", 1, 0.2, 3, 0.1)
+                .number("screen-cursor-speed", DEFAULT_SPEED, MIN_SPEED, MAX_SPEED, 0.1)
                 .category("interface")
                 .icon("COMPASS")
                 .name("Cursor speed")
@@ -292,16 +294,16 @@ public final class ScreenRuntime {
     }
 
     public static double sensitivity(UUID player) {
-        return SENSITIVITY.getOrDefault(player, 1.0);
+        return SENSITIVITY.getOrDefault(player, DEFAULT_SPEED);
     }
 
     public static void sensitivity(UUID player, double value) {
         SENSITIVITY.put(player, value);
     }
 
-    /** Sets and keeps a player's cursor speed, from 0.2 to 3. */
+    /** Sets and keeps a player's cursor speed, from 0.1 to 10. */
     public static void sensitivity(Player player, double value) {
-        double clamped = Math.max(0.2, Math.min(3.0, value));
+        double clamped = Math.max(MIN_SPEED, Math.min(MAX_SPEED, value));
         SENSITIVITY.put(player.getUniqueId(), clamped);
         store(player, data -> data.set(SPEED_KEY, org.bukkit.persistence.PersistentDataType.DOUBLE, clamped));
     }
