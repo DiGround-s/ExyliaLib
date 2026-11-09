@@ -1,5 +1,6 @@
 package net.exylia.lib.hologram;
 
+import net.exylia.lib.item.Source;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -421,9 +422,25 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             return this;
         }
 
-        /** An item line; clears a block and a head. */
+        /**
+         * An item line; clears a block and a head.
+         *
+         * @param material any {@link Source} value: a material, a {@code bytes:}
+         *                 item or a resource-pack id. A head value makes this a
+         *                 {@linkplain #head head line} instead (since 1.537.0)
+         */
         public @NotNull Builder item(@Nullable String material) {
-            this.item = blank(material) ? null : material.toUpperCase(Locale.ROOT);
+            if (blank(material)) {
+                this.item = null;
+                return this;
+            }
+            Source source = Source.of(material);
+            if (source instanceof Source.OfHead || source instanceof Source.OfHeadTemplate) {
+                return head(material);
+            }
+            // Base64 and pack ids are case-sensitive: only a material name is normalised.
+            this.item = source instanceof Source.OfMaterial plain && !plain.isCustom()
+                    ? material.toUpperCase(Locale.ROOT) : material.trim();
             if (item != null) {
                 this.block = null;
                 this.head = null;

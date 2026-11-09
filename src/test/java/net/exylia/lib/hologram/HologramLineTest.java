@@ -48,6 +48,20 @@ class HologramLineTest {
     }
 
     @Test
+    @DisplayName("a stored item and a pack id keep their case, and a head value becomes a head line")
+    void itemValuesKeepWhatTheyAre() {
+        String stored = "<item:bytes:rO0ABXNy+aZ/9=><spin:90>";
+        assertEquals("bytes:rO0ABXNy+aZ/9=", HologramLine.parse(stored).item());
+        assertEquals(stored, HologramLine.parse(stored).raw());
+        assertEquals("nexo:ruby_sword", HologramLine.parse("<item:nexo:ruby_sword>").item());
+        assertEquals("DIAMOND", HologramLine.parse("<item:diamond>").item());
+
+        HologramLine head = HologramLine.builder().item("basehead-eyJ0ZXh0").build();
+        assertNull(head.item());
+        assertEquals("basehead-eyJ0ZXh0", head.head());
+    }
+
+    @Test
     @DisplayName("a head line round-trips and replaces an item or a block")
     void headLines() {
         HologramLine line = HologramLine.parse("<head:Notch><size:0.5>{letters}Hi");

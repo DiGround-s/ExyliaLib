@@ -238,6 +238,13 @@ final class DisplayPackets implements DisplaySink {
     }
 
     @Override
+    public void item(Player viewer, DisplayState display, org.bukkit.inventory.ItemStack item) {
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(),
+                List.of(new EntityData<>(DisplayState.ITEM, EntityDataTypes.ITEMSTACK,
+                        SpigotConversionUtil.fromBukkitItemStack(item)))));
+    }
+
+    @Override
     public void look(Player viewer, DisplayState display, int opacity, int background) {
         send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), List.of(
                 new EntityData<>(DisplayState.BACKGROUND_COLOR, EntityDataTypes.INT, background),

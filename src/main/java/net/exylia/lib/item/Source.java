@@ -4,8 +4,12 @@ import net.exylia.lib.item.internal.CustomItems;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.text.Phrases;
 import org.bukkit.Material;
+import org.bukkit.block.Container;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.inventory.meta.BundleMeta;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Base64;
@@ -211,9 +215,10 @@ public sealed interface Source {
      * The part of an item that is worth storing as an icon.
      *
      * <p>Everything the item looks like is kept — its model, its colour, its
-     * patterns, its glint — and the two things an icon never uses are dropped:
-     * the name and the lore. Whatever draws this writes its own, from its own
-     * configuration; the ones the item was carrying are never seen again.
+     * patterns, its glint — and what an icon never uses is dropped: the name
+     * and the lore, since whatever draws this writes its own, and what is
+     * inside a shulker or a bundle and the data plugins keep on the item
+     * (since 1.537.0), which nothing draws at all.
      *
      * <p>They are also nearly all of its size. A kit sword's name and lore are
      * gradients and palette tokens, which serialise as component JSON and run
@@ -233,6 +238,16 @@ public sealed interface Source {
         }
         meta.displayName(null);
         meta.lore(null);
+        if (meta instanceof BlockStateMeta holder && holder.hasBlockState()
+                && holder.getBlockState() instanceof Container container) {
+            container.getInventory().clear();
+            holder.setBlockState(container);
+        }
+        if (meta instanceof BundleMeta bundle) {
+            bundle.setItems(null);
+        }
+        PersistentDataContainer data = meta.getPersistentDataContainer();
+        data.getKeys().forEach(data::remove);
         copy.setItemMeta(meta);
         return copy;
     }

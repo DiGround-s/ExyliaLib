@@ -883,6 +883,26 @@ class HologramTest {
         assertEquals("Notch", style.head());
     }
 
+    @Test
+    @DisplayName("a head written with a placeholder is resolved per viewer, and again when it changes")
+    void viewerHeads() {
+        Placeholders.register(plugin, "koth_viewer", request -> request.requireViewer().getName());
+        far.at(new Location(world, 1, 64, 1));
+        HologramImpl hologram = (HologramImpl) Holograms.show(plugin, "koth", spawn(), new HologramConfig(true,
+                HologramConfig.Kind.TEXT, List.of("<head:%koth_viewer%>", "<head:%koth_capturer%>", "<head:Notch>"),
+                "", "", true, 32.0, 0, 0, 0, new HologramConfig.Properties(), new HologramConfig.Refresh()));
+        drive();
+        assertEquals(java.util.Arrays.asList("Near", "nobody", null),
+                java.util.Arrays.asList(hologram.headsSent(near.player().getUniqueId())));
+        assertEquals("Far", hologram.headsSent(far.player().getUniqueId())[0]);
+
+        capturer.set("Steve");
+        advanceSeconds(1.1);
+        drive();
+        assertEquals("Steve", hologram.headsSent(near.player().getUniqueId())[1]);
+        assertEquals("Steve", hologram.headsSent(far.player().getUniqueId())[1]);
+    }
+
     // ------------------------------------------------------------------
     // Per-player
     // ------------------------------------------------------------------

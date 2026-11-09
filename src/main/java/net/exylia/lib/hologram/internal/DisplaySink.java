@@ -22,6 +22,10 @@ public interface DisplaySink {
     /** Sends only the text of a display whose line changed. */
     void text(Player viewer, DisplayState display, Component text);
 
+    /** Sends only the item of an item display, for a head that depends on its viewer. */
+    default void item(Player viewer, DisplayState display, org.bukkit.inventory.ItemStack item) {
+    }
+
     /**
      * Sends a text display's opacity and background alone, for a line that
      * fades or a button panel that lights up.

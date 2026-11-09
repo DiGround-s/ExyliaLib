@@ -11,6 +11,8 @@ import net.exylia.lib.item.internal.CustomItems;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
+import net.exylia.lib.item.Items;
+import net.exylia.lib.item.Source;
 import net.exylia.lib.skull.SkullHandle;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
@@ -239,6 +241,8 @@ final class HologramImpl implements Hologram {
      * skips a text their client already has.
      */
     private final Map<UUID, String[]> sentText = new ConcurrentHashMap<>();
+    /** Whose head each viewer was last sent, per line, for heads written with a placeholder. */
+    private final Map<UUID, String[]> sentHeads = new ConcurrentHashMap<>();
 
     private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
 
@@ -288,7 +292,7 @@ final class HologramImpl implements Hologram {
         resolveHeads(displays);
         this.hitboxId = HologramRuntime.newEntityId();
         this.lastText = new String[displays.length];
-        this.dynamic = config.config().autoUpdate() && isDynamic(templates);
+        this.dynamic = config.config().autoUpdate() && (isDynamic(templates) || hasViewerHeads(styles));
         this.lastRender = -intervalMs;
     }
 
@@ -469,7 +473,8 @@ final class HologramImpl implements Hologram {
     private void resolveHeads(DisplayState[] built) {
         for (DisplayState display : built) {
             String head = display.style().head();
-            if (head == null) {
+            // A placeholder has no owner until somebody looks: see showHead.
+            if (head == null || isViewerHead(head)) {
                 continue;
             }
             try {
@@ -488,6 +493,87 @@ final class HologramImpl implements Hologram {
                     HologramRuntime.logger().warning("Hologram '" + id + "': the head '" + head
                             + "' could not be drawn (" + failure.getMessage() + "); showing a plain head.");
                 }
+            }
+        }
+    }
+
+    private static boolean isViewerHead(String head) {
+        return head != null && head.indexOf('%') >= 0;
+    }
+
+    private static boolean hasViewerHeads(LineStyle[] lines) {
+        for (LineStyle line : lines) {
+            if (isViewerHead(line.head())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whose head a viewer was last sent, per line. */
+    String[] headsSent(UUID viewer) {
+        return sentHeads.get(viewer);
+    }
+
+    /** Sends everybody the heads whose placeholder now names somebody else. */
+    private void refreshHeads(List<Player> currentViewers) {
+        DisplayState[] current = displays;
+        for (int i = 0; i < current.length; i++) {
+            if (!isViewerHead(current[i].style().head())) {
+                continue;
+            }
+            for (Player viewer : currentViewers) {
+                UUID uuid = viewer.getUniqueId();
+                if (viewers.contains(uuid) && shown(masks.get(uuid), i)) {
+                    showHead(viewer, current, i, false);
+                }
+            }
+        }
+    }
+
+    /**
+     * Gives one viewer the head a placeholder names for them.
+     *
+     * <p>The display is shared, so its item goes in a packet of its own right
+     * after the spawn. An owner that resolves to nothing stays a plain head:
+     * looking up "%player_name%" would ask Mojang for a player who does not
+     * exist and draw the unknown head.
+     *
+     * @param spawned whether the client was just given the display, which has
+     *                nothing on it yet, whatever it was sent before
+     */
+    private void showHead(Player viewer, DisplayState[] current, int line, boolean spawned) {
+        DisplayState display = current[line];
+        String head = display.style().head();
+        String owner = Placeholders.compile(head).render(viewer, values());
+        UUID uuid = viewer.getUniqueId();
+        String[] sent = sentHeads.compute(uuid, (key, known) ->
+                known != null && known.length == current.length ? known : new String[current.length]);
+        if (!spawned && owner.equals(sent[line])) {
+            return;
+        }
+        sent[line] = owner;
+        if (owner.isBlank() || owner.indexOf('%') >= 0) {
+            if (!spawned) {
+                HologramRuntime.sink().item(viewer, display, new ItemStack(Material.PLAYER_HEAD));
+            }
+            return;
+        }
+        try {
+            SkullHandle handle = Skulls.of(SkullSource.parse(owner)).viewer(viewer).build();
+            HologramRuntime.sink().item(viewer, display, handle.item());
+            if (!handle.isReady()) {
+                handle.onReady(item -> {
+                    if (!removed && displays == current && sentHeads.get(uuid) == sent
+                            && owner.equals(sent[line]) && viewers.contains(uuid)) {
+                        HologramRuntime.sink().item(viewer, display, item);
+                    }
+                });
+            }
+        } catch (RuntimeException | LinkageError failure) {
+            if (REPORTED.add("head:" + head)) {
+                HologramRuntime.logger().warning("Hologram '" + id + "': the head '" + head
+                        + "' could not be drawn (" + failure.getMessage() + "); showing a plain head.");
             }
         }
     }
@@ -574,11 +660,16 @@ final class HologramImpl implements Hologram {
     }
 
     /**
-     * Shows a resource-pack plugin's item, such as {@code nexo:ruby_sword}, on
-     * an item display. Built again whenever the hologram is: a provider that
-     * loads late invalidates every hologram when it does.
+     * Shows a resource-pack plugin's item, such as {@code nexo:ruby_sword}, or
+     * a stored {@code bytes:} item, on an item display. Built again whenever the
+     * hologram is: a provider that loads late invalidates every hologram when
+     * it does.
      */
     private static void custom(DisplayState display, String name) {
+        if (Source.of(name) instanceof Source.OfSnapshot) {
+            display.item(Items.icon(name));
+            return;
+        }
         if (CustomItems.isCustom(name)) {
             ItemStack item = CustomItems.item(name);
             if (item != null) {
@@ -598,9 +689,9 @@ final class HologramImpl implements Hologram {
     }
 
     private static Material material(String name) {
-        if (CustomItems.isCustom(name)) {
-            // Drawn from the provider's item instead; this is only what shows
-            // while it cannot be had.
+        if (CustomItems.isCustom(name) || Source.of(name) instanceof Source.OfSnapshot) {
+            // Drawn from the provider's item or the stored one instead; this
+            // is only what shows while it cannot be had.
             return Material.PAPER;
         }
         Material material = Material.matchMaterial(name);
@@ -663,7 +754,7 @@ final class HologramImpl implements Hologram {
         // Lines are replaced, so what they resolve from is decided again: text
         // that had a placeholder may no longer have one, and the other way
         // round.
-        this.dynamic = config.config().autoUpdate() && isDynamic(compiled);
+        this.dynamic = config.config().autoUpdate() && (isDynamic(compiled) || hasViewerHeads(restyled));
         if (sameShape) {
             refresh();
             return;
@@ -881,6 +972,7 @@ final class HologramImpl implements Hologram {
         if (config.type() != HologramConfig.Kind.TEXT || templates.length == 0) {
             return;
         }
+        refreshHeads(currentViewers);
         if (config.perPlayer()) {
             for (Player viewer : currentViewers) {
                 renderFor(viewer, true);
@@ -1204,6 +1296,9 @@ final class HologramImpl implements Hologram {
                     : Component.empty();
             HologramRuntime.sink().spawn(viewer, current[i], where, text,
                     viewOf(current[i], i, layout));
+            if (isViewerHead(current[i].style().head())) {
+                showHead(viewer, current, i, true);
+            }
         }
     }
 
@@ -1983,6 +2078,7 @@ final class HologramImpl implements Hologram {
         lastClick.remove(uuid);
         states.remove(uuid);
         sentText.remove(uuid);
+        sentHeads.remove(uuid);
         if (viewers.remove(uuid)) {
             HologramRuntime.sink().destroy(viewer, entityIdsWithHitbox());
         }
@@ -1998,6 +2094,7 @@ final class HologramImpl implements Hologram {
         lastClick.remove(viewer);
         states.remove(viewer);
         sentText.remove(viewer);
+        sentHeads.remove(viewer);
     }
 
     /**
@@ -2011,6 +2108,7 @@ final class HologramImpl implements Hologram {
         typing.remove(viewer);
         states.remove(viewer);
         sentText.remove(viewer);
+        sentHeads.remove(viewer);
     }
 
     /** Moves every display for everybody who can see it. */

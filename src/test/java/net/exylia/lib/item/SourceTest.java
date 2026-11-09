@@ -314,6 +314,10 @@ class SourceTest {
                             calls.add("displayName(" + args[0] + ")");
                         } else if (method.getName().equals("lore") && args != null && args.length == 1) {
                             calls.add("lore(" + args[0] + ")");
+                        } else if (method.getName().equals("getPersistentDataContainer")) {
+                            return Proxy.newProxyInstance(ItemMeta.class.getClassLoader(),
+                                    new Class<?>[] {org.bukkit.persistence.PersistentDataContainer.class},
+                                    (data, call, values) -> call.getName().equals("getKeys") ? java.util.Set.of() : null);
                         }
                         return null;
                     });

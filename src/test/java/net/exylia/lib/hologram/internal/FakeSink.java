@@ -63,6 +63,11 @@ final class FakeSink implements DisplaySink {
     }
 
     @Override
+    public void item(Player viewer, DisplayState display, org.bukkit.inventory.ItemStack item) {
+        calls.add("item:" + name(viewer) + ":" + display.entityId());
+    }
+
+    @Override
     public void look(Player viewer, DisplayState display, int opacity, int background) {
         calls.add("look:" + name(viewer) + ":" + display.entityId() + ":" + opacity + ":"
                 + Integer.toHexString(background));
