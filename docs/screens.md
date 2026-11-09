@@ -882,8 +882,9 @@ How it stays honest:
   its place, goes back the moment the mouse rests, and the picture can shake by that degree.
 - **The stage is seen level.** A pitched camera leans every upright away from the middle of the view, so it does not
   pitch: a body stays upright wherever the window is, as a shift lens keeps a building straight. The floor, which a level
-  camera could see from below in a window high on the screen, is tipped towards it so its top shows from the same angle
-  anywhere, and stands square to the view so its front edge stays level. Far from the middle a body is drawn wider, as
+  camera could see from below in a window high on the screen, is tipped towards it around the feet, near edge down, so
+  its top shows from the same angle anywhere, and stands square to the view so its front edge stays level (1.549.1: the
+  tip went the wrong way and lifted the near edge over the legs). Far from the middle a body is drawn wider, as
   anything is near the edge of a wide view: keep a tall window near the middle where it can go.
 - **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
   included, so one past the window's edge would show on them.

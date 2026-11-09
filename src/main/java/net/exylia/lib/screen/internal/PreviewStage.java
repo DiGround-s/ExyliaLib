@@ -58,7 +58,7 @@ final class PreviewStage extends PreviewPlayer {
     static final float PITCH = 0f;
     /** How many degrees from above the floor is seen, whatever height it stands at. */
     private static final double FLOOR_SEEN = 16;
-    private static final double FLOOR_WIDE = 2.4;
+    static final double FLOOR_WIDE = 2.4, FLOOR_THICK = 0.1;
     /** How large a body and an effect play on the stage. */
     private static final double SCALE = 1, EFFECT_SCALE = 0.8;
     private static final double TURN_SPEED = 18;
@@ -128,13 +128,9 @@ final class PreviewStage extends PreviewPlayer {
         blocks.keep(viewer, fake);
         // The floor the body stands on.
         double elevation = Math.toDegrees(Math.atan2(plane.point(0, 0, 0).getY() - eyes.getY(), ahead));
-        // Level with the camera's yaw, so its front edge stays level however far aside the window is.
-        net.exylia.lib.display.Rotation floorTurn = net.exylia.lib.display.Rotation
-                .around(net.exylia.lib.display.Rotation.Axis.X, Math.toRadians(-floorTilt(elevation, FLOOR_SEEN)))
-                .then(StageLook.facing(new StagePlane(viewer.getWorld(), 0, 0, 0, yaw, 1, 1, 1, 1)));
         double floorWide = Math.max(FLOOR_WIDE, wide * 1.3);
         this.floor = show(DisplayModel.block(Material.POLISHED_BLACKSTONE.createBlockData()).light(15),
-                still(floorTurn, floorWide, 0.1, FLOOR_WIDE), plane.point(0, -0.05, 0));
+                still(floorTurn(yaw, elevation), floorWide, FLOOR_THICK, FLOOR_WIDE), plane.point(0, -FLOOR_THICK / 2, 0));
         this.poll = tasks.runAtEntityTimer(viewer, POLL_TICKS, POLL_TICKS, this::tick);
     }
 
@@ -149,6 +145,17 @@ final class PreviewStage extends PreviewPlayer {
      */
     static double floorTilt(double elevation, double seen) {
         return Math.max(0, elevation + seen);
+    }
+
+    /**
+     * How the floor is turned: level with the camera's yaw, so its front edge stays level however far aside the window
+     * is, and its near edge tipped down by {@link #floorTilt} around the body's feet. A display's front (+z) faces the
+     * eyes once turned by {@link StageLook#facing}, so a positive turn around x lowers that edge.
+     */
+    static net.exylia.lib.display.Rotation floorTurn(float yaw, double elevation) {
+        return net.exylia.lib.display.Rotation
+                .around(net.exylia.lib.display.Rotation.Axis.X, Math.toRadians(floorTilt(elevation, FLOOR_SEEN)))
+                .then(StageLook.facing(new StagePlane(null, 0, 0, 0, yaw, 1, 1, 1, 1)));
     }
 
     /** {forward, right, up} of a camera, each {x, y, z}. */
