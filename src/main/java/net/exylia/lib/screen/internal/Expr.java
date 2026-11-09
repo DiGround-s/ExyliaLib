@@ -254,8 +254,41 @@ public final class Expr {
                 org.bukkit.entity.Player viewer = env.viewer();
                 yield viewer == null ? "" : viewer.getWorld().getName();
             }
-            default -> throw new Bad("unknown function " + name + "()", at);
+            case "contains" -> args.size() > 1 && text(a).contains(text(args.get(1)));
+            case "matches" -> args.size() > 1 && regex(text(args.get(1))).matcher(text(a)).matches();
+            case "chance" -> {
+                Double n = number(a);
+                yield n != null && java.util.concurrent.ThreadLocalRandom.current().nextDouble(100) < n;
+            }
+            default -> {
+                // A plugin's own (ExpressionFunctions); one released since the file was read answers null.
+                net.exylia.lib.screen.ExpressionFunctions.Function own = net.exylia.lib.screen.ExpressionFunctions.get(name);
+                yield own == null ? null : own.call(env.viewer(), java.util.Collections.unmodifiableList(args));
+            }
         };
+    }
+
+    /** Patterns are written by the server owner and compiled once each; a bad one matches nothing. */
+    private static final java.util.Map<String, java.util.regex.Pattern> PATTERNS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.regex.Pattern NEVER = java.util.regex.Pattern.compile("(?!)");
+
+    private static java.util.regex.Pattern regex(String pattern) {
+        java.util.regex.Pattern cached = PATTERNS.get(pattern);
+        if (cached != null) return cached;
+        java.util.regex.Pattern compiled;
+        try {
+            compiled = java.util.regex.Pattern.compile(pattern);
+        } catch (java.util.regex.PatternSyntaxException bad) {
+            compiled = NEVER;
+        }
+        // ponytail: unbounded only if a placeholder feeds the pattern; owners write it, so a few hundred at most.
+        if (PATTERNS.size() < 1024) PATTERNS.put(pattern, compiled);
+        return compiled;
+    }
+
+    /** Whether {@code name} is one of the language's own functions, which a plugin cannot replace. */
+    public static boolean isBuiltIn(String name) {
+        return FUNCTIONS.contains(name);
     }
 
     private static Object num(Object a, java.util.function.DoubleUnaryOperator op) {
@@ -271,7 +304,9 @@ public final class Expr {
     private static final java.util.Set<String> FUNCTIONS = java.util.Set.of("min", "max", "abs", "round", "floor",
             "ceil", "len", "upper", "lower", "plural", "t", "tr", "fmt.number", "fmt.percent", "fmt.time",
             // 1.501.0: about the viewer
-            "perm", "balance", "has_item", "level", "world");
+            "perm", "balance", "has_item", "level", "world",
+            // 1.552.0
+            "contains", "matches", "chance");
 
     // ------------------------------------------------------------------
     // Parsing
@@ -459,7 +494,9 @@ public final class Expr {
                 }
                 skip();
                 if (at < s.length() && s.charAt(at) == '(') {
-                    if (!FUNCTIONS.contains(name)) throw new Bad("unknown function " + name + "()", start);
+                    if (!FUNCTIONS.contains(name) && net.exylia.lib.screen.ExpressionFunctions.get(name) == null) {
+                        throw new Bad("unknown function " + name + "()", start);
+                    }
                     at++;
                     List<E> args = new ArrayList<>();
                     if (!eat(")")) {

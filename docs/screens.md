@@ -544,6 +544,13 @@ Expression functions about the viewer, for `if`, `require` and `${...}`:
 | `has_item('diamond', 16)` | whether they carry at least that many (1 when left out) |
 | `level()` | their experience level |
 | `world()` | the name of their world |
+| `contains(text, 'part')` | whether the text holds that part, case kept (1.552.0) |
+| `matches(text, 'regex')` | whether the whole text matches the pattern; a pattern that does not read matches nothing (1.552.0) |
+| `chance(30)` | true 30% of the time, drawn again on each evaluation (1.552.0) |
+
+A plugin adds its own with `ExpressionFunctions.register(plugin, "data", (viewer, args) -> ...)` (1.552.0), from
+`onEnable` before the files that call it are read. The name is lower-case words (dots allowed), never a built-in one;
+it is released when the plugin disables, and a call that outlives it answers nothing.
 
 ### Choosing what is drawn (1.494.0)
 

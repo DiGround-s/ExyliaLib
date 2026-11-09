@@ -826,6 +826,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Commands.releaseAll();
         net.exylia.lib.command.RuntimeCommands.releaseAll();
         net.exylia.lib.interaction.Interactions.releaseAll();
+        net.exylia.lib.screen.ExpressionFunctions.releaseAll();
         Prefixes.releaseAll();
         Reloads.releaseAll();
         Sessions.releaseAll();
@@ -1177,6 +1178,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Commands.release(pluginName);
         net.exylia.lib.command.RuntimeCommands.release(pluginName);
         net.exylia.lib.interaction.Interactions.release(pluginName);
+        net.exylia.lib.screen.ExpressionFunctions.release(pluginName);
         Prefixes.release(pluginName);
         Reloads.release(pluginName);
         // Only the record, never the handlers: undoing a hold means calling

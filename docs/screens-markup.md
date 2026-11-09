@@ -137,7 +137,8 @@ Durations: `4t` or `4` ticks, `200ms`, `0.3s`. Easings: `linear`, `ease-in`, `ea
 Detail in [Expressions](screens.md#expressions-14940). Functions: `min`, `max`, `abs`, `round`, `floor`, `ceil`,
 `len`, `upper`, `lower`, `plural(n, 'one', 'many')`, `t('key', 'fallback')`, `fmt.number`, `fmt.percent`,
 `fmt.time`; about the viewer (1.501.0): `perm('node')`, `balance()`, `balance('points')`, `has_item('diamond', 16)`,
-`level()`, `world()`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
+`level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`, and any a plugin
+registered through `ExpressionFunctions`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
 
 ## Built-in actions
 

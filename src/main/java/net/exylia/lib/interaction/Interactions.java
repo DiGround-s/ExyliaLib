@@ -73,7 +73,8 @@ import java.util.function.Consumer;
  */
 public final class Interactions {
 
-    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY", "CONSOLE", "PLAYER");
+    private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY", "CONSOLE", "PLAYER",
+            "BROADCAST", "CHANCE");
     private static final Set<Click> ANY = Set.copyOf(EnumSet.allOf(Click.class));
 
     private record Registered(String plugin, InteractionToken handler) {
@@ -197,7 +198,8 @@ public final class Interactions {
     public static @NotNull List<String> starters() {
         List<String> starters = new ArrayList<>(List.of("left:", "right:", "shift_left:", "shift_right:",
                 "shift:", "any:"));
-        java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY"));
+        java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY",
+                "BROADCAST", "CHANCE"));
         tokens.addAll(TOKENS.keySet());
         tokens.addAll(Sequences.tokens());
         for (String token : tokens) {
@@ -350,6 +352,29 @@ public final class Interactions {
                                     : net.exylia.lib.economy.Economy.of(currency).pay(who, value));
                     done.complete(value.signum() <= 0 || ok);
                 });
+            }
+            case "BROADCAST" -> {
+                // [BROADCAST] <text> (1.552.0): one chat line to everybody online and the console,
+                // with the clicking player's placeholders.
+                Arg text = Arg.of(required(rest, "a message"));
+                return (owner, player, click, data) -> {
+                    net.kyori.adventure.text.Component line = net.exylia.lib.text.Text.from(owner, text.render(player, data)).build();
+                    for (Player online : owner.getServer().getOnlinePlayers()) online.sendMessage(line);
+                    owner.getServer().getConsoleSender().sendMessage(line);
+                    return CompletableFuture.completedFuture(true);
+                };
+            }
+            case "CHANCE" -> {
+                // [CHANCE] 30 (1.552.0): the lines after it run 30% of the time; otherwise the list stops there.
+                double percent;
+                try {
+                    percent = Double.parseDouble(required(rest, "a percentage").replace("%", "").trim());
+                } catch (NumberFormatException notANumber) {
+                    throw new IllegalArgumentException("\"" + rest + "\" is not a percentage");
+                }
+                if (percent < 0 || percent > 100) throw new IllegalArgumentException("a chance is between 0 and 100");
+                return (owner, player, click, data) -> CompletableFuture.completedFuture(
+                        java.util.concurrent.ThreadLocalRandom.current().nextDouble(100) < percent);
             }
             case "ACTION" -> {
                 Arg action = Arg.of(required(rest, "a namespace:id"));
