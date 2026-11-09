@@ -134,7 +134,7 @@ Avoid:
   screen alone keeps its 400); past that the effect plays with pieces missing, the screen stays whole, and the console
   says so once per plugin. Measured on ExyliaKillEffect's effects screen (Paper 1.21.4, one viewer, RTX 3050, 1080p):
   the screen draws about 205, leaving 355; the heaviest shipped effects peak at 316 (Ejected), 299 (Runway) and 269
-  (To Be Continued), and the median at 74. About 100 fps with the screen alone, 82-90 with a heavy effect playing.
+  (To Be Continued), and the median at 74. About 100 fps with the screen alone, 71-83 at Ejected's peak of 520 in all.
   The rehearsal that fits an effect's first play is never sent. Particles are not displays and are not counted.
 - Long lists with no window: a `grid` without `columns`/`rows` draws every row. Window it and add a `pager`.
 - More than one `turn` body, or bodies in a list of players: use `<img face>` (4 displays) or `<item head>`.
