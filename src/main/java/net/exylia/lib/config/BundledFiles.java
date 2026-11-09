@@ -77,6 +77,18 @@ public final class BundledFiles {
     }
 
     /**
+     * Whether a file or directory is packaged with a class, in a jar or under a loader that keeps it in memory.
+     * Use it instead of {@code getResource}, which the licence loader never answers for the plugin's own files.
+     *
+     * @param anchor a class packaged with the resource
+     * @param path   the packaged path, such as {@code screens} or {@code lang/en/screens/hub.yml}
+     * @since 1.544.0
+     */
+    public static boolean packaged(@NotNull Class<?> anchor, @NotNull String path) {
+        return BundledResources.packaged(anchor.getClassLoader(), path);
+    }
+
+    /**
      * Marks values the library wrote into a packaged file with its own defaults, before the plugin's jar
      * shipped those keys, as defaults nobody has reviewed yet rather than as the owner's: a key the jar
      * ships now, which the reviewed defaults never had, whose value on disk is still {@code defaults}'.

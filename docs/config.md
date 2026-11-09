@@ -324,6 +324,10 @@ BundledFiles.refresh(this, MyPlugin.class, "menus");        // a directory
 BundledFiles.refresh(this, MyPlugin.class, "effects.yml");  // one file
 ```
 
+To ask whether a plugin ships a file or directory, use
+`BundledFiles.packaged(MyPlugin.class, "menus")` (1.544.0+), never `getResource`: the licence
+loader keeps the jar in memory and answers `getResource` for none of its files.
+
 Call it before reading the files, on enable and on reload. Missing files are
 written. For YAML, a key new in the plugin is added to the owner's file with its
 comments — nobody can have chosen something that did not exist — and a changed or

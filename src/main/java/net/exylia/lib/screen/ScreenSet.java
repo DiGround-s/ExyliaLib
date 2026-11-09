@@ -228,11 +228,7 @@ public final class ScreenSet {
     }
 
     private void installFiles() {
-        if (jarHas(folder)) BundledFiles.refresh(plugin, anchor, folder);
-    }
-
-    private boolean jarHas(String path) {
-        return anchor.getClassLoader().getResource(path) != null;
+        if (BundledFiles.packaged(anchor, folder)) BundledFiles.refresh(plugin, anchor, folder);
     }
 
     private void refreshWords(String id) {
@@ -242,7 +238,8 @@ public final class ScreenSet {
 
     private void refreshWordsFile(String id) {
         String words = folder + "/" + id + ".yml";
-        if (jarHas("lang/" + Languages.ENGLISH + "/" + words) || jarHas("lang/" + Languages.code(plugin) + "/" + words)) {
+        if (BundledFiles.packaged(anchor, "lang/" + Languages.ENGLISH + "/" + words)
+                || BundledFiles.packaged(anchor, "lang/" + Languages.code(plugin) + "/" + words)) {
             Languages.refresh(plugin, anchor, words);
         }
     }

@@ -483,6 +483,26 @@ public final class BundledResources {
     }
 
     /**
+     * Whether a file or directory is packaged in a classloader.
+     *
+     * <p>A loader that keeps its payload in memory answers {@code getResource} for neither, so a file is asked
+     * through {@link #open} and a directory through the same table {@link #extract} copies it from.
+     */
+    public static boolean packaged(@Nullable ClassLoader loader, @NotNull String name) {
+        if (loader == null) {
+            return false;
+        }
+        if (loader.getResource(name) != null || !bundledResourceNames(loader, prefixOf(Path.of(name))).isEmpty()) {
+            return true;
+        }
+        try (InputStream file = open(loader, name)) {
+            return file != null;
+        } catch (IOException unreadable) {
+            return false;
+        }
+    }
+
+    /**
      * The resources a classloader holds under a directory.
      *
      * <p>{@code ClassLoader} can hand back a resource by name but cannot list
