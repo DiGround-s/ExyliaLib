@@ -25,6 +25,8 @@ import java.util.Map;
  * @param screenSize   how large screens are drawn, in percent, for players who did not choose (since 1.519.0)
  * @param hideSidebar  whether a player's sidebar is hidden while a screen is open (since 1.522.0)
  * @param quietChat    whether chat is kept quiet while a screen is open (since 1.523.0)
+ * @param cursorMode   how the cursor follows the mouse for players who did not choose (since 1.546.0): {@code NORMAL},
+ *                     {@code RAW} or {@code PREDICTION}
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -114,7 +116,16 @@ public record ScreenSettings(
         @Comment("A message that answers a click also shows on the screen.")
         @Menu.Label("Quiet chat") @Menu.Icon("WRITABLE_BOOK")
         @Menu.About({"No chat over a screen: messages", "wait until it closes."})
-        boolean quietChat
+        boolean quietChat,
+
+        @Comment("How the cursor follows the mouse for players who did not choose.")
+        @Comment("NORMAL glides after it, RAW moves at once in small steps,")
+        @Comment("PREDICTION glides ahead of it and settles back when it stops.")
+        @Comment("Only the drawing differs: clicks and hover land the same.")
+        @Menu.Label("Cursor mode") @Menu.Icon("COMPASS")
+        @Menu.About({"How the cursor follows the mouse,", "unless the player picks their own."})
+        @Menu.Choices(value = {"NORMAL", "RAW", "PREDICTION"}, labels = {"Normal", "Raw", "Prediction"})
+        String cursorMode
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -146,6 +157,14 @@ public record ScreenSettings(
                           boolean hideSidebar) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
                 screenSize, hideSidebar, true);
+    }
+
+    /** The settings as they were before 1.546.0, with the normal cursor. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, "NORMAL");
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */

@@ -143,6 +143,8 @@ final class LiveScreen implements ScreenSession {
     private volatile double viewUnit;
     // Given out again on every show, after the world is sealed: only ids newer than the seal are the screen's.
     private volatile int hitboxId;
+    private final CursorLead lead = new CursorLead();
+    private final java.util.concurrent.atomic.AtomicBoolean leadWatched = new java.util.concurrent.atomic.AtomicBoolean();
     private volatile int[] backdropIds = new int[0];
     /** The scene's four copies, and how it is drawn (guarded by {@link #input}); {@code sceneText} null for none. */
     private final int[] sceneIds = new int[4];
@@ -195,8 +197,10 @@ final class LiveScreen implements ScreenSession {
     private boolean overBudget;
     /** Whether the first frame went out: the screen opens with a zoom, later arrivals slide in. */
     private boolean shown;
-    /** Ticks a hover or a moved box takes to glide, and a new box to settle in. */
+    /** Ticks a turning item takes to its next angle, and a new box to settle in. */
     private static final int GLIDE = 2;
+    /** Ticks a hover or a moved box takes when no transition says otherwise: what the mouse did should show soon. */
+    private static final int BOX_GLIDE = 1;
     private static final int SETTLE = 4;
     /** Blocks around the eyes where another player could stand in front of the screen. */
     private static final double HIDE_RADIUS = 4;
@@ -205,6 +209,10 @@ final class LiveScreen implements ScreenSession {
     private TaskHandle ticker;
     /** A hovered box keeps its hover this many pixels past its edges. */
     private static final double HYSTERESIS = 3;
+    /** The furthest prediction draws the arrow from the pointer, in layout units. */
+    private static final double LEAD_BOUND = 10;
+    /** How long without a move means the mouse stopped: a moving client sends one every 50. */
+    private static final long LEAD_REST_MILLIS = 70;
     /** How long a clicked box shows pressed, and how long Shift is held to close from anywhere. */
     private static final int ACTIVE_TICKS = 3;
     private static final int MAX_TOASTS = 1;
@@ -1677,7 +1685,7 @@ final class LiveScreen implements ScreenSession {
             } else {
                 Motion.Transition transition = frame.transitions().get(key);
                 if (transition == null || reduced) {
-                    transition = new Motion.Transition(Math.min(GLIDE, transition == null ? GLIDE : transition.ticks()),
+                    transition = new Motion.Transition(Math.min(BOX_GLIDE, transition == null ? BOX_GLIDE : transition.ticks()),
                             Motion.Ease.LINEAR, false);
                 } else if (!eased) {
                     transition = new Motion.Transition(transition.ticks(), Motion.Ease.LINEAR, transition.colours());
@@ -2095,18 +2103,23 @@ final class LiveScreen implements ScreenSession {
      * picture every time, so the wire sends only its move. Holds {@link #input}.
      */
     private void cursor(List<PacketWrapper<?>> out, int glide) {
+        arrow(out, cursorX, cursorY, glide);
+        if (screen.parallax() > 0) scene(out, glide);
+    }
+
+    /** The arrow drawn at {@code x}, {@code y}, which is not where the pointer is in prediction mode. Holds {@link #input}. */
+    private void arrow(List<PacketWrapper<?>> out, double x, double y, int glide) {
         double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
         int w = ARROW[0].length(), h = ARROW.length;
         Component arrow = Pictures.glyphs(ARROW_ARGB, w, h, 0);
         // The tip is the pointer's top-left pixel, where the cursor is.
-        double cx = cursorX + w * pixel / 2, cy = cursorY - h * pixel / 2;
+        double cx = x + w * pixel / 2, cy = y - h * pixel / 2;
         int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
         int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
         for (int copy = 0; copy < cursorIds.length; copy++) {
             out.add(image(cursorIds[copy], new ImageLook(cx, cy, pixel, CURSOR_LAYER, arrow, h,
                     (copy & 1) * gapX, (copy >> 1) * gapY), glide));
         }
-        if (screen.parallax() > 0) scene(out, glide);
     }
 
     private static int[] arrowPixels() {
@@ -2148,7 +2161,16 @@ final class LiveScreen implements ScreenSession {
                 return;
             }
             // A client that rides something repeats its rotation every tick.
-            if (yaw == lastYaw && pitch == lastPitch) return;
+            if (yaw == lastYaw && pitch == lastPitch) {
+                // A client that repeats itself says at once that the mouse stopped; any other leaves it to leadRest.
+                if (leadWatched.get()) {
+                    lead.rest();
+                    List<PacketWrapper<?>> back = new ArrayList<>();
+                    cursor(back, 1);
+                    wire.send(back);
+                }
+                return;
+            }
             double dx = ScreenMath.turn(lastYaw, yaw);
             double dy = pitch - lastPitch;
             // A fast move carries further: precise when slow, quick across the screen.
@@ -2163,7 +2185,16 @@ final class LiveScreen implements ScreenSession {
             lastPitch = pitch;
             lastTurn = System.currentTimeMillis();
             List<PacketWrapper<?>> out = new ArrayList<>();
-            cursor(out, 1);
+            switch (ScreenRuntime.cursorMode(player.getUniqueId())) {
+                case RAW -> cursor(out, 0);
+                case PREDICTION -> {
+                    double[] ahead = lead.moved(cursorX, cursorY, lastTurn, LEAD_BOUND * unit);
+                    arrow(out, ScreenMath.clamp(ahead[0], -halfW, halfW), ScreenMath.clamp(ahead[1], -halfH, halfH), 1);
+                    if (screen.parallax() > 0) scene(out, 1);
+                    if (leadWatched.compareAndSet(false, true)) tasks.runAtEntityLater(player, 2, this::leadRest);
+                }
+                default -> cursor(out, 1);
+            }
             moved = pointerMoved();
             // The client turns the camera, the server turns it back: past RECENTRE_PITCH always, and with a 3D item on
             // screen past CONE either way, so the world's fixed lights shade the item the same. The screen faces the
@@ -2189,6 +2220,25 @@ final class LiveScreen implements ScreenSession {
         }
         // The hover is drawn on the viewer's thread, which owns the frame; a burst of moves asks once.
         if (moved && hoverQueued.compareAndSet(false, true)) tasks.runAtEntity(player, this::hoverMoved);
+    }
+
+    /**
+     * On the viewer's thread, while prediction draws ahead: a client sends nothing once the mouse stops, so this puts
+     * the arrow back on the pointer when no move came for a while.
+     */
+    private void leadRest() {
+        synchronized (input) {
+            if (open && !away && System.currentTimeMillis() - lastTurn < LEAD_REST_MILLIS) {
+                tasks.runAtEntityLater(player, 1, this::leadRest);
+                return;
+            }
+            leadWatched.set(false);
+            lead.rest();
+            if (!open || away) return;
+            List<PacketWrapper<?>> out = new ArrayList<>();
+            cursor(out, 1);
+            wire.send(out);
+        }
     }
 
     /** Whether the box under the cursor changed; plays the hover tick. Holds {@link #input}. */
@@ -2224,10 +2274,15 @@ final class LiveScreen implements ScreenSession {
         List<Layout.Placed> targets = view.targets();
         double[] at = pointer();
         boolean shift;
+        Layout.Placed lit;
         synchronized (input) {
             shift = sprinting;
+            lit = pointedBox;
         }
-        Layout.Placed box = Layout.under(targets, at[0], at[1],
+        // What is lit is what gets clicked, near the edge it stays lit past as well.
+        Layout.Placed shown = pick(targets, at[0], at[1], lit);
+        Layout.Placed box = shown != null && (shown.node().onClick() != null || shift && shown.node().onShiftClick() != null)
+                ? shown : Layout.under(targets, at[0], at[1],
                 node -> node.onClick() != null || shift && node.onShiftClick() != null);
         if (box == null) return;
         // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.

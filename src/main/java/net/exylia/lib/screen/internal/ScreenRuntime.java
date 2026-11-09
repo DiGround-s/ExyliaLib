@@ -37,9 +37,11 @@ public final class ScreenRuntime {
         REVEAL.computeIfAbsent(viewer.getUniqueId(), id -> new ConcurrentHashMap<>()).put(hidden, plugin);
     }
     private static final Map<UUID, Double> SENSITIVITY = new ConcurrentHashMap<>();
+    private static final Map<UUID, CursorLead.Mode> CURSOR = new ConcurrentHashMap<>();
     /** Players who asked for reduced motion. */
     private static final java.util.Set<UUID> REDUCED = ConcurrentHashMap.newKeySet();
     private static final org.bukkit.NamespacedKey SPEED_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_speed");
+    private static final org.bukkit.NamespacedKey CURSOR_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_cursor");
     private static final org.bukkit.NamespacedKey MOTION_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_motion");
     private static final org.bukkit.NamespacedKey SIZE_KEY = new org.bukkit.NamespacedKey("exylialib", "screen_size");
     /** Players who chose their own screen size, in percent. */
@@ -147,6 +149,9 @@ public final class ScreenRuntime {
         Double speed = data.get(SPEED_KEY, org.bukkit.persistence.PersistentDataType.DOUBLE);
         if (speed != null) SENSITIVITY.put(player.getUniqueId(), speed);
         else SENSITIVITY.remove(player.getUniqueId());
+        String cursor = data.get(CURSOR_KEY, org.bukkit.persistence.PersistentDataType.STRING);
+        if (cursor != null) CURSOR.put(player.getUniqueId(), CursorLead.Mode.of(cursor));
+        else CURSOR.remove(player.getUniqueId());
         if (Boolean.TRUE.equals(data.get(MOTION_KEY, org.bukkit.persistence.PersistentDataType.BOOLEAN))) {
             REDUCED.add(player.getUniqueId());
         } else {
@@ -295,6 +300,18 @@ public final class ScreenRuntime {
         store(player, data -> data.set(SPEED_KEY, org.bukkit.persistence.PersistentDataType.DOUBLE, clamped));
     }
 
+    /** How a player's cursor follows the mouse: their choice, or the server's. */
+    static CursorLead.Mode cursorMode(UUID player) {
+        CursorLead.Mode chosen = CURSOR.get(player);
+        return chosen != null ? chosen : CursorLead.Mode.of(net.exylia.lib.screen.ScreenSettings.get().cursorMode());
+    }
+
+    /** Sets and keeps a player's cursor mode. */
+    static void cursorMode(Player player, CursorLead.Mode mode) {
+        CURSOR.put(player.getUniqueId(), mode);
+        store(player, data -> data.set(CURSOR_KEY, org.bukkit.persistence.PersistentDataType.STRING, mode.name()));
+    }
+
     /** Whether the player asked for reduced motion, or the server did for everyone. */
     public static boolean reducedMotion(UUID player) {
         return REDUCED.contains(player) || net.exylia.lib.screen.ScreenSettings.get().reducedMotion();
@@ -340,11 +357,13 @@ public final class ScreenRuntime {
         if (live != null) live.rescale();
     }
 
-    /** Back to what the server says: size, cursor speed, reduced motion and menu style. */
+    /** Back to what the server says: size, cursor speed and mode, reduced motion and menu style. */
     static void reset(Player player) {
         size(player, null);
         SENSITIVITY.remove(player.getUniqueId());
         store(player, data -> data.remove(SPEED_KEY));
+        CURSOR.remove(player.getUniqueId());
+        store(player, data -> data.remove(CURSOR_KEY));
         reducedMotion(player, false);
         net.exylia.lib.ui.MenuStyles.choose(player, null);
     }
@@ -463,6 +482,7 @@ public final class ScreenRuntime {
         public void onQuit(PlayerQuitEvent event) {
             close(event.getPlayer().getUniqueId());
             SENSITIVITY.remove(event.getPlayer().getUniqueId());
+            CURSOR.remove(event.getPlayer().getUniqueId());
             REDUCED.remove(event.getPlayer().getUniqueId());
             SIZE.remove(event.getPlayer().getUniqueId());
             CHAT.remove(event.getPlayer().getUniqueId());

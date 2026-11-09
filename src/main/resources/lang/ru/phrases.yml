@@ -1768,6 +1768,13 @@ World: Мир
 '{warning}Menus open again when this view ends.': "{warning}Меню снова откроются, когда этот вид закончится."
 Screen settings: Настройки экрана
 Cursor speed: Скорость курсора
+Cursor: Курсор
+Normal: Обычный
+Raw: Прямой
+Prediction: Предсказание
+Glides after your mouse: Плавно следует за мышью
+Moves at once, in small steps: Двигается сразу, короткими шагами
+Glides ahead of your mouse: Плавно идёт впереди мыши
 Reduced motion: Меньше анимации
 Menu style: Стиль меню
 Screen size: Размер экрана

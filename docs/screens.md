@@ -67,9 +67,10 @@ in-screen panel:
 
 - **Size**, 50% to 250% in steps of 10. Applied at once to everything on screen, the cursor and the backdrop included.
 - **Cursor speed**, 0.2 to 3, as `Screens.sensitivity`.
+- **Cursor**, how the arrow follows the mouse (1.546.0): Normal, Raw or Prediction. See "The cursor modes".
 - **Reduced motion**, as `Screens.reducedMotion`.
 - **Menu style**, while `player-choice` is on: the server's choice, chest windows or screens, for menus opened after.
-- **Reset** forgets all four.
+- **Reset** forgets all of them.
 
 Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a size so large the button is out of view.
 Those two keys never reach a screen's own `keys`, and clients older than 1.21.2 do not send jump, so they have the
@@ -144,14 +145,15 @@ on close. An input that steps the screen aside (a text prompt) gives the chat ba
 ## Input
 
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the
-  cursor, gliding one tick so it reads smooth. The client sends rotation at most 20 times a second, so the
-  cursor trails the real mouse by about 50 ms; that is the floor for any server-drawn cursor.
+  cursor, gliding one tick so it reads smooth. The arrow is the client's rendering of a server packet, so it can not be
+  closer to the hand than the client's own ticks allow. See "The cursor modes" below.
 - **Speed:** `Screens.sensitivity(player, value)` from 0.2 to 3 (1 by default), applied at once. Since 1.496.0
   it is kept in the player's data across restarts, and players set it themselves in `/settings` → Interface
   ("Cursor speed"). `cursor-acceleration` in `screens.yml` (0 by default, 1 is mild) carries a fast mouse
   further while a slow one stays precise.
 - **Hover** (1.496.0): the box under the cursor keeps its hover 3 pixels past its edges, unless the cursor is
-  inside a box nested in it, so a hover never flickers on a border.
+  inside a box nested in it, so a hover never flickers on a border. A click lands on the box that is lit (1.546.0). It
+  fades in over one tick unless a transition says otherwise (1.546.0, two before).
 - **Clicks:** left and right, through an invisible interaction box around the eyes, so a click never has the
   vanilla miss cooldown and never reaches the world.
 - **Wheel:** off by default. The client is then shown as a spectator: no hand, no crosshair, no hotbar, but a
@@ -180,6 +182,26 @@ on close. An input that steps the screen aside (a text prompt) gives the chat ba
 While a screen is open the player is frozen in place (`Packets#movement`), and everything else in the world is
 out of their sight (1.492.0, `Visibility#seal` around the screen): other players, their name tags, mobs and other
 plugins' holograms never show through or at its edges. It all comes back on close or while an input is aside.
+
+### The cursor modes (1.546.0)
+
+Each player picks one in the settings panel ("Cursor", kept in their data); `cursor-mode` in `screens.yml` is the choice
+of everyone who did not. Only the drawing differs: clicks and hover read the real pointer in every mode.
+
+| Mode | What it does | Lag on the test client | Trade-off |
+| --- | --- | --- | --- |
+| `NORMAL` (default) | glides one tick to each new place | 136 to 154 ms | smoothest, no overshoot |
+| `RAW` | lands at once on each new place | 112 to 132 ms | visible steps, 20 a second |
+| `PREDICTION` | glides to where the mouse is heading, at most 10 layout pixels ahead | 108 to 110 ms | passes the place the mouse stopped at on a fast stop, then settles back |
+
+Where the time goes, on 1.21.4 with no ping: a client sends its rotation once per tick (50 ms apart), the server handles
+it and flushes in under 1 ms without waiting for its own tick, and the client applies a display's new position only at
+its next tick. A glide then takes another tick. So `NORMAL` shows the hand as it was 100 ms before, `RAW` 50 to 100 ms,
+plus the ping rounded up to whole ticks. The figures above also carry the capture's own delay, about 35 ms, so compare
+them with each other. The default stays `NORMAL` because it is the only mode free of steps and overshoot; feel is the
+player's to judge, which is why they choose.
+
+The lit box waits for the server's next tick on top of that, up to about 50 ms, since the viewer's thread owns the frame.
 
 ## How things are drawn (1.492.0)
 
@@ -1090,6 +1112,7 @@ default-style: CLASSIC     # CLASSIC or SCREEN, for every plugin that does not c
 player-choice: true        # players may pick their own in /settings
 plugins: {}                # ExyliaJobs: SCREEN
 chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
+cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
 ```
 
 A plugin with a `menu-style` key of its own hands it over once, on enable:

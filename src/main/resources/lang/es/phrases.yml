@@ -1780,6 +1780,13 @@ World: Mundo
 '{warning}Menus open again when this view ends.': "{warning}Los menús se abren de nuevo cuando termine esta vista."
 Screen settings: Ajustes de pantalla
 Cursor speed: Velocidad del cursor
+Cursor: Cursor
+Normal: Normal
+Raw: Directo
+Prediction: Predicción
+Glides after your mouse: Se desliza tras tu ratón
+Moves at once, in small steps: Se mueve al instante, a pasos
+Glides ahead of your mouse: Se desliza por delante de tu ratón
 Reduced motion: Movimiento reducido
 Menu style: Estilo de menú
 Screen size: Tamaño de pantalla

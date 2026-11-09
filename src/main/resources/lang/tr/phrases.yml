@@ -1780,6 +1780,13 @@ World: Dünya
 '{warning}Menus open again when this view ends.': "{warning}Menüler bu görünüm bitince yeniden açılır."
 Screen settings: Ekran ayarları
 Cursor speed: İmleç hızı
+Cursor: İmleç
+Normal: Normal
+Raw: Doğrudan
+Prediction: Tahmin
+Glides after your mouse: Farenin ardından süzülür
+Moves at once, in small steps: Hemen, küçük adımlarla hareket eder
+Glides ahead of your mouse: Farenin önünde süzülür
 Reduced motion: Azaltılmış hareket
 Menu style: Menü stili
 Screen size: Ekran boyutu

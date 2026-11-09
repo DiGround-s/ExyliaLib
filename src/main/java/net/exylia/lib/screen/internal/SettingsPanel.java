@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 
 /**
  * The in-screen settings a player reaches from the button every screen draws at its bottom right, or with
- * {@link LiveScreen#SETTINGS_KEYS}: how large screens are, how fast the cursor is, how much they move, how menus open.
+ * {@link LiveScreen#SETTINGS_KEYS}: how large screens are, how the cursor moves, how much they move, how menus open.
  * Everything is kept per player by {@link ScreenRuntime}.
  *
  * <p>Internal: free to change without notice.
@@ -48,6 +48,11 @@ final class SettingsPanel {
                 stepper("speed", String.format(Locale.ROOT, "%.1f", speed),
                         event -> ScreenRuntime.sensitivity(player, Math.round((speed - 0.1) * 10) / 10.0),
                         event -> ScreenRuntime.sensitivity(player, Math.round((speed + 0.1) * 10) / 10.0))));
+
+        CursorLead.Mode cursor = ScreenRuntime.cursorMode(id);
+        panel.add(row("Cursor", button("cursor", "{info}" + Phrases.tr(cursor.label),
+                event -> ScreenRuntime.cursorMode(player, cursor.next())).width(70)
+                .tooltip("{letters}" + Phrases.tr(cursor.about))));
 
         boolean reduced = ScreenRuntime.reducedMotionChosen(id);
         panel.add(row("Reduced motion", button("motion", (reduced ? "{success}" : "{letters_black}")
