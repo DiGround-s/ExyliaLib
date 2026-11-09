@@ -25,6 +25,8 @@ public final class GameFrame {
 
     /** The state that holds the open tab: {@code play}, {@code how} or {@code payouts}. */
     public static final String TAB = "game_tab";
+    /** The value holding the result on the frame: empty while there is none. */
+    public static final String RESULT = "game_result";
     /** What the frame reads in markup: {@code game_tone} is {@code success}, {@code error} or any tone's name. */
     private static final String[] VALUES = {"game_result", "game_detail", "game_tone", "game_again", "game_refused", "game_idle"};
     private static final String OFFER = "game_offer";
@@ -95,7 +97,7 @@ public final class GameFrame {
     public void result(@NotNull String tone, @NotNull String title, @NotNull String detail) {
         session.set("game_tone", tone);
         session.set("game_detail", detail);
-        session.set("game_result", title);
+        session.set(RESULT, title);
     }
 
     /** Puts up what the result offers: Again, Change stake and Leave. */

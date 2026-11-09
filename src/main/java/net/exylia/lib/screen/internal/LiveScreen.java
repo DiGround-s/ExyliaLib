@@ -2331,7 +2331,11 @@ final class LiveScreen implements ScreenSession {
     /** On a network thread. A held chat line that answers the click just made also shows on the screen. */
     void answer(Component line) {
         if (System.currentTimeMillis() - lastPress > ANSWER_MILLIS || !open() || !plugin.isEnabled()) return;
-        tasks.runAtEntity(player, () -> toastLine(line, null));
+        tasks.runAtEntity(player, () -> {
+            // The line is the same news as a result on the frame, and would sit on top of it; it still arrives on close.
+            if (!"".equals(String.valueOf(state.getOrDefault(net.exylia.lib.screen.GameFrame.RESULT, "")))) return;
+            toastLine(line, null);
+        });
     }
 
     @Override
