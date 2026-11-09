@@ -19,11 +19,14 @@ import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientHe
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerFlying;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerInput;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientTeleportConfirm;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerActionBar;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBundle;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCamera;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerHeldItemChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerPositionAndLook;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChatMessage;
@@ -49,9 +52,13 @@ import java.util.UUID;
  *
  * <h2>How a screen is drawn</h2>
  * Every display stands at the viewer's eyes with billboard centre: the client turns it with the view every
- * frame, so its translation is simply x right, y up, z towards the eye, and the screen holds still on screen
- * while the player keeps their own camera. That matters: a client looking through any other entity stops
- * sending its rotation, and the rotation is the cursor.
+ * frame, so its translation is simply x right, y up, z towards the eye, and the screen holds still on screen.
+ *
+ * <h2>How the camera is held</h2>
+ * The mouse turns the local player, and the world is drawn from the camera entity. So the client looks out of a still
+ * entity at the eyes, and the world behind a window does not move with the cursor. A client looking through another
+ * entity stops sending its position and rotation, and the rotation is the cursor; one that rides something sends its
+ * rotation every tick whatever it looks through. So it also rides a second one, which the server never hears of.
  *
  * <p>A rect is a text display whose glyphs, a 16 by 16 grid of {@code M}s, are painted in its own background
  * colour: the client pads a background by about a pixel, which is a fifth of a single space but under a
@@ -83,6 +90,12 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final byte BILLBOARD_CENTER = 3;
     private static final int FULL_BRIGHT = (15 << 4) | (15 << 20);
     private static final double FONT_PIXEL = 0.025;
+    /**
+     * A text display's scale along the view. The font stands its shadow and a display its background a fixed share of a
+     * font pixel behind the words, and that share of a block at scale 1 would part them on a panel this close: a shadow
+     * slid towards the middle of the view, by more the further from it.
+     */
+    private static final float SCALE_DEEP = 0.15f;
     private static final int GRID = 16;
     private static final String GRID_TEXT;
     private static final String CLEAR_TEXT;
@@ -270,6 +283,39 @@ final class ScreenPackets extends PacketListenerAbstract {
                 0f, 0f, 0f, 0, Optional.empty());
     }
 
+    /** An entity drawn as nothing, facing {@code yaw} and {@code pitch}: what a held camera looks out of and a client rides. */
+    static PacketWrapper<?> spawnStill(int id, Vector3d at, float yaw, float pitch) {
+        return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
+                pitch, yaw, yaw, 0, Optional.empty());
+    }
+
+    /**
+     * Whether a client keeps sending its rotation and input while it looks through another entity and rides one: from
+     * 1.21.2 the input packet goes out whatever it rides; before that sprint and sneak stop with the position.
+     */
+    static boolean canHoldCamera(Player player) {
+        var version = net.exylia.lib.packet.ClientVersions.of(player);
+        return version != null && version.isNewerThanOrEquals(com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_2);
+    }
+
+    /** Who rides {@code vehicle}, on this client alone. */
+    static PacketWrapper<?> riders(int vehicle, int... riders) {
+        return new WrapperPlayServerSetPassengers(vehicle, riders);
+    }
+
+    /** Clears the line a client writes on being mounted ("press shift to dismount"). */
+    static PacketWrapper<?> blankBar() {
+        return new WrapperPlayServerActionBar(Component.empty());
+    }
+
+    /**
+     * Sends the client's view to an entity, past every listener: the library's record of who a camera holds is for
+     * cinematics, and a screen must not read its own camera as one and close. In order with what the wire queued before.
+     */
+    static void look(Player player, int entity) {
+        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, new WrapperPlayServerCamera(entity));
+    }
+
     static PacketWrapper<?> spawnItem(int id, Vector3d at) {
         return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
                 0f, 0f, 0f, 0, Optional.empty());
@@ -411,7 +457,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) sx, (float) sy, 1f)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) sx, (float) sy, SCALE_DEEP)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT,
@@ -454,7 +500,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
-                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (scale * squeeze), (float) scale, 1f)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (scale * squeeze), (float) scale, SCALE_DEEP)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
@@ -479,7 +525,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
-                        new Vector3f((float) (fx / FONT_PIXEL), (float) (fy / FONT_PIXEL), 1f)),
+                        new Vector3f((float) (fx / FONT_PIXEL), (float) (fy / FONT_PIXEL), SCALE_DEEP)),
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),

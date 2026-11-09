@@ -183,6 +183,10 @@ plugins' holograms never show through or at its edges. It all comes back on clos
 
 ## How things are drawn (1.492.0)
 
+- **The panel stands 0.09 blocks from the eyes** (1.545.0). A player's eyes are at least 0.3 from a wall and 0.18 under a
+  ceiling, and every corner of the view at that depth is closer, so a wall, a sign, a ceiling or a tunnel never cuts it
+  and a particle draws behind it. What has no collision and sits within those 9 cm of the eyes (a player's head inside a
+  sign or a torch's block) can still show.
 - **Items** are drawn as their own inventory sprite, in pixels: a 3D item display is shaded by the world's fixed
   lights, so it brightened and darkened as the viewer looked around. The sprites are read once from the client jar
   Mojang serves for the server's version into `plugins/ExyliaLib/cache/sprites-<version>`, in the background; until
@@ -822,13 +826,18 @@ How it stays honest:
   the run, destroy every piece and put the real blocks back. Particles the client already drew are the client's and
   fade by themselves within a second or so; the panel hides them on a hover change, on close they may finish in the
   open.
-- **The camera is tipped and held.** Opening the window tips the eyes a few degrees down so the floor shows; closing the
-  screen, or an input stepping it aside, gives that back. An upright body in a window far from the centre leans a
-  little, as anything does near the edge of a wide view: keep a tall window on the screen's vertical middle, where the
-  tip is smallest (ExyliaArmorTrims' and ExyliaArmorSkin's left column).
-- **The camera stays near.** The hole shows the world, so the camera may not wander as it does behind a solid panel: while
-  a window is on screen it stays within a degree of its place, and the moment the mouse rests it goes back exactly. The
-  stage is seen from a little above. While the mouse moves the picture in the hole can shake by that degree.
+- **The camera holds still.** While a screen is open the client looks out of a still entity at its eyes, facing level, so
+  the mouse moves only the cursor and the world in the hole never moves with it (1.545.0, client 1.21.2+). The rotation
+  still reaches the server because the client also rides a second entity, which the server never hears of; a client
+  that rides something sends its rotation every tick whatever it looks through. Closing, an input stepping the screen
+  aside, a death, a world change and a cinematic each give the view back. A player really riding something, and a client
+  before 1.21.2, whose sprint and sneak stop with the position, keep their own camera: there it stays within a degree of
+  its place, goes back the moment the mouse rests, and the picture can shake by that degree.
+- **The stage is seen level.** A pitched camera leans every upright away from the middle of the view, so it does not
+  pitch: a body stays upright wherever the window is, as a shift lens keeps a building straight. The floor, which a level
+  camera could see from below in a window high on the screen, is tipped towards it so its top shows from the same angle
+  anywhere, and stands square to the view so its front edge stays level. Far from the middle a body is drawn wider, as
+  anything is near the edge of a wide view: keep a tall window near the middle where it can go.
 - **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
   included, so one past the window's edge would show on them.
 - **Display budget.** A screen and the stage in its window share 560 displays (a screen alone keeps its 400). An effect

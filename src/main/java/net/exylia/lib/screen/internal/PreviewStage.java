@@ -50,8 +50,14 @@ final class PreviewStage extends PreviewPlayer {
     private static final double NEAREST = 2.5, FURTHEST = 12;
     /** How far above the window's bottom edge the floor is, as a share of the frame. */
     private static final double FLOOR_MARGIN = 0.1;
-    /** How many degrees down the eyes look at the stage, so its floor shows. */
-    private static final double LOOK_DOWN = 9;
+    /**
+     * The camera's pitch, level. A pitched camera leans every upright away from the middle of the view by about
+     * {@code atan(x / f * tan(pitch))}: 24 degrees in a window at the top right corner under the 26 degrees it took to
+     * look at it. Level, every upright stays upright wherever the window is, as a shift lens keeps a building straight.
+     */
+    static final float PITCH = 0f;
+    /** How many degrees from above the floor is seen, whatever height it stands at. */
+    private static final double FLOOR_SEEN = 16;
     private static final double FLOOR_WIDE = 2.4;
     /** How large a body and an effect play on the stage. */
     private static final double SCALE = 1, EFFECT_SCALE = 0.8;
@@ -121,8 +127,14 @@ final class PreviewStage extends PreviewPlayer {
         this.kept = new ArrayList<>(fake.keySet());
         blocks.keep(viewer, fake);
         // The floor the body stands on.
+        double elevation = Math.toDegrees(Math.atan2(plane.point(0, 0, 0).getY() - eyes.getY(), ahead));
+        // Level with the camera's yaw, so its front edge stays level however far aside the window is.
+        net.exylia.lib.display.Rotation floorTurn = net.exylia.lib.display.Rotation
+                .around(net.exylia.lib.display.Rotation.Axis.X, Math.toRadians(-floorTilt(elevation, FLOOR_SEEN)))
+                .then(StageLook.facing(new StagePlane(viewer.getWorld(), 0, 0, 0, yaw, 1, 1, 1, 1)));
+        double floorWide = Math.max(FLOOR_WIDE, wide * 1.3);
         this.floor = show(DisplayModel.block(Material.POLISHED_BLACKSTONE.createBlockData()).light(15),
-                still(rotation, FLOOR_WIDE, 0.1, FLOOR_WIDE), plane.point(0, -0.05, 0));
+                still(floorTurn, floorWide, 0.1, FLOOR_WIDE), plane.point(0, -0.05, 0));
         this.poll = tasks.runAtEntityTimer(viewer, POLL_TICKS, POLL_TICKS, this::tick);
     }
 
@@ -131,9 +143,12 @@ final class PreviewStage extends PreviewPlayer {
         return Math.clamp(FRAME_TALL * distance / h, NEAREST, FURTHEST);
     }
 
-    /** The camera's pitch, degrees down, that looks at the stage through a window at {@code y} from a little above. */
-    static float pitch(double distance, double y) {
-        return (float) Math.clamp(Math.toDegrees(Math.atan2(y, distance)) + LOOK_DOWN, -30, 40);
+    /**
+     * How many degrees the floor tips towards the camera so its top is seen from {@code seen} degrees above, for a floor
+     * {@code elevation} degrees above the eyes; a floor already seen from that far above needs none.
+     */
+    static double floorTilt(double elevation, double seen) {
+        return Math.max(0, elevation + seen);
     }
 
     /** {forward, right, up} of a camera, each {x, y, z}. */
@@ -174,10 +189,12 @@ final class PreviewStage extends PreviewPlayer {
                 for (int by = minY; loaded && by <= maxY; by++) {
                     double dx = bx + 0.5 - eyes.getX(), dy = by + 0.5 - eyes.getY(), dz = bz + 0.5 - eyes.getZ();
                     double ahead = dx * axis[0][0] + dy * axis[0][1] + dz * axis[0][2];
-                    if (ahead < 0.2 || ahead > far + 1) continue;
+                    // From a block's middle: one beside the eyes may reach ahead of them (a sign on the wall they face).
+                    if (ahead < -1 || ahead > far + 1) continue;
+                    double spread = Math.max(0, ahead);
                     double across = dx * axis[1][0] + dz * axis[1][2];
                     double up = dx * axis[2][0] + dy * axis[2][1] + dz * axis[2][2];
-                    if (Math.abs(across - cx * ahead) > hw * ahead + 1 || Math.abs(up - cy * ahead) > hh * ahead + 1) continue;
+                    if (Math.abs(across - cx * spread) > hw * spread + 1 || Math.abs(up - cy * spread) > hh * spread + 1) continue;
                     if (!world.getBlockAt(bx, by, bz).getType().isAir()) out.put(new Location(world, bx, by, bz), air);
                 }
             }

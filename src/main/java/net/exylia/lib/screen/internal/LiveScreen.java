@@ -49,11 +49,20 @@ final class LiveScreen implements ScreenSession {
 
     /** The layout is written as if the screen stood this far from the eyes, in blocks. */
     private static final double DISTANCE = 2.0;
-    /** How far it really stands: close, so a wall the player faces never cuts through it. */
-    private static final double DEPTH = 0.6;
+    /**
+     * How far it really stands. A player's eyes are 0.3 from a wall and 0.18 under a ceiling, and every corner of the view
+     * at this depth stays closer than that up to FOV 110 ({@code DepthTest}), so nothing a player can stand next to cuts
+     * through it, and no particle draws over it unless it spawns inside the panel.
+     */
+    static final double DEPTH = 0.09;
     private static final double K = DEPTH / DISTANCE;
-    /** Depth between layers, so stacked rects never fight. */
-    private static final double LAYER = 0.001;
+    /**
+     * Depth between layers, so stacked rects never fight. The cursor's layer stands in front of the client's near
+     * plane ({@link #NEAR}) at this share of {@link #DEPTH}.
+     */
+    static final double LAYER = DEPTH / 600;
+    /** Where the client stops drawing, in blocks from the eye. */
+    static final double NEAR = 0.05;
     /** The default layout area spans this many units across at {@link #DISTANCE}: about three quarters of a 16:9 view at FOV 70. */
     private static final double SPAN = 5.6;
     /**
@@ -73,7 +82,9 @@ final class LiveScreen implements ScreenSession {
     /** The backdrop, in units: past the edge of any view. */
     private static final double BACKDROP_WIDE = 16, BACKDROP_TALL = 10;
     /** Past this pitch the client's rotation is turned back silently; the view does not move. */
-    private static final float RECENTRE_PITCH = 40f;
+    private static final float RECENTRE_PITCH = 60f;
+    /** How high over the feet a client's vehicle stands for it to ride with its feet where they are. */
+    private static final double RIDE_HEIGHT = 0.6;
     /** How far the camera may turn from where the screen opened while a 3D item is on screen, in degrees. */
     private static final float CONE = 8f;
     /** As {@link #CONE} while a window is on screen: the world moves behind the hole with the camera, so it barely may. */
@@ -103,7 +114,7 @@ final class LiveScreen implements ScreenSession {
     /** One pointer pixel, in layout units at the designed size. */
     private static final double ARROW_PIXEL = 0.0072;
     private static final int[] ARROW_ARGB = arrowPixels();
-    private static final int CURSOR_LAYER = 250;
+    static final int CURSOR_LAYER = 250;
     /** How long a toast stays, in milliseconds. */
     private static final long TOAST_MILLIS = 3000;
     /** What one screen may draw; past it the rest is left out and reported once. */
@@ -258,6 +269,14 @@ final class LiveScreen implements ScreenSession {
     private volatile long lastTurn;
     /** The pitch the camera is held at while a window is on screen. */
     private volatile float homePitch;
+    /**
+     * The still entity the client looks out of and the one it rides, or 0 when it keeps its own camera (a client before
+     * 1.21.2, a player really riding something). Read by the netty thread.
+     */
+    private volatile int cameraId;
+    private int vehicleId;
+    /** Where the held camera faces: a spawn packet carries a turn in 256 steps. */
+    private float cameraYaw;
     /** Where the eyes looked when the screen opened: a window tips them, and closing gives that back. */
     private final float openPitch;
     private volatile boolean tipped;
@@ -453,6 +472,16 @@ final class LiveScreen implements ScreenSession {
             }
         }
         for (int id : cursorIds) out.add(ScreenPackets.spawnDisplay(id, origin));
+        boolean holds = !player.isInsideVehicle() && ScreenPackets.canHoldCamera(player);
+        if (holds) {
+            cameraYaw = Math.round(homeYaw * 256 / 360) * 360f / 256;
+            vehicleId = ids.getAsInt();
+            cameraId = ids.getAsInt();
+            out.add(ScreenPackets.spawnStill(cameraId, origin, cameraYaw, 0f));
+            out.add(ScreenPackets.spawnStill(vehicleId, new Vector3d(origin.x, player.getLocation().getY() + RIDE_HEIGHT, origin.z), 0f, 0f));
+            out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
+            out.add(ScreenPackets.blankBar());
+        }
         synchronized (this) {
             // Drawn afresh: nothing on the client is the last render's any more.
             lastLaid = null;
@@ -466,6 +495,7 @@ final class LiveScreen implements ScreenSession {
             }
         }
         wire.send(out);
+        if (holds) ScreenPackets.look(player, cameraId);
         redraw();
         ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::renderNow);
     }
@@ -492,6 +522,7 @@ final class LiveScreen implements ScreenSession {
         if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
         for (int id : cursorIds) ids.add(id);
         if (player.isOnline()) {
+            giveBackView(ids);
             wire.send(List.of(
                     ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray()),
                     ScreenPackets.heldSlot(player.getInventory().getHeldItemSlot())));
@@ -537,6 +568,7 @@ final class LiveScreen implements ScreenSession {
         for (int id : backdropIds) ids.add(id);
         if (screen.scene() != null) for (int id : sceneIds) ids.add(id);
         for (int id : cursorIds) ids.add(id);
+        giveBackView(ids);
         wire.send(List.of(ScreenPackets.destroy(ids.stream().mapToInt(Integer::intValue).toArray())));
         giveBackPitch();
         Packets.of(plugin).visibility().seal(player, null);
@@ -1442,9 +1474,10 @@ final class LiveScreen implements ScreenSession {
         if (stage == null) {
             int wall = ScreenMath.argb(window.node().background(), 0);
             wall = wall == 0 ? backdropBase() : ScreenMath.over(wall, backdropBase());
-            homePitch = PreviewStage.pitch(DISTANCE, y);
-            tipped = true;
-            stage = new PreviewStage(plugin, player, tasks, wire, ids.getAsInt(), origin, homeYaw, homePitch, DISTANCE, x, y, w, h,
+            homePitch = PreviewStage.PITCH;
+            boolean held = cameraId != 0;
+            tipped = !held;
+            stage = new PreviewStage(plugin, player, tasks, wire, ids.getAsInt(), origin, held ? cameraYaw : homeYaw, homePitch, DISTANCE, x, y, w, h,
                     wall, window.node().vanish(), () -> WINDOW_BUDGET - drawnCount, this::settle);
         }
         stage.want(window.node().preview());
@@ -1463,6 +1496,25 @@ final class LiveScreen implements ScreenSession {
         else tasks.runAtEntity(player, going::close);
     }
 
+    /**
+     * Off the vehicle, the rotation the mouse left back to where the eyes looked when the screen opened, and the view back
+     * in the client's own eyes, unless a cinematic has taken it since. A client must be told before the entity it looks
+     * out of goes: it would go on drawing from where that stood. {@code ids} takes both entities to destroy.
+     */
+    private void giveBackView(List<Integer> ids) {
+        int camera = cameraId;
+        if (camera == 0) return;
+        cameraId = 0;
+        ids.add(camera);
+        ids.add(vehicleId);
+        wire.send(List.of(ScreenPackets.riders(vehicleId),
+                ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
+                        (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
+        if (!net.exylia.lib.packet.internal.PacketRuntime.cameraHeld(player.getUniqueId())) {
+            ScreenPackets.look(player, player.getEntityId());
+        }
+    }
+
     /** The eyes back where they looked when the screen opened, if a window tipped them. */
     private void giveBackPitch() {
         if (!tipped) return;
@@ -1479,7 +1531,7 @@ final class LiveScreen implements ScreenSession {
     /** Brings a camera the mouse has left at rest back to where the stage was placed from. */
     private void settle() {
         synchronized (input) {
-            if (away || recentreId != 0 || !windowed || System.currentTimeMillis() - lastTurn < SETTLE_MILLIS) return;
+            if (cameraId != 0 || away || recentreId != 0 || !windowed || System.currentTimeMillis() - lastTurn < SETTLE_MILLIS) return;
             float off = (float) ScreenMath.turn(homeYaw, lastYaw);
             float down = lastPitch - homePitch;
             if (Math.abs(off) < 0.02f && Math.abs(down) < 0.02f) return;
@@ -2095,6 +2147,8 @@ final class LiveScreen implements ScreenSession {
                 lastPitch = pitch;
                 return;
             }
+            // A client that rides something repeats its rotation every tick.
+            if (yaw == lastYaw && pitch == lastPitch) return;
             double dx = ScreenMath.turn(lastYaw, yaw);
             double dy = pitch - lastPitch;
             // A fast move carries further: precise when slow, quick across the screen.
@@ -2115,14 +2169,21 @@ final class LiveScreen implements ScreenSession {
             // screen past CONE either way, so the world's fixed lights shade the item the same. The screen faces the
             // eye whatever it looks at, so the snap is not seen.
             float off = (float) ScreenMath.turn(homeYaw, yaw);
-            boolean held = cone;
-            float limit = windowed ? WINDOW_CONE : CONE;
-            float down = windowed ? pitch - homePitch : pitch;
+            int camera = cameraId;
+            boolean held = cone && camera == 0;
+            float limit = windowed && camera == 0 ? WINDOW_CONE : CONE;
+            float down = windowed && camera == 0 ? pitch - homePitch : pitch;
             if (recentreId == 0 && (Math.abs(down) > (held ? limit : RECENTRE_PITCH) || held && Math.abs(off) > limit)) {
                 recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
                 recentreBy = down;
                 recentreYaw = held ? off : 0;
+                // A client on a vehicle ignores a turn: off it and back on within the bundle, its view elsewhere.
+                if (camera != 0) out.add(ScreenPackets.riders(vehicleId));
                 out.add(ScreenPackets.recentre(recentreId, recentreYaw, down));
+                if (camera != 0) {
+                    out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
+                    out.add(ScreenPackets.blankBar());
+                }
             }
             wire.send(out);
         }
