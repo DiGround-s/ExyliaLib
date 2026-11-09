@@ -25,6 +25,8 @@ class ViewerRoomTest {
 
     private final Player viewer = new FakePlayer("Viewer").player();
     private final Player other = new FakePlayer("Other").player();
+    private final org.bukkit.World world = (org.bukkit.World) Proxy.newProxyInstance(org.bukkit.World.class.getClassLoader(),
+            new Class<?>[]{org.bukkit.World.class}, (proxy, method, args) -> null);
 
     @AfterEach
     void tearDown() {
@@ -39,7 +41,7 @@ class ViewerRoomTest {
 
     private DisplayHandle show(List<Player> to, double y) {
         DisplayMotion still = DisplayMotion.of(List.of(new DisplayKeyframe(0, 0, 0, 0, Rotation.NONE, 1, 1, 1)), 5000);
-        return DisplayRuntime.show("Test", DisplayModel.text(Component.empty()), still, new Location(null, 0, y, 0), to);
+        return DisplayRuntime.show("Test", DisplayModel.text(Component.empty()), still, new Location(world, 0, y, 0), to);
     }
 
     @Test
@@ -62,17 +64,22 @@ class ViewerRoomTest {
     }
 
     @Test
-    void aRehearsalKeepsToAQuarterOfTheRoom() {
+    void aRehearsalIsNeverSentAndTakesNoRoomYetIsMeasured() {
         AtomicInteger next = new AtomicInteger(1);
+        AtomicInteger sentTo = new AtomicInteger();
         DisplaySink sink = (DisplaySink) Proxy.newProxyInstance(DisplaySink.class.getClassLoader(),
-                new Class<?>[]{DisplaySink.class}, (proxy, method, args) -> null);
+                new Class<?>[]{DisplaySink.class}, (proxy, method, args) -> {
+                    if (args != null && args[0] instanceof List<?> viewers) sentTo.addAndGet(viewers.size());
+                    return null;
+                });
         DisplayRuntime.testHooks(System::currentTimeMillis, next::getAndIncrement, sink);
-        DisplayRuntime.limitViewer(viewer.getUniqueId(), () -> 8, 48);
+        DisplayRuntime.limitViewer(viewer.getUniqueId(), () -> 1, 48);
 
         assertNotNull(show(List.of(viewer), 60));
         assertNotNull(show(List.of(viewer), 60));
-        assertNull(show(List.of(viewer), 60), "past a quarter of eight");
-        for (int shown = 2; shown < 8; shown++) assertNotNull(show(List.of(viewer)), "the real play keeps the rest");
+        assertEquals(0, sentTo.get(), "out of sight, so out of the wire");
+        assertEquals(2, DisplayRuntime.sample(viewer, new Location(world, 0, 60, 0), 3, java.util.Set.of()).size());
+        assertNotNull(show(List.of(viewer)), "the real play keeps all of its room");
         assertNull(show(List.of(viewer)));
     }
 }

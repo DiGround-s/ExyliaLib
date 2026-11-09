@@ -831,10 +831,10 @@ How it stays honest:
   stage is seen from a little above. While the mouse moves the picture in the hole can shake by that degree.
 - **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
   included, so one past the window's edge would show on them.
-- **Display budget.** The stage shares the screen's 400 displays: it gets what the screen leaves. An effect that wants
-  more plays with its later pieces missing, and the console says so once per plugin. On the first play of an effect
-  a miniature rehearsal out of sight learns how to turn and size it, kept to a quarter of that room so the real play
-  has the rest. See [Performance](screens-performance.md).
+- **Display budget.** A screen and the stage in its window share 560 displays (a screen alone keeps its 400). An effect
+  that wants more than the screen leaves plays with its later pieces missing, and the console says so once per plugin;
+  every effect ExyliaKillEffect ships fits. On the first play of an effect a rehearsal learns how to turn and size it;
+  it is never sent, so it costs the client nothing. See [Performance](screens-performance.md).
 
 **What cannot preview:** anything that acts on a player rather than the world around them is left out of a preview as it
 is on a spatial menu (a title, a potion, a command). A pure sound has nothing to see. Words in chat need no window: draw

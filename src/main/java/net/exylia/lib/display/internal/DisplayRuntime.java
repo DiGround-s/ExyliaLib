@@ -198,6 +198,8 @@ public final class DisplayRuntime {
     }
 
     private static final java.util.Map<java.util.UUID, Room> ROOM = new java.util.concurrent.ConcurrentHashMap<>();
+    /** A rehearsal's displays and whom each is for: drawn for nobody, and measured for them. */
+    private static final java.util.Map<LiveDisplay, Player> REHEARSED = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Set<String> FULL_STAGE_WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** Swaps the clock, the ids and the sink. For tests. */
@@ -285,7 +287,10 @@ public final class DisplayRuntime {
         if (viewers.isEmpty() && !kept || ids == null) {
             return null;
         }
-        if (viewers.size() == 1 && outOfRoom(owner, viewers.get(0), at)) {
+        Player rehearsedFor = viewers.size() == 1 && rehearsal(viewers.get(0), at) ? viewers.get(0) : null;
+        if (rehearsedFor != null) {
+            viewers = List.of();
+        } else if (viewers.size() == 1 && outOfRoom(owner, viewers.get(0))) {
             return null;
         }
         // Refused before the packets are built, not after: the point of the
@@ -303,6 +308,9 @@ public final class DisplayRuntime {
                 viewers, clock.getAsLong(), vehicleId);
         display.spawn(sink, at);
         LIVE.add(display);
+        if (rehearsedFor != null) {
+            REHEARSED.put(display, rehearsedFor);
+        }
         if (vehicleId != 0) {
             seated(vehicleId, display, viewers);
         }
@@ -429,6 +437,7 @@ public final class DisplayRuntime {
     /** Gives a finished display's share of the budget back. */
     private static void released(LiveDisplay display) {
         VIEWER_LOAD.addAndGet(-display.viewerCost());
+        REHEARSED.remove(display);
         if (display.vehicleId() != 0) {
             unseated(display.vehicleId(), display);
         }
@@ -532,8 +541,8 @@ public final class DisplayRuntime {
 
     /**
      * Holds what is shown to this one player alone to {@code room} displays (asked on every show): a screen's window,
-     * whose stage shares the screen's budget. What is shown from {@code rehearsalAbove} up is a rehearsal nobody sees,
-     * kept to a quarter of the room and refused quietly so the real play keeps the rest.
+     * whose stage shares the screen's budget. What is shown from {@code rehearsalAbove} up is a rehearsal nobody sees:
+     * never sent, so it costs the client nothing and takes no room, and {@link #sample} still measures it.
      */
     public static void limitViewer(java.util.UUID viewer, java.util.function.IntSupplier room, double rehearsalAbove) {
         ROOM.put(viewer, new Room(room, rehearsalAbove));
@@ -542,16 +551,6 @@ public final class DisplayRuntime {
     /** Lets go of {@link #limitViewer}. */
     public static void freeViewer(java.util.UUID viewer) {
         ROOM.remove(viewer);
-    }
-
-    private static int rehearsing(Player viewer, double above) {
-        int shown = 0;
-        for (LiveDisplay display : LIVE) {
-            List<Player> who = display.viewers();
-            Location at = display.location();
-            if (who != null && who.size() == 1 && who.get(0).equals(viewer) && at != null && at.getY() >= above) shown++;
-        }
-        return shown;
     }
 
     /** How many displays are shown to this player alone right now. */
@@ -564,13 +563,16 @@ public final class DisplayRuntime {
         return shown;
     }
 
-    private static boolean outOfRoom(String owner, Player viewer, Location at) {
+    private static boolean rehearsal(Player viewer, Location at) {
+        Room limit = ROOM.get(viewer.getUniqueId());
+        return limit != null && at.getY() >= limit.rehearsalAbove();
+    }
+
+    private static boolean outOfRoom(String owner, Player viewer) {
         if (ROOM.isEmpty()) return false;
         Room limit = ROOM.get(viewer.getUniqueId());
         if (limit == null) return false;
-        int room = limit.room().getAsInt();
-        if (at.getY() >= limit.rehearsalAbove()) return rehearsing(viewer, limit.rehearsalAbove()) * 4 >= room;
-        if (shownOnlyTo(viewer) < room) return false;
+        if (shownOnlyTo(viewer) < limit.room().getAsInt()) return false;
         if (FULL_STAGE_WARNED.add(owner) && logger != null) {
             logger.warning(owner + "'s preview ran out of room in a screen's window and plays with pieces missing: the"
                     + " screen and its stage share one display budget. Use a smaller effect to see all of it.");
@@ -639,7 +641,7 @@ public final class DisplayRuntime {
         for (LiveDisplay display : LIVE) {
             if (except.contains(display)) continue;
             java.util.List<Player> who = display.viewers();
-            if (who == null || !who.contains(viewer)) continue;
+            if ((who == null || !who.contains(viewer)) && REHEARSED.get(display) != viewer) continue;
             Location at = display.location();
             if (at == null || at.getWorld() != near.getWorld() || at.distanceSquared(near) > reach) continue;
             DisplayKeyframe pose = display.pose();

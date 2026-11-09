@@ -108,6 +108,13 @@ final class LiveScreen implements ScreenSession {
     private static final long TOAST_MILLIS = 3000;
     /** What one screen may draw; past it the rest is left out and reported once. */
     static final int BUDGET = 400;
+    /**
+     * What a screen and the stage in its window may draw together. Measured on a 1.21.4 client (RTX 3050, 1080p): a
+     * screen alone (about 195 displays) runs at about 100 fps, with the heaviest shipped kill effect on its stage at
+     * 82-90. The heaviest shipped effects need 316 on top of about 205, so this holds them whole and stops only an
+     * author's own effect that wants far more.
+     */
+    static final int WINDOW_BUDGET = 560;
 
     private final Plugin plugin;
     private final Player player;
@@ -1413,7 +1420,7 @@ final class LiveScreen implements ScreenSession {
             homePitch = PreviewStage.pitch(DISTANCE, y);
             tipped = true;
             stage = new PreviewStage(plugin, player, tasks, wire, ids.getAsInt(), origin, homeYaw, homePitch, DISTANCE, x, y, w, h,
-                    wall, window.node().vanish(), () -> BUDGET - drawnCount, this::settle);
+                    wall, window.node().vanish(), () -> WINDOW_BUDGET - drawnCount, this::settle);
         }
         stage.want(window.node().preview());
     }
