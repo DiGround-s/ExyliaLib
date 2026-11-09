@@ -50,6 +50,8 @@ public final class StageGuide {
     private static final double PIXEL = 0.025;
     private static final double ICON = 1.7;
     private static final int BACKDROP = 0;
+    /** How much of its half of an {@link #ahead} backing a page may cover. */
+    private static final double FILL = 0.9;
 
     private final List<Stage> sides = new ArrayList<>(2);
     /** Whose outlines it holds off while it stands in front of their board, or {@code null}. */
@@ -99,8 +101,14 @@ public final class StageGuide {
         back.block(org.bukkit.Material.BLACK_CONCRETE.createBlockData(), back.plane().point(0, 0, -0.02), width, height, 0.02);
         boolean both = !leftRows.isEmpty() && !rightRows.isEmpty();
         double shift = both ? width / 4 : 0;
-        if (!leftRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, -shift), look, left, leftRows);
-        if (!rightRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, shift), look, right, rightRows);
+        // Both halves at one size, the largest at which each fits its half of the backing (1.550.0): long lines
+        // otherwise ran into the other half and off the backing.
+        double column = (both ? width / 2 : width) * FILL;
+        double scale = Math.min(look.scale(), Math.min(fit(left, leftRows, column, height * FILL),
+                fit(right, rightRows, column, height * FILL)));
+        Look fitted = new Look(look.distance(), look.lift(), scale);
+        if (!leftRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, -shift), fitted, left, leftRows);
+        if (!rightRows.isEmpty()) page(guide.onWall(viewer, seat, displays, theme, look, shift), fitted, right, rightRows);
         return guide;
     }
 
@@ -112,6 +120,24 @@ public final class StageGuide {
                 displays, LIFE, theme);
         sides.add(view);
         return view;
+    }
+
+    /**
+     * The largest text scale at which a page (its title over its rows, laid out by {@link #page}) fits a box
+     * {@code width} by {@code height} blocks centred on it; unbounded for no rows.
+     */
+    static double fit(@Nullable Component title, List<Row> rows, double width, double height) {
+        if (rows.isEmpty()) return Double.MAX_VALUE;
+        boolean icons = rows.stream().anyMatch(row -> row.icon() != null);
+        double widest = 0;
+        for (Row row : rows) widest = Math.max(widest, width(row.text(), false));
+        // An item stands left of its line, and the block is centred: count its room on both sides.
+        double across = widest + (icons ? 2 * Stage.TEXT_HEIGHT * (ICON + 0.4) : 0);
+        if (title != null) across = Math.max(across, width(title, false) * TITLE_SCALE);
+        int lines = (rows.size() - 1) * (icons ? 2 : 1) + 1;
+        // Rows centred on the middle, the title half a line over them: the top half is the taller.
+        double up = Stage.TEXT_HEIGHT * (lines / 2.0 + (title != null ? 0.5 + TITLE_SCALE : 0));
+        return Math.min(across > 0 ? width / across : Double.MAX_VALUE, height / 2 / up);
     }
 
     /** Message lines as rows without an item, placeholders filled. */
