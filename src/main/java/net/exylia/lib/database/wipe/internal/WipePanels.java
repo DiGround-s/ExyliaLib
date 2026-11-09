@@ -106,6 +106,28 @@ public final class WipePanels {
         return text.toString();
     }
 
+    /**
+     * Every table the wipes know, plugin by plugin, with its kind and rows:
+     * what {@code /exylialib wipe tables} prints. Reads only.
+     *
+     * @param planned a request for every table, planned
+     */
+    public static @NotNull String tables(@NotNull WipeRequest planned) {
+        List<WipeTable> all = planned.tables();
+        StringBuilder text = new StringBuilder(Phrases.tr("{primary}&lWIPE&r {muted}{0}", "/exylialib wipe tables"))
+                .append("\n").append(Phrases.tr("{letters_black}▎ {secondary}Tables {letters_black}» {letters}{0}",
+                        all == null ? 0 : all.size()));
+        planned.byPlugin().forEach((plugin, tables) -> {
+            List<String> names = new ArrayList<>(tables.size());
+            for (WipeTable table : tables) {
+                names.add("{letters}" + table.table() + " {muted}" + kind(table.kind()) + " " + rows(planned.count(table)));
+            }
+            text.append("\n{letters_black}▎ {highlight}").append(plugin).append(" {letters_black}» ")
+                    .append(String.join("{letters_black}, ", names));
+        });
+        return text.toString();
+    }
+
     /** What a finished wipe prints, before anybody is kicked. */
     public static @NotNull String result(@NotNull WipeRequest request, @NotNull WipeRuntime.Outcome outcome) {
         StringBuilder text = new StringBuilder(header(request));

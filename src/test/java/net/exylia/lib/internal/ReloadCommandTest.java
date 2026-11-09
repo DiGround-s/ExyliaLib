@@ -625,6 +625,17 @@ class ReloadCommandTest {
     }
 
     @Test
+    @DisplayName("wipe tables lists what a wipe would find and deletes nothing")
+    void wipeTablesOnlyLists() {
+        ReloadCommand command = withTransfers();
+        command.wipeTables(sender);
+
+        assertTrue(transfers.ran.isEmpty() && transfers.wiped.isEmpty(), "listing never wipes");
+        String text = sent.get(sent.size() - 1);
+        assertTrue(text.contains("/exylialib wipe tables") && text.contains("Tables"), "got: " + text);
+    }
+
+    @Test
     @DisplayName("a preset wipe runs once with its code, and the code is bound to that preset")
     void presetWipeRunsWithItsCode() {
         ReloadCommand command = withTransfers();

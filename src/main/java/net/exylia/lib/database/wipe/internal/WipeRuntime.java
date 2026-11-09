@@ -1,5 +1,6 @@
 package net.exylia.lib.database.wipe.internal;
 
+import net.exylia.lib.config.internal.BundledResources;
 import net.exylia.lib.database.DataKind;
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.PluginDatabase;
@@ -36,11 +37,13 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.CodeSource;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -292,15 +295,71 @@ public final class WipeRuntime {
      * <p>The bytes are searched before a class is loaded, so a jar of a
      * thousand classes loads only its handful of records; and loaded without
      * being initialised, so no static block of the plugin runs.
+     *
+     * <p>A plugin started by a licence loader (Lukittu) is the loader: its jar
+     * is the bootstrap, and the real classes are defined from memory by the
+     * class loader it hands out as {@code getClazzLoader()}. That loader is
+     * read for its classes instead, as is any class defined without a jar.
      */
     static @NotNull List<Class<?>> tableRecords(@NotNull Plugin plugin) {
-        Path jar;
-        try {
-            jar = Path.of(plugin.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
-        } catch (URISyntaxException | RuntimeException noJar) {
-            return List.of();
+        Set<Class<?>> found = new LinkedHashSet<>();
+        ClassLoader own = plugin.getClass().getClassLoader();
+        CodeSource source = plugin.getClass().getProtectionDomain().getCodeSource();
+        if (source == null || source.getLocation() == null) {
+            found.addAll(tableRecords(own));
+        } else {
+            try {
+                found.addAll(tableRecords(Path.of(source.getLocation().toURI()), own));
+            } catch (URISyntaxException | RuntimeException noJar) {
+                // Not a file: nothing to open.
+            }
         }
-        return tableRecords(jar, plugin.getClass().getClassLoader());
+        ClassLoader payload = payloadOf(plugin);
+        if (payload != null && payload != own) found.addAll(tableRecords(payload));
+        return List.copyOf(found);
+    }
+
+    /** The class loader a licence loader defines the plugin's real classes in, or {@code null}. */
+    private static @Nullable ClassLoader payloadOf(Plugin plugin) {
+        try {
+            return plugin.getClass().getMethod("getClazzLoader").invoke(plugin) instanceof ClassLoader payload
+                    ? payload : null;
+        } catch (ReflectiveOperationException | RuntimeException notALoader) {
+            return null;
+        }
+    }
+
+    /**
+     * The {@code @Table} records a class loader holds in memory, with no jar
+     * behind it: the classes it already defined, and the bytes of those it
+     * has not yet, read from its own tables as {@link BundledResources} reads
+     * its files.
+     */
+    static @NotNull List<Class<?>> tableRecords(@NotNull ClassLoader loader) {
+        Set<Class<?>> found = new LinkedHashSet<>();
+        for (Map<?, ?> table : BundledResources.tables(loader)) {
+            for (Object key : BundledResources.keysOf(table)) {
+                if (!(key instanceof String name)) continue;
+                Object value = table.get(key);
+                Class<?> type = value instanceof Class<?> defined ? defined
+                        : value instanceof byte[] bytes && contains(bytes, TABLE_DESCRIPTOR) ? load(name, loader)
+                        : null;
+                if (type != null && type.isRecord() && type.isAnnotationPresent(Table.class)) found.add(type);
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    /** Loads a class without initialising it, by its name or its {@code .class} path; {@code null} when it cannot. */
+    private static @Nullable Class<?> load(String name, ClassLoader loader) {
+        String className = name.endsWith(".class")
+                ? name.substring(0, name.length() - ".class".length()).replace('/', '.') : name;
+        try {
+            return Class.forName(className, false, loader);
+        } catch (Throwable unloadable) {
+            // A record of an optional integration whose dependency is missing.
+            return null;
+        }
     }
 
     static @NotNull List<Class<?>> tableRecords(@NotNull Path jar, @NotNull ClassLoader loader) {

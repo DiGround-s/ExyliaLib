@@ -97,7 +97,12 @@ the console a help panel.
 ```
 /exylialib wipe <plugin|all> <table|@kind|@preset|all> [code]
 /exylialib resetplayer <player> [plugin|all] [@kind ...] [code]
+/exylialib wipe tables
 ```
+
+- `wipe tables` (1.549.0+) lists every table a wipe would find, plugin by
+  plugin, with its kind and rows. It reads only; use it to check that a
+  plugin's tables are all there before a wipe.
 
 - Presets `@season`, `@players`; kinds `@progress @world @account @history
   @cache @setup @unspecified`. `all all` is every table of every plugin.
@@ -114,7 +119,10 @@ the console a help panel.
 - **Every table is found first.** Each Exylia plugin's jar is scanned for
   `@Table` records (class bytes searched for the annotation, then loaded without
   initialising) and their repositories registered, so a table a plugin only
-  creates on first use is wiped too. One physical table registered by several
+  creates on first use is wiped too. A premium plugin started by the Lukittu
+  loader has no jar of its own (the loader jar is a bootstrap and its classes
+  live in memory), so its loader's class tables are read instead (1.549.0+);
+  before that, its tables showed up only once the plugin had opened them. One physical table registered by several
   plugins is counted and deleted once; two records that disagree on its kind
   leave it `UNSPECIFIED`, with a warning. A library table that names its plugin
   in a `plugin` column (logs, notices, crate players, escrow, pending rewards) is
@@ -152,7 +160,7 @@ the console a help panel.
 
 `database/DataKind`, `database/Owner`, `database/Table#data`,
 `database/wipe/Wipes`; `database/wipe/internal/` (`WipeRuntime` catalog, jar
-scan, backup, delete, channel, login gate, vanilla files; `WipeRequest` presets
+and loader scan, backup, delete, channel, login gate, vanilla files; `WipeRequest` presets
 and selection; `WipeTable`; `WipePanels`; `WipeMenu`). Commands in
 `internal/ReloadCommand` (`wipe`, `wipeMenu`, `resetPlayer`, `ResetArguments`)
-on top of `internal/TransferAccess`. Tests: `WipeTest`, `ReloadCommandTest`.
+on top of `internal/TransferAccess`. Tests: `WipeTest`, `WipeUnderLoaderTest`, `ReloadCommandTest`.

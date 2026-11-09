@@ -53,6 +53,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ThreadLocalRandom;
@@ -688,6 +689,20 @@ public final class ReloadCommand {
             return;
         }
         Text.of(wipeHelp()).send(sender);
+    }
+
+    /**
+     * Lists every table the wipes know, plugin by plugin, with its kind and
+     * rows. Reads only: it finds the tables exactly as a wipe would.
+     *
+     * @param sender who asked
+     * @since 1.549.0
+     */
+    @Subcommand("wipe tables")
+    @CommandPermission("exylialib.admin.wipe")
+    public void wipeTables(@NotNull CommandSender sender) {
+        WipeRequest every = Objects.requireNonNull(WipeRequest.parse(ALL_TABLES_WORD, ALL_TABLES_WORD));
+        transfers.plan(every).thenAccept(planned -> Text.of(WipePanels.tables(planned)).send(sender));
     }
 
     /** What the console reads instead of the screens. */

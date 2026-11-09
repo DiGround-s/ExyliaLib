@@ -532,7 +532,7 @@ public final class BundledResources {
      * keeps changing under every attempt is a cache, not the resource table, so
      * it reports nothing.
      */
-    private static List<Object> keysOf(Map<?, ?> table) {
+    public static List<Object> keysOf(Map<?, ?> table) {
         for (int attempt = 0; attempt < 5; attempt++) {
             try {
                 return new ArrayList<>(table.keySet());
@@ -549,7 +549,7 @@ public final class BundledResources {
      * <p>Reflection is the only door there is, and a loader that does not open
      * it simply reports nothing, which callers read as "not packaged".
      */
-    private static List<Map<?, ?>> tables(ClassLoader loader) {
+    public static List<Map<?, ?>> tables(ClassLoader loader) {
         List<Map<?, ?>> tables = new ArrayList<>();
         for (Class<?> type = loader.getClass(); type != null && type != ClassLoader.class; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
