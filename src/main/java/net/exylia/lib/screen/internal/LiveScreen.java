@@ -187,7 +187,10 @@ final class LiveScreen implements ScreenSession {
     private static final double HYSTERESIS = 3;
     /** How long a clicked box shows pressed, and how long Shift is held to close from anywhere. */
     private static final int ACTIVE_TICKS = 3;
-    private static final int MAX_TOASTS = 3;
+    private static final int MAX_TOASTS = 1;
+    /** How large a toast's words are, and how far it sits from the bottom edge. */
+    private static final double TOAST_SCALE = 0.7;
+    private static final double TOAST_MARGIN = 6;
     /** Toasts on screen, oldest first; guarded by {@code this}. */
     private final List<Toast> toasts = new ArrayList<>();
     /** A chat line this soon after a click is the answer to it. */
@@ -890,17 +893,15 @@ final class LiveScreen implements ScreenSession {
         if (toasts.removeIf(t -> t.until() <= now)) toastVersion++;
     }
 
-    /** The toasts, stacked at the top centre over everything, newest at the bottom. Holds the lock. */
+    /** The toast, small at the bottom centre over everything, so it never hides the screen's title or cards. Holds the lock. */
     private void addToasts(List<Layout.Placed> laid) {
-        double y = 6;
         for (Toast t : toasts) {
-            Node note = Node.text(t.text()).wrap(screen.width() - 44).padding(5, 12).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
-                    .enter(Motion.Tween.of(Motion.Transform.translate(0, -8), 5, Motion.Ease.OUT))
-                    .leave(Motion.Tween.of(new Motion.Transform(0, -6, 0.96), 3, Motion.Ease.IN));
+            Node note = Node.text(t.text()).scale(TOAST_SCALE).wrap(screen.width() - 80).padding(3, 8).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
+                    .enter(Motion.Tween.of(Motion.Transform.translate(0, 6), 5, Motion.Ease.OUT))
+                    .leave(Motion.Tween.of(new Motion.Transform(0, 4, 0.96), 3, Motion.Ease.IN));
             double[] size = Layout.measure(note);
-            laid.add(new Layout.Placed(note, "~toast" + t.seq(), (screen.width() - size[0]) / 2, y, size[0], size[1],
+            laid.add(new Layout.Placed(note, "~toast" + t.seq(), (screen.width() - size[0]) / 2, screen.height() - size[1] - TOAST_MARGIN, size[0], size[1],
                     Layout.OVERLAY + 20));
-            y += size[1] + 3;
         }
     }
 

@@ -105,7 +105,7 @@ proportion to their size, as `flex-shrink` does; fixed boxes and text keep their
 **Motion (1.488.0).** The screen zooms in as it opens, a dialog pops out from the centre, and a box that
 appears after a click slides up into place. A clickable box under the cursor rises a pixel, and a box that
 moves or resizes glides there. All of it is client-side interpolation, no extra packets per frame.
-`ScreenSession#toast(text)` shows a short note at the top for three seconds. Since 1.496.0 every one of these can
+`ScreenSession#toast(text)` shows a short note at the bottom for three seconds. Since 1.496.0 every one of these can
 be styled, eased and turned off; see [Motion](#motion-14960).
 
 **Pictures (1.489.0).** Each pixel is the vanilla font's full block (`█`) in its colour, one run of a colour
@@ -598,8 +598,8 @@ second: past it glides go straight and animations wait.
 Interface ("Reduced motion"), `Screens.reducedMotion(player, true)` in Java: no arrivals, departures or
 animations, and every glide is two ticks and straight.
 
-**Toasts and confirms.** `session.toast("success", "Joined the queue")`: up to three stack at the top, newest at
-the bottom, each sliding in and out; success and error play a quiet sound. `session.confirm("Leave the party?",
+**Toasts and confirms.** `session.toast("success", "Joined the queue")`: one small note at the bottom centre, a newer one replacing it (since
+1.540.0), sliding in and out; success and error play a quiet sound. `session.confirm("Leave the party?",
 true, "Leave", null, s -> parties.leave(s.viewer()))` draws the question in a dialog on the screen itself; Cancel,
 or a click outside does nothing (Shift closes the screen). `session.ask(prompt, hint, max, current)` asks for a line of text and
 completes with it, or `null` when cancelled.
