@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -50,6 +51,11 @@ public final class Phrases {
 
     private static volatile Map<String, String> table = Map.of();
 
+    private static volatile Plugin library;
+    private static volatile String language;
+    /** The tables of the languages plugins speak other than the library's, each read once a load. */
+    private static final Map<String, Map<String, String>> OTHERS = new ConcurrentHashMap<>();
+
     private Phrases() {
     }
 
@@ -61,7 +67,13 @@ public final class Phrases {
      * @param library ExyliaLib itself
      */
     public static void load(@NotNull Plugin library) {
-        String code = Languages.code(library);
+        Phrases.library = library;
+        language = Languages.code(library);
+        OTHERS.clear();
+        table = read(library, language);
+    }
+
+    private static Map<String, String> read(Plugin library, String code) {
         Map<String, String> loaded = new HashMap<>();
         String resource = "lang/" + code + "/" + FILE;
         try (InputStream packaged = Phrases.class.getClassLoader().getResourceAsStream(resource)) {
@@ -80,7 +92,25 @@ public final class Phrases {
             library.getLogger().log(Level.WARNING, "Could not read " + resource + "; the library speaks English.",
                     failure);
         }
-        table = Map.copyOf(loaded);
+        return Map.copyOf(loaded);
+    }
+
+    /**
+     * The library's lines in a plugin's language, for what the library draws inside that plugin's own screen, so a
+     * plugin set to another language than the server's has one language on its screens. The plugin's {@code language}
+     * is read now, from disk: keep the lookup for as long as the screen is open rather than asking per line.
+     *
+     * @param plugin the plugin whose language applies
+     * @return a lookup answering a line with its translation, or with itself
+     * @since 1.543.0
+     */
+    public static @NotNull UnaryOperator<String> of(@NotNull Plugin plugin) {
+        Plugin lib = library;
+        if (lib == null) return Phrases::tr;
+        String code = Languages.code(plugin);
+        if (code.equals(language)) return Phrases::tr;
+        Map<String, String> own = OTHERS.computeIfAbsent(code, wanted -> read(lib, wanted));
+        return english -> own.getOrDefault(english, english);
     }
 
     /**

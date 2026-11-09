@@ -588,6 +588,21 @@ class EconomyTest {
     // ------------------------------------------------------------- fallback
 
     @Test
+    @DisplayName("without Vault, the provider set to serve 'vault' still answers as the default")
+    void servingVaultAnswersWithoutVault() {
+        FakeCurrency dollars = new FakeCurrency("dollars") {
+            @Override
+            public boolean servesVault() {
+                return true;
+            }
+        };
+        Economy.register(dollars);
+
+        assertEquals("dollars", CurrencyRegistry.resolve(null).orElseThrow().id());
+        assertEquals("dollars", CurrencyRegistry.resolve("vault").orElseThrow().id());
+    }
+
+    @Test
     @DisplayName("when the default currency is gone, the fallback serves")
     void fallbackServes() {
         FakeCurrency vault = install("vault");

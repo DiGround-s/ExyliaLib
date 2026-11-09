@@ -43,6 +43,11 @@ public final class Expr {
         /** A word of the screen's language file, or {@code null}. */
         String word(String key);
 
+        /** One of the library's lines in the screen's language. */
+        default String phrase(String english) {
+            return net.exylia.lib.text.Phrases.tr(english);
+        }
+
         /** A quoted literal, filled with {@code %name%} and {@code ${...}}. */
         Object literal(String text);
 
@@ -207,7 +212,7 @@ public final class Expr {
                 String word = env.word(text(a));
                 yield word != null ? word : args.size() > 1 ? args.get(1) : text(a);
             }
-            case "tr" -> net.exylia.lib.text.Phrases.tr(text(a));
+            case "tr" -> env.phrase(text(a));
             case "fmt.number" -> {
                 Double n = number(a);
                 yield n == null ? text(a) : GROUPED.get().format(n);

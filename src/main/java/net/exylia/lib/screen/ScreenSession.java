@@ -26,6 +26,15 @@ public interface ScreenSession {
     /** The screen being shown. */
     @NotNull Screen screen();
 
+    /**
+     * One of the library's lines, in the language of the plugin this screen belongs to.
+     *
+     * @since 1.543.0
+     */
+    default @NotNull String phrase(@NotNull String english) {
+        return net.exylia.lib.text.Phrases.tr(english);
+    }
+
     /** A value this session remembers, or {@code fallback} when none is set. */
     <T> @NotNull T state(@NotNull String key, @NotNull T fallback);
 

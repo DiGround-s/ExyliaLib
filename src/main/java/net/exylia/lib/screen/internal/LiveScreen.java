@@ -117,6 +117,8 @@ final class LiveScreen implements ScreenSession {
     static final int WINDOW_BUDGET = 560;
 
     private final Plugin plugin;
+    /** The library's lines in the plugin's language, read once for this screen. */
+    private java.util.function.UnaryOperator<String> phrases;
     private final Player player;
     private final Screen screen;
     private final TaskScheduler tasks;
@@ -395,6 +397,12 @@ final class LiveScreen implements ScreenSession {
 
     Plugin plugin() {
         return plugin;
+    }
+
+    @Override
+    public String phrase(String english) {
+        if (phrases == null) phrases = net.exylia.lib.text.Phrases.of(plugin);
+        return phrases.apply(english);
     }
 
     int hitboxId() {
@@ -958,10 +966,10 @@ final class LiveScreen implements ScreenSession {
     /** The tree with the open confirm dialog over it, the last overlay, so it is the one drawn. */
     private Node withConfirm(Node root, Confirm ask) {
         String fill = ask.dangerous() ? "{error}" : "{primary}";
-        Node yes = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.yes() == null ? net.exylia.lib.text.Phrases.tr("Confirm") : ask.yes())).build())
+        Node yes = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.yes() == null ? phrase("Confirm") : ask.yes())).build())
                 .padding(4, 12).background(fill).hover(ask.dangerous() ? "{error_light}" : "{secondary}")
                 .active(null, Motion.Transform.scale(0.95)).id("~confirm.yes").onClick(event -> answer(true));
-        Node no = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.no() == null ? net.exylia.lib.text.Phrases.tr("Cancel") : ask.no())).build())
+        Node no = Node.text(net.exylia.lib.text.Text.of("{letters}" + (ask.no() == null ? phrase("Cancel") : ask.no())).build())
                 .padding(4, 12).background("{letters_black}20").hover("{primary}50")
                 .active(null, Motion.Transform.scale(0.95)).id("~confirm.no").onClick(event -> answer(false));
         Node dialog = Node.column(Node.text(ask.question()).wrap(200).textAlign(Node.Align.CENTER),

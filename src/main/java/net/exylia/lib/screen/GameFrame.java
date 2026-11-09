@@ -1,6 +1,5 @@
 package net.exylia.lib.screen;
 
-import net.exylia.lib.text.Phrases;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -102,7 +101,7 @@ public final class GameFrame {
 
     /** Puts up what the result offers: Again, Change stake and Leave. */
     public void offer(@NotNull Offer offer) {
-        session.set("game_again", "{letters}" + markup.word("frame.again", Phrases.tr("Again")) + " {letters_black}· {letters}" + offer.stake());
+        session.set("game_again", "{letters}" + markup.word("frame.again", session.phrase("Again")) + " {letters_black}· {letters}" + offer.stake());
         session.set("game_refused", offer.refused() == null ? "" : offer.refused());
         session.set("game_can_change", offer.change() != null);
         session.set("game_can_auto", offer.auto() != null);

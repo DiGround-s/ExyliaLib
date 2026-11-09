@@ -921,7 +921,7 @@ against a recording table, with a pinned script for one seed.
 </screen>
 ```
 
-Tabs and buttons speak the library's words, translated. A screen's own words replace them under `frame.play`,
+Tabs and buttons speak the library's words, in the language of the plugin the screen belongs to (1.543.0+; before, the server's). A screen's own words replace them under `frame.play`,
 `frame.how`, `frame.payouts`, `frame.again`, `frame.change`, `frame.auto` and `frame.leave`.
 
 **4. Bind the frame.** `GameFrame.install(markup)` once; `GameFrame.of(session, markup)` for each screen:
@@ -973,7 +973,7 @@ reel's landing only as it comes in, a die's value last.
 | `ScreenCards` | a card as one sprite: `up`, `down`, `dealt` (slides in face down), `turn` (flips to a face), `hide`; `Look.standard()`, `.sized(w, h)`, `.with(deck)` for the Spanish deck | 2 to 3 displays |
 | `ScreenDice` | a die with real pips: `show`, `roll` (tumbles on decoys and lands on the value) | 1 + its pips |
 | `ScreenReel<T>` | a column running down its window, shrinking away at both ends since a scene has no clip: `rest`, `spin(ticks, decoy, landing, landed)` | `rows + 2` sprites, one transform each per step |
-| `ScreenOrbit` | sprites going round a centre upright, slowing to an angle: `add`, `landing(offset, turns)`, `spin(to, ticks, stepTicks, shrinkTo, eachStep, landed)`. A wheel's segments, or one ball round a fixed ring of numbers | one transform per display per step: a ball when there are many numbers |
+| `ScreenOrbit` | sprites going round a centre upright, slowing to an angle: `add`, `landing(offset, turns)`, `spin(to, ticks, stepTicks, shrinkTo, eachStep, landed)`, or `spin(angle, radius, ticks, stepTicks, eachStep, landed)` for a path of its own (1.543.0+). A wheel's segments, or one ball round a fixed ring of numbers | one transform per display per step: a ball when there are many numbers |
 | `ScreenTrail` | a curve as dots gliding to where they are asked: `draw(points, colour, ticks)`, `colour`, `clear` | one display a dot, one transform per dot per call |
 
 ```java

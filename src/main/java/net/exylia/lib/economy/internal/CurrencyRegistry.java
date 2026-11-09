@@ -250,6 +250,8 @@ public final class CurrencyRegistry {
         boolean wantsDefault = id == null || id.isEmpty();
         String wanted = wantsDefault ? current.defaultCurrency() : id;
         CurrencyProvider named = providers.get(wanted);
+        // Without the Vault plugin nothing registers 'vault': the provider set to serve it still answers to the name.
+        if (named == null && wanted.equals("vault")) named = servingVault();
         if (named != null && named.isAvailable()) {
             announceRecovery(wanted);
             return Optional.of(named);

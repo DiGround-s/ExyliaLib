@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.DoubleConsumer;
+import java.util.function.DoubleUnaryOperator;
 
 /**
  * Sprites going round a centre and slowing to a chosen angle: a wheel's segments, or a roulette's ball round a fixed
@@ -84,28 +85,41 @@ public final class ScreenOrbit {
      * @return the timeline, to cancel it with the round
      */
     public @NotNull ScreenScene.Timeline spin(double to, int ticks, int stepTicks, double shrinkTo, DoubleConsumer eachStep, Runnable landed) {
+        double from = angle;
+        double wide = radius;
+        // Out-cubic: it spins down like something heavy, and the last steps barely move.
+        return spin(f -> from + (to - from) * (1 - Math.pow(1 - f, 3)), f -> wide + (shrinkTo - wide) * f * f,
+                ticks, stepTicks, eachStep, landed);
+    }
+
+    /**
+     * Runs it along a path of the caller's: for a game whose own settings say how it brakes and where it stops.
+     *
+     * @param angle  the angle at each share of the time, 0 to 1
+     * @param radius the radius at each share of the time
+     * @return the timeline, to cancel it with the round
+     * @since 1.543.0
+     */
+    public @NotNull ScreenScene.Timeline spin(@NotNull DoubleUnaryOperator angle, @NotNull DoubleUnaryOperator radius,
+                                              int ticks, int stepTicks, DoubleConsumer eachStep, Runnable landed) {
         if (spinning != null) spinning.cancel();
         ScreenScene.Timeline run = scene.timeline();
         if (scene.reducedMotion()) {
-            angle = to;
-            radius = shrinkTo;
+            this.angle = angle.applyAsDouble(1);
+            this.radius = radius.applyAsDouble(1);
             members.forEach(member -> place(member, 0));
             if (landed != null) run.at(1, landed);
             return spinning = run.play();
         }
-        double from = angle;
-        double wide = radius;
         int steps = Math.max(1, ticks / Math.max(1, stepTicks));
         for (int step = 1; step <= steps; step++) {
             double f = step / (double) steps;
-            // Out-cubic: it spins down like something heavy, and the last steps barely move.
-            double eased = 1 - Math.pow(1 - f, 3);
-            double at = from + (to - from) * eased;
-            double r = wide + (shrinkTo - wide) * f * f;
+            double at = angle.applyAsDouble(f);
+            double r = radius.applyAsDouble(f);
             int tick = (step - 1) * stepTicks;
             run.at(tick, () -> {
-                angle = at;
-                radius = r;
+                this.angle = at;
+                this.radius = r;
                 members.forEach(member -> place(member, stepTicks));
                 if (eachStep != null) eachStep.accept(at);
             });

@@ -221,6 +221,11 @@ public final class MarkupRender {
             }
 
             @Override
+            public String phrase(String english) {
+                return session.phrase(english);
+            }
+
+            @Override
             public Object literal(String text) {
                 return fill(text, scope, false);
             }
