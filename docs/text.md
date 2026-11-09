@@ -452,14 +452,14 @@ it. Write that colour first, so the glyph is right everywhere:
   the glyph. `Features.sprites()` says which.
 - **A client older than 1.21.9** joining a newer server through ViaBackwards
   gets the glyph too: with PacketEvents installed, ExyliaLib swaps each sprite
-  on items (name and lore) on their way to that client. Without PacketEvents
+  on items (name and lore) and sidebars (since 1.541.0) on their way to that client. Without PacketEvents
   that client sees whatever ViaBackwards makes of a sprite.
 - **Item textures** live in the `items` atlas from 1.21.11 and in `blocks`
   before it. `items:` is read from the right one for the server, and a
   1.21.9–1.21.10 client on a 1.21.11 server gets the glyph for item icons.
 
 A sprite ignores bold and italic. An unknown name stays as written, like any
-other brace. Icons are for item names and lore; a title or a chat line has no
+other brace. Icons are for item names, lore and sidebars; a title or a chat line has no
 per-client swap.
 
 Named icons, with their glyph (`tinted` ones take the colour around them):

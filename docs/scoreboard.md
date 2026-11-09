@@ -71,6 +71,30 @@ the library follows — an existing `interval: 15` must keep meaning 15 ticks.
   re-sends everything, since the text is the same but what parses it changed)
   all clean up.
 
+## Card layout
+
+Since 1.541.0 a board follows the same parts as an item card: one tone, an
+optional dark subtitle, sections and stats. There are no action lines, because
+nothing on a sidebar can be clicked.
+
+```yaml
+title: '{primary}&lDUEL'
+lines:
+  - '{letters_black}Duel · %exyliaduels_mode%'
+  - ''
+  - '{primary}⚔ Opponent'
+  - '  {letters_black}· {highlight}{icon:kills} {letters}Name{letters_black}: {highlight}%exyliaduels_opponent%'
+  - ''
+  - '{primary}✦ Match'
+  - '  {letters_black}· {info}{icon:clock} {letters}Time{letters_black}: {info}%exyliaduels_time%'
+  - ''
+  - '{muted}{server-ip}'
+```
+
+The title carries no icon. Below 1.21.9, on the server or the client (with
+PacketEvents installed), each `{icon:...}` draws its glyph. A client can show at
+most 15 lines.
+
 ## Source and tests
 
 - Public: `scoreboard/Scoreboards.java`, `Board.java`, `SidebarConfig.java`.

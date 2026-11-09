@@ -17,8 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Swaps the sprites an icon token drew for their glyphs, on an item on its
- * way to a client too old to draw them.
+ * Swaps the sprites an icon token drew for their glyphs, on an item or a
+ * sidebar on its way to a client too old to draw them.
  *
  * <p>Sprites are text objects from Minecraft 1.21.9, and item sprites read
  * from the {@code items} atlas only from 1.21.11. A player joining through

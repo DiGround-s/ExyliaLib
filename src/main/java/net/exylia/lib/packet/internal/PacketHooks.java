@@ -22,6 +22,9 @@ import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.netty.buffer.ByteBufHelper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChunkData;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerScoreboardObjective;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateScore;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import net.exylia.lib.packet.ItemPlace;
 import net.exylia.lib.packet.RevealStyle;
@@ -257,6 +260,8 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                     e -> new WrapperPlayServerOpenWindow(e).getContainerId()));
         } else if ((ItemDecor.decoratesAnything() || Icons.any()) && carriesItems(type)) {
             decorate(event, type, viewer);
+        } else if (Icons.any() && carriesBoardText(type)) {
+            drawBoardIcons(event, type);
         }
         if (Borders.drawsAny() && isWorldBorder(type) && Borders.replaces(event.getPlayer())) {
             // The world's own border, on its way to somebody who sees one of
@@ -369,6 +374,60 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 || type == PacketType.Play.Server.WINDOW_ITEMS
                 || type == PacketType.Play.Server.SET_CURSOR_ITEM
                 || type == PacketType.Play.Server.SET_PLAYER_INVENTORY;
+    }
+
+    private static boolean carriesBoardText(PacketTypeCommon type) {
+        return type == PacketType.Play.Server.TEAMS
+                || type == PacketType.Play.Server.UPDATE_SCORE
+                || type == PacketType.Play.Server.SCOREBOARD_OBJECTIVE;
+    }
+
+    /**
+     * Swaps sprites for glyphs in sidebar text on its way to a client too old
+     * to draw them.
+     *
+     * <p>Three packets carry that text, depending on the client's version: the
+     * objective holds the title, and a line is a score's display name from
+     * 1.20.3 or a team's prefix and suffix before it.
+     */
+    private static void drawBoardIcons(PacketSendEvent event, PacketTypeCommon type) {
+        if (!(event.getPlayer() instanceof Player viewer)) {
+            return;
+        }
+        IconDowngrade.Limits limits = IconDowngrade.limitsOf(viewer);
+        if (limits == null) {
+            return;
+        }
+        if (type == PacketType.Play.Server.SCOREBOARD_OBJECTIVE) {
+            WrapperPlayServerScoreboardObjective packet = new WrapperPlayServerScoreboardObjective(event);
+            Component title = packet.getDisplayName();
+            Component swapped = title == null ? null : IconDowngrade.swap(title, limits);
+            if (swapped != title) {
+                packet.setDisplayName(swapped);
+                event.markForReEncode(true);
+            }
+        } else if (type == PacketType.Play.Server.UPDATE_SCORE) {
+            WrapperPlayServerUpdateScore packet = new WrapperPlayServerUpdateScore(event);
+            Component line = packet.getEntityDisplayName();
+            Component swapped = line == null ? null : IconDowngrade.swap(line, limits);
+            if (swapped != line) {
+                packet.setEntityDisplayName(swapped);
+                event.markForReEncode(true);
+            }
+        } else {
+            WrapperPlayServerTeams packet = new WrapperPlayServerTeams(event);
+            WrapperPlayServerTeams.ScoreBoardTeamInfo info = packet.getTeamInfo().orElse(null);
+            if (info == null) {
+                return;
+            }
+            Component prefix = IconDowngrade.swap(info.getPrefix(), limits);
+            Component suffix = IconDowngrade.swap(info.getSuffix(), limits);
+            if (prefix != info.getPrefix() || suffix != info.getSuffix()) {
+                info.setPrefix(prefix);
+                info.setSuffix(suffix);
+                event.markForReEncode(true);
+            }
+        }
     }
 
     /**
