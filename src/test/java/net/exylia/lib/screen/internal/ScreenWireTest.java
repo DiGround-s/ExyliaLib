@@ -372,6 +372,8 @@ class ScreenWireTest {
             peak[0] = Math.max(peak[0], alive[0]);
         });
         LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenBoard"), viewer.player(), markup.screen(), wire, ids::incrementAndGet);
+        long[] now = {100_000};
+        live.clock(() -> now[0]);
         live.start();
         FakeServer.tick(10);
         Stats open = take();
@@ -387,15 +389,16 @@ class ScreenWireTest {
         FakeServer.tick(10);
         take();
 
-        // The richest reveal, on a real clock since the ceiling is per second: the 24th tile with a burst of 12.
-        Thread.sleep(1050);
+        // The richest reveal, in a second of its own since the ceiling is per second: the 24th tile with a burst of 12.
+        now[0] += 1050;
         reveal(board, gem, 23);
         FakeServer.tick(12);
         Stats reveal = take();
         int allGems = alive[0];
 
-        // The dearest second, on a real clock: a blast shakes the whole board and a chain of 24 bursts runs across it.
-        Thread.sleep(1050);
+        // The dearest second: a blast shakes the whole board and a chain of 24 bursts runs across it, a tick each 50 ms of
+        // the screen's own clock, however slow this machine is. It starts as a second starts, so all of it counts against one ceiling.
+        now[0] = (now[0] / 1000 + 2) * 1000;
         int before = peak[0];
         peak[0] = 0;
         long used = 0;
@@ -405,7 +408,7 @@ class ScreenWireTest {
             if (tick % 2 == 0) board.burst(19 + tick % 5 * 38, 19 + tick / 5 * 38, 10, 24, 8, "#a33b53");
             FakeServer.tick(1);
             used = Math.max(used, System.nanoTime() - start);
-            Thread.sleep(50);
+            now[0] += 50;
         }
         FakeServer.tick(12);
         Stats worst = take();
@@ -420,8 +423,8 @@ class ScreenWireTest {
                 + "\n[game board] worst second " + worst + ", peak " + worstPeak + " displays, slowest tick " + used / 1_000_000 + " ms");
         assertTrue(peak[0] <= LiveScreen.BUDGET, "within the screen's budget: " + peak[0]);
         assertEquals(allGems, after, "bursts leave nothing behind");
-        // 1001 before spawned shards counted against the ceiling.
-        assertTrue(worst.packets <= 700, "the ceiling holds a blast's cost: " + worst);
+        // 637 in this second with spawned shards left out of the ceiling; the ceiling and what is already in the air come to 445.
+        assertTrue(worst.packets <= 500, "the ceiling holds a blast's cost: " + worst);
     }
 
     private static void reveal(ScreenScene board, int[] gem, int tile) {

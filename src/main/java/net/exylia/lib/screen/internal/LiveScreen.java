@@ -225,6 +225,8 @@ final class LiveScreen implements ScreenSession {
     private long animClock;
     private int animStep = 2;
     private TaskHandle animator;
+    /** What the motion ceiling's seconds are read from: a test holds it still, so a slow machine cannot change what is counted. */
+    private java.util.function.LongSupplier clock = System::currentTimeMillis;
     private long motionSecond;
     private int motionPackets;
     private int refreshPeriod = 20;
@@ -1719,9 +1721,13 @@ final class LiveScreen implements ScreenSession {
         return null;
     }
 
+    void clock(java.util.function.LongSupplier clock) {
+        this.clock = clock;
+    }
+
     /** Whether motion may still spend packets this second: past the ceiling, eased glides go straight. */
     private boolean motionAllowed() {
-        long second = System.currentTimeMillis() / 1000;
+        long second = clock.getAsLong() / 1000;
         if (second != motionSecond) {
             motionSecond = second;
             motionPackets = 0;
