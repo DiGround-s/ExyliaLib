@@ -72,6 +72,18 @@ public final class PluginMenus {
     }
 
     /**
+     * Keeps this plugin's menus in chest windows whatever the player's menu style: no routed screen, no chest skin. For
+     * a plugin whose owner writes each form as a menu of its own.
+     *
+     * @return this
+     * @since 1.548.0
+     */
+    public @NotNull PluginMenus windowsOnly() {
+        runtime.windowsOnly(true);
+        return this;
+    }
+
+    /**
      * Sets what this plugin's menus sound like unless a file says otherwise.
      *
      * @param sounds the defaults

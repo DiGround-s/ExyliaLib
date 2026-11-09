@@ -99,6 +99,18 @@ public final class MenuStyles {
                 MenuStyle.parse(settings.defaultStyle()));
     }
 
+    /**
+     * What this player asked for themselves, or staff asked for them, leaving out every default; {@code null} when
+     * nobody chose. Safe from any thread.
+     *
+     * @since 1.548.0
+     */
+    public @Nullable MenuStyle chosen(@NotNull Player player) {
+        MenuStyle staff = staffOverride(player);
+        if (staff != null) return staff;
+        return ScreenSettings.get().playerChoice() ? CHOSEN.get(player.getUniqueId()) : null;
+    }
+
     /** Whether {@code player} gets screens for this plugin's menus now. */
     public boolean screens(@NotNull Player player) {
         return resolve(player) == MenuStyle.SCREEN;

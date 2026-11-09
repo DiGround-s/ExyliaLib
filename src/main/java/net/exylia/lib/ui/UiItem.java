@@ -30,6 +30,7 @@ import java.util.function.Predicate;
  *                     condition fails, in the order the file wrote them
  * @param sound        what pressing it sounds like instead of the menu's click,
  *                     empty for silence, or {@code null} for the click
+ * @param rules        the file's {@code if}, {@code click}, {@code require} and {@code deny} (1.548.0+)
  * @since 1.22.0
  */
 public record UiItem(
@@ -38,11 +39,22 @@ public record UiItem(
         @Nullable String condition,
         @NotNull List<String> dependencies,
         @NotNull List<UiItem> alternates,
-        @Nullable String sound) {
+        @Nullable String sound,
+        @NotNull UiRules rules) {
 
     public UiItem {
         dependencies = List.copyOf(dependencies);
         alternates = List.copyOf(alternates);
+    }
+
+    /** A slot with no rules of its own, as every slot was before 1.548.0. */
+    public UiItem(@NotNull Item item,
+                  @NotNull ClickBindings bindings,
+                  @Nullable String condition,
+                  @NotNull List<String> dependencies,
+                  @NotNull List<UiItem> alternates,
+                  @Nullable String sound) {
+        this(item, bindings, condition, dependencies, alternates, sound, UiRules.NONE);
     }
 
     /** A slot with no sound of its own. */
@@ -75,7 +87,7 @@ public record UiItem(
     public @NotNull UiItem withAlternate(@NotNull UiItem alternate) {
         List<UiItem> chain = new ArrayList<>(alternates);
         chain.add(alternate);
-        return new UiItem(item, bindings, condition, dependencies, chain, sound);
+        return new UiItem(item, bindings, condition, dependencies, chain, sound, rules);
     }
 
     /**
@@ -107,6 +119,7 @@ public record UiItem(
         return item.isDynamic()
                 || !dependencies.isEmpty()
                 || condition != null
+                || rules.when() != null
                 || !alternates.isEmpty();
     }
 
@@ -122,6 +135,7 @@ public record UiItem(
         private String condition;
         private List<String> dependencies = List.of();
         private String sound;
+        private UiRules rules = UiRules.NONE;
 
         private Builder(Item item) {
             this.item = item;
@@ -147,8 +161,14 @@ public record UiItem(
             return this;
         }
 
+        /** @since 1.548.0 */
+        public @NotNull Builder rules(@NotNull UiRules rules) {
+            this.rules = rules;
+            return this;
+        }
+
         public @NotNull UiItem build() {
-            return new UiItem(item, bindings, condition, dependencies, List.of(), sound);
+            return new UiItem(item, bindings, condition, dependencies, List.of(), sound, rules);
         }
     }
 }

@@ -152,7 +152,11 @@ public final class MenuListener implements Listener {
         UiItem item = rendered.item();
         List<ActionTemplate> actions = item.bindings().forClick(kind);
         List<CommandLine> commands = item.bindings().commandsForClick(kind);
-        if (actions.isEmpty() && commands.isEmpty()) {
+        net.exylia.lib.interaction.Click click = interactionClick(kind);
+        net.exylia.lib.interaction.Interaction lines = item.rules().click().isEmpty() || click == null ? null
+                : session.runtime().interaction(item.rules().click());
+        boolean runsLines = lines != null && lines.handles(click);
+        if (actions.isEmpty() && commands.isEmpty() && !runsLines) {
             return;
         }
         // One physical click, one run: the client sends a burst for some single
@@ -167,11 +171,23 @@ public final class MenuListener implements Listener {
         long heard = MenuRuntime.soundsHeard(viewer);
 
         Map<String, Object> data = dataFor(session, rendered);
+        Map<String, String> row = rendered.entry() == null ? Map.of() : rendered.entry().values();
+        for (net.exylia.lib.ui.UiRules.Gate gate : item.rules().gatesFor(kind)) {
+            if (session.holds(gate.require(), row)) continue;
+            session.runtime().play(viewer, session.definition().sounds().denied());
+            session.runtime().interaction(gate.deny()).run(viewer, click == null ? net.exylia.lib.interaction.Click.LEFT : click, data);
+            return;
+        }
         if (!actions.isEmpty()) {
             runActions(session, viewer, slot, kind, rendered, clicked, actions, data);
         }
         if (!commands.isEmpty()) {
             Commands.of(session.runtime().plugin()).run(commands, viewer, data);
+        }
+        if (runsLines) {
+            lines.run(viewer, click, data).thenRun(() -> {
+                if (session.isOpen()) session.runtime().atPlayer(viewer, session::refresh);
+            });
         }
 
         // After the button ran, and only if it made no menu sound of its own — a
@@ -185,6 +201,17 @@ public final class MenuListener implements Listener {
         // A button that toggles something has to show the new state, and what
         // changed it has not necessarily finished by the time we get here.
         session.refreshAfterClick(slot);
+    }
+
+    /** The interaction click of a menu click; {@code null} for the kinds interaction lines have no word for. */
+    private static net.exylia.lib.interaction.Click interactionClick(ClickKind kind) {
+        return switch (kind) {
+            case LEFT -> net.exylia.lib.interaction.Click.LEFT;
+            case RIGHT -> net.exylia.lib.interaction.Click.RIGHT;
+            case SHIFT_LEFT -> net.exylia.lib.interaction.Click.SHIFT_LEFT;
+            case SHIFT_RIGHT -> net.exylia.lib.interaction.Click.SHIFT_RIGHT;
+            default -> null;
+        };
     }
 
     /**

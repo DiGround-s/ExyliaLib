@@ -12,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -41,6 +42,42 @@ class SpatialLayoutTest {
         ConfigFile<SpatialLayout> again = Configs.define(plugin, "spatial/wardrobe", SpatialLayout.class).load();
         assertTrue(again.issues().isEmpty(), "a generated file reads back clean: " + again.issues());
         assertEquals(new SpatialLayout(), again.get());
+    }
+
+    @Test
+    void aMenuWrittenInItsFileSurvivesLoadingAndALayoutWithoutOneIsLeftAlone() throws Exception {
+        Path file = folder.resolve("spatial/warps.yml");
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, """
+                title: '{primary}&lWARPS'
+                menu:
+                  command: warps
+                  fallback: warps_chest
+                  min-client: 1.21.4
+                  lists:
+                    warps:
+                      entries:
+                        spawn:
+                          priority: 2
+                          if: "perm('warp.spawn')"
+                          material: GRASS_BLOCK
+                          name: Spawn
+                          click: ['[TELEPORT] world;0;64;0']
+                  buttons:
+                    shop: ['[SCREEN] shop']
+                """);
+        SpatialLayout.FileMenu menu = Configs.define(plugin, "spatial/warps", SpatialLayout.class).load().get().menu();
+        assertEquals("warps", menu.command());
+        assertEquals("warps_chest", menu.fallback());
+        assertEquals("1.21.4", menu.minClient());
+        SpatialLayout.FileEntry spawn = menu.lists().get("warps").entries().get("spawn");
+        assertEquals(2, spawn.priority());
+        assertEquals("perm('warp.spawn')", spawn.when());
+        assertEquals(List.of("[SCREEN] shop"), menu.buttons().get("shop"));
+        assertTrue(Files.readString(file).contains("if: perm('warp.spawn')"), Files.readString(file));
+
+        Configs.define(plugin, "spatial/plain", SpatialLayout.class).load();
+        assertFalse(Files.readString(folder.resolve("spatial/plain.yml")).contains("\nmenu:"));
     }
 
     @Test

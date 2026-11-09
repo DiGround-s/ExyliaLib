@@ -442,6 +442,32 @@ public final class ScreenMarkup {
      * @since 1.502.0
      */
     public static boolean test(@NotNull String expression, @Nullable org.bukkit.entity.Player viewer) {
+        return test(expression, viewer, viewer == null ? text -> net.exylia.lib.placeholder.Placeholders.apply(text, null)
+                : text -> net.exylia.lib.placeholder.Placeholders.apply(text, viewer));
+    }
+
+    /**
+     * What is wrong with a screen expression, or {@code null} when it reads: for a file loader reporting a typo.
+     *
+     * @since 1.548.0
+     */
+    public static @Nullable String problem(@NotNull String expression) {
+        try {
+            net.exylia.lib.screen.internal.Expr.compile(expression.trim());
+            return null;
+        } catch (net.exylia.lib.screen.internal.Expr.Bad bad) {
+            return bad.getMessage();
+        }
+    }
+
+    /**
+     * {@link #test(String, org.bukkit.entity.Player)}, with {@code resolve} filling placeholders in: for a caller with
+     * values of its own, as a menu's row and context. The values stay data: the expression is read before they arrive.
+     *
+     * @since 1.548.0
+     */
+    public static boolean test(@NotNull String expression, @Nullable org.bukkit.entity.Player viewer,
+                               @NotNull java.util.function.UnaryOperator<String> resolve) {
         net.exylia.lib.screen.internal.Expr compiled;
         try {
             compiled = net.exylia.lib.screen.internal.Expr.compile(expression.trim());
@@ -457,7 +483,7 @@ public final class ScreenMarkup {
             @Override
             public Object placeholder(String name) {
                 String written = "%" + name + "%";
-                String resolved = net.exylia.lib.placeholder.Placeholders.apply(written, viewer);
+                String resolved = resolve.apply(written);
                 return resolved.equals(written) ? null : resolved;
             }
 
@@ -468,7 +494,7 @@ public final class ScreenMarkup {
 
             @Override
             public Object literal(String text) {
-                return viewer == null ? text : net.exylia.lib.placeholder.Placeholders.apply(text, viewer);
+                return viewer == null ? text : resolve.apply(text);
             }
 
             @Override

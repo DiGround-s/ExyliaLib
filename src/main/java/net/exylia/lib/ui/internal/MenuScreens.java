@@ -65,6 +65,7 @@ final class MenuScreens {
 
     /** Whether this open should be drawn on a screen rather than in a window. */
     static boolean wanted(Player viewer, UiDefinition definition, MenuRuntime runtime) {
+        if (runtime.windowsOnly()) return false;
         // A window the player puts items into, or one that is not a chest, keeps its window.
         if (definition.kind().type() != null || !definition.inputSlots().isEmpty()) return false;
         // The kit room hands items into the inventory the player is building in, so that inventory has to show.

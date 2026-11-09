@@ -113,6 +113,9 @@ public final class MenuRuntime {
     /** The action namespace the plugin's menus are written against; an explicit one wins over the derived one. */
     private volatile String namespace;
 
+    private final Map<List<String>, net.exylia.lib.interaction.Interaction> interactions = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile boolean windowsOnly;
+
     private MenuRuntime(Plugin plugin) {
         this.plugin = plugin;
         this.items = Items.of(plugin);
@@ -192,6 +195,21 @@ public final class MenuRuntime {
      */
     public static void init(Plugin plugin) {
         Titles.init(plugin);
+    }
+
+    /** Compiled once for each list of lines, whichever slots write it; the same words compile to the same lines. */
+    net.exylia.lib.interaction.Interaction interaction(List<String> lines) {
+        return interactions.computeIfAbsent(lines, written ->
+                net.exylia.lib.interaction.Interactions.compile(plugin, written, "a menu of " + plugin.getName()));
+    }
+
+    /** Whether this plugin's menus are windows whatever the player's menu style (1.548.0+). */
+    public boolean windowsOnly() {
+        return windowsOnly;
+    }
+
+    public void windowsOnly(boolean windowsOnly) {
+        this.windowsOnly = windowsOnly;
     }
 
     public Plugin plugin() {

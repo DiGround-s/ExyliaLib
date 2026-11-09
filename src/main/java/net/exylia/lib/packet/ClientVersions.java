@@ -36,6 +36,31 @@ public final class ClientVersions {
         return atLeast(of(player), server, minimum);
     }
 
+    /**
+     * {@link #atLeast(Player, ClientVersion)} for a version as a file writes it ({@code 1.21.4}), for a plugin that does
+     * not compile against PacketEvents.
+     *
+     * @throws IllegalArgumentException if {@link #known} says no
+     * @since 1.548.0
+     */
+    public static boolean reaches(@NotNull Player player, @NotNull String minimum) {
+        return atLeast(player, ClientVersion.valueOf("V_" + minimum.trim().replace('.', '_')));
+    }
+
+    /**
+     * Whether this server's PacketEvents knows a version as a file writes it ({@code 1.21.4}).
+     *
+     * @since 1.548.0
+     */
+    public static boolean known(@NotNull String version) {
+        try {
+            ClientVersion.valueOf("V_" + version.trim().replace('.', '_'));
+            return true;
+        } catch (IllegalArgumentException unknown) {
+            return false;
+        }
+    }
+
     /** The player's client version, or {@code null} when it is not known. */
     public static @Nullable ClientVersion of(@NotNull Player player) {
         try {

@@ -168,6 +168,18 @@ public final class SpatialMenus {
         }
     }
 
+    /**
+     * Registers a menu written entirely in {@code spatial/<id>.yml}: its {@code menu} block holds its lists and what its
+     * buttons do, as interaction lines, so no code stands behind it. Register it again after reading the file anew, for
+     * lists it added. Call it on the global thread.
+     *
+     * @since 1.548.0
+     */
+    public @NotNull SpatialMenus registerFile(@NotNull String id) {
+        ConfigFile<SpatialLayout> file = Configs.define(plugin, "spatial/" + id, SpatialLayout.class).load();
+        return define(id, menu -> FileMenus.fill(this, menu, file));
+    }
+
     private SpatialMenus define(String id, Consumer<SpatialMenu> definition) {
         return define(id, definition, null);
     }

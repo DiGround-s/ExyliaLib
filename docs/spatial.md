@@ -142,6 +142,44 @@ header, the body on the preview (0.8 scale, level with the focus text, not
 nearer) keeps its head under the focus, and the pedestal clears the plinths.
 Since 1.408.0; a layout written before keeps its own values.
 
+## A menu written entirely in its file (1.548.0)
+
+`SpatialMenus#registerFile(id)` registers a menu with no code behind it. Its layout file's `menu` block holds the lists
+panels read through `source` and what each button's `action` does; a layout without the block never writes one.
+
+```yaml
+title: '{primary}&lWARPS'
+panels:
+  warps:
+    at: [0, 0.1, 0]
+    size: [3.2, 1.8]
+    title: '{secondary}&lWARPS'
+    content: {type: GRID, source: warps, columns: 4, rows: 2}
+    footer: {label: '{error}Leave', action: leave}
+carousel: {source: ''}
+menu:
+  lists:
+    warps:
+      entries:
+        spawn:
+          priority: 1
+          if: "perm('warp.spawn')"
+          material: GRASS_BLOCK
+          name: '{success}Spawn'
+          subtitle: '{letters_black}%server_online% online'
+          require: "balance() >= 10"
+          deny: ['[MESSAGE] {error}You need $10.']
+          click: ['[MONEY] take 10', '[TELEPORT] world;0;64;0']
+  buttons:
+    shop: ['[SCREEN] shop']
+```
+
+`if` and `require` are screen expressions, `click`, `deny` and `buttons` are [interaction lines](interactions.md), as on
+a [chest slot](menus.md#rules-a-file-can-write-15480). Lists are read on every redraw and the menu redraws after a
+click; a spatial entry reports one click, so a line's `right:` filter never runs. `command`, `aliases`, `permission`,
+`require`, `deny`, `fallback`, `min-client`, `args` and `on-open` in the block are for the plugin that opens menus from
+files (ExyliaScreens).
+
 ## Components
 
 | Where | What it draws |

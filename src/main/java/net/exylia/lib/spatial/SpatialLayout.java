@@ -72,7 +72,16 @@ public record SpatialLayout(
         int menuVersion,
         @Comment("A soft, translucent dark backdrop behind the whole board, so its words read on any sky or ground:")
         @Comment("size [width, height] at 'at', its edges fading out over 'feather' blocks in 'rings' steps. Size 0: none.")
-        Backdrop backdrop) {
+        Backdrop backdrop,
+        @Comment("A menu written entirely in this file (SpatialMenus#registerFile): its lists, buttons and how it opens.")
+        FileMenu menu) {
+
+    /** A layout whose menu is the plugin's code, as every layout was before 1.548.0. */
+    public SpatialLayout(String title, Anchor anchor, boolean hideOthers, boolean freeze, SpatialTheme theme,
+                         Map<String, Panel> panels, Preview preview, Carousel carousel, Intro intro, int menuVersion,
+                         Backdrop backdrop) {
+        this(title, anchor, hideOthers, freeze, theme, panels, preview, carousel, intro, menuVersion, backdrop, new FileMenu());
+    }
 
     /** A wardrobe: a header, a list on the left, a grid on the right, a caption, a preview and a carousel. */
     public SpatialLayout() {
@@ -94,6 +103,7 @@ public record SpatialLayout(
 
     public SpatialLayout {
         backdrop = backdrop == null ? new Backdrop() : backdrop;
+        menu = menu == null ? new FileMenu() : menu;
         intro = intro == null ? new Intro() : intro;
         panels = panels == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(panels));
     }
@@ -194,6 +204,64 @@ public record SpatialLayout(
      * {@code size} wide and tall at {@code at}, ringed by {@code rings} fainter, larger sheets fading out over
      * {@code feather} blocks, so it has no hard edge. Size 0 (the default): none.
      */
+    public record FileMenu(
+            @Comment("The command that opens it, and its aliases. Empty: none. Read by the plugin that opens menus from files.")
+            String command,
+            java.util.List<String> aliases,
+            @Comment("The permission it needs. Empty: none.")
+            String permission,
+            @Comment("A screen expression that must hold to open it, and the interaction lines run when it does not.")
+            String require,
+            java.util.List<String> deny,
+            @Comment("The id of the menu a client that cannot draw this one gets instead. Empty: none.")
+            String fallback,
+            @Comment("The oldest client that gets this menu (1.21.4 at least, what a 3D menu needs). Empty: 1.21.4.")
+            String minClient,
+            @Comment("The words after the command, by name: each is %name% in this menu.")
+            java.util.List<String> args,
+            @Comment("Interaction lines run when it opens.")
+            java.util.List<String> onOpen,
+            @Comment("The lists panels and the carousel read through 'source', by that name.")
+            Map<String, EntryList> lists,
+            @Comment("What each button's 'action' does: interaction lines, by that action's name. 'leave' closes the menu.")
+            Map<String, java.util.List<String>> buttons) implements net.exylia.lib.config.Sparse {
+
+        public FileMenu() {
+            this("", java.util.List.of(), "", "", java.util.List.of(), "", "", java.util.List.of(), java.util.List.of(), Map.of(), Map.of());
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return command.isBlank() && aliases.isEmpty() && permission.isBlank() && require.isBlank() && deny.isEmpty()
+                    && fallback.isBlank() && minClient.isBlank() && args.isEmpty() && onOpen.isEmpty()
+                    && lists.isEmpty() && buttons.isEmpty();
+        }
+    }
+
+    /** One list of a {@link FileMenu}. {@code entries} by the id of each. */
+    public record EntryList(Map<String, FileEntry> entries) {
+        public EntryList() {
+            this(Map.of());
+        }
+    }
+
+    /**
+     * One entry of a {@link FileMenu}'s list.
+     *
+     * @param priority the lowest is listed first; a tie keeps the file's order
+     * @param when     a screen expression; the entry is only there while it holds
+     * @param material what a chest item's {@code material} takes
+     * @param click    interaction lines run when it is clicked
+     * @param require  a screen expression that must hold for the click to run
+     * @param deny     interaction lines run when it does not
+     */
+    public record FileEntry(int priority, @net.exylia.lib.config.Key("if") String when, String material, String name, String subtitle,
+                            java.util.List<String> click, String require, java.util.List<String> deny) {
+        public FileEntry() {
+            this(0, "", "STONE", "", "", java.util.List.of(), "", java.util.List.of());
+        }
+    }
+
     public record Backdrop(List<Double> at, List<Double> size, String tint, int alpha, double feather, int rings) {
         public Backdrop() {
             this(List.of(0.0, 0.0, -0.3), List.of(0.0, 0.0), "{primary}", 150, 0.9, 10);

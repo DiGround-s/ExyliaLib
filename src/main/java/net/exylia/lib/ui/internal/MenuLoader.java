@@ -15,6 +15,8 @@ import net.exylia.lib.ui.UiSounds;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
+import net.exylia.lib.ui.ClickKind;
+
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -243,7 +245,10 @@ public final class MenuLoader {
         if (section == null) {
             return;
         }
-        for (String key : section.getKeys(false)) {
+        // priority: the lowest number is tried first; the file's order breaks a tie, so a file without it reads as written.
+        List<String> keys = new ArrayList<>(section.getKeys(false));
+        keys.sort(java.util.Comparator.comparingInt(key -> section.getInt(key + ".priority", Integer.MAX_VALUE)));
+        for (String key : keys) {
             ConfigurationSection itemSection = section.getConfigurationSection(key);
             if (itemSection == null) {
                 continue;
@@ -326,7 +331,7 @@ public final class MenuLoader {
      * past that are states of the same card (only one passes at a time), not overflow.
      */
     private static boolean overflows(List<UiItem> items, int slots) {
-        long always = items.stream().filter(item -> item.condition() == null).count();
+        long always = items.stream().filter(item -> item.condition() == null && item.rules().when() == null).count();
         return always + (always < items.size() ? 1 : 0) > slots;
     }
 
@@ -432,7 +437,39 @@ public final class MenuLoader {
                 .dependsOn(section.getStringList("depends-on"))
                 // Present but empty is a silent button, not the menu's click.
                 .sound(section.contains("sound") ? section.getString("sound", "") : null)
+                .rules(rules(section, binder))
                 .build();
+    }
+
+    /** The slot's {@code if}, {@code click}, {@code require} and {@code deny}, each {@code require-<click>} with its own {@code deny-<click>}. */
+    private static net.exylia.lib.ui.UiRules rules(ConfigurationSection section, Binder binder) {
+        String when = expression(section, "if", binder);
+        List<String> click = lines(section, "click");
+        net.exylia.lib.ui.UiRules.Gate every = gate(section, "", binder);
+        Map<ClickKind, net.exylia.lib.ui.UiRules.Gate> gates = new java.util.EnumMap<>(ClickKind.class);
+        for (ClickKind kind : List.of(ClickKind.LEFT, ClickKind.RIGHT, ClickKind.MIDDLE, ClickKind.SHIFT_LEFT, ClickKind.SHIFT_RIGHT)) {
+            net.exylia.lib.ui.UiRules.Gate gate = gate(section, "-" + kind.name().toLowerCase(Locale.ROOT).replace('_', '-'), binder);
+            if (gate != null) gates.put(kind, gate);
+        }
+        if (when == null && click.isEmpty() && every == null && gates.isEmpty()) return net.exylia.lib.ui.UiRules.NONE;
+        return new net.exylia.lib.ui.UiRules(when, click, every, gates);
+    }
+
+    private static net.exylia.lib.ui.UiRules.Gate gate(ConfigurationSection section, String suffix, Binder binder) {
+        String require = expression(section, "require" + suffix, binder);
+        return require == null ? null : new net.exylia.lib.ui.UiRules.Gate(require, lines(section, "deny" + suffix));
+    }
+
+    /**
+     * An expression key as written, reporting one that does not read. It stays, and tests false: as with a condition,
+     * a slot wrongly hidden or a click wrongly refused beats handing a button to somebody who should not have it.
+     */
+    private static String expression(ConfigurationSection section, String key, Binder binder) {
+        String written = section.getString(key);
+        if (written == null || written.isBlank()) return null;
+        String problem = net.exylia.lib.screen.ScreenMarkup.problem(written);
+        if (problem != null) binder.problems().found(key + " \"" + written + "\"", problem);
+        return written;
     }
 
     /** Reads the actions of an item, accepting a list or a single string. */

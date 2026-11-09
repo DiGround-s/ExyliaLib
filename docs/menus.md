@@ -639,6 +639,37 @@ items:
 - Code that rebuilds a `UiDefinition` with the 13-argument constructor drops its
   groups; pass `definition.groups()` to the full constructor to keep them.
 
+## Rules a file can write (1.548.0)
+
+Four optional keys on a slot, in the words screens use, so a chest menu, a screen and a 3D menu read alike:
+
+```yaml
+vip_kit:
+  slot: 13
+  priority: 1                                # lowest first among the items of a slot; a tie keeps the file's order
+  material: DIAMOND_SWORD
+  if: "perm('kits.vip') and level() >= 5"    # the slot is only there while this holds
+  require: "balance() >= 100"                # must hold for a click to run anything
+  deny:                                      # interaction lines run when it does not
+    - '[MESSAGE] {error}You need $100.'
+  require-right: "has_item('diamond', 4)"    # also: -left, -middle, -shift-left, -shift-right, each with its deny-<click>
+  click:                                     # interaction lines, with their click filters
+    - 'left: [MONEY] take 100'
+    - 'left: [CONSOLE] kit give vip %player_name%'
+    - 'right: [MESSAGE] {letters}The VIP kit.'
+```
+
+- `if` and `require` are [screen expressions](screens-markup.md): `perm()`, `balance()`, `has_item()`, `level()`,
+  `world()`, comparisons, `and`/`or`/`not`, `%placeholders%` (the row's and the context's first). `condition` keeps its
+  old one-comparison grammar; a slot with both needs both. One that does not read is reported by `check` and tests false.
+- `click` lines are [interaction lines](interactions.md): `[CONSOLE]`, `[PLAYER]`, `[MESSAGE]`, `[SOUND]`, `[MONEY]`,
+  `[SERVER]`, `[TELEPORT]`, `[DELAY]`, `[ACTION]`... They run after `actions` and `commands`, and the menu redraws when
+  they end. `require` stops all three.
+- Priority orders [several states of one slot](#one-slot-several-states) and the members of a group.
+
+`PluginMenus#windowsOnly()` keeps a plugin's menus in chest windows whatever the player's menu style: no routed screen,
+no chest skin. For a plugin whose owner writes each form as a menu of its own.
+
 ## Built-in actions
 
 Registered for every plugin that asks for menus, because turning a page is

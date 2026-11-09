@@ -1316,10 +1316,16 @@ final class Session implements UiSession {
     /** Whether a slot's condition lets it be shown. */
     private boolean passes(UiItem item, Map<String, String> values) {
         String condition = item.condition();
-        if (condition == null) {
-            return true;
+        if (condition != null && !Conditions.test(condition, side -> resolve(side, values))) {
+            return false;
         }
-        return Conditions.test(condition, side -> resolve(side, values));
+        String when = item.rules().when();
+        return when == null || holds(when, values);
+    }
+
+    /** Whether a screen expression holds for this viewer, with row values and the menu context. */
+    boolean holds(String expression, Map<String, String> values) {
+        return net.exylia.lib.screen.ScreenMarkup.test(expression, viewer, side -> resolve(side, values));
     }
 
     /**

@@ -623,6 +623,58 @@ class MenuLoaderTest {
     }
 
     /** The real slot count of a container kind, as the file would ask for it. */
+    @Test
+    void priorityOrdersTheStatesOfASlotAndAFileWithoutItReadsAsWritten() {
+        UiDefinition definition = load("""
+                title: t
+                size: 9
+                items:
+                  later: {slot: 0, material: STONE, priority: 5}
+                  first: {slot: 0, material: DIRT, priority: 1}
+                  unranked: {slot: 0, material: SAND}
+                """);
+        UiItem slot = definition.items().get(0);
+        assertEquals("DIRT", materialOf(slot));
+        assertEquals(List.of("STONE", "SAND"), slot.alternates().stream().map(MenuLoaderTest::materialOf).toList());
+    }
+
+    @Test
+    void ifClickRequireAndDenyAreRead() {
+        UiItem item = load("""
+                title: t
+                size: 9
+                items:
+                  vip:
+                    slot: 0
+                    material: STONE
+                    if: "perm('vip')"
+                    click: ['left: [MESSAGE] hi']
+                    require: "balance() >= 10"
+                    deny: ['[MESSAGE] no']
+                    require-right: "level() > 1"
+                """).items().get(0);
+        UiRules rules = item.rules();
+        assertEquals("perm('vip')", rules.when());
+        assertTrue(item.isDynamic());
+        assertEquals(List.of("left: [MESSAGE] hi"), rules.click());
+        assertEquals(1, rules.gatesFor(ClickKind.LEFT).size());
+        assertEquals(List.of("[MESSAGE] no"), rules.gatesFor(ClickKind.LEFT).get(0).deny());
+        assertEquals("level() > 1", rules.gatesFor(ClickKind.RIGHT).get(1).require());
+    }
+
+    @Test
+    void anIfThatDoesNotReadIsReported() {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.set("title", "t");
+        yaml.set("size", 9);
+        yaml.set("items.a.slot", 0);
+        yaml.set("items.a.material", "STONE");
+        yaml.set("items.a.if", "perm(");
+        List<String> problems = Menus.of(plugin).check(yaml);
+        assertEquals(1, problems.size(), problems.toString());
+        assertTrue(problems.get(0).contains("if"), problems.toString());
+    }
+
     private int sizeOf(String type) {
         return load("""
                 title: "Menu"
