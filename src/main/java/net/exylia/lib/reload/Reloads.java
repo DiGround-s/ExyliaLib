@@ -2,6 +2,7 @@ package net.exylia.lib.reload;
 
 import net.exylia.lib.config.Languages;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Phrases;
 import net.exylia.lib.text.Prefixes;
 import net.exylia.lib.text.Text;
@@ -10,7 +11,9 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +60,7 @@ public final class Reloads {
 
     /** The latest reload each plugin declared, so an applied default can be made live. */
     private static final Map<String, Reloads> DECLARED = new ConcurrentHashMap<>();
+    private static final long TICKS_BETWEEN_PLUGINS = 5;
 
     private final Plugin plugin;
     private final Debug debug;
@@ -232,22 +236,17 @@ public final class Reloads {
      * @return how many listeners ran
      */
     public static int fireLibraryReload() {
-        int ran = reloadWhereTheLanguageChanged();
-        for (List<Listener> listeners : LIBRARY_LISTENERS.values()) {
-            for (Listener listener : listeners) {
-                try {
-                    listener.action().run();
-                } catch (Throwable failure) {
-                    // Reported against the plugin that registered it: one
-                    // plugin's bug must not stop another's rebuild. The
-                    // plugin is held directly, because looking it up would
-                    // fail exactly when things are already going wrong.
-                    Debug.of(listener.plugin()).error(
-                            "Library reload listener failed", failure);
-                }
+        Deque<Reloads> stale = whereTheLanguageChanged();
+        int ran = stale.size();
+        for (Map.Entry<String, List<Listener>> listeners : LIBRARY_LISTENERS.entrySet()) {
+            // A plugin about to read everything again does this in its turn.
+            if (stale.stream().anyMatch(declared -> declared.plugin.getName().equals(listeners.getKey()))) continue;
+            for (Listener listener : listeners.getValue()) {
+                listener.fire();
                 ran++;
             }
         }
+        reloadNext(stale);
         return ran;
     }
 
@@ -256,16 +255,39 @@ public final class Reloads {
      * messages and catalogues are not only colours a menu keeps, and without this they stay in the old language
      * until the plugin's own reload. A plugin that names its own language is not touched.
      */
-    private static int reloadWhereTheLanguageChanged() {
-        int ran = 0;
+    private static Deque<Reloads> whereTheLanguageChanged() {
+        Deque<Reloads> stale = new ArrayDeque<>();
         for (Reloads declared : DECLARED.values()) {
             String now = languageOf(declared.plugin);
             if (!now.equals(declared.language)) {
-                declared.run();
-                ran++;
+                declared.language = now;
+                stale.add(declared);
             }
         }
-        return ran;
+        return stale;
+    }
+
+    /**
+     * One plugin at a time with ticks between them: reloading a whole server in one tick stops it for many seconds,
+     * and players are on it.
+     */
+    private static void reloadNext(Deque<Reloads> stale) {
+        Reloads next = stale.poll();
+        if (next == null) return;
+        if (!next.plugin.isEnabled()) {
+            reloadNext(stale);
+            return;
+        }
+        Tasks.of(next.plugin).runLater(TICKS_BETWEEN_PLUGINS, () -> {
+            try {
+                next.run(null);
+                for (Listener listener : LIBRARY_LISTENERS.getOrDefault(next.plugin.getName(), List.of())) {
+                    if (next.steps.stream().noneMatch(step -> step.action() == listener.action())) listener.fire();
+                }
+            } finally {
+                reloadNext(stale);
+            }
+        });
     }
 
     /** Empty for a plugin with no folder, which only a test has. */
@@ -294,6 +316,19 @@ public final class Reloads {
     }
 
     private record Listener(Plugin plugin, Runnable action) {
+
+        /**
+         * A listener that throws is reported against the plugin that registered it: one plugin's bug must not stop
+         * another's rebuild. The plugin is held directly, because looking it up would fail exactly when things are
+         * already going wrong.
+         */
+        void fire() {
+            try {
+                action.run();
+            } catch (Throwable failure) {
+                Debug.of(plugin).error("Library reload listener failed", failure);
+            }
+        }
     }
 
     /**

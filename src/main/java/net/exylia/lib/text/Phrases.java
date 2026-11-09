@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -117,6 +118,38 @@ public final class Phrases {
     /** Replaces the table, for tests. */
     static void use(@NotNull Map<String, String> phrases) {
         table = Map.copyOf(phrases);
+    }
+
+    /**
+     * Words a plugin seeds into its database in English, in the server's language: the shop's first categories, the
+     * first daily reward. The table is {@code lang/<code>/seeded.yml} in the plugin's jar, the same shape as this
+     * class's own, overridden line by line by the file of that name in its data folder. What an owner renamed is not
+     * in the table, so it shows as they wrote it. Read the stored value through this wherever it is shown; load it
+     * again on reload.
+     *
+     * @param plugin the plugin, whose language applies
+     * @param anchor a class of the plugin, whose jar holds the table
+     * @return a lookup answering a value with its translation, or with itself
+     * @since 1.542.0
+     */
+    public static @NotNull UnaryOperator<String> seeded(@NotNull Plugin plugin, @NotNull Class<?> anchor) {
+        Map<String, String> loaded = new HashMap<>();
+        String resource = "lang/" + Languages.code(plugin) + "/seeded.yml";
+        try (InputStream packaged = anchor.getClassLoader().getResourceAsStream(resource)) {
+            if (packaged != null) {
+                read(new InputStreamReader(packaged, StandardCharsets.UTF_8), loaded);
+            }
+            Path override = plugin.getDataFolder().toPath().resolve(resource);
+            if (Files.isRegularFile(override)) {
+                try (Reader reader = Files.newBufferedReader(override, StandardCharsets.UTF_8)) {
+                    read(reader, loaded);
+                }
+            }
+        } catch (IOException | RuntimeException failure) {
+            plugin.getLogger().log(Level.WARNING, "Could not read " + resource + "; seeded words stay English", failure);
+        }
+        Map<String, String> table = Map.copyOf(loaded);
+        return stored -> stored == null ? null : table.getOrDefault(stored, stored);
     }
 
     private static void read(Reader reader, Map<String, String> into) {

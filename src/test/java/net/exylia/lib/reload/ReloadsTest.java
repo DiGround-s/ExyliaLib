@@ -294,24 +294,63 @@ class ReloadsTest {
     }
 
     @Test
-    @DisplayName("a language change reloads the plugin with the library, once")
-    void aLanguageChangeReloadsThePluginWithTheLibrary() throws Exception {
-        java.nio.file.Path folder = java.nio.file.Files.createTempDirectory("reloads").resolve("MyPlugin");
+    @DisplayName("a plugin in line for a language reload rebuilds in its turn, each thing once")
+    void aLanguageChangeMovesTheListenersIntoTheTurn() throws Exception {
+        java.nio.file.Path folder = java.nio.file.Files.createTempDirectory("reloads").resolve("Listening");
         java.nio.file.Files.createDirectories(folder);
         java.nio.file.Path config = folder.resolve("config.yml");
         java.nio.file.Files.writeString(config, "language: es\n");
-        java.util.concurrent.atomic.AtomicInteger read = new java.util.concurrent.atomic.AtomicInteger();
-        Reloads.of(FakeServer.newPlugin("Translated", folder.toFile())).step("files", read::incrementAndGet);
+        org.bukkit.plugin.Plugin plugin = FakeServer.newPlugin("Listening", folder.toFile());
+        java.util.concurrent.atomic.AtomicInteger menus = new java.util.concurrent.atomic.AtomicInteger();
+        java.util.concurrent.atomic.AtomicInteger other = new java.util.concurrent.atomic.AtomicInteger();
+        Reloads.of(plugin).stepAlsoOnLibraryReload("menus", menus::incrementAndGet);
+        Reloads.onLibraryReload(plugin, other::incrementAndGet);
 
         Reloads.fireLibraryReload();
-        assertEquals(0, read.get(), "the same language has nothing to read again");
+        assertEquals(1, menus.get(), "the same language rebuilds straight away, as ever");
+        assertEquals(1, other.get());
 
         java.nio.file.Files.writeString(config, "language: fr\n");
         Reloads.fireLibraryReload();
-        assertEquals(1, read.get());
+        assertEquals(1, menus.get(), "nothing in the tick of the command");
+        assertEquals(1, other.get());
+
+        FakeServer.tick(6);
+        assertEquals(2, menus.get(), "once in its turn, not as step and listener");
+        assertEquals(2, other.get(), "a listener that is not a step still runs");
+    }
+
+    @Test
+    @DisplayName("a language change reloads the plugins that follow it one at a time, in later ticks")
+    void aLanguageChangeSpreadsThePluginReloads() throws Exception {
+        java.nio.file.Path root = java.nio.file.Files.createTempDirectory("reloads");
+        java.util.List<java.nio.file.Path> configs = new java.util.ArrayList<>();
+        java.util.concurrent.atomic.AtomicInteger read = new java.util.concurrent.atomic.AtomicInteger();
+        for (String name : java.util.List.of("First", "Second")) {
+            java.nio.file.Path folder = java.nio.file.Files.createDirectories(root.resolve(name));
+            java.nio.file.Path config = folder.resolve("config.yml");
+            java.nio.file.Files.writeString(config, "language: es\n");
+            configs.add(config);
+            Reloads.of(FakeServer.newPlugin(name, folder.toFile())).step("files", read::incrementAndGet);
+        }
 
         Reloads.fireLibraryReload();
-        assertEquals(1, read.get(), "once");
+        FakeServer.tick(20);
+        assertEquals(0, read.get(), "the same language has nothing to read again");
+
+        for (java.nio.file.Path config : configs) java.nio.file.Files.writeString(config, "language: fr\n");
+        Reloads.fireLibraryReload();
+        assertEquals(0, read.get(), "nothing runs in the tick of the command");
+
+        FakeServer.tick(6);
+        assertEquals(1, read.get(), "one plugin in its turn");
+
+        FakeServer.tick(6);
+        assertEquals(2, read.get(), "the next in a later tick");
+
+        Reloads.fireLibraryReload();
+        FakeServer.tick(20);
+        assertEquals(2, read.get(), "once");
     }
 
     @Test

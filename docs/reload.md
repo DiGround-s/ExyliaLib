@@ -29,7 +29,8 @@ that one.
 
 When `/exylialib reload` finds a plugin's language changed (`language: default` following a new library language),
 it runs that plugin's whole declared `Reloads` once, so its menus, messages and catalogues read the new language
-without a second command (1.534.0+).
+without a second command (1.534.0+). Plugins take turns, one every few ticks, so the server keeps running while the
+language spreads (1.542.0+); each logs its own `Reloaded ... in ...ms` line when its turn comes.
 
 ### `/exylialib reload`
 

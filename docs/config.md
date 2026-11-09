@@ -394,6 +394,10 @@ assertEquals(List.of(), CatalogueCheck.problems(MyPlugin.class, "effects.yml", L
 Words the code writes in English but a server may keep as they ship (a rarity's `Common`, `Rare`) go through
 `Phrases.tr` at the point they are shown: a word the owner changed has no phrase and stays theirs.
 
+Words a plugin seeds into its database (a first shop category, a first reward) cannot be a catalogue: the owner edits
+the row in game. They ship as `lang/<code>/seeded.yml`, English line to translation, and are read through
+`Phrases.seeded(plugin, MyPlugin.class)` wherever they are shown (1.542.0+).
+
 **Moving an existing catalogue.** Which call adopts the files depends on whether `config.yml` already has
 a `language` key:
 
