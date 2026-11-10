@@ -16,7 +16,7 @@ import java.util.function.Consumer;
 /**
  * The in-screen settings a player reaches from the button every screen draws at its bottom right, or with
  * {@link LiveScreen#SETTINGS_KEYS}: how large screens are, how the cursor moves, how much they move, how menus open.
- * Everything is kept per player by {@link ScreenRuntime}.
+ * Everything is kept per player by {@link ScreenPreferences}.
  *
  * <p>Internal: free to change without notice.
  */
@@ -37,31 +37,31 @@ final class SettingsPanel {
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.IN));
         panel.add(words("{primary}&l" + Phrases.tr("Screen settings")).textAlign(Node.Align.CENTER));
 
-        int size = ScreenRuntime.size(id);
+        int size = ScreenPreferences.size(id);
         panel.add(row("Size",
                 stepper("size", size + "%",
-                        event -> ScreenRuntime.size(player, size - ScreenRuntime.SIZE_STEP),
-                        event -> ScreenRuntime.size(player, size + ScreenRuntime.SIZE_STEP))));
+                        event -> ScreenPreferences.size(player, size - ScreenPreferences.SIZE_STEP),
+                        event -> ScreenPreferences.size(player, size + ScreenPreferences.SIZE_STEP))));
 
-        double speed = ScreenRuntime.sensitivity(id);
+        double speed = ScreenPreferences.sensitivity(id);
         panel.add(row("Cursor speed",
                 stepper("speed", String.format(Locale.ROOT, "%.1f", speed),
-                        event -> ScreenRuntime.sensitivity(player, Math.round((speed - 0.1) * 10) / 10.0),
-                        event -> ScreenRuntime.sensitivity(player, Math.round((speed + 0.1) * 10) / 10.0))));
+                        event -> ScreenPreferences.sensitivity(player, Math.round((speed - 0.1) * 10) / 10.0),
+                        event -> ScreenPreferences.sensitivity(player, Math.round((speed + 0.1) * 10) / 10.0))));
 
-        CursorLead.Mode cursor = ScreenRuntime.cursorMode(id);
+        CursorLead.Mode cursor = ScreenPreferences.cursorMode(id);
         panel.add(row("Cursor", button("cursor", "{info}" + Phrases.tr(cursor.label),
-                event -> ScreenRuntime.cursorMode(player, cursor.next())).width(70)
+                event -> ScreenPreferences.cursorMode(player, cursor.next())).width(70)
                 .tooltip("{letters}" + Phrases.tr(cursor.about))));
 
-        boolean assist = ScreenRuntime.cursorAssist(id);
+        boolean assist = ScreenPreferences.cursorAssist(id);
         panel.add(row("Cursor assist", button("assist", (assist ? "{success}" : "{letters_black}")
-                        + Phrases.tr(assist ? "On" : "Off"), event -> ScreenRuntime.cursorAssist(player, !assist)).width(70)
+                        + Phrases.tr(assist ? "On" : "Off"), event -> ScreenPreferences.cursorAssist(player, !assist)).width(70)
                 .tooltip("{letters}" + Phrases.tr("Makes buttons easier to hit, never on a game board"))));
 
-        boolean reduced = ScreenRuntime.reducedMotionChosen(id);
+        boolean reduced = ScreenPreferences.reducedMotionChosen(id);
         panel.add(row("Reduced motion", button("motion", (reduced ? "{success}" : "{letters_black}")
-                        + Phrases.tr(reduced ? "On" : "Off"), event -> ScreenRuntime.reducedMotion(player, !reduced)).width(70)));
+                        + Phrases.tr(reduced ? "On" : "Off"), event -> ScreenPreferences.reducedMotion(player, !reduced)).width(70)));
 
         if (MenuStyles.choosable()) {
             MenuStyle style = MenuStyles.choice(player);
@@ -70,7 +70,7 @@ final class SettingsPanel {
         }
 
         panel.add(Node.row(
-                button("reset", "{error}" + Phrases.tr("Reset"), event -> ScreenRuntime.reset(player)).grow(1).assist(false),
+                button("reset", "{error}" + Phrases.tr("Reset"), event -> ScreenPreferences.reset(player)).grow(1).assist(false),
                 button("done", "{letters}" + Phrases.tr("Done"), event -> live.settings(false)).background("{primary}").grow(1))
                 .gap(4));
         panel.add(words("{letters_black}" + Phrases.tr("Ctrl + Space opens this from anywhere")).scale(0.7)

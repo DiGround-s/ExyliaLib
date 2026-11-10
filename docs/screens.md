@@ -56,8 +56,24 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 A screen's field of view is left to the player's FOV slider alone (since 1.521.0): FOV Effects, a sprint, a jump and
 speed effects change nothing. At FOV 70 the layout area fills three quarters of a 16:9 window; a wider slider draws it
 smaller (about half at FOV 110). The server cannot see the slider, so each player sets their own size in the settings
-panel, kept in their data. `screen-size` in `screens.yml` (percent, 50 to 250, 100 by default) is the size of those who
+panel, kept with their other preferences (see "Where preferences are kept"). `screen-size` in `screens.yml` (percent, 50 to 250, 100 by default) is the size of those who
 did not choose one. `Screens.size(player)` and `Screens.size(player, percent)` read and set it from Java.
+
+### Where preferences are kept (1.556.0)
+
+Size, cursor speed, cursor mode, cursor assist, reduced motion and menu style are library settings
+([settings](settings.md)): table `exylia_player_settings` in the library's own database, `plugins/ExyliaLib/database.yml`.
+They are network-wide. Point that file of every server at one MySQL, MariaDB or PostgreSQL database and a player's
+choices follow them from server to server; with `redis.enabled` a change reaches the other servers at once. With the
+default H2 file each server keeps its own. Reads are memory, so the cursor never waits for the database; until a
+joining player's row is read (a moment) they see the server's defaults.
+
+A player who never chose follows `screens.yml`, reloads included: only a value that differs from the server's is
+stored. Before 1.556.0 these lived in each server's player data (`exylialib:screen_*`, `exylialib:menu_style`); a
+joining player's old values are moved into the database once, only where it holds nothing for them yet, then removed
+from their data. `/exylialib resetplayer` and wipes cover them like every other setting.
+
+Screen state a screen keeps with `persist="player"` is not a preference and stays in the player's data on each server.
 
 ## The settings button
 
@@ -156,7 +172,7 @@ on close. From code: `net.exylia.lib.input.Links.open(player, url, title)` and `
   cursor, gliding one tick so it reads smooth. The arrow is the client's rendering of a server packet, so it can not be
   closer to the hand than the client's own ticks allow. See "The cursor modes" below.
 - **Speed:** `Screens.sensitivity(player, value)` from 0.1 to 10 (3 by default), applied at once. Since 1.496.0
-  it is kept in the player's data across restarts, and players set it themselves in `/settings` → Interface
+  it is kept across restarts (on every server since 1.556.0), and players set it themselves in `/settings` → Interface
   ("Cursor speed"). `cursor-acceleration` in `screens.yml` (0 by default, 1 is mild) carries a fast mouse
   further while a slow one stays precise.
 - **Hover** (1.496.0): the box under the cursor keeps its hover 3 pixels past its edges, unless the cursor is
@@ -193,7 +209,7 @@ plugins' holograms never show through or at its edges. It all comes back on clos
 
 ### The cursor modes (1.546.0)
 
-Each player picks one in the settings panel ("Cursor", kept in their data); `cursor-mode` in `screens.yml` is the choice
+Each player picks one in the settings panel ("Cursor", kept with their preferences); `cursor-mode` in `screens.yml` is the choice
 of everyone who did not. Only the drawing differs: clicks and hover read the real pointer in every mode.
 
 | Mode | What it does | Lag on the test client | Trade-off |
@@ -214,7 +230,7 @@ The lit box waits for the server's next tick on top of that, up to about 50 ms, 
 
 ### Cursor assist (1.547.0)
 
-An optional help each player turns on in the settings panel ("Cursor assist", kept in their data); `cursor-assist` in
+An optional help each player turns on in the settings panel ("Cursor assist", kept with their preferences); `cursor-assist` in
 `screens.yml` is the choice of everyone who did not, off by default. The cursor modes only change what is drawn; assist
 moves the real pointer, so it works under any mode and the arrow always shows where a click lands.
 
@@ -1132,7 +1148,7 @@ The first rule that answers wins:
 |---|---|---|
 | 1 | A client that cannot draw screens (Bedrock, older than 1.20.2, no PacketEvents) gets `CLASSIC` | `MenuStyles.canShowScreens(player)` |
 | 2 | A staff override, always (even with `player-choice: false`) | `/exylialib style`, below; in memory, cleared on quit or restart |
-| 3 | The player's own choice, when the server lets players choose (optional, off by default: `/settings` is disabled unless enabled) | `/settings` → Interface → Menu style, kept in the player's data (no database) |
+| 3 | The player's own choice, when the server lets players choose (optional, off by default: `/settings` is disabled unless enabled) | `/settings` → Interface → Menu style, kept with their screen preferences (see "Where preferences are kept") |
 | 4 | The plugin's own setting; `DEFAULT` passes | `MenuStyles.of(plugin).defaultStyle(() -> settings.menuStyle())` |
 | 5 | The server's choice for that plugin | `plugins/ExyliaLib/screens.yml` `plugins: {ExyliaJobs: SCREEN}` |
 | 6 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |

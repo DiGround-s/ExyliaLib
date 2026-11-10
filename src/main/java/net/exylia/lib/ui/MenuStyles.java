@@ -3,15 +3,11 @@ package net.exylia.lib.ui;
 import net.exylia.lib.screen.ScreenSettings;
 import net.exylia.lib.settings.Setting;
 import net.exylia.lib.settings.Settings;
-import net.exylia.lib.task.Tasks;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -53,14 +49,11 @@ public final class MenuStyles {
     public static final String SETTING = "menu-style";
 
     private static final Map<String, MenuStyles> BY_PLUGIN = new ConcurrentHashMap<>();
-    /** Each online player's own choice, read from their data on join. */
-    private static final Map<UUID, MenuStyle> CHOSEN = new ConcurrentHashMap<>();
     /** Staff overrides of {@code /exylialib style}: per player, by plugin name or {@link #ALL}. Not kept across restarts. */
     private static final Map<UUID, Map<String, MenuStyle>> STAFF = new ConcurrentHashMap<>();
     /** Staff overrides of {@code /exylialib style game}: per player, by plugin name or {@link #ALL}. Not kept across restarts. */
     private static final Map<UUID, Map<String, GameForm>> STAFF_FORMS = new ConcurrentHashMap<>();
     private static final String ALL = "*";
-    private static final NamespacedKey KEY = new NamespacedKey("exylialib", "menu_style");
     private static volatile Plugin library;
 
     private final Plugin plugin;
@@ -94,7 +87,7 @@ public final class MenuStyles {
             own = null;
         }
         Map<String, String> plugins = settings.plugins();
-        return decide(canShowScreens(player), staffOverride(player), settings.playerChoice() ? CHOSEN.get(player.getUniqueId()) : null,
+        return decide(canShowScreens(player), staffOverride(player), settings.playerChoice() ? choice(player) : null,
                 MenuStyle.parse(own), plugins == null ? null : MenuStyle.parse(plugins.get(plugin.getName())),
                 MenuStyle.parse(settings.defaultStyle()));
     }
@@ -108,7 +101,7 @@ public final class MenuStyles {
     public @Nullable MenuStyle chosen(@NotNull Player player) {
         MenuStyle staff = staffOverride(player);
         if (staff != null) return staff;
-        return ScreenSettings.get().playerChoice() ? CHOSEN.get(player.getUniqueId()) : null;
+        return ScreenSettings.get().playerChoice() ? choice(player) : null;
     }
 
     /** Whether {@code player} gets screens for this plugin's menus now. */
@@ -231,22 +224,19 @@ public final class MenuStyles {
 
     /** The style the player picked for themselves, or {@code null} for the server's choice. */
     public static @Nullable MenuStyle choice(@NotNull Player player) {
-        return CHOSEN.get(player.getUniqueId());
+        Plugin owner = library;
+        return owner == null ? null : MenuStyle.parse(Settings.value(player, owner, SETTING));
     }
 
     /**
-     * Picks a style for the player ({@code null} goes back to the server's), kept with their data across
-     * restarts. Applies to the next menu they open. Safe from any thread.
+     * Picks a style for the player ({@code null} goes back to the server's), kept in the library's database and
+     * shared by every server on it (since 1.556.0; in the player's data on each server before). Applies to the next
+     * menu they open. Safe from any thread.
      */
     public static void choose(@NotNull Player player, @Nullable MenuStyle style) {
-        if (style == null) CHOSEN.remove(player.getUniqueId());
-        else CHOSEN.put(player.getUniqueId(), style);
         Plugin owner = library;
         if (owner == null) return;
-        Tasks.of(owner).runAtEntity(player, () -> {
-            if (style == null) player.getPersistentDataContainer().remove(KEY);
-            else player.getPersistentDataContainer().set(KEY, PersistentDataType.STRING, style.name());
-        });
+        Settings.set(player, owner, SETTING, style == null ? "default" : style.name().toLowerCase(java.util.Locale.ROOT));
     }
 
     /** Whether players may choose for themselves on this server ({@code screens.yml} {@code player-choice}). */
@@ -255,25 +245,18 @@ public final class MenuStyles {
     }
 
     /**
-     * Reads each joining player's choice and offers it in {@code /settings}. Called by the library on enable.
+     * Offers each player's own choice in {@code /settings}. Called by the library on enable.
      */
     @ApiStatus.Internal
     public static void init(@NotNull Plugin lib) {
         library = lib;
         lib.getServer().getPluginManager().registerEvents(new Listener() {
-            @EventHandler(priority = EventPriority.LOWEST)
-            public void onJoin(PlayerJoinEvent event) {
-                read(event.getPlayer());
-            }
-
             @EventHandler(priority = EventPriority.MONITOR)
             public void onQuit(PlayerQuitEvent event) {
-                CHOSEN.remove(event.getPlayer().getUniqueId());
                 STAFF.remove(event.getPlayer().getUniqueId());
                 STAFF_FORMS.remove(event.getPlayer().getUniqueId());
             }
         }, lib);
-        for (Player online : lib.getServer().getOnlinePlayers()) Tasks.of(lib).runAtEntity(online, () -> read(online));
         Settings.category(lib, "interface", "ITEM_FRAME", "Interface", "How menus look to you.");
         Settings.register(lib, Setting.choice(SETTING, "default", "default", "classic", "screen")
                 .category("interface")
@@ -282,24 +265,6 @@ public final class MenuStyles {
                 .label("default", "Server's choice").label("classic", "Chest windows").label("screen", "Screens")
                 .description("Chest windows, or full-screen", "menus with a {highlight}mouse cursor{letters}.")
                 .available(MenuStyles::choosable, "Chosen by the server")
-                .store(new Setting.Store() {
-                    @Override
-                    public @Nullable String get(@NotNull Player player) {
-                        MenuStyle chosen = choice(player);
-                        return chosen == null ? null : chosen.name().toLowerCase(java.util.Locale.ROOT);
-                    }
-
-                    @Override
-                    public void set(@NotNull Player player, @NotNull String value) {
-                        choose(player, MenuStyle.parse(value));
-                    }
-                })
                 .build());
-    }
-
-    private static void read(Player player) {
-        MenuStyle stored = MenuStyle.parse(player.getPersistentDataContainer().get(KEY, PersistentDataType.STRING));
-        if (stored == null) CHOSEN.remove(player.getUniqueId());
-        else CHOSEN.put(player.getUniqueId(), stored);
     }
 }

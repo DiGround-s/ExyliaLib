@@ -8,8 +8,8 @@ class ScreenSizeTest {
 
     @Test
     void sizeStaysWithinWhatCanBeDrawn() {
-        assertEquals(50, ScreenRuntime.clampSize(10));
-        assertEquals(100, ScreenRuntime.clampSize(100));
-        assertEquals(250, ScreenRuntime.clampSize(900));
+        assertEquals(50, ScreenPreferences.clampSize(10));
+        assertEquals(100, ScreenPreferences.clampSize(100));
+        assertEquals(250, ScreenPreferences.clampSize(900));
     }
 }

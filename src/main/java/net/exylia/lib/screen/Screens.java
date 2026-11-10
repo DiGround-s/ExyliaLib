@@ -1,5 +1,6 @@
 package net.exylia.lib.screen;
 
+import net.exylia.lib.screen.internal.ScreenPreferences;
 import net.exylia.lib.screen.internal.ScreenRuntime;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -107,15 +108,16 @@ public final class Screens {
 
     /** How fast a player's cursor moves: 1 (the default) keeps it under the point their eyes turn to. */
     public static double sensitivity(@NotNull Player player) {
-        return ScreenRuntime.sensitivity(player.getUniqueId());
+        return ScreenPreferences.sensitivity(player.getUniqueId());
     }
 
     /**
-     * Sets a player's cursor speed, from 0.1 to 10 (3 by default); it applies at once to an open screen. Kept in the player's data
-     * across restarts since 1.496.0 (until they quit before), and also set in {@code /settings} → Interface.
+     * Sets a player's cursor speed, from 0.1 to 10 (3 by default); it applies at once to an open screen. Kept in the
+     * library's database, shared by every server on it since 1.556.0 (in the player's data on each server from 1.496.0),
+     * and also set in {@code /settings} → Interface.
      */
     public static void sensitivity(@NotNull Player player, double sensitivity) {
-        ScreenRuntime.sensitivity(player, sensitivity);
+        ScreenPreferences.sensitivity(player, sensitivity);
     }
 
     /**
@@ -125,12 +127,12 @@ public final class Screens {
      * @since 1.496.0
      */
     public static boolean reducedMotion(@NotNull Player player) {
-        return ScreenRuntime.reducedMotion(player.getUniqueId());
+        return ScreenPreferences.reducedMotion(player.getUniqueId());
     }
 
-    /** Sets a player's own reduced motion, kept in their data. @since 1.496.0 */
+    /** Sets a player's own reduced motion, kept like {@link #sensitivity(Player, double)}. @since 1.496.0 */
     public static void reducedMotion(@NotNull Player player, boolean reduced) {
-        ScreenRuntime.reducedMotion(player, reduced);
+        ScreenPreferences.reducedMotion(player, reduced);
     }
 
     /**
@@ -152,7 +154,7 @@ public final class Screens {
 
     /** How large {@code player}'s screens are drawn, in percent: their own choice over {@code screen-size}. @since 1.521.0 */
     public static int size(@NotNull Player player) {
-        return ScreenRuntime.size(player.getUniqueId());
+        return ScreenPreferences.size(player.getUniqueId());
     }
 
     /**
@@ -160,6 +162,6 @@ public final class Screens {
      * open; {@code null} goes back to {@code screen-size}. @since 1.521.0
      */
     public static void size(@NotNull Player player, @Nullable Integer percent) {
-        ScreenRuntime.size(player, percent);
+        ScreenPreferences.size(player, percent);
     }
 }

@@ -353,6 +353,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // The proxy bridge, over the Redis this plugin's own database.yml
         // names. After the database module, which is what reads that file.
         net.exylia.lib.proxy.internal.ProxyRuntime.init(this);
+        // Players' menu style and screen preferences are library settings, kept in this plugin's own database: after
+        // the database module, so a reload with players online can read theirs.
+        net.exylia.lib.ui.MenuStyles.init(this);
+        net.exylia.lib.screen.internal.ScreenPreferences.init(this);
         // The name-to-id directory. After the proxy and the skull module,
         // whose bridge and whose Mojang client are its two expensive tiers.
         net.exylia.lib.player.internal.PlayerRuntime.init(this);
@@ -583,12 +587,15 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         });
     }
 
-    /** Reads {@code screens.yml}, how every plugin's menus open, and offers players their own choice. */
+    /** Reads {@code screens.yml}, how every plugin's menus open. */
     private void loadScreens() {
         screens = Configs.define(this, "screens", net.exylia.lib.screen.ScreenSettings.class).load();
         net.exylia.lib.screen.ScreenSettings.apply(screens.get());
-        screens.onReload(net.exylia.lib.screen.ScreenSettings::apply);
-        net.exylia.lib.ui.MenuStyles.init(this);
+        // Each player's screen preferences take their defaults from the file, so they follow its reloads.
+        screens.onReload(settings -> {
+            net.exylia.lib.screen.ScreenSettings.apply(settings);
+            net.exylia.lib.screen.internal.ScreenPreferences.register();
+        });
     }
 
     private void loadInput() {

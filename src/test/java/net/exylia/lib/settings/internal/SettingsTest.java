@@ -122,6 +122,33 @@ class SettingsTest {
     }
 
     @Test
+    @DisplayName("old values are adopted only where the store holds nothing, and invalid ones are skipped")
+    void adoptsLegacyValues() throws Exception {
+        SettingsRuntime.PluginStore store = store(plugin, "lobby");
+        Settings.register(plugin, trades());
+        Settings.register(plugin, Setting.number("view", 8, 2, 16, 1).build());
+        Settings.register(plugin, Setting.choice("mode", "a", "a", "b").build());
+        UUID id = steve.player().getUniqueId();
+        waitLoaded(store, id);
+        Settings.set(steve.player(), plugin, "view", "12");
+        settle(store, id);
+
+        boolean moved = store.adopt(id, java.util.Map.of("trades", "false", "view", "4", "mode", "nope", "gone", "x"))
+                .get(30, TimeUnit.SECONDS);
+        assertTrue(moved);
+        assertFalse(Settings.enabled(steve.player(), plugin, "trades"), "nothing stored: the old value is taken");
+        assertEquals(12, Settings.number(steve.player(), plugin, "view"), "what the store holds wins");
+        assertEquals("a", Settings.value(steve.player(), plugin, "mode"), "an invalid old value is skipped");
+
+        SettingsRuntime.left(id);
+        assertFalse(store.adopt(id, java.util.Map.of("trades", "true")).get(30, TimeUnit.SECONDS),
+                "a player who is not here keeps the old copy");
+        store.openForTests(id);
+        waitLoaded(store, id);
+        assertFalse(Settings.enabled(steve.player(), plugin, "trades"), "the adopted value was written");
+    }
+
+    @Test
     @DisplayName("a network value follows the player to another server; a per-server one does not")
     void perServer() {
         SettingsRuntime.PluginStore lobby = store(plugin, "lobby");

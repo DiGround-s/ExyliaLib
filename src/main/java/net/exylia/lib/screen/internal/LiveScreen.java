@@ -401,7 +401,7 @@ final class LiveScreen implements ScreenSession {
         this.wire = wire;
         this.ids = ids;
         this.fullUnit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
-        this.unit = fullUnit * ScreenRuntime.size(player.getUniqueId()) / 100.0;
+        this.unit = fullUnit * ScreenPreferences.size(player.getUniqueId()) / 100.0;
         this.viewUnit = Math.max(unit, fullUnit);
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
@@ -513,7 +513,7 @@ final class LiveScreen implements ScreenSession {
         wire.send(out);
         if (holds) ScreenPackets.look(player, cameraId);
         redraw();
-        ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::renderNow);
+        ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::tick);
     }
 
     @Override
@@ -792,7 +792,7 @@ final class LiveScreen implements ScreenSession {
      * covers the boxes, the items and the cursor; the backdrop and the scene are sent here.
      */
     void rescale() {
-        double next = fullUnit * ScreenRuntime.size(player.getUniqueId()) / 100.0;
+        double next = fullUnit * ScreenPreferences.size(player.getUniqueId()) / 100.0;
         List<PacketWrapper<?>> out = new ArrayList<>();
         synchronized (this) {
             if (!open || next == unit) return;
@@ -1082,6 +1082,12 @@ final class LiveScreen implements ScreenSession {
         return answer;
     }
 
+    /** A timed redraw, after following a size changed from {@code /settings} or another server. */
+    private void tick() {
+        rescale();
+        renderNow();
+    }
+
     /** Renders as often as the fastest {@link Node#refresh} on screen asks, a second otherwise. Holds the lock. */
     private void retime(List<Layout.Placed> core) {
         int period = 20;
@@ -1089,7 +1095,7 @@ final class LiveScreen implements ScreenSession {
         if (period == refreshPeriod || ticker == null) return;
         refreshPeriod = period;
         ticker.cancel();
-        ticker = tasks.runAtEntityTimer(player, period, period, this::renderNow);
+        ticker = tasks.runAtEntityTimer(player, period, period, this::tick);
     }
 
     // ------------------------------------------------------------------
@@ -1180,7 +1186,7 @@ final class LiveScreen implements ScreenSession {
 
     /** Whether this viewer gets reduced motion. */
     private boolean reduced() {
-        return ScreenRuntime.reducedMotion(player.getUniqueId());
+        return ScreenPreferences.reducedMotion(player.getUniqueId());
     }
 
     /**
@@ -2190,11 +2196,11 @@ final class LiveScreen implements ScreenSession {
             // A fast move carries further: precise when slow, quick across the screen.
             double accel = ScreenSettings.get().cursorAcceleration();
             double boost = accel <= 0 ? 1 : Math.min(3, 1 + accel * Math.hypot(dx, dy) / 4);
-            double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * ScreenRuntime.sensitivity(player.getUniqueId()) * boost;
+            double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * ScreenPreferences.sensitivity(player.getUniqueId()) * boost;
             double halfW = (screen.width() / 2 + GUTTER_X) * unit;
             double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
             double moveX = dx * perDegree, moveY = dy * perDegree;
-            if (ScreenRuntime.cursorAssist(player.getUniqueId())) {
+            if (ScreenPreferences.cursorAssist(player.getUniqueId())) {
                 double[] assisted = assisted(moveX / unit, moveY / unit);
                 moveX = assisted[0] * unit;
                 moveY = assisted[1] * unit;
@@ -2205,7 +2211,7 @@ final class LiveScreen implements ScreenSession {
             lastPitch = pitch;
             lastTurn = System.currentTimeMillis();
             List<PacketWrapper<?>> out = new ArrayList<>();
-            switch (ScreenRuntime.cursorMode(player.getUniqueId())) {
+            switch (ScreenPreferences.cursorMode(player.getUniqueId())) {
                 case RAW -> cursor(out, 0);
                 case PREDICTION -> {
                     double[] ahead = lead.moved(cursorX, cursorY, lastTurn, LEAD_BOUND * unit);
@@ -2303,7 +2309,7 @@ final class LiveScreen implements ScreenSession {
             key = leftKey;
             at = leftAt;
         }
-        if (key == null || !ScreenRuntime.cursorAssist(player.getUniqueId())) return null;
+        if (key == null || !ScreenPreferences.cursorAssist(player.getUniqueId())) return null;
         View now = view;
         for (Layout.Placed box : targets) {
             if (!box.key().equals(key)) continue;

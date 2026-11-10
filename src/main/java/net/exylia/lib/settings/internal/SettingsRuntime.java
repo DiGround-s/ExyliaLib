@@ -114,6 +114,8 @@ public final class SettingsRuntime {
         /** One player's values on this server. */
         static final class Session {
             volatile boolean loaded;
+            /** Completes once this server has read the player's values. */
+            final CompletableFuture<Void> ready = new CompletableFuture<>();
             /** By {@code key@server}; holds what was set here even when it is the default. */
             final Map<String, String> values = new ConcurrentHashMap<>();
             /** The last write, so the next one waits for it. */
@@ -238,6 +240,34 @@ public final class SettingsRuntime {
             }
         }
 
+        /**
+         * Brings in values a player kept somewhere else before this store held them (their own data, an old
+         * column), once this server has read what the store has. A value is taken only for a setting the store
+         * holds nothing for, so what another server already wrote wins; values that are not valid any more are
+         * skipped.
+         *
+         * @param legacy by setting key, as text
+         * @return {@code true} once every taken value is written, so the old copy may go; {@code false} when the
+         *         player is not here, a write failed, or the read has not finished before they left
+         */
+        public @NotNull CompletableFuture<Boolean> adopt(@NotNull UUID player, @NotNull Map<String, String> legacy) {
+            Session session = sessions.get(player);
+            if (session == null) return CompletableFuture.completedFuture(false);
+            return session.ready.thenCompose(ignored -> {
+                if (sessions.get(player) != session) return CompletableFuture.completedFuture(false);
+                CompletableFuture<?> written;
+                synchronized (session) {
+                    legacy.forEach((key, raw) -> {
+                        Setting setting = settings.get(key);
+                        String value = setting == null || setting.store() != null ? null : setting.normalise(raw);
+                        if (value != null && !session.values.containsKey(slot(setting))) write(player, setting, value);
+                    });
+                    written = session.writes;
+                }
+                return written.handle((done, failure) -> failure == null);
+            });
+        }
+
         // -------------------------------------------------------------- lifecycle
 
         void open(UUID player) {
@@ -246,6 +276,7 @@ public final class SettingsRuntime {
             // A plugin whose every setting keeps its own value (the library's menu style) has no table to read.
             if (!settings.isEmpty() && settings.values().stream().allMatch(setting -> setting.store() != null)) {
                 session.loaded = true;
+                session.ready.complete(null);
                 return;
             }
             load(player, session, false);
@@ -281,6 +312,7 @@ public final class SettingsRuntime {
                     }
                 }
                 session.loaded = true;
+                session.ready.complete(null);
             });
         }
 

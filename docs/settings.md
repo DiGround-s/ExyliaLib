@@ -82,10 +82,13 @@ on join anyway.
 
 ## The library's own setting
 
-Since 1.495.0 the library registers one setting of its own, under **Interface**: *Menu style* (`menu-style`:
-server's choice, chest windows or screens), offered while `screens.yml` `player-choice` is on. It is kept in the
-player's data rather than a table (`Setting.store`), so the library needs no database for it. Read it with
-`MenuStyles.choice(player)`.
+Under **Interface** the library registers its own: *Menu style* (`menu-style`, 1.495.0: server's choice, chest
+windows or screens, offered while `screens.yml` `player-choice` is on; read it with `MenuStyles.choice(player)`) and
+the screen preferences (`screen-cursor-speed`, `screen-size`, `screen-cursor-mode`, `screen-cursor-assist`,
+`screen-reduced-motion`; read them through `Screens`). Since 1.556.0 they are stored like any other setting, in the
+library's own database (`plugins/ExyliaLib/database.yml`), so a network that points that file at one database shares
+them; before, they were kept in each server's player data and are moved over on a player's next join. The screen
+defaults are `screens.yml`'s, registered again on its reload. See screens, "Where preferences are kept".
 
 ## Announcements
 
