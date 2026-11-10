@@ -1,6 +1,8 @@
 package net.exylia.lib.replay.internal;
 
+import net.exylia.lib.screen.internal.ScreenRuntime;
 import org.bukkit.Bukkit;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -80,6 +82,7 @@ final class AnticheatFlags implements Listener {
 
     private void listen(Source source, Plugin plugin) {
         if (!listening.add(source.plugin)) return;
+        if (source.plugin.equals("GrimAC")) Grim.shield(library);
         try {
             Class<?> type = Class.forName(source.event, true, plugin.getClass().getClassLoader());
             if (!Event.class.isAssignableFrom(type)) return;
@@ -93,10 +96,26 @@ final class AnticheatFlags implements Listener {
             };
             @SuppressWarnings("unchecked")
             Class<? extends Event> eventType = (Class<? extends Event>) type;
+            if (Cancellable.class.isAssignableFrom(type)) {
+                // First, so the anticheat never counts it and a black box never records it.
+                Bukkit.getPluginManager().registerEvent(eventType, this, EventPriority.LOWEST,
+                        (listener, event) -> shield(event, player), library, true);
+            }
             Bukkit.getPluginManager().registerEvent(eventType, this, EventPriority.MONITOR, executor, library, true);
         } catch (ReflectiveOperationException | LinkageError | RuntimeException changed) {
             library.getLogger().log(Level.INFO, "Replays: " + source.plugin
                     + " flags are not recorded, its API is not the one expected (" + changed + ").");
+        }
+    }
+
+    /** Cancels a flag raised by a screen's cursor, clicks or camera: see {@code ScreenRuntime#shielded}. */
+    private static void shield(Event event, MethodHandle player) {
+        try {
+            if (player.invoke(event) instanceof UUID id && ScreenRuntime.shielded(id)) {
+                ((Cancellable) event).setCancelled(true);
+            }
+        } catch (Throwable ignored) {
+            // A flag that could not be read is left to the anticheat.
         }
     }
 
@@ -139,6 +158,30 @@ final class AnticheatFlags implements Listener {
             return path(type, names);
         } catch (ReflectiveOperationException missing) {
             return null;
+        }
+    }
+
+    /**
+     * Grim's own event bus: its Bukkit flag event is a bridge that may not hand a cancellation back, the bus does.
+     * Grim's types live here, so the outer class loads without Grim.
+     */
+    private static final class Grim {
+
+        @SuppressWarnings("deprecation")
+        static void shield(Plugin library) {
+            try {
+                ac.grim.grimac.api.plugin.GrimPlugin owner = new ac.grim.grimac.api.plugin.BasicGrimPlugin(
+                        library.getLogger(), library.getDataFolder(), library.getDescription().getVersion(),
+                        library.getDescription().getDescription(), library.getDescription().getAuthors());
+                // Grim flags from netty threads; the check is one map lookup.
+                ac.grim.grimac.api.GrimAPIProvider.getAsync().thenAccept(api -> api.getEventBus().subscribe(owner,
+                        ac.grim.grimac.api.event.events.FlagEvent.class, event -> {
+                            if (ScreenRuntime.shielded(event.getUser().getUniqueId())) event.setCancelled(true);
+                        }, ac.grim.grimac.api.event.ListenerPriority.LOWEST, false));
+            } catch (LinkageError | RuntimeException older) {
+                // A Grim before its event bus: the Bukkit event above covers it.
+                library.getLogger().log(Level.FINE, "Screens: Grim's event bus is not available (" + older + ").");
+            }
         }
     }
 }

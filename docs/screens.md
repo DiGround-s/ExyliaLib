@@ -1282,6 +1282,24 @@ sends only what changed.
   twelve answers pages with A/D. Before 1.509.0 such an action left the screen up; `UiSession#close` closes
   either style in every version.
 
+## Anticheats (1.564.0)
+
+A screen reads like a cheat to an anticheat: the cursor is the player's own
+rotation (fast, precise turns), clicks land on a packet-only interaction entity
+at the eyes with the arm swing dropped, and the camera is turned back with
+small teleports. Kill aura, aim and bad-packet checks flag that.
+
+The library cancels every flag of **GrimAC, Vulcan, Spartan and Matrix** on a
+player while a screen is open, while a camera holds them (cinematics,
+replays), and for 3 seconds after either ends. Nothing to configure. Nobody
+can fight from behind a screen (the world is sealed and other players
+hidden), so no real flag is lost. The same four are listed in
+`docs/replays.md`, *Anticheat flags*; a cancelled flag is not recorded there
+either.
+
+Any other anticheat (Polar, Intave, NoCheatPlus...) is not covered yet: exempt
+the checks that flag in its own config.
+
 ## Trying it
 
 `/exylialib screentest open [spectator|wheel]` (permission `exylialib.admin`) opens a demo built with

@@ -673,6 +673,8 @@ dependency; what a flag says is read through method handles looked up once:
 | Matrix | `me.rerere.matrix.api.events.PlayerViolationEvent` | `getHackType()` | `getMessage()` |
 
 An anticheat whose API is not the one expected is logged once and left out.
+Their flags on a player behind a screen or a held camera are cancelled
+first and never recorded (see `docs/screens.md`, *Anticheats*).
 Any other anticheat is one `Replays.flag` call from its own flag event.
 
 ### Acting on a flag as it happens

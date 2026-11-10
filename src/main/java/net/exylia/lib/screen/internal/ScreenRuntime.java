@@ -110,7 +110,30 @@ public final class ScreenRuntime {
 
     /** Called by a session as it closes, so a newer one is never removed. */
     static void closed(LiveScreen live) {
-        OPEN.remove(live.viewer().getUniqueId(), live);
+        if (OPEN.remove(live.viewer().getUniqueId(), live)) {
+            CLOSED_AT.put(live.viewer().getUniqueId(), System.currentTimeMillis());
+        }
+    }
+
+    /** When each player's last screen closed, for the anticheat grace after it. */
+    private static final Map<UUID, Long> CLOSED_AT = new ConcurrentHashMap<>();
+    /** How long after a screen closes its turned-back camera and cancelled clicks may still trip an anticheat. */
+    private static final long SHIELD_GRACE_MS = 3000L;
+
+    /**
+     * Whether an anticheat flag on {@code player} comes from a screen or a held camera rather than from play: the
+     * cursor is the player's rotation, clicks land on a packet-only entity at the eyes and their swings are dropped,
+     * and the camera is turned back by teleports, all of which aim and combat checks read as cheating. Nobody can
+     * fight from behind a screen (the world is sealed and other players hidden), so these flags are only noise.
+     * Any thread.
+     */
+    public static boolean shielded(UUID player) {
+        if (OPEN.containsKey(player) || net.exylia.lib.packet.internal.PacketRuntime.cameraHeld(player)) return true;
+        Long closed = CLOSED_AT.get(player);
+        if (closed == null) return false;
+        if (System.currentTimeMillis() - closed < SHIELD_GRACE_MS) return true;
+        CLOSED_AT.remove(player, closed);
+        return false;
     }
 
     /** What a screen quiets while it is up. Safe to repeat: a screen coming back from an input does. */
