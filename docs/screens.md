@@ -1289,6 +1289,14 @@ sends only what changed.
 <card action="practice:select %kit_id%" tooltip="%kit_name%<nl>{letters_black}%kit_mode%">...</card>
 ```
 
+A row of a list can show its own item instead (1.569.0): `tooltip-item` on a box inside a repeat over `UiEntry`
+rows makes its tooltip what a chest shows over that item, name, enchantments and lore, with any `tooltip` lines after
+it. Chest menus drawn as screens show enchantments the same way. `ItemTexts.tooltip(item)` gives those lines in Java.
+
+```html
+<row class="entry" tooltip-item action="market:buy %listing_id%"><item row material="%listing_material%"/>...</row>
+```
+
 ### Windows and inputs over a screen
 
 - An input (`Inputs`: chat prompt, dialog, sign, anvil, confirm window) started while a screen is open steps the

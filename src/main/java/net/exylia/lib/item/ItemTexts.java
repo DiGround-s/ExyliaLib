@@ -1,12 +1,18 @@
 package net.exylia.lib.item;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -66,6 +72,48 @@ public final class ItemTexts {
     public static Map<Enchantment, Integer> enchantments(ItemStack stack) {
         if (stack.getItemMeta() instanceof EnchantmentStorageMeta stored) return stored.getStoredEnchants();
         return stack.getEnchantments();
+    }
+
+    /**
+     * The lines a chest shows over this item, for a screen drawing its own tooltip: the name, the enchantments
+     * (a book's stored ones too) in the game's own words and order, then the lore. {@code null} when the item hides
+     * its tooltip; enchantments the item hides are left out.
+     *
+     * @since 1.569.0
+     */
+    public static List<Component> tooltip(ItemStack item) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return List.of(Component.translatable(item.translationKey()));
+        if (meta.isHideTooltip()) return null;
+        List<Component> out = new ArrayList<>();
+        out.add(net.exylia.lib.platform.ItemNames.of(item));
+        boolean stored = meta instanceof EnchantmentStorageMeta;
+        if (!meta.hasItemFlag(stored ? ItemFlag.HIDE_STORED_ENCHANTS : ItemFlag.HIDE_ENCHANTS)) {
+            enchantments(item).forEach((enchantment, level) -> out.add(enchantmentLine(enchantment, level)));
+        }
+        List<Component> lore = meta.lore();
+        if (lore != null) out.addAll(lore);
+        return out;
+    }
+
+    /** {@code Sharpness V} as the game writes it: grey, red for a curse, no level on a one-level enchantment. */
+    private static Component enchantmentLine(Enchantment enchantment, int level) {
+        Component line = enchantmentWords(enchantment)
+                .color(enchantment.isCursed() ? NamedTextColor.RED : NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false);
+        if (level == 1 && enchantment.getMaxLevel() == 1) return line;
+        Component number = level >= 1 && level <= 10 ? Component.translatable("enchantment.level." + level)
+                : Component.text(level);
+        return line.append(Component.space()).append(number);
+    }
+
+    /** The enchantment's name as its registry gives it (a datapack's own included), or its translation key. */
+    private static Component enchantmentWords(Enchantment enchantment) {
+        try {
+            return enchantment.description();
+        } catch (LinkageError older) {
+            return Component.translatable("enchantment." + enchantment.getKey().getNamespace() + "." + enchantment.getKey().getKey());
+        }
     }
 
     /** An enchantment as a line says it: {@code fire_aspect} is {@code Fire aspect}. */

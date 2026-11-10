@@ -626,10 +626,20 @@ public final class MarkupRender {
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
         if ("false".equalsIgnoreCase(el.attr("assist")) || asksDangerously(el)) node.assist(false);
+        List<net.kyori.adventure.text.Component> tipLines = new ArrayList<>();
+        if (el.attr("tooltip-item") != null) {
+            // The row's own item as a chest shows it over the slot: name, enchantments, lore (1.569.0).
+            org.bukkit.inventory.ItemStack own = rowItem(scope);
+            List<net.kyori.adventure.text.Component> lines = own == null ? null : net.exylia.lib.item.ItemTexts.tooltip(own);
+            if (lines != null) tipLines.addAll(lines);
+        }
         if (el.attr("tooltip") != null) {
             String tip = fill(el.attr("tooltip"), scope, true);
-            if (!tip.isBlank()) node.tooltip(tip.split("<nl>|<br>|\\n"));
+            if (!tip.isBlank()) {
+                for (String line : tip.split("<nl>|<br>|\\n")) tipLines.add(net.exylia.lib.text.Text.of(line).build());
+            }
         }
+        if (!tipLines.isEmpty()) node.tooltip(tipLines);
         if (el.tag().equals("modal")) {
             String dismiss = el.attr("dismiss");
             String condition = el.attr("if");
@@ -1309,18 +1319,24 @@ public final class MarkupRender {
         }
     }
 
+    /** The item of the nearest row this scope is inside, as the chest menu draws it, or {@code null}. */
+    private org.bukkit.inventory.ItemStack rowItem(Scope scope) {
+        for (Scope s = scope; s != null; s = s.parent()) {
+            if (s.row() == null) continue;
+            java.util.function.Supplier<org.bukkit.inventory.ItemStack> own = rowItems.get(s.row());
+            org.bukkit.inventory.ItemStack stack = own == null ? null : own.get();
+            return stack == null || stack.getType().isAir() ? null : stack;
+        }
+        return null;
+    }
+
     /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
     private org.bukkit.inventory.ItemStack itemOf(El el, Scope scope) {
         if (el.attr("row") != null) {
             // The row's own item: what the chest menu draws for it (a banner, a dyed armour piece, a stored
             // stack), when the row is one of a UiEntry source; the attributes below are the fallback.
-            for (Scope s = scope; s != null; s = s.parent()) {
-                if (s.row() == null) continue;
-                java.util.function.Supplier<org.bukkit.inventory.ItemStack> own = rowItems.get(s.row());
-                org.bukkit.inventory.ItemStack stack = own == null ? null : own.get();
-                if (stack != null && !stack.getType().isAir()) return stack;
-                break;
-            }
+            org.bukkit.inventory.ItemStack stack = rowItem(scope);
+            if (stack != null) return stack;
         }
         String head = el.attr("head");
         if (head != null && !(head = fill(head, scope, false).trim()).isEmpty() && !head.startsWith("%")) {

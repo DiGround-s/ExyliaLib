@@ -36,7 +36,7 @@ public final class Compile {
     public static final Set<String> ATTRIBUTES = Set.of("preview", "id", "class", "if", "else", "track", "t", "key", "keybind",
             "action", "action-right", "selected", "disabled", "checked", "state", "default", "value", "source",
             "columns", "rows", "for", "keys", "material", "glyph", "head", "texture", "url", "src", "skin", "face",
-            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip",
+            "turn", "max", "on", "off", "dismiss", "size", "backdrop", "scene", "parallax", "wheel", "each", "version", "previous", "next", "routes", "tooltip", "tooltip-item",
             // 1.496.0
             "action-shift", "assist", "priority", "refresh", "prompt", "hint",
             // 1.503.0

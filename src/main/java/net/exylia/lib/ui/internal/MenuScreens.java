@@ -453,17 +453,9 @@ final class MenuScreens {
         for (Component child : component.children()) flatten(child, style, out);
     }
 
-    /** The item's name and lore, as its tooltip in a chest would show them; nothing when it hides its tooltip. */
+    /** The item's name, enchantments and lore, as its tooltip in a chest would show them; nothing when hidden. */
     private static @Nullable List<Component> lines(ItemStack item) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return List.of(Component.translatable(item.translationKey()));
-        if (meta.isHideTooltip()) return null;
-        List<Component> out = new ArrayList<>();
-        out.add(meta.hasDisplayName() && meta.displayName() != null ? meta.displayName()
-                : Component.translatable(item.translationKey()));
-        List<Component> lore = meta.lore();
-        if (lore != null) out.addAll(lore);
-        return out;
+        return net.exylia.lib.item.ItemTexts.tooltip(item);
     }
 
     /** A click on a card, handed to the chest menu as the same click on that slot. */

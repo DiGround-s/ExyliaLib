@@ -79,6 +79,7 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `priority` | `priority="low"`: decoration, the first thing left out when over budget | `priority="low"` | 1.496.0 | frees displays when the screen is full |
 | `refresh` | Redraw this often while shown (2 ticks at least; default every second) | `refresh="5t"` | 1.496.0 | re-renders every N ticks for that viewer: use sparingly |
 | `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 3 displays, only while hovered |
+| `tooltip-item` | Inside a repeat over `UiEntry` rows: the tooltip is the row's own item as a chest shows it over the slot (name, enchantments, a book's stored ones, lore); `tooltip` lines follow it | `<row tooltip-item action="...">` | 1.569.0 | the chest's item render, once a render per row shown |
 | `routes` | On `screen`: chest menu ids this screen stands for, with state | `routes="player/queue_kit:tab=play"` | 1.495.0 | free |
 | `command`, `aliases`, `permission` | On `screen`: read by the plugin that opens screens by command (ExyliaScreens) | `command="hub" aliases="lobby"` | 1.502.0 | free |
 | `style` | The element's own declarations, over every rule; `${...}` and `%placeholders%` allowed, `--x` reaches its children | `style="background: ${owned ? '{success}' : '{neutral}'}30"` | 1.565.0 | free |
