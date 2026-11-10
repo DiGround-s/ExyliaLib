@@ -73,8 +73,11 @@ final class MenuScreens {
         if (definition.kind().type() != null || !definition.inputSlots().isEmpty()) return false;
         // The kit room hands items into the inventory the player is building in, so that inventory has to show.
         if (definition.id().endsWith(":" + KitRoomMenu.ID)) return false;
-        if (ScreenSettings.get().adminWindows() && admin(definition.id())) return false;
-        if (!MenuStyles.of(runtime.plugin()).screens(viewer)) return false;
+        MenuStyles styles = MenuStyles.of(runtime.plugin());
+        // Admin menus stay windows, unless the viewer asked for screens with /exylialib style.
+        if (ScreenSettings.get().adminWindows() && admin(definition.id())
+                && styles.staffOverride(viewer) != net.exylia.lib.ui.MenuStyle.SCREEN) return false;
+        if (!styles.screens(viewer)) return false;
         return ScreenRoutes.find(runtime.plugin(), definition.id()) != null || ScreenSettings.get().chestSkin();
     }
 

@@ -190,7 +190,9 @@ public final class MenuStyles {
         }
     }
 
-    private @Nullable MenuStyle staffOverride(Player player) {
+    /** The style staff set for this player with {@code /exylialib style}, or {@code null}. */
+    @ApiStatus.Internal
+    public @Nullable MenuStyle staffOverride(@NotNull Player player) {
         Map<String, MenuStyle> own = STAFF.get(player.getUniqueId());
         if (own == null) return null;
         MenuStyle forPlugin = own.get(plugin.getName());

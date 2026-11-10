@@ -1167,7 +1167,8 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
 **Admin menus stay chest windows** (1.562.0) unless `screens.yml` says `admin-style: FOLLOW`: a menu is an
 admin menu when a part of its id's path is `admin` or starts or ends with `admin_`/`_admin` (`menus/admin/kits`,
 `admin_hub`), and the library's settings screens. Admin work is dense lists, editors and typed values, which a
-chest does best.
+chest does best. A staff member who runs `/exylialib style screen` sees admin menus as screens too (1.567.0),
+for checking how they look; everyone else keeps the windows.
 
 Menus that stay windows whatever the style: those with input slots (the player puts items in them), those
 that are not chests (hopper, dispenser...) and the kit room (it hands items into the inventory the player is
