@@ -577,10 +577,27 @@ public final class ConfigMenu {
         String token = session.context(PAGE_KEY, String.class).orElse("");
         Object current = ConfigFields.read(file.schema(), file.get(), key);
         Runnable back = () -> openPage(viewer, plugin, file, token);
+        switch (field.kind()) {
+            case SECTION -> openPage(viewer, plugin, file, "s:" + key);
+            case ENTRIES -> {
+                SubjectImpl subject = settingSubject(plugin, file);
+                if (subject != null) openYaml(viewer, plugin, subject, List.of(key.split("\\.")));
+            }
+            default -> apply(viewer, plugin, file, field, current, click, back);
+        }
+    }
+
+    /**
+     * Applies one click to one value: a switch or choice steps, a number steps or is
+     * typed ({@code drop}), a length of time, text, lines or an item is asked for.
+     * Stepped values redraw the open screen; asked ones run {@code back} once answered.
+     */
+    static void apply(Player viewer, Plugin plugin, ConfigFile<?> file, ConfigFields.Field field,
+                      @Nullable Object current, String click, Runnable back) {
         boolean big = click.startsWith("shift");
         int direction = click.endsWith("right") ? -1 : 1;
         switch (field.kind()) {
-            case SECTION -> openPage(viewer, plugin, file, "s:" + key);
+            case SECTION, ENTRIES, LOCKED -> { }
             case TOGGLE, CHOICE -> write(viewer, plugin, file, field, ConfigFields.step(field, current, direction, big), null);
             case INTEGER, DECIMAL -> {
                 if (click.equals("drop")) number(viewer, plugin, file, field, current, back);
@@ -621,12 +638,41 @@ public final class ConfigMenu {
                     preview(viewer, next);
                 }
             }
-            case ENTRIES -> {
-                SubjectImpl subject = settingSubject(plugin, file);
-                if (subject != null) openYaml(viewer, plugin, subject, List.of(key.split("\\.")));
-            }
-            case LOCKED -> { }
         }
+    }
+
+    /** The value of one key as the screens show it, or {@code null} when the file has no such key. */
+    public static @Nullable String display(@NotNull ConfigFile<?> file, @NotNull String key) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        return field == null ? null : ConfigFields.display(field, ConfigFields.read(file.schema(), file.get(), key));
+    }
+
+    /** Every key of the file a settings card can edit, nested sections included, in declaration order. */
+    public static @NotNull List<String> keys(@NotNull ConfigFile<?> file) {
+        List<String> keys = new ArrayList<>();
+        collect(file.schema(), "", keys);
+        return keys;
+    }
+
+    private static void collect(Schema root, String section, List<String> into) {
+        for (ConfigFields.Field field : ConfigFields.fields(root, section)) {
+            switch (field.kind()) {
+                case SECTION -> collect(root, field.key(), into);
+                case ENTRIES, LOCKED -> { }
+                default -> into.add(field.key());
+            }
+        }
+    }
+
+    /** One click on a plugin's own settings card; {@code false} when the key is unknown or cannot be edited there. */
+    public static boolean click(@NotNull Player viewer, @NotNull Plugin plugin, @NotNull ConfigFile<?> file,
+                                @NotNull String key, @NotNull String click, @NotNull Runnable back) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        if (field == null) return false;
+        ConfigFields.Kind kind = field.kind();
+        if (kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.ENTRIES || kind == ConfigFields.Kind.LOCKED) return false;
+        apply(viewer, plugin, file, field, ConfigFields.read(file.schema(), file.get(), key), click, back);
+        return true;
     }
 
     /** The discovered subject a settings file is, so its maps and lists are edited as content is. */
@@ -755,6 +801,9 @@ public final class ConfigMenu {
                 UiSession session = current == null ? null : current.session(viewer).orElse(null);
                 if (session != null && session.menuId().endsWith(FIELDS)) {
                     session.entries(UiSection.MAIN, pageRows(file, session.context(PAGE_KEY, String.class).orElse("")));
+                } else {
+                    // A plugin's own settings card (ConfigEdits): its values are lambdas, redraw them now.
+                    net.exylia.lib.ui.Menus.session(viewer).ifPresent(UiSession::refresh);
                 }
             });
         });

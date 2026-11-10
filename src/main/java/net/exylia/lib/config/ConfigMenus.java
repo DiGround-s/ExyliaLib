@@ -74,7 +74,10 @@ public final class ConfigMenus {
      * @param plugin whose settings
      * @return an opener; nothing opens until {@link Opener#open}
      * @since 1.445.0
+     * @deprecated a plugin's admin hub carries its own settings screens, built with
+     *             {@link ConfigEdits}; this generic tree stays behind {@code /exylialib config}.
      */
+    @Deprecated(since = "1.555.0")
     public static @NotNull Opener of(@NotNull Plugin plugin) {
         return new Opener(Objects.requireNonNull(plugin, "plugin"));
     }

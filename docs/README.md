@@ -9,7 +9,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | --- | --- | --- |
 | [Task](task.md) | Scheduling that runs on Spigot, Paper and Folia from one call | 1.0.0 |
 | [Config](config.md) | YAML files declared and read as Java records | 1.1.0 |
-| [Config menus](config-menus.md) | Every plugin's record settings (maps and lists included), and the YAML catalogues and record files it registers, changed from a menu in game (`/exylialib config`), drawn from the schema (optional `Menu` annotations for labels, icons, pages, formats, ranges), written back to the YAML | 1.443.0 |
+| [Config menus](config-menus.md) | `ConfigEdits` (1.555.0): the plumbing for a plugin's own settings screens, the ones its admin hub carries. Also every plugin's record settings (maps and lists included), and the YAML catalogues and record files it registers, changed from a menu in game (`/exylialib config`), drawn from the schema (optional `Menu` annotations for labels, icons, pages, formats, ranges), written back to the YAML | 1.443.0 |
 | [Text](text.md) | Every player-facing string, into Adventure components — plus inline effect tags, centring, palette gradients and `{icon:…}` sprites (1.477.0) | 1.2.0 |
 | [Placeholders](placeholders.md) | One registry for `%placeholders%`, with or without PlaceholderAPI | 1.3.0 |
 | [Effects](effects.md) | Titles, action bars, boss bars, sounds, particles, fireworks — from config | 1.4.0 |

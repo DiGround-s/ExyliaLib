@@ -1,9 +1,56 @@
 # Config menus
 
-Every plugin's settings changed from a menu in game, with no code in the plugin,
-and the content catalogues it registers for editing.
-The same files the [web editor](web-editor.md) discovers as `settings`, drawn
-from their record. *Since 1.443.0.*
+> **A plugin's own settings screens come first** (since 1.555.0). The generic
+> tree below draws every key of every file, in file order, and that is not a
+> screen an admin can work with. A plugin's admin hub carries settings pages it
+> designs itself: only the settings an admin really tunes, grouped by what they
+> are for, each card explaining what the value does, built with
+> [`ConfigEdits`](#your-own-settings-screens). The generic tree stays behind
+> `/exylialib config` as a power tool; `ConfigMenus.of(...)` from a plugin's hub
+> is deprecated. Reference: ExyliaMarket's `/marketadmin` → Settings.
+
+## Your own settings screens
+
+`net.exylia.lib.config.ConfigEdits` is the plumbing; the plugin writes the
+screen (an ordinary admin menu, cards per *Item cards*) and decides what is on it.
+
+```java
+ConfigEdits fees = ConfigEdits.of(plugin, AuctionHouseDefaults::file);
+
+// open: every editable key as a live value, %ah_settings_listing_fee_percent%
+menus.open(admin, "menus/admin/settings_ah", fees.placeholders("ah_"));
+
+// one action for every card: exyliamarket:setting ah settings.listing-fee-percent type
+actions.registerSync("setting", "myplugin.admin.settings", (ctx, args) -> {
+    ClickKind click = args.string(2, "").equals("type") ? ClickKind.DROP : ctx.get(UiKeys.CLICK).orElse(null);
+    fees.click(ctx.player(), args.string(1, ""), click, () -> reopen(ctx.player()));
+    return ActionResult.success();
+});
+```
+
+| Call | Does |
+| --- | --- |
+| `ConfigEdits.of(plugin, file)` | the edits of one `Configs.define` file; `file` is read on every call, so a reload is followed |
+| `value(key)` / `live(key)` | a key's value as the screens show it, coloured (`{success}Enabled`, `{info}48h`, money, percent); `live` is a lambda for a menu context |
+| `placeholders(prefix)` | every editable key as a live value, named `prefix` + key with `.` and `-` as `_` |
+| `click(viewer, key, click, back)` | applies a click: a switch flips, a choice steps, a number steps (shift ×10) or, on `DROP`, is typed prefilled; a length of time, text, lines or an item is asked for. Checked against `@Menu.Range`, `AtLeast`, `AtMost`, written with `ConfigFile.set`, the plugin's `Reloads` run. Stepped values redraw the open screen; `back` reopens it after a prompt |
+
+What goes on the screen, and what stays in the file:
+
+- **In game:** what an admin changes while running the server: fees, taxes,
+  limits, prices, durations, switches, blocked items, module switches.
+- **File only:** database and network, intervals and caches, sounds, toasts,
+  debug, anti-abuse thresholds, layout numbers. They are set once or not at all.
+- **One page per module** (sub-page layout, 27 for up to 7 cards, 36 for 8-14),
+  reached from a settings hub with one card per page showing its two values
+  that matter. A card is `{letters}<Module> ▸ <Setting>`, a subtitle
+  `<Module> setting`, two or three lines saying what the value does (and what
+  `-1`/`0` mean), the current value as its one stat, then the click and what
+  happens next.
+- Prefer `type` (`DROP`) for prices and amounts: stepping by 0.1 to reach 5000
+  is no use. Percentages and small counts may step.
+
+## The generic tree
 
 ```java
 // a "Settings" button in a plugin's admin hub
