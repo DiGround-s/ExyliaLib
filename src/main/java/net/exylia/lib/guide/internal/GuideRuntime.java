@@ -92,6 +92,18 @@ public final class GuideRuntime {
      * without PacketEvents too (a waypoint on a modded client).
      */
     static ViewerSession session(Plugin plugin, Player player, boolean needsPackets) {
+        return session(plugin, player, needsPackets, plugin.getName());
+    }
+
+    /**
+     * A HUD lives in a session of its own, so a plugin clearing its guidance ({@link #clear}) on every step does not
+     * take its HUD with it.
+     */
+    private static String hudKey(String pluginName) {
+        return pluginName + "#hud";
+    }
+
+    private static ViewerSession session(Plugin plugin, Player player, boolean needsPackets, String key) {
         if (needsPackets && !available) {
             warnOnce(plugin.getName());
             return null;
@@ -99,7 +111,7 @@ public final class GuideRuntime {
         if (!player.isOnline()) {
             return null;
         }
-        return SESSIONS.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>())
+        return SESSIONS.computeIfAbsent(key, name -> new ConcurrentHashMap<>())
                 .computeIfAbsent(player.getUniqueId(), id -> new ViewerSession(plugin, player));
     }
 
@@ -117,6 +129,34 @@ public final class GuideRuntime {
     public static GuideText view(Plugin plugin, Player player, Component text, ViewTextStyle style) {
         ViewerSession session = session(plugin, player);
         return attach(session, new LiveViewText(session, text, style));
+    }
+
+    /** One plugin's HUD for one player; inert without PacketEvents or for an offline player. */
+    public static LiveHud hud(Plugin plugin, Player player) {
+        ViewerSession session = session(plugin, player, true, hudKey(plugin.getName()));
+        return session == null ? new LiveHud(null) : session.hud();
+    }
+
+    private static org.bukkit.NamespacedKey hudHiddenKey() {
+        return new org.bukkit.NamespacedKey(library, "hud_hidden");
+    }
+
+    /** Whether the player chose to hide every HUD. */
+    public static boolean hudHidden(Player player) {
+        return library != null && player.getPersistentDataContainer().has(hudHiddenKey());
+    }
+
+    /** Keeps the player's choice to hide every HUD, or clears it. */
+    public static void hudHidden(Player player, boolean hide) {
+        if (library == null) {
+            return;
+        }
+        if (hide) {
+            player.getPersistentDataContainer().set(hudHiddenKey(), org.bukkit.persistence.PersistentDataType.BYTE,
+                    (byte) 1);
+        } else {
+            player.getPersistentDataContainer().remove(hudHiddenKey());
+        }
     }
 
     public static GuideBeacon beacon(Plugin plugin, Player player, Location target, BeaconStyle style,
@@ -168,9 +208,11 @@ public final class GuideRuntime {
 
     /** Takes down everything one plugin shows. Called when it is disabled. */
     public static void release(String pluginName) {
-        Map<UUID, ViewerSession> sessions = SESSIONS.remove(pluginName);
-        if (sessions != null) {
-            sessions.values().forEach(session -> session.close(true));
+        for (String key : new String[]{pluginName, hudKey(pluginName)}) {
+            Map<UUID, ViewerSession> sessions = SESSIONS.remove(key);
+            if (sessions != null) {
+                sessions.values().forEach(session -> session.close(true));
+            }
         }
     }
 

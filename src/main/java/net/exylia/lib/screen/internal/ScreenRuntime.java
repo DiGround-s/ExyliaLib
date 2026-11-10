@@ -104,6 +104,11 @@ public final class ScreenRuntime {
         return live != null && live.plugin() == plugin ? live : null;
     }
 
+    /** Whether any plugin's screen is open for this player now. Any thread. */
+    public static boolean isOpen(UUID player) {
+        return OPEN.containsKey(player);
+    }
+
     static LiveScreen live(UUID player) {
         return OPEN.get(player);
     }

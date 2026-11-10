@@ -103,6 +103,17 @@ final class ViewerSession {
         }
     }
 
+    private LiveHud hud;
+
+    /** This plugin's HUD for the player, made and attached on first use. */
+    synchronized LiveHud hud() {
+        if (hud == null || hud.removed()) {
+            hud = new LiveHud(this);
+            add(hud);
+        }
+        return hud;
+    }
+
     boolean isEmpty() {
         return pieces.isEmpty();
     }

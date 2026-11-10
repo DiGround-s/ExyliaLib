@@ -1,0 +1,123 @@
+# HUD
+
+Text on a player's screen that never takes their controls: widgets that stay
+(money, health, a quest tracker, a combat timer), notices that slide in and out
+("+120 coins", a kill), and big moments over the crosshair ("DOUBLE KILL").
+*Since 1.566.0.*
+
+```java
+Huds huds = Huds.of(this);
+
+HudHandle money = huds.show(player, HudWidget.of("money", HudAnchor.TOP_LEFT,
+        p -> Text.of("{success}♦ {letters}" + Formats.money(balance(p))).build()));
+money.refresh();   // read the text again now, instead of on its next period
+money.remove();
+
+huds.notify(player, HudNotice.of(Text.of("{success}+120 {letters}coins").build()).group("coins"));
+huds.notify(player, HudNotice.moment(Text.of("{error}&lDOUBLE KILL").build()));
+```
+
+Every method is safe from any thread. Without PacketEvents nothing is drawn and
+the handles still work, so a caller never branches on support.
+
+## Widgets
+
+`HudWidget.of(id, anchor, text)` stays until it is removed. Showing another with
+the same id replaces it in place (no slide).
+
+| Field | Copy | Default |
+| --- | --- | --- |
+| `text` (`Function<Player, Component>`) | | read every `every` ticks |
+| `when` (`Predicate<Player>`) | `when(condition)` | always |
+| `order` (its place in the anchor's stack, lowest at the edge) | `order(n)` | 0 |
+| `every` (ticks between reads, at least 2) | `every(ticks)` | 10; a fixed `Component` 1200 |
+| `background` (ARGB, `0` none) | `background(argb)` | `HudWidget.PANEL` |
+| `scale` (against the default text size) | `scale(size)` | 1 |
+
+- `text` and `when` run on the player's own thread, so they read memory, never
+  a database. A text equal to the one on screen sends nothing.
+- A `null` or blank text, or a `false` condition, slides the widget out; it
+  slides back in when it has something to say. That is a conditional element:
+  "in combat", "low health", "inside a region", "holding a map".
+- Lines break only where the text has `\n`. Keep them short: a corner is about a
+  fifth of the screen wide before it reaches the middle.
+
+## Notices
+
+`HudNotice.of(text)` slides in at the top right, stays three seconds and slides
+away. Newer ones stand nearest the edge; past five at one anchor the oldest
+leaves early.
+
+| Field | Copy | Default |
+| --- | --- | --- |
+| `anchor` | `anchor(where)` | `TOP_RIGHT` |
+| `seconds` | `seconds(time)` | 3 |
+| `group` | `group(key)` | none |
+| `scale` | `scale(size)` | 1 |
+
+A notice whose `group` matches one still up replaces it, counts (`×3` in
+`{muted}`), pops and starts its time again: three kills in a row are one line.
+
+`HudNotice.moment(text)` is a big moment: twice the size, no panel, popping in
+just above the crosshair for two seconds. A new moment replaces the one on
+screen.
+
+## Anchors
+
+| Anchor | Where | Stacks |
+| --- | --- | --- |
+| `TOP_LEFT` | the top left corner, free in vanilla | down |
+| `TOP` | the top centre, under one boss bar | down |
+| `TOP_RIGHT` | the top right, under the potion icons; notices | down |
+| `LEFT` | the left edge, above the chat | down |
+| `CENTER` | just above the crosshair; moments | down |
+| `RIGHT` | the right edge, where the sidebar goes | down |
+| `ABOVE_HOTBAR` | over the hotbar, hearts and experience bar | up |
+| `BOTTOM_RIGHT` | the bottom right corner | up |
+
+`HudAnchor.parse("top-left")` reads the names a file writes.
+
+- **The held item covers `BOTTOM_RIGHT`.** The client draws the hand after
+  everything else, so an item in the main hand hides that corner (an empty hand
+  does not). Keep it for things that can wait.
+- Positions are measured on a 16:9 window at the default 70° field of view. A
+  wider field of view draws everything a little nearer the centre, never off
+  screen; a 4:3 window can cut the side anchors.
+
+## How it stays put
+
+Each element is one text display, seated on the player for their client alone
+with a camera-facing billboard, sixteen blocks ahead and see-through, like a
+[guide view text](guide.md#view-text). The client carries it with the view every
+frame, so walking, jumping and turning cost no packet and nothing trails.
+
+- **Pitch.** The seat is above the eyes, so every element's offset is sent again
+  when the pitch moves 3° (one metadata packet each).
+- **Sprinting.** Sprinting, speed, slowness and flying widen the client's view
+  by a known factor, which would shrink the HUD towards the middle. The server
+  sees the same speed, so it draws everything larger by that factor as the view
+  widens: on screen the HUD stays where it was. Measured on a real 1.21.4
+  client. A player who turned *FOV Effects* below 100% sees it grow a little
+  while sprinting instead.
+- **Steps aside** while a screen is open, while a camera shot plays, while dead
+  and in spectator mode, and when the player turned *Show HUD* off in
+  `/settings` (kept on the player, across restarts; `Huds.hidden(player, hide)`
+  from code). Everything comes back on the next draw.
+- **Cost.** One display per element and nothing layered: a HUD of ten widgets is
+  ten entities. Only a changed text, a condition flipping, a reflowed stack or a
+  pitch step sends anything.
+- Only translation and scale animate on a client: elements slide in from their
+  own edge, glide when their stack reflows, and slide out. Colours and opacity
+  do not fade.
+- A Bedrock client draws display entities poorly: give those players chat or a
+  boss bar (`Guides.isBedrock`).
+
+Try it in a client with `/exylialib hudtest show|notice [group]|moment|hide`.
+
+## From a file
+
+Any interaction list (menu clicks, screen actions, open items) can write
+`[HUD] {success}+120 {letters}coins;group:coins;seconds:4` and
+`[MOMENT] {error}&lDOUBLE KILL` ([interactions](interactions.md)). Options are
+the trailing `;key:value` parts (`anchor`, `seconds`, `group`); the rest is the
+text, with the player's placeholders.

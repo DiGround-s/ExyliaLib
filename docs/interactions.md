@@ -55,6 +55,8 @@ only the plain left click, as in menus.
 | `[BROADCAST] {highlight}%player_name% {letters}won!` | one chat line to everybody online and the console, with the clicking player's placeholders (1.552.0) |
 | `[URL] https://dc.exylia.net;Discord` | offers an address in a native dialog (open or copy, then Minecraft's own "open this page?" screen), so it works while a [screen](screens.md) is up; the title after `;` is optional; a clickable chat line on clients older than 1.21.6 (1.554.0) |
 | `[CHANCE] 30` | the lines after it run 30% of the time; otherwise the list stops there (1.552.0) |
+| `[HUD] <text>[;anchor:top-right][;seconds:3][;group:kill]` | a notice sliding onto the player's [HUD](hud.md); a `group` counts repeats (1.566.0) |
+| `[MOMENT] <text>[;seconds:2]` | a big moment just above the crosshair, replacing the one up (1.566.0) |
 | `[SAY] ...` or any token a plugin registered | that plugin's handler |
 | any other `[TOKEN]` | a [sequence](sequences.md) line — `[MESSAGE]`, `[SOUND]`, `[TITLE]`, `[ACTION_BAR]`, `[TOAST]`, `[PARTICLE]`, `[FIREWORK]`... — played at the player, seen only by them |
 

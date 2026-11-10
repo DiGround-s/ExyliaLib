@@ -148,7 +148,8 @@ Detail in [Expressions](screens.md#expressions-14940). Functions: `min`, `max`, 
 `fmt.time`; about the viewer (1.501.0): `perm('node')`, `balance()`, `balance('points')`, `has_item('diamond', 16)`,
 `level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`; 1.565.0:
 `cooldown('key')` (seconds left on a button's `cooldown="key ..."`, 0 when ready), `players('survival')`
-(players on that server as the proxy last counted, `players()` the whole network), `online('survival')`, and any a plugin
+(players on that server as the proxy last counted, `players()` the whole network), `online('survival')`; 1.566.0:
+`health()` (0-20, half hearts) and `food()` (0-20); and any a plugin
 registered through `ExpressionFunctions`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
 
 ## Built-in actions

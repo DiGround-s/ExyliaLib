@@ -72,6 +72,11 @@ final class SettingsPanel {
                         + Phrases.tr(light ? "On" : "Off"), event -> ScreenPreferences.light(player, !light)).width(70)
                 .tooltip("{letters}" + Phrases.tr("Less detail on full-screen menus, for a faster game"))));
 
+        boolean hud = !net.exylia.lib.hud.Huds.hidden(player);
+        panel.add(row("Show HUD", button("hud", (hud ? "{success}" : "{letters_black}")
+                        + Phrases.tr(hud ? "On" : "Off"), event -> net.exylia.lib.hud.Huds.hidden(player, hud)).width(70)
+                .tooltip("{letters}" + Phrases.tr("Money, quests and notices kept on your screen while you play"))));
+
         if (MenuStyles.choosable()) {
             MenuStyle style = MenuStyles.choice(player);
             panel.add(row("Menu style", button("style", "{info}" + styleName(style),

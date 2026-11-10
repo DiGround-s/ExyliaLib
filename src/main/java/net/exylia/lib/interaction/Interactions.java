@@ -76,7 +76,7 @@ import java.util.function.Consumer;
 public final class Interactions {
 
     private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY", "CONSOLE", "PLAYER",
-            "BROADCAST", "CHANCE", "URL");
+            "BROADCAST", "CHANCE", "URL", "HUD", "MOMENT");
     private static final Set<Click> ANY = Set.copyOf(EnumSet.allOf(Click.class));
 
     private record Registered(String plugin, InteractionToken handler) {
@@ -378,6 +378,17 @@ public final class Interactions {
                     return CompletableFuture.completedFuture(true);
                 };
             }
+            case "HUD", "MOMENT" -> {
+                // [HUD] <text>[;anchor:top-right][;seconds:3][;group:kill] and [MOMENT] <text>[;seconds:2] (1.566.0):
+                // a notice sliding onto the player's HUD, or a big moment over the crosshair (docs/hud.md).
+                Arg text = Arg.of(required(rest, "a message"));
+                boolean moment = token.equals("MOMENT");
+                return (owner, player, click, data) -> {
+                    net.exylia.lib.hud.HudNotice notice = hudNotice(owner, text.render(player, data), moment);
+                    net.exylia.lib.hud.Huds.of(owner).notify(player, notice);
+                    return CompletableFuture.completedFuture(true);
+                };
+            }
             case "CHANCE" -> {
                 // [CHANCE] 30 (1.552.0): the lines after it run 30% of the time; otherwise the list stops there.
                 double percent;
@@ -447,6 +458,37 @@ public final class Interactions {
                 });
             }
         }
+    }
+
+    /** Reads {@code text[;anchor:...][;seconds:...][;group:...]}: options are the trailing parts that name one. */
+    static net.exylia.lib.hud.HudNotice hudNotice(Plugin owner, String written, boolean moment) {
+        List<String> parts = new ArrayList<>(List.of(written.split(";", -1)));
+        net.exylia.lib.hud.HudAnchor anchor = null;
+        double seconds = Double.NaN;
+        String group = null;
+        while (parts.size() > 1) {
+            String last = parts.get(parts.size() - 1).trim();
+            int colon = last.indexOf(':');
+            String key = colon < 0 ? "" : last.substring(0, colon).trim().toLowerCase(Locale.ROOT);
+            String value = colon < 0 ? "" : last.substring(colon + 1).trim();
+            if (key.equals("anchor") && net.exylia.lib.hud.HudAnchor.parse(value) != null) {
+                anchor = net.exylia.lib.hud.HudAnchor.parse(value);
+            } else if (key.equals("seconds") && Ticks.parseSeconds(value, Double.NaN) > 0) {
+                seconds = Ticks.parseSeconds(value, Double.NaN);
+            } else if (key.equals("group") && !value.isEmpty()) {
+                group = value;
+            } else {
+                break;
+            }
+            parts.remove(parts.size() - 1);
+        }
+        net.kyori.adventure.text.Component line = net.exylia.lib.text.Text.from(owner, String.join(";", parts)).build();
+        net.exylia.lib.hud.HudNotice notice = moment ? net.exylia.lib.hud.HudNotice.moment(line)
+                : net.exylia.lib.hud.HudNotice.of(line);
+        if (anchor != null) notice = notice.anchor(anchor);
+        if (!Double.isNaN(seconds)) notice = notice.seconds(seconds);
+        if (group != null) notice = notice.group(group);
+        return notice;
     }
 
     private static String required(String rest, String what) {

@@ -1837,5 +1837,7 @@ space: 'пробел'
 'Opens it, ready to edit.': 'Открывается готовым к правке.'
 'Shift-right-click {letters_black}· {letters}reset': 'Shift + ПКМ {letters_black}· {letters}сбросить'
 'Ready again in': 'Снова доступно через'
+Show HUD: Показывать HUD
+Money, quests and notices kept on your screen while you play: Деньги, задания и уведомления на экране во время игры
 Lighter screens: Облегчённые экраны
 Less detail on full-screen menus, for a faster game: Меньше деталей в полноэкранных меню, чтобы игра шла плавнее

@@ -1837,5 +1837,7 @@ space: 'espace'
 'Opens it, ready to edit.': 'S''ouvre prêt à modifier.'
 'Shift-right-click {letters_black}· {letters}reset': 'Maj-clic droit {letters_black}· {letters}réinitialiser'
 'Ready again in': 'De nouveau disponible dans'
+Show HUD: Afficher le HUD
+Money, quests and notices kept on your screen while you play: 'Argent, quêtes et notifications à l''écran pendant que tu joues'
 Lighter screens: Écrans allégés
 Less detail on full-screen menus, for a faster game: Moins de détails sur les menus plein écran, pour un jeu plus fluide

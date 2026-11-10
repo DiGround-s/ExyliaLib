@@ -242,6 +242,23 @@ final class GuidePackets extends PacketListenerAbstract {
      * listener keeps them in every list the server sends afterwards.
      */
     static void spawnViewText(Player viewer, int id, Component text, ViewTextStyle style, float[] translation) {
+        int flags = (style.shadow() ? 0x01 : 0) | (style.seeThrough() ? 0x02 : 0);
+        spawnRider(viewer, id, text, style.lineWidth(), style.background(), style.opacity(), flags,
+                style.scale() * VIEW_DISTANCE, translation);
+    }
+
+    /** Text flag: lines aligned to the left edge of the panel. */
+    static final int ALIGN_LEFT = 0x08;
+    /** Text flag: lines aligned to the right edge of the panel. */
+    static final int ALIGN_RIGHT = 0x10;
+
+    /**
+     * Spawns a text display at the player's seat, mounted on them, as {@link #spawnViewText} does for any look.
+     *
+     * @param flags text flags: {@code 0x01} shadow, {@code 0x02} see-through, {@link #ALIGN_LEFT}, {@link #ALIGN_RIGHT}
+     */
+    static void spawnRider(Player viewer, int id, Component text, int lineWidth, int background, int opacity,
+                           int flags, float scale, float[] translation) {
         org.bukkit.Location at = viewer.getLocation();
         send(viewer, new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()),
                 EntityTypes.TEXT_DISPLAY, new Vector3d(at.getX(), at.getY() + viewer.getHeight(), at.getZ()),
@@ -251,15 +268,13 @@ final class GuidePackets extends PacketListenerAbstract {
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
                 new Vector3f(translation[0], translation[1], translation[2])));
-        float scale = style.scale() * VIEW_DISTANCE;
         data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(scale, scale, scale)));
         data.add(new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER));
         data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
         data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
-        data.add(new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, style.lineWidth()));
-        data.add(new EntityData<>(BACKGROUND, EntityDataTypes.INT, style.background()));
-        data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE, (byte) style.opacity()));
-        int flags = (style.shadow() ? 0x01 : 0) | (style.seeThrough() ? 0x02 : 0);
+        data.add(new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, lineWidth));
+        data.add(new EntityData<>(BACKGROUND, EntityDataTypes.INT, background));
+        data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE, (byte) opacity));
         data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) flags));
         send(viewer, new WrapperPlayServerEntityMetadata(id, data));
         RIDING_SELF.computeIfAbsent(viewer.getUniqueId(), key -> ConcurrentHashMap.newKeySet()).add(id);
@@ -277,6 +292,22 @@ final class GuidePackets extends PacketListenerAbstract {
         }
         send(viewer, new WrapperPlayServerSetPassengers(viewer.getEntityId(),
                 index == ids.length ? ids : java.util.Arrays.copyOf(ids, index)));
+    }
+
+    /**
+     * Moves and sizes a rider within the view over {@code ticks}, and replaces its text when one is given, in one
+     * packet.
+     */
+    static void riderTransform(Player viewer, int id, float[] translation, float scale, int ticks,
+                               Component text) {
+        List<EntityData<?>> data = new ArrayList<>(5);
+        data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
+        data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks));
+        data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
+                new Vector3f(translation[0], translation[1], translation[2])));
+        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(scale, scale, scale)));
+        if (text != null) data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
+        send(viewer, new WrapperPlayServerEntityMetadata(id, data));
     }
 
     /**

@@ -254,6 +254,15 @@ public final class Expr {
                 org.bukkit.entity.Player viewer = env.viewer();
                 yield viewer == null ? "" : viewer.getWorld().getName();
             }
+            case "health" -> {
+                // 1.566.0: health and food, for a HUD that shows only when they run low.
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? 0d : viewer.getHealth();
+            }
+            case "food" -> {
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? 0d : (double) viewer.getFoodLevel();
+            }
             case "contains" -> args.size() > 1 && text(a).contains(text(args.get(1)));
             case "matches" -> args.size() > 1 && regex(text(args.get(1))).matcher(text(a)).matches();
             case "chance" -> {
@@ -322,7 +331,9 @@ public final class Expr {
             // 1.552.0
             "contains", "matches", "chance",
             // 1.565.0
-            "cooldown", "players", "online");
+            "cooldown", "players", "online",
+            // 1.566.0
+            "health", "food");
 
     // ------------------------------------------------------------------
     // Parsing
