@@ -83,7 +83,16 @@ public final class HologramRuntime {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
             // The default sink loads PacketEvents — do it only when
-            // HologramRuntime is wired for real, not in tests.
+            // HologramRuntime is wired for real, not in tests. And only when the
+            // plugin is there: touching DisplayPackets without it is a
+            // NoClassDefFoundError that takes the whole library down.
+            if (!net.exylia.lib.internal.PacketEventsPresent.installed()) {
+                java.util.concurrent.atomic.AtomicInteger counter =
+                        new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE / 2);
+                ids = counter::incrementAndGet;
+                available = false;
+                return;
+            }
             ids = DisplayPackets::newEntityId;
             sink = DisplayPackets.INSTANCE;
             available = DisplayPackets.ready();

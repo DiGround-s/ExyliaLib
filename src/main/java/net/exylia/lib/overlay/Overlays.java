@@ -47,8 +47,13 @@ import org.jetbrains.annotations.NotNull;
  * of them.
  *
  * <h2>What is needed</h2>
- * PacketEvents. Without it {@link #isAvailable()} is {@code false}, showing an
- * overlay does nothing, and one warning is logged per plugin.
+ * Nothing. With PacketEvents the overlay is packets, as described above.
+ * Without it (or on a server it cannot read, such as a NeoForge hybrid) the
+ * overlay is written as real items instead: the items it covers are saved to
+ * disk first and put back when it comes off, on quit, and on the next join
+ * after a crash, and every drawn item is tagged so it can never leave the
+ * inventory. {@link #usesPackets()} says which one a server runs. Since
+ * 1.560.0; before, an overlay did nothing without PacketEvents.
  *
  * <h2>Threading</h2>
  * Every method is safe from any thread; anything that touches a player hops to
@@ -63,12 +68,24 @@ public final class Overlays {
     }
 
     /**
-     * Returns whether PacketEvents is installed and overlays can be drawn.
+     * Returns whether overlays can be drawn: always, once the library is up,
+     * as packets or as real items.
      *
      * @return whether the module does anything
      */
     public static boolean isAvailable() {
         return OverlayRuntime.isAvailable();
+    }
+
+    /**
+     * Returns whether overlays are drawn as packets (PacketEvents installed)
+     * rather than written as real items.
+     *
+     * @return whether the packet path is in use
+     * @since 1.560.0
+     */
+    public static boolean usesPackets() {
+        return OverlayRuntime.usesPackets();
     }
 
     /**

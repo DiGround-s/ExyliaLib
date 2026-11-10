@@ -28,8 +28,29 @@ overlays.hide(player);            // leaving it
 
 ## What is needed
 
-PacketEvents. Without it `Overlays.isAvailable()` is `false`, showing an
-overlay does nothing, and the plugin is told once in its console.
+Nothing (since 1.560.0). With PacketEvents an overlay is the packet trick
+described here. Without it, or on a server PacketEvents cannot read (NeoForge
+hybrids such as Youer), the same overlay is written as **real items**, and
+`Overlays.usesPackets()` is `false`:
+
+- Every real item the overlay covers is saved to
+  `plugins/ExyliaLib/overlay-stash/<uuid>.yml` before a slot changes, and put
+  back when the overlay comes off, when the player quits, and on their next
+  join after a crash. The file is deleted only after the player is saved
+  again, so a crash at any point finds the items in one place or the other. A
+  stash that cannot be written stops the overlay from showing.
+- Every drawn item is tagged. Clicks, drags, drops, swaps, block placing and
+  breaking, eating and durability are refused for a tagged item; tagged items
+  are removed from death drops, never spawn as dropped items, and are deleted
+  from an inventory with no overlay on it (on join, on click).
+- Presses run the same actions through the same lock and world-press rules
+  (`OverlayClicks`), read from Bukkit events instead of packets.
+
+What real items cannot hide: the `inventory_changed` advancement trigger
+fires, covered armour stops protecting, other players see the drawn items in
+the wearer's hands, and the covered items do not drop on death (they come
+back when the overlay does). While a container is open the covered items stay
+in the stash; the player's other slots are theirs to use.
 
 ## What it covers
 

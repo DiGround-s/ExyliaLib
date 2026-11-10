@@ -162,9 +162,18 @@ public final class DisplayRuntime {
         synchronized (LOCK) {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
-            ids = DisplayPackets::newEntityId;
-            sink = DisplayPackets.INSTANCE;
-            available = DisplayPackets.ready();
+            // Touching DisplayPackets without the plugin is a NoClassDefFoundError
+            // that takes the whole library down.
+            if (net.exylia.lib.internal.PacketEventsPresent.installed()) {
+                ids = DisplayPackets::newEntityId;
+                sink = DisplayPackets.INSTANCE;
+                available = DisplayPackets.ready();
+            } else {
+                java.util.concurrent.atomic.AtomicInteger counter =
+                        new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE / 2 + 1_000_000);
+                ids = counter::incrementAndGet;
+                available = false;
+            }
             if (driver != null) {
                 driver.cancel();
             }

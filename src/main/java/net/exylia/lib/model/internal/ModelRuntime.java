@@ -78,7 +78,7 @@ public final class ModelRuntime {
     public static synchronized void init(Plugin library) {
         logger = library.getLogger();
         ModelRuntime.library = library;
-        if (listener == null && ModelPackets.ready()) {
+        if (listener == null && net.exylia.lib.internal.PacketEventsPresent.installed() && ModelPackets.ready()) {
             listener = ModelPackets.listen(CARRIERS::containsKey, BOXES::containsKey, ModelRuntime::seesThrough,
                     ModelRuntime::clicked);
             PacketRuntime.onCameraView((viewer, started) -> seeingThrough(viewer));

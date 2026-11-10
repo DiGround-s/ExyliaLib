@@ -118,6 +118,15 @@ public final class OverlayListener implements Listener {
         }
     }
 
+    /**
+     * Puts back what a real-items overlay stashed when the server went down
+     * with it on, and deletes any drawn item that was saved with the player.
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+        OverlayRuntime.recover(event.getPlayer());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent event) {
         OverlayRuntime.forget(event.getPlayer().getUniqueId());

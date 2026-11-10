@@ -85,8 +85,11 @@ public final class CameraRuntime {
         synchronized (LOCK) {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
-            sink = CameraPackets.INSTANCE;
-            available = CameraPackets.ready();
+            // Without the plugin, touching CameraPackets is a NoClassDefFoundError.
+            available = net.exylia.lib.internal.PacketEventsPresent.installed() && CameraPackets.ready();
+            if (available) {
+                sink = CameraPackets.INSTANCE;
+            }
             if (available) {
                 HudShade.install();
                 CameraInput.install();

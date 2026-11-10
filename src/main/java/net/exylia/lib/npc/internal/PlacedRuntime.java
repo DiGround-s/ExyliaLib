@@ -143,7 +143,7 @@ public final class PlacedRuntime {
         synchronized (LOCK) {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
-            available = NpcPackets.ready();
+            available = net.exylia.lib.internal.PacketEventsPresent.installed() && NpcPackets.ready();
             if (!available) {
                 return;
             }

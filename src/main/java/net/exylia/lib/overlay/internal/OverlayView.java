@@ -315,6 +315,19 @@ public final class OverlayView {
         }
     }
 
+    /**
+     * Draws every owned slot again, forgetting what was drawn.
+     *
+     * <p>For the real-items fallback after a death emptied the inventory: the
+     * slots no longer hold what this view remembers, so a normal draw would
+     * find nothing changed and write nothing.
+     */
+    void redrawAll() {
+        drawn.clear();
+        live.clear();
+        draw();
+    }
+
     /** Redraws only the slots that can actually differ from what is on screen. */
     private void tickRefresh() {
         if (closed || suspended || !viewer.isOnline()) {

@@ -83,11 +83,49 @@ public final class OverlayRuntime {
                     tried = true;
                     if (Bukkit.getPluginManager().getPlugin("packetevents") != null) {
                         sink = OverlayPackets.install();
+                    } else if (lib != null) {
+                        // No packets to tell the client a different story with:
+                        // the overlay is written as real items, stashed first.
+                        sink = OverlayItems.install(lib);
                     }
                 }
             }
         }
         return sink;
+    }
+
+    /** Whether overlays are drawn as packets rather than as real items. */
+    public static boolean usesPackets() {
+        // Never "instanceof OverlayPackets": naming the class loads it, and
+        // without the plugin that is a NoClassDefFoundError.
+        OverlaySink current = sink();
+        return current != null && !(current instanceof OverlayItems);
+    }
+
+    /** Runs work on a player's thread with the library's scheduler. */
+    static void atPlayer(Player player, Runnable work) {
+        Plugin scheduler = lib;
+        if (scheduler != null) {
+            Tasks.of(scheduler).runAtEntity(player, work);
+        }
+    }
+
+    /**
+     * Puts back what a crash left stashed, and deletes any drawn item a player
+     * still carries. On join, on the player's thread, before anybody can show
+     * them an overlay; whichever way the server draws them now.
+     */
+    public static void recover(Player player) {
+        Plugin owner = lib;
+        if (owner == null) {
+            return;
+        }
+        OverlayItems items = new OverlayItems(owner);
+        if (items.hasStash(player.getUniqueId())) {
+            items.restore(player);
+        } else {
+            OverlayItems.purge(player);
+        }
     }
 
     /** Installs a sink directly and resets state. For tests. */
@@ -167,6 +205,10 @@ public final class OverlayRuntime {
         BY_ENTITY.remove(view.viewer().getEntityId(), view);
         view.close();
         Player viewer = view.viewer();
+        if (sink instanceof OverlayItems items) {
+            restore(items, view);
+            return;
+        }
         if (!repaint || !viewer.isOnline()) {
             return;
         }
@@ -183,6 +225,27 @@ public final class OverlayRuntime {
         // The server says what it always believed, and with the overlay gone
         // nothing rewrites it on the way out.
         Tasks.of(scheduler).runAtEntity(viewer, viewer::updateInventory);
+    }
+
+    /**
+     * Puts a real-items overlay's stash back.
+     *
+     * <p>At once when already on the player's thread (a quit, so the restored
+     * inventory is the one saved; a shutdown on Paper), otherwise on it. When
+     * neither is possible the stash stays on disk and the next join restores it.
+     */
+    private static void restore(OverlayItems items, OverlayView view) {
+        Player viewer = view.viewer();
+        if (Bukkit.isOwnedByCurrentRegion(viewer)) {
+            items.restore(viewer);
+            return;
+        }
+        Plugin scheduler = lib != null ? lib : view.plugin();
+        try {
+            Tasks.of(scheduler).runAtEntity(viewer, () -> items.restore(viewer));
+        } catch (RuntimeException schedulerGone) {
+            // Disabling: the file stays, and the next join restores it.
+        }
     }
 
     /** Takes off every overlay one plugin put on. */
@@ -238,8 +301,8 @@ public final class OverlayRuntime {
             this.items = Items.of(plugin);
             this.actions = Actions.of(plugin);
             this.debug = Debug.of(plugin);
-            if (!isAvailable()) {
-                debug.warn("PacketEvents is not installed: inventory overlays do nothing.");
+            if (isAvailable() && !usesPackets()) {
+                debug.log("PacketEvents is not installed: inventory overlays are drawn as real items.");
             }
         }
 
@@ -321,6 +384,13 @@ public final class OverlayRuntime {
             BY_ENTITY.put(viewer.getEntityId(), view);
             Tasks.of(plugin).runAtEntity(viewer, () -> {
                 if (view.isClosed()) {
+                    return;
+                }
+                if (sink instanceof OverlayItems real && !real.stash(viewer, definition)) {
+                    // The player's items could not be saved: nothing is written over them.
+                    ACTIVE.remove(viewer.getUniqueId(), view);
+                    BY_ENTITY.remove(viewer.getEntityId(), view);
+                    view.close();
                     return;
                 }
                 if (hasWindowOpen(viewer)) {

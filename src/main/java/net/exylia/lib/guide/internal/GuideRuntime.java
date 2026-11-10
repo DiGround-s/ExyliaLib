@@ -65,7 +65,7 @@ public final class GuideRuntime {
     public static void init(Plugin plugin) {
         library = plugin;
         logger = plugin.getLogger();
-        available = GuidePackets.ready();
+        available = net.exylia.lib.internal.PacketEventsPresent.installed() && GuidePackets.ready();
         if (available) {
             listener = GuidePackets.install();
         }

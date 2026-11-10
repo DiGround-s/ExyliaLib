@@ -93,9 +93,17 @@ public final class NpcRuntime {
         synchronized (LOCK) {
             scheduler = Tasks.of(plugin);
             logger = plugin.getLogger();
-            ids = NpcPackets::newEntityId;
-            sink = NpcPackets.INSTANCE;
-            available = NpcPackets.ready();
+            if (net.exylia.lib.internal.PacketEventsPresent.installed()) {
+                ids = NpcPackets::newEntityId;
+                sink = NpcPackets.INSTANCE;
+                available = NpcPackets.ready();
+            } else {
+                // Without the plugin, touching NpcPackets is a NoClassDefFoundError.
+                java.util.concurrent.atomic.AtomicInteger counter =
+                        new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE / 2 + 2_000_000);
+                ids = counter::incrementAndGet;
+                available = false;
+            }
             if (driver != null) {
                 driver.cancel();
             }
