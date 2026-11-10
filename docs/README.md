@@ -105,6 +105,8 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Web editor](web-editor.md) | Every plugin file edited from the browser: config files, messages, menus and other YAML discovered on their own (with `exclude`/`discover` to opt out), plus registered subjects (records, YAML a plugin compiles itself, stores of entries such as mines), uploaded plugin by plugin gzip-compressed; changes pulled by a command and confirmed when they matter | 1.304.0 (discovery and protocol v2 1.307.0) |
 | [Public API](api.md) | The contract third-party plugins write against: one published artifact covering every Exylia plugin, reached through `ExyliaAPI`; `DuelKitSource` (kits another plugin offers ExyliaDuels) since 1.383.0; `api.jobs` (ExyliaJobs service and events) since 1.480.0 | 1.112.0 |
 | [Custom minigames](custom-minigames.md) | Registering a minigame of your own with ExyliaEvents: what you declare, what it does for you | 1.186.0 |
+| [Movement](movement.md) | Double jump (flight-toggle trick with cooldown, effect, permission and a per-player predicate, never leaving flight on for a player who stopped qualifying) and jump pads (one block or a material rule such as any plate on slime, look or fixed direction, edited live), with the landing fall cancelled | 1.559.0 |
+| [Hotbars](hotbars.md) | Lobby hotbars on the overlay module: named sets of buttons with slot, item, click actions and commands, permission (hidden or a locked look), per-button cooldown, frozen in place, shown and hidden per player, redrawn when permissions change | 1.559.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things

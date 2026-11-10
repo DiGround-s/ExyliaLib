@@ -1036,6 +1036,10 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before the tuner, the displays and the NPCs: a spatial menu put the player's hotbar, freeze and
         // hiding on, and takes them off while the modules that did it are still up.
         net.exylia.lib.spatial.SpatialMenus.release(event.getPlugin());
+        // A double jump takes the flight it gave back before the player's data is saved.
+        net.exylia.lib.movement.DoubleJump.release(event.getPlugin());
+        net.exylia.lib.movement.JumpPads.release(event.getPlugin());
+        net.exylia.lib.hotbar.Hotbars.release(event.getPlugin());
         net.exylia.lib.kitroom.KitRooms.release(pluginName);
         net.exylia.lib.screen.internal.ScreenRuntime.release(event.getPlugin());
         // First: ending a tuning session stops its boss bars and lets the
