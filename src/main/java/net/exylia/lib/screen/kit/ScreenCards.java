@@ -5,6 +5,7 @@ import net.exylia.lib.screen.Node;
 import net.exylia.lib.screen.ScreenScene;
 import net.exylia.lib.stage.kit.CardSprite;
 import net.exylia.lib.stage.kit.PlayingCard;
+import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -34,7 +35,7 @@ public final class ScreenCards {
      * @param black   spades and clubs, as a text colour
      * @param width   a card across, in screen pixels
      * @param height  a card down
-     * @param deck    which deck's labels it reads
+     * @param deck    which deck it draws: a Spanish face shows its suit as an item in the suit's colour
      */
     public record Look(@NotNull String face, @NotNull String edge, @NotNull String back, @NotNull String mark,
                        @NotNull String red, @NotNull String black, double width, double height,
@@ -72,10 +73,19 @@ public final class ScreenCards {
 
     /** A card's face as a node of the look's size: the rank in its corner and the suit large in the middle. */
     public @NotNull Node face(@NotNull PlayingCard card) {
-        String ink = card.suit().isRed() ? look.red() : look.black();
-        double big = look.height() / 22;
         double w = look.width();
         double h = look.height();
+        if (look.deck() == CardSprite.Deck.SPANISH) {
+            // The Spanish suit is the item players know it by (sword, club, coin, cup), number in the suit's colour.
+            double s = Math.min(w - 6, h * 0.55);
+            return Node.box().size(w, h).background(look.face()).outline(look.edge(), 1)
+                    .add(Node.text(CardSprite.spanishColour(card.suit()) + "&l" + label(card)).scale(Math.max(1, h / 36))
+                                    .absolute(2, Double.NaN, Double.NaN, 3),
+                            Node.item(new ItemStack(CardSprite.spanishIcon(card.suit()))).size(s, s)
+                                    .absolute((h - s) / 2 + 3, Double.NaN, Double.NaN, (w - s) / 2));
+        }
+        String ink = card.suit().isRed() ? look.red() : look.black();
+        double big = look.height() / 22;
         Node suit = Node.text(ink + card.suit().symbol()).scale(big);
         return Node.box().size(w, h).background(look.face()).outline(look.edge(), 1)
                 .add(Node.text(ink + label(card)).scale(Math.max(1, h / 36)).absolute(2, Double.NaN, Double.NaN, 3),

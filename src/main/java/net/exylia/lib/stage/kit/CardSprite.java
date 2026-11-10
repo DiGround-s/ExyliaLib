@@ -262,8 +262,12 @@ public final class CardSprite {
                 at.clone().add(0, -Stage.TEXT_HEIGHT * scale, 0).add(forward(facing, 0.02)));
     }
 
-    /** The colours of a Spanish deck: gold oros, red copas, blue espadas, green bastos. */
-    private static String spanishColour(PlayingCard.Suit suit) {
+    /**
+     * The colours of a Spanish deck: gold oros, red copas, blue espadas, green bastos.
+     *
+     * @since 1.568.2
+     */
+    public static String spanishColour(PlayingCard.Suit suit) {
         return switch (suit) {
             case DIAMONDS -> "{highlight}";
             case HEARTS -> "{error}";
@@ -272,8 +276,12 @@ public final class CardSprite {
         };
     }
 
-    /** The item a Spanish suit is drawn as. */
-    private static Material spanishIcon(PlayingCard.Suit suit) {
+    /**
+     * The item a Spanish suit is drawn as.
+     *
+     * @since 1.568.2
+     */
+    public static Material spanishIcon(PlayingCard.Suit suit) {
         return switch (suit) {
             case DIAMONDS -> Material.GOLD_NUGGET;
             case HEARTS -> Material.FLOWER_POT;
