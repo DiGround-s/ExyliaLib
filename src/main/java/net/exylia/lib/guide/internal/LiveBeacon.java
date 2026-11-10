@@ -31,6 +31,9 @@ final class LiveBeacon extends Piece implements GuideBeacon {
     private static final double MARKER_HEIGHT = 3;
     private static final double MARKER_MOVE = 0.4;
     private static final int MARKER_GLIDE = 4;
+    /** How far in front of the beam's side the label stands, so the beam never cuts through it. */
+    private static final double LABEL_CLEARANCE = 0.15;
+    private static final double LABEL_MOVE = 0.08;
 
     private final BeaconStyle style;
     private final DoubleFunction<Component> label;
@@ -53,6 +56,8 @@ final class LiveBeacon extends Piece implements GuideBeacon {
     private double markerX;
     private double markerY;
     private double markerZ;
+    private double labelX = Double.NaN;
+    private double labelZ = Double.NaN;
 
     LiveBeacon(ViewerSession session, Location target, BeaconStyle style, DoubleFunction<Component> label) {
         super(session);
@@ -120,6 +125,7 @@ final class LiveBeacon extends Piece implements GuideBeacon {
             if (!drawn) {
                 spawn(player, goal.getX(), goal.getY(), goal.getZ(), style.height(), viewRange);
             }
+            frontLabel(player, eye, goal);
         } else {
             double[] at = GuideGeometry.marker(eye.getX(), eye.getY(), eye.getZ(),
                     goal.getX(), goal.getY(), goal.getZ(), style.markerDistance());
@@ -158,6 +164,27 @@ final class LiveBeacon extends Piece implements GuideBeacon {
     }
 
     /**
+     * Keeps the label on the player's side of the beam: centred on it, the beam would run through the letters.
+     */
+    private void frontLabel(Player player, Location eye, Location goal) {
+        double dx = eye.getX() - goal.getX();
+        double dz = eye.getZ() - goal.getZ();
+        double flat = Math.hypot(dx, dz);
+        if (flat < 0.5) {
+            return;
+        }
+        double off = style.width() / 2 + LABEL_CLEARANCE;
+        double x = goal.getX() + dx / flat * off;
+        double z = goal.getZ() + dz / flat * off;
+        if (!Double.isNaN(labelX) && (x - labelX) * (x - labelX) + (z - labelZ) * (z - labelZ) < LABEL_MOVE * LABEL_MOVE) {
+            return;
+        }
+        labelX = x;
+        labelZ = z;
+        GuidePackets.move(player, text, x, goal.getY() + style.labelHeight(), z, 0f);
+    }
+
+    /**
      * How big the label is drawn. It is sized for the player's body, so while
      * they look through a camera filming somewhere else it would hang huge in
      * the shot: it has none until the shot ends, and the beam stays.
@@ -189,6 +216,8 @@ final class LiveBeacon extends Piece implements GuideBeacon {
         GuidePackets.spawnText(player, text, x, labelY, z, Component.empty(), style.label(), labelScale,
                 GuidePackets.BILLBOARD_CENTER, glide, viewRange);
         rounded = Long.MIN_VALUE;
+        labelX = Double.NaN;
+        labelZ = Double.NaN;
         drawn = true;
         drawnState = marker ? State.MARKER : State.AT_TARGET;
     }
