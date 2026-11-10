@@ -364,4 +364,71 @@ class LanguagesTest {
     private YamlConfiguration yaml(String path) {
         return YamlConfiguration.loadConfiguration(folder.resolve(path).toFile());
     }
+
+    record Button(String name, List<String> lore, int slot) {
+        Button() {
+            this("Item", List.of(), 0);
+        }
+    }
+
+    record Hotbar(String title, boolean enabled, java.util.Map<String, Button> buttons) {
+        Hotbar() {
+            this("Hotbar", true, hotbarButtons());
+        }
+
+        static java.util.Map<String, Button> hotbarButtons() {
+            java.util.Map<String, Button> buttons = new java.util.LinkedHashMap<>();
+            buttons.put("selector", new Button("Selector", List.of("Pick a server"), 0));
+            buttons.put("hider", new Button("Hide players", List.of(), 8));
+            return buttons;
+        }
+    }
+
+    private static final String HOTBAR_ES = "title: Barra\nbuttons:\n  selector:\n    name: Selector ES\n    lore:\n    - Elige un servidor\n";
+
+    @Test
+    void localizedDefaultsWriteANewFileInTheServersLanguageWhereItIs() throws Exception {
+        pack("lang/es/lang-hotbar-fresh/config.yml", HOTBAR_ES);
+        onDisk("config.yml", "language: es\n");
+
+        ConfigFile<Hotbar> hotbar = Configs.define(plugin, "lang-hotbar-fresh/config", Hotbar.class)
+                .localizedDefaults().load();
+
+        assertTrue(Files.isRegularFile(folder.resolve("lang-hotbar-fresh/config.yml")), "the file stays in place");
+        assertFalse(Files.exists(folder.resolve("lang/es/lang-hotbar-fresh/config.yml")));
+        Button selector = hotbar.get().buttons().get("selector");
+        assertEquals("Selector ES", selector.name());
+        assertEquals(List.of("Elige un servidor"), selector.lore());
+        assertEquals(0, selector.slot(), "a key the language leaves out keeps the record default");
+        assertEquals(new Button("Hide players", List.of(), 8), hotbar.get().buttons().get("hider"),
+                "a map entry the language leaves out is kept");
+        assertEquals("Selector ES", yaml("lang-hotbar-fresh/config.yml").getString("buttons.selector.name"));
+        assertTrue(net.exylia.lib.web.internal.ConfigMenu.displayDefault(hotbar, "title").endsWith("Barra"),
+                "the config screens reset to the localized default");
+    }
+
+    @Test
+    void localizedDefaultsNeverRewriteAnExistingFileAndWaitForReview() throws Exception {
+        pack("lang/es/lang-hotbar-switch/config.yml", HOTBAR_ES);
+        ConfigFile<Hotbar> hotbar = Configs.define(plugin, "lang-hotbar-switch/config", Hotbar.class)
+                .localizedDefaults().load();
+        assertEquals("Selector", hotbar.get().buttons().get("selector").name());
+        hotbar.set("title", "My bar");
+
+        onDisk("config.yml", "language: es\n");
+        hotbar.reload();
+
+        assertEquals("Selector", hotbar.get().buttons().get("selector").name(), "nothing changes on its own");
+        assertEquals("My bar", hotbar.get().title());
+        assertEquals(List.of("buttons.selector.name", "buttons.selector.lore"),
+                DefaultUpdates.pending().stream().map(pending -> pending.change().dotted()).toList(),
+                "the owner's title is theirs; the texts at their old default wait");
+
+        DefaultUpdates.decide(pending -> true, true);
+
+        assertEquals("Selector ES", hotbar.get().buttons().get("selector").name());
+        assertEquals(List.of("Elige un servidor"), hotbar.get().buttons().get("selector").lore());
+        assertEquals("Hide players", hotbar.get().buttons().get("hider").name());
+        assertEquals("My bar", hotbar.get().title());
+    }
 }

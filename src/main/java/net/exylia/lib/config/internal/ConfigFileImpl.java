@@ -60,6 +60,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
     private final int currentVersion;
     private final Map<Integer, Migration> migrations;
     private final boolean translated;
+    /** Whether the defaults come from the packaged language file while the file stays in place. */
+    private final boolean localizedDefaults;
     /** Where the file is, which moves with the language of a translated file. */
     private volatile File file;
     /** The file's path without extension, relative to the data folder. */
@@ -86,6 +88,11 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     public ConfigFileImpl(Plugin plugin, String name, Class<T> schemaType,
                           int currentVersion, Map<Integer, Migration> migrations, boolean translated) {
+        this(plugin, name, schemaType, currentVersion, migrations, translated, false);
+    }
+
+    public ConfigFileImpl(Plugin plugin, String name, Class<T> schemaType, int currentVersion,
+                          Map<Integer, Migration> migrations, boolean translated, boolean localizedDefaults) {
         this.plugin = plugin;
         this.name = name;
         this.schemaType = schemaType;
@@ -94,6 +101,7 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         this.currentVersion = currentVersion;
         this.migrations = migrations;
         this.translated = translated;
+        this.localizedDefaults = localizedDefaults;
         locate();
         this.values = defaults();
     }
@@ -534,8 +542,8 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
      * {@code lang/<code>/<name>.yml} is read over it, so a key it does not
      * translate keeps the English default.
      */
-    private T defaults() {
-        if (!translated) {
+    public T defaults() {
+        if (!translated && !localizedDefaults) {
             return recordDefaults();
         }
         String language = Languages.code(plugin);
@@ -551,6 +559,15 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
             if (input != null) {
                 YamlConfiguration packaged = new YamlConfiguration();
                 packaged.loadFromString(new String(input.readAllBytes(), StandardCharsets.UTF_8));
+                if (localizedDefaults && !translated) {
+                    // The language file holds only some keys. Binding it alone
+                    // would drop every map entry it does not list, so it is
+                    // laid over the English defaults first.
+                    YamlConfiguration english = new YamlConfiguration();
+                    Binder.write(english, schema, base, base, "");
+                    overlay(packaged, english);
+                    packaged = english;
+                }
                 built = Binder.read(packaged, schema, base, "", resource, new ArrayList<>());
             }
         } catch (IOException | InvalidConfigurationException failure) {
@@ -560,6 +577,19 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
         translatedDefaults = built;
         defaultsLanguage = language;
         return built;
+    }
+
+    /** Copies every key of {@code from} into {@code to}, section by section. */
+    private static void overlay(ConfigurationSection from, ConfigurationSection to) {
+        for (String key : from.getKeys(false)) {
+            Object value = from.get(key);
+            if (value instanceof ConfigurationSection section) {
+                ConfigurationSection target = to.getConfigurationSection(key);
+                overlay(section, target != null ? target : to.createSection(key));
+            } else {
+                to.set(key, value);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

@@ -313,6 +313,30 @@ value counts as the owner's and nothing is listed. Pending changes are announced
 once in the console after startup, and a player with `exylialib.updates`
 (default: op) is told on join, once per batch of changes.
 
+## Settings with texts in the server's language
+
+Since 1.571.0. A settings file that holds some player-visible text (button names, hotbar lore, join
+messages) keeps its place and its config screens, and takes the defaults of those texts from the server's
+language:
+
+```java
+Configs.define(this, "modules/hotbar/config", HotbarSettings.class).localizedDefaults().load();
+```
+
+- **The language file goes in the jar** at `src/main/resources/lang/<code>/<name>.yml`
+  (`lang/es/modules/hotbar/config.yml`) and holds only the keys it translates. Every key it leaves out
+  keeps the record's default, a map entry included: listing `buttons.selector.name` changes that name
+  and leaves `slot`, `lore` and every other button as the record has them. A list is one value.
+- **A new file is written in the server's language.** An existing one is never rewritten: its texts still
+  at their old default are listed in `/exylialib updates` (*Default changes* above), each map entry's keys
+  one by one, and a text the owner edited is theirs.
+- **Changing `language` on a running server** rebuilds the defaults on the next reload. The file stays in
+  English (or whatever it held), and every text still at the old language's default waits in
+  `/exylialib updates`; `apply all` switches them. Nothing is lost or moved.
+- **Resets in the config screens** (`ConfigEdits`, shift-right-click) put back the localized default.
+- `translated()` is for whole message files: it moves the file to `lang/<code>/` and out of the config
+  screens, and already implies this.
+
 ## Bundled files
 
 Since 1.158.0. Files a plugin ships for the owner to edit, rather than generates

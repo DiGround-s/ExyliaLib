@@ -238,6 +238,7 @@ public final class Configs {
         private final Map<Integer, Migration> migrations = new java.util.TreeMap<>();
         private int version = 1;
         private boolean translated;
+        private boolean localizedDefaults;
 
         Builder(Plugin plugin, String name, Class<T> schema) {
             this.plugin = plugin;
@@ -307,6 +308,27 @@ public final class Configs {
         }
 
         /**
+         * Takes this file's defaults from the server's language, while the file
+         * stays where it is.
+         *
+         * <p>For a settings file that holds some player-visible text: it keeps
+         * its place (and its place in the config screens), and a file packaged
+         * as {@code lang/<code>/<name>.yml} in the jar replaces the defaults of
+         * the keys it holds, typically just the texts. A key it leaves out,
+         * a map entry included, keeps the record's default. A new file is
+         * written in the server's language; an existing one is never rewritten,
+         * its texts still at an older default wait in {@code /exylialib updates}
+         * like every changed default. {@link #translated()} already implies this.
+         *
+         * @return this builder
+         * @since 1.571.0
+         */
+        public @NotNull Builder<T> localizedDefaults() {
+            this.localizedDefaults = true;
+            return this;
+        }
+
+        /**
          * Reads the file, creating or updating it as needed, and returns the
          * handle.
          *
@@ -334,7 +356,7 @@ public final class Configs {
             }
             return (ConfigFile<T>) FILES.computeIfAbsent(key, ignored -> {
                 ConfigFileImpl<T> file = new ConfigFileImpl<>(plugin, name, schema, version, Map.copyOf(migrations),
-                        translated);
+                        translated, localizedDefaults);
                 file.initialLoad();
                 return file;
             });
