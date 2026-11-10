@@ -84,8 +84,11 @@ public final class Appearance {
             if ((mask & BLOCK) != 0) out.writeUTF(block.getAsString());
             if ((mask & NAME) != 0) out.writeUTF(name);
             return raw.toByteArray();
-        } catch (IOException | RuntimeException unreadable) {
-            // A plugin's own item that will not serialise. Drawn by type alone.
+        } catch (IOException | RuntimeException | LinkageError unreadable) {
+            // A plugin's own item that will not serialise, or a plugin hooked
+            // into the entity that was built against another version of itself
+            // (EliteMobs throwing NoSuchMethodError from a name read). Drawn by
+            // type alone rather than stopping the whole sample.
             return null;
         }
     }

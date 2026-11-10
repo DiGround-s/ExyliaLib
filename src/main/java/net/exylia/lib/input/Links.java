@@ -115,12 +115,12 @@ public final class Links {
     }
 
     private static String click(@Nullable ClickEvent click) {
-        return click == null ? "" : click.action() + " " + click.value();
+        return click == null ? "" : click.action() + " " + Text.clickValue(click);
     }
 
     private static void add(List<Link> links, Set<String> seen, String words, @Nullable ClickEvent click) {
         if (click == null || links.size() >= MAX || !seen.add(click(click))) return;
-        String value = click.value();
+        String value = Text.clickValue(click);
         Link.Kind kind = switch (click.action()) {
             case OPEN_URL -> Link.Kind.OPEN_URL;
             case COPY_TO_CLIPBOARD -> Link.Kind.COPY;
@@ -128,7 +128,7 @@ public final class Links {
             case SUGGEST_COMMAND -> Link.Kind.SUGGEST_COMMAND;
             default -> null;
         };
-        if (kind == null || value.isBlank()) return;
+        if (kind == null || value == null || value.isBlank()) return;
         String label = words.isBlank() ? (kind == Link.Kind.OPEN_URL ? shown(value) : value) : words.trim();
         Component tooltip = kind == Link.Kind.COPY ? Text.component(Phrases.tr("Copies it to your clipboard")) : Component.text(value);
         links.add(new Link(Component.text(label), tooltip, kind, value));

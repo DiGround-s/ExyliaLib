@@ -1021,7 +1021,7 @@ public final class Text {
         Component result = component;
         ClickEvent click = result.clickEvent();
         if (click != null) {
-            String command = commandOf(click);
+            String command = clickValue(click);
             if (command != null) {
                 String filled = command;
                 for (Map.Entry<String, String> value : values.entrySet()) {
@@ -1059,8 +1059,9 @@ public final class Text {
      *
      * @param click the click
      * @return what it carries, or {@code null} when it is not text
+     * @since 1.571.1
      */
-    private static @Nullable String commandOf(ClickEvent click) {
+    public static @Nullable String clickValue(ClickEvent click) {
         try {
             // Adventure 5: payload().value(), on the Payload.Text interface —
             // looked up there rather than on the implementation, which is not
