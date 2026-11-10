@@ -280,6 +280,8 @@ final class LiveScreen implements ScreenSession {
     private int refreshPeriod = 20;
     /** Whether items are drawn as one sprite glyph for this viewer. */
     private final boolean spriteGlyphs;
+    /** What this viewer's client cannot draw of the {@code {icon:...}} sprites in screen text; {@code null} when it draws them all. */
+    private final net.exylia.lib.packet.internal.IconDowngrade.Limits iconLimits;
     // The cursor, the recentre and the keys below are guarded by input.
     private double cursorX, cursorY;
     private float lastYaw, lastPitch;
@@ -431,6 +433,16 @@ final class LiveScreen implements ScreenSession {
         state.putAll(Persisted.load(player, screen));
         state.putAll(screen.state());
         this.spriteGlyphs = spritesFor(player);
+        this.iconLimits = iconLimitsOf(player);
+    }
+
+    /** The icons in text this client misses: a sprite becomes its glyph, as it does in lore and on the sidebar. */
+    private static net.exylia.lib.packet.internal.IconDowngrade.Limits iconLimitsOf(Player player) {
+        try {
+            return net.exylia.lib.packet.internal.IconDowngrade.limitsOf(player);
+        } catch (RuntimeException | LinkageError noClient) {
+            return null;
+        }
     }
 
     /** Sprite glyphs need a 1.21.11+ server that draws them, a 1.21.11+ client, and the server's leave. */
@@ -2183,7 +2195,8 @@ final class LiveScreen implements ScreenSession {
     private PacketWrapper<?> text(int id, TextLook t, int glide) {
         double k = drawn(t.layer());
         double scale = t.scale() * unit * k / ScreenPackets.fontPixel();
-        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.squeeze(), t.text(), glide,
+        return ScreenPackets.text(id, t.x() * k, t.y() * k, -DEPTH + t.layer() * LAYER, scale, t.squeeze(),
+                iconLimits == null ? t.text() : net.exylia.lib.packet.internal.IconDowngrade.swap(t.text(), iconLimits), glide,
                 t.lines(), (byte) t.flags());
     }
 

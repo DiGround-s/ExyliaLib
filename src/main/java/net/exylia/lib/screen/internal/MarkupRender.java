@@ -1085,8 +1085,8 @@ public final class MarkupRender {
         String hint = el.attr("hint") == null ? null : fill(el.attr("hint"), scope, false);
         int max = el.attr("max") == null ? 32 : Math.max(1, toInt(el.attr("max")));
         Object current = session.state(key, "");
-        String label = "".equals(current) ? fill(el.text().isEmpty() ? "⌕ " + prompt : el.text(), scope, true)
-                : "⌕ " + net.exylia.lib.text.Text.escape(String.valueOf(current));
+        String label = "".equals(current) ? fill(el.text().isEmpty() ? "{icon:search} " + prompt : el.text(), scope, true)
+                : "{icon:search} " + net.exylia.lib.text.Text.escape(String.valueOf(current));
         Node field = words(label, text).id(key + ".search").onClick(event -> event.session()
                 .ask(prompt, hint, max, String.valueOf(event.session().state(key, "")))
                 .thenAccept(answer -> {

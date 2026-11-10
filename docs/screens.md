@@ -356,7 +356,7 @@ that is not well-formed throws, when it is read.
 | `img` (1.489.0) | A picture with no resource pack: `src="img/badge.png"`, read from the markup's folder (never outside it), or `skin="<player>"`, the player's whole body from the front (16 × 32, drawn once their skin has downloaded); `face="<player>"` (1.490.0) is their face with its outer layer, 8 × 8, sharper than an `<item head>` in a list. Placeholders work in both. `turn` on a `skin` picture (1.492.0) stands the body in the round, every part's four sides from the real skin, turning slowly; it is the flat picture until the skin is known. Clear pixels of a picture are see-through (1.492.0) ; `wearing="..."` (1.498.0) dresses the body, flat or turning: see [Bodies wearing a kit](#bodies-wearing-a-kit-14980) |
 | `progress` (1.488.0) | `value` and `max`: a bar, filled with the CSS `color` |
 | `modal` (1.488.0) | A dialog over everything while its `if` holds; `dismiss="<action>"` runs on a click outside, `clear <key>` by default when the `if` is a plain name |
-| `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (`⌕ value`) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
+| `search` (1.496.0) | `state="q" prompt="Search a kit" hint="..." max="16"`: a field showing what was searched (the search sprite, then the value) that asks for a new search on click, the screen stepped aside meanwhile, with a ✘ to clear it while set; filter a source with `%q%` |
 | `p` (1.496.0) | Wraps onto lines (base theme: `white-space: normal; max-width: 220px`) |
 
 A `<nl>` (or `<br>`) inside text or a value, as lore values write their line breaks, starts a new line and is measured as one (1.507.0).
@@ -510,6 +510,11 @@ party:
 ```
 
 An element with `t` holds only text (words replace its children).
+
+**Icons in words (1.568.0).** Text on a screen takes `{icon:...}` as lore does: `{icon:search} Search`,
+`{icon:up} Newest first`. A 1.21.9+ client sees the game's own sprite; an older one sees the glyph after `|` (or
+the named icon's), in the colour around it. Write a sprite, never a bare Unicode symbol (`⌕`, `⇅`, `▤`): those are
+not in the game's pixel font and are drawn thin and mismatched from the fallback font.
 
 ### Expressions (1.494.0)
 

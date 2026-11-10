@@ -37,7 +37,7 @@ elements cost nothing themselves, but a box with a `background` or an `outline` 
 | `canvas` | Sprite layer the plugin moves from Java (`session.scene("id")`); size from CSS `width`/`height` | `<canvas id="table"/>` | 1.500.0 | the sprites on it: item 1, picture 4, rect 1-2 |
 | `progress` | Bar: `value` of `max` (default 100), filled with CSS `color` | `<progress value="%xp%" max="100"/>` | 1.488.0 | 1-2 displays (filled part, rest) |
 | `modal` | Dialog over everything while its `if` holds; `dismiss="<action>"` | `<modal if="confirm" dismiss="clear confirm">` | 1.488.0 | dimmer + its content; drawn first, so it survives a tight budget |
-| `search` | Field showing `⌕ value`; click asks for text (screen stepped aside); `state`, `prompt`, `hint`, `max` | `<search state="q" prompt="Search a kit" max="16"/>` | 1.496.0 | ~2 text displays |
+| `search` | Field showing the search sprite and the value; click asks for text (screen stepped aside); `state`, `prompt`, `hint`, `max` | `<search state="q" prompt="Search a kit" max="16"/>` | 1.496.0 | ~2 text displays |
 | `fragment` | Groups children without a box of its own | `<fragment if="x">...</fragment>` | 1.494.0 | free (layout only) |
 | `for` | Repeats children per row of a source or a range, in place (no window/pager); `each="kit in kits"`, `each="i in 1..5"` (up to 256) | `<for each="i in 1..5"><box class="star"/></for>` | 1.494.0 | children x iterations |
 | `switch`, `case`, `default` | `on="expr"`; `case value="a\|b"`; only the match is drawn | `<switch on="tab"><case value="play">...</case></switch>` | 1.494.0 | free (only the chosen branch costs) |

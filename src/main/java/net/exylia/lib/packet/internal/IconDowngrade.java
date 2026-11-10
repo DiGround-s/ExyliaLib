@@ -29,11 +29,11 @@ import java.util.List;
  * against, so it is read by reflection. It only exists on a server that drew
  * a sprite, which is the only server that reaches this class with one.
  */
-final class IconDowngrade {
+public final class IconDowngrade {
 
     /** What a viewer's client cannot draw. */
-    record Limits(boolean sprites, boolean itemsAtlas) {
-        boolean any() {
+    public record Limits(boolean sprites, boolean itemsAtlas) {
+        public boolean any() {
             return sprites || itemsAtlas;
         }
     }
@@ -50,7 +50,7 @@ final class IconDowngrade {
     }
 
     /** What this viewer cannot draw, or {@code null} when the server drew no icon or the client draws them all. */
-    static @Nullable Limits limitsOf(Player viewer) {
+    public static @Nullable Limits limitsOf(Player viewer) {
         if (!Icons.sprites() || !Icons.any()) {
             return null;
         }
@@ -95,7 +95,7 @@ final class IconDowngrade {
     }
 
     /** The component with every sprite this client cannot draw replaced by its glyph; the same instance when none. */
-    static Component swap(Component component, Limits limits) {
+    public static Component swap(Component component, Limits limits) {
         Component self = component;
         String glyph = glyphFor(component, limits);
         if (glyph != null) {
