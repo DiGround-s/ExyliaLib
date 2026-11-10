@@ -85,6 +85,17 @@ final class FakeSink implements DisplaySink {
     }
 
     @Override
+    public void pose(Player viewer, DisplayState mob, Location base, DisplayState.Transform transform,
+                     boolean resize) {
+        calls.add("pose:" + name(viewer) + ":" + mob.entityId() + ":" + resize);
+    }
+
+    @Override
+    public void unteam(Player viewer, DisplayState mob) {
+        calls.add("unteam:" + name(viewer) + ":" + mob.entityId());
+    }
+
+    @Override
     public void destroy(Player viewer, int[] entityIds) {
         calls.add("destroy:" + name(viewer) + ":" + entityIds.length);
     }

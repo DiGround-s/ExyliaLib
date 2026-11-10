@@ -102,6 +102,9 @@ public final class DisplayState {
     /** What an ITEM or BLOCK display shows, resolved once at creation. */
     private final org.bukkit.Material material;
 
+    /** The mob a mob line draws instead of a display, or {@code null}. */
+    private final String mob;
+
     /** The item a head line resolved to; set once its texture is known. */
     private volatile org.bukkit.inventory.ItemStack item;
 
@@ -121,6 +124,7 @@ public final class DisplayState {
         this.properties = properties;
         this.material = material;
         this.style = style;
+        this.mob = style.isMob() && Mobs.living(style.entity()) ? style.entity() : null;
         this.text = Component.empty();
         this.transform = transformAt(0);
     }
@@ -187,6 +191,11 @@ public final class DisplayState {
 
     int entityId() {
         return entityId;
+    }
+
+    /** The {@code EntityType} name a mob line draws, or {@code null} for a display. */
+    String mob() {
+        return mob;
     }
 
     HologramConfig.Kind kind() {

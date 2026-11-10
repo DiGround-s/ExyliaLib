@@ -50,4 +50,17 @@ public interface DisplaySink {
 
     /** Removes displays from a client. */
     void destroy(Player viewer, int[] entityIds);
+
+    /**
+     * Moves a mob line, which has no transformation of its own: to
+     * {@code base} plus the transformation's translation, turned by its
+     * rotation, and, when {@code resize}, drawn at its scale.
+     */
+    default void pose(Player viewer, DisplayState mob, Location base, DisplayState.Transform transform,
+                      boolean resize) {
+    }
+
+    /** Takes the team a mob line was drawn with off a client that no longer has the mob. */
+    default void unteam(Player viewer, DisplayState mob) {
+    }
 }

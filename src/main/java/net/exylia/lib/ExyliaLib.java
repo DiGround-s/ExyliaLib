@@ -806,6 +806,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes everybody's time while the database is still open: on a full
         // stop the players are still online when plugins are disabled.
         net.exylia.lib.playtime.Playtime.releaseAll();
+        // Writes what was sampled while the database is still open.
+        net.exylia.lib.leaderboard.Leaderboards.releaseAll();
         // Writes the counted money while the database is still open.
         net.exylia.lib.ledger.Ledger.releaseAll();
         // Before the datasources and the Redis client it shares: a subscriber
@@ -867,6 +869,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Cooldowns.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.npc.PreviewSkins.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.util.NetworkCooldowns.left(event.getPlayer().getUniqueId());
+        // Before Playtime: a playtime board's last sample reads the session Playtime drops.
+        net.exylia.lib.leaderboard.Leaderboards.left(event.getPlayer());
         net.exylia.lib.playtime.Playtime.left(event.getPlayer());
         net.exylia.lib.settings.internal.SettingsRuntime.left(event.getPlayer().getUniqueId());
         net.exylia.lib.modifier.internal.ModifierRuntime.forget(event.getPlayer().getUniqueId());
@@ -959,6 +963,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.modifier.internal.ModifierRuntime.forget(id);
         net.exylia.lib.player.Accounts.joined(player);
         net.exylia.lib.playtime.Playtime.joined(player);
+        net.exylia.lib.leaderboard.Leaderboards.joined(player);
         net.exylia.lib.actionbar.internal.ActionBarRuntime.joined(player);
         // An entity timer dies with its entity, so a player who leaves during
         // the wait costs nothing and needs no online check of its own.
@@ -1271,6 +1276,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Writes the host's players' time through its database before it closes,
         // then hands hosting to the next plugin that opened it.
         net.exylia.lib.playtime.Playtime.release(plugin);
+        // Writes the host's sampled rows through its database, then hands hosting on.
+        net.exylia.lib.leaderboard.Leaderboards.release(plugin);
         // Writes the host's ledger counts through its database, then hands hosting on.
         net.exylia.lib.ledger.Ledger.release(plugin);
         // Here rather than in the event, so a plugin can still announce its

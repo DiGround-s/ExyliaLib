@@ -74,6 +74,8 @@ import net.exylia.lib.config.Time;
  * @param pageInterval ticks before each viewer is turned to the next page on
  *                     their own, 0 to only turn on a click or from code. Since
  *                     1.297.0
+ * @param view         who sees the hologram at all, per viewer: a condition,
+ *                     a permission, regions and worlds. Since 1.563.0
  * @since 1.6.0
  */
 public record HologramConfig(
@@ -94,6 +96,11 @@ public record HologramConfig(
         @Comment("  text: <frames:2> First||Second, <marquee:20> <fade> <blink>")
         @Comment("  clicks: <button:join> runs click.buttons.join when that line is clicked")
         @Comment("  who sees it: <range:8> <perm:vip.rank> <perm:!vip.rank> <if:\"%player_level% >= 10\">")
+        @Comment("    <region:spawn> <region:!pvp> <region:world:spawn> <world:world_nether> <world:!world>")
+        @Comment("  aimed at: <hover:\"{success}▶ Click to join\"> says that instead while a player looks at it")
+        @Comment("  entrance: <slide> <slide:left,time=0.6> glides the line in when it first appears")
+        @Comment("  mobs and pictures: <entity:ZOMBIE> <image:logo.png> <image:logo.png,width=24> (from images/)")
+        @Comment("  time: {countdown:2026-12-01 18:00|{success}Open now!} {date:HH:mm} {date:dd MMM yyyy Europe/Madrid}")
         @Comment("  heads: <head:Notch> <head:<uuid|base64|textures.minecraft.net url>>")
         @Comment("These lines are page 1; more pages go under 'pages'.")
         List<String> lines,
@@ -136,7 +143,10 @@ public record HologramConfig(
 
         @Comment("Ticks before each player is turned to the next page on their own. 0 turns it off.")
         @Comment("Reads a written duration too: 5s, 1m.")
-        @Time(Time.Unit.TICKS) long pageInterval) {
+        @Time(Time.Unit.TICKS) long pageInterval,
+
+        @Comment("Who sees the hologram at all, checked for each player. Leave it out for everyone in range.")
+        View view) {
 
     /** What a hologram is made of. */
     public enum Kind {
@@ -157,6 +167,106 @@ public record HologramConfig(
     public HologramConfig() {
         this(false, Kind.TEXT, List.of(), "", "", false, 48.0, 0, 0, 0,
                 new Properties(), new Refresh(), new Click(), List.of(), 0);
+    }
+
+    /**
+     * A hologram everyone in range sees, as written before 1.563.0 added
+     * {@code view}.
+     *
+     * @param enabled      whether the hologram shows at all
+     * @param type         {@code TEXT}, {@code ITEM} or {@code BLOCK}
+     * @param lines        the text lines, top first
+     * @param item         the item to show, for {@code ITEM}
+     * @param block        the block to show, for {@code BLOCK}
+     * @param perPlayer    whether every viewer gets their own copy
+     * @param viewDistance how far away a player still sees it
+     * @param offsetX      shift from the location it is shown at
+     * @param offsetY      shift from the location it is shown at
+     * @param offsetZ      shift from the location it is shown at
+     * @param properties   how it is drawn
+     * @param config       how it refreshes
+     * @param click        what clicking it does
+     * @param pages        the pages after the first
+     * @param pageInterval ticks before each viewer is turned to the next page
+     */
+    public HologramConfig(boolean enabled, Kind type, List<String> lines, String item, String block,
+                          boolean perPlayer, double viewDistance, double offsetX, double offsetY,
+                          double offsetZ, Properties properties, Refresh config, Click click,
+                          List<Page> pages, long pageInterval) {
+        this(enabled, type, lines, item, block, perPlayer, viewDistance, offsetX, offsetY, offsetZ,
+                properties, config, click, pages, pageInterval, new View());
+    }
+
+    /**
+     * This hologram with other rules for who sees it.
+     *
+     * @param view who sees it
+     * @return the changed copy
+     * @since 1.563.0
+     */
+    public HologramConfig withView(View view) {
+        return new HologramConfig(enabled, type, lines, item, block, perPlayer, viewDistance, offsetX,
+                offsetY, offsetZ, properties, config, click, pages, pageInterval, view);
+    }
+
+    /**
+     * Who sees a hologram at all, as written in config. Each rule is checked
+     * for every player in range on the visibility pass, like the line tags
+     * {@code <if>}, {@code <perm>}, {@code <region>} and {@code <world>}; a
+     * player who fails one is shown nothing, click box included.
+     *
+     * <pre>
+     * view:
+     *   condition: '%player_level% >= 10'
+     *   permission: 'arena.see'
+     *   regions: [spawn, '!pvp']
+     *   worlds: [world, world_nether]
+     * </pre>
+     *
+     * @param condition  a comparison that must hold, placeholders read for
+     *                   the viewer; empty for none
+     * @param permission a permission the viewer must have, {@code !} first to
+     *                   require lacking it; empty for none
+     * @param regions    WorldGuard regions: the viewer must stand in one of
+     *                   them and in none of the ones written {@code !id};
+     *                   {@code world:id} names the world too. Without
+     *                   WorldGuard nobody stands in a region
+     * @param worlds     worlds: the viewer must be in one of them and in none
+     *                   of the ones written {@code !name}
+     * @since 1.563.0
+     */
+    public record View(
+            @Comment("A condition every player must meet, placeholders read for them: '%player_level% >= 10'.")
+            String condition,
+
+            @Comment("A permission every player must have; start it with ! to require lacking it.")
+            String permission,
+
+            @Comment("WorldGuard regions: shown only inside one of them and outside every '!region'.")
+            @Comment("'world:spawn' names the world too. Without WorldGuard nobody is inside a region.")
+            List<String> regions,
+
+            @Comment("Worlds: shown only in one of them and in none of the '!world' ones.")
+            List<String> worlds) {
+
+        /** Everyone in range. */
+        public View() {
+            this("", "", List.of(), List.of());
+        }
+
+        public View {
+            condition = condition == null ? "" : condition.trim();
+            permission = permission == null ? "" : permission.trim();
+            regions = regions == null ? List.of() : regions.stream()
+                    .filter(entry -> entry != null && !entry.isBlank()).map(String::trim).toList();
+            worlds = worlds == null ? List.of() : worlds.stream()
+                    .filter(entry -> entry != null && !entry.isBlank()).map(String::trim).toList();
+        }
+
+        /** Whether it lets everyone in range see the hologram. */
+        public boolean everyone() {
+            return condition.isEmpty() && permission.isEmpty() && regions.isEmpty() && worlds.isEmpty();
+        }
     }
 
     /**
@@ -228,6 +338,9 @@ public record HologramConfig(
         }
         pages = pages == null ? List.of() : List.copyOf(pages);
         pageInterval = Math.max(0, pageInterval);
+        if (view == null) {
+            view = new View();
+        }
         if (viewDistance <= 0) {
             viewDistance = 48.0;
         }
@@ -471,6 +584,18 @@ public record HologramConfig(
      * @param buttons    click lines by button name: a line tagged
      *                   {@code <button:name>} runs these instead of
      *                   {@code commands} when that line is clicked. Since 1.301.0
+     * @param range      how far away it can be aimed at, in blocks. Since 1.303.0
+     * @param permission what a player needs to click it, {@code !} first to
+     *                   require lacking it; empty for everyone. Since 1.563.0
+     * @param deniedMessage   sent to a player who clicks without
+     *                        {@code permission}; empty to stay silent. Since
+     *                        1.563.0
+     * @param cooldownMessage sent to a player who clicks again within
+     *                        {@code cooldown}, {@code %time%} being the time
+     *                        left; empty to stay silent. Since 1.563.0
+     * @param buttonPermissions what a player needs to click one button, by
+     *                          button name, over {@code permission}. Since
+     *                          1.563.0
      * @since 1.287.0
      */
     public record Click(
@@ -514,7 +639,19 @@ public record HologramConfig(
             @Comment("A left-click, or a right-click holding an item, reaches this far. A right-click")
             @Comment("with an empty hand only reaches as far as the game lets a hand touch an entity")
             @Comment("(3 blocks in survival), because the client sends nothing for it further away.")
-            double range) {
+            double range,
+
+            @Comment("What a player needs to click it; start it with ! to require lacking it. Empty for everyone.")
+            String permission,
+
+            @Comment("Sent to a player who clicks without that permission. Empty to say nothing.")
+            String deniedMessage,
+
+            @Comment("Sent to a player who clicks again too soon; %time% is the time left. Empty to say nothing.")
+            String cooldownMessage,
+
+            @Comment("A permission of its own for a button, by button name, over the one above.")
+            Map<String, String> buttonPermissions) {
 
         /** How far a player can aim at a hologram unless {@link #range} says otherwise. */
         public static final double DEFAULT_RANGE = 8.0;
@@ -573,7 +710,70 @@ public record HologramConfig(
          */
         public Click withRange(double range) {
             return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
-                    buttons, range);
+                    buttons, range, permission, deniedMessage, cooldownMessage, buttonPermissions);
+        }
+
+        /**
+         * A click section as written before 1.563.0 added the click
+         * permission and its messages: anybody can click, and a refused click
+         * says nothing.
+         *
+         * @param commands   what runs
+         * @param width      how wide the box is
+         * @param cooldown   milliseconds between two clicks of the same player
+         * @param hoverScale how much bigger it grows while looked at
+         * @param style      {@code BUTTON} or {@code NONE}
+         * @param color      the panel colour at rest
+         * @param hoverColor the panel colour while looked at
+         * @param sound      a sound for every click
+         * @param buttons    click lines by button name
+         * @param range      how far away it can be aimed at
+         */
+        public Click(List<String> commands, double width, long cooldown, double hoverScale,
+                     String style, String color, String hoverColor, String sound,
+                     Map<String, List<String>> buttons, double range) {
+            this(commands, width, cooldown, hoverScale, style, color, hoverColor, sound, buttons,
+                    range, "", "", "", Map.of());
+        }
+
+        /**
+         * This section with a click permission.
+         *
+         * @param permission    what a player needs to click it, {@code !} first
+         *                      to require lacking it; empty for everyone
+         * @param deniedMessage what a player without it is told; empty for nothing
+         * @return the changed copy
+         * @since 1.563.0
+         */
+        public Click withPermission(String permission, String deniedMessage) {
+            return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
+                    buttons, range, permission, deniedMessage, cooldownMessage, buttonPermissions);
+        }
+
+        /**
+         * This section telling a player who clicks too soon how long is left.
+         *
+         * @param cooldownMessage the message, {@code %time%} the time left;
+         *                        empty for nothing
+         * @return the changed copy
+         * @since 1.563.0
+         */
+        public Click withCooldownMessage(String cooldownMessage) {
+            return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
+                    buttons, range, permission, deniedMessage, cooldownMessage, buttonPermissions);
+        }
+
+        /**
+         * What a player needs to click a button, or the hologram as a whole.
+         *
+         * @param button the button's name, {@code null} for the whole hologram
+         * @return the permission, {@code !} first to require lacking it; empty
+         *         for everyone
+         * @since 1.563.0
+         */
+        public String permissionFor(String button) {
+            String own = button == null ? null : buttonPermissions.get(button);
+            return own != null ? own : permission;
         }
 
         /**
@@ -598,7 +798,7 @@ public record HologramConfig(
          */
         public Click withButtons(Map<String, List<String>> buttons) {
             return new Click(commands, width, cooldown, hoverScale, style, color, hoverColor, sound,
-                    buttons, range);
+                    buttons, range, permission, deniedMessage, cooldownMessage, buttonPermissions);
         }
 
         /**
@@ -629,6 +829,20 @@ public record HologramConfig(
                 range = DEFAULT_RANGE;
             }
             range = Math.min(range, 32);
+            permission = permission == null ? "" : permission.trim();
+            deniedMessage = deniedMessage == null ? "" : deniedMessage;
+            cooldownMessage = cooldownMessage == null ? "" : cooldownMessage;
+            if (buttonPermissions == null || buttonPermissions.isEmpty()) {
+                buttonPermissions = Map.of();
+            } else {
+                Map<String, String> kept = new java.util.LinkedHashMap<>();
+                buttonPermissions.forEach((name, needed) -> {
+                    if (name != null && needed != null) {
+                        kept.put(name, needed.trim());
+                    }
+                });
+                buttonPermissions = java.util.Collections.unmodifiableMap(kept);
+            }
             if (buttons == null || buttons.isEmpty()) {
                 buttons = Map.of();
             } else {

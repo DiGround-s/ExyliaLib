@@ -1287,4 +1287,197 @@ class HologramTest {
         assertEquals(2, near.commands().size(), "looking away, or past its 8 blocks, clicks nothing");
         assertTrue(hologram.isViewing(near.player()));
     }
+    // ------------------------------------------------------------------
+    // 1.563.0: time, hover, places, view, mobs, slides, images, click access
+    // ------------------------------------------------------------------
+
+    private static HologramConfig.Click clicks(List<String> commands) {
+        return new HologramConfig.Click(commands, 1.5, 500);
+    }
+
+    @Test
+    @DisplayName("a countdown line is drawn again every second on its own, other lines are not")
+    void countdownsTickEverySecond() {
+        // The clock reads 10 s after the epoch: count to a minute after it.
+        HologramConfig config = new HologramConfig(true, HologramConfig.Kind.TEXT,
+                List.of("{countdown:1970-01-01 00:01:00 UTC|Open}", "Static"), "", "", false, 32.0, 0, 0, 0,
+                new HologramConfig.Properties(), new HologramConfig.Refresh(1200, true));
+        Holograms.show(plugin, "clock", spawn(), config);
+        drive();
+        assertEquals(List.of("50s", "Static"), sink.spawnedText);
+        sink.clear();
+
+        advanceSeconds(1);
+        FakeServer.tick(1);
+        assertEquals(List.of("text:Near:1000:49s"), sink.calls("text"));
+
+        sink.clear();
+        FakeServer.tick(1);
+        assertEquals(0, sink.count("text"), "nothing new within the same second");
+
+        advanceSeconds(60);
+        FakeServer.tick(1);
+        assertEquals(List.of("text:Near:1000:Open"), sink.calls("text"));
+    }
+
+    @Test
+    @DisplayName("a hover line says its hover text while aimed at, with no click box, and goes back after")
+    void hoverTextSwaps() {
+        Hologram hologram = Holograms.show(plugin, "sign", new Location(world, 0, 65.5, 0),
+                text(List.of("Title", "<hover:Look>Rest")));
+        near.at(new Location(world, 0, 64, -3, 0, 0));
+        drive();
+        assertEquals(0, sink.count("hitbox"), "hover alone makes nothing clickable");
+        assertEquals(1, hologram.viewerCount());
+
+        drive();
+        assertEquals(List.of("text:Near:1001:Look"), sink.calls("text"));
+        assertEquals(0, sink.count("transform"), "nothing to click, so it does not grow");
+
+        sink.clear();
+        near.at(new Location(world, 0, 64, -3, 180, 0));
+        drive();
+        assertEquals(List.of("text:Near:1001:Rest"), sink.calls("text"));
+    }
+
+    @Test
+    @DisplayName("world and region tags pick lines by where the viewer stands; without WorldGuard nobody is in a region")
+    void worldAndRegionLines() {
+        Holograms.show(plugin, "where", spawn(), text(List.of(
+                "<world:world>A", "<world:!world>B", "<region:spawn>C", "<region:!spawn>D", "<world:nether>E")));
+        drive();
+
+        assertEquals(List.of("A", "D"), sink.spawnedText);
+    }
+
+    @Test
+    @DisplayName("the view section hides the whole hologram, click box included, from who fails it")
+    void viewHidesTheHologram() {
+        near.grant("arena.see");
+        far.at(new Location(world, 1, 64, 0));
+        HologramConfig config = clickable(List.of("A", "B"), clicks(List.of("go")))
+                .withView(new HologramConfig.View("", "arena.see", List.of(), List.of("world")));
+        Hologram hologram = Holograms.show(plugin, "vip", spawn(), config);
+        drive();
+
+        assertEquals(1, hologram.viewerCount());
+        assertTrue(sink.calls().stream().noneMatch(call -> call.contains(":Far:")));
+        assertEquals(1, sink.count("hitbox"));
+
+        sink.clear();
+        Hologram elsewhere = Holograms.show(plugin, "nether", spawn(),
+                text(List.of("A")).withView(new HologramConfig.View("", "", List.of(), List.of("!world"))));
+        drive();
+        assertEquals(0, elsewhere.viewerCount());
+        assertTrue(new HologramConfig().view().everyone(), "an unwritten section lets everyone see it");
+    }
+
+    @Test
+    @DisplayName("a mob line is a living entity of its own that takes the hologram's clicks, moved by poses")
+    void mobLines() {
+        Hologram hologram = Holograms.show(plugin, "pet", spawn(), clickable(
+                List.of("<entity:ZOMBIE><spin>", "Name"), clicks(List.of("pet"))));
+        drive();
+        DisplayState mob = sink.spawnedDisplays.get(0);
+        assertEquals("ZOMBIE", mob.mob());
+        assertTrue(HologramRuntime.isHitbox(mob.entityId()), "a click on the mob is a click on the hologram");
+        sink.clear();
+
+        advanceSeconds(0.2);
+        FakeServer.tick(1);
+        assertTrue(sink.count("pose") > 0, "a spinning mob is posed");
+        assertTrue(sink.calls("transform").stream().noneMatch(call -> call.contains(":" + mob.entityId() + ":")),
+                "a mob is never sent a display's transformation");
+
+        sink.clear();
+        hologram.remove();
+        assertEquals(List.of("unteam:Near:" + mob.entityId()), sink.calls("unteam"));
+        assertFalse(HologramRuntime.isHitbox(mob.entityId()));
+    }
+
+    @Test
+    @DisplayName("a mob line whose type is not a living entity is stone")
+    void unknownMobsAreStone() {
+        Holograms.show(plugin, "pet", spawn(), text(List.of("<entity:DIAMOND>")));
+        drive();
+        assertEquals(null, sink.spawnedDisplays.get(0).mob());
+        assertEquals(HologramConfig.Kind.ITEM, sink.spawnedDisplays.get(0).kind());
+    }
+
+    @Test
+    @DisplayName("a sliding line is spawned off to its side and glides into place a tick later")
+    void slidesIn() {
+        Holograms.show(plugin, "slide", spawn(), text(List.of("<slide:left,time=0.6>A", "B")));
+        drive();
+        assertEquals(-0.5f, sink.spawnedTransforms.get(0).tx(), 1e-4);
+        assertEquals(0f, sink.spawnedTransforms.get(1).tx(), 1e-4);
+        sink.clear();
+
+        advanceSeconds(0.05);
+        FakeServer.tick(1);
+        assertEquals(List.of("transform:Near:1000:12"), sink.calls("transform"));
+
+        sink.clear();
+        advanceSeconds(1);
+        FakeServer.tick(1);
+        assertEquals(0, sink.count("transform"), "it slides once");
+    }
+
+    @Test
+    @DisplayName("an image line draws the owning plugin's picture as pixel glyphs")
+    void imageLines(@org.junit.jupiter.api.io.TempDir java.nio.file.Path folder) throws Exception {
+        java.nio.file.Path images = java.nio.file.Files.createDirectories(folder.resolve("images"));
+        java.awt.image.BufferedImage picture = new java.awt.image.BufferedImage(4, 2,
+                java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < 4; x++) {
+            picture.setRGB(x, 0, 0xFFFF0000);
+            picture.setRGB(x, 1, 0xFF0000FF);
+        }
+        javax.imageio.ImageIO.write(picture, "png", images.resolve("logo.png").toFile());
+        Plugin owner = FakeServer.newPlugin("HologramImages", folder.toFile());
+
+        Holograms.show(owner, "logo", spawn(), text(List.of("<image:logo.png>", "<image:logo.png,width=2>",
+                "<image:missing.png>Gone")));
+        drive();
+
+        assertEquals("████\n████", sink.spawnedText.get(0), "one glyph a pixel, one row of text a row");
+        assertEquals("██", sink.spawnedText.get(1), "half as wide is half as tall");
+        assertEquals("Gone", sink.spawnedText.get(2), "a missing picture leaves the line's text");
+        Holograms.removeAll(owner);
+    }
+
+    @Test
+    @DisplayName("a click without the permission runs nothing and says so; one too soon says how long is left")
+    void clickPermissionAndCooldownMessage() {
+        HologramConfig.Click click = clicks(List.of("go")).withPermission("arena.use", "No access")
+                .withCooldownMessage("Wait %time%");
+        Holograms.show(plugin, "door", spawn(), clickable(List.of("Door"), click));
+        drive();
+        int box = Integer.parseInt(sink.calls("hitbox").get(0).split(":")[2]);
+
+        HologramRuntime.clicked(near.player(), box);
+        HologramRuntime.clicked(near.player(), box);
+        FakeServer.tick(1);
+        assertEquals(List.of(), near.commands());
+        assertEquals(List.of("No access"), near.messages(), "a double-fired press is told once");
+
+        near.grant("arena.use");
+        advanceSeconds(1);
+        HologramRuntime.clicked(near.player(), box);
+        advanceSeconds(0.3);
+        HologramRuntime.clicked(near.player(), box);
+        FakeServer.tick(1);
+        assertEquals(List.of("go"), near.commands());
+        assertEquals(List.of("No access", "Wait 0.2s"), near.messages());
+    }
+
+    @Test
+    @DisplayName("a button can ask for a permission of its own")
+    void buttonPermissions() {
+        HologramConfig.Click click = new HologramConfig.Click(List.of(), 1.5, 500, 1.08, "NONE", "", "", "",
+                Map.of("join", List.of("join")), 8, "", "", "", Map.of("join", "arena.join"));
+        assertEquals("arena.join", click.permissionFor("join"));
+        assertEquals("", click.permissionFor(null));
+        assertEquals("", click.permissionFor("spectate"));
+    }
 }

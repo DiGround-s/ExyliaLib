@@ -98,7 +98,7 @@ public final class Pictures {
      * takes the colour behind it, a partly see-through one is mixed over it: there is no see-through glyph. Safe
      * from any thread; the same pixels give the same component instance while it stays cached.
      */
-    static net.kyori.adventure.text.Component glyphs(int[] argb, int w, int h, int behind) {
+    public static net.kyori.adventure.text.Component glyphs(int[] argb, int w, int h, int behind) {
         return GLYPHS.get(new Glyphs(argb, w, behind), key -> build(argb, w, h, behind));
     }
 

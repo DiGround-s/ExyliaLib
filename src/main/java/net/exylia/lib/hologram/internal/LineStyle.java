@@ -73,6 +73,15 @@ import java.util.Locale;
  * @param marqueeSpeed characters a second it scrolls
  * @param scramble   characters a second that settle when first seen, 0 for none
  * @param button     the name of its own click lines, or {@code null}
+ * @param hover      what it says while aimed at, or {@code null}
+ * @param region     a WorldGuard region the viewer must (or, {@code !}
+ *                   first, must not) stand in, or {@code null}
+ * @param world      a world the viewer must (or must not) be in, or {@code null}
+ * @param entity     the mob a mob line shows, or {@code null}
+ * @param slide      the side it glides in from when first shown, or {@code null}
+ * @param slideTime  seconds the slide takes
+ * @param image      the PNG an image line draws, or {@code null}
+ * @param imageWidth how many pixels wide, 0 for the picture's own
  */
 record LineStyle(String model, boolean block, double size, Integer opacity, String background,
                  Boolean shadow, String glow, double spin, double bob, double pulse,
@@ -82,7 +91,9 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                  boolean autoscale, HologramConfig.DistanceScale curve, double shineSpeed,
                  double shinePause, double shineWidth, double bobPeriod, double pulsePeriod,
                  double sway, double swayPeriod, double frames, double rainbow, double fade,
-                 double blink, int marquee, double marqueeSpeed, double scramble, String button) {
+                 double blink, int marquee, double marqueeSpeed, double scramble, String button,
+                 String hover, String region, String world, String entity, String slide,
+                 double slideTime, String image, int imageWidth) {
 
     static final LineStyle PLAIN = of(HologramLine.of(""));
 
@@ -114,7 +125,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
      */
     static LineStyle of(HologramLine line) {
         String model = line.block() != null ? line.block()
-                : line.head() != null ? "PLAYER_HEAD" : line.item();
+                : line.head() != null ? "PLAYER_HEAD"
+                : line.entity() != null ? line.entity() : line.item();
         return new LineStyle(model, line.block() != null,
                 line.size() == null ? 1.0 : Math.clamp(line.size(), 0.1, 10.0),
                 line.opacity() == null ? null : Math.clamp(line.opacity(), 0, 255),
@@ -149,7 +161,9 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                 line.marquee() == null ? 0 : Math.clamp(line.marquee(), 1, 200),
                 or(line.marqueeSpeed(), 6, 0.5, 40),
                 line.scramble() == null ? 0 : Math.clamp(line.scramble(), 1, 1000),
-                line.button());
+                line.button(), line.hover(), line.region(), line.world(), line.entity(),
+                line.slide(), or(line.slideTime(), 0.6, 0.05, 10),
+                line.image(), line.imageWidth() == null ? 0 : Math.clamp(line.imageWidth(), 1, 96));
     }
 
     private static double or(Double value, double fallback, double min, double max) {
@@ -191,20 +205,31 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
 
     /** Whether some viewers in range may still not be shown this line. */
     boolean conditional() {
-        return condition != null || permission != null || range > 0;
+        return condition != null || permission != null || range > 0 || region != null || world != null;
     }
+
+    /** Whether it is a mob rather than a display. */
+    boolean isMob() {
+        return entity != null;
+    }
+
+    /** How much smaller an image line is drawn than text: a pixel of it is about a sixteenth of a block. */
+    static final double IMAGE_SCALE = 0.28;
 
     /** The hologram's properties with this line's overrides and size applied. */
     HologramConfig.Properties apply(HologramConfig.Properties base) {
-        double scale = isModel() ? size * MODEL_HEIGHT : size;
+        // A mob is drawn at its own size, an image a sixteenth of a block a pixel.
+        double scale = isMob() ? size : isModel() ? size * MODEL_HEIGHT : image != null ? size * IMAGE_SCALE : size;
         // A block has no front to turn towards the player: it would swing
         // around its corner instead, unless the line asks for it.
         String turn = billboard != null ? billboard : block ? "FIXED" : base.billboard();
         return new HologramConfig.Properties(turn, align == null ? base.alignment() : align,
                 base.scaleX() * scale, base.scaleY() * scale, base.scaleZ() * scale,
-                shadow == null ? base.shadow() : shadow,
+                // A shadow would draw every pixel of a picture twice.
+                shadow != null ? shadow : image == null && base.shadow(),
                 seeThrough == null ? base.seeThrough() : seeThrough,
-                lineWidth == null ? base.lineWidth() : lineWidth, base.lineSpacing(),
+                // An image's rows end in newlines of their own, so it never wraps.
+                lineWidth != null ? lineWidth : image != null ? 10_000 : base.lineWidth(), base.lineSpacing(),
                 opacity == null ? base.textOpacity() : opacity,
                 base.defaultBackground() && background == null,
                 background == null ? base.backgroundColor() : background,
@@ -214,6 +239,9 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
 
     /** The vertical room the line itself takes, without its gap. */
     double height(HologramConfig.Properties base) {
+        if (isMob()) {
+            return Mobs.height(entity) * size * base.scaleY();
+        }
         return isModel() ? MODEL_HEIGHT * size * base.scaleY() : base.lineSpacing() * size;
     }
 }

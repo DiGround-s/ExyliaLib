@@ -51,6 +51,12 @@ public final class HologramRuntime {
     /** Every hologram by the id of its click box, which is how a click finds it. */
     private static final Map<Integer, HologramImpl> BY_HITBOX = new ConcurrentHashMap<>();
 
+    /**
+     * Every hologram by the ids of its mob lines: a mob stands in front of the
+     * click box, so a click on it is a click on the hologram.
+     */
+    private static final Map<Integer, HologramImpl> BY_MOB = new ConcurrentHashMap<>();
+
     /** The holograms riding an entity, which is all a spawn or respawn packet is checked against. */
     private static final java.util.Set<HologramImpl> MOUNTED = ConcurrentHashMap.newKeySet();
 
@@ -130,12 +136,15 @@ public final class HologramRuntime {
 
     /** Whether an entity id is a hologram's click box. */
     static boolean isHitbox(int entityId) {
-        return BY_HITBOX.containsKey(entityId);
+        return BY_HITBOX.containsKey(entityId) || BY_MOB.containsKey(entityId);
     }
 
     /** A player clicked an entity id that is a hologram's click box. */
     static void clicked(Player player, int entityId, net.exylia.lib.interaction.Click click) {
         HologramImpl hologram = BY_HITBOX.get(entityId);
+        if (hologram == null) {
+            hologram = BY_MOB.get(entityId);
+        }
         if (hologram != null) {
             hologram.clicked(player, click);
         }
@@ -238,6 +247,7 @@ public final class HologramRuntime {
                 retire(previous);
             }
             BY_HITBOX.put(hologram.hitboxId(), hologram);
+            mobs(hologram, true);
             ensureDriver();
         }
         return hologram;
@@ -320,6 +330,7 @@ public final class HologramRuntime {
             }
             BY_OWNER.clear();
             BY_HITBOX.clear();
+            BY_MOB.clear();
             MOUNTED.clear();
             stopDriverLocked();
             if (clicks != null) {
@@ -412,7 +423,22 @@ public final class HologramRuntime {
         for (Player viewer : viewersOf(hologram)) {
             hologram.despawnFor(viewer);
         }
+        mobs(hologram, false);
         hologram.rebuildDisplays();
+        if (!hologram.removed()) {
+            mobs(hologram, true);
+        }
+    }
+
+    /** Files a hologram's mob lines under it for clicks, or takes them out. */
+    private static void mobs(HologramImpl hologram, boolean add) {
+        for (int id : hologram.mobIds()) {
+            if (add) {
+                BY_MOB.put(id, hologram);
+            } else {
+                BY_MOB.remove(id);
+            }
+        }
     }
 
     /** Gives viewers the hologram again, for a change only a spawn carries. */
@@ -423,6 +449,7 @@ public final class HologramRuntime {
     private static void retire(HologramImpl hologram) {
         hologram.markRemoved();
         BY_HITBOX.remove(hologram.hitboxId());
+        mobs(hologram, false);
         MOUNTED.remove(hologram);
     }
 

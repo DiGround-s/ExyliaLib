@@ -20,7 +20,13 @@ import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
+import com.github.retrooper.packetevents.protocol.attribute.Attributes;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityHeadLook;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUpdateAttributes;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
@@ -82,6 +88,10 @@ final class DisplayPackets implements DisplaySink {
     @Override
     public void spawn(Player viewer, DisplayState display, Location at, Component text,
                       DisplayState.Transform transform) {
+        if (display.mob() != null) {
+            spawnMob(viewer, display, at, transform);
+            return;
+        }
         send(viewer, new WrapperPlayServerSpawnEntity(
                 display.entityId(),
                 Optional.of(UUID.randomUUID()),
@@ -268,6 +278,82 @@ final class DisplayPackets implements DisplaySink {
     @Override
     public void destroy(Player viewer, int[] entityIds) {
         send(viewer, new WrapperPlayServerDestroyEntities(entityIds));
+    }
+
+    /** Mob metadata, from the vanilla protocol: silent, and no gravity. */
+    private static final int MOB_SILENT = 4;
+    private static final int MOB_NO_GRAVITY = 5;
+
+    /**
+     * A mob line: a living entity only this client knows of, so the server
+     * never ticks it. It has no transformation, so where the stack puts it and
+     * how it moves are its position and heading, and its size the scale
+     * attribute (1.20.5+; an older client draws it at its own size).
+     *
+     * <p>A team of its own, named after its id, hides any nametag, keeps it from
+     * pushing the viewer, and carries the colour of its glow.
+     */
+    private void spawnMob(Player viewer, DisplayState display, Location at, DisplayState.Transform transform) {
+        EntityType type = SpigotConversionUtil.fromBukkitEntityType(org.bukkit.entity.EntityType.valueOf(display.mob()));
+        UUID uuid = UUID.randomUUID();
+        float yaw = yawOf(at, transform);
+        send(viewer, new WrapperPlayServerSpawnEntity(display.entityId(), Optional.of(uuid), type,
+                new Vector3d(at.getX() + transform.tx(), at.getY() + transform.ty(), at.getZ() + transform.tz()),
+                0f, yaw, yaw, 0, Optional.empty()));
+        Integer glow = display.glowRgb();
+        send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(), List.of(
+                new EntityData<>(DisplayState.ENTITY_FLAGS, EntityDataTypes.BYTE,
+                        glow != null ? DisplayState.FLAG_GLOWING : (byte) 0),
+                new EntityData<>(MOB_SILENT, EntityDataTypes.BOOLEAN, true),
+                new EntityData<>(MOB_NO_GRAVITY, EntityDataTypes.BOOLEAN, true))));
+        send(viewer, new WrapperPlayServerEntityHeadLook(display.entityId(), yaw));
+        NamedTextColor colour = glow == null || glow < 0 ? NamedTextColor.WHITE
+                : NamedTextColor.nearestTo(TextColor.color(glow));
+        send(viewer, new WrapperPlayServerTeams(team(display), WrapperPlayServerTeams.TeamMode.CREATE,
+                new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
+                        Component.empty(), WrapperPlayServerTeams.NameTagVisibility.NEVER,
+                        WrapperPlayServerTeams.CollisionRule.NEVER, colour,
+                        WrapperPlayServerTeams.OptionData.NONE), uuid.toString()));
+        if (transform.sx() != 1f) {
+            size(viewer, display, transform.sx());
+        }
+    }
+
+    @Override
+    public void pose(Player viewer, DisplayState mob, Location base, DisplayState.Transform transform,
+                     boolean resize) {
+        float yaw = yawOf(base, transform);
+        send(viewer, new WrapperPlayServerEntityTeleport(mob.entityId(), new Vector3d(base.getX() + transform.tx(),
+                base.getY() + transform.ty(), base.getZ() + transform.tz()), yaw, 0f, false));
+        send(viewer, new WrapperPlayServerEntityHeadLook(mob.entityId(), yaw));
+        if (resize) {
+            size(viewer, mob, transform.sx());
+        }
+    }
+
+    @Override
+    public void unteam(Player viewer, DisplayState mob) {
+        send(viewer, new WrapperPlayServerTeams(team(mob), WrapperPlayServerTeams.TeamMode.REMOVE,
+                Optional.<WrapperPlayServerTeams.ScoreBoardTeamInfo>empty(), List.of()));
+    }
+
+    private static String team(DisplayState mob) {
+        return "exhm" + mob.entityId();
+    }
+
+    private static void size(Player viewer, DisplayState mob, float scale) {
+        if (PacketEvents.getAPI().getServerManager().getVersion()
+                .isOlderThan(com.github.retrooper.packetevents.manager.server.ServerVersion.V_1_20_5)) {
+            return;
+        }
+        send(viewer, new WrapperPlayServerUpdateAttributes(mob.entityId(), List.of(
+                new WrapperPlayServerUpdateAttributes.Property(Attributes.SCALE, Math.max(0.0625, scale), List.of()))));
+    }
+
+    /** The heading a turned transformation stands for: a display turns the other way round from a yaw. */
+    static float yawOf(Location base, DisplayState.Transform transform) {
+        double turned = Math.toDegrees(2 * Math.atan2(transform.qy(), transform.qw()));
+        return (float) (base.getYaw() - turned);
     }
 
     /**

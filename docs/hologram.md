@@ -23,9 +23,10 @@ Holograms.show(this, "trophy", location, config.trophy());
 | `offsetX/Y/Z` | position adjustment |
 | `kind` | `TEXT`, `ITEM` or `BLOCK` |
 | `properties` | `billboard`, `alignment`, `scaleX/Y/Z`, and more display properties; `distance-scale` grows it with the viewer's distance (since 1.301.0, see [Size by distance](#size-by-distance)) |
-| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0); `style`, `color`, `hover-color`, `sound`, `buttons` (since 1.301.0, see [Buttons](#buttons)); `range` (since 1.303.0, see [Reach](#reach)) |
+| `click` | `commands`, `width`, `cooldown`, `hover-scale`: what clicking it does (since 1.287.0; `hover-scale` since 1.288.0); `style`, `color`, `hover-color`, `sound`, `buttons` (since 1.301.0, see [Buttons](#buttons)); `range` (since 1.303.0, see [Reach](#reach)); `permission`, `denied-message`, `cooldown-message`, `button-permissions` (since 1.563.0, see [Who may click](#who-may-click)) |
 | `pages` | more pages after `lines`, each with its own `lines` and `click` lines (since 1.297.0) |
 | `page-interval` | ticks before each viewer is turned to the next page on their own; 0 is off (since 1.297.0) |
+| `view` | `condition`, `permission`, `regions`, `worlds`: who sees the hologram at all, checked per player; left out, everyone in range (since 1.563.0, see [Where the viewer stands](#where-the-viewer-stands)) |
 
 The YML keys match what ExyliaCommons' `HologramTemplateSerializer` wrote,
 minus the ones that mean nothing here (chunks, disk persistence — a hologram
@@ -88,6 +89,19 @@ Since 1.301.0:
 | `<blink>` / `<blink:0.5>` | the text shows and hides, once every that many seconds (default 1, shown two thirds of it) |
 | `<scramble>` / `<scramble:30>` | when a player first sees the line, random glyphs settle into it from the left, in characters a second (default 20); spaces stay spaces |
 | `<button:join>` | the line is a button of its own: clicking it runs `click.buttons.join` instead of `click.commands`, and only it lights up and grows (see [Buttons](#buttons)) |
+
+Since 1.563.0:
+
+| Tag | Effect |
+| --- | --- |
+| `{countdown:2026-12-01 18:00}` | anywhere in the text: the time left, `24d 6h 26m 12s`, leading zero units left out; the date is `yyyy-MM-dd HH:mm:ss`, `yyyy-MM-dd HH:mm` or `yyyy-MM-dd`, with an optional zone after a space (`2026-12-01 18:00 Europe/Madrid`; default the server's). Passed, it reads `0s`, or the text after a bar: `{countdown:2026-12-01 18:00\|{success}Open now!}` (see [Time in a line](#time-in-a-line)) |
+| `{date:HH:mm}` / `{date:dd MMM yyyy}` | anywhere in the text: now, in a Java date pattern, English names, same optional zone |
+| `<hover:"{success}▶ Click to join">` | while a player aims at the hologram, or at this line when it is a `<button>`, the line says this instead; its other tags still apply (see [Hover text](#hover-text)) |
+| `<region:spawn>` / `<region:!spawn>` / `<region:world:spawn>` | only shown to players standing in (or outside) that WorldGuard region; `world:` names its world too. Without WorldGuard nobody stands in a region |
+| `<world:world_nether>` / `<world:!world>` | only shown to players in (or not in) that world |
+| `<entity:ZOMBIE>` | the line is a mob, any living entity type, drawn in the stack like an item line and never ticked by the server; takes `<size>`, `<spin>`, `<sway>`, `<bob>`, `<glow>` / `<glow:#hex>` (see [Mob lines](#mob-lines)) |
+| `<slide>` / `<slide:left>` / `<slide:down,time=0.4>` | when the line first appears for a player it glides in from that side (`up`, the default, `down`, `left` or `right`) over `time` seconds (default 0.6), per player like typewriter |
+| `<image:logo.png>` / `<image:logo.png,width=24>` | the line is a picture from the plugin's `images/` folder, drawn as coloured pixel glyphs, `width` pixels across (default its own, at most 96) (see [Images](#images)) |
 
 Options are written `key=value` after the tag's value, separated by commas. An
 unknown option, or one that is not a number, keeps the whole tag in the text,
@@ -171,6 +185,136 @@ four), plus once to restore the plain line.
 for them. Changes to that line wait until it is fully typed, and colours and
 styles are never cut.
 
+**Slide** spawns the line half a block off to its side for that player and,
+a tick later, sends it one transformation gliding home over `time`. It costs
+one packet per line as it appears, and nothing after. A line that also moves
+(`<spin>`, `<bob>`) takes up its motion on the next keyframe.
+
+## Time in a line
+
+Since 1.563.0 a line can count down to a moment and tell the time, with no
+placeholder plugin:
+
+```yaml
+lines:
+  - '<size:1.6>{primary}&lSEASON III'
+  - '{letters}Opens in {highlight}{countdown:2026-12-01 18:00 Europe/Madrid|{success}now!}'
+  - '{muted}Server time {date:HH:mm}'
+```
+
+- **A line holding a token is drawn again once a second, on its own,**
+  whatever the hologram's `refresh` interval, and re-sent only when its text
+  changed. The other lines keep their interval; a hologram without tokens
+  ticks nothing.
+- A countdown rounds up, so it never reads `0s` while the moment is still
+  ahead, and drops only its leading zero units (`5m 0s`, `12s`).
+- The date can be a placeholder: `{countdown:%event_start%}` reads the date
+  the placeholder resolves to for that viewer.
+- A token that does not read (`{countdown:soon}`) stays in the text as written.
+- The resolver is public, `net.exylia.lib.text.TimeTokens`
+  (`resolve(text)`, `resolve(text, nowMillis)`, `contains(text)`,
+  `countdown(seconds)`), for scoreboards and other text that wants the same
+  tokens.
+
+## Hover text
+
+Since 1.563.0 `<hover:"...">` gives a line a second text for while a player
+aims at the hologram:
+
+```yaml
+lines:
+  - '<item:DIAMOND_SWORD><spin>'
+  - '{primary}&lTHE ARENA'
+  - '<hover:"{success}▶ Click to join">{letters_black}Ranked · 1v1'
+  - '<button:spectate><hover:"{info}▶ Watch a match">{info}Spectate'
+```
+
+- On a plain line it shows while the player's line of sight crosses the
+  hologram (the click box's shape, `click.width` wide and `click.range` far);
+  on a `<button>` line, only while that button is aimed at.
+- **A hologram that cannot be clicked still tracks aim for its hover lines,**
+  on the visibility pass (four times a second), with no click box and no
+  extra entity; it does not grow, since there is nothing to click.
+- The hover text takes the line's other tags (size, shine, background...),
+  and is drawn when the aim starts; looking away sends the line's own text
+  back, whole. A line aimed at while it is being typed in shows its hover
+  text at once.
+
+## Where the viewer stands
+
+`<world>` and `<region>` (since 1.563.0) hide a line from players elsewhere,
+on the same per-viewer pass as `<range>`, `<perm>` and `<if>`. The whole
+hologram can ask the same with a `view` section:
+
+```yaml
+view:
+  condition: '%player_level% >= 10'
+  permission: 'arena.see'      # '!arena.see' for players without it
+  regions: [spawn, '!pvp']     # in spawn, and not in pvp
+  worlds: [world, world_nether]
+```
+
+- **One rule for lists.** When any entry is written plain, the player must
+  match one of them; and they must match none of the `!` entries. A line tag
+  is a list of one. `world:spawn` only counts in that world.
+- **Failing `view` hides everything,** click box included, exactly like
+  walking out of range; passing it again sends the hologram whole. A missing
+  section is everyone in range, as before.
+- **Which thread.** Both run on the hologram driver, ExyliaLib's async timer,
+  never on a region thread. The world and position are read from the
+  player's location (their camera's, while one films for them), which Paper
+  and Folia let any thread read, and WorldGuard's region index is safe from
+  any thread (see [WorldGuard](worldguard.md)); WorldGuard is asked once per
+  viewer per pass, and only by holograms that name a region. The condition's
+  placeholders run off the main thread, like every placeholder in a line.
+- Without WorldGuard nobody stands in any region: `<region:spawn>` shows to
+  nobody, `<region:!spawn>` to everybody.
+
+## Mob lines
+
+`<entity:ZOMBIE>` (since 1.563.0) draws a mob in the stack: a living entity
+sent only to the viewer, so the server never ticks, saves or collides with
+it. It stands on its place like a block line and takes the room its type is
+tall (read once per type from the server), times `<size>`.
+
+```yaml
+lines:
+  - '<entity:ALLAY><size:0.6><bob:0.1><spin:40><glow:#b48fd9>'
+  - '{accent}&lCOMPANIONS'
+```
+
+- `<size>` is the scale attribute (clients from 1.20.5); `<spin>`, `<sway>`
+  and `<bob>` turn and move it; `<glow>` outlines it, `<glow:#hex>` in the
+  nearest chat colour (a mob's outline takes its team colour, which has
+  sixteen). `<pulse>` does not apply to a mob.
+- A mob has no transformation to glide, so one that moves is re-posed ten
+  times a second (a teleport and a head turn) and the client smooths the steps
+  between; a still mob is sent once. Only moving mob lines pay for it.
+- Each mob gets a team of its own on the viewer's client: no nametag, no
+  pushing, and its glow colour. The team goes when the mob does.
+- A click on the mob is a click on the hologram, as if on its box.
+- A name that is not a living entity type (`<entity:DIAMOND>`, or `PLAYER`,
+  which needs a profile) is reported once and drawn as stone.
+- Riding an entity (`attachTo`), a mob line sits on the seat and does not move.
+
+## Images
+
+`<image:logo.png>` (since 1.563.0) draws a PNG from the owning plugin's
+`images/` folder (`plugins/<Plugin>/images/logo.png`) as a text line of
+coloured full-block glyphs, the screen module's pixel pictures: one glyph a
+pixel, one row of text a row.
+
+- `width=24` scales it to 24 pixels across, keeping its shape (each new pixel
+  the average of the ones it covers); left out, it is drawn at its own width.
+  At most 96 pixels a side.
+- A pixel is about a sixteenth of a block at `<size:1>`; `<size>` scales it.
+  The line takes the room its rows take, has no shadow, and never wraps.
+- A pixel more than half see-through is left out; the glyphs sit a pixel
+  apart, as the font draws them.
+- The file is read once and kept for half a minute, so an edit shows on the
+  next reload; one picture is shared by every hologram that shows it. A
+  missing or unreadable file is reported once and the line shows its text.
+
 ## Size by distance
 
 A hologram can grow with each viewer's distance, so it stays readable from far
@@ -222,7 +366,11 @@ asked for. Since 1.301.0 the record also carries `gap`, `align`, `width`,
 `button`, each with its builder method. An option is kept only with its tag:
 `shine(null)` drops `shineSpeed` too. `align` and `billboard` are kept in lower
 case; a duration such as `<frames:1s>` is written back in seconds (`<frames:1>`).
-The 18-component constructor is deprecated; build lines with `builder()`. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
+Since 1.563.0 it also carries `hover`, `region`, `world`, `entity`, `slide`,
+`slideTime`, `image` and `imageWidth`; `slideTime` and `imageWidth` are kept
+only with their tag, and `entity` excludes `item`, `block` and `head` as they
+exclude each other. The 18- and 40-component constructors are deprecated;
+build lines with `builder()`. A bare tag (`<spin>`) reads as its default (`DEFAULT_SPIN` and the
 rest) and is written back with it. Values are kept as written: the hologram
 clamps them when it draws.
 
@@ -308,6 +456,31 @@ hologram.onClick(player -> arenas.queue(player)); // any click, since 1.287.0
 
 A handler makes the hologram clickable even with no lines. Without either it
 has no box at all.
+
+### Who may click
+
+Since 1.563.0 the click section can ask for a permission and say why a click
+did nothing:
+
+```yaml
+click:
+  commands:
+    - 'arena join'
+  cooldown: 3s
+  permission: 'arena.join'                    # '!arena.join' for players without it
+  denied-message: '%prefix% {error}You cannot join yet.'
+  cooldown-message: '%prefix% {warning}Wait {highlight}%time%{warning}.'
+  button-permissions:
+    spectate: 'arena.spectate'                # over 'permission', for that button
+```
+
+- A refused click runs nothing: no lines, no `sound`, no press, no code
+  handler. Empty `permission` lets everybody click.
+- The messages go to the clicker, with `%prefix%` and their placeholders;
+  `%time%` is the cooldown left (`2.5s`). Empty (the default) says nothing, as
+  before. A double-fired press is told once.
+- `button-permissions` gives a `<button>` line its own permission; a button
+  without one takes `permission`.
 
 ## Buttons
 
@@ -464,6 +637,6 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
   `HologramLine.java`.
 - Internal: `hologram/internal/` (`HologramImpl`, `HologramRuntime`,
   `DisplayPackets`, `DisplaySink`, `DisplayState`, `LineStyle`, `Typewriter`,
-  `Shimmer`,
-  `NoopHologram`).
-- Tests: `src/test/java/net/exylia/lib/hologram/`.
+  `Shimmer`, `Places`, `Mobs`, `ImageLines`,
+  `NoopHologram`). Time tokens: `text/TimeTokens.java`.
+- Tests: `src/test/java/net/exylia/lib/hologram/`, `text/TimeTokensTest.java`.

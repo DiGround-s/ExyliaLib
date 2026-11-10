@@ -521,7 +521,8 @@ week is simply in another period than their rows say.
 
 - A day starts at the reset hour, not at midnight: 03:00 with a reset hour of 5
   is still yesterday. A week starts on `weekStart`, a month on its first day,
-  both at the reset hour.
+  a year on the first of January (`Period.YEARLY`, since 1.563.0), all at the
+  reset hour.
 - Cheap enough to build on every call, which is how a reloaded hour or zone is
   picked up; zone ids are parsed once per distinct value. Pure, any thread.
 

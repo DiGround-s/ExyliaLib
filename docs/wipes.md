@@ -51,7 +51,7 @@ this table?" and pick the kind whose wipe is *correct*.
 - **Whole wipes need no hook:** the emptied repositories are frozen (every write
   is dropped) and every server asks for a restart.
 
-The library's own tables are classified the same way: `exylia_playtime`,
+The library's own tables are classified the same way: `exylia_playtime`, `exylia_leaderboard_values`, `exylia_leaderboards`,
 `exylia_pending_rewards`, `exylia_snapshots`, `exylia_server_commands` and the
 escrow tables are `PROGRESS`; `exylia_crate_players`, `exylia_player_settings`,
 `exylia_accounts` and `exylia_account_addresses` are `ACCOUNT`; `exylia_logs` is

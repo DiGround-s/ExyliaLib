@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * their rows say. A server that was offline over a reset needs no catch-up.
  *
  * <p>A day starts at the reset hour rather than at midnight: 03:00 with a reset
- * hour of 5 still belongs to yesterday. A week starts on {@code weekStart} and a
- * month on its first day, both at the reset hour.
+ * hour of 5 still belongs to yesterday. A week starts on {@code weekStart}, a
+ * month on its first day and a year on the first of January, all at the reset hour.
  *
  * <p>Cheap to build on every call, which is how callers pick up a reloaded
  * reset hour or zone: the zone id is parsed once per distinct configured value.
@@ -38,9 +38,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public record PeriodClock(ZoneId zone, int resetHour, DayOfWeek weekStart) {
 
-    /** How long a period is. */
+    /** How long a period is. {@code YEARLY} since 1.563.0. */
     public enum Period {
-        DAILY(ChronoUnit.DAYS), WEEKLY(ChronoUnit.WEEKS), MONTHLY(ChronoUnit.MONTHS);
+        DAILY(ChronoUnit.DAYS), WEEKLY(ChronoUnit.WEEKS), MONTHLY(ChronoUnit.MONTHS), YEARLY(ChronoUnit.YEARS);
 
         private final ChronoUnit unit;
 
@@ -84,6 +84,7 @@ public record PeriodClock(ZoneId zone, int resetHour, DayOfWeek weekStart) {
             case DAILY -> day;
             case WEEKLY -> day.with(TemporalAdjusters.previousOrSame(weekStart));
             case MONTHLY -> day.withDayOfMonth(1);
+            case YEARLY -> day.withDayOfYear(1);
         };
     }
 

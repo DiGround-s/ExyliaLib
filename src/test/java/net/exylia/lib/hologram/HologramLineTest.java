@@ -207,4 +207,56 @@ class HologramLineTest {
         assertFalse(none.buttonStyle());
         assertEquals("{primary}", none.color());
     }
+
+    @Test
+    @DisplayName("the 1.563.0 tags are read into fields and written back the same")
+    void tags1558RoundTrip() {
+        HologramLine line = HologramLine.parse("<entity:zombie><size:0.5><slide:left,time=0.4>"
+                + "<region:world:spawn><world:!world_nether><hover:\"{success}<bold>Join\">{letters}Arena");
+        assertEquals("ZOMBIE", line.entity());
+        assertTrue(line.isModel());
+        assertEquals("left", line.slide());
+        assertEquals(0.4, line.slideTime());
+        assertEquals("world:spawn", line.region());
+        assertEquals("!world_nether", line.world());
+        assertEquals("{success}<bold>Join", line.hover());
+        assertEquals("{letters}Arena", line.text());
+        assertEquals(line, HologramLine.parse(line.raw()));
+
+        HologramLine picture = HologramLine.parse("<image:logo.png,width=24>");
+        assertEquals("logo.png", picture.image());
+        assertEquals(24, picture.imageWidth());
+        assertEquals("<image:logo.png,width=24>", picture.raw());
+        assertEquals("<image:logo.png>", picture.toBuilder().imageWidth(null).build().raw());
+    }
+
+    @Test
+    @DisplayName("a bare slide reads as up, a side that is not one stays in the text, options go with their tag")
+    void slideDefaultsAndTypos() {
+        assertEquals("<slide:up>Hi", HologramLine.parse("<slide>Hi").raw());
+        assertEquals("<slide:sideways>Hi", HologramLine.parse("<slide:sideways>Hi").text());
+        assertNull(HologramLine.builder().slideTime(1.0).build().slideTime(), "no time without its slide");
+        assertNull(HologramLine.builder().imageWidth(8).build().imageWidth(), "no width without its image");
+        assertNull(HologramLine.parse("<image:>Hi").image());
+    }
+
+    @Test
+    @DisplayName("a mob, an item, a block and a head exclude each other")
+    void mobsAreModels() {
+        HologramLine mob = HologramLine.builder().item("diamond").entity("slime").build();
+        assertNull(mob.item());
+        assertEquals("<entity:SLIME>", mob.raw());
+        assertNull(HologramLine.builder().entity("slime").block("stone").build().entity());
+    }
+
+    @Test
+    @DisplayName("the constructor from before 1.563.0 still builds the same line")
+    @SuppressWarnings("deprecation")
+    void previousConstructorStillWorks() {
+        HologramLine old = new HologramLine("Hi", null, null, 2.0, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null, "join");
+        assertEquals("<size:2><button:join>Hi", old.raw());
+        assertNull(old.hover());
+    }
 }

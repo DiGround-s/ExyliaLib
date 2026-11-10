@@ -733,11 +733,14 @@ Bukkit entity, never an ArmorStand, never a hand-spawned `TextDisplay`.
   that has them is diffed and only it is resent, not the whole hologram.
 - **Per-line styling is tags at the start of the line**, never new YAML keys
   (`LineStyle`): look (`size`, `opacity`, `background`, `shadow`), models
-  (`item`, `block`, `head`, `glow`), layout (`gap`, `align`, `width`,
+  (`item`, `block`, `head`, `entity`, `image`, `glow`), layout (`gap`, `align`, `width`,
   `billboard`, `seethrough`, `brightness`, `autoscale`), motion (`spin`, `sway`,
-  `bob`, `pulse`, `typewriter`, `scramble`), colour and text (`shine`, `flow`,
-  `rainbow`, `frames`, `marquee`, `fade`, `blink`), clicks (`button`) and
-  who sees it (`range`, `perm`, `if`). A tag's tuning goes in `key=value`
+  `bob`, `pulse`, `typewriter`, `scramble`, `slide`), colour and text (`shine`, `flow`,
+  `rainbow`, `frames`, `marquee`, `fade`, `blink`, `hover`), clicks (`button`) and
+  who sees it (`range`, `perm`, `if`, `region`, `world`; the whole hologram:
+  `view`). `{countdown:...}` / `{date:...}` in the text are `text.TimeTokens`,
+  re-rendered once a second on their own. A mob line is a packet living entity
+  re-posed by teleports (it has no transformation), never a display. A tag's tuning goes in `key=value`
   options after its value (`<shine:highlight,speed=15>`), each a nullable
   `HologramLine` component. A sized line takes room in proportion,
   so the stack re-lays itself out; anything else at the start is left for the
@@ -1820,6 +1823,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | network cooldowns (database-backed, relog and hop proof, unknown refuses) | `util/NetworkCooldowns` | `util/internal/NetworkCooldownRow` (`exylia_network_cooldowns`); `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable` | [docs/cooldowns.md](docs/cooldowns.md) | 1.184.0 |
 | alt accounts: same address (keyed hash, never the IP) and first seen, network-wide | `player/Accounts` | `player/internal/` (`AccountRow`, `AddressRow`, `AccountKeyRow`: `exylia_accounts`, `exylia_account_addresses`, `exylia_account_keys`); `joined` in `ExyliaLib.onPlayerJoin` | [docs/players.md](docs/players.md) | 1.184.0 |
 | playtime (network-wide active time, one tracker per server, idle dropped, minute hook) | `playtime/Playtime` | `playtime/internal/PlaytimeRow` (`exylia_playtime` in the host plugin's database, written with `increment`), `LegacyPlaytimeRow` (SurvivalCore `playtime_data`, copied once while empty); `joined`/`left` in `ExyliaLib` join/quit, `release` (host handover) in `releaseAfterDisable`, `releaseAll` before `Databases.releaseAll` | [docs/playtime.md](docs/playtime.md) | 1.341.0 |
+| leaderboards (self-tracking boards: statistic, balance, playtime or placeholder; all time plus daily/weekly/monthly/yearly gains; offline seeding; network rows per scope) | `leaderboard/Leaderboards`, `LeaderboardSource`, `LeaderboardView`, `Span` | `leaderboard/internal/LeaderboardRow` (`exylia_leaderboard_values`, one row per board, scope and player, period bases keyed by `PeriodClock` key + reset count), `LeaderboardMeta` (`exylia_leaderboards`, reset counts), `Ranking` (sample/sort math), `Seeding` (throttled offline reads); `joined`/`left` in `ExyliaLib` join/quit (`left` before Playtime's), `release` in `releaseAfterDisable`, `releaseAll` before `Databases.releaseAll` | [docs/leaderboards.md](docs/leaderboards.md) | 1.563.0 |
 | a change through `vault` served by a registered currency fires once, under that currency | — | `economy/Economy.changed`, `economy/internal/CurrencyRegistry.servingVault` | [docs/economy.md](docs/economy.md) | 1.184.0 |
 | modes (one screen of every way to play the plugins offer: shared categories, live open state and players, released with the owner) | `modes/Modes` (`Category`), `Mode` (+ `Builder`) | `modes/internal/ModesMenu` (in the `exylialib` menus, server-editable files in `lang/<code>/menus/modes/`; `init`/`load`/`release` from `internal/UpdatesMenu`); `Modes.release` in `releaseAfterDisable`, `releaseAll` on shutdown | [docs/modes.md](docs/modes.md) | 1.356.0 |
 | player settings and mutable broadcast channels, one `/settings` screen | `settings/Settings`, `Setting`, `Broadcasts` | `settings/internal/` (`StoredSetting`: `exylia_player_settings` in each plugin's database; `SettingsRuntime` `joined`/`left` in `ExyliaLib` join/quit, `release` in `releaseAfterDisable`; `SettingsMenu` in the `exylialib` menus, its screens server-editable files in `lang/<code>/menus/settings/` since 1.265.0); `internal/SettingsCommand` only when `settings.command.enabled` | [docs/settings.md](docs/settings.md) | 1.261.0 |

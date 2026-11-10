@@ -49,4 +49,12 @@ class PeriodClockTest {
         assertEquals(ZoneId.systemDefault(), PeriodClock.zone("Not/AZone"));
         assertEquals(ZoneId.systemDefault(), PeriodClock.zone(""));
     }
+
+    @Test
+    void aYearStartsOnTheFirstOfJanuaryAtTheResetHour() {
+        ZonedDateTime newYear = ZonedDateTime.of(2027, 1, 1, 4, 0, 0, 0, ZoneId.of("Europe/Madrid"));
+        assertEquals("2026-01-01", CLOCK.key(PeriodClock.Period.YEARLY, newYear));
+        assertEquals("2027-01-01", CLOCK.key(PeriodClock.Period.YEARLY, newYear.plusHours(1)));
+        assertEquals(newYear.plusHours(1).toInstant().toEpochMilli(), CLOCK.endsAt(PeriodClock.Period.YEARLY, madrid(27, 12)));
+    }
 }

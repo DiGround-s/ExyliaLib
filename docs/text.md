@@ -660,12 +660,12 @@ stale.
 
 - Public: `text/Text.java`, `text/Colors.java`, `text/Palette.java`,
   `text/Lines.java`, `text/LibraryMessages.java`, `text/Gradients.java`,
-  `text/CharMaps.java`.
+  `text/CharMaps.java`, `text/TimeTokens.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
   `LegacyTranslator`, `TokenResolver`, `SmallText`).
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
   `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`,
-  `GradientsTest.java`, `CharMapsTest.java`.
+  `GradientsTest.java`, `CharMapsTest.java`, `TimeTokensTest.java`.
 
 ## Writing a line out (since 1.528.0)
 
@@ -673,3 +673,29 @@ stale.
 characters written and spaces as wide as the rest, so a centred panel keeps its size from the first letter to the last.
 `length()` is how many characters there are and `whole()` the finished line. Camera subtitles use it through
 `WorldShot.Builder#reveal`; anything else that redraws a text display or a view text can call it directly.
+
+## Countdowns and clocks in text: `TimeTokens` (since 1.563.0)
+
+`TimeTokens.resolve(text)` fills in two tokens against the current time,
+before the text is parsed, so the result takes palette colours like any text:
+
+```java
+TimeTokens.resolve("{letters}Opens in {countdown:2026-12-01 18:00 Europe/Madrid|{success}now!}");
+TimeTokens.resolve("{muted}{date:HH:mm} · {date:dd MMM yyyy}");
+```
+
+| Token | Reads |
+| --- | --- |
+| `{countdown:<when>}` | the time left until `when` (`yyyy-MM-dd HH:mm:ss`, `yyyy-MM-dd HH:mm` or `yyyy-MM-dd`): `24d 6h 26m 12s`, leading zero units dropped, rounded up; `0s` once passed |
+| `{countdown:<when>\|<text>}` | the same, and `<text>` once passed |
+| `{date:<pattern>}` | now, in a `DateTimeFormatter` pattern, English names |
+
+Both take a zone after a space (an IANA id such as `Europe/Madrid`, or `UTC`);
+without one, the server's (`PeriodClock.zone(null)`). A token that does not
+read stays as written. `resolve(text, nowMillis)` pins the moment, and
+`resolve(text, nowMillis, body -> ...)` fills a token's body first, which is
+how a hologram reads `{countdown:%event_start%}`. `contains(text)` says
+whether a text changes with the clock; `countdown(seconds)` is the countdown
+format on its own. Safe from any thread; each token body is read once and
+kept. Holograms re-render a line holding one every second (see
+[Time in a line](hologram.md#time-in-a-line)).

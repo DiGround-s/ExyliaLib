@@ -90,6 +90,25 @@ import java.util.Map;
  * @param button       the name of the line's own click actions in
  *                     {@code click.buttons}, which makes the line a button of
  *                     its own; since 1.301.0
+ * @param hover        what the line says instead while a viewer aims at the
+ *                     hologram, or at this line when it is a button; since
+ *                     1.563.0
+ * @param region       a WorldGuard region the viewer must stand in:
+ *                     {@code spawn}, {@code world:spawn}, {@code !} first to
+ *                     require standing outside it; since 1.563.0
+ * @param world        the world the viewer must be in, {@code !} first for
+ *                     any other; since 1.563.0
+ * @param entity       the mob a mob line shows, an {@code EntityType} name,
+ *                     or {@code null}; since 1.563.0
+ * @param slide        the side a line glides in from when it first appears
+ *                     for a viewer: {@code up}, {@code down}, {@code left} or
+ *                     {@code right}; since 1.563.0
+ * @param slideTime    seconds the slide takes; kept only with {@link #slide};
+ *                     since 1.563.0
+ * @param image        a PNG in the owning plugin's {@code images} folder that
+ *                     the line draws as pixels; since 1.563.0
+ * @param imageWidth   how many pixels wide the image is drawn; kept only with
+ *                     {@link #image}; since 1.563.0
  * @since 1.289.1
  */
 public record HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
@@ -109,7 +128,11 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                            @Nullable Double frames, @Nullable Double rainbow, @Nullable Double fade,
                            @Nullable Double blink, @Nullable Integer marquee,
                            @Nullable Double marqueeSpeed, @Nullable Double scramble,
-                           @Nullable String button) {
+                           @Nullable String button, @Nullable String hover,
+                           @Nullable String region, @Nullable String world,
+                           @Nullable String entity, @Nullable String slide,
+                           @Nullable Double slideTime, @Nullable String image,
+                           @Nullable Integer imageWidth) {
 
     /** What a bare tag means. */
     public static final double DEFAULT_SPIN = 90;
@@ -131,6 +154,9 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
     public static final int DEFAULT_MARQUEE = 24;
     /** @since 1.301.0 */
     public static final double DEFAULT_SCRAMBLE = 20;
+
+    /** @since 1.563.0 */
+    public static final String DEFAULT_SLIDE = "up";
 
     /** What splits the frames of a {@code <frames>} line. Since 1.301.0. */
     public static final String FRAME_SEPARATOR = "||";
@@ -156,6 +182,44 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         if (marquee == null) {
             marqueeSpeed = null;
         }
+        if (slide == null) {
+            slideTime = null;
+        }
+        if (image == null) {
+            imageWidth = null;
+        }
+    }
+
+    /**
+     * A line as written before 1.563.0 added hover text, region and world
+     * visibility, mob, slide and image lines.
+     *
+     * @deprecated use {@link #builder()}
+     */
+    @Deprecated(since = "1.563.0")
+    public HologramLine(@NotNull String text, @Nullable String item, @Nullable String block,
+                        @Nullable Double size, @Nullable Integer opacity,
+                        @Nullable String background, @Nullable Boolean shadow,
+                        @Nullable String glow, @Nullable Double spin, @Nullable Double bob,
+                        @Nullable Double pulse, @Nullable Double typewriter,
+                        @Nullable String condition, @Nullable String permission,
+                        @Nullable Double range, @Nullable String shine, @Nullable Double flow,
+                        @Nullable String head, @Nullable Double gap, @Nullable String align,
+                        @Nullable Integer width, @Nullable Boolean seeThrough,
+                        @Nullable Integer brightness, @Nullable String billboard,
+                        @Nullable String autoscale, @Nullable Double shineSpeed,
+                        @Nullable Double shinePause, @Nullable Double shineWidth,
+                        @Nullable Double bobPeriod, @Nullable Double pulsePeriod,
+                        @Nullable Double sway, @Nullable Double swayPeriod,
+                        @Nullable Double frames, @Nullable Double rainbow, @Nullable Double fade,
+                        @Nullable Double blink, @Nullable Integer marquee,
+                        @Nullable Double marqueeSpeed, @Nullable Double scramble,
+                        @Nullable String button) {
+        this(text, item, block, size, opacity, background, shadow, glow, spin, bob, pulse,
+                typewriter, condition, permission, range, shine, flow, head, gap, align, width,
+                seeThrough, brightness, billboard, autoscale, shineSpeed, shinePause, shineWidth,
+                bobPeriod, pulsePeriod, sway, swayPeriod, frames, rainbow, fade, blink, marquee,
+                marqueeSpeed, scramble, button, null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -176,7 +240,8 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         this(text, item, block, size, opacity, background, shadow, glow, spin, bob, pulse,
                 typewriter, condition, permission, range, shine, flow, head,
                 null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null);
     }
 
     /**
@@ -262,6 +327,8 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         tag(out, "item", item);
         tag(out, "block", block);
         tag(out, "head", head);
+        tag(out, "entity", entity);
+        tag(out, "image", image == null ? null : options(image, "width", imageWidth));
         tag(out, "size", size);
         tag(out, "opacity", opacity);
         tag(out, "background", background);
@@ -288,18 +355,22 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         tag(out, "blink", blink);
         tag(out, "typewriter", typewriter);
         tag(out, "scramble", scramble);
+        tag(out, "slide", slide == null ? null : options(slide, "time", slideTime));
         tag(out, "range", range);
         tag(out, "perm", permission);
+        tag(out, "region", region);
+        tag(out, "world", world);
         tag(out, "button", button);
+        tag(out, "hover", hover);
         if (condition != null) {
             out.append("<if:\"").append(condition).append("\">");
         }
         return out.append(text).toString();
     }
 
-    /** Whether the line is an item, a block or a head rather than text. */
+    /** Whether the line is an item, a block, a head or a mob rather than text. */
     public boolean isModel() {
-        return item != null || block != null || head != null;
+        return item != null || block != null || head != null || entity != null;
     }
 
     /** Whether any tag is written. */
@@ -321,7 +392,9 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                 .autoscale(autoscale).shineSpeed(shineSpeed).shinePause(shinePause)
                 .shineWidth(shineWidth).bobPeriod(bobPeriod).pulsePeriod(pulsePeriod).sway(sway)
                 .swayPeriod(swayPeriod).frames(frames).rainbow(rainbow).fade(fade).blink(blink)
-                .marquee(marquee).marqueeSpeed(marqueeSpeed).scramble(scramble).button(button);
+                .marquee(marquee).marqueeSpeed(marqueeSpeed).scramble(scramble).button(button)
+                .hover(hover).region(region).world(world).entity(entity).slide(slide)
+                .slideTime(slideTime).image(image).imageWidth(imageWidth);
     }
 
 
@@ -413,6 +486,14 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private Double marqueeSpeed;
         private Double scramble;
         private String button;
+        private String hover;
+        private String region;
+        private String world;
+        private String entity;
+        private String slide;
+        private Double slideTime;
+        private String image;
+        private Integer imageWidth;
 
         private Builder() {
         }
@@ -444,6 +525,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             if (item != null) {
                 this.block = null;
                 this.head = null;
+                this.entity = null;
             }
             return this;
         }
@@ -454,6 +536,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             if (block != null) {
                 this.item = null;
                 this.head = null;
+                this.entity = null;
             }
             return this;
         }
@@ -472,6 +555,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             if (this.head != null) {
                 this.item = null;
                 this.block = null;
+                this.entity = null;
             }
             return this;
         }
@@ -683,12 +767,75 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             return this;
         }
 
+        /**
+         * What the line says instead while a viewer aims at the hologram, or
+         * at this line when it is a button. Since 1.563.0.
+         */
+        public @NotNull Builder hover(@Nullable String hover) {
+            this.hover = blank(hover) ? null : hover;
+            return this;
+        }
+
+        /**
+         * A WorldGuard region the viewer must stand in: {@code spawn},
+         * {@code world:spawn}, {@code !spawn} for outside it. Since 1.563.0.
+         */
+        public @NotNull Builder region(@Nullable String region) {
+            this.region = blank(region) ? null : region.trim();
+            return this;
+        }
+
+        /** The world the viewer must be in, {@code !name} for any other. Since 1.563.0. */
+        public @NotNull Builder world(@Nullable String world) {
+            this.world = blank(world) ? null : world.trim();
+            return this;
+        }
+
+        /**
+         * A mob line: any living {@code EntityType} name, such as
+         * {@code ZOMBIE}; clears an item, a block and a head. Since 1.563.0.
+         */
+        public @NotNull Builder entity(@Nullable String entity) {
+            this.entity = blank(entity) ? null : entity.trim().toUpperCase(Locale.ROOT);
+            if (this.entity != null) {
+                this.item = null;
+                this.block = null;
+                this.head = null;
+            }
+            return this;
+        }
+
+        /** {@code up}, {@code down}, {@code left} or {@code right}. Since 1.563.0. */
+        public @NotNull Builder slide(@Nullable String slide) {
+            this.slide = blank(slide) ? null : slide.trim().toLowerCase(Locale.ROOT);
+            return this;
+        }
+
+        /** Seconds; kept only with {@link #slide}. Since 1.563.0. */
+        public @NotNull Builder slideTime(@Nullable Double slideTime) {
+            this.slideTime = slideTime;
+            return this;
+        }
+
+        /** A PNG in the owning plugin's {@code images} folder, such as {@code logo.png}. Since 1.563.0. */
+        public @NotNull Builder image(@Nullable String image) {
+            this.image = blank(image) ? null : image.trim();
+            return this;
+        }
+
+        /** Pixels wide; kept only with {@link #image}. Since 1.563.0. */
+        public @NotNull Builder imageWidth(@Nullable Integer imageWidth) {
+            this.imageWidth = imageWidth;
+            return this;
+        }
+
         public @NotNull HologramLine build() {
             return new HologramLine(text, item, block, size, opacity, background, shadow, glow,
                     spin, bob, pulse, typewriter, condition, permission, range, shine, flow, head,
                     gap, align, width, seeThrough, brightness, billboard, autoscale, shineSpeed,
                     shinePause, shineWidth, bobPeriod, pulsePeriod, sway, swayPeriod, frames,
-                    rainbow, fade, blink, marquee, marqueeSpeed, scramble, button);
+                    rainbow, fade, blink, marquee, marqueeSpeed, scramble, button, hover, region,
+                    world, entity, slide, slideTime, image, imageWidth);
         }
 
         /** Takes one tag as written, or answers {@code false} when it is not one. */
@@ -794,6 +941,39 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                         }
                         button(value);
                     }
+                    case "hover", "region", "world", "entity" -> {
+                        if (value.isEmpty()) {
+                            return false;
+                        }
+                        switch (key) {
+                            case "hover" -> hover(value);
+                            case "region" -> region(value);
+                            case "world" -> world(value);
+                            default -> entity(value);
+                        }
+                    }
+                    case "slide" -> {
+                        Map<String, Double> options = new HashMap<>();
+                        String side = options(value, options, "time").toLowerCase(Locale.ROOT);
+                        if (side.isEmpty()) {
+                            side = DEFAULT_SLIDE;
+                        }
+                        if (!SIDES.contains(side)) {
+                            return false;
+                        }
+                        slide = side;
+                        slideTime = options.get("time");
+                    }
+                    case "image" -> {
+                        Map<String, Double> options = new HashMap<>();
+                        String file = options(value, options, "width");
+                        if (file.isEmpty()) {
+                            return false;
+                        }
+                        image(file);
+                        Double wide = options.get("width");
+                        imageWidth = wide == null ? null : (int) Math.round(wide);
+                    }
                     default -> {
                         return false;
                     }
@@ -804,6 +984,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
             }
         }
 
+        private static final java.util.Set<String> SIDES = java.util.Set.of("up", "down", "left", "right");
         private static final java.util.Set<String> ALIGNMENTS = java.util.Set.of("left", "center", "right");
         private static final java.util.Set<String> BILLBOARDS =
                 java.util.Set.of("fixed", "center", "vertical", "horizontal");

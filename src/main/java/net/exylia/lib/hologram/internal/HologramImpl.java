@@ -18,6 +18,8 @@ import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.text.TimeTokens;
+import net.exylia.lib.util.worldguard.WorldGuardRegions;
 import net.exylia.lib.util.internal.Conditions;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -60,6 +62,12 @@ import java.util.function.Predicate;
  * transformation every {@value #STEP_MS} ms, which the client glides through on
  * its own. A typewriter line sends its growing text to a viewer only while it
  * is being typed for them.
+ *
+ * <p>The tags of 1.563.0 follow the same rule. A line with a time token is
+ * re-rendered once a second, on its own; a hover line makes the visibility
+ * pass trace each viewer's aim; a slide sends one more transformation per line
+ * as it appears; a mob line that moves is re-posed ten times a second. A
+ * hologram without them pays for none of it.
  */
 final class HologramImpl implements Hologram {
 
@@ -138,6 +146,9 @@ final class HologramImpl implements Hologram {
     /** Shortest gap between two clicks, which also swallows a double-fired press. */
     private static final long MIN_CLICK_GAP_MS = 200L;
 
+    /** How far a sliding line starts from its place, in blocks. */
+    private static final double SLIDE_DISTANCE = 0.5;
+
     /** Unreadable conditions already reported, so each is logged once. */
     private static final Set<String> REPORTED = ConcurrentHashMap.newKeySet();
 
@@ -169,6 +180,24 @@ final class HologramImpl implements Hologram {
     /** The scramble frame last drawn, so scrambling runs at the shimmer rate. */
     private volatile long lastScramble = -1;
 
+    /** Per line, what it says while aimed at, or {@code null}; and whether any line has one. */
+    private volatile Template[] hoverTemplates = new Template[0];
+    private volatile boolean hoverText;
+    /** Per line, whether it holds a time token, and so is drawn again every second. */
+    private volatile boolean[] clocked = new boolean[0];
+    private volatile boolean clocking;
+    private volatile long lastClock = -1;
+    /** Per line, the picture an image line draws, or {@code null}. */
+    private volatile ImageLines.Drawn[] images = new ImageLines.Drawn[0];
+    /** Whether any line slides in, and when each started sliding for each viewer; 0 once it is in. */
+    private volatile boolean sliding;
+    private final Map<UUID, long[]> slides = new ConcurrentHashMap<>();
+    /** Whether any mob line moves, and when the moving mobs were last posed. */
+    private volatile boolean mobsMove;
+    private volatile long lastMobPose = -SHIMMER_MS;
+    /** When each player's last click was refused, so a double-fired press is told once. */
+    private final Map<UUID, Long> refusedAt = new ConcurrentHashMap<>();
+
     /** What each viewer is shown beyond the lines themselves: hover, press, size by distance. */
     private final Map<UUID, Viewer> states = new ConcurrentHashMap<>();
 
@@ -183,6 +212,8 @@ final class HologramImpl implements Hologram {
         volatile int step = (int) Math.round(1 / SCALE_STEP);
         /** Each {@code <autoscale>} line's size, in steps. */
         volatile int[] lineSteps = new int[0];
+        /** Whether their line of sight crosses the hologram, for {@code <hover>} lines. */
+        volatile boolean aimed;
     }
 
     /** Which lines each viewer is shown, for holograms with conditional lines. */
@@ -287,6 +318,7 @@ final class HologramImpl implements Hologram {
         this.plate = wholeLines && buttonLook() ? newPlate() : null;
         restyle(styles(lines));
         this.templates = compile(lines);
+        retime(templates);
         this.padSpaces = pads(styles, templates);
         this.displays = build(styles);
         resolveHeads(displays);
@@ -604,6 +636,49 @@ final class HologramImpl implements Hologram {
         int[] alphas = new int[styles.length];
         Arrays.fill(alphas, -1);
         this.lastAlpha = alphas;
+        Template[] hovers = new Template[styles.length];
+        ImageLines.Drawn[] pictures = new ImageLines.Drawn[styles.length];
+        boolean hovered = false;
+        for (int i = 0; text && i < styles.length; i++) {
+            if (styles[i].hover() != null) {
+                hovers[i] = Placeholders.compile(styles[i].hover());
+                hovered = true;
+            }
+            if (styles[i].image() != null) {
+                pictures[i] = picture(styles[i]);
+            }
+        }
+        this.hoverTemplates = hovers;
+        this.hoverText = hovered;
+        this.images = pictures;
+        this.sliding = text && Arrays.stream(styles).anyMatch(style -> style.slide() != null);
+        this.mobsMove = text && Arrays.stream(styles).anyMatch(style -> style.isMob() && style.animated());
+    }
+
+    /** Which lines tell the time, from their text as written. */
+    private void retime(Template[] lines) {
+        boolean[] timed = new boolean[lines.length];
+        boolean any = false;
+        for (int i = 0; i < lines.length; i++) {
+            timed[i] = config.type() == HologramConfig.Kind.TEXT && TimeTokens.contains(lines[i].raw());
+            any |= timed[i];
+        }
+        this.clocked = timed;
+        this.clocking = any;
+    }
+
+    /** The picture an image line draws, from the owning plugin's {@code images} folder; {@code null} if it cannot be read. */
+    private ImageLines.Drawn picture(LineStyle style) {
+        try {
+            return ImageLines.draw(owner.getDataFolder().toPath().resolve("images"), style.image(),
+                    style.imageWidth());
+        } catch (java.io.IOException | RuntimeException failure) {
+            if (REPORTED.add("image:" + ownerName + ":" + style.image())) {
+                HologramRuntime.logger().warning("Hologram '" + id + "': the image '" + style.image()
+                        + "' could not be drawn (" + failure.getMessage() + ").");
+            }
+            return null;
+        }
     }
 
     private static LineStyle[] styles(List<String> lines) {
@@ -644,19 +719,40 @@ final class HologramImpl implements Hologram {
         DisplayState[] displays = new DisplayState[styles.length];
         for (int i = 0; i < styles.length; i++) {
             LineStyle style = styles[i];
+            boolean mob = style.isMob() && mobType(style.entity());
+            // A mob stands on its position, as a block does; one whose type does not read is stone.
             HologramConfig.Kind kind = !style.isModel() ? HologramConfig.Kind.TEXT
-                    : style.block() ? HologramConfig.Kind.BLOCK : HologramConfig.Kind.ITEM;
+                    : style.block() || mob ? HologramConfig.Kind.BLOCK : HologramConfig.Kind.ITEM;
             HologramConfig.Properties properties = style.apply(config.properties());
             if (kind == HologramConfig.Kind.TEXT) {
                 properties = dressed(properties, style);
             }
             displays[i] = new DisplayState(HologramRuntime.newEntityId(), kind, properties,
-                    style.isModel() ? material(style.model()) : Material.STONE, style);
+                    style.isMob() ? Material.STONE : style.isModel() ? material(style.model()) : Material.STONE,
+                    style);
             if (kind == HologramConfig.Kind.ITEM) {
                 custom(displays[i], style.model());
             }
         }
         return displays;
+    }
+
+    /** Whether a mob line's type is a living entity; a typo is reported once and drawn as stone. */
+    private boolean mobType(String type) {
+        if (Mobs.living(type)) {
+            return true;
+        }
+        if (REPORTED.add("entity:" + type)) {
+            HologramRuntime.logger().warning("Hologram '" + id + "': '" + type
+                    + "' is not a living entity type; showing stone instead.");
+        }
+        return false;
+    }
+
+    /** The ids of its mob lines, which take clicks for the hologram. */
+    int[] mobIds() {
+        return Arrays.stream(displays).filter(display -> display.mob() != null)
+                .mapToInt(DisplayState::entityId).toArray();
     }
 
     /**
@@ -750,6 +846,7 @@ final class HologramImpl implements Hologram {
                 && config.type() == HologramConfig.Kind.TEXT;
         restyle(restyled);
         this.templates = compiled;
+        retime(compiled);
         this.padSpaces = pads(restyled, compiled);
         // Lines are replaced, so what they resolve from is decided again: text
         // that had a placeholder may no longer have one, and the other way
@@ -935,7 +1032,48 @@ final class HologramImpl implements Hologram {
             return false;
         }
         Predicate<Player> current = filter;
-        return current == null || current.test(player);
+        if (current != null && !current.test(player)) {
+            return false;
+        }
+        HologramConfig.View view = config.view();
+        return view.everyone() || admits(player, view);
+    }
+
+    /**
+     * Whether a player passes the hologram's {@code view} section: its
+     * permission, worlds, regions and condition, cheapest first.
+     *
+     * <p>Runs where every visibility check does, on the hologram driver (an
+     * async timer, off every region thread). The position comes from the
+     * player's location, which Paper and Folia let any thread read, and
+     * WorldGuard's region index is safe to read from any thread; the condition's
+     * placeholders run off the main thread, like every placeholder in a line.
+     */
+    private boolean admits(Player player, HologramConfig.View view) {
+        if (!view.permission().isEmpty() && !permitted(player, view.permission())) {
+            return false;
+        }
+        Location seen = Viewpoints.of(player);
+        String world = seen.getWorld() == null ? "" : seen.getWorld().getName();
+        if (!Places.worlds(view.worlds(), world)
+                || !Places.regions(view.regions(), world, () -> WorldGuardRegions.idsAt(seen))) {
+            return false;
+        }
+        return view.condition().isEmpty() || holds(view.condition(), player);
+    }
+
+    /** Whether a player has a permission, or lacks it when it starts with {@code !}. */
+    private static boolean permitted(Player player, String permission) {
+        boolean negated = permission.startsWith("!");
+        return negated != player.hasPermission(negated ? permission.substring(1) : permission);
+    }
+
+    private boolean holds(String condition, Player viewer) {
+        return Conditions.holds(condition, viewer, (subject, message) -> {
+            if (REPORTED.add(subject)) {
+                HologramRuntime.logger().warning("Hologram '" + id + "': " + message);
+            }
+        });
     }
 
     /**
@@ -975,15 +1113,40 @@ final class HologramImpl implements Hologram {
         refreshHeads(currentViewers);
         if (config.perPlayer()) {
             for (Player viewer : currentViewers) {
-                renderFor(viewer, true);
+                renderFor(viewer, true, null);
             }
             return;
         }
-        renderShared(currentViewers);
+        renderShared(currentViewers, null);
     }
 
-    /** One render, sent to everybody: the cheap path, and the default. */
-    private void renderShared(List<Player> currentViewers) {
+    /**
+     * Draws the lines that tell the time again, once a second, whatever the
+     * refresh interval: a countdown has to move on its own. The diff that
+     * follows sends only the lines whose text changed.
+     */
+    private void tickClocks(List<Player> currentViewers) {
+        boolean[] timed = clocked;
+        if (config.perPlayer()) {
+            for (Player viewer : currentViewers) {
+                renderFor(viewer, true, timed);
+            }
+            return;
+        }
+        renderShared(currentViewers, timed);
+    }
+
+    /** A line's text for a viewer, its placeholders and time tokens resolved. */
+    private static String textOf(Template template, Player viewer, Map<String, Object> values) {
+        return TimeTokens.resolve(template.render(viewer, values), HologramRuntime.now());
+    }
+
+    /**
+     * One render, sent to everybody: the cheap path, and the default.
+     *
+     * @param only the lines to render, {@code null} for every one
+     */
+    private void renderShared(List<Player> currentViewers, boolean[] only) {
         Map<String, Object> values = values();
         DisplayState[] current = displays;
         Template[] lines = templates;
@@ -991,10 +1154,10 @@ final class HologramImpl implements Hologram {
         boolean changed = false;
 
         for (int i = 0; i < current.length && i < lines.length; i++) {
-            if (current[i].kind() != HologramConfig.Kind.TEXT) {
+            if (current[i].kind() != HologramConfig.Kind.TEXT || only != null && (i >= only.length || !only[i])) {
                 continue;
             }
-            String text = lines[i].render(null, values);
+            String text = textOf(lines[i], null, values);
             if (text.equals(previous[i])) {
                 continue;
             }
@@ -1030,7 +1193,7 @@ final class HologramImpl implements Hologram {
      * <p>Used by per-player holograms, and when a viewer first comes into
      * range: what they are sent has to be resolved for them.
      */
-    private void renderFor(Player viewer, boolean send) {
+    private void renderFor(Player viewer, boolean send, boolean[] only) {
         Map<String, Object> values = values();
         DisplayState[] current = displays;
         Template[] lines = templates;
@@ -1038,10 +1201,10 @@ final class HologramImpl implements Hologram {
         String[] sent = send ? sentText.computeIfAbsent(uuid, key -> new String[current.length]) : null;
         boolean changed = false;
         for (int i = 0; i < current.length && i < lines.length; i++) {
-            if (current[i].kind() != HologramConfig.Kind.TEXT) {
+            if (current[i].kind() != HologramConfig.Kind.TEXT || only != null && (i >= only.length || !only[i])) {
                 continue;
             }
-            String text = lines[i].render(viewer, values);
+            String text = textOf(lines[i], viewer, values);
             // A shimmering line keeps being re-sent on every render, as it always was: its frames are
             // keyed on the shared display's text, which this viewer's skip must not second-guess.
             boolean diffed = sent != null && i < sent.length && !current[i].style().shimmers();
@@ -1077,7 +1240,29 @@ final class HologramImpl implements Hologram {
     private boolean receivesText(UUID viewer, int line) {
         long[] started = typing.get(viewer);
         return shown(masks.get(viewer), line)
-                && (started == null || line >= started.length || started[line] == 0);
+                && (started == null || line >= started.length || started[line] == 0)
+                && !(hoverText && hovering(states.get(viewer), line));
+    }
+
+    /** Whether a viewer is shown a line's hover text: aimed at the hologram, or at the line when it is a button. */
+    private boolean hovering(Viewer state, int line) {
+        return state != null && hovering(state.hover, state.aimed, line);
+    }
+
+    private boolean hovering(int target, boolean aimed, int line) {
+        Template[] hovers = hoverTemplates;
+        LineStyle[] lineStyles = styles;
+        if (line >= hovers.length || hovers[line] == null || line >= lineStyles.length) {
+            return false;
+        }
+        return isButton(lineStyles[line]) ? target == line : aimed;
+    }
+
+    /** What a line says while aimed at, styled as the line is. */
+    private Component hoverText(Player viewer, int line) {
+        Template template = hoverTemplates[line];
+        return Shimmer.dress(styles[line], componentFor(line, template, textOf(template, viewer, values()), viewer),
+                seconds());
     }
 
     private static double seconds() {
@@ -1090,7 +1275,7 @@ final class HologramImpl implements Hologram {
             return displays[line].text();
         }
         Template template = templates[line];
-        return componentFor(line, template, template.render(viewer, values()), viewer);
+        return componentFor(line, template, textOf(template, viewer, values()), viewer);
     }
 
     /**
@@ -1101,6 +1286,10 @@ final class HologramImpl implements Hologram {
      * substituted into that parsed component.
      */
     private Component componentFor(int line, Template template, String text, Player viewer) {
+        ImageLines.Drawn[] pictures = images;
+        if (line < pictures.length && pictures[line] != null) {
+            return pictures[line].text();
+        }
         Component parsed = parse(template, text, viewer);
         int[] pads = padSpaces;
         if (line >= pads.length || pads[line] == 0) {
@@ -1120,7 +1309,18 @@ final class HologramImpl implements Hologram {
         if (pairs.isEmpty()) {
             return Text.component(text);
         }
-        return Text.component(template.raw(), pairs);
+        String raw = template.raw();
+        if (TimeTokens.contains(raw)) {
+            // A token's date may itself be a placeholder: filled in before it is read.
+            raw = TimeTokens.resolve(raw, HologramRuntime.now(), body -> {
+                String filled = body;
+                for (int i = 0; i + 1 < pairs.size(); i += 2) {
+                    filled = filled.replace(pairs.get(i), pairs.get(i + 1));
+                }
+                return filled;
+            });
+        }
+        return Text.component(raw, pairs);
     }
 
     /** Sends the whole hologram to a player who just came into range. */
@@ -1135,7 +1335,7 @@ final class HologramImpl implements Hologram {
             // Resolve for this viewer before spawning: a shared hologram still
             // has to show them something, and a per-player one shows them
             // theirs.
-            renderFor(viewer, false);
+            renderFor(viewer, false, null);
         }
         UUID uuid = viewer.getUniqueId();
         if (pageIntervalMs > 0) {
@@ -1150,6 +1350,7 @@ final class HologramImpl implements Hologram {
         measure(viewer, state);
         long now = HologramRuntime.now();
         beginTyping(uuid, null, mask, now);
+        beginSlides(uuid, null, mask, now);
         placeLines(viewer, current, null, mask, now);
         spawnControls(viewer, mask);
         // Recorded before the mount, so a vehicle that reaches the client right
@@ -1212,12 +1413,18 @@ final class HologramImpl implements Hologram {
         if (!hidden.isEmpty()) {
             HologramRuntime.sink().destroy(viewer,
                     hidden.stream().mapToInt(Integer::intValue).toArray());
+            for (int i = 0; i < current.length; i++) {
+                if (current[i].mob() != null && shown(before, i) && !shown(after, i)) {
+                    HologramRuntime.sink().unteam(viewer, current[i]);
+                }
+            }
         }
         if (revealed && config.type() == HologramConfig.Kind.TEXT) {
-            renderFor(viewer, false);
+            renderFor(viewer, false, null);
         }
         long now = HologramRuntime.now();
         beginTyping(uuid, before, after, now);
+        beginSlides(uuid, before, after, now);
         placeLines(viewer, current, before, after, now);
         if (clickable()) {
             // The box and the panels are as tall as what this viewer sees.
@@ -1227,32 +1434,43 @@ final class HologramImpl implements Hologram {
     }
 
     /**
-     * Which lines a viewer is shown, by range, permission and condition.
+     * Which lines a viewer is shown, by range, permission, world, region and
+     * condition.
      *
-     * <p>Runs off the main thread, like every placeholder in a hologram line.
+     * <p>Runs on the hologram driver, an async timer, like every placeholder
+     * in a hologram line. World and region are read from the player's
+     * location, which Paper and Folia let any thread read, and WorldGuard's
+     * region index is safe from any thread, so no region thread is waited on.
      */
     private boolean[] maskFor(Player viewer) {
         LineStyle[] current = styles;
         int[] pages = linePage;
         int page = page(viewer);
         boolean[] mask = new boolean[current.length];
-        double distance = Viewpoints.of(viewer).distanceSquared(anchor());
+        Location seen = Viewpoints.of(viewer);
+        double distance = seen.distanceSquared(anchor());
+        String world = seen.getWorld() == null ? "" : seen.getWorld().getName();
+        // Asked of WorldGuard once per viewer per pass, and only when a line names a region.
+        List<String> regions = null;
         for (int i = 0; i < current.length; i++) {
             LineStyle style = current[i];
             boolean shown = (i >= pages.length || pages[i] == page)
                     && (style.range() <= 0 || distance <= style.range() * style.range());
-            String permission = style.permission();
-            if (shown && permission != null) {
-                boolean negated = permission.startsWith("!");
-                boolean has = viewer.hasPermission(negated ? permission.substring(1) : permission);
-                shown = negated != has;
+            if (shown && style.permission() != null) {
+                shown = permitted(viewer, style.permission());
+            }
+            if (shown && style.world() != null) {
+                shown = Places.worlds(List.of(style.world()), world);
+            }
+            if (shown && style.region() != null) {
+                if (regions == null) {
+                    regions = WorldGuardRegions.idsAt(seen);
+                }
+                List<String> here = regions;
+                shown = Places.regions(List.of(style.region()), world, () -> here);
             }
             if (shown && style.condition() != null) {
-                shown = Conditions.holds(style.condition(), viewer, (subject, message) -> {
-                    if (REPORTED.add(subject)) {
-                        HologramRuntime.logger().warning("Hologram '" + id + "': " + message);
-                    }
-                });
+                shown = holds(style.condition(), viewer);
             }
             mask[i] = shown;
         }
@@ -1282,22 +1500,147 @@ final class HologramImpl implements Hologram {
             Location where = mount != null ? at : at.clone().add(0, layout.baseY()[i], 0);
             if (before != null && shown(before, i)) {
                 HologramRuntime.sink().teleport(viewer, current[i].entityId(), where);
-                if (moved) {
+                if (moved || current[i].mob() != null) {
                     // Riding, a line's place is its translation; grown, it is
-                    // spread by it. Either way the new stack moves it.
-                    HologramRuntime.sink().transform(viewer, current[i],
-                            viewOf(current[i], i, layout), HOVER_TICKS);
+                    // spread by it. Either way the new stack moves it. A mob's
+                    // place is its position, which the teleport just reset.
+                    place(viewer, current, i, layout, HOVER_TICKS);
                 }
                 continue;
             }
             current[i].transform(current[i].transformAt(now));
-            Component text = receivesText(uuid, i)
+            Component text = hoverText && hovering(states.get(uuid), i) ? hoverText(viewer, i)
+                    : receivesText(uuid, i)
                     ? Shimmer.dress(current[i].style(), current[i].text(), now / 1000.0)
                     : Component.empty();
-            HologramRuntime.sink().spawn(viewer, current[i], where, text,
-                    viewOf(current[i], i, layout));
+            DisplayState.Transform view = viewOf(current[i], i, layout);
+            if (slidingIn(uuid, i)) {
+                view = slid(view, current[i].style());
+            }
+            HologramRuntime.sink().spawn(viewer, current[i], where, text, view);
             if (isViewerHead(current[i].style().head())) {
                 showHead(viewer, current, i, true);
+            }
+        }
+    }
+
+    /**
+     * Sends one line's place and size to a viewer: a display its
+     * transformation, a mob its position and heading, which is all a mob has.
+     * Riding, a mob sits on the seat and is not moved.
+     */
+    private void place(Player viewer, DisplayState[] current, int line, Layout layout, int ticks) {
+        DisplayState display = current[line];
+        if (display.mob() == null) {
+            HologramRuntime.sink().transform(viewer, display, viewOf(display, line, layout), ticks);
+        } else if (mount == null) {
+            HologramRuntime.sink().pose(viewer, display, anchor().clone().add(0, layout.baseY()[line], 0),
+                    viewOf(display, line, layout), true);
+        }
+    }
+
+    /** Whether a line is still to slide in for a viewer. */
+    private boolean slidingIn(UUID viewer, int line) {
+        long[] started = sliding ? slides.get(viewer) : null;
+        return started != null && line < started.length && started[line] != 0;
+    }
+
+    /** A transformation moved off to the side a line slides in from. */
+    private static DisplayState.Transform slid(DisplayState.Transform view, LineStyle style) {
+        double x = 0;
+        double y = 0;
+        switch (style.slide()) {
+            case "down" -> y = -SLIDE_DISTANCE;
+            case "left" -> x = -SLIDE_DISTANCE;
+            case "right" -> x = SLIDE_DISTANCE;
+            default -> y = SLIDE_DISTANCE;
+        }
+        return view.view(1, x, y, 0);
+    }
+
+    /** Starts the slide of the sliding lines a viewer was just given. */
+    private void beginSlides(UUID viewer, boolean[] before, boolean[] after, long now) {
+        if (!sliding) {
+            return;
+        }
+        LineStyle[] current = styles;
+        long[] started = slides.compute(viewer, (key, known) ->
+                known != null && known.length == current.length ? known : new long[current.length]);
+        boolean any = false;
+        for (int i = 0; i < current.length; i++) {
+            if (current[i].slide() != null && shown(after, i) && !(before != null && shown(before, i))) {
+                started[i] = Math.max(1, now);
+            }
+            any |= started[i] != 0;
+        }
+        if (!any) {
+            slides.remove(viewer);
+        }
+    }
+
+    /**
+     * Glides the lines that were spawned off to their side into place, a tick
+     * after the spawn: sent in the same tick, the client would start from
+     * where it already is.
+     */
+    private void slide(List<Player> currentViewers, long now) {
+        DisplayState[] current = displays;
+        for (Player viewer : currentViewers) {
+            UUID uuid = viewer.getUniqueId();
+            long[] started = slides.get(uuid);
+            if (started == null) {
+                continue;
+            }
+            Layout layout = null;
+            boolean any = false;
+            for (int i = 0; i < started.length && i < current.length; i++) {
+                if (started[i] == 0) {
+                    continue;
+                }
+                if (now - started[i] < TICK_MS) {
+                    any = true;
+                    continue;
+                }
+                started[i] = 0;
+                if (layout == null) {
+                    layout = layout(uuid, masks.get(uuid));
+                }
+                place(viewer, current, i, layout,
+                        Math.max(1, (int) Math.round(current[i].style().slideTime() * 20)));
+            }
+            if (!any) {
+                slides.remove(uuid);
+            }
+        }
+    }
+
+    /**
+     * Moves the mob lines that spin, sway, bob or pulse. A mob has no
+     * transformation to glide, so it is re-posed ten times a second and the
+     * client smooths the steps between; only mob lines that move pay for it.
+     */
+    private void poseMobs(List<Player> currentViewers, long now) {
+        DisplayState[] current = displays;
+        for (DisplayState display : current) {
+            if (display.mob() != null && display.style().animated()) {
+                display.transform(display.transformAt(now));
+            }
+        }
+        for (Player viewer : currentViewers) {
+            UUID uuid = viewer.getUniqueId();
+            boolean[] mask = masks.get(uuid);
+            Layout layout = null;
+            for (int i = 0; i < current.length; i++) {
+                DisplayState display = current[i];
+                if (display.mob() == null || !display.style().animated() || !shown(mask, i)
+                        || slidingIn(uuid, i)) {
+                    continue;
+                }
+                if (layout == null) {
+                    layout = layout(uuid, mask);
+                }
+                HologramRuntime.sink().pose(viewer, display, anchor().clone().add(0, layout.baseY()[i], 0),
+                        viewOf(display, i, layout), false);
             }
         }
     }
@@ -1349,6 +1692,17 @@ final class HologramImpl implements Hologram {
             lastShimmer = now;
             shimmer(currentViewers, now);
         }
+        if (clocking && now / 1000 != lastClock) {
+            lastClock = now / 1000;
+            tickClocks(currentViewers);
+        }
+        if (!slides.isEmpty()) {
+            slide(currentViewers, now);
+        }
+        if (mobsMove && mount == null && now - lastMobPose >= SHIMMER_MS) {
+            lastMobPose = now;
+            poseMobs(currentViewers, now);
+        }
         if (!animated) {
             return;
         }
@@ -1360,7 +1714,7 @@ final class HologramImpl implements Hologram {
         long target = now + GLIDE_MS;
         DisplayState[] current = displays;
         for (DisplayState display : current) {
-            if (display.style().animated()) {
+            if (display.style().animated() && display.mob() == null) {
                 display.transform(display.transformAt(target));
             }
         }
@@ -1369,7 +1723,7 @@ final class HologramImpl implements Hologram {
             boolean[] mask = masks.get(uuid);
             Layout layout = layout(uuid, mask);
             for (int i = 0; i < current.length; i++) {
-                if (current[i].style().animated() && shown(mask, i)) {
+                if (current[i].style().animated() && current[i].mob() == null && shown(mask, i)) {
                     HologramRuntime.sink().transform(viewer, current[i],
                             viewOf(current[i], i, layout), GLIDE_TICKS);
                 }
@@ -1612,7 +1966,7 @@ final class HologramImpl implements Hologram {
         Layout layout = layout(uuid, mask);
         for (int i = 0; i < current.length; i++) {
             if (shown(mask, i)) {
-                HologramRuntime.sink().transform(viewer, current[i], viewOf(current[i], i, layout), ticks);
+                place(viewer, current, i, layout, ticks);
             }
         }
         if (mount != null) {
@@ -1757,11 +2111,12 @@ final class HologramImpl implements Hologram {
      * be clicked shows it.
      */
     void hover(Player viewer) {
-        if (mount != null || !clickable()) {
+        if (mount != null) {
             return;
         }
-        boolean grows = config.click().hoverScale() != 1;
-        if (!grows && !paneled && !hasButtons) {
+        boolean clicks = clickable();
+        boolean grows = clicks && config.click().hoverScale() != 1;
+        if (!hoverText && (!clicks || !grows && !paneled && !hasButtons)) {
             return;
         }
         UUID uuid = viewer.getUniqueId();
@@ -1769,9 +2124,22 @@ final class HologramImpl implements Hologram {
         if (state == null) {
             return;
         }
-        int target = target(viewer, masks.get(uuid));
+        boolean[] mask = masks.get(uuid);
+        // A hologram nobody can click is still aimed at, for its hover lines, but never grows or lights.
+        int target = clicks ? target(viewer, mask) : NONE;
         int was = state.hover;
-        if (target == was) {
+        if (hoverText) {
+            DisplayState[] current = displays;
+            boolean aimed = looksAt(viewer, stack(current, heights(current.length), mask, null,
+                    new double[current.length]));
+            boolean wasAimed = state.aimed;
+            state.aimed = aimed;
+            state.hover = clicks ? target : NONE;
+            if (aimed != wasAimed || target != was) {
+                swapHovers(viewer, mask, was, wasAimed, target, aimed);
+            }
+        }
+        if (!clicks || target == was) {
             return;
         }
         state.hover = target;
@@ -1780,6 +2148,27 @@ final class HologramImpl implements Hologram {
         }
         light(viewer, was, IDLE);
         light(viewer, target, HOVERED);
+    }
+
+    /**
+     * Sends a viewer the lines whose hover text came or went: the hover text
+     * while they aim, the line's own text again when they look away. Not a
+     * line still being typed in, which finishes as it started.
+     */
+    private void swapHovers(Player viewer, boolean[] mask, int wasTarget, boolean wasAimed, int target,
+                            boolean aimed) {
+        DisplayState[] current = displays;
+        long[] started = typing.get(viewer.getUniqueId());
+        for (int i = 0; i < current.length; i++) {
+            boolean before = hovering(wasTarget, wasAimed, i);
+            boolean after = hovering(target, aimed, i);
+            if (before == after || !shown(mask, i) || current[i].kind() != HologramConfig.Kind.TEXT
+                    || started != null && i < started.length && started[i] != 0) {
+                continue;
+            }
+            HologramRuntime.sink().text(viewer, current[i], after ? hoverText(viewer, i)
+                    : Shimmer.dress(current[i].style(), textFor(viewer, i), seconds()));
+        }
     }
 
     /**
@@ -1937,6 +2326,12 @@ final class HologramImpl implements Hologram {
                     continue;
                 }
                 LineStyle style = lineStyles[i];
+                if (hoverText && hovering(states.get(viewer.getUniqueId()), i)) {
+                    // Aimed at mid-type: the hover text at once, and the line is whole when they look away.
+                    started[i] = 0;
+                    HologramRuntime.sink().text(viewer, current[i], hoverText(viewer, i));
+                    continue;
+                }
                 Component whole = Shimmer.dress(style, textFor(viewer, i), seconds);
                 if (style.scramble() > 0) {
                     double elapsed = (now - started[i]) / 1000.0;
@@ -2040,13 +2435,29 @@ final class HologramImpl implements Hologram {
             return;
         }
         long now = HologramRuntime.now();
+        Long refused = refusedAt.get(uuid);
+        if (refused != null && now - refused < MIN_CLICK_GAP_MS) {
+            return;
+        }
         Long last = lastClick.get(uuid);
-        if (last != null && now - last < Math.max(MIN_CLICK_GAP_MS, config.click().cooldown())) {
+        if (last != null && now - last < MIN_CLICK_GAP_MS) {
+            // The second packet of one press.
+            return;
+        }
+        HologramConfig.Click section = config.click();
+        if (last != null && now - last < section.cooldown()) {
+            refuse(player, section.cooldownMessage(), section.cooldown() - (now - last), now);
+            return;
+        }
+        int target = mount == null && hasButtons ? target(player, masks.get(uuid)) : WHOLE;
+        LineStyle[] lineStyles = styles;
+        String buttonName = target >= 0 && target < lineStyles.length ? lineStyles[target].button() : null;
+        String needed = section.permissionFor(buttonName);
+        if (!needed.isEmpty() && !permitted(player, needed)) {
+            refuse(player, section.deniedMessage(), 0, now);
             return;
         }
         lastClick.put(uuid, now);
-        int target = mount == null && hasButtons ? target(player, masks.get(uuid)) : WHOLE;
-        LineStyle[] lineStyles = styles;
         if (target >= 0 && target < lineStyles.length) {
             Interaction button = buttonLines.get(lineStyles[target].button());
             if (button != null && button.handles(click)) {
@@ -2066,6 +2477,22 @@ final class HologramImpl implements Hologram {
         }
     }
 
+    /**
+     * A click that runs nothing: no lines, no sound, no press. The player is
+     * told why when the section says something, {@code %time%} being the
+     * cooldown left, on their own thread.
+     */
+    private void refuse(Player player, String message, long leftMs, long now) {
+        refusedAt.put(player.getUniqueId(), now);
+        if (message.isEmpty()) {
+            return;
+        }
+        String left = net.exylia.lib.util.TimeFormats.render(leftMs / 1000.0,
+                net.exylia.lib.util.TimeFormats.Style.PRECISE);
+        Tasks.of(owner).runAtEntity(player, () -> Text.from(owner, message).with("%time%", left)
+                .forPlayer(player).send(player));
+    }
+
     // ------------------------------------------------------------------
     // Layout and lifecycle
     // ------------------------------------------------------------------
@@ -2073,8 +2500,18 @@ final class HologramImpl implements Hologram {
     /** Takes the hologram off a player's screen. */
     void despawnFor(Player viewer) {
         UUID uuid = viewer.getUniqueId();
-        masks.remove(uuid);
+        boolean[] mask = masks.remove(uuid);
+        if (viewers.contains(uuid)) {
+            DisplayState[] current = displays;
+            for (int i = 0; i < current.length; i++) {
+                if (current[i].mob() != null && shown(mask, i)) {
+                    HologramRuntime.sink().unteam(viewer, current[i]);
+                }
+            }
+        }
         typing.remove(uuid);
+        slides.remove(uuid);
+        refusedAt.remove(uuid);
         lastClick.remove(uuid);
         states.remove(uuid);
         sentText.remove(uuid);
@@ -2091,6 +2528,8 @@ final class HologramImpl implements Hologram {
         viewers.remove(viewer);
         masks.remove(viewer);
         typing.remove(viewer);
+        slides.remove(viewer);
+        refusedAt.remove(viewer);
         lastClick.remove(viewer);
         states.remove(viewer);
         sentText.remove(viewer);
@@ -2106,6 +2545,7 @@ final class HologramImpl implements Hologram {
         viewers.remove(viewer);
         masks.remove(viewer);
         typing.remove(viewer);
+        slides.remove(viewer);
         states.remove(viewer);
         sentText.remove(viewer);
         sentHeads.remove(viewer);
@@ -2168,10 +2608,16 @@ final class HologramImpl implements Hologram {
         double[] heights = new double[count];
         LineStyle[] current = styles;
         HologramConfig.Properties base = config.properties();
+        ImageLines.Drawn[] pictures = images;
         for (int i = 0; i < count; i++) {
             LineStyle style = config.type() == HologramConfig.Kind.TEXT && i < current.length
                     ? current[i] : LineStyle.PLAIN;
             heights[i] = style.height(base);
+            if (i < pictures.length && pictures[i] != null) {
+                // Rows of glyphs, ten pixels each, at the image's own scale.
+                heights[i] = Math.max(heights[i],
+                        pictures[i].rows() * 10 * PX * style.size() * LineStyle.IMAGE_SCALE * base.scaleY());
+            }
         }
         return heights;
     }
