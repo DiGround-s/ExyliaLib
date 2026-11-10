@@ -48,6 +48,69 @@ class MotionTest {
     }
 
     @Test
+    void keyframesWaitRepeatAndAlternate() {
+        Css css = new Css().add("@keyframes up { from { transform: translateY(0); } to { transform: translateY(-10px); } }",
+                "test", problem -> { throw new AssertionError(problem); });
+        Motion.Keyframes k = MotionCss.animation("up 10t linear 5t 2 alternate", css);
+        assertNotNull(k);
+        assertEquals(5, k.delay());
+        assertEquals(2, k.iterations());
+        assertTrue(k.alternate());
+        assertEquals(0, k.at(3).y(), 1e-9, "holds its first frame while it waits");
+        assertEquals(-5, k.at(10).y(), 1e-9);
+        assertEquals(-10, k.at(15).y(), 1e-9, "end of the first play");
+        assertEquals(-5, k.at(20).y(), 1e-9, "the second play runs back");
+        assertEquals(0, k.at(40).y(), 1e-9, "two alternating plays end where they began");
+        assertTrue(k.finished(25));
+        assertTrue(!k.finished(24));
+        Motion.Keyframes longhand = MotionCss.animation(java.util.Map.of("animation", "up 10t",
+                "animation-delay", "1s", "animation-iteration-count", "infinite"), css);
+        assertEquals(20, longhand.delay());
+        assertTrue(longhand.infinite());
+        Motion.Keyframes played = MotionCss.play("up", List.of("bounce"), css);
+        assertEquals(10, played.ticks());
+        assertEquals(Motion.Ease.BOUNCE, played.ease());
+        assertTrue(!played.infinite());
+        assertEquals(1, Motion.Ease.BOUNCE.at(1), 1e-9);
+        assertEquals(1, Motion.Ease.ELASTIC.at(1), 1e-9);
+        assertTrue(Motion.Ease.ELASTIC.at(0.2) > 1, "elastic springs past the end");
+    }
+
+    @Test
+    void readsLengthsOfTime() {
+        assertEquals(5_000, MotionCss.millis("5s"));
+        assertEquals(5_400_000, MotionCss.millis("1h30m"));
+        assertEquals(86_400_000, MotionCss.millis("24h"));
+        assertEquals(1_000, MotionCss.millis("20t"));
+        assertEquals(-1, MotionCss.millis("soon"));
+        assertEquals(-1, MotionCss.millis("5 s"));
+    }
+
+    @Test
+    void inlineStyleWinsAndSetsVariables() {
+        Css css = new Css().add("#a { background: {primary}; color: {letters}; } text { color: var(--tone, {muted}); }",
+                "test", problem -> { throw new AssertionError(problem); });
+        List<String> unknown = new java.util.ArrayList<>();
+        java.util.Map<String, String> inline = Css.inline("background: {success}; --tone: {error}; colour: red", unknown::add);
+        assertEquals(List.of("unknown property \"colour\""), unknown);
+        Css.Target a = new Css.Target("box", "a", java.util.Set.of(), java.util.Set.of(), 1, 1, inline);
+        assertEquals("{success}", css.style(List.of(a), false).get("background"));
+        assertEquals("{letters}", css.style(List.of(a), false).get("color"));
+        Css.Target t = new Css.Target("text", null, java.util.Set.of(), java.util.Set.of(), 1, 1);
+        assertEquals("{error}", css.style(List.of(a, t), false).get("color"), "a custom property set inline reaches the children");
+    }
+
+    @Test
+    void revealTakesCharactersKeepingStyle() {
+        Component text = Component.text("Hi ").append(Component.text("there", net.kyori.adventure.text.format.NamedTextColor.GOLD));
+        assertEquals(8, Reveal.length(text));
+        Component part = Reveal.take(text, 5);
+        assertEquals("Hi th", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(part));
+        assertEquals(net.kyori.adventure.text.format.NamedTextColor.GOLD, part.children().get(0).color());
+        assertEquals(Component.empty(), Reveal.take(text, 0));
+    }
+
+    @Test
     void wrapsAtSpaces() {
         Layout.Wrapped one = TextWrap.wrap(Component.text("short"), 200);
         assertEquals(1, one.lines());

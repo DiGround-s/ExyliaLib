@@ -50,7 +50,9 @@ public final class Compile {
             // 1.506.0: <item row/>, the row's own item
             "row",
             // 1.548.0: on <screen>, read by ExyliaScreens
-            "fallback", "min-client", "args", "on-open");
+            "fallback", "min-client", "args", "on-open",
+            // 1.565.0: the element's own declarations, and a wait between clicks
+            "style", "cooldown", "deny-cooldown");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -306,6 +308,7 @@ public final class Compile {
                 problem(el.pos(), "unknown attribute " + name + " on <" + tag + ">");
             }
         }
+        if (el.attr("style") != null) Css.inline(el.attr("style"), bad -> problem(el.pos(), "style: " + bad));
         String key = el.attr("t");
         if (key != null) {
             if (!el.elements().isEmpty()) {

@@ -32,11 +32,13 @@ public final class Css {
             "transform", "transition", "animation", "enter", "leave", "margin", "position", "top", "right", "bottom",
             "left", "z-index", "max-width", "white-space", "text-shadow",
             // 1.497.0
-            "background-image");
+            "background-image",
+            // 1.565.0: staggered arrivals, animation longhands, text that types itself
+            "stagger", "animation-delay", "animation-iteration-count", "animation-direction", "text-reveal");
 
     /** Properties a child takes from its parent when it sets none. */
     static final Set<String> INHERITED = Set.of("color", "font-size", "font-weight", "text-align", "white-space",
-            "text-shadow");
+            "text-shadow", "text-reveal");
 
     /** Pointer states a style is asked for: the cursor or the keyboard focus is on it, it was just clicked. */
     public static final int HOVER = 1, ACTIVE = 2;
@@ -95,12 +97,46 @@ public final class Css {
      * @param flags attribute names present (and true) on it, such as {@code selected} or {@code disabled}
      * @param index its place among its parent's elements, from 1; 0 when unknown
      * @param count how many elements its parent has
+     * @param inline its own {@code style="..."} declarations, which win over every rule (since 1.565.0)
      */
-    public record Target(String tag, String id, Set<String> classes, Set<String> flags, int index, int count) {
+    public record Target(String tag, String id, Set<String> classes, Set<String> flags, int index, int count,
+                         Map<String, String> inline) {
+
+        public Target {
+            inline = inline == null ? Map.of() : Map.copyOf(inline);
+        }
+
+        public Target(String tag, String id, Set<String> classes, Set<String> flags, int index, int count) {
+            this(tag, id, classes, flags, index, count, Map.of());
+        }
 
         public Target(String tag, String id, Set<String> classes, Set<String> flags) {
-            this(tag, id, classes, flags, 0, 0);
+            this(tag, id, classes, flags, 0, 0, Map.of());
         }
+    }
+
+    /**
+     * The declarations of an element's {@code style="a: b; c: d"}, in order; {@code unknown} hears each property the
+     * screen does not read, which is left out. Custom properties ({@code --x}) are kept. Since 1.565.0.
+     */
+    public static Map<String, String> inline(String text, Consumer<String> unknown) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (text == null || text.isBlank()) return out;
+        for (String declaration : text.split(";")) {
+            int colon = declaration.indexOf(':');
+            if (colon < 0) {
+                if (!declaration.isBlank()) unknown.accept("\"" + declaration.trim() + "\" has no value");
+                continue;
+            }
+            String property = declaration.substring(0, colon).trim();
+            if (!property.startsWith("--")) property = property.toLowerCase(java.util.Locale.ROOT);
+            if (!property.startsWith("--") && !PROPERTIES.contains(property)) {
+                unknown.accept("unknown property \"" + property + "\"");
+                continue;
+            }
+            out.put(property, declaration.substring(colon + 1).trim());
+        }
+        return out;
     }
 
     private final List<Rule> rules = new ArrayList<>();
@@ -328,7 +364,7 @@ public final class Css {
 
     private Map<String, String> resolve(List<Target> path, int states) {
         Map<String, String> own = cascade(path, states);
-        if (!variables) return own;
+        if (!variables && !inlineVariables(path)) return own;
         // Custom properties inherit: the parent's, then this element's own.
         Map<String, String> vars = new LinkedHashMap<>();
         if (path.size() > 1) {
@@ -345,6 +381,16 @@ public final class Css {
         }
         out.putAll(vars);
         return out;
+    }
+
+    /** Whether an element of the path sets or reads a custom property in its own {@code style}. */
+    private static boolean inlineVariables(List<Target> path) {
+        for (Target t : path) {
+            for (Map.Entry<String, String> e : t.inline().entrySet()) {
+                if (e.getKey().startsWith("--") || e.getValue().contains("var(")) return true;
+            }
+        }
+        return false;
     }
 
     private static String fill(String value, Map<String, String> vars, int depth) {
@@ -368,6 +414,7 @@ public final class Css {
                 : Integer.compare(a.order(), b.order()));
         Map<String, String> out = new LinkedHashMap<>();
         for (Rule rule : matched) out.putAll(rule.declarations());
+        if (!path.isEmpty()) out.putAll(path.get(path.size() - 1).inline());
         return out;
     }
 

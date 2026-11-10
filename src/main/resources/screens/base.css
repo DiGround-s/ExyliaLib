@@ -97,3 +97,16 @@ search:hover { outline: 1px {primary}; }
 .game-choice { flex-grow: 1; align-items: center; text-align: center; padding: 4px 2px; font-size: 8px; background: {letters_black}18; }
 .game-choice:hover { background: {primary}50; }
 .game-page { flex-grow: 1; padding: 8px 10px; gap: 5px; background: {primary}0c; outline: 1px {primary}20; enter: translateY(3px) 3t ease-out; }
+
+/* Motion kit (1.565.0): keyframes any screen may name in `animation` or the `animate` action. */
+@keyframes shake { 0% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } 100% { transform: translateX(0); } }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@keyframes float { 0% { transform: translateY(0); } 50% { transform: translateY(-3px); } 100% { transform: translateY(0); } }
+@keyframes nudge { 0% { transform: translateX(0); } 50% { transform: translateX(3px); } 100% { transform: translateX(0); } }
+@keyframes jump { 0% { transform: translateY(0); } 35% { transform: translateY(-6px); } 70% { transform: translateY(0); } 85% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
+@keyframes flip { 0% { transform: scaleX(1); } 50% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+@keyframes drop-in { 0% { transform: translateY(-10px) scale(0.9); } 100% { transform: translateY(0) scale(1); } }
+.anim-float { animation: float 60t ease-in-out infinite; }
+.anim-pulse { animation: pulse 40t ease-in-out infinite; }
+.anim-nudge { animation: nudge 30t ease-in-out infinite; }

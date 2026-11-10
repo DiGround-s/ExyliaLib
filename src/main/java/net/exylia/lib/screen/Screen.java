@@ -54,6 +54,7 @@ public final class Screen {
     private java.util.Set<String> persisted = java.util.Set.of();
 
     private Consumer<ScreenSession> onInput;
+    private String name;
 
     private Screen(Function<ScreenSession, Node> render) {
         this.render = render;
@@ -70,6 +71,22 @@ public final class Screen {
      *
      * @since 1.531.0
      */
+    /**
+     * What the screen is called in its plugin's reports ({@link Screens#cost}), such as its file name without the
+     * extension; a markup screen is named after its file. {@code null} leaves it out of them.
+     *
+     * @since 1.565.0
+     */
+    public @NotNull Screen name(@Nullable String name) {
+        this.name = name;
+        return this;
+    }
+
+    /** What the screen is called in reports, or {@code null}. @since 1.565.0 */
+    public @Nullable String name() {
+        return name;
+    }
+
     public @NotNull Screen onInput(@Nullable Consumer<ScreenSession> handler) {
         this.onInput = handler;
         return this;

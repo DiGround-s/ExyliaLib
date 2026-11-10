@@ -27,6 +27,14 @@ it lays out.
 - **Motion ceiling.** `screens.yml` `motion-ceiling` (300) caps the motion packets one screen sends a second; past
   it eased glides go straight and animations wait where they are. `motion: REDUCED` (server or per player) removes
   arrivals, departures and animations and makes every glide two ticks.
+- **Lighter screens** (1.565.0). A player's own toggle in `/settings` → Interface ("Lighter screens") starts every
+  screen at level 3 for them: fewer displays and picture glyphs for a weak graphics card, the same screen.
+- **What a screen costs** (1.565.0). `Screens.of(plugin).cost(name)` gives the heaviest frame a screen named
+  `name` (`Screen#name`; a markup screen is its root `id` or file name) drew for anyone since the start, as a
+  `ScreenCost(displays, pictureGlyphs, lightened)`. `heavy()` is true past 300 displays or `ScreenCost.GLYPH_GUIDE`
+  (16,000) picture glyphs; `lightened` says the ladder had to drop detail for a viewer who did not ask for it.
+  ExyliaScreens lists heavy screens in `/screens check`. A picture's glyphs are its pixels times its four copies:
+  a 64×64 `<img>` is 16,384, so displays alone undercount what the client lays out.
 - 1.21.11+ client and server (`sprite-objects: true`, default): an item or `<icon>` is one sprite glyph instead of
   four pixel copies.
 
@@ -122,6 +130,24 @@ counted).
 | Gradient | 1 per band: 5 px each, 2 to 12 |
 | Tooltip | 3 (panel, title, lore block), only while hovered |
 | Canvas sprite | item 1, picture 4, rect 1-2 |
+
+## Measured on a real client
+
+ExyliaScreens' shipped screens, Paper 1.21.4, one viewer, vanilla 1.21.4 client, RTX 3050 at 1080p, frame rate
+capped at 120 (it held 116-118 on every screen), so the GPU load is the figure that compares them. The world alone
+was 7%.
+
+| Screen | GPU | With Lighter screens |
+| --- | --- | --- |
+| `/play` (3 cards, 3 floating items) | 47% | 40% |
+| `/rewards` (7 cards, 7 items, a pulse) | 64% | 40% |
+| `/profile` (a turning body) | 56% | 40% |
+| `/welcome` | 21% | |
+| `/hub` | 28% | |
+| `/shop` | 33% | |
+
+Repeat it with `bot/screencam.py` on a test server: show the HUD (F1), open F3 with a held key, open each screen and
+read the second F3 line after four seconds.
 
 ## Tips
 

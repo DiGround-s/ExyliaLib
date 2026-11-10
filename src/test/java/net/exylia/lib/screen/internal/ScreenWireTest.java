@@ -274,6 +274,65 @@ class ScreenWireTest {
                 + "\n[screen motion] dialog leave " + leave + "\n[screen motion] toast " + toast);
     }
 
+    private static final String CHOREO = """
+            <screen>
+              <panel>
+                <p id="hello" style="text-reveal: 1t">Welcome back, pick a mode</p>
+                <row class="cards">
+                  <for each="i in 1..6"><button id="c${i}" action="animate pop">Card</button></for>
+                </row>
+              </panel>
+            </screen>""";
+
+    /** Staggered cards, typed words and a played animation each move for a while, then the screen goes quiet. */
+    @Test
+    void choreographySettles() {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            choreography();
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
+    private void choreography() {
+        FakeServer.install();
+        FakeServer.reset();
+        FakePlayer viewer = new FakePlayer("Dancer").at(new Location(null, 0, 64, 0));
+        viewer.inventory(Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{PlayerInventory.class},
+                (self, method, args) -> FakeServer.defaultValue(method.getReturnType())));
+        ScreenMarkup markup = ScreenMarkup.parse("choreo", CHOREO,
+                ".cards { stagger: 3t; } button { enter: translateY(6px) 4t ease-out; }");
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+        AtomicInteger ids = new AtomicInteger(5000);
+        ScreenPackets.Wire wire = new ScreenPackets.Wire(sent::add);
+        LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenChoreo"), viewer.player(), markup.screen(), wire,
+                ids::incrementAndGet);
+        live.start();
+        FakeServer.tick(2);
+        take();
+        FakeServer.tick(14);
+        Stats middle = take();
+        assertTrue(middle.packets > 0, "later cards and the typing still arrive: " + middle);
+        FakeServer.tick(60);
+        take();
+        FakeServer.tick(20);
+        Stats quiet = take();
+        assertEquals(0, quiet.packets, "everything has arrived and the words are typed: " + quiet);
+
+        live.animate("c3", MotionCss.play("pop", List.of(), new Css().add(
+                "@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }",
+                "pop", problem -> { throw new AssertionError(problem); })));
+        FakeServer.tick(14);
+        Stats pop = take();
+        assertTrue(pop.packets > 0 && pop.packets < 40, "one card pops: " + pop);
+        FakeServer.tick(20);
+        assertEquals(0, take().packets, "a played animation ends");
+        live.close();
+        System.out.println("[screen choreo] middle " + middle + "\n[screen choreo] pop " + pop);
+    }
+
     @Test
     void backgroundsStayWithinBudget() {
         var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();

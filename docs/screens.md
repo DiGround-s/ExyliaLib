@@ -672,7 +672,21 @@ modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
   arrives as one; a box that is gone glides away with its `leave` and is removed after it (the dimmer stays while
   its dialog leaves). Give each tab's page an `id` so a tab switch is a new page arriving, not the old one
   changing.
-- `animation: <keyframes> <duration> [easing] [infinite]`: transforms only, sampled every 2 to 10 ticks.
+- `animation: <keyframes> <duration> [easing] [delay] [count|infinite] [alternate]`: transforms only, sampled every
+  2 to 10 ticks. Since 1.565.0 a second duration is a delay, a number the plays, `alternate` runs every second play
+  backwards; the longhands `animation-delay`, `animation-iteration-count`, `animation-direction` win over it.
+- `stagger: 2t` (1.565.0) on a container: its children arrive one after another, each waiting shrunk to nothing for
+  its turn, and their animations start as far apart, so a grid fills in card by card and a `pulse` runs across it
+  as a wave. Plain rows between (a grid's lines) are seen through; the wait stops growing at 40 ticks.
+- `text-reveal: 1t` (1.565.0): words type themselves out, a character every tick, after the box has arrived and
+  again whenever they change. Inherited.
+- `animate [#id] <keyframes> [duration] [easing]` (1.565.0), an action, and `session.animate(id, keyframes)` in
+  Java: one play on a box, over its own transform. `deny="animate shake"` is the house refusal.
+- Easings `bounce` and `elastic` (1.565.0) spring past the end; a glide along them takes up to eight steps.
+- The base theme ships keyframes `shake`, `pop`, `pulse`, `float`, `nudge`, `jump`, `flip`, `drop-in`.
+- An element's own `style="..."` (1.565.0) wins over every rule and may set `--custom` properties for its children.
+- Not drawn (Minecraft cannot): rotation, opacity and colour glides, rounded corners, blur. A fade is a scale from
+  nearly nothing; a colour change steps.
 - The base theme has the house motion: cards lift, buttons, tabs and chips press, dialogs pop and fade out.
 
 **Budget.** A screen may draw 400 displays. Over that it lowers its detail in order: `priority="low"` boxes are
@@ -683,6 +697,10 @@ second: past it glides go straight and animations wait.
 **Reduced motion.** `screens.yml` `motion: REDUCED` for everyone, or a player's own toggle in `/settings` →
 Interface ("Reduced motion"), `Screens.reducedMotion(player, true)` in Java: no arrivals, departures or
 animations, and every glide is two ticks and straight.
+
+**Lighter screens** (1.565.0). A player's toggle in `/settings` → Interface draws every screen at the lowest detail
+for them. `Screens.of(plugin).cost(name)` reports a screen's heaviest frame (`Screen#name`); see
+[Performance](screens-performance.md#budget-and-detail).
 
 **Toasts and confirms.** `session.toast("success", "Joined the queue")`: one small note at the bottom centre, a newer one replacing it (since
 1.540.0), sliding in and out; success and error play a quiet sound. `session.confirm("Leave the party?",

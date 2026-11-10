@@ -39,6 +39,7 @@ public final class ScreenPreferences {
     static final String CURSOR = "screen-cursor-mode";
     static final String ASSIST = "screen-cursor-assist";
     static final String MOTION = "screen-reduced-motion";
+    static final String LIGHT = "screen-light";
 
     /** Cursor speed for a player who never chose one, and the range they may choose from. */
     static final double DEFAULT_SPEED = 3.0, MIN_SPEED = 0.1, MAX_SPEED = 10.0;
@@ -99,6 +100,10 @@ public final class ScreenPreferences {
         Settings.register(lib, Setting.toggle(MOTION, false)
                 .category("interface").icon("FEATHER").name("Reduced motion")
                 .description("Full-screen menus move only", "as much as they need to.")
+                .build());
+        Settings.register(lib, Setting.toggle(LIGHT, false)
+                .category("interface").icon("GLASS_PANE").name("Lighter screens")
+                .description("Full-screen menus draw less", "detail, for a faster game.")
                 .build());
     }
 
@@ -189,13 +194,22 @@ public final class ScreenPreferences {
         set(player, ASSIST, Boolean.toString(on));
     }
 
+    /** Whether the player asked full-screen menus to draw at their lowest detail, for frame rate. */
+    public static boolean light(UUID player) {
+        return Boolean.parseBoolean(value(player, LIGHT));
+    }
+
+    static void light(Player player, boolean on) {
+        set(player, LIGHT, Boolean.toString(on));
+    }
+
     public static void reducedMotion(Player player, boolean reduced) {
         set(player, MOTION, Boolean.toString(reduced));
     }
 
     /** Back to what the server says: every screen preference and the menu style. */
     static void reset(Player player) {
-        for (String key : new String[]{SPEED, CURSOR, ASSIST, MOTION}) set(player, key, null);
+        for (String key : new String[]{SPEED, CURSOR, ASSIST, MOTION, LIGHT}) set(player, key, null);
         size(player, null);
         MenuStyles.choose(player, null);
     }

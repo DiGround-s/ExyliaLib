@@ -67,6 +67,11 @@ final class SettingsPanel {
         panel.add(row("Reduced motion", button("motion", (reduced ? "{success}" : "{letters_black}")
                         + Phrases.tr(reduced ? "On" : "Off"), event -> ScreenPreferences.reducedMotion(player, !reduced)).width(70)));
 
+        boolean light = ScreenPreferences.light(id);
+        panel.add(row("Lighter screens", button("light", (light ? "{success}" : "{letters_black}")
+                        + Phrases.tr(light ? "On" : "Off"), event -> ScreenPreferences.light(player, !light)).width(70)
+                .tooltip("{letters}" + Phrases.tr("Less detail on full-screen menus, for a faster game"))));
+
         if (MenuStyles.choosable()) {
             MenuStyle style = MenuStyles.choice(player);
             panel.add(row("Menu style", button("style", "{info}" + styleName(style),

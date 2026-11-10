@@ -260,6 +260,20 @@ public final class Expr {
                 Double n = number(a);
                 yield n != null && java.util.concurrent.ThreadLocalRandom.current().nextDouble(100) < n;
             }
+            case "players" -> {
+                // Players on a server of the network as the proxy last counted them, or on the whole network (1.565.0).
+                if (args.isEmpty()) {
+                    int network = net.exylia.lib.proxy.Proxy.players().size();
+                    yield (double) (network > 0 ? network : org.bukkit.Bukkit.getOnlinePlayers().size());
+                }
+                yield net.exylia.lib.proxy.Proxy.server(text(a)).map(server -> (double) server.players()).orElse(0d);
+            }
+            case "online" -> net.exylia.lib.proxy.Proxy.server(text(a)).map(server -> server.online()).orElse(false);
+            case "cooldown" -> {
+                // Seconds left on a screen button's cooldown="key 24h", 0 when it is ready (1.565.0).
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? 0d : (double) MarkupRender.COOLDOWNS.remainingWholeSeconds(viewer, text(a));
+            }
             default -> {
                 // A plugin's own (ExpressionFunctions); one released since the file was read answers null.
                 net.exylia.lib.screen.ExpressionFunctions.Function own = net.exylia.lib.screen.ExpressionFunctions.get(name);
@@ -306,7 +320,9 @@ public final class Expr {
             // 1.501.0: about the viewer
             "perm", "balance", "has_item", "level", "world",
             // 1.552.0
-            "contains", "matches", "chance");
+            "contains", "matches", "chance",
+            // 1.565.0
+            "cooldown", "players", "online");
 
     // ------------------------------------------------------------------
     // Parsing

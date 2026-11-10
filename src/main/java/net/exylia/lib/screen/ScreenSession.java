@@ -135,4 +135,14 @@ public interface ScreenSession {
     default @NotNull ScreenScene scene(@NotNull String id) {
         return new ScreenScene(id, () -> { });
     }
+
+    /**
+     * Plays {@code keyframes} once on the box whose {@link Node#id} is {@code id}, on top of its own transform: a
+     * shake on a refused click, a pop on a purchase. A newer play on the same box replaces it; reduced motion skips
+     * it. A session that cannot draw does nothing.
+     *
+     * @since 1.565.0
+     */
+    default void animate(@NotNull String id, @NotNull Motion.Keyframes keyframes) {
+    }
 }

@@ -1836,3 +1836,6 @@ space: 'espace'
 'Plays the next sound to you.': 'Te joue le son suivant.'
 'Opens it, ready to edit.': 'S''ouvre prêt à modifier.'
 'Shift-right-click {letters_black}· {letters}reset': 'Maj-clic droit {letters_black}· {letters}réinitialiser'
+'Ready again in': 'De nouveau disponible dans'
+Lighter screens: Écrans allégés
+Less detail on full-screen menus, for a faster game: Moins de détails sur les menus plein écran, pour un jeu plus fluide

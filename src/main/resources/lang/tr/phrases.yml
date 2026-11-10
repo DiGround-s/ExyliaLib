@@ -1848,3 +1848,6 @@ space: 'boşluk'
 'Plays the next sound to you.': 'Sıradaki sesi sana çalar.'
 'Opens it, ready to edit.': 'Düzenlemeye hazır açılır.'
 'Shift-right-click {letters_black}· {letters}reset': 'Shift-sağ tık {letters_black}· {letters}sıfırla'
+'Ready again in': 'Tekrar kullanılabilir:'
+Lighter screens: Hafif ekranlar
+Less detail on full-screen menus, for a faster game: Tam ekran menülerde daha az ayrıntı, daha akıcı bir oyun için

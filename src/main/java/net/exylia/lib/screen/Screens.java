@@ -148,6 +148,17 @@ public final class Screens {
     }
 
     /** Redraws every screen this plugin has open. @since 1.496.0 */
+    /**
+     * The heaviest a screen of this plugin named {@code name} ({@link Screen#name}) has been for any viewer since the
+     * server started, {@link ScreenCost#NONE} when it has not been drawn. For a plugin's check command, so an owner
+     * sees a screen that is heavy for players' games before the players do.
+     *
+     * @since 1.565.0
+     */
+    public @NotNull ScreenCost cost(@NotNull String name) {
+        return net.exylia.lib.screen.internal.ScreenCosts.of(plugin, name);
+    }
+
     public void redrawAll() {
         redrawAll(session -> true);
     }

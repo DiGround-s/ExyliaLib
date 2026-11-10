@@ -7,6 +7,7 @@ import net.exylia.lib.screen.Motion;
 import net.exylia.lib.screen.Node;
 import net.exylia.lib.screen.ScreenScene;
 import net.exylia.lib.screen.Screen;
+import net.exylia.lib.screen.ScreenCost;
 import net.exylia.lib.screen.ScreenEvent;
 import net.exylia.lib.screen.ScreenSession;
 import net.exylia.lib.screen.ScreenSettings;
@@ -134,6 +135,8 @@ final class LiveScreen implements ScreenSession {
     private java.util.function.UnaryOperator<String> phrases;
     private final Player player;
     private final Screen screen;
+    /** Picture glyphs the frame being computed draws, for {@link ScreenCosts}. */
+    private int glyphs;
     private final TaskScheduler tasks;
     private final Map<String, Object> state = new ConcurrentHashMap<>();
     private final Vector3d origin;
@@ -257,6 +260,16 @@ final class LiveScreen implements ScreenSession {
     private Map<String, Box> lastBoxes = Map.of();
     /** When each animating box started, on the animation clock. */
     private final Map<String, Long> animStart = new HashMap<>();
+    /** Animations an action started on a box ({@link #animate(String, Motion.Keyframes)}), by box key. */
+    private final Map<String, Played> played = new HashMap<>();
+    private record Played(Motion.Keyframes keyframes, long start) {
+    }
+    /** Words typing themselves out, by look key: the whole words, and when they began on the animation clock. */
+    private final Map<String, Typed> typed = new HashMap<>();
+    private record Typed(Component text, long start) {
+    }
+    /** The longest a staggered box waits for its turn, ticks: a long list fills in, it does not trickle. */
+    private static final int STAGGER_CAP = 40;
     private long animClock;
     private int animStep = 2;
     private TaskHandle animator;
@@ -715,6 +728,16 @@ final class LiveScreen implements ScreenSession {
         if (dirty.compareAndSet(false, true)) tasks.runAtEntity(player, this::renderIfDirty);
     }
 
+    @Override
+    public void animate(@NotNull String id, net.exylia.lib.screen.Motion.@NotNull Keyframes keyframes) {
+        if (!open()) return;
+        synchronized (this) {
+            played.put("#" + id, new Played(keyframes, animClock));
+            resync = true;
+        }
+        redraw();
+    }
+
     private void renderIfDirty() {
         if (dirty.compareAndSet(true, false)) render();
     }
@@ -1147,8 +1170,21 @@ final class LiveScreen implements ScreenSession {
     private record Cx(Xf xf, Motion.Transition transition, boolean animated, boolean low) {
     }
 
-    /** One box of a frame, kept to the next: where its arrivals and departures are measured from. */
-    private record Box(String parent, Node node, double cx, double cy, int depth) {
+    /**
+     * One box of a frame, kept to the next: where its arrivals and departures are measured from. {@code delay} is how
+     * many ticks its arrival and animation wait for a staggering box above it; {@code staggered} marks the box that
+     * takes a turn of its own (its arrival starts with it, never with the boxes above).
+     */
+    private record Box(String parent, Node node, double cx, double cy, int depth, int delay, boolean staggered) {
+        Box(String parent, Node node, double cx, double cy, int depth) {
+            this(parent, node, cx, cy, depth, 0, false);
+        }
+    }
+
+    /** A box that only lays out others: no colour, no outline, no click, no words or item of its own. */
+    private static boolean plain(Node node) {
+        return (node.kind() == Node.Kind.ROW || node.kind() == Node.Kind.COLUMN) && node.background() == null
+                && node.outline() == null && node.onClick() == null && node.stagger() == 0;
     }
 
     /** What one frame wants on the client. */
@@ -1169,11 +1205,26 @@ final class LiveScreen implements ScreenSession {
     private IdentityHashMap<Layout.Placed, Cx> contexts(List<Layout.Placed> list, long phaseAt, Map<String, Box> boxes) {
         IdentityHashMap<Layout.Placed, Cx> out = new IdentityHashMap<>();
         Cx[] at = new Cx[list.size()];
+        int[] delay = new int[list.size()];
+        int[] turns = new int[list.size()];
         boolean reduced = reduced();
         for (int i = 0; i < list.size(); i++) {
             Layout.Placed b = list.get(i);
             Cx parent = b.parent() >= 0 && b.parent() < i ? at[b.parent()] : null;
             Node n = b.node();
+            // A box below a staggering one, with only plain boxes between (a grid's rows), takes the next turn;
+            // everything inside it waits with it.
+            int up = b.parent() >= 0 && b.parent() < i ? b.parent() : -1;
+            delay[i] = up >= 0 ? delay[up] : 0;
+            boolean staggered = false;
+            if (!plain(n)) {
+                int q = up;
+                while (q >= 0 && plain(list.get(q).node())) q = list.get(q).parent() >= 0 && list.get(q).parent() < q ? list.get(q).parent() : -1;
+                if (q >= 0 && list.get(q).node().stagger() > 0) {
+                    delay[i] = delay[q] + Math.min(STAGGER_CAP, turns[q]++ * list.get(q).node().stagger());
+                    staggered = true;
+                }
+            }
             Motion.Transform own = n.transform();
             if (b.key().equals(hovered) && n.hoverTransform() != null) own = own.with(n.hoverTransform());
             if (b.key().equals(activeKey) && n.activeTransform() != null) own = own.with(n.activeTransform());
@@ -1181,6 +1232,11 @@ final class LiveScreen implements ScreenSession {
             if (n.animation() != null && !reduced) {
                 Long start = animStart.get(b.key());
                 own = own.with(n.animation().at(start == null ? 0 : Math.max(0, phaseAt - start)));
+                animated = true;
+            }
+            Played play = reduced ? null : played.get(b.key());
+            if (play != null) {
+                own = own.with(play.keyframes().at(Math.max(0, phaseAt - play.start())));
                 animated = true;
             }
             Xf xf = parent == null ? null : parent.xf();
@@ -1191,7 +1247,7 @@ final class LiveScreen implements ScreenSession {
             String parentKey = b.parent() >= 0 && b.parent() < i ? list.get(b.parent()).key() : null;
             // Two boxes may share a key (the same id written twice); the first placed keeps it, so a walk up the
             // parents always reaches an earlier box and ends.
-            boxes.putIfAbsent(b.key(), new Box(parentKey, n, centreX(b), centreY(b), b.depth()));
+            boxes.putIfAbsent(b.key(), new Box(parentKey, n, centreX(b), centreY(b), b.depth(), delay[i], staggered));
         }
         return out;
     }
@@ -1206,6 +1262,7 @@ final class LiveScreen implements ScreenSession {
      * sprites as the 3D item (one display rather than four). Holds the lock.
      */
     private Frame compute(int lod, boolean animating) {
+        glyphs = 0;
         Map<String, Object> wanted = new LinkedHashMap<>();
         Map<String, String> boxOf = new HashMap<>();
         Map<String, Box> boxes = new HashMap<>();
@@ -1238,7 +1295,7 @@ final class LiveScreen implements ScreenSession {
             Node node = box.node();
             Cx here = cx.get(box);
             if (lod >= 1 && here != null && here.low()) continue;
-            animates |= node.animation() != null;
+            animates |= node.animation() != null || played.containsKey(box.key());
             boolean over = box.key().equals(hovered);
             boolean pressed = box.key().equals(activeKey);
             // A clickable box under the pointer rises a little, as a button does, unless its style moves it itself.
@@ -1421,7 +1478,31 @@ final class LiveScreen implements ScreenSession {
                         default -> 0x08;
                     } : 0);
                     String key = box.key() + "#t";
+                    boolean typing = false;
+                    if (node.reveal() > 0 && !reduced()) {
+                        // Typing out: the words so far, kept where the whole words start (or end, for right-aligned).
+                        Typed was = typed.get(key);
+                        if (was == null || !was.text().equals(words)) {
+                            Box self = boxes.get(box.key());
+                            long wait = self == null ? 0 : self.delay();
+                            Motion.Tween in = lastBoxes.containsKey(box.key()) ? null : arrival(box.key(), boxes);
+                            was = new Typed(words, phaseAt + wait + (in == null ? 0 : in.ticks()));
+                            typed.put(key, was);
+                        }
+                        int shown = (int) Math.max(0, (phaseAt - was.start()) / node.reveal());
+                        if (shown < Reveal.length(words)) {
+                            Component part = Reveal.take(words, shown);
+                            double partWide = net.exylia.lib.text.Centering.pixelWidth(part) * node.scale();
+                            double moved = (partWide - wide) * fit / 2;
+                            if (node.textAlign() == Node.Align.START || node.textAlign() == Node.Align.STRETCH) tx += moved * unit;
+                            else if (node.textAlign() == Node.Align.END) tx -= moved * unit;
+                            words = part;
+                            typing = true;
+                            animates = true;
+                        }
+                    }
                     wanted.put(key, xf(new TextLook(tx, ty, node.scale() * fit, top, words, lines, flags), xf));
+                    if (typing) animatedLooks.add(key);
                     mine.add(key);
                 }
             }
@@ -1590,9 +1671,16 @@ final class LiveScreen implements ScreenSession {
 
     /** Sends what the layout wants and the client does not have. Holds the lock. */
     private void sync(boolean animating) {
-        Frame detailed = compute(0, animating);
-        for (int lod = 1; detailed.wanted().size() > BUDGET && lod <= 3; lod++) detailed = compute(lod, animating);
+        // A player who asked for lighter screens starts at the lowest detail: fewer displays, fewer picture glyphs.
+        int lod = ScreenPreferences.light(player.getUniqueId()) ? 3 : 0;
+        Frame detailed = compute(lod, animating);
+        boolean lightened = false;
+        while (detailed.wanted().size() > BUDGET && lod < 3) {
+            detailed = compute(++lod, animating);
+            lightened = true;
+        }
         Frame frame = detailed;
+        ScreenCosts.record(plugin, screen.name(), new ScreenCost(Math.min(frame.wanted().size(), BUDGET), glyphs, lightened));
         Map<String, Object> wanted = frame.wanted();
         List<String> order = frame.order();
         drawnCount = Math.min(wanted.size(), BUDGET);
@@ -1619,10 +1707,15 @@ final class LiveScreen implements ScreenSession {
         for (Map.Entry<String, Box> box : frame.boxes().entrySet()) {
             if (box.getValue().node().animation() != null && !animStart.containsKey(box.getKey())) {
                 Motion.Tween in = lastBoxes.containsKey(box.getKey()) ? null : arrival(box.getKey(), frame.boxes());
-                animStart.put(box.getKey(), animClock + (in == null ? 0 : in.ticks()));
+                animStart.put(box.getKey(), animClock + (in == null ? 0 : in.ticks()) + box.getValue().delay());
             }
         }
         animStart.keySet().retainAll(frame.boxes().keySet());
+        // A played animation that reached its end in this frame has sent its last place: it is done.
+        long sentAt = animating ? animClock + animStep : animClock;
+        played.entrySet().removeIf(p -> !frame.boxes().containsKey(p.getKey())
+                || p.getValue().keyframes().finished(sentAt - p.getValue().start()));
+        typed.keySet().retainAll(wanted.keySet());
         List<PacketWrapper<?>> out = new ArrayList<>();
         Map<Integer, List<Seg>> later = new HashMap<>();
         Set<String> gone = new HashSet<>(drawn.keySet());
@@ -1698,7 +1791,18 @@ final class LiveScreen implements ScreenSession {
                 if (key.contains(ScreenScene.SHARD)) motionPackets += 3;
                 Arrival in = key.startsWith("~dim") || reduced || box == null ? null
                         : arrivals.computeIfAbsent(box, b -> arrivalOf(b, frame.boxes()));
-                if (in != null && in.tween().ticks() > 0) {
+                if (in != null && in.delay() > 0) {
+                    // Waiting for its turn in a stagger: drawn shrunk to nothing, then arriving as any new box.
+                    out.add(look(id, xf(look, in.hidden()), 0));
+                    if (in.tween() != null && in.tween().ticks() > 0) {
+                        Object first = xf(look, in.xf());
+                        glide(id, first, look, new Motion.Transition(in.tween().ticks(), eased ? in.tween().ease()
+                                : Motion.Ease.LINEAR, false), in.delay() + 1, out, later);
+                        later.computeIfAbsent(in.delay(), k -> new ArrayList<>()).add(new Seg(id, generation.get(id), first, 0));
+                    } else {
+                        later.computeIfAbsent(in.delay(), k -> new ArrayList<>()).add(new Seg(id, bump(id), look, 0));
+                    }
+                } else if (in != null && in.tween().ticks() > 0) {
                     // A new box starts where its arrival begins and glides into place once the client has that
                     // start: a transform only glides from one it already shows.
                     Object first = xf(look, in.xf());
@@ -1742,8 +1846,14 @@ final class LiveScreen implements ScreenSession {
     private record Seg(int id, int generation, Object look, int ticks) {
     }
 
-    /** How a new box arrives: the tween and the transform it starts from. */
-    private record Arrival(Motion.Tween tween, Xf xf) {
+    /**
+     * How a new box arrives: the tween and the transform it starts from ({@code null} for neither), and the ticks it
+     * waits for its turn in a stagger, drawn as {@code hidden} meanwhile.
+     */
+    private record Arrival(Motion.Tween tween, Xf xf, int delay, Xf hidden) {
+        Arrival(Motion.Tween tween, Xf xf) {
+            this(tween, xf, 0, null);
+        }
     }
 
     /** Gives a display a new target, so the queued steps of its last glide are dropped. Holds the lock. */
@@ -1761,7 +1871,7 @@ final class LiveScreen implements ScreenSession {
         int gen = bump(id);
         int ticks = Math.max(0, transition.ticks());
         int steps = transition.ease() == Motion.Ease.LINEAR || ticks < 2 || sameGeometry(from, to) ? 1
-                : Math.max(2, Math.min(4, ticks / 2));
+                : Math.max(2, Math.min(transition.ease().springy() ? 8 : 4, ticks / 2));
         int sent = 0;
         for (int i = 1; i <= steps; i++) {
             int end = ticks * i / steps;
@@ -1809,15 +1919,21 @@ final class LiveScreen implements ScreenSession {
         String root = box;
         while (true) {
             Box b = boxes.get(root);
-            if (b == null || b.parent() == null || lastBoxes.containsKey(b.parent())) break;
+            // A box taking its turn in a stagger arrives on its own, not with the new boxes above it.
+            if (b == null || b.staggered() || b.parent() == null || lastBoxes.containsKey(b.parent())) break;
             root = b.parent();
         }
         Box top = boxes.get(root);
         if (top == null) return null;
         Motion.Tween tween = arrival(root, boxes);
-        if (tween == null || tween.ticks() <= 0 || tween.transform().none()) return null;
-        return new Arrival(tween, new Xf(top.cx(), top.cy(), tween.transform().x() * unit, -tween.transform().y() * unit,
-                tween.transform().scale(), tween.transform().squeeze(), null));
+        boolean moves = tween != null && tween.ticks() > 0 && !tween.transform().none();
+        Xf from = moves ? new Xf(top.cx(), top.cy(), tween.transform().x() * unit, -tween.transform().y() * unit,
+                tween.transform().scale(), tween.transform().squeeze(), null) : null;
+        if (top.delay() > 0) {
+            return new Arrival(moves ? tween : null, from, top.delay(), new Xf(top.cx(), top.cy(), 0, 0, 0.001, 1, null));
+        }
+        if (!moves) return null;
+        return new Arrival(tween, from);
     }
 
     /** The tween a box arriving as a root takes: its own, the nearest enclosing box's, or the built-in one. */
@@ -1884,7 +2000,10 @@ final class LiveScreen implements ScreenSession {
         int shortest = Integer.MAX_VALUE;
         for (Layout.Placed box : boxes) {
             if (box.node().animation() != null) shortest = Math.min(shortest, box.node().animation().ticks());
+            // Words typing out move every step: the finest one.
+            if (box.node().reveal() > 0) shortest = 16;
         }
+        for (Played p : played.values()) shortest = Math.min(shortest, p.keyframes().ticks());
         int step = Math.max(2, Math.min(10, shortest / 8));
         if (animator != null && step == animStep) return;
         if (animator != null) animator.cancel();
@@ -2049,6 +2168,7 @@ final class LiveScreen implements ScreenSession {
      */
     private List<String> pictureLooks(String key, double x, double y, double cell, int layer, Component picture, int rows,
                                       Map<String, Object> wanted, Xf xf) {
+        glyphs += 4 * Reveal.length(picture);
         int gapX = ScreenPackets.IMAGE_ADVANCE - ScreenPackets.IMAGE_GLYPH;
         int gapY = ScreenPackets.IMAGE_LINE - ScreenPackets.IMAGE_GLYPH;
         List<String> keys = new ArrayList<>(4);

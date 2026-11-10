@@ -81,6 +81,8 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 3 displays, only while hovered |
 | `routes` | On `screen`: chest menu ids this screen stands for, with state | `routes="player/queue_kit:tab=play"` | 1.495.0 | free |
 | `command`, `aliases`, `permission` | On `screen`: read by the plugin that opens screens by command (ExyliaScreens) | `command="hub" aliases="lobby"` | 1.502.0 | free |
+| `style` | The element's own declarations, over every rule; `${...}` and `%placeholders%` allowed, `--x` reaches its children | `style="background: ${owned ? '{success}' : '{neutral}'}30"` | 1.565.0 | free |
+| `cooldown`, `deny-cooldown` | Wait between clicks of `action`: `5s` (keyed by the id) or `daily 24h` (its own key, read by `cooldown('daily')`); 5 minutes or more survives restarts. `deny-cooldown` runs while it waits (else a refusal sound and "Ready again in …" toast) | `cooldown="daily 24h"` | 1.565.0 | free |
 
 Attributes on `<screen>` only:
 
@@ -127,17 +129,26 @@ for `animation`.
 | `transform` | `translate(x, y)`, `translateX`, `translateY`, `scale(s)`; also in `:hover`/`:active` | `transform: translateY(-2px);` | 1.496.0 | client interpolation, no packets per frame |
 | `transition` | `[transform\|background\|all] <duration> [easing]` | `transition: transform 3t ease-out;` | 1.496.0 | client interpolation: 2 to 4 packets per glide |
 | `enter`, `leave` | Arrival / departure tween; `none` turns the built-in off | `enter: scale(0.9) 5t back;` | 1.496.0 | a few frames per arrival (test: under 60 packets) |
-| `animation` | `<keyframes> <duration> [easing] [infinite]`; transforms only | `animation: pulse 40t ease-in-out infinite;` | 1.496.0 | re-sampled every 2 to 10 ticks while shown; capped by `motion-ceiling` |
+| `animation` | `<keyframes> <duration> [easing] [delay] [count\|infinite] [alternate]`; transforms only. The first duration is one play, a second one the delay, a bare number the plays | `animation: float 60t ease-in-out 10t infinite alternate;` | 1.496.0 (delay, count, alternate 1.565.0) | re-sampled every 2 to 10 ticks while shown; capped by `motion-ceiling` |
+| `animation-delay`, `animation-iteration-count`, `animation-direction` | Longhands that win over the shorthand's words | `animation-delay: 1s;` | 1.565.0 | free |
+| `stagger` | On a container: its children arrive one after another, this many ticks apart (rows of a grid count through), and their animations start as far apart; the wait is capped at 40 ticks | `stagger: 2t;` | 1.565.0 | the same packets as arriving together, spread over time |
+| `text-reveal` | Words type themselves out, ticks per character, on first show and whenever they change; inherited, so a container types all its text (with `stagger`, one after another). `none` turns it off | `text-reveal: 1t;` | 1.565.0 | one text update every 2 ticks while typing |
 
 Durations: `4t` or `4` ticks, `200ms`, `0.3s`. Easings: `linear`, `ease-in`, `ease-out` (`ease`), `ease-in-out`,
-`back`. Palette tokens (`{primary}`) go inside values, never hex in shipped files.
+`back`, `bounce` and `elastic` (1.565.0). Palette tokens (`{primary}`) go inside values, never hex in shipped files.
+
+Keyframes every screen has (base theme, 1.565.0): `shake`, `pop`, `pulse`, `float`, `nudge`, `jump`, `flip`,
+`drop-in`, and the classes `.anim-float`, `.anim-pulse`, `.anim-nudge` that loop them. A sheet's own keyframes of
+the same name win.
 
 ## Expressions and functions
 
 Detail in [Expressions](screens.md#expressions-14940). Functions: `min`, `max`, `abs`, `round`, `floor`, `ceil`,
 `len`, `upper`, `lower`, `plural(n, 'one', 'many')`, `t('key', 'fallback')`, `fmt.number`, `fmt.percent`,
 `fmt.time`; about the viewer (1.501.0): `perm('node')`, `balance()`, `balance('points')`, `has_item('diamond', 16)`,
-`level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`, and any a plugin
+`level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`; 1.565.0:
+`cooldown('key')` (seconds left on a button's `cooldown="key ..."`, 0 when ready), `players('survival')`
+(players on that server as the proxy last counted, `players()` the whole network), `online('survival')`, and any a plugin
 registered through `ExpressionFunctions`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
 
 ## Built-in actions
@@ -154,6 +165,7 @@ Detail in [`action`](screens.md#attributes-on-any-tag) and
 | `sound <key> [volume] [pitch]` | A UI sound to the viewer | 1.496.0 |
 | `confirm '<question>' [dangerous] [yes=..] [no=..] then <actions>` | In-screen dialog; what follows `then` runs only on yes | 1.496.0 |
 | `input text <key> '<prompt>' [hint=..] [max=n] then <actions>` | Asks for a line of text into state `<key>` | 1.496.0 |
+| `animate [#id] <keyframes> [duration] [easing] [count] [alternate]` | Plays keyframes once on the box of that id, or on the clicked one (it needs an `id`); 10 ticks unless given. `deny="animate shake; sound entity.villager.no"` | 1.565.0 |
 | `[console]`, `[player]`, `[MONEY]`, `[MESSAGE]`, `[TITLE]`, `[SERVER]`, `[TELEPORT]`, `[ACTION]`, `[DELAY]` | [Interaction lines](interactions.md) | 1.501.0 |
 | `name args` | The markup's own `action(...)`, then a namespaced ExyliaLib action (`practice:join_queue boxing`) | 1.485.0 |
 

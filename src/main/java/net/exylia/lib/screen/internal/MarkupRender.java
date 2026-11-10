@@ -2,6 +2,7 @@ package net.exylia.lib.screen.internal;
 
 import net.exylia.lib.action.ActionContext;
 import net.exylia.lib.action.Actions;
+import net.exylia.lib.screen.Motion;
 import net.exylia.lib.screen.Node;
 import net.exylia.lib.screen.ScreenEvent;
 import net.exylia.lib.screen.ScreenSession;
@@ -521,7 +522,10 @@ public final class MarkupRender {
                 ? el.attr("state") : null;
         if (toggleKey != null && truthy(session.state(toggleKey, false))) flags.add("checked");
 
-        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class") == null ? null : fill(el.attr("class"), scope, false)), flags, index, count);
+        // style="...": the element's own declarations, over every rule (1.565.0); Compile reported bad ones.
+        Map<String, String> inline = el.attr("style") == null ? Map.of()
+                : Css.inline(fill(el.attr("style"), scope, false), ignored -> { });
+        Css.Target target = new Css.Target(el.tag(), el.attr("id"), Css.classes(el.attr("class") == null ? null : fill(el.attr("class"), scope, false)), flags, index, count, inline);
         List<Css.Target> here = new ArrayList<>(path);
         here.add(target);
         Map<String, String> style = parts.css().style(here, false);
@@ -826,7 +830,10 @@ public final class MarkupRender {
 
     private void click(El el, Node node, Scope scope, Set<String> flags, String option, List<Css.Target> path,
                        String toggleKey) {
-        List<List<String>> action = gated(el, "", el.attr("action") == null ? null : actions(el.attr("action"), scope), scope);
+        List<List<String>> asked = el.attr("action") == null ? null : actions(el.attr("action"), scope);
+        List<List<String>> action = gated(el, "", asked, scope);
+        // A click its require turned away runs deny and starts no cooldown.
+        boolean allowed = action == asked;
         List<List<String>> right = gated(el, "-right",
                 el.attr("action-right") == null ? null : actions(el.attr("action-right"), scope), scope);
         List<List<String>> shift = gated(el, "-shift",
@@ -851,6 +858,7 @@ public final class MarkupRender {
         }
         if (action == null && right == null && owner == null && toggleKey == null) return;
         boolean disabled = flags.contains("disabled");
+        Cooldown wait = cooldown(el, scope);
         String stateKey = owner == null ? null : owner.attr("state");
         Object row = rowOf(scope);
         node.onClick(event -> {
@@ -864,10 +872,43 @@ public final class MarkupRender {
                 runAll(right, here, el);
                 return;
             }
+            if (wait != null && allowed && action != null && !COOLDOWNS.tryStart(event.viewer(), wait.key(), wait.length())) {
+                runAll(el.attr("deny-cooldown") != null ? actions(el.attr("deny-cooldown"), scope) : List.of(
+                        List.of("sound", "entity.villager.no", "0.4"),
+                        List.of("toast", "error", net.exylia.lib.text.Phrases.tr("Ready again in") + " "
+                                + net.exylia.lib.util.TimeFormats.render(COOLDOWNS.remainingWholeSeconds(event.viewer(), wait.key())))),
+                        here, el);
+                return;
+            }
             if (stateKey != null) event.session().set(stateKey, option);
             if (toggleKey != null) event.session().set(toggleKey, !truthy(event.session().state(toggleKey, false)));
             if (action != null) runAll(action, here, el);
         });
+    }
+
+    /** Where every screen button's cooldown is kept: shared with {@code cooldown('key')} in expressions. */
+    public static final net.exylia.lib.util.PluginCooldowns COOLDOWNS = net.exylia.lib.util.Cooldowns.namespaced("screens");
+
+    private record Cooldown(String key, java.time.Duration length) {
+    }
+
+    /**
+     * {@code cooldown="5s"} (keyed by the element's id, or where it is written) or {@code cooldown="daily 24h"} (a
+     * key of its own, shared by every screen and read by {@code cooldown('daily')}); 5 minutes or more outlives a
+     * restart (1.565.0).
+     */
+    private Cooldown cooldown(El el, Scope scope) {
+        String raw = el.attr("cooldown");
+        if (raw == null || raw.isBlank()) return null;
+        String[] words = fill(raw, scope, false).trim().split("\\s+");
+        long millis = MotionCss.millis(words[words.length - 1]);
+        if (millis <= 0) {
+            parts.problems().accept(el.pos() + ": cooldown wants a time such as 5s, 10m or 24h, not " + raw);
+            return null;
+        }
+        String key = words.length > 1 ? words[0]
+                : el.attr("id") != null ? fill(el.attr("id"), scope, false) : el.pos().toString();
+        return new Cooldown(key, java.time.Duration.ofMillis(millis));
     }
 
     /**
@@ -975,6 +1016,30 @@ public final class MarkupRender {
         return false;
     }
 
+    /**
+     * {@code animate [#id] <keyframes> [duration] [easing] [count] [alternate]}: plays {@code @keyframes} once on the
+     * box of that id, or on the clicked box (1.565.0).
+     */
+    private void animate(List<String> words, ScreenEvent event, El el) {
+        String id = event.node();
+        List<String> rest = words;
+        if (!words.isEmpty() && words.get(0).startsWith("#")) {
+            id = words.get(0).substring(1);
+            rest = words.subList(1, words.size());
+        }
+        if (rest.isEmpty()) {
+            parts.problems().accept(el.pos() + ": animate needs a @keyframes name");
+            return;
+        }
+        if (id == null || id.isEmpty()) {
+            parts.problems().accept(el.pos() + ": animate needs #id, or an id on the element clicked");
+            return;
+        }
+        Motion.Keyframes keyframes = MotionCss.play(rest.get(0), rest.subList(1, rest.size()), parts.css());
+        if (keyframes == null) parts.problems().accept(el.pos() + ": no @keyframes " + rest.get(0));
+        else event.session().animate(id, keyframes);
+    }
+
     /** {@code confirm '<question>' [dangerous] [yes='<label>'] [no='<label>'] then <steps>}: a dialog in the screen. */
     private void confirm(List<String> head, List<List<String>> rest, ScreenEvent event, El el) {
         String question = head.isEmpty() ? "" : head.get(0);
@@ -1070,6 +1135,7 @@ public final class MarkupRender {
             case "toggle" -> {
                 if (!words.isEmpty()) event.session().set(words.get(0), !truthy(event.session().state(words.get(0), false)));
             }
+            case "animate" -> animate(words, event, el);
             default -> {
                 BiConsumer<ScreenEvent, List<String>> handler = parts.bindings().actions().get(name);
                 if (handler != null) {
@@ -1111,6 +1177,9 @@ public final class MarkupRender {
         }
         String shadow = text.get("text-shadow");
         if (shadow != null && !shadow.isBlank() && !shadow.trim().equalsIgnoreCase("none")) node.shadow(true);
+        // text-reveal: 1t types the words out a character a tick (1.565.0); none or 0 shows them at once.
+        String reveal = text.get("text-reveal");
+        if (reveal != null && MotionCss.ticks(reveal) > 0) node.reveal(MotionCss.ticks(reveal));
         String align = text.get("text-align");
         if (align != null) node.textAlign(switch (align.trim()) {
             case "center" -> Node.Align.CENTER;
@@ -1162,7 +1231,8 @@ public final class MarkupRender {
         if (style.containsKey("transition")) node.transition(MotionCss.transition(style.get("transition")));
         if (style.containsKey("enter")) node.enter(MotionCss.tween(style.get("enter")));
         if (style.containsKey("leave")) node.leave(MotionCss.tween(style.get("leave")));
-        if (style.containsKey("animation")) node.animation(MotionCss.animation(style.get("animation"), css));
+        if (style.containsKey("animation")) node.animation(MotionCss.animation(style, css));
+        if (style.containsKey("stagger")) node.stagger(Math.max(0, MotionCss.ticks(style.get("stagger"))));
         if ("absolute".equalsIgnoreCase(style.getOrDefault("position", "").trim())) {
             node.absolute(px(style.get("top"), Double.NaN), px(style.get("right"), Double.NaN),
                     px(style.get("bottom"), Double.NaN), px(style.get("left"), Double.NaN));

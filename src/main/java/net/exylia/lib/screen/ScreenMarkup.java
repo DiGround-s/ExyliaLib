@@ -71,7 +71,7 @@ public final class ScreenMarkup {
     /** The library's own components, known to every screen below the plugin's (since 1.496.0). */
     private static final List<String[]> LIBRARY = loadLibrary();
     /** Actions every screen knows without registering. */
-    private static final Set<String> BUILT_IN = Set.of("close", "set", "clear", "toggle", "toast", "back", "sound",
+    private static final Set<String> BUILT_IN = Set.of("close", "animate", "set", "clear", "toggle", "toast", "back", "sound",
             "confirm", "input");
 
     /** One read of the files: what a render draws until the next read. */
@@ -386,6 +386,7 @@ public final class ScreenMarkup {
             return MarkupRender.render(parts, session);
         }).state(state);
         Markup.El root = compiled.root();
+        screen.name(root.attr("id") != null ? root.attr("id") : name.replaceFirst("\\.[^.]*$", ""));
         java.util.Set<String> persisted = new java.util.HashSet<>();
         persisted(root, persisted);
         if (!persisted.isEmpty()) {

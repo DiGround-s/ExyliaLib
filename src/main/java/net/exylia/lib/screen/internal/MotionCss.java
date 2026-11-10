@@ -109,31 +109,96 @@ public final class MotionCss {
     }
 
     /**
-     * {@code animation: <name> <duration> [easing] [infinite]} with the frames of {@code @keyframes name};
-     * {@code null} when it names no keyframes the sheets declare.
+     * {@code animation: <name> <duration> [easing] [delay] [count|infinite] [alternate]} with the frames of
+     * {@code @keyframes name}: the first duration is how long one play lasts, a second one the delay before it starts,
+     * a bare number how many times it plays. {@code null} when it names no keyframes the sheets declare.
      */
     public static Motion.Keyframes animation(String value, Css css) {
+        return animation(value, null, null, null, css);
+    }
+
+    /**
+     * The same with the longhands an element may also carry, which win over the shorthand's words:
+     * {@code animation-delay}, {@code animation-iteration-count} ({@code infinite} or a number) and
+     * {@code animation-direction} ({@code alternate} or {@code normal}). Since 1.565.0.
+     */
+    public static Motion.Keyframes animation(Map<String, String> style, Css css) {
+        return animation(style.get("animation"), style.get("animation-delay"), style.get("animation-iteration-count"),
+                style.get("animation-direction"), css);
+    }
+
+    private static Motion.Keyframes animation(String value, String delayed, String count, String direction, Css css) {
         if (value == null || value.isBlank() || value.trim().equalsIgnoreCase("none")) return null;
         String name = null;
-        int ticks = 20;
+        int ticks = -1;
+        int delay = 0;
+        int iterations = 1;
         Motion.Ease ease = Motion.Ease.IN_OUT;
         boolean infinite = false;
+        boolean alternate = false;
         for (String word : value.trim().split("\\s+")) {
             String w = word.toLowerCase(Locale.ROOT);
-            int d = ticks(w);
             Motion.Ease parsed = Motion.Ease.parse(w);
-            if (d >= 0) ticks = d;
+            if (w.matches("\\d+") && ticks >= 0) iterations = Integer.parseInt(w);
+            else if (ticks(w) >= 0 && ticks < 0) ticks = ticks(w);
+            else if (ticks(w) >= 0) delay = ticks(w);
             else if (parsed != null) ease = parsed;
             else if (w.equals("infinite")) infinite = true;
-            else if (name == null) name = word;
+            else if (w.equals("alternate")) alternate = true;
+            else if (!w.equals("normal") && name == null) name = word;
         }
+        if (delayed != null && ticks(delayed) >= 0) delay = ticks(delayed);
+        if (count != null) {
+            String c = count.trim().toLowerCase(Locale.ROOT);
+            if (c.equals("infinite")) infinite = true;
+            else if (c.matches("\\d+")) iterations = Integer.parseInt(c);
+        }
+        if (direction != null) alternate = direction.trim().toLowerCase(Locale.ROOT).startsWith("alternate");
         List<Map.Entry<Double, Map<String, String>>> frames = name == null ? null : css.keyframes(name);
         if (frames == null || frames.isEmpty()) return null;
         List<Motion.Frame> out = new ArrayList<>();
         for (Map.Entry<Double, Map<String, String>> frame : frames) {
             out.add(new Motion.Frame(frame.getKey(), transform(frame.getValue().get("transform"))));
         }
-        return new Motion.Keyframes(out, Math.max(1, ticks), ease, infinite);
+        return new Motion.Keyframes(out, Math.max(1, ticks < 0 ? 20 : ticks), ease, infinite, delay,
+                Math.min(iterations, 1000), alternate);
+    }
+
+    /**
+     * A one-shot play of {@code @keyframes name} for the {@code animate} action: {@code duration} and {@code ease} as
+     * written after the name, or 10 ticks eased in and out. {@code null} when no sheet declares it. Since 1.565.0.
+     */
+    public static Motion.Keyframes play(String name, List<String> words, Css css) {
+        StringBuilder value = new StringBuilder(name);
+        for (String word : words) value.append(' ').append(word);
+        if (words.stream().noneMatch(w -> ticks(w) >= 0)) value.append(" 10t");
+        Motion.Keyframes read = animation(value.toString(), css);
+        return read == null ? null : new Motion.Keyframes(read.frames(), read.ticks(), read.ease(), false, read.delay(),
+                read.iterations(), read.alternate());
+    }
+
+    private static final Pattern SPAN = Pattern.compile("(\\d+(?:\\.\\d+)?)(ms|t|s|m|h|d)");
+
+    /** A length of time: {@code 500ms}, {@code 20t}, {@code 5s}, {@code 10m}, {@code 24h}, {@code 7d}, or several ({@code 1h30m}); -1 when unreadable. Since 1.565.0. */
+    public static long millis(String text) {
+        String t = text.trim().toLowerCase(Locale.ROOT);
+        Matcher m = SPAN.matcher(t);
+        long total = 0;
+        int end = 0;
+        while (m.find()) {
+            if (m.start() != end) return -1;
+            double n = Double.parseDouble(m.group(1));
+            total += (long) (n * switch (m.group(2)) {
+                case "ms" -> 1;
+                case "t" -> 50;
+                case "s" -> 1000;
+                case "m" -> 60_000;
+                case "h" -> 3_600_000;
+                default -> 86_400_000;
+            });
+            end = m.end();
+        }
+        return end == t.length() && end > 0 ? total : -1;
     }
 
     private static double number(String text) {

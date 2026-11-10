@@ -39,7 +39,16 @@ public final class Motion {
         /** Slow at both ends, as CSS {@code ease-in-out}. */
         IN_OUT,
         /** Goes a little past the end and settles back: a pop. */
-        BACK;
+        BACK,
+        /** Lands and bounces twice before it settles, as a dropped ball. @since 1.565.0 */
+        BOUNCE,
+        /** Springs past the end and wobbles back and forth into place. @since 1.565.0 */
+        ELASTIC;
+
+        /** Whether the curve turns back on itself, so a glide along it needs more steps to show its shape. */
+        public boolean springy() {
+            return this == BOUNCE || this == ELASTIC;
+        }
 
         /** Where the curve is at {@code t} (0 to 1). */
         public double at(double t) {
@@ -53,10 +62,22 @@ public final class Motion {
                     double c = 1.70158;
                     yield 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
                 }
+                case BOUNCE -> {
+                    double n = 7.5625, d = 2.75;
+                    if (t < 1 / d) yield n * t * t;
+                    if (t < 2 / d) yield n * (t -= 1.5 / d) * t + 0.75;
+                    if (t < 2.5 / d) yield n * (t -= 2.25 / d) * t + 0.9375;
+                    yield n * (t -= 2.625 / d) * t + 0.984375;
+                }
+                case ELASTIC -> t == 0 || t == 1 ? t
+                        : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI / 3)) + 1;
             };
         }
 
-        /** {@code linear}, {@code ease-in}, {@code ease-out} or {@code ease}, {@code ease-in-out}, {@code back}; {@code null} when none. */
+        /**
+         * {@code linear}, {@code ease-in}, {@code ease-out} or {@code ease}, {@code ease-in-out}, {@code back},
+         * {@code bounce}, {@code elastic}; {@code null} when none.
+         */
         public static Ease parse(String css) {
             return switch (css.trim().toLowerCase(java.util.Locale.ROOT)) {
                 case "linear" -> LINEAR;
@@ -64,6 +85,8 @@ public final class Motion {
                 case "ease-out", "ease" -> OUT;
                 case "ease-in-out" -> IN_OUT;
                 case "back", "ease-out-back" -> BACK;
+                case "bounce", "ease-out-bounce" -> BOUNCE;
+                case "elastic", "ease-out-elastic" -> ELASTIC;
                 default -> null;
             };
         }
@@ -137,19 +160,51 @@ public final class Motion {
     }
 
     /**
-     * An animation, as CSS {@code @keyframes} with {@code animation: name <ticks> <ease> [infinite]}: the frames in
-     * order, from {@code at} 0 to 1, each eased into along {@code ease}.
+     * An animation, as CSS {@code @keyframes} with {@code animation: name <ticks> <ease> [delay] [count|infinite]
+     * [alternate]}: the frames in order, from {@code at} 0 to 1, each eased into along {@code ease}.
+     *
+     * @param delay      ticks it waits before it starts, holding its first frame (since 1.565.0)
+     * @param iterations how many times it plays when not {@code infinite}, at least 1 (since 1.565.0)
+     * @param alternate  every second play runs backwards, so a loop swings to and fro (since 1.565.0)
      */
-    public record Keyframes(@NotNull List<Frame> frames, int ticks, @NotNull Ease ease, boolean infinite) {
+    public record Keyframes(@NotNull List<Frame> frames, int ticks, @NotNull Ease ease, boolean infinite, int delay,
+                            int iterations, boolean alternate) {
 
         public Keyframes {
             frames = List.copyOf(frames);
+            delay = Math.max(0, delay);
+            iterations = Math.max(1, iterations);
+        }
+
+        /** Played once, or for ever, with no delay. */
+        public Keyframes(@NotNull List<Frame> frames, int ticks, @NotNull Ease ease, boolean infinite) {
+            this(frames, ticks, ease, infinite, 0, 1, false);
+        }
+
+        /** The same animation started {@code more} ticks later. @since 1.565.0 */
+        public @NotNull Keyframes delayed(int more) {
+            return more <= 0 ? this : new Keyframes(frames, ticks, ease, infinite, delay + more, iterations, alternate);
+        }
+
+        /** Whether it has played to its end {@code tick} ticks after it started; never for an endless one. @since 1.565.0 */
+        public boolean finished(long tick) {
+            return !infinite && tick >= delay + (long) ticks * iterations;
         }
 
         /** Where the animation is {@code tick} ticks after it started. */
         public @NotNull Transform at(long tick) {
             if (frames.isEmpty() || ticks <= 0) return Transform.NONE;
-            double t = infinite ? (tick % ticks) / (double) ticks : Math.min(1, tick / (double) ticks);
+            long played = tick - delay;
+            if (played < 0) return frames.get(0).transform();
+            long cycle = played / ticks;
+            double t;
+            if (!infinite && cycle >= iterations) {
+                // Ended: the last play's end, which for an even count of alternating plays is the start.
+                t = alternate && iterations % 2 == 0 ? 0 : 1;
+            } else {
+                t = (played % ticks) / (double) ticks;
+                if (alternate && cycle % 2 == 1) t = 1 - t;
+            }
             Frame before = frames.get(0);
             if (t <= before.at()) return before.transform();
             for (Frame next : frames) {

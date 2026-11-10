@@ -1848,3 +1848,6 @@ space: 'espacio'
 'Plays the next sound to you.': 'Te reproduce el siguiente sonido.'
 'Opens it, ready to edit.': 'Se abre listo para editar.'
 'Shift-right-click {letters_black}· {letters}reset': 'Shift-clic derecho {letters_black}· {letters}restablecer'
+'Ready again in': 'Disponible de nuevo en'
+Lighter screens: Pantallas ligeras
+Less detail on full-screen menus, for a faster game: Menos detalle en los menús a pantalla completa, para un juego más fluido

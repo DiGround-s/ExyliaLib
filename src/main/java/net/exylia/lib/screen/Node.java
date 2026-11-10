@@ -97,6 +97,8 @@ public final class Node {
     private Motion.Tween enter;
     private Motion.Tween leave;
     private Motion.Keyframes animation;
+    private int stagger;
+    private int reveal;
     private double marginTop, marginRight, marginBottom, marginLeft;
     private double[] absolute;
     private int layer;
@@ -701,6 +703,38 @@ public final class Node {
     /** @since 1.496.0 */
     public @Nullable Motion.Keyframes animation() {
         return animation;
+    }
+
+    /**
+     * Ticks between the arrivals of its children: the first arrives at once, the next {@code ticks} later and so on,
+     * and their animations start as far apart, so a grid of cards fills in one after another. 0 is none.
+     *
+     * @since 1.565.0
+     */
+    public @NotNull Node stagger(int ticks) {
+        this.stagger = Math.max(0, ticks);
+        return this;
+    }
+
+    /** Ticks between its children's arrivals, 0 for none. @since 1.565.0 */
+    public int stagger() {
+        return stagger;
+    }
+
+    /**
+     * Its words type themselves out when they first show, and again whenever they change: one character every
+     * {@code ticksPerChar} ticks. 0 shows them at once.
+     *
+     * @since 1.565.0
+     */
+    public @NotNull Node reveal(int ticksPerChar) {
+        this.reveal = Math.max(0, ticksPerChar);
+        return this;
+    }
+
+    /** Ticks per character its words type out at, 0 for at once. @since 1.565.0 */
+    public int reveal() {
+        return reveal;
     }
 
     /** {top, right, bottom, left}. @since 1.496.0 */
