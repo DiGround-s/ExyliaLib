@@ -117,6 +117,8 @@ final class LiveScreen implements ScreenSession {
     static final int CURSOR_LAYER = 250;
     /** How long a toast stays, in milliseconds. */
     private static final long TOAST_MILLIS = 3000;
+    /** A toast with links stays long enough to reach and click. */
+    private static final long LINK_TOAST_MILLIS = 8000;
     /** What one screen may draw; past it the rest is left out and reported once. */
     static final int BUDGET = 400;
     /**
@@ -174,6 +176,8 @@ final class LiveScreen implements ScreenSession {
     private static final String TIP_BACKGROUND = "#120e1a";
     /** A toast's panel: the primary colour over the black it is mixed on (toasts stand over everything). */
     private static final String TOAST_BACKGROUND = "{primary}30";
+    /** A toast with links under the cursor: it can be clicked. */
+    private static final String TOAST_HOVER = "{primary}60";
     private static final int TIP_DEPTH = Layout.OVERLAY + 8;
     /** A tooltip's widest line, in layout pixels, and its text sizes: the name, then the lines under it. */
     static final double TIP_WIDTH = 150;
@@ -227,7 +231,8 @@ final class LiveScreen implements ScreenSession {
     private int toastSeq;
     private int toastVersion;
     private int lastToastVersion = -1;
-    private record Toast(Component text, String tone, long until, int seq) {
+    /** {@code links}: the line carries links, so clicking the toast offers them in a dialog. */
+    private record Toast(Component text, String tone, long until, int seq, boolean links) {
     }
     /** Whether the settings panel is open. */
     private volatile boolean settingsOpen;
@@ -959,6 +964,12 @@ final class LiveScreen implements ScreenSession {
             Node note = Node.text(t.text()).scale(TOAST_SCALE).wrap(screen.width() - 80).padding(3, 8).background(TOAST_BACKGROUND).outline(tone(t.tone()), 1)
                     .enter(Motion.Tween.of(Motion.Transform.translate(0, 6), 5, Motion.Ease.OUT))
                     .leave(Motion.Tween.of(new Motion.Transform(0, 4, 0.96), 3, Motion.Ease.IN));
+            if (t.links()) {
+                // The chat cannot be clicked while a screen is up: the toast offers the line's links instead.
+                Component line = t.text();
+                note.hover(TOAST_HOVER).tooltip(net.exylia.lib.text.Phrases.tr("{letters}Click to open its links"))
+                        .onClick(event -> net.exylia.lib.input.Links.show(player, line));
+            }
             double[] size = Layout.measure(note);
             laid.add(new Layout.Placed(note, "~toast" + t.seq(), (screen.width() - size[0]) / 2, screen.height() - size[1] - TOAST_MARGIN, size[0], size[1],
                     Layout.OVERLAY + 20));
@@ -2564,15 +2575,17 @@ final class LiveScreen implements ScreenSession {
     }
 
     private void toastLine(Component text, @Nullable String tone) {
+        boolean links = net.exylia.lib.input.Links.showable(player, text);
+        long millis = links ? LINK_TOAST_MILLIS : TOAST_MILLIS;
         synchronized (this) {
-            toasts.add(new Toast(text, tone, System.currentTimeMillis() + TOAST_MILLIS, ++toastSeq));
+            toasts.add(new Toast(text, tone, System.currentTimeMillis() + millis, ++toastSeq, links));
             while (toasts.size() > MAX_TOASTS) toasts.remove(0);
             toastVersion++;
         }
         if ("success".equals(tone)) sound("entity.experience_orb.pickup", 0.3f, 1.6f);
         else if ("error".equals(tone)) sound("entity.villager.no", 0.35f, 1f);
         redraw();
-        if (open() && plugin.isEnabled()) tasks.runAtEntityLater(player, TOAST_MILLIS / 50 + 1, this::redraw);
+        if (open() && plugin.isEnabled()) tasks.runAtEntityLater(player, millis / 50 + 1, this::redraw);
     }
 
     /** Runs a handler on the viewer's thread, then renders once, taking along the redraws its set() calls asked for. */

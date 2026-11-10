@@ -56,6 +56,8 @@ import java.util.function.Consumer;
  *   <li>{@code [SERVER] lobby} sends the player to another server.</li>
  *   <li>{@code [TELEPORT] world;x;y;z[;yaw;pitch]} moves them on this one.</li>
  *   <li>{@code [ACTION] namespace:id args} runs a registered action.</li>
+ *   <li>{@code [URL] https://example.net;Title} offers an address in a dialog
+ *       (open or copy), a clickable chat line on older clients.</li>
  *   <li>A token a plugin registered with {@link #token}.</li>
  *   <li>Any other {@code [TOKEN]} is a sequence line ({@code [MESSAGE]},
  *       {@code [SOUND]}, {@code [TITLE]}, {@code [PARTICLE]}...), played for the
@@ -74,7 +76,7 @@ import java.util.function.Consumer;
 public final class Interactions {
 
     private static final Set<String> BUILT_IN = Set.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY", "CONSOLE", "PLAYER",
-            "BROADCAST", "CHANCE");
+            "BROADCAST", "CHANCE", "URL");
     private static final Set<Click> ANY = Set.copyOf(EnumSet.allOf(Click.class));
 
     private record Registered(String plugin, InteractionToken handler) {
@@ -199,7 +201,7 @@ public final class Interactions {
         List<String> starters = new ArrayList<>(List.of("left:", "right:", "shift_left:", "shift_right:",
                 "shift:", "any:"));
         java.util.Set<String> tokens = new java.util.LinkedHashSet<>(List.of("DELAY", "SERVER", "TELEPORT", "ACTION", "MONEY",
-                "BROADCAST", "CHANCE"));
+                "BROADCAST", "CHANCE", "URL"));
         tokens.addAll(TOKENS.keySet());
         tokens.addAll(Sequences.tokens());
         for (String token : tokens) {
@@ -352,6 +354,18 @@ public final class Interactions {
                                     : net.exylia.lib.economy.Economy.of(currency).pay(who, value));
                     done.complete(value.signum() <= 0 || ok);
                 });
+            }
+            case "URL" -> {
+                // [URL] <address>[;title] (1.554.0): a dialog to open or copy it, which also works while a screen is up;
+                // a clickable chat line on clients older than 1.21.6.
+                Arg link = Arg.of(required(rest, "an address"));
+                return (owner, player, click, data) -> {
+                    String rendered = link.render(player, data);
+                    int split = rendered.indexOf(';');
+                    net.exylia.lib.input.Links.open(player, split < 0 ? rendered : rendered.substring(0, split),
+                            split < 0 ? null : rendered.substring(split + 1));
+                    return CompletableFuture.completedFuture(true);
+                };
             }
             case "BROADCAST" -> {
                 // [BROADCAST] <text> (1.552.0): one chat line to everybody online and the console,

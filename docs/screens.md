@@ -143,6 +143,13 @@ newest 200, and arrive when the screen closes; one that comes within a second of
 was on view when the screen opened (anything in the last 10 seconds), blank lines push it out and those lines come back
 on close. An input that steps the screen aside (a text prompt) gives the chat back at once.
 
+Chat cannot be clicked while a screen is up, so links get two ways through (1.554.0). A toast made from a line with
+links (`<click:open_url>`, `copy_to_clipboard`, `run_command`, `suggest_command`) stays eight seconds and can be clicked:
+it opens a native dialog with the line and one button per link, and an address goes on to Minecraft's own "open this
+page?" screen. A button that should lead straight to an address uses `[URL] https://dc.exylia.net;Discord`
+([interactions](interactions.md)). Both need a 1.21.6+ client and PacketEvents; older clients still get the line in chat
+on close. From code: `net.exylia.lib.input.Links.open(player, url, title)` and `Links.show(player, line)`.
+
 ## Input
 
 - **Cursor:** the player's mouse. Their view does not move; the turn between rotation packets moves the

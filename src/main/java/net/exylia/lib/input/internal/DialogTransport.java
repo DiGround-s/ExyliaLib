@@ -65,6 +65,36 @@ public final class DialogTransport implements Transport {
         }
     }
 
+    /** One button of a link dialog: what it reads and what the client does on it. */
+    @ApiStatus.Internal
+    public record Link(@NotNull net.kyori.adventure.text.Component label,
+                       @org.jetbrains.annotations.Nullable net.kyori.adventure.text.Component tooltip,
+                       @NotNull Kind kind, @NotNull String value) {
+        /** The click events a dialog button can carry. */
+        public enum Kind { OPEN_URL, COPY, RUN_COMMAND, SUGGEST_COMMAND }
+    }
+
+    /**
+     * Shows a dialog of links, each button acted on by the client alone. Whether it was shown: {@code false}
+     * when dialogs are off, PacketEvents is missing or either end is older than 1.21.6.
+     */
+    @ApiStatus.Internal
+    public static boolean links(@NotNull org.bukkit.entity.Player player, @NotNull net.kyori.adventure.text.Component title,
+                                @org.jetbrains.annotations.Nullable net.kyori.adventure.text.Component body,
+                                @NotNull java.util.List<Link> links) {
+        return enabled && !links.isEmpty() && DialogPackets.available() && LinkPackets.show(player, title, body, links);
+    }
+
+    /** Whether a dialog would reach this player now. */
+    @ApiStatus.Internal
+    public static boolean reaches(@NotNull org.bukkit.entity.Player player) {
+        try {
+            return enabled && DialogPackets.available() && DialogPackets.reaches(player);
+        } catch (Throwable unavailable) {
+            return false;
+        }
+    }
+
     @Override
     public @NotNull TransportKind kind() {
         return TransportKind.DIALOG;

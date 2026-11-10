@@ -147,11 +147,7 @@ final class DialogPackets {
                 return false;
             }
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
-            // Both ends need 1.21.6: PacketEvents encodes in the server's protocol, so a
-            // newer client behind ViaVersion on an older server never receives the dialog.
-            if (user == null
-                    || !PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_21_6)
-                    || !net.exylia.lib.packet.ClientVersions.atLeast(player, ClientVersion.V_1_21_6)) {
+            if (user == null || !reaches(player)) {
                 return false;
             }
             if (!supports(session.request())) {
@@ -166,6 +162,15 @@ final class DialogPackets {
             STATES.remove(sessionKey(session));
             return false;
         }
+    }
+
+    /**
+     * Whether a dialog reaches this player. Both ends need 1.21.6: PacketEvents encodes in the server's
+     * protocol, so a newer client behind ViaVersion on an older server never receives the dialog.
+     */
+    static boolean reaches(Player player) {
+        return PacketEvents.getAPI().getServerManager().getVersion().isNewerThanOrEquals(ServerVersion.V_1_21_6)
+                && net.exylia.lib.packet.ClientVersions.atLeast(player, ClientVersion.V_1_21_6);
     }
 
     /** Removes retained state and clears the visible dialog without ever escaping a cleanup failure. */
@@ -595,7 +600,7 @@ final class DialogPackets {
         }, () -> replacement.session().end(InputOutcome.UNAVAILABLE));
     }
 
-    private static void send(User user, Dialog dialog) {
+    static void send(User user, Dialog dialog) {
         PacketWrapper<?> packet = user.getConnectionState() == ConnectionState.CONFIGURATION
                 ? new WrapperConfigServerShowDialog(dialog)
                 : new WrapperPlayServerShowDialog(dialog);
