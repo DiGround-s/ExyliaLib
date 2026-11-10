@@ -258,12 +258,71 @@ zero call sites — no entity in the ecosystem was ever annotated — and it is 
 what made the handoff work. Writes here are durable when they complete, so there
 is nothing buffered to flush.
 
+## Without a Redis server (since 1.561.0)
+
+A network that shares a MySQL, MariaDB, PostgreSQL or MongoDB but has no Redis
+can let the database carry everything this module sends between servers:
+channels, `Network`, the proxy bridge, cross-server teleports, `RedisKeys` keys
+and streams, and the change notices `onRemoteChange` hears.
+
+```yaml
+# plugins/<Plugin>/database.yml, the same on every server and on the proxy
+database:
+  type: mysql
+  mysql: { host: 10.0.0.5, database: network, username: exylia, password: '...' }
+  cross-server: database
+  redis:
+    enabled: false          # ignored for transport; still names the server
+    server-id: lobby-1      # different on every server, as with Redis
+```
+
+| Setup | What happens |
+| --- | --- |
+| h2, nothing else | One server on its own, as always. |
+| any engine + `redis.enabled: true` | Redis, as always. The recommended network. |
+| shared engine, `cross-server: redis`, Redis off | Shared rows, no cross-server messages, as always. |
+| shared engine + `cross-server: database` | Messages through the database. Console says once that Redis is better. |
+| h2 + `cross-server: database` | Refused with a warning: an embedded file is one server's. |
+
+Nothing changes for a plugin: the database bus is a third `RedisClient`
+(`DatabaseBus`, with `SqlBus` and `MongoBus`) behind the same runtime, opened on
+its own small pool and shared by every plugin naming the same database.
+
+How it behaves:
+
+- **Latency.** Every server polls every 250 ms, one indexed query for all
+  channels and plugins. PostgreSQL is woken at once by `LISTEN/NOTIFY`.
+- **No message lost to commit order.** Each poll reads again from where it
+  stood two seconds earlier and drops what it already delivered, so a number
+  that committed after a higher one still arrives, once.
+- **No row cache.** A copy in memory could only be corrected a poll late, so
+  rows are read from the database as on a server without Redis. Writes still
+  send change notices, so `onRemoteChange` works on every server.
+- **Streams keep consumer-group semantics.** SQL locks the stream's row for
+  appends and group reads; MongoDB, which may have no transactions, reads a
+  group only up to the number it saw two seconds earlier and moves the group by
+  compare-and-set, so an entry reaches its consumer about two seconds late.
+- **Tables:** `exylia_bus_messages`, `_keys`, `_streams`, `_entries`,
+  `_groups`, `_pending` (collections of the same names on MongoDB, plus
+  `exylia_bus_counters`). Messages older than a minute and expired keys are
+  deleted on the way.
+- **Clocks.** Expiry and message age use each server's clock: keep them in sync
+  (NTP), as any network already does.
+- **The proxy** reads the same database: ExyliaProxyUtils needs the same
+  `cross-server: database` for player lookups, cross-server commands and
+  teleports.
+
+Tests: `redis/internal/SqlBusTest` (H2), and the same cases on a real server
+with `EXYLIA_BUS_POSTGRES` or `EXYLIA_BUS_MARIADB=host:port/database:user:password`,
+`MongoBusTest` with `EXYLIA_BUS_MONGO=host:port/database`;
+`DatabaseTransportTest` for the runtime and `onRemoteChange`.
+
 ## Where the code is
 
 | | |
 | --- | --- |
 | Public API | `redis/Redis`, `redis/RedisSettings`, `redis/RedisKeys`, `redis/Channels`, `PluginChannels`, `Channel`, `Message` |
-| Internal | `redis/internal/RedisRuntime`, `RowCache`, `CachedStorage`, `RowCodec`, `CacheKeys`, `Invalidation`, `RedisClient`, `JedisClient`, `MemoryClient` |
+| Internal | `redis/internal/RedisRuntime`, `RowCache`, `CachedStorage`, `RowCodec`, `CacheKeys`, `Invalidation`, `RedisClient`, `JedisClient`, `MemoryClient`, `DatabaseBus`, `SqlBus`, `MongoBus`, `PostgresWake` |
 | Wiring | `database/PluginDatabase` wraps each repository's storage; `database/DatabaseSettings` carries the block |
 | Lifecycle | `ExyliaLib` closes every connection after the datasources, so a last write still reaches the network |
 | Isolation | `JedisClient` is the only class naming Jedis, so a server without it never loads one |

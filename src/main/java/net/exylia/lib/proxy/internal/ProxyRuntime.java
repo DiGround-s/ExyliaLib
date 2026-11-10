@@ -161,13 +161,15 @@ public final class ProxyRuntime {
                 debug.log("No plugin had Redis enabled in its database.yml when the server started, so"
                         + " there is no proxy bridge: player-proxy: and console-proxy: commands and"
                         + " cross-server teleports are unavailable. Turn on database.redis in any plugin's"
-                        + " database.yml, or in plugins/ExyliaLib/database.yml, and restart.");
+                        + " database.yml, or in plugins/ExyliaLib/database.yml (or set cross-server: database"
+                        + " on a shared database), and restart.");
             }
             return false;
         }
         RedisClient client;
         try {
-            client = RedisRuntime.client(plugin, settings);
+            // The owner's, so its cross-server choice decides the wire too.
+            client = RedisRuntime.client(found.map(Network::owner).orElse(plugin), settings);
         } catch (RuntimeException | LinkageError absent) {
             debug.warn("The proxy bridge could not open Redis: " + absent.getMessage());
             return false;
@@ -296,9 +298,16 @@ public final class ProxyRuntime {
             if (file == null || !file.isFile()) {
                 continue;
             }
-            ConfigurationSection block = YamlConfiguration.loadConfiguration(file)
-                    .getConfigurationSection("database.redis");
-            if (block != null && block.getBoolean("enabled")) {
+            YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+            ConfigurationSection block = yaml.getConfigurationSection("database.redis");
+            // cross-server: database on a shared engine carries the bridge too;
+            // the redis block still names the server and the network.
+            boolean byDatabase = "database".equalsIgnoreCase(yaml.getString("database.cross-server", "").trim())
+                    && !"h2".equalsIgnoreCase(yaml.getString("database.type", "h2").trim());
+            if (byDatabase && block == null) {
+                return Optional.of(new Network(candidate, "server-1", List.of()));
+            }
+            if (block != null && (byDatabase || block.getBoolean("enabled"))) {
                 String id = block.getString("server-id");
                 List<String> previous = block.getStringList("previous-ids").stream()
                         .filter(name -> !name.isBlank()).map(String::trim).toList();

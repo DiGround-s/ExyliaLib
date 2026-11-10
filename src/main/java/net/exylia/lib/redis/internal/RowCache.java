@@ -52,6 +52,12 @@ public final class RowCache {
     private final String serverId;
     private final Consumer<String> warnings;
 
+    /**
+     * Whether this cache only carries change notices and keeps no rows: the
+     * database bus, where a remembered row could only be corrected a poll late.
+     */
+    private final boolean noticesOnly;
+
     /** Rows by full Redis key, so L1 and L2 are addressed identically. */
     private final Cache<String, Object> local;
 
@@ -94,6 +100,21 @@ public final class RowCache {
                     @NotNull RedisSettings settings,
                     @NotNull String serverId,
                     @NotNull Consumer<String> warnings) {
+        this(client, settings, serverId, warnings, false);
+    }
+
+    /**
+     * Builds the cache, or a notices-only one that keeps no rows.
+     *
+     * @param noticesOnly keep nothing, only tell peers and listeners what changed
+     * @since 1.561.0
+     */
+    public RowCache(@NotNull RedisClient client,
+                    @NotNull RedisSettings settings,
+                    @NotNull String serverId,
+                    @NotNull Consumer<String> warnings,
+                    boolean noticesOnly) {
+        this.noticesOnly = noticesOnly;
         this.client = client;
         this.settings = settings;
         this.serverId = serverId;
@@ -146,7 +167,7 @@ public final class RowCache {
     @SuppressWarnings("unchecked")
     <T> @Nullable T get(@NotNull EntityModel<T> model, @NotNull Object id) {
         String key = keyOf(model, id);
-        if (key == null) {
+        if (key == null || noticesOnly) {
             return null;
         }
 
@@ -190,6 +211,9 @@ public final class RowCache {
      */
     @SuppressWarnings("unchecked")
     <T> @Nullable T local(@NotNull EntityModel<T> model, @NotNull Object id) {
+        if (noticesOnly) {
+            return null;
+        }
         String key = keyOf(model, id);
         Object cached = key == null ? null : local.getIfPresent(key);
         if (cached != null) {
@@ -200,6 +224,9 @@ public final class RowCache {
 
     /** Whether a row is already known to exist, without asking the database. */
     boolean has(@NotNull EntityModel<?> model, @NotNull Object id) {
+        if (noticesOnly) {
+            return false;
+        }
         String key = keyOf(model, id);
         return key != null && local.getIfPresent(key) != null;
     }
@@ -227,6 +254,10 @@ public final class RowCache {
             return;
         }
         register(model);
+        if (noticesOnly) {
+            publish(model.table(), storedId(model, id));
+            return;
+        }
         local.put(key, row);
         try {
             client.set(key, RowCodec.encode(model, row), settings.ttlSeconds());
@@ -247,7 +278,7 @@ public final class RowCache {
      */
     <T> void refreshLocal(@NotNull EntityModel<T> model, @NotNull Object id, @Nullable T row) {
         String key = keyOf(model, id);
-        if (key == null) {
+        if (key == null || noticesOnly) {
             return;
         }
         if (row == null) {
@@ -265,11 +296,13 @@ public final class RowCache {
             return;
         }
         local.invalidate(key);
-        try {
-            client.delete(List.of(key));
-        } catch (Throwable unreachable) {
-            report(unreachable);
-            return;
+        if (!noticesOnly) {
+            try {
+                client.delete(List.of(key));
+            } catch (Throwable unreachable) {
+                report(unreachable);
+                return;
+            }
         }
         publish(model.table(), storedId(model, id));
     }
@@ -287,10 +320,12 @@ public final class RowCache {
      */
     void dropTable(@NotNull EntityModel<?> model) {
         dropLocalTable(model.table());
-        try {
-            client.deleteByPrefix(CacheKeys.table(settings.keyPrefix(), model.table()));
-        } catch (Throwable unreachable) {
-            report(unreachable);
+        if (!noticesOnly) {
+            try {
+                client.deleteByPrefix(CacheKeys.table(settings.keyPrefix(), model.table()));
+            } catch (Throwable unreachable) {
+                report(unreachable);
+            }
         }
         publish(model.table(), null);
     }
@@ -394,6 +429,11 @@ public final class RowCache {
         warnings.accept("Redis is not answering, so rows are being read from the database instead: "
                 + failure.getMessage() + ". Nothing is lost and nothing else needs doing;"
                 + " this is reported once until the server restarts.");
+    }
+
+    /** Whether this cache keeps no rows and only carries change notices. */
+    boolean noticesOnly() {
+        return noticesOnly;
     }
 
     /** Stops listening and releases what this cache owns. */

@@ -168,7 +168,9 @@ public final class CachedStorage implements Storage {
         // the background before asking Redis, and only a second miss goes on
         // to the database.
         RowCache cache = cache();
-        if (cache == null) {
+        if (cache == null || cache.noticesOnly()) {
+            // Notices only: nothing to answer from, and a read must not
+            // announce a change it did not make.
             return delegate.find(model, id);
         }
         T hit = cache.local(model, id);

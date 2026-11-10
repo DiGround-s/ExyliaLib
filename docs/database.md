@@ -788,7 +788,15 @@ database:
     username: ''
     password: ''
     connection-string: ''   # a full URI wins over everything above
+
+  cross-server: redis       # since 1.561.0: redis | database
 ```
+
+`cross-server` picks what carries messages between servers that share this
+database. `redis` (the default) is what every earlier version did: the `redis`
+block when it is enabled, nothing otherwise. `database` carries them through this
+database instead, for a network without a Redis server; see
+[redis.md](redis.md#without-a-redis-server-since-1561-0).
 
 Only the block `type` names is read; the rest sit there as documentation of what
 switching engine would need.

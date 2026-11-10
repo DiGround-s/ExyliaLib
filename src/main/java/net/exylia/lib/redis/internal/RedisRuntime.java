@@ -1,5 +1,7 @@
 package net.exylia.lib.redis.internal;
 
+import net.exylia.lib.database.internal.DatabaseRuntime;
+import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.redis.RedisSettings;
@@ -62,6 +64,9 @@ public final class RedisRuntime {
     /** Set by tests so a cache can be exercised without a Redis server. */
     private static volatile ClientFactory factory = JedisClient::open;
 
+    /** Set by tests so the database bus can be exercised without a server. */
+    private static volatile BusFactory busFactory = DatabaseBus::open;
+
     /** Whether the caller is a thread that must not wait on the network; a test seam. */
     private static volatile BooleanSupplier onServerThread = RedisRuntime::isServerThread;
 
@@ -108,13 +113,14 @@ public final class RedisRuntime {
         if (!settings.enabled()) {
             return null;
         }
-        String key = keyOf(settings);
+        SqlSettings bus = busOf(plugin);
+        String key = keyOf(settings, bus);
         RowCache existing = CACHES.get(key);
         if (existing != null) {
             return existing;
         }
         int generation = GENERATION.get();
-        RedisClient client = client(plugin, settings, key, mayWait);
+        RedisClient client = client(plugin, settings, bus, key, mayWait);
         if (client == null) {
             return null;
         }
@@ -122,14 +128,19 @@ public final class RedisRuntime {
         // Built outside any lock: the constructor starts a subscriber. Two
         // threads racing here both build one, and the loser closes its own
         // rather than leave a second subscriber running.
-        RowCache built = new RowCache(client, settings, settings.serverId(), debug::warn);
+        //
+        // Over the database bus it keeps no rows: a copy in memory could only
+        // be corrected a poll later, and the database it would save a query
+        // on is the one it is reading from anyway. It still tells every server
+        // which rows changed, which is what onRemoteChange listeners hear.
+        RowCache built = new RowCache(client, settings, settings.serverId(), debug::warn, bus != null);
         RowCache won = publish(CACHES, key, built, generation);
         if (won != built) {
             built.close();
             return won;
         }
-        debug.log("Redis cache connected to " + settings.host() + ':' + settings.port()
-                + " as \"" + settings.serverId() + "\".");
+        debug.log((bus != null ? "Cross-server changes travel through the database" : "Redis cache connected to "
+                + settings.host() + ':' + settings.port()) + " as \"" + settings.serverId() + "\".");
         return built;
     }
 
@@ -160,7 +171,8 @@ public final class RedisRuntime {
         if (!settings.enabled()) {
             return null;
         }
-        return client(plugin, settings, keyOf(settings), !onServerThread.getAsBoolean());
+        SqlSettings bus = busOf(plugin);
+        return client(plugin, settings, bus, keyOf(settings, bus), !onServerThread.getAsBoolean());
     }
 
     /**
@@ -179,11 +191,12 @@ public final class RedisRuntime {
         if (!settings.enabled()) {
             return null;
         }
-        return client(plugin, settings, keyOf(settings), false);
+        SqlSettings bus = busOf(plugin);
+        return client(plugin, settings, bus, keyOf(settings, bus), false);
     }
 
-    private static @Nullable RedisClient client(Plugin plugin, RedisSettings settings, String key,
-                                                boolean mayWait) {
+    private static @Nullable RedisClient client(Plugin plugin, RedisSettings settings, @Nullable SqlSettings bus,
+                                                String key, boolean mayWait) {
         RedisClient existing = CLIENTS.get(key);
         if (existing != null) {
             return existing;
@@ -192,13 +205,13 @@ public final class RedisRuntime {
             return null;
         }
         if (!mayWait) {
-            openInBackground(plugin, settings, key);
+            openInBackground(plugin, settings, bus, key);
             return null;
         }
         // Off the server thread waiting is allowed, and bounded by the
         // connect timeout; joining an attempt already under way is what keeps
         // it to one pool and one wait.
-        return open(plugin, settings, key).join();
+        return open(plugin, settings, bus, key).join();
     }
 
     /** Whether a recent failure says not to try this key yet. */
@@ -207,12 +220,13 @@ public final class RedisRuntime {
         return quietUntil != null && System.currentTimeMillis() < quietUntil;
     }
 
-    private static void openInBackground(Plugin plugin, RedisSettings settings, String key) {
+    private static void openInBackground(Plugin plugin, RedisSettings settings, @Nullable SqlSettings bus,
+                                         String key) {
         if (OPENING.containsKey(key)) {
             return;
         }
         try {
-            Tasks.of(plugin).runAsync(() -> open(plugin, settings, key));
+            Tasks.of(plugin).runAsync(() -> open(plugin, settings, bus, key));
         } catch (RuntimeException refused) {
             // A plugin on its way down has no scheduler to lend. Whoever asks
             // next schedules again.
@@ -234,7 +248,8 @@ public final class RedisRuntime {
      * {@code null} without a console line, because the line was printed when
      * the attempt actually failed.
      */
-    private static CompletableFuture<RedisClient> open(Plugin plugin, RedisSettings settings, String key) {
+    private static CompletableFuture<RedisClient> open(Plugin plugin, RedisSettings settings,
+                                                       @Nullable SqlSettings bus, String key) {
         CompletableFuture<RedisClient> mine = new CompletableFuture<>();
         CompletableFuture<RedisClient> running = OPENING.putIfAbsent(key, mine);
         if (running != null) {
@@ -246,7 +261,7 @@ public final class RedisRuntime {
             if (existing != null || quiet(key)) {
                 opened = existing;
             } else {
-                opened = connect(plugin, settings, key);
+                opened = connect(plugin, settings, bus, key);
             }
         } finally {
             OPENING.remove(key, mine);
@@ -255,16 +270,25 @@ public final class RedisRuntime {
         return mine;
     }
 
-    private static @Nullable RedisClient connect(Plugin plugin, RedisSettings settings, String key) {
+    private static @Nullable RedisClient connect(Plugin plugin, RedisSettings settings, @Nullable SqlSettings bus,
+                                                 String key) {
         Debug debug = Debug.of(plugin);
         int generation = GENERATION.get();
         RedisClient opened;
         try {
-            opened = factory.open(settings, "exylia-" + plugin.getName());
+            opened = bus != null
+                    ? busFactory.open(bus, "exylia-" + plugin.getName())
+                    : factory.open(settings, "exylia-" + plugin.getName());
         } catch (Throwable unreachable) {
             // Never fatal. A plugin whose Redis is down must still enable,
             // and it will: the database is the truth and it is still there.
             RETRIES.put(key, System.currentTimeMillis() + RETRY_AFTER_MILLIS);
+            if (bus != null) {
+                debug.warn("cross-server: database is set, but the cross-server tables could not be"
+                        + " opened on " + bus + " (" + unreachable.getMessage() + "). This server works"
+                        + " on its own until it can. Trying again in " + (RETRY_AFTER_MILLIS / 1000) + "s.");
+                return null;
+            }
             debug.warn("Redis is configured but could not be reached at " + settings.host()
                     + ':' + settings.port() + " (" + unreachable.getMessage() + ")."
                     + " Continuing without a shared cache: everything works, reads just go"
@@ -280,8 +304,13 @@ public final class RedisRuntime {
         if (RETRIES.remove(key) != null) {
             // The recovery is as worth a line as the failure was: without
             // it the last word on Redis in the log is that it was down.
-            debug.warn("Redis is answering again at " + settings.host() + ':'
-                    + settings.port() + ". Cross-server delivery is back on.");
+            debug.warn((bus != null ? "The cross-server database is answering again"
+                    : "Redis is answering again at " + settings.host() + ':' + settings.port())
+                    + ". Cross-server delivery is back on.");
+        } else if (bus != null) {
+            debug.warn("Cross-server messages travel through the database (cross-server: database)."
+                    + " It works, but each message takes up to a quarter of a second and every server"
+                    + " polls the database several times a second. Redis is the recommended setup.");
         }
         return opened;
     }
@@ -398,9 +427,28 @@ public final class RedisRuntime {
      * separate keyspaces and must not share a subscriber, or each would act on
      * the other's invalidations.
      */
-    private static String keyOf(RedisSettings settings) {
+    private static String keyOf(RedisSettings settings, @Nullable SqlSettings bus) {
+        if (bus != null) {
+            // The printed form hides credentials and parts of the host, so the
+            // fields that tell two databases apart are hashed in as well.
+            return "database:" + bus + '#' + java.util.Objects.hash(bus.engine(), bus.host(), bus.port(),
+                    bus.database(), bus.user(), bus.properties()) + '/' + settings.keyPrefix();
+        }
         return settings.host() + ':' + settings.port() + '/' + settings.database()
                 + '/' + settings.keyPrefix();
+    }
+
+    /**
+     * The database this plugin's cross-server messages travel through, or
+     * {@code null} for Redis. Read from its {@code database.yml}; a plugin that
+     * never used the database module has none.
+     */
+    private static @Nullable SqlSettings busOf(Plugin plugin) {
+        try {
+            return DatabaseRuntime.bus(plugin);
+        } catch (RuntimeException | LinkageError unavailable) {
+            return null;
+        }
     }
 
     /**
@@ -418,6 +466,11 @@ public final class RedisRuntime {
         onServerThread = testFactory == null ? RedisRuntime::isServerThread : () -> false;
     }
 
+    /** Test seam: supplies the database bus without a database server. */
+    public static synchronized void installBusForTests(@Nullable BusFactory testFactory) {
+        busFactory = testFactory == null ? DatabaseBus::open : testFactory;
+    }
+
     /** Test seam: decides which callers count as the server thread. */
     public static void installServerThreadForTests(@NotNull BooleanSupplier check) {
         onServerThread = check;
@@ -428,5 +481,12 @@ public final class RedisRuntime {
     public interface ClientFactory {
 
         @NotNull RedisClient open(@NotNull RedisSettings settings, @NotNull String name);
+    }
+
+    /** How the database bus is opened, so a test can supply one. */
+    @FunctionalInterface
+    public interface BusFactory {
+
+        @NotNull RedisClient open(@NotNull SqlSettings settings, @NotNull String name);
     }
 }

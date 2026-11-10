@@ -284,6 +284,11 @@ public final class MongoBackend implements AutoCloseable {
         return database.getName();
     }
 
+    /** The database itself, for the cross-server bus, which keeps its own collections. */
+    public @NotNull MongoDatabase database() {
+        return database;
+    }
+
     /**
      * Everything about a model Mongo cannot store the way it is written.
      *

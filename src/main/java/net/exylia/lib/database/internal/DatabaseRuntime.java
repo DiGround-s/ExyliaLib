@@ -42,6 +42,12 @@ public final class DatabaseRuntime {
     /** Test seam: the Redis block a forced datasource pretends to have read. */
     private static volatile RedisSettings redisOverride;
 
+    /** Test seam: the database a forced datasource carries cross-server messages through. */
+    private static volatile SqlSettings busOverride;
+
+    /** Plugins already told that an embedded engine cannot carry cross-server messages. */
+    private static final Set<String> BUS_REFUSED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private DatabaseRuntime() {
         throw new AssertionError("No instances.");
     }
@@ -68,12 +74,18 @@ public final class DatabaseRuntime {
             executor = new TaskExecutor(plugin);
             overrides = Map.copyOf(settings);
             redisOverride = null;
+            busOverride = null;
         }
     }
 
     /** Test seam: the Redis block forced datasources report. */
     public static void installRedisForTests(@Nullable RedisSettings settings) {
         redisOverride = settings;
+    }
+
+    /** Test seam: the database forced datasources carry cross-server messages through. */
+    public static void installBusForTests(@Nullable SqlSettings settings) {
+        busOverride = settings;
     }
 
     /** Resolves and loads the configuration owned by this consumer plugin. */
@@ -108,9 +120,50 @@ public final class DatabaseRuntime {
             // file. Tests that want a cache supply its settings directly.
             return redisOverride == null ? new RedisSettings() : redisOverride;
         }
-        DatabaseSettings.Database block = resolve(plugin).database();
-        RedisSettings redis = block == null ? null : block.redis();
-        return redis == null ? new RedisSettings() : redis;
+        DatabaseSettings values = resolve(plugin);
+        DatabaseSettings.Database block = values.database();
+        RedisSettings redis = block == null || block.redis() == null ? new RedisSettings() : block.redis();
+        if (bus(plugin, values) == null || redis.enabled()) {
+            return redis;
+        }
+        // The database carries the messages, so everything that asks whether
+        // cross-server delivery is on hears yes. The rest of the block still
+        // names this server and its network.
+        return new RedisSettings(true, redis.host(), redis.port(), redis.password(), redis.username(),
+                redis.ssl(), redis.database(), redis.poolSize(), redis.ttlSeconds(), redis.localSeconds(),
+                redis.localEntries(), redis.keyPrefix(), redis.serverId(), redis.previousIds());
+    }
+
+    /**
+     * The database that carries this consumer's cross-server messages, when its
+     * {@code database.yml} says {@code cross-server: database}.
+     *
+     * @param plugin the consumer
+     * @return the database to talk through, or {@code null} for Redis or none
+     * @since 1.561.0
+     */
+    public static @Nullable SqlSettings bus(@NotNull Plugin plugin) {
+        requireStarted();
+        if (!overrides.isEmpty()) {
+            return busOverride;
+        }
+        return bus(plugin, resolve(plugin));
+    }
+
+    private static @Nullable SqlSettings bus(Plugin plugin, DatabaseSettings values) {
+        DatabaseSettings.Database block = values.database();
+        if (block == null || !block.crossServerByDatabase()) {
+            return null;
+        }
+        if (values.embedded()) {
+            if (BUS_REFUSED.add(plugin.getName())) {
+                Debug.of(plugin).warn("database.yml says cross-server: database, but the engine is h2,"
+                        + " a file only this server can open. Servers stay on their own until the"
+                        + " engine is mysql, mariadb, postgresql or mongodb, shared by every server.");
+            }
+            return null;
+        }
+        return values.toSql(dataFolder(plugin));
     }
 
     /** Reads and validates this consumer's {@code database.yml}. */
@@ -138,7 +191,7 @@ public final class DatabaseRuntime {
                 values.database().settings(), values.database().h2(),
                 values.database().mysql(), values.database().mariadb(),
                 values.database().postgresql(), values.database().mongodb(),
-                values.database().redis()));
+                values.database().redis(), values.database().crossServer()));
     }
 
     /**

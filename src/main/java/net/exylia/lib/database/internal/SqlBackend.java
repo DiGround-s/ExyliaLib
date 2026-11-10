@@ -443,7 +443,7 @@ public final class SqlBackend implements AutoCloseable {
     }
 
     /** 23505 on H2 and Postgres; 23000 with error 1062 on MySQL and MariaDB. */
-    static boolean duplicateKey(SQLException failure) {
+    public static boolean duplicateKey(SQLException failure) {
         for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
             if (cause instanceof SQLException sql && sql.getSQLState() != null
                     && ("23505".equals(sql.getSQLState())
@@ -1232,8 +1232,8 @@ public final class SqlBackend implements AutoCloseable {
         pool.close();
     }
 
-    /** A pooled connection, for the embedded engine's own maintenance (backups). Closed by the caller. */
-    @NotNull Connection connection() throws SQLException {
+    /** A pooled connection, for maintenance (backups) and the cross-server bus. Closed by the caller. */
+    public @NotNull Connection connection() throws SQLException {
         return pool.getConnection();
     }
 

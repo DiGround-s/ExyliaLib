@@ -61,6 +61,9 @@ public record DatabaseSettings(Database database) {
      * @param postgresql a PostgreSQL server
      * @param mongodb  a MongoDB server
      * @param redis    the shared cache, off unless asked for
+     * @param crossServer how servers sharing this database talk to each other:
+     *                 {@code redis} (the {@code redis} block, when enabled) or
+     *                 {@code database} (the database itself, no Redis server)
      */
     public record Database(
 
@@ -78,16 +81,57 @@ public record DatabaseSettings(Database database) {
             Server mariadb,
             Server postgresql,
             Mongo mongodb,
-            net.exylia.lib.redis.RedisSettings redis
+            net.exylia.lib.redis.RedisSettings redis,
+
+            @Comment("How servers sharing this database talk to each other:")
+            @Comment("staff chat, alerts, cross-server teleports, the proxy bridge.")
+            @Comment("")
+            @Comment("redis     uses the redis block below, when it is enabled.")
+            @Comment("          Recommended for any network. With redis disabled,")
+            @Comment("          every server works on its own.")
+            @Comment("database  uses this database instead, for a network without")
+            @Comment("          a Redis server. Needs mysql, mariadb, postgresql or")
+            @Comment("          mongodb, the same on every server and the proxy.")
+            @Comment("          Messages take up to a quarter of a second longer")
+            @Comment("          and every server queries the database a few times a")
+            @Comment("          second, so Redis is still the better choice.")
+            @Comment("Either way, give every server its own redis.server-id.")
+            String crossServer
     ) {
 
         /** The defaults: h2, no Redis, and every server block at its own default. */
         public Database() {
             this("h2", new Settings(), new H2(),
                     new Server(3306), new Server(3306), new Server(5432), new Mongo(),
-                    new net.exylia.lib.redis.RedisSettings());
+                    new net.exylia.lib.redis.RedisSettings(), CROSS_SERVER_REDIS);
+        }
+
+        /**
+         * The block as it was before {@code cross-server} existed.
+         *
+         * @deprecated use the canonical constructor, which takes {@code crossServer}
+         */
+        @Deprecated(since = "1.561.0")
+        public Database(String type, Settings settings, H2 h2, Server mysql, Server mariadb,
+                        Server postgresql, Mongo mongodb, net.exylia.lib.redis.RedisSettings redis) {
+            this(type, settings, h2, mysql, mariadb, postgresql, mongodb, redis, CROSS_SERVER_REDIS);
+        }
+
+        /**
+         * Whether servers talk through the database rather than Redis.
+         *
+         * @since 1.561.0
+         */
+        public boolean crossServerByDatabase() {
+            return crossServer != null && crossServer.trim().equalsIgnoreCase(CROSS_SERVER_DATABASE);
         }
     }
+
+    /** {@code cross-server: redis}, the default: Redis when its block is enabled. */
+    public static final String CROSS_SERVER_REDIS = "redis";
+
+    /** {@code cross-server: database}: the database carries cross-server messages. */
+    public static final String CROSS_SERVER_DATABASE = "database";
 
     /**
      * Tuning that applies to whichever engine is chosen.
