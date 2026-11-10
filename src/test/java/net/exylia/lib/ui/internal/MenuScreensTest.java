@@ -38,10 +38,20 @@ class MenuScreensTest {
     }
 
     @Test
-    void aBarThatDoesNotFitWrapsEvenly() {
-        double[] seven = {50, 50, 50, 50, 50, 50, 50};
-        assertEquals(7, MenuScreens.barBreak(seven, 400, 3));
-        assertEquals(3, MenuScreens.barBreak(seven, 300, 3));
-        assertEquals(1, MenuScreens.barBreak(new double[]{200, 20}, 100, 3));
+    void theBackButtonSaysBack() {
+        Component back = Component.text("Back ", NamedTextColor.WHITE)
+                .append(Component.text("▸ ", NamedTextColor.DARK_GRAY))
+                .append(Component.text("Job hub", NamedTextColor.RED));
+        assertEquals("Back", plain(MenuScreens.context(back)));
+        assertEquals(null, MenuScreens.context(Component.text("Next page")));
+    }
+
+    @Test
+    void adminMenusAreToldByTheirPath() {
+        org.junit.jupiter.api.Assertions.assertTrue(MenuScreens.admin("exyliamarket:menus/admin/settings"));
+        org.junit.jupiter.api.Assertions.assertTrue(MenuScreens.admin("jobs:admin_hub"));
+        org.junit.jupiter.api.Assertions.assertTrue(MenuScreens.admin("exylialib:config_fields"));
+        org.junit.jupiter.api.Assertions.assertFalse(MenuScreens.admin("jobs:player/jobs"));
+        org.junit.jupiter.api.Assertions.assertFalse(MenuScreens.admin("x:menus/administrator"));
     }
 }

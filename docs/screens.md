@@ -1133,13 +1133,23 @@ redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it
   without its `Context ▸` part, and the first lore line when there is room), kept at their slot positions; glass
   panes and empty slots are not drawn, and rows or columns with nothing in them are left out (1.513.0). When the
   last row holds buttons (back, page arrows, the main action) it becomes a bar under a divider, its buttons kept
-  left, centre and right as in the chest; buttons that do not fit across wrap onto two centred rows (1.518.0). A list with no items shows what its empty slots say. Each item's name
+  left, centre and right as in the chest. Since 1.562.0 that bar never moves: the chest's column 4 (the back
+  button in every Exylia layout) sits in a fixed cell at the exact middle, the page arrows (columns 3 and 5) in fixed
+  cells either side of it, the buttons of columns 0-2 from the left edge and 6-8 from the right, both sides the same
+  width; nothing wraps (a side whose labels do not fit shows its icons, the whole name in each tooltip). A back
+  button (its subject in the error tone) says its context, `Back`, not the screen it returns to. The body keeps its
+  columns symmetric about the chest's centre, so what the chest centres stays centred. A list with no items shows what its empty slots say. Each item's name
   and lore are its tooltip while hovered. Cards that do something light up under the cursor; the others only show
   their tooltip. A left or right click on a card is that click on the slot of the chest menu, so every action
   works as in the window, and a menu opened from a click replaces the cards in place. Shift closes it (1.514.0); the
   chest's own back button goes back; a click with sprint held is a shift-click on the slot, or the
   plain click when the button binds no shift-click, so a client with toggle sprint never meets a dead button
   (1.513.0).
+
+**Admin menus stay chest windows** (1.562.0) unless `screens.yml` says `admin-style: FOLLOW`: a menu is an
+admin menu when a part of its id's path is `admin` or starts or ends with `admin_`/`_admin` (`menus/admin/kits`,
+`admin_hub`), and the library's settings screens. Admin work is dense lists, editors and typed values, which a
+chest does best.
 
 Menus that stay windows whatever the style: those with input slots (the player puts items in them), those
 that are not chests (hopper, dispenser...) and the kit room (it hands items into the inventory the player is
@@ -1178,6 +1188,7 @@ plugins: {}                # ExyliaJobs: SCREEN
 chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
 cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
 cursor-assist: false       # makes buttons easier to hit, for players who did not choose (1.547.0)
+admin-style: CLASSIC       # admin menus as chest windows, or FOLLOW the style (1.562.0)
 ```
 
 A plugin with a `menu-style` key of its own hands it over once, on enable:

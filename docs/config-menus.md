@@ -20,35 +20,84 @@ ConfigEdits fees = ConfigEdits.of(plugin, AuctionHouseDefaults::file);
 // open: every editable key as a live value, %ah_settings_listing_fee_percent%
 menus.open(admin, "menus/admin/settings_ah", fees.placeholders("ah_"));
 
-// one action for every card: exyliamarket:setting ah settings.listing-fee-percent type
+// one action for every card: exyliamarket:setting ah settings.listing-fee-percent
 actions.registerSync("setting", "myplugin.admin.settings", (ctx, args) -> {
-    ClickKind click = args.string(2, "").equals("type") ? ClickKind.DROP : ctx.get(UiKeys.CLICK).orElse(null);
-    fees.click(ctx.player(), args.string(1, ""), click, () -> reopen(ctx.player()));
+    fees.card(ctx.player(), args.string(1, ""), ctx.get(UiKeys.CLICK).orElse(null), () -> reopen(ctx.player()));
     return ActionResult.success();
 });
 ```
 
+A card, the way every settings card reads (since 1.562.0):
+
+```yaml
+  listing-fee:
+    slot: 10
+    material: PAPER
+    name: "{letters}Auction house {letters_black}▸ <gradient:{primary}:{secondary_light}>Listing fee</gradient>"
+    lore:
+      - "{letters_black}Auction house setting"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Charged to the seller when an"
+      - " {letters}item goes up, as a share of its"
+      - " {letters}price. Never refunded."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:gold} {letters}Fee{letters_black}: %ah_settings_listing_fee_percent%"
+      - "  {letters_black}· {info}{icon:book} {letters}Default{letters_black}: %ah_settings_listing_fee_percent_default%"
+      - ""
+      - "%ah_settings_listing_fee_percent_click%"
+    actions:
+      - "exyliamarket:setting ah settings.listing-fee-percent"
+```
+
+The plugin writes what only it can say (the name, what the value does); the
+library writes the rest in the server's language: the value, its default and
+the click lines.
+
 | Call | Does |
 | --- | --- |
 | `ConfigEdits.of(plugin, file)` | the edits of one `Configs.define` file; `file` is read on every call, so a reload is followed |
-| `value(key)` / `live(key)` | a key's value as the screens show it, coloured (`{success}Enabled`, `{info}48h`, money, percent); `live` is a lambda for a menu context |
-| `placeholders(prefix)` | every editable key as a live value, named `prefix` + key with `.` and `-` as `_` |
-| `click(viewer, key, click, back)` | applies a click: a switch flips, a choice steps, a number steps (shift ×10) or, on `DROP`, is typed prefilled; a length of time, text, lines or an item is asked for. Checked against `@Menu.Range`, `AtLeast`, `AtMost`, written with `ConfigFile.set`, the plugin's `Reloads` run. Stepped values redraw the open screen; `back` reopens it after a prompt |
+| `value(key)` / `live(key)` | a key's value as the screens show it, coloured (`{success}Enabled`, `{info}48h`, money in its currency, percent); `live` is a lambda for a menu context |
+| `defaultValue(key)` (1.562.0) | the value the record's no-argument constructor gives, shown the same way |
+| `hint(key)` (1.562.0) | the card's click lines, translated, several lines in one value: the click and what follows it (`Type an amount, such as 10k.`), plus `Shift-right-click · reset` while the value is not its default |
+| `placeholders(prefix)` | every editable key as live values: `prefix` + key with `.` and `-` as `_`, and the same name with `_default` and `_click` |
+| `card(viewer, key, click, back)` (1.562.0) | the click every card has: shift-right-click resets, a number or amount is typed prefilled (`10k`, `2.5M`, `-1` read as written), a switch flips, a choice steps (right-click back), a length of time, text, an item, a currency or a list of items is asked for |
+| `reset(viewer, key)` (1.562.0) | puts a key back to its default |
+| `tone(Lore.Tone)` (1.562.0) | the tone the click lines are drawn in, primary by default |
+| `click(viewer, key, click, back)` | the generic tree's click: a number steps (shift ×10) or, on `DROP`, is typed |
+
+Every change is checked against `@Menu.Range`, `AtLeast` and `AtMost`, written
+with `ConfigFile.set` (comments and order kept) and followed by the plugin's
+`Reloads`. Stepped values redraw the open screen; `back` reopens it after a prompt.
+
+### Money, currencies and items (1.562.0)
+
+- `@Menu.Format(value = MONEY, currency = "currency")`: the amount is shown in the
+  currency the sibling key `currency` names (dotted keys from the root work too);
+  empty or no `currency`, the default one. A bazaar priced in gems reads in gems.
+- `@Menu.Currency` on a text key: a click picks from the server's currencies
+  (`Economy.currencies()`), the first answer being the default currency; the
+  value shows the currency's name.
+- `@Menu.Material` on a `List<String>`: a click asks *Add an item* (the icon
+  picker), *Remove an item* (the list, each with its icon) or *Edit as text*.
 
 What goes on the screen, and what stays in the file:
 
 - **In game:** what an admin changes while running the server: fees, taxes,
-  limits, prices, durations, switches, blocked items, module switches.
+  limits, prices, durations, switches, blocked items, currencies, module switches.
 - **File only:** database and network, intervals and caches, sounds, toasts,
   debug, anti-abuse thresholds, layout numbers. They are set once or not at all.
 - **One page per module** (sub-page layout, 27 for up to 7 cards, 36 for 8-14),
   reached from a settings hub with one card per page showing its two values
   that matter. A card is `{letters}<Module> ▸ <Setting>`, a subtitle
   `<Module> setting`, two or three lines saying what the value does (and what
-  `-1`/`0` mean), the current value as its one stat, then the click and what
-  happens next.
-- Prefer `type` (`DROP`) for prices and amounts: stepping by 0.1 to reach 5000
-  is no use. Percentages and small counts may step.
+  `-1`/`0` mean), the current value and its default as the stats, then `%…_click%`.
+- Module switches apply on the next restart; the hub's header says how many
+  changes wait for one (`PluginModules.pendingRestart()`).
+- Writing the pages: ExyliaLib `tools/settings-cards/settings_cards.py` turns a
+  short spec (key, label, icon, two or three lines) into the English YAML of a
+  settings hub and its pages; a worker translates them. Reference: ExyliaMarket.
 
 ## The generic tree
 

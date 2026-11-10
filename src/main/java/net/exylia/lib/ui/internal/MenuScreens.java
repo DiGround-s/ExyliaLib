@@ -15,6 +15,9 @@ import net.exylia.lib.ui.UiDefinition;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.exylia.lib.text.Text;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -70,8 +73,23 @@ final class MenuScreens {
         if (definition.kind().type() != null || !definition.inputSlots().isEmpty()) return false;
         // The kit room hands items into the inventory the player is building in, so that inventory has to show.
         if (definition.id().endsWith(":" + KitRoomMenu.ID)) return false;
+        if (ScreenSettings.get().adminWindows() && admin(definition.id())) return false;
         if (!MenuStyles.of(runtime.plugin()).screens(viewer)) return false;
         return ScreenRoutes.find(runtime.plugin(), definition.id()) != null || ScreenSettings.get().chestSkin();
+    }
+
+    /**
+     * Whether a menu id is an admin screen: a part of its path is {@code admin}, or starts or ends with
+     * {@code admin_}/{@code _admin} ({@code menus/admin/kits}, {@code admin_hub}), or it is the library's own
+     * settings screens.
+     */
+    static boolean admin(String id) {
+        String path = id.substring(id.indexOf(':') + 1).toLowerCase(java.util.Locale.ROOT);
+        if (id.startsWith("exylialib:") && path.startsWith("config_")) return true;
+        for (String part : path.split("/")) {
+            if (part.equals("admin") || part.startsWith("admin_") || part.endsWith("_admin")) return true;
+        }
+        return false;
     }
 
     /**
@@ -195,10 +213,14 @@ final class MenuScreens {
         Node panel = Node.column(Node.text(menu.currentTitle()).scale(0.9)).size(AREA_W, AREA_H).padding(PAD, PAD + 2).gap(6)
                 .background(PANEL).outline("{primary}", 1);
         Node barRows = bar ? bar(menu, inventory, (rows - 1) * 9) : null;
-        double barH = bar ? (barRows.children().size() > 1 ? 2 * BAR + GAP : BAR) + 7 : 0;
+        double barH = bar ? BAR + 7 : 0;
         if (shownRows.isEmpty()) {
             panel.add(emptyState(inventory, bodyRows));
         } else {
+            // Columns kept symmetric about the chest's centre, so what the chest centres stays centred.
+            int span = Math.max(4 - minCol, maxCol - 4);
+            minCol = 4 - span;
+            maxCol = 4 + span;
             int cols = maxCol - minCol + 1;
             double w = clamp(Math.floor((AREA_W - 2 * PAD - (cols - 1) * GAP) / cols), 34, 72);
             double h = clamp(Math.floor((AREA_H - 2 * PAD - TITLE - 6 - barH - (shownRows.size() - 1) * GAP)
@@ -252,48 +274,107 @@ final class MenuScreens {
         return card.hover(CARD_HOVER).hoverOutline("{primary}").onClick(event -> click(menu, slot, event));
     }
 
+    /** How wide the page arrows' cells are, and the centre (back) cell between them. */
+    private static final double ARROW = 22;
+    private static final double CENTRE = 74;
+
     /**
-     * The last row as a bar: its buttons kept left, centre and right, as the chest has them. Buttons that do not fit
-     * across the screen wrap onto two centred rows of about the same width.
+     * The last row as a bar that never moves: the centre cell (the chest's column 4, the back button) always in the
+     * middle with the page arrows (columns 3 and 5) on either side at fixed widths, the left buttons (columns 0-2)
+     * from the left edge and the right ones (6-8) from the right, both sides the same width. Nothing wraps: a side
+     * whose labels do not fit shows its icons alone, the whole name in each tooltip.
      */
     private static Node bar(Session menu, Inventory inventory, int first) {
+        double room = AREA_W - 2 * (PAD + 2);
+        double side = Math.floor((room - 2 * ARROW - CENTRE - 4 * GAP) / 2);
+        Node left = Node.row().gap(GAP).width(side).justify(Node.Justify.START);
+        Node right = Node.row().gap(GAP).width(side).justify(Node.Justify.END);
+        fill(left, menu, inventory, first, 0, 3, side);
+        fill(right, menu, inventory, first, 6, 9, side);
+        return Node.row(left, cell(menu, inventory, first + 3, ARROW, false), cell(menu, inventory, first + 4, CENTRE, true),
+                cell(menu, inventory, first + 5, ARROW, false), right).gap(GAP).height(BAR).justify(Node.Justify.CENTER);
+    }
+
+    /** One side of the bar: its buttons in column order, labelled when every label fits, icons alone otherwise. */
+    private static void fill(Node side, Session menu, Inventory inventory, int first, int from, int to, double width) {
         List<Integer> slots = new ArrayList<>();
-        for (int c = 0; c < 9; c++) if (shown(inventory.getItem(first + c))) slots.add(first + c);
-        double[] widths = slots.stream().mapToDouble(slot -> buttonWidth(inventory.getItem(slot))).toArray();
-        int wrap = barBreak(widths, AREA_W - 2 * (PAD + 2), GAP);
-        Node out = Node.column().gap(GAP);
-        if (wrap < slots.size()) {
-            Node top = Node.row().gap(GAP).justify(Node.Justify.CENTER);
-            Node bottom = Node.row().gap(GAP).justify(Node.Justify.CENTER);
-            for (int i = 0; i < slots.size(); i++) {
-                (i < wrap ? top : bottom).add(button(menu, slots.get(i), inventory.getItem(slots.get(i))));
-            }
-            return out.add(top).add(bottom);
-        }
-        Node left = Node.row().gap(GAP).grow(1).justify(Node.Justify.START);
-        Node centre = Node.row().gap(GAP).grow(1).justify(Node.Justify.CENTER);
-        Node right = Node.row().gap(GAP).grow(1).justify(Node.Justify.END);
-        for (int slot : slots) {
-            int c = slot - first;
-            (c < 3 ? left : c < 6 ? centre : right).add(button(menu, slot, inventory.getItem(slot)));
-        }
-        return out.add(Node.row(left, centre, right).height(BAR));
+        for (int c = from; c < to; c++) if (shown(inventory.getItem(first + c))) slots.add(first + c);
+        double needed = -GAP;
+        for (int slot : slots) needed += buttonWidth(inventory.getItem(slot)) + GAP;
+        boolean labels = needed <= width;
+        for (int slot : slots) side.add(button(menu, slot, inventory.getItem(slot), labels ? label(inventory.getItem(slot), false) : null));
+    }
+
+    /** A fixed cell of the bar's centre: an arrow (icon alone) or the back button (its "Back" word), or nothing. */
+    private static Node cell(Session menu, Inventory inventory, int slot, double width, boolean centre) {
+        ItemStack item = inventory.getItem(slot);
+        Node box = Node.row().width(width).justify(Node.Justify.CENTER);
+        if (!shown(item)) return box;
+        Component label = centre ? fit(label(item, true), width - 23) : null;
+        return box.add(button(menu, slot, item, label));
     }
 
     /**
-     * Where a bar's second row starts: past the end when every button fits on one row, otherwise the break that
-     * leaves the wider row narrowest.
+     * What a bar button says: its subject ({@code Back ▸ Job hub} reads {@code Job hub}); on the centre cell, a back
+     * button (its subject in the error tone, as every back button is) says its context instead ({@code Back}), so it
+     * never reads as a way to another screen.
      */
-    static int barBreak(double[] widths, double room, double gap) {
-        double[] upTo = new double[widths.length + 1];
-        for (int i = 0; i < widths.length; i++) upTo[i + 1] = upTo[i] + widths[i] + gap;
-        if (upTo[widths.length] - gap <= room) return widths.length;
-        int best = 1;
-        for (int i = 1; i < widths.length; i++) {
-            double wider = Math.max(upTo[i], upTo[widths.length] - upTo[i]);
-            if (wider < Math.max(upTo[best], upTo[widths.length] - upTo[best])) best = i;
+    static @Nullable Component label(@Nullable ItemStack item, boolean centre) {
+        List<Component> lines = item == null ? null : lines(item);
+        if (lines == null) return null;
+        Component name = lines.get(0);
+        if (centre && errorToned(subject(name))) {
+            Component context = context(name);
+            if (context != null) return context;
         }
-        return best;
+        return subject(name);
+    }
+
+    /** A name's part before {@code ▸}, trimmed; {@code null} when it has none. */
+    static @Nullable Component context(Component name) {
+        String plain = PlainTextComponentSerializer.plainText().serialize(name);
+        int at = plain.indexOf('\u25b8');
+        if (at <= 0) return null;
+        List<Component> parts = new ArrayList<>();
+        flatten(name, Style.empty(), parts);
+        for (Component part : parts) {
+            if (part instanceof TextComponent text && !text.content().isBlank()) {
+                String word = text.content();
+                int marker = word.indexOf('\u25b8');
+                word = (marker >= 0 ? word.substring(0, marker) : word).strip();
+                return word.isEmpty() ? null : text.content(word);
+            }
+        }
+        return null;
+    }
+
+    /** Whether the first coloured run of a component is the palette's error colour. */
+    static boolean errorToned(Component component) {
+        TextColor error = firstColour(Text.component("{error}x"));
+        TextColor first = firstColour(component);
+        return error != null && first != null && error.asHexString().equalsIgnoreCase(first.asHexString());
+    }
+
+    private static @Nullable TextColor firstColour(Component component) {
+        List<Component> parts = new ArrayList<>();
+        flatten(component, Style.empty(), parts);
+        for (Component part : parts) {
+            if (part instanceof TextComponent text && !text.content().isBlank() && part.color() != null) return part.color();
+        }
+        return component.color();
+    }
+
+    /** A label cut with an ellipsis to fit {@code width} pixels at the bar's 0.6 scale. */
+    private static @Nullable Component fit(@Nullable Component label, double width) {
+        if (label == null || net.exylia.lib.text.Centering.pixelWidth(label) * 0.6 <= width) return label;
+        String plain = PlainTextComponentSerializer.plainText().serialize(label);
+        TextColor colour = firstColour(label);
+        while (plain.length() > 1) {
+            plain = plain.substring(0, plain.length() - 1);
+            Component cut = Component.text(plain.strip() + "…", colour);
+            if (net.exylia.lib.text.Centering.pixelWidth(cut) * 0.6 <= width) return cut;
+        }
+        return null;
     }
 
     /** What {@link #button} takes across: padding, icon, gap and name. */
@@ -302,11 +383,11 @@ final class MenuScreens {
         return 23 + (lines == null ? 0 : net.exylia.lib.text.Centering.pixelWidth(subject(lines.get(0))) * 0.6);
     }
 
-    private static Node button(Session menu, int slot, ItemStack item) {
+    private static Node button(Session menu, int slot, ItemStack item, @Nullable Component label) {
         List<Component> lines = lines(item);
         Node button = Node.row(Node.item(item).size(10, 10)).height(BAR).padding(3, 5).gap(3)
                 .align(Node.Align.CENTER).background(CARD).tooltip(lines).id("s" + slot);
-        if (lines != null) button.add(Node.text(subject(lines.get(0))).scale(0.6));
+        if (label != null) button.add(Node.text(label).scale(0.6));
         if (!clickable(menu, slot)) return button;
         return button.hover(CARD_HOVER).hoverOutline("{primary}").onClick(event -> click(menu, slot, event));
     }

@@ -142,7 +142,16 @@ public record ScreenSettings(
         @Comment("it up for their own FOV and mouse before anything else.")
         @Menu.Label("First screen setup") @Menu.Icon("COMPARATOR")
         @Menu.About({"A player's first screen opens", "with its settings panel shown."})
-        boolean firstScreenSetup
+        boolean firstScreenSetup,
+
+        @Comment("How admin menus open (any menu under an admin/ folder, and these")
+        @Comment("settings screens). CLASSIC keeps them chest windows whatever the")
+        @Comment("style: admin work is dense lists, editors and typed values, which")
+        @Comment("a chest does best. FOLLOW lets them follow the style like any menu.")
+        @Menu.Label("Admin menus") @Menu.Icon("COMMAND_BLOCK")
+        @Menu.About({"Admin menus as chest windows,", "or following the menu style."})
+        @Menu.Choices(value = {"CLASSIC", "FOLLOW"}, labels = {"Chest windows", "Follow the style"})
+        String adminStyle
 ) {
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
@@ -198,6 +207,20 @@ public record ScreenSettings(
                           boolean hideSidebar, boolean quietChat, String cursorMode, boolean cursorAssist) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
                 screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, true);
+    }
+
+    /** The settings as they were before 1.562.0, with admin menus kept as chest windows. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat, String cursorMode, boolean cursorAssist,
+                          boolean firstScreenSetup) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, firstScreenSetup, "CLASSIC");
+    }
+
+    /** Whether admin menus stay chest windows whatever the style. @since 1.562.0 */
+    public boolean adminWindows() {
+        return !"FOLLOW".equalsIgnoreCase(adminStyle);
     }
 
     /** Whether {@link #motion} asks for reduced motion. @since 1.496.0 */

@@ -482,8 +482,77 @@ final class ConfigFields {
         return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
     }
 
+    /** {@link #display(Field, Object)}, with a {@code MONEY} amount read in the currency its {@link Menu.Format} names. */
+    static String display(Field field, @Nullable Object value, Schema root, Object values) {
+        if ((field.kind() == Kind.INTEGER || field.kind() == Kind.DECIMAL) && value instanceof Number) {
+            String currency = currencyOf(field, root, values);
+            if (currency != null) return CURRENCY.with(currency, () -> display(field, value));
+        }
+        return display(field, value);
+    }
+
+    /**
+     * The currency id a {@code MONEY} key is in: what its {@link Menu.Format#currency} key holds,
+     * {@code ""} for the default, {@code null} when the key is not money in another currency.
+     */
+    static @Nullable String currencyOf(Field field, Schema root, Object values) {
+        Menu.Format format = field.hint(Menu.Format.class);
+        if (format == null || format.value() != Menu.Style.MONEY || format.currency().isBlank()) return null;
+        String key = format.currency();
+        int dot = field.key().lastIndexOf('.');
+        Object held = dot < 0 || key.contains(".") ? read(root, values, key) : read(root, values, field.key().substring(0, dot + 1) + key);
+        if (held == null && !key.contains(".") && dot >= 0) held = read(root, values, key);
+        return held == null ? "" : held.toString().trim();
+    }
+
+    /** The currency {@link #money} formats in while a display is worked out. */
+    private static final Scoped CURRENCY = new Scoped();
+
+    private static final class Scoped {
+        private final ThreadLocal<String> current = new ThreadLocal<>();
+
+        <T> T with(String value, java.util.function.Supplier<T> body) {
+            String before = current.get();
+            current.set(value);
+            try {
+                return body.get();
+            } finally {
+                current.set(before);
+            }
+        }
+
+        @Nullable String get() {
+            return current.get();
+        }
+    }
+
+    /** Whether a text key names a currency ({@link Menu.Currency}). */
+    static boolean currency(Field field) {
+        return field.kind() == Kind.TEXT && field.hint(Menu.Currency.class) != null;
+    }
+
+    /** Whether a list of text holds item names ({@link Menu.Material} on a list). */
+    static boolean materials(Field field) {
+        return field.kind() == Kind.LINES && field.hint(Menu.Material.class) != null;
+    }
+
+    /** A currency's name, or "Default currency" for the empty id. */
+    static String currencyName(@Nullable String id) {
+        if (id == null || id.isBlank()) return Phrases.tr("Default currency");
+        try {
+            return Values.inert(Economy.info(id).name());
+        } catch (RuntimeException unknown) {
+            return Values.inert(id);
+        }
+    }
+
     /** The value, coloured by what it is; anything typed is shown as written, never parsed. */
     static String display(Field field, @Nullable Object value) {
+        if (currency(field)) return "{highlight}" + currencyName(value == null ? "" : value.toString());
+        if (materials(field)) {
+            int count = value instanceof List<?> list ? list.size() : 0;
+            return count == 0 ? none() : Phrases.tr("{info}{0} {letters}items", count);
+        }
         return switch (field.kind()) {
             case SECTION -> Phrases.tr("{info}{0} {letters}settings", field.schema().nested() == null ? 0
                     : field.schema().nested().fields().size());
@@ -560,7 +629,7 @@ final class ConfigFields {
 
     private static String money(BigDecimal amount) {
         try {
-            return Economy.format(null, amount);
+            return Economy.format(CURRENCY.get(), amount);
         } catch (RuntimeException noEconomy) {
             return amount.toPlainString();
         }
@@ -594,6 +663,7 @@ final class ConfigFields {
     /** The icon of a button: a switch's dye, a material itself, its {@link Menu.Icon}, or one chosen from its name. */
     static String icon(Field field, @Nullable Object value) {
         if (field.kind() == Kind.TOGGLE) return Boolean.TRUE.equals(value) ? "LIME_DYE" : "GRAY_DYE";
+        if (currency(field) && field.hint(Menu.Icon.class) == null) return "GOLD_INGOT";
         if (field.kind() == Kind.MATERIAL && value instanceof Material material && material.isItem() && !material.isAir()) {
             return material.name();
         }

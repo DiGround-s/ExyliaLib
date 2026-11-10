@@ -527,7 +527,7 @@ public final class ConfigMenu {
                         .with("cfg_name", ConfigFields.label(field))
                         .with("cfg_icon", ConfigFields.icon(field, value))
                         .withFormatted("cfg_value", opens && field.kind() == ConfigFields.Kind.SECTION
-                                ? sectionValue(schema, field) : ConfigFields.display(field, value))
+                                ? sectionValue(schema, field) : ConfigFields.display(field, value, schema, values))
                         .withFormatted("cfg_about", ConfigFields.about(field))
                         .withFormatted("cfg_hint", ConfigFields.hint(field))
                         .build());
@@ -635,12 +635,20 @@ public final class ConfigMenu {
                     .defaultValue(ConfigFields.duration(field, current)).open(),
                     duration -> write(viewer, plugin, file, field, ConfigFields.time(field, duration), back));
             case TEXT -> {
+                if (ConfigFields.currency(field)) {
+                    currency(viewer, plugin, file, field, back);
+                    return;
+                }
                 String now = current == null ? "" : current.toString();
                 ask(viewer, back, inputs(viewer).text(viewer, prompt(field)).defaultValue(now)
                         .lines(now.length() > 30 ? 3 : 1).open(),
                         typed -> guarded(viewer, plugin, file, field, typed, back));
             }
             case LINES -> {
+                if (ConfigFields.materials(field)) {
+                    materials(viewer, plugin, file, field, current, back);
+                    return;
+                }
                 List<?> now = current instanceof List<?> list ? list : List.of();
                 List<String> joined = now.stream().map(String::valueOf).toList();
                 ask(viewer, back, inputs(viewer).text(viewer, prompt(field)).defaultValue(String.join("\n", joined))
@@ -672,7 +680,112 @@ public final class ConfigMenu {
     /** The value of one key as the screens show it, or {@code null} when the file has no such key. */
     public static @Nullable String display(@NotNull ConfigFile<?> file, @NotNull String key) {
         ConfigFields.Field field = ConfigFields.field(file.schema(), key);
-        return field == null ? null : ConfigFields.display(field, ConfigFields.read(file.schema(), file.get(), key));
+        if (field == null) return null;
+        Object values = file.get();
+        return ConfigFields.display(field, ConfigFields.read(file.schema(), values, key), file.schema(), values);
+    }
+
+    /**
+     * What a click on a plugin's settings card does, two lines in the card's tone: the click
+     * and what follows it, then, while the value is not its default, the reset click.
+     */
+    public static @Nullable String cardHint(@NotNull ConfigFile<?> file, @NotNull String key, @NotNull String tone) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        if (field == null) return null;
+        String act = "{" + tone + "}{icon:click} ";
+        List<String> lines = new ArrayList<>();
+        if (ConfigFields.currency(field)) {
+            lines.add(act + Phrases.tr("Click to change"));
+            lines.add("{letters_black}" + Phrases.tr("Pick from the server's currencies."));
+        } else if (ConfigFields.materials(field)) {
+            lines.add(act + Phrases.tr("Click to edit"));
+            lines.add("{letters_black}" + Phrases.tr("Add or remove items."));
+        } else {
+            switch (field.kind()) {
+                case TOGGLE -> {
+                    lines.add(act + Phrases.tr("Click to switch"));
+                    lines.add("{letters_black}" + Phrases.tr("Takes effect right away."));
+                }
+                case CHOICE -> {
+                    lines.add(act + Phrases.tr("Click to change"));
+                    lines.add("{letters_black}" + Phrases.tr("Steps to the next option."));
+                }
+                case INTEGER, DECIMAL -> {
+                    Menu.Format format = field.hint(Menu.Format.class);
+                    lines.add(act + Phrases.tr("Click to change"));
+                    lines.add("{letters_black}" + (format != null && format.value() == Menu.Style.MONEY
+                            ? Phrases.tr("Type an amount, such as 10k.") : Phrases.tr("Type the new value.")));
+                }
+                case TIME -> {
+                    lines.add(act + Phrases.tr("Click to change"));
+                    lines.add("{letters_black}" + Phrases.tr("Type a length, such as 2h."));
+                }
+                case MATERIAL -> {
+                    lines.add(act + Phrases.tr("Click to change"));
+                    lines.add("{letters_black}" + Phrases.tr("Pick an item."));
+                }
+                case SOUND -> {
+                    lines.add(act + Phrases.tr("Click to change"));
+                    lines.add("{letters_black}" + Phrases.tr("Plays the next sound to you."));
+                }
+                case TEXT, LINES -> {
+                    lines.add(act + Phrases.tr("Click to edit"));
+                    lines.add("{letters_black}" + Phrases.tr("Opens it, ready to edit."));
+                }
+                default -> {
+                    return null;
+                }
+            }
+        }
+        if (!isDefault(file, key)) {
+            lines.add("{" + tone + "}{icon:right_click} " + Phrases.tr("Shift-right-click {letters_black}· {letters}reset"));
+        }
+        return net.exylia.lib.text.Lines.join(lines);
+    }
+
+    /** Whether a card types this key's value instead of stepping it: every number. */
+    public static boolean typed(@NotNull ConfigFile<?> file, @NotNull String key) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        return field != null && (field.kind() == ConfigFields.Kind.INTEGER || field.kind() == ConfigFields.Kind.DECIMAL);
+    }
+
+    /** The value a key has in the file's defaults, as the screens show it; {@code null} when there are none. */
+    public static @Nullable String displayDefault(@NotNull ConfigFile<?> file, @NotNull String key) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        Object defaults = defaults(file);
+        if (field == null || defaults == null) return null;
+        return ConfigFields.display(field, ConfigFields.read(file.schema(), defaults, key), file.schema(), file.get());
+    }
+
+    /** Whether a key holds its default value. */
+    public static boolean isDefault(@NotNull ConfigFile<?> file, @NotNull String key) {
+        Object defaults = defaults(file);
+        if (defaults == null) return true;
+        return java.util.Objects.equals(ConfigFields.read(file.schema(), defaults, key),
+                ConfigFields.read(file.schema(), file.get(), key));
+    }
+
+    /** Puts a key back to its default value; {@code false} when the file has no defaults or no such key. */
+    public static boolean reset(@NotNull Player viewer, @NotNull Plugin plugin, @NotNull ConfigFile<?> file,
+                                @NotNull String key) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        Object defaults = defaults(file);
+        if (field == null || defaults == null) return false;
+        Object value = ConfigFields.read(file.schema(), defaults, key);
+        if (value == null) return false;
+        write(viewer, plugin, file, field, value, null);
+        return true;
+    }
+
+    /** The file's defaults: its record built with no arguments, as every settings record can be. */
+    private static @Nullable Object defaults(ConfigFile<?> file) {
+        try {
+            java.lang.reflect.Constructor<?> empty = file.schema().type().getDeclaredConstructor();
+            empty.setAccessible(true);
+            return empty.newInstance();
+        } catch (ReflectiveOperationException | RuntimeException none) {
+            return null;
+        }
     }
 
     /** Every key of the file a settings card can edit, nested sections included, in declaration order. */
@@ -701,6 +814,66 @@ public final class ConfigMenu {
         if (kind == ConfigFields.Kind.SECTION || kind == ConfigFields.Kind.ENTRIES || kind == ConfigFields.Kind.LOCKED) return false;
         apply(viewer, plugin, file, field, ConfigFields.read(file.schema(), file.get(), key), click, back);
         return true;
+    }
+
+    /** Picks the currency a {@link Menu.Currency} key names from the ones the server has; the first answer is the default. */
+    private static void currency(Player viewer, Plugin plugin, ConfigFile<?> file, ConfigFields.Field field, Runnable back) {
+        List<String> ids = new ArrayList<>();
+        ids.add("");
+        ids.addAll(new java.util.TreeSet<>(net.exylia.lib.economy.Economy.currencies()));
+        ids.remove(net.exylia.lib.economy.Economy.info(null).id());
+        ask(viewer, back, inputs(viewer).choice(viewer, prompt(field), ids)
+                        .label(ConfigFields::currencyName)
+                        .key(id -> id.isEmpty() ? "default" : id)
+                        .icon(id -> org.bukkit.Material.GOLD_INGOT).open(),
+                id -> write(viewer, plugin, file, field, id, back));
+    }
+
+    /** What a list of item names asks first: add one with the picker, remove one, or edit them all as text. */
+    private static void materials(Player viewer, Plugin plugin, ConfigFile<?> file, ConfigFields.Field field,
+                                  @Nullable Object current, Runnable back) {
+        List<String> now = new ArrayList<>();
+        if (current instanceof List<?> list) for (Object line : list) now.add(String.valueOf(line));
+        List<String> options = now.isEmpty() ? List.of("add", "text") : List.of("add", "remove", "text");
+        ask(viewer, back, inputs(viewer).choice(viewer, prompt(field), options)
+                        .label(option -> switch (option) {
+                            case "add" -> Phrases.tr("Add an item");
+                            case "remove" -> Phrases.tr("Remove an item");
+                            default -> Phrases.tr("Edit as text");
+                        })
+                        .icon(option -> switch (option) {
+                            case "add" -> org.bukkit.Material.LIME_DYE;
+                            case "remove" -> org.bukkit.Material.RED_DYE;
+                            default -> org.bukkit.Material.WRITABLE_BOOK;
+                        }).open(),
+                option -> {
+                    switch (option) {
+                        case "add" -> ask(viewer, back, inputs(viewer).icon(viewer, prompt(field)).open(), material -> {
+                            List<String> next = new ArrayList<>(now);
+                            boolean lower = !now.isEmpty() && now.get(0).equals(now.get(0).toLowerCase(java.util.Locale.ROOT));
+                            String name = lower ? material.toLowerCase(java.util.Locale.ROOT) : material;
+                            if (next.stream().noneMatch(line -> line.equalsIgnoreCase(material))) next.add(name);
+                            write(viewer, plugin, file, field, next, back);
+                        });
+                        case "remove" -> ask(viewer, back, inputs(viewer).choice(viewer, prompt(field), now)
+                                        .label(line -> net.exylia.lib.text.Values.inert(line))
+                                        .icon(line -> {
+                                            org.bukkit.Material material = org.bukkit.Material.matchMaterial(line.trim());
+                                            return material != null && material.isItem() && !material.isAir()
+                                                    ? material : org.bukkit.Material.BARRIER;
+                                        }).open(),
+                                line -> {
+                                    List<String> next = new ArrayList<>(now);
+                                    next.remove(line);
+                                    write(viewer, plugin, file, field, next, back);
+                                });
+                        default -> ask(viewer, back, inputs(viewer).text(viewer, prompt(field))
+                                        .defaultValue(String.join("\n", now))
+                                        .lines(Math.max(4, Math.min(10, now.size() + 1)))
+                                        .hint(Phrases.tr("One entry per line")).open(),
+                                typed -> guarded(viewer, plugin, file, field, ConfigFields.lines(typed), back));
+                    }
+                });
     }
 
     /** The discovered subject a settings file is, so its maps and lists are edited as content is. */

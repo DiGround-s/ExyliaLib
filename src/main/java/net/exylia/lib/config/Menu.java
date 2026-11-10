@@ -110,6 +110,13 @@ public final class Menu {
     @Target(ElementType.RECORD_COMPONENT)
     public @interface Format {
         Style value();
+
+        /**
+         * For {@link Style#MONEY}: the key holding the currency id the amount is in (a
+         * sibling, or dotted from the root), so a bazaar priced in gems reads in gems and
+         * its amounts are typed in gems. Empty: the server's default currency. Since 1.562.0.
+         */
+        String currency() default "";
     }
 
     /** What a number is, for {@link Format}. */
@@ -218,8 +225,18 @@ public final class Menu {
     }
 
     /**
+     * Text that names a currency by id, picked from the currencies the server has (an empty
+     * value is the default currency). Since 1.562.0.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.RECORD_COMPONENT)
+    public @interface Currency {
+    }
+
+    /**
      * Text that names an item: picked with the icon picker and written in the case the file
-     * already uses. Since 1.451.0.
+     * already uses. Since 1.451.0. On a list of text (since 1.562.0) each line is an item:
+     * a click adds one with the picker, removes one, or edits the list as text.
      */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.RECORD_COMPONENT)
