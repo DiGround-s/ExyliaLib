@@ -232,7 +232,8 @@ public final class SkullBuilder {
     private static Component render(String text, Player viewer) {
         Text built = Text.of(text);
         if (viewer != null) {
-            built = built.forPlayer(viewer);
+            // Placeholder answers keep their colours, as in ItemRenderer#text.
+            built = built.forPlayerFormatted(viewer);
         }
         return built.build().decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);
     }

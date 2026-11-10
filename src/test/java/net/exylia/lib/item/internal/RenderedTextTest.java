@@ -126,6 +126,35 @@ class RenderedTextTest {
         assertFalse(drawn.contains("{accent}"), drawn);
     }
 
+    @Test
+    @DisplayName("a registered placeholder's colours are drawn, a row value's are not")
+    void registeredValueColoursAreParsed() {
+        // ExyliaLobby's hotbar: "Players: %lobby_visibility_state%" showed {success}Todos raw.
+        FakePlayer viewer = new FakePlayer("Viewer");
+        Placeholders.group(plugin, "lobby").add("visibility_state", request -> "{success}Todos").register();
+
+        String drawn = LegacyComponentSerializer.legacySection().serialize(ItemRenderer.text(
+                "{letters}Players: %lobby_visibility_state% %name%", viewer.player(),
+                Map.of("name", "{error}Typed"), Set.of()));
+
+        assertTrue(drawn.contains("Todos"), drawn);
+        assertFalse(drawn.contains("{success}"), "the token becomes a colour: " + drawn);
+        assertTrue(drawn.contains("{error}Typed"), "a row value stays literal: " + drawn);
+    }
+
+    @Test
+    @DisplayName("a registered placeholder cannot inject a click into an item")
+    void registeredValueCannotInjectClicks() {
+        FakePlayer viewer = new FakePlayer("Viewer");
+        Placeholders.register(plugin, "clan_tag", request -> "<click:run_command:'/op me'>Tag");
+
+        net.kyori.adventure.text.Component drawn = ItemRenderer.text("%clan_tag%", viewer.player(),
+                Map.of(), Set.of());
+
+        assertTrue(LegacyComponentSerializer.legacySection().serialize(drawn).contains("<click"),
+                "an interactive tag stays text: " + drawn);
+    }
+
     private static List<String> lore(List<String> written, Map<String, String> values,
                                      Set<String> formatted) {
         return ItemRenderer.lore(written, null, values, formatted).stream()

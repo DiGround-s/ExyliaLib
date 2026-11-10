@@ -656,7 +656,11 @@ public final class ItemRenderer {
         // player typed is data, and a colour written in a config is not.
         Text built = Text.of(written).withAll(values, formatted, verbatim);
         if (viewer != null) {
-            built = built.forPlayer(viewer);
+            // A registered placeholder's answer keeps its colours, as on a
+            // scoreboard or hologram: a state message ({success}On) printed its
+            // tokens raw on every item. Only colours and styles, never clicks,
+            // so a nickname or clan tag inside one injects nothing more.
+            built = built.forPlayerFormatted(viewer);
         }
         return built.build()
                 .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE);

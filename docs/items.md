@@ -62,6 +62,10 @@ such as a rank display name written `{highlight}&lMVP`. A colour with no text
 of its own cannot travel as a value at all; see the note in
 [menus.md](menus.md).
 
+A registered placeholder (`%lobby_visibility_state%`) keeps its colours in a
+name or lore line since 1.568.1, as on a scoreboard or hologram: palette tokens,
+`&` codes, colours and styles are drawn, clicks and hovers stay text.
+
 ### Why it is per plugin
 
 Values written with `nbt` are stored under the owning plugin's namespace, so two
