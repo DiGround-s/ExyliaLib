@@ -93,7 +93,12 @@ public final class ConfigMenu {
     // ponytail: an entry outlives a quit until the next open or a disable; it holds a name, a string and a lambda.
     private static final Map<UUID, Entry> ENTRIES = new ConcurrentHashMap<>();
 
-    private record Entry(String plugin, @Nullable String permission, @Nullable Consumer<Player> back) {
+    private record Entry(String plugin, @Nullable String permission, @Nullable Consumer<Player> back,
+                         @Nullable String file) {
+        Entry(String plugin, @Nullable String permission, @Nullable Consumer<Player> back) {
+            this(plugin, permission, back, null);
+        }
+
         boolean covers(@Nullable Plugin target) {
             return target != null && plugin.equals(target.getName());
         }
@@ -243,6 +248,26 @@ public final class ConfigMenu {
         showPlugin(viewer, plugin);
     }
 
+    /**
+     * One settings file of a plugin, entered from that plugin's own screens: BACK from the
+     * file's top screen runs {@code back} rather than listing the plugin's other files.
+     *
+     * @param viewer     who edits; any thread
+     * @param plugin     whose settings
+     * @param file       the file's name, as handed to {@code Configs.define}
+     * @param permission accepted for this plugin's files on top of {@link ConfigMenus#PERMISSION}
+     * @param back       what BACK on the file's top screen does; {@code null} goes to the plugin list
+     * @return {@code false}, with nothing opened, when the plugin has no settings file by that name
+     */
+    public static boolean openFile(@NotNull Player viewer, @NotNull Plugin plugin, @NotNull String file,
+                                   @Nullable String permission, @Nullable Consumer<Player> back) {
+        ConfigFile<?> found = file(plugin, file);
+        if (found == null) return false;
+        ENTRIES.put(viewer.getUniqueId(), new Entry(plugin.getName(), permission, back, found.name()));
+        openFile(viewer, plugin, found);
+        return true;
+    }
+
     private static void showPlugin(Player viewer, Plugin plugin) {
         PluginMenus current = menus;
         if (current == null) return;
@@ -382,6 +407,9 @@ public final class ConfigMenu {
     }
 
     private static int count(Player viewer, Plugin plugin) {
+        // Entered on one file: as far as BACK is concerned, it is the plugin's only one.
+        Entry entry = ENTRIES.get(viewer.getUniqueId());
+        if (entry != null && entry.covers(plugin) && entry.file() != null) return 1;
         return WebEditorRuntime.get().settingsOf(plugin).size() + contentOf(viewer, plugin).size();
     }
 

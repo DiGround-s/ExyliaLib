@@ -56,7 +56,8 @@ import java.util.List;
  *       {@link #onReload()}: the timers it scheduled before are cancelled first,
  *       so an interval changed in a file applies without a restart.</li>
  *   <li>{@link #onReload()} runs after {@code registerConfigs} on reload, only
- *       while the module is enabled. The switch itself is only read at startup.</li>
+ *       while the module is enabled. The switch is read at startup, and changed
+ *       while running only through {@link PluginModules#setEnabled}.</li>
  *   <li>{@link #onDisable()} flushes and releases, after the module's timers
  *       were cancelled. Modules are disabled in the reverse order they were
  *       registered.</li>
@@ -214,7 +215,13 @@ public abstract class PluginModule {
         return List.of();
     }
 
-    /** Registers the actions this module's menus and items call. */
+    /**
+     * Registers the actions this module's menus and items call.
+     *
+     * <p>Once per run, the first time the module runs. The namespace handed in
+     * only runs these handlers while the module does, so a module switched off
+     * live keeps its actions registered and they do nothing.
+     */
     protected void actions(@NotNull PluginActions actions) {
     }
 

@@ -4,6 +4,7 @@ import net.exylia.lib.proxy.internal.ProxyRuntime;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -128,6 +129,36 @@ public final class Proxy {
      */
     public static @NotNull Set<String> players() {
         return ProxyRuntime.players();
+    }
+
+    /**
+     * Every server on the network with its player count and whether it is up,
+     * as of the last refresh.
+     *
+     * <p>Refreshed every three seconds while anybody is on this server, so it
+     * can be read where nothing can wait: a server selector, a placeholder, a
+     * scoreboard line. The proxy pings each server with a short timeout and
+     * shares one round of answers across every backend for three seconds.
+     * Empty until the bridge has answered, and always empty with a proxy whose
+     * ExyliaProxyUtils predates the {@code servers} module (2.2.0).
+     *
+     * @return the servers in the proxy's order, never {@code null}
+     * @since 1.557.0
+     */
+    public static @NotNull List<NetworkServer> servers() {
+        return ProxyRuntime.servers();
+    }
+
+    /**
+     * One server by the proxy's name for it, ignoring case, as of the last
+     * refresh; see {@link #servers()}.
+     *
+     * @param name the server's name on the proxy
+     * @return the server, or empty when the proxy did not list it
+     * @since 1.557.0
+     */
+    public static @NotNull Optional<NetworkServer> server(@NotNull String name) {
+        return ProxyRuntime.server(name);
     }
 
     /**

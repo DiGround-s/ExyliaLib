@@ -42,11 +42,13 @@ Proxy.request(player, "commands", "player-proxy:server lobby")
 | `Proxy.bridge()` | What answered, as it introduced itself: `ExyliaProxyUtils 1.0.0 on Velocity`. |
 | `Proxy.find(String nameOrId)` | A player anywhere on the network, by name or id, as a `ProxyPlayer(id, name, server)`; empty for nobody, and empty without a bridge. What resolves `/tp <name>` for somebody this server has never seen. *Since 1.103.0.* |
 | `Proxy.players()` | Every name on the network as of the last refresh (every 10 s, through whoever is online). Synchronous, for tab completions and placeholders; empty until the bridge answers. *Since 1.104.0.* |
+| `Proxy.servers()` / `Proxy.server(name)` | Every server on the network as `NetworkServer(name, players, online)`, as of the last refresh: every 3 s while anybody is on this server. The proxy pings each one with a 1.5 s timeout and shares a round for 3 s across every backend. Synchronous, for a server selector, a placeholder or a scoreboard; empty until the bridge answers, and always empty with a proxy whose ExyliaProxyUtils predates 2.2.0 (it answers `UNKNOWN_MODULE`, which is not an error). `server` ignores case. *Since 1.557.0.* |
 | `Proxy.COMMANDS`, `Proxy.PLAYER` | The module names behind `player-proxy:` lines and `find`. |
 
 Modules ExyliaProxyUtils has today: `ping`, `commands` (`<actor>:<command>`),
 `connect` (`<server>|<uuid>|<memo>`, the last two optional), `player` (a name
-or a uuid) and `players` (every connected name). The [teleport
+or a uuid), `players` (every connected name) and, since ExyliaProxyUtils
+2.2.0, `servers` (`name,players,up` entries joined by `;`). The [teleport
 module](teleport.md) uses `connect` for handovers once the bridge has
 answered, with the destination as the memo, and `player` to find where
 somebody is.

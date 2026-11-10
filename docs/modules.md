@@ -41,7 +41,7 @@ public final class AuctionsModule extends PluginModule {
 | `actions`, `menus`, `commands` | once, through `registerActions`, `menuIds`, `registerCommands` | only for running modules |
 | `loadOnlinePlayers` | once, at start | not on reload |
 | `timers()` | at `startTimers`, and after every reload | the previous timers are cancelled first |
-| `onReload()` | on `reloadConfigs`, after `registerConfigs`, while enabled | the switch itself is read only at start |
+| `onReload()` | on `reloadConfigs`, after `registerConfigs`, while enabled | the switch is read at start; change it live with `setEnabled` |
 | `onDisable()` | on `disableAll`, in reverse registration order, after the timers stop; also after a failed `onEnable` | must tolerate managers that were never built |
 
 ## Contracts
@@ -62,11 +62,70 @@ public final class AuctionsModule extends PluginModule {
   the ones that failed, after the rest reloaded. `reload(id)` (1.284.0) does
   the same for one running module, for an in-game editor that changed only its
   settings; it answers `false` when that module is not running.
-  `pendingRestart()` lists the modules whose switch changed since start.
+  `pendingRestart()` lists the modules a restart would start or stop: the
+  config's switches, the installed plugins and the requirements, against what
+  runs (1.557.0: a module kept off by a requirement that is off is no longer
+  listed).
 - **Lifecycle.** Driven from the main thread; nothing outlives `disableAll()`.
   Palette-derived state: none kept here.
 
+## Switching a module live (1.557.0)
+
+```java
+ModuleToggle toggle = modules.setEnabled("auctions", false);
+if (toggle.succeeded()) settings.writeSwitch("auctions", false);   // persisting is the plugin's
+menus.load(toggle.menus());                                         // menus of modules that came on
+```
+
+| Status | Meaning |
+| --- | --- |
+| `ENABLED` | it runs now; `changed()` holds it and the dependants that came back with it |
+| `DISABLED` | it is off; `changed()` holds the dependants that went off first, then it |
+| `UNCHANGED` | it already was in that state |
+| `BLOCKED` | it stays off: `missing()` names the plugins or modules it needs that are not running |
+| `FAILED` | it threw while enabling, was released (as at start) and stays off |
+| `UNKNOWN` | no module has that id |
+
+- **Off.** Every running module that needs it, directly or through another,
+  goes off first, the last registered first. For each: the listeners it
+  registered in `onEnable` are unregistered, its timers stop, `onDisable` runs
+  and the placeholders it registered answer nothing (they cannot be removed).
+  Listeners registered later than `onEnable` are the module's to remove.
+- **On.** With its requirements running: `registerConfigs`, `onEnable`, its
+  actions (registered once per run), the players online, its timers. Then the
+  modules that need it and whose switch is on come back, in registration
+  order. A module that failed to enable is not brought back along.
+- **The switch asked for wins for the rest of the run**, so a dependant turned
+  off by hand stays off when its requirement returns. Write it to the config so
+  the next start agrees and `pendingRestart()` stops listing it.
+- **Actions** of a module stay registered while it is off and answer
+  `stop("switched off")` without running: `registerActions` hands each module
+  `actions.onlyWhile(module::isEnabled)` (`PluginActions#onlyWhile`), so menus
+  compiled against them keep working once it is back.
+- **Commands** cannot be unregistered cleanly in Lamp, so they stay registered
+  and the plugin refuses them with one condition on its own Lamp builder (no
+  Lamp type crosses into the library). Register `modules.allCommandHandlers()`
+  instead of `commandHandlers()` so a module that was off at start has its
+  commands too; its `commandHandlers()` must then not touch what `onEnable`
+  builds.
+
+```java
+Lamp<BukkitCommandActor> lamp = BukkitLamp.builder(plugin)
+        .commandCondition(context -> modules.offModuleOf(context.command().function().method())
+                .ifPresent(id -> {
+                    messages.send(context.actor().sender(), "module-off");
+                    throw new SendableException() { public void sendTo(CommandActor actor) { } };
+                }))
+        .build();
+lamp.register(modules.allCommandHandlers().toArray());
+```
+
+`offModuleOf(method)` names the module that owns the command's handler class (a
+nested class counts for the handler around it) when it is not running.
+Called from the thread the registry is driven from: the main thread, or the
+global region on Folia.
+
 ## Where the code is
 
-`src/main/java/net/exylia/lib/module/` — `PluginModule`, `PluginModules`.
+`src/main/java/net/exylia/lib/module/` — `PluginModule`, `PluginModules`, `ModuleToggle`.
 Tests: `src/test/java/net/exylia/lib/module/PluginModulesTest.java`.

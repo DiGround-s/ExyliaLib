@@ -2,6 +2,7 @@ package net.exylia.lib.proxy.internal;
 
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.proxy.NetworkServer;
 import net.exylia.lib.proxy.ProxyReply;
 import net.exylia.lib.redis.RedisSettings;
 import net.exylia.lib.redis.internal.RedisClient;
@@ -60,6 +61,12 @@ public final class ProxyRuntime {
     /** The module the proxy answers with every connected name. */
     static final String PLAYERS = "players";
 
+    /** The module the proxy answers with every server, its player count and whether it is up. */
+    static final String SERVERS = "servers";
+
+    /** How often the server list is asked for while anyone is online: three seconds. */
+    private static final long SERVERS_PERIOD_TICKS = 20L * 3;
+
     /**
      * How often the proxy is asked something on a timer.
      *
@@ -85,6 +92,9 @@ public final class ProxyRuntime {
     private static volatile @Nullable String bridge;
     private static volatile boolean warned;
     private static volatile Set<String> players = Set.of();
+    private static volatile List<NetworkServer> servers = List.of();
+    private static volatile Map<String, NetworkServer> serversByName = Map.of();
+    private static volatile @Nullable TaskHandle serversTimer;
 
     /** Which Redis the bridge rides; {@code null} until first asked, empty when none is on. */
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -111,6 +121,7 @@ public final class ProxyRuntime {
         }
         library = plugin;
         timer = Tasks.of(plugin).runAsyncTimer(20L, PERIOD_TICKS, ProxyRuntime::tick);
+        serversTimer = Tasks.of(plugin).runAsyncTimer(40L, SERVERS_PERIOD_TICKS, ProxyRuntime::tickServers);
     }
 
     /**
@@ -188,10 +199,16 @@ public final class ProxyRuntime {
         available = false;
         bridge = null;
         players = Set.of();
+        clearServers();
         TaskHandle running = timer;
         timer = null;
         if (running != null) {
             running.cancel();
+        }
+        TaskHandle polling = serversTimer;
+        serversTimer = null;
+        if (polling != null) {
+            polling.cancel();
         }
         RedisClient.Subscription open = subscription;
         subscription = null;
@@ -318,6 +335,76 @@ public final class ProxyRuntime {
     /** Every name on the network as of the last refresh; empty until the bridge answers. */
     public static @NotNull Set<String> players() {
         return players;
+    }
+
+    /** Every server the proxy has, as of the last refresh; empty until the bridge answers. */
+    public static @NotNull List<NetworkServer> servers() {
+        return servers;
+    }
+
+    /** One server by the proxy's name for it, ignoring case, as of the last refresh. */
+    public static @NotNull Optional<NetworkServer> server(@NotNull String name) {
+        return Optional.ofNullable(serversByName.get(name.toLowerCase(java.util.Locale.ROOT)));
+    }
+
+    /**
+     * Asks for the server list while the bridge is up and somebody is here to
+     * read it. A proxy older than the {@code servers} module answers
+     * {@code UNKNOWN_MODULE}, which leaves the list empty and costs nothing more
+     * than the question.
+     */
+    private static void tickServers() {
+        if (redis == null || !available) {
+            clearServers();
+            return;
+        }
+        if (Bukkit.getOnlinePlayers().isEmpty()) {
+            return;
+        }
+        request((UUID) null, SERVERS, "").thenAccept(reply -> {
+            if (reply.isOk()) {
+                setServers(parseServers(reply.detail()));
+            } else if (reply.status() == ProxyReply.Status.UNKNOWN_MODULE) {
+                clearServers();
+            }
+        });
+    }
+
+    private static void clearServers() {
+        setServers(List.of());
+    }
+
+    private static void setServers(List<NetworkServer> list) {
+        Map<String, NetworkServer> byName = new java.util.HashMap<>();
+        for (NetworkServer server : list) {
+            byName.putIfAbsent(server.name().toLowerCase(java.util.Locale.ROOT), server);
+        }
+        serversByName = Map.copyOf(byName);
+        servers = List.copyOf(list);
+    }
+
+    /**
+     * Reads what the {@code servers} module writes: {@code name,players,up}
+     * entries joined by {@code ;}. A name may hold commas, so the count and the
+     * flag are the last two fields; an entry that does not read is skipped.
+     */
+    public static @NotNull List<NetworkServer> parseServers(@NotNull String detail) {
+        List<NetworkServer> out = new ArrayList<>();
+        for (String entry : detail.split(";")) {
+            int flag = entry.lastIndexOf(',');
+            int count = flag <= 0 ? -1 : entry.lastIndexOf(',', flag - 1);
+            if (count <= 0) {
+                continue;
+            }
+            try {
+                int players = Integer.parseInt(entry.substring(count + 1, flag).trim());
+                String up = entry.substring(flag + 1).trim();
+                out.add(new NetworkServer(entry.substring(0, count).trim(), players, up.equals("1")));
+            } catch (NumberFormatException unreadable) {
+                // Skipped: one bad entry should not cost the rest of the list.
+            }
+        }
+        return out;
     }
 
     /** Nothing to do on a quit any more; kept so the call site reads the same. */

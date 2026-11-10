@@ -106,4 +106,14 @@ class ProxyTest {
         assertEquals(CommandResult.Status.REJECTED,
                 BridgeCommands.toResult(new ProxyReply(ProxyReply.Status.REJECTED, "no such command"), "x").status());
     }
+
+    @Test
+    @DisplayName("the servers answer reads names with commas, skips bad entries, and is empty without a bridge")
+    void serversWire() {
+        assertEquals(java.util.List.of(new NetworkServer("lobby", 12, true), new NetworkServer("bed,wars", 0, false)),
+                ProxyRuntime.parseServers("lobby,12,1;bed,wars,0,0;broken;x,y,1"));
+        assertTrue(ProxyRuntime.parseServers("").isEmpty());
+        assertTrue(Proxy.servers().isEmpty());
+        assertTrue(Proxy.server("lobby").isEmpty());
+    }
 }

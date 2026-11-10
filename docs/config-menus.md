@@ -92,6 +92,7 @@ Entry point: `net.exylia.lib.config.ConfigMenus`.
 | `ConfigMenus.open(viewer)` | the Exylia plugins with settings |
 | `ConfigMenus.open(viewer, plugin)` | that plugin's settings: its only file straight away, or the list of its files |
 | `ConfigMenus.of(plugin).permission(p).back(b).open(viewer)` | the same, from the plugin's own hub (1.445.0) |
+| `ConfigMenus.of(plugin).permission(p).back(b).file(name).open(viewer)` | one settings file straight away, by the name handed to `Configs.define` (`modules/hotbar/config`): a module's card in the hub opening that module's settings (1.557.0) |
 
 Any thread. Clicks need `exylialib.config` (`ConfigMenus.PERMISSION`, op by default),
 or the permission given to `permission(...)` for that plugin's files only. The
@@ -99,6 +100,16 @@ list of every plugin always needs `exylialib.config`. `back(...)` replaces BACK
 on the top screen (the file list, or a single file's first page) and runs on the
 viewer's thread; without it BACK goes to the plugin list. A plain `open` forgets
 what an earlier `of(...)` set.
+
+With `file(name)`, that file is the top screen: BACK from its hub (or from its
+only page) runs `back(...)`, never the plugin's list of files, and the BACK
+button says *Previous screen*. A name the plugin did not define, or one whose
+module is off, opens the plugin's settings as if no file had been asked for.
+
+```java
+ConfigMenus.of(plugin).permission("lobby.admin").back(hub::open)
+        .file("modules/hotbar/config").open(player);
+```
 
 ## What the admin does
 

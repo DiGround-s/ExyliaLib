@@ -93,6 +93,7 @@ public final class ConfigMenus {
         private final Plugin plugin;
         private @Nullable String permission;
         private @Nullable Consumer<Player> back;
+        private @Nullable String file;
 
         private Opener(Plugin plugin) {
             this.plugin = plugin;
@@ -123,11 +124,31 @@ public final class ConfigMenus {
         }
 
         /**
-         * Opens the settings: the plugin's only file straight away, or the list of its files.
+         * Opens one settings file straight away instead of the plugin's file list: a module's
+         * card in the plugin's hub opening that module's settings. BACK on the file's top
+         * screen then runs {@link #back}, never the file list.
+         *
+         * @param name the file's name as handed to {@code Configs.define}, such as
+         *             {@code modules/hotbar/config}
+         * @return this opener
+         * @since 1.557.0
+         */
+        public @NotNull Opener file(@NotNull String name) {
+            this.file = Objects.requireNonNull(name, "name");
+            return this;
+        }
+
+        /**
+         * Opens the settings: the {@link #file} asked for, else the plugin's only file
+         * straight away, or the list of its files.
+         *
+         * <p>A {@link #file} the plugin did not define (or whose module is off) opens the
+         * plugin's settings as if none had been asked for, so the button still leads somewhere.
          *
          * @param viewer who edits; any thread
          */
         public void open(@NotNull Player viewer) {
+            if (file != null && ConfigMenu.openFile(viewer, plugin, file, permission, back)) return;
             ConfigMenu.open(viewer, plugin, permission, back);
         }
     }

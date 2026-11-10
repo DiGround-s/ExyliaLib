@@ -4,11 +4,13 @@ import net.exylia.lib.action.internal.ActionRegistry;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 
 /**
  * The action namespace owned by one plugin.
@@ -22,17 +24,47 @@ import java.util.concurrent.CompletableFuture;
 public final class PluginActions {
     private final Plugin plugin;
     private final String namespace;
+    /** While this answers false, handlers registered through this view do nothing; {@code null}: always run. */
+    private final @Nullable BooleanSupplier open;
 
     PluginActions(Plugin plugin, String namespace) {
         this.plugin = plugin;
         this.namespace = new ActionId(namespace, "validation").namespace();
+        this.open = null;
+    }
+
+    private PluginActions(PluginActions parent, BooleanSupplier open) {
+        this.plugin = parent.plugin;
+        this.namespace = parent.namespace;
+        BooleanSupplier outer = parent.open;
+        this.open = outer == null ? open : () -> outer.getAsBoolean() && open.getAsBoolean();
+    }
+
+    /**
+     * The same namespace, for handlers that only run while {@code open} holds.
+     *
+     * <p>For a part of a plugin that can be switched off while the server runs: its
+     * actions stay registered, so menus compiled against them keep working once it is
+     * back, and while it is off a call answers {@link ActionResult#stop(String)} without
+     * running the handler. Everything else (compiling, unregistering) is the namespace's.
+     *
+     * @param open read on every call, from the thread the action runs on
+     * @return a view of this namespace
+     * @since 1.557.0
+     */
+    public @NotNull PluginActions onlyWhile(@NotNull BooleanSupplier open) {
+        return new PluginActions(this, java.util.Objects.requireNonNull(open, "open"));
     }
 
     public @NotNull String namespace() { return namespace; }
 
     /** Registers a handler which decides itself whether it completes now or later. */
     public @NotNull PluginActions register(@NotNull String id, @NotNull ActionHandler handler) {
-        ActionRegistry.register(new ActionId(namespace, id), plugin.getName(), handler);
+        BooleanSupplier gate = open;
+        ActionHandler registered = gate == null ? handler : (context, arguments) -> gate.getAsBoolean()
+                ? handler.execute(context, arguments)
+                : ActionHandler.completed(ActionResult.stop("switched off"));
+        ActionRegistry.register(new ActionId(namespace, id), plugin.getName(), registered);
         return this;
     }
 
