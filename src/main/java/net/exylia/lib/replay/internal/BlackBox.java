@@ -301,7 +301,10 @@ public final class BlackBox {
             }
             // A volley in a crowd waits for the next look rather than growing
             // every timer's list without end.
-            if (watcher.noticed.size() < NEARBY_PER_PLAYER) watcher.noticed.put(entity, tape);
+            if (watcher.noticed.size() < NEARBY_PER_PLAYER) {
+                watcher.noticed.put(entity, tape);
+                watcher.ids.put(entity.getEntityId(), entity.getUniqueId());
+            }
         }
     }
 
@@ -468,8 +471,11 @@ public final class BlackBox {
             others = nearest;
             found = theirs;
         }
+        Map<Integer, UUID> ids = new ConcurrentHashMap<>();
+        for (Entity entity : others) ids.put(entity.getEntityId(), entity.getUniqueId());
         watcher.nearbyTapes = found.toArray(new Tape[0]);
         watcher.nearby = others;
+        watcher.ids = ids;
         watcher.lookedAt = here;
         // Whatever was noticed since the last look is in what it found, or
         // too far down the list to be kept.
@@ -549,8 +555,9 @@ public final class BlackBox {
     /**
      * Takes the attacks the clients sent since the last drain, each with its
      * victim worked out: a player by the entity id every view keeps, anything
-     * else among what is around the attacker. An entity id is a final field,
-     * so this reads nothing of the world, whichever thread drains. Whoever
+     * else among what is around the attacker, by the ids their own timer
+     * wrote down: Folia refuses reading an entity off its region's thread,
+     * and whoever drains may be on another region. Whoever
      * samples first in a tick drains; the queue is empty for everybody after.
      */
     private void drain() {
@@ -570,13 +577,7 @@ public final class BlackBox {
     private @Nullable UUID around(UUID player, int entityId) {
         Watcher watcher = watchers.get(player);
         if (watcher == null) return null;
-        for (Entity entity : watcher.nearby) {
-            if (entity.getEntityId() == entityId) return entity.getUniqueId();
-        }
-        for (Entity entity : watcher.noticed.keySet()) {
-            if (entity.getEntityId() == entityId) return entity.getUniqueId();
-        }
-        return null;
+        return watcher.ids.get(entityId);
     }
 
     // ------------------------------------------------------------------ marks
@@ -1367,6 +1368,8 @@ public final class BlackBox {
         /** Spawned near them since the last look, with their tapes; emptied by every look. */
         final Map<Entity, Tape> noticed = new ConcurrentHashMap<>();
         volatile List<Entity> nearby = List.of();
+        /** Entity id to UUID of {@link #nearby} and {@link #noticed}, read by whichever thread drains attacks. */
+        volatile Map<Integer, UUID> ids = new ConcurrentHashMap<>();
         /** The tapes of {@link #nearby}, by index, filled as they are found; forgotten on every look. */
         Tape[] nearbyTapes = new Tape[0];
         Location lookedAt;
