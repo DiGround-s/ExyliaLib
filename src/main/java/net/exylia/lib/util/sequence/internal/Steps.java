@@ -494,7 +494,7 @@ final class Steps {
             if (pitch != 0f) {
                 where.setPitch(pitch);
             }
-            if (facesSource) {
+            if (facesSource && !target.keepsFacing()) {
                 faceSource(where, target.source());
             }
             NpcMotion moving = motion;
@@ -702,7 +702,7 @@ final class Steps {
             Location where = yShift == 0.0
                     ? target.location().clone()
                     : target.location().clone().add(0, yShift * target.scale(), 0);
-            if (facesSource) {
+            if (facesSource && !target.keepsFacing()) {
                 faceSource(where, target.source());
             }
             // A body handed over by whoever played this (a placed NPC) starts

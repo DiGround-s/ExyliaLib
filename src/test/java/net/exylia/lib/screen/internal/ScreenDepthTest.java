@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** How close a screen stands, and why the floor in its window is tipped rather than the camera. */
+/** How close a screen stands, and how the stage behind its window is kept clear and floored. */
 class ScreenDepthTest {
 
     /** How far from the eyes a corner of the view is, at the depth a screen stands at, for a 16:9 view of this field of view. */
@@ -38,34 +38,41 @@ class ScreenDepthTest {
     }
 
     @Test
-    void aFloorSeenFromBelowTipsAndOneSeenFromAboveDoesNot() {
-        assertEquals(24, PreviewStage.floorTilt(8, 16), 1e-9);
-        assertEquals(0, PreviewStage.floorTilt(-20, 16), 1e-9);
+    void aLevelFloorsNearEdgeNeverRisesOverTheFeet() {
+        for (double ahead = 2.5; ahead <= 12; ahead += 0.5) {
+            for (double over = -3; over <= 3; over += 0.05) {
+                double front = PreviewStage.floorFront(ahead, over);
+                // Its top near edge, seen from the eyes, where it crosses the feet's depth.
+                double nearEdge = over * ahead / (ahead - front);
+                assertTrue(nearEdge <= over + PreviewStage.FLOOR_COVER + 1e-9, "ahead " + ahead + " over " + over);
+                if (over <= 0) assertEquals(PreviewStage.FLOOR_BACK, front, 1e-9, "seen from above, all of it");
+                assertTrue(front > 0);
+            }
+        }
     }
 
     @Test
-    void theFloorsNearEdgeNeverRisesIntoTheBodysFeet() {
-        // Seen from the eyes, the floor's top near edge must stay at or below the feet, wherever the window is.
-        for (float yaw = -180; yaw < 180; yaw += 37) {
+    void everyBlockAWindowShowsIsCleared() {
+        // Rays through every part of the window, out to the wall: each block one passes is in the view.
+        java.util.Random random = new java.util.Random(7);
+        for (int run = 0; run < 400; run++) {
+            float yaw = random.nextFloat() * 360 - 180;
+            double cx = random.nextDouble() * 1.8 - 0.9, cy = random.nextDouble() - 0.5;
+            double hw = 0.1 + random.nextDouble() * 0.5, hh = 0.1 + random.nextDouble() * 0.4;
+            double far = 3 + random.nextDouble() * 12;
+            double ex = random.nextDouble(), ey = random.nextDouble(), ez = random.nextDouble();
+            double[][] view = PreviewStage.view(yaw, PreviewStage.PITCH, cx, cy, hw, hh, far);
             double a = Math.toRadians(yaw);
-            double fx = -Math.sin(a), fz = Math.cos(a);
-            for (double elevation = -40; elevation <= 40; elevation += 5) {
-                net.exylia.lib.display.Rotation turn = PreviewStage.floorTurn(yaw, elevation);
-                float[] near = null;
-                for (int sx = -1; sx <= 1; sx += 2) {
-                    for (int sz = -1; sz <= 1; sz += 2) {
-                        float[] p = turn.apply(new float[]{(float) (sx * 1.2), (float) (PreviewStage.FLOOR_THICK / 2),
-                                (float) (sz * PreviewStage.FLOOR_WIDE / 2)});
-                        p[1] -= (float) (PreviewStage.FLOOR_THICK / 2);
-                        if (near == null || p[0] * fx + p[2] * fz < near[0] * fx + near[2] * fz) near = p;
+            double[] f = {-Math.sin(a), 0, Math.cos(a)}, r = {-Math.cos(a), 0, -Math.sin(a)};
+            for (double u = -1; u <= 1; u += 0.125) {
+                for (double v = -1; v <= 1; v += 0.125) {
+                    double across = cx + u * hw, up = cy + v * hh;
+                    for (double t = LiveScreen.NEAR; t <= far; t += 0.01) {
+                        double px = ex + t * (f[0] + across * r[0]), py = ey + t * up, pz = ez + t * (f[2] + across * r[2]);
+                        double bx = Math.floor(px) + 0.5, by = Math.floor(py) + 0.5, bz = Math.floor(pz) + 0.5;
+                        assertTrue(PreviewStage.seen(view, bx - ex, by - ey, bz - ez),
+                                "yaw " + yaw + " window " + cx + "," + cy + " " + hw + "x" + hh + " missed a block " + t + " ahead");
                     }
-                }
-                for (double ahead = 2.5; ahead <= 12; ahead += 4.75) {
-                    double eyeY = -ahead * Math.tan(Math.toRadians(elevation));
-                    double nearAhead = ahead + near[0] * fx + near[2] * fz;
-                    double seen = Math.toDegrees(Math.atan2(near[1] - eyeY, nearAhead));
-                    assertTrue(seen <= elevation + 1e-3, "yaw " + yaw + " elevation " + elevation + " ahead " + ahead
-                            + ": near edge at " + seen + " degrees over feet at " + elevation);
                 }
             }
         }

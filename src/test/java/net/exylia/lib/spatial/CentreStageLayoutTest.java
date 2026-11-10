@@ -364,7 +364,7 @@ class CentreStageLayoutTest {
     }
 
     @Test
-    void anEffectIsTurnedToShowItsMotionAcrossTheView() {
+    void anEffectFacesTheViewerUnlessItLinesUpTowardsThem() {
         // A body thrown straight away from the viewer when played facing them: seen end-on, it shows nothing.
         float board = 0;
         double[] base = {0, 64, 0};
@@ -374,10 +374,14 @@ class CentreStageLayoutTest {
             samples.add(new double[]{0, 64 + 0.1 * i, -0.15 * i, 0.1});
         }
         var tuning = net.exylia.lib.spatial.internal.EffectView.choose(samples, base, board, 0, true, 0, new double[]{0, 0});
-        assertEquals(90, Math.abs(tuning.turn()), 1e-9, "turned side-on: " + tuning.turn());
-        // Turned, the throw runs across the view.
+        // Turned only as far as it takes to run across the view as much as towards it: the front stays in sight.
+        assertEquals(45, Math.abs(tuning.turn()), 1e-9, "three-quarter: " + tuning.turn());
         double[] end = net.exylia.lib.spatial.internal.EffectView.place(samples.getLast(), base, board, 0, tuning.turn());
-        assertTrue(Math.abs(end[0]) > 1.4 && Math.abs(end[2]) < 1e-6, java.util.Arrays.toString(end));
+        assertTrue(Math.abs(end[0]) > 1 && Math.abs(Math.abs(end[0]) - Math.abs(end[2])) < 1e-6, java.util.Arrays.toString(end));
+        // A body that only moves about where it stands is shown from the front, whatever its limbs do.
+        java.util.List<double[]> jig = new java.util.ArrayList<>();
+        for (int i = 0; i <= 20; i++) jig.add(new double[]{0.1 * Math.sin(i), 64 + 0.08 * i, 0.3 * Math.cos(i), 0.1, 1});
+        assertEquals(0, net.exylia.lib.spatial.internal.EffectView.choose(jig, base, board, 0, true, 0, new double[]{0, 0}).turn(), 1e-9);
         // Something already moving across is left facing the viewer.
         java.util.List<double[]> across = new java.util.ArrayList<>();
         for (int i = 0; i <= 10; i++) across.add(new double[]{0.15 * i, 64, 0, 0.1});

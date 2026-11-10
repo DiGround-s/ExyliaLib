@@ -873,8 +873,9 @@ How it stays honest:
   sweeping down a list draws and plays nothing. Only a change of what a body wears skips the wait.
 - **Private.** Everything goes through `onlyTo(viewer)` and packet-only entities; a player beside the viewer is sent
   nothing about it. Nothing is placed in the world.
-- **The world is kept out.** Blocks inside the window's view are kept as air for the viewer (`FakeBlocks#keep`) up to a
-  back wall, a display coloured by the window's `background`, and two fake light blocks light the stage at night or
+- **The world is kept out.** Every block any part of which the window's view reaches is kept as air for the viewer
+  (`FakeBlocks#keep`), corners included and grown a quarter block for the camera's yaw steps (1.553.0: tested by its
+  middle, a wall beside the eyes still showed at the edge of a window far aside), up to a back wall, a display coloured by the window's `background`, and two fake light blocks light the stage at night or
   underground. The floor is a block display.
 - **Closing leaves nothing.** Hover change, leaving the page, an input stepping the screen aside and closing all cancel
   the run, destroy every piece and put the real blocks back. Particles the client already drew are the client's and
@@ -888,10 +889,12 @@ How it stays honest:
   before 1.21.2, whose sprint and sneak stop with the position, keep their own camera: there it stays within a degree of
   its place, goes back the moment the mouse rests, and the picture can shake by that degree.
 - **The stage is seen level.** A pitched camera leans every upright away from the middle of the view, so it does not
-  pitch: a body stays upright wherever the window is, as a shift lens keeps a building straight. The floor, which a level
-  camera could see from below in a window high on the screen, is tipped towards it around the feet, near edge down, so
-  its top shows from the same angle anywhere, and stands square to the view so its front edge stays level (1.549.1: the
-  tip went the wrong way and lifted the near edge over the legs). Far from the middle a body is drawn wider, as
+  pitch: a body stays upright wherever the window is, as a shift lens keeps a building straight. The stage is turned with
+  the camera, square to the view as the panel is: the floor's front edge stays level however far aside the window is,
+  and the body, its bodies and its scenery face out of the window in that one frame. The floor is level and thick (1.553.0;
+  before, it was tipped towards the camera, so a body stepping back sank into it): a window low on the screen shows its
+  top, one high on the screen its front, and seen from below it reaches only as far in front of the feet as keeps its
+  near edge off the legs. Far from the middle a body is drawn wider, as
   anything is near the edge of a wide view: keep a tall window near the middle where it can go.
 - **Glow is off for the viewer while a window is up.** A glowing piece's outline is drawn over everything, panels
   included, so one past the window's edge would show on them.

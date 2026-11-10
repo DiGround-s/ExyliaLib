@@ -22,6 +22,8 @@ public final class EffectView {
 
     /** The turns tried, in degrees from facing the viewer. */
     private static final double STEP = 15;
+    /** How far, in blocks, what plays may spread towards the viewer before the front is left for it. */
+    private static final double LINED = 0.35;
     /** Below this horizontal spread an effect has no direction worth turning for. */
     private static final double STILL = 0.08;
     /** The least an effect is shrunk to fit: below this a body is too small to read. */
@@ -46,31 +48,42 @@ public final class EffectView {
         List<double[]> measured = trimmed(bodies.size() >= MIN_BODY_SAMPLES ? bodies : samples, base);
         double best = auto ? 0 : fixed;
         if (auto) {
-            double bestScore = Double.NEGATIVE_INFINITY;
-            for (double turn = -90; turn <= 90; turn += STEP) {
-                double[] spread = spread(measured, base, boardYaw, played, turn);
-                if (Math.sqrt(spread[0] + spread[1]) < STILL) {
-                    best = 0;
-                    break;
-                }
-                // Motion across the view, little towards or away from it; the front a little preferred.
-                double score = spread[0] - spread[1] - Math.abs(turn) * 1e-4;
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = turn;
+            // The front, unless what plays lines up towards the viewer (a killer standing before the victim, a
+            // body thrown back): then turned only as far as it takes to spread across as much as towards.
+            double bestScore = Double.NEGATIVE_INFINITY, settled = Double.NaN;
+            for (double size = 0; size <= 90 && Double.isNaN(settled); size += STEP) {
+                double settledScore = Double.NEGATIVE_INFINITY;
+                for (double turn : size == 0 ? new double[]{0} : new double[]{size, -size}) {
+                    double[] spread = spread(measured, base, boardYaw, played, turn);
+                    if (Math.sqrt(spread[0] + spread[1]) < STILL) return new Tuning(0, fit(measured, base, boardYaw, played, 0, zone));
+                    double score = spread[0] - spread[1];
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = turn;
+                    }
+                    if (spread[1] <= Math.max(spread[0], LINED * LINED) + 1e-9 && score > settledScore) {
+                        settledScore = score;
+                        settled = turn;
+                    }
                 }
             }
+            if (!Double.isNaN(settled)) best = settled;
         }
+        return new Tuning(best, fit(measured, base, boardYaw, played, best, zone));
+    }
+
+    /** How many times its played size an effect turned {@code turn} plays at to stay in its zone. */
+    private static double fit(List<double[]> measured, double[] base, float boardYaw, double played, double turn, double[] zone) {
         double scale = 1;
         if (zone[1] > 0) {
             // Only its height fits it to the zone; wider than the zone, it spills out sideways rather than shrink.
             List<Double> tops = new java.util.ArrayList<>();
-            for (double[] sample : measured) tops.add(place(sample, base, boardYaw, played, best)[1] + sample[3]);
+            for (double[] sample : measured) tops.add(place(sample, base, boardYaw, played, turn)[1] + sample[3]);
             java.util.Collections.sort(tops);
             double top = tops.get((int) Math.floor((tops.size() - 1) * 0.9));
             if (top > 0) scale = Math.clamp(zone[1] / top, MIN_SCALE, 1);
         }
-        return new Tuning(best, scale);
+        return scale;
     }
 
     /** The samples less the tenth that lie furthest from the base: the outliers. */

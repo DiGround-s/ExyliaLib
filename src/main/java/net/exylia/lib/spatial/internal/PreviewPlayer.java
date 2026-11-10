@@ -341,7 +341,7 @@ public abstract class PreviewPlayer {
         rehearsing = new ArrayList<>();
         rehearsalBase = far;
         rehearsalSince = now;
-        SequenceTarget where = SequenceTarget.at(far).by(viewer).onlyTo(viewer).scale(REHEARSAL_SCALE);
+        SequenceTarget where = SequenceTarget.at(far).by(viewer).onlyTo(viewer).scale(REHEARSAL_SCALE).keepingFacing();
         where = body != null ? where.wearing(body.ragdoll()) : where.wearing(net.exylia.lib.npc.PreviewSkins.extra(0));
         rehearsal = Sequences.of(plugin).play(effect.sequence(), where);
     }
@@ -417,6 +417,7 @@ public abstract class PreviewPlayer {
         boolean ready = (body == null || body.ready()) && (partner == null || partner.ready());
         if (!ready && now - stoodAt <= SKIN_WAIT_MILLIS) return;
         Location at = base.clone();
+        at.setYaw(plane.yaw() + 180);
         if (!act.isDuet()) {
             acts.add(Sequences.of(plugin).play(act.sequence(), performer(at, body, act.skin())));
             return;
@@ -435,8 +436,10 @@ public abstract class PreviewPlayer {
     /** Where one body performs and whose skin it wears: {@code skin}'s, or the picked body's. */
     private SequenceTarget performer(Location at, @Nullable net.exylia.lib.npc.PreviewSkins.Body worn,
                                      @Nullable Player skin) {
+        // Bodies keep the facing chosen here: a [RAGDOLL] line's face: would turn them to the viewer's feet,
+        // off the stage's frame, and a duet's two bodies away from each other.
         SequenceTarget where = SequenceTarget.at(at).by(viewer).onlyTo(viewer)
-                .scale(look().effectScale());
+                .scale(look().effectScale()).keepingFacing();
         if (worn != null) return where.wearing(worn.ragdoll()).standing(worn::npc);
         return skin != null && own != null ? where.wearing(own) : where;
     }
@@ -486,7 +489,7 @@ public abstract class PreviewPlayer {
             // the body that falls is the one that stood there. No target, as in the previews' mannequin
             // mode: a [POTION] or a victim's title never lands on anybody.
             SequenceTarget where = SequenceTarget.at(at).by(viewer).onlyTo(viewer)
-                    .scale(effectScale(effect));
+                    .scale(effectScale(effect)).keepingFacing();
             where = body != null ? where.wearing(body.ragdoll()).standing(body::npc)
                     : where.wearing(RagdollModel.of(effect.skin()));
             run = Sequences.of(plugin).play(effect.sequence(), where);

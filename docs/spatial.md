@@ -708,9 +708,11 @@ crammed in the middle. Every line is still drawn at the theme's `min-glyph-degre
 - **Effects seen from the front or the side, sized to fit.** An effect now plays facing the viewer (before, it played
   at the world's yaw 0 whatever way the board faced, so a victim could show its back). With
   `preview.effect-facing: AUTO` (the default) the first play of each effect is watched (every display it shows the
-  viewer within 12 blocks, from `DisplayRuntime.sample`), and later plays are turned within ±90° so its motion runs
-  across the view (`EffectView`: the turn that maximises the spread across against the spread in depth; a still
-  effect stays facing you). `preview.zone: [width, height]` is the room above the pedestal it must stay inside: an
+  viewer within 12 blocks, from `DisplayRuntime.sample`), and later plays face you unless what plays lines up towards you (a killer standing before the victim, a body thrown
+  back), then turn only as far as it takes to spread across the view as much as towards it, so the front stays in
+  sight (`EffectView`, 1.553.0; before, the turn that spread it most across, side-on). Every body keeps that turn
+  (`SequenceTarget#keepingFacing`): a `[RAGDOLL]` line's `face:` no longer turns a preview's bodies to the viewer, so
+  the killer of a two-body effect no longer stands with its back to you before the victim. `preview.zone: [width, height]` is the room above the pedestal it must stay inside: an
   effect that spills out plays smaller, never larger than `effect-scale`, the mannequin with it. Per effect,
   `SpatialPreview.sequence(sequence, skin, facing)` (`AUTO`, `FRONT`, `SIDE`, degrees) wins over the layout's; in
   ExyliaKillEffect it is `preview-facing:` on the effect in `effects.yml`. What was learned is kept in memory per

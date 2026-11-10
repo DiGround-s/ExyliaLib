@@ -56,9 +56,18 @@ final class PreviewStage extends PreviewPlayer {
      * look at it. Level, every upright stays upright wherever the window is, as a shift lens keeps a building straight.
      */
     static final float PITCH = 0f;
-    /** How many degrees from above the floor is seen, whatever height it stands at. */
-    private static final double FLOOR_SEEN = 16;
-    static final double FLOOR_WIDE = 2.4, FLOOR_THICK = 0.1;
+    static final double FLOOR_WIDE = 2.4;
+    /** How far behind the feet the floor reaches, and the most it reaches in front of them. */
+    static final double FLOOR_BACK = 1.2;
+    /**
+     * How thick the floor is: level, so a window above the eyes shows its front rather than its top, and that front
+     * fills the frame's margin under the feet down past the window's bottom edge.
+     */
+    static final double FLOOR_THICK = FRAME_TALL * FLOOR_MARGIN + 0.3;
+    /** How far, in blocks at the feet, the floor's near edge may rise over them when it is seen from below. */
+    static final double FLOOR_COVER = 0.03;
+    /** How much each block is grown before it is tested against the view: the camera's yaw is sent in 256 steps. */
+    private static final double CLEAR_MARGIN = 0.25;
     /** How large a body and an effect play on the stage. */
     private static final double SCALE = 1, EFFECT_SCALE = 0.8;
     private static final double TURN_SPEED = 18;
@@ -126,11 +135,11 @@ final class PreviewStage extends PreviewPlayer {
         fake.put(plane.point(0, 0.7, 1.6).toBlockLocation(), light);
         this.kept = new ArrayList<>(fake.keySet());
         blocks.keep(viewer, fake);
-        // The floor the body stands on.
-        double elevation = Math.toDegrees(Math.atan2(plane.point(0, 0, 0).getY() - eyes.getY(), ahead));
+        // The floor the body stands on: level, in the body's own frame.
+        double front = floorFront(ahead, plane.point(0, 0, 0).getY() - eyes.getY());
         double floorWide = Math.max(FLOOR_WIDE, wide * 1.3);
         this.floor = show(DisplayModel.block(Material.POLISHED_BLACKSTONE.createBlockData()).light(15),
-                still(floorTurn(yaw, elevation), floorWide, FLOOR_THICK, FLOOR_WIDE), plane.point(0, -FLOOR_THICK / 2, 0));
+                still(rotation, floorWide, FLOOR_THICK, front + FLOOR_BACK), plane.point(0, -FLOOR_THICK / 2, (front - FLOOR_BACK) / 2));
         this.poll = tasks.runAtEntityTimer(viewer, POLL_TICKS, POLL_TICKS, this::tick);
     }
 
@@ -140,22 +149,12 @@ final class PreviewStage extends PreviewPlayer {
     }
 
     /**
-     * How many degrees the floor tips towards the camera so its top is seen from {@code seen} degrees above, for a floor
-     * {@code elevation} degrees above the eyes; a floor already seen from that far above needs none.
+     * How far in front of the feet the floor reaches, for feet {@code over} blocks above the eyes and {@code ahead} ahead
+     * of them. Seen from above, all of {@link #FLOOR_BACK}; seen from below, a level floor's near edge rises over the
+     * feet by {@code over * front / (ahead - front)}, so it reaches only as far as keeps that under {@link #FLOOR_COVER}.
      */
-    static double floorTilt(double elevation, double seen) {
-        return Math.max(0, elevation + seen);
-    }
-
-    /**
-     * How the floor is turned: level with the camera's yaw, so its front edge stays level however far aside the window
-     * is, and its near edge tipped down by {@link #floorTilt} around the body's feet. A display's front (+z) faces the
-     * eyes once turned by {@link StageLook#facing}, so a positive turn around x lowers that edge.
-     */
-    static net.exylia.lib.display.Rotation floorTurn(float yaw, double elevation) {
-        return net.exylia.lib.display.Rotation
-                .around(net.exylia.lib.display.Rotation.Axis.X, Math.toRadians(floorTilt(elevation, FLOOR_SEEN)))
-                .then(StageLook.facing(new StagePlane(null, 0, 0, 0, yaw, 1, 1, 1, 1)));
+    static double floorFront(double ahead, double over) {
+        return over <= 0 ? FLOOR_BACK : Math.min(FLOOR_BACK, FLOOR_COVER * ahead / (over + FLOOR_COVER));
     }
 
     /** {forward, right, up} of a camera, each {x, y, z}. */
@@ -165,7 +164,12 @@ final class PreviewStage extends PreviewPlayer {
         return new double[][]{{-sa * cp, -sp, ca * cp}, {-ca, 0, -sa}, {-sa * sp, cp, ca * sp}};
     }
 
-    /** The stage's plane: where the window's middle looks, the floor at its bottom edge, turned to face the eyes. */
+    /**
+     * The stage's plane: where the window's middle looks, the floor at its bottom edge, turned with the camera. Square to
+     * the view as the panel is, the floor's front edge stays level in the window however far aside it is, and the body
+     * facing out of it shares that frame; turned to the eyes instead, a floor below them would slant by
+     * {@code tan(elevation) * sin(off-axis)}.
+     */
     private static StagePlane plane(World world, Vector3d eyes, float yaw, float pitch, double distance, double x, double y, double h) {
         double[][] axis = axes(yaw, pitch);
         double ahead = ahead(distance, h);
@@ -176,15 +180,14 @@ final class PreviewStage extends PreviewPlayer {
             low[i] = ahead * (axis[0][i] + axis[1][i] * x / distance + axis[2][i] * (y - h / 2) / distance);
         }
         double floor = eyes.getY() + low[1] + FRAME_TALL * FLOOR_MARGIN;
-        float facing = (float) Math.toDegrees(Math.atan2(-along[0], along[2]));
-        return new StagePlane(world, eyes.getX() + along[0], floor, eyes.getZ() + along[2], facing, 1, 1, 1, 1);
+        return new StagePlane(world, eyes.getX() + along[0], floor, eyes.getZ() + along[2], yaw, 1, 1, 1, 1);
     }
 
-    /** Every block that is not air inside the window's view, out to the wall, as air. */
+    /** Every block that is not air any of which the window shows, out to the wall, as air. */
     private static Map<Location, BlockData> clearing(World world, Vector3d eyes, float yaw, float pitch, double distance,
                                                      double x, double y, double w, double h, double far) {
-        double[][] axis = axes(yaw, pitch);
         double cx = x / distance, cy = y / distance, hw = w / distance / 2, hh = h / distance / 2;
+        double[][] view = view(yaw, pitch, cx, cy, hw, hh, far);
         int reach = (int) Math.ceil(far * (1 + Math.abs(cx) + hw + Math.abs(cy) + hh)) + 2;
         int ex = (int) Math.floor(eyes.getX()), ey = (int) Math.floor(eyes.getY()), ez = (int) Math.floor(eyes.getZ());
         int minY = Math.max(world.getMinHeight(), ey - reach), maxY = Math.min(world.getMaxHeight() - 1, ey + reach);
@@ -194,19 +197,48 @@ final class PreviewStage extends PreviewPlayer {
             for (int bz = ez - reach; bz <= ez + reach; bz++) {
                 boolean loaded = world.isChunkLoaded(bx >> 4, bz >> 4);
                 for (int by = minY; loaded && by <= maxY; by++) {
-                    double dx = bx + 0.5 - eyes.getX(), dy = by + 0.5 - eyes.getY(), dz = bz + 0.5 - eyes.getZ();
-                    double ahead = dx * axis[0][0] + dy * axis[0][1] + dz * axis[0][2];
-                    // From a block's middle: one beside the eyes may reach ahead of them (a sign on the wall they face).
-                    if (ahead < -1 || ahead > far + 1) continue;
-                    double spread = Math.max(0, ahead);
-                    double across = dx * axis[1][0] + dz * axis[1][2];
-                    double up = dx * axis[2][0] + dy * axis[2][1] + dz * axis[2][2];
-                    if (Math.abs(across - cx * spread) > hw * spread + 1 || Math.abs(up - cy * spread) > hh * spread + 1) continue;
+                    if (!seen(view, bx + 0.5 - eyes.getX(), by + 0.5 - eyes.getY(), bz + 0.5 - eyes.getZ())) continue;
                     if (!world.getBlockAt(bx, by, bz).getType().isAir()) out.put(new Location(world, bx, by, bz), air);
                 }
             }
         }
         return out;
+    }
+
+    /**
+     * The view through the window as six planes {nx, ny, nz, d}, a point {@code p} from the eyes inside it when
+     * {@code n . p <= d} for every one: its four edges ({@code cx}, {@code cy} its middle and {@code hw}, {@code hh} its
+     * half size, per block ahead), the eyes and the wall {@code far} ahead.
+     */
+    static double[][] view(float yaw, float pitch, double cx, double cy, double hw, double hh, double far) {
+        double[][] axis = axes(yaw, pitch);
+        double[] f = axis[0], r = axis[1], u = axis[2];
+        double[][] out = new double[6][];
+        out[0] = edge(r, f, cx + hw, 1);
+        out[1] = edge(r, f, cx - hw, -1);
+        out[2] = edge(u, f, cy + hh, 1);
+        out[3] = edge(u, f, cy - hh, -1);
+        out[4] = new double[]{-f[0], -f[1], -f[2], 0};
+        out[5] = new double[]{f[0], f[1], f[2], far};
+        return out;
+    }
+
+    /** The plane {@code side * (a . p - slope * (f . p)) <= 0}. */
+    private static double[] edge(double[] a, double[] f, double slope, int side) {
+        return new double[]{side * (a[0] - slope * f[0]), side * (a[1] - slope * f[1]), side * (a[2] - slope * f[2]), 0};
+    }
+
+    /**
+     * Whether any of the block whose middle is ({@code dx}, {@code dy}, {@code dz}) from the eyes may be inside the
+     * {@link #view}: no plane has the whole block, grown by {@link #CLEAR_MARGIN}, beyond it. Every corner of a block
+     * counts, not its middle: beside the eyes a corner a block away from the middle is still in the window.
+     */
+    static boolean seen(double[][] view, double dx, double dy, double dz) {
+        for (double[] p : view) {
+            double reach = (0.5 + CLEAR_MARGIN) * (Math.abs(p[0]) + Math.abs(p[1]) + Math.abs(p[2]));
+            if (p[0] * dx + p[1] * dy + p[2] * dz - p[3] > reach) return false;
+        }
+        return true;
     }
 
     /** Whether this stage was placed for a window here and this large. */
