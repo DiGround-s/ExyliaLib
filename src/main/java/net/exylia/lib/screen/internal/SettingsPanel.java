@@ -36,6 +36,10 @@ final class SettingsPanel {
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.94), 4, Motion.Ease.OUT))
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.IN));
         panel.add(words("{primary}&l" + Phrases.tr("Screen settings")).textAlign(Node.Align.CENTER));
+        if (live.welcome()) {
+            panel.add(words("{letters}" + Phrases.tr("First screen: set its size and cursor speed")).scale(0.75)
+                    .textAlign(Node.Align.CENTER));
+        }
 
         int size = ScreenPreferences.size(id);
         panel.add(row("Size",

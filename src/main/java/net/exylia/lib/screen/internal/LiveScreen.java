@@ -236,6 +236,8 @@ final class LiveScreen implements ScreenSession {
     }
     /** Whether the settings panel is open. */
     private volatile boolean settingsOpen;
+    /** The settings panel was opened by itself on the player's first screen, so it greets them. */
+    private volatile boolean welcome;
     /** The size changed: the next frame sends every look again, though each may compare equal. Guarded by {@code this}. */
     private boolean rescaled;
     /** The in-screen confirm waiting for an answer, or {@code null}. */
@@ -480,6 +482,10 @@ final class LiveScreen implements ScreenSession {
             out.add(rect(backIds[i], back.get(i), 0));
         }
         backdropIds = backIds;
+        if (ScreenPreferences.firstScreen(player)) {
+            settingsOpen = true;
+            welcome = true;
+        }
         Node scene = screen.scene();
         if (scene != null) {
             for (int i = 0; i < sceneIds.length; i++) {
@@ -784,7 +790,13 @@ final class LiveScreen implements ScreenSession {
     /** On the viewer's thread: opens or closes the settings panel. */
     void settings(boolean open) {
         settingsOpen = open;
+        if (!open) welcome = false;
         renderNow();
+    }
+
+    /** Whether the settings panel greets a player on their first screen. */
+    boolean welcome() {
+        return welcome;
     }
 
     /**

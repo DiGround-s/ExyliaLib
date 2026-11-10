@@ -1788,6 +1788,7 @@ Server's choice: Выбор сервера
 Chest windows: Окна сундука
 Screens: Экраны
 Ctrl + Space opens this from anywhere: Ctrl + Пробел открывает это откуда угодно
+'First screen: set its size and cursor speed': 'Первый экран: настройте размер и скорость курсора'
 Type to narrow it down: 'Вводите, чтобы сузить поиск'
 Loading: 'Загрузка'
 Could not load these right now: 'Сейчас не удалось загрузить'

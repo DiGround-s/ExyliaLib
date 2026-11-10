@@ -235,6 +235,22 @@ public final class ScreenPreferences {
         return ids;
     }
 
+    private static final NamespacedKey SET_UP = legacyKey("screen_set_up");
+
+    /**
+     * Whether this is the first screen the player sees here, marking it seen: on the viewer's thread. Kept in the
+     * player's data, so a network shows it once per server; a player who already chose a size or speed never sees it.
+     */
+    // ponytail: per-server flag; move to a stored setting if a hidden-setting kind appears.
+    static boolean firstScreen(Player player) {
+        if (library == null || !ScreenSettings.get().firstScreenSetup()) return false;
+        PersistentDataContainer data = player.getPersistentDataContainer();
+        if (data == null || data.has(SET_UP)) return false;
+        data.set(SET_UP, PersistentDataType.BOOLEAN, true);
+        UUID id = player.getUniqueId();
+        return size(id) == clampSize(ScreenSettings.get().screenSize()) && sensitivity(id) == DEFAULT_SPEED;
+    }
+
     private static NamespacedKey legacyKey(String name) {
         return new NamespacedKey("exylialib", name);
     }

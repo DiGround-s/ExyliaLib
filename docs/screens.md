@@ -93,6 +93,11 @@ Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a s
 Those two keys never reach a screen's own `keys`, and clients older than 1.21.2 do not send jump, so they have the
 button only. The same choices are in `/settings` → Interface.
 
+**First screen (1.558.0).** The first screen a player opens on a server comes with this panel already shown and a line
+asking them to set the size and cursor speed, since the server cannot see their FOV or mouse. It is shown once (kept in
+the player's data, so once per server on a network) and never to a player who already chose a size or speed.
+`first-screen-setup: false` in `screens.yml` turns it off.
+
 
 | Node call | Effect |
 | --- | --- |
