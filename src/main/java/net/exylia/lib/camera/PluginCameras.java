@@ -163,6 +163,28 @@ public final class PluginCameras {
         CameraRuntime.say(player, line);
     }
 
+    /**
+     * Takes every other player out of this player's view until {@link #showPlayers}: what they watch shows the
+     * world, NPCs and entities, not whoever happens to stand in the shot. NPCs that are players underneath
+     * (tagged {@code NPC}) stay, and anyone joining meanwhile is hidden too. Leaving the server forgets it.
+     *
+     * @param player whose view
+     * @since 1.570.0
+     */
+    public void hidePlayers(@NotNull Player player) {
+        net.exylia.lib.camera.internal.PlayerShade.hide(plugin, player);
+    }
+
+    /**
+     * Gives back the players {@link #hidePlayers} took. Safe to call when nothing is hidden.
+     *
+     * @param player whose view
+     * @since 1.570.0
+     */
+    public void showPlayers(@NotNull Player player) {
+        net.exylia.lib.camera.internal.PlayerShade.show(player);
+    }
+
     /** Whether a camera can be shown at all on this server. */
     public boolean isSupported() {
         return CameraRuntime.isSupported();

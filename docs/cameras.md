@@ -347,6 +347,18 @@ sounds are untouched. It is independent of any one shot, so a cinematic made
 of several shots stays clean across the cuts. Leaving the server forgets it
 all. The tab list is not touched: it only shows while its key is held.
 
+### Hiding other players (since 1.570.0)
+
+```java
+cameras.hidePlayers(player);   // only the world, NPCs and entities in the shot
+// ... the cinematic
+cameras.showPlayers(player);
+```
+
+Every other player is taken out of that player's view (Bukkit `hidePlayer`, on the viewer's thread) and given back
+by `showPlayers`. NPCs that are players underneath (tagged `NPC`, as Citizens does) stay; anyone joining meanwhile is
+hidden too. Leaving the server forgets it.
+
 ### Holograms and NPCs in the shot (since 1.397.0)
 
 `Viewpoints.of(player)` is where a player sees from: the camera's current
