@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A short message that slides onto the HUD, stays a few seconds and slides away: "+120 coins", "You killed Steve".
+ * A short message that pops onto the HUD, stays a few seconds and shrinks away: "+120 coins", "You killed Steve".
  *
  * <pre>{@code
  * huds.notify(player, HudNotice.of(Text.of("{success}+120 {letters}coins").build()).group("coins"));

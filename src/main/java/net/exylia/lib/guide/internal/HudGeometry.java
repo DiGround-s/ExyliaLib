@@ -69,13 +69,11 @@ final class HudGeometry {
     }
 
     /**
-     * Where an element slides in from and out to: off its own edge by its width at a side, a little lower in the
-     * middle.
+     * Where an element's bottom centre stands while it is drawn {@code k} times its size, so it grows from and shrinks
+     * into its own middle: a pop in place, never a slide across the screen's edge (1.588.0).
      */
-    static double[] aside(HudAnchor anchor, double[] at, double wide, double tall) {
-        if (anchor.x() < 0.5) return new double[]{at[0] - wide * 0.6, at[1]};
-        if (anchor.x() > 0.5) return new double[]{at[0] + wide * 0.6, at[1]};
-        return new double[]{at[0], at[1] + (anchor.stacksUp() ? -tall : tall) * 0.5};
+    static double[] popped(double[] at, double tall, double k) {
+        return new double[]{at[0], at[1] + tall / 2 * (1 - k)};
     }
 
     /** The translation for a spot in the view, with the seat above the eyes taken back off for this pitch. */

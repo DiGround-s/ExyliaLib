@@ -122,6 +122,7 @@ search:hover { outline: 1px {primary}; }
 .hud-chip { flex-direction: row; gap: 3px; align-items: center; padding: 3px 6px; background: #b0120e1a; border-radius: 2px; }
 .hud-banner { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #b0120e1a; outline: 1px {primary}50; border-radius: 2px; }
 .hud-objective { padding: 3px 8px; background: #b0120e1a; outline: 1px {highlight}50; color: {highlight}; border-radius: 2px; }
+.hud-alert { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #b0120e1a; outline: 1px {error}60; border-radius: 2px; }
 .hud-level { gap: 2px; align-items: center; }
 .hud-bar { width: 160px; height: 6px; background: #b0120e1a; color: linear-gradient(to right, {info}, {info_light}); }
 .hud-profile { flex-direction: row; gap: 5px; align-items: center; padding: 4px 6px; background: #b0120e1a; border-radius: 2px; }

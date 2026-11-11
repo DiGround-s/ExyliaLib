@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Text on a player's screen that never takes their controls: widgets that stay (money, health, a quest tracker),
- * notices that slide in and out ("+120 coins", a kill), and big centre moments ("DOUBLE KILL").
+ * notices that pop in and out ("+120 coins", a kill), and big centre moments ("DOUBLE KILL").
  *
  * <pre>{@code
  * Huds huds = Huds.of(this);

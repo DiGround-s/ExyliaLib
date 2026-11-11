@@ -26,10 +26,12 @@ class HudGeometryTest {
     }
 
     @Test
-    void sidesSlideOutOffTheirOwnEdge() {
-        double[] at = {0, 0};
-        assertTrue(HudGeometry.aside(HudAnchor.LEFT, at, 2, 1)[0] < 0);
-        assertTrue(HudGeometry.aside(HudAnchor.RIGHT, at, 2, 1)[0] > 0);
+    void elementsPopInTheirOwnMiddle() {
+        double[] at = {3, 0};
+        // Drawn at nothing, the bottom centre stands half its height up: the middle stays put.
+        assertEquals(3, HudGeometry.popped(at, 2, 0)[0], 1e-9);
+        assertEquals(1, HudGeometry.popped(at, 2, 0)[1], 1e-9);
+        assertEquals(0, HudGeometry.popped(at, 2, 1)[1], 1e-9);
     }
 
     @Test

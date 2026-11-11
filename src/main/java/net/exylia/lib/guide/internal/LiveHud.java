@@ -33,8 +33,9 @@ import java.util.function.Consumer;
  * thread, so the elements are never touched by two threads and a text function always reads the player safely.
  *
  * <h2>Motion</h2>
- * Only translation and scale interpolate on a client. An element spawns off its edge (or small, in the middle), glides
- * to its place on the next draw, glides again when its stack reflows, and slides back out before it is destroyed.
+ * Only translation and scale interpolate on a client. An element spawns tiny in its own middle and grows to its size,
+ * glides when its stack reflows, and shrinks back into its middle before it is destroyed: it never crosses the
+ * screen's edge, where a client cuts it (1.588.0).
  */
 @ApiStatus.Internal
 public final class LiveHud extends Piece {
@@ -273,12 +274,12 @@ public final class LiveHud extends Piece {
         }
     }
 
-    /** Slides an element out and destroys it once it is gone. */
+    /** Shrinks an element into its middle and destroys it once it is gone. */
     private void leave(Player player, Element element) {
         if (!element.spawned()) return;
         boolean slide = !stepsAside(player) && element.spot != null;
-        double[] out = slide ? HudGeometry.aside(element.anchor(), element.spot, element.wide, element.tall) : null;
-        double k = element.anchor().x() == 0.5 ? SHRUNK : 1;
+        double k = SHRUNK;
+        double[] out = slide ? HudGeometry.popped(element.spot, element.tall, k) : null;
         for (Part part : element.parts) {
             if (slide && part.sent != null) {
                 Look l = part.sent;
@@ -358,7 +359,7 @@ public final class LiveHud extends Piece {
 
     // ------------------------------------------------------------------ elements
 
-    /** How small a middle element is drawn as it pops in or out. */
+    /** How small an element is drawn as it pops in or out. */
     private static final double SHRUNK = 0.01;
     /** The most displays one element draws; a design past it is cut, its frontmost layers first. */
     private static final int MOST_PARTS = 64;
@@ -489,7 +490,6 @@ public final class LiveHud extends Piece {
         }
 
         void send(Player player, boolean reseat) {
-            boolean middle = anchor().x() == 0.5;
             if (!spawned() || !sameShape()) {
                 boolean fresh = !spawned();
                 if (!fresh) {
@@ -497,8 +497,8 @@ public final class LiveHud extends Piece {
                     for (Part part : parts) GuidePackets.destroyViewText(player, part.id);
                     parts.clear();
                 }
-                double[] from = fresh ? HudGeometry.aside(anchor(), spot, wide, tall) : spot;
-                double k = fresh && middle ? SHRUNK : 1;
+                double k = fresh ? SHRUNK : 1;
+                double[] from = fresh ? HudGeometry.popped(spot, tall, k) : spot;
                 for (Look look : looks) {
                     Part part = new Part(GuidePackets.newId());
                     GuidePackets.spawnRider(player, part.id, look.text(), look.lineWidth(), look.background(),

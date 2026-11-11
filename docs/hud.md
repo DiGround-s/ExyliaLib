@@ -1,7 +1,7 @@
 # HUD
 
 Text on a player's screen that never takes their controls: widgets that stay
-(money, health, a quest tracker, a combat timer), notices that slide in and out
+(money, health, a quest tracker, a combat timer), notices that pop in and out
 ("+120 coins", a kill), and big moments over the crosshair ("DOUBLE KILL").
 *Since 1.566.0.*
 
@@ -23,7 +23,7 @@ the handles still work, so a caller never branches on support.
 ## Widgets
 
 `HudWidget.of(id, anchor, text)` stays until it is removed. Showing another with
-the same id replaces it in place (no slide).
+the same id replaces it in place (no pop).
 
 | Field | Copy | Default |
 | --- | --- | --- |
@@ -36,8 +36,8 @@ the same id replaces it in place (no slide).
 
 - `text` and `when` run on the player's own thread, so they read memory, never
   a database. A text equal to the one on screen sends nothing.
-- A `null` or blank text, or a `false` condition, slides the widget out; it
-  slides back in when it has something to say. That is a conditional element:
+- A `null` or blank text, or a `false` condition, shrinks the widget away; it
+  pops back in when it has something to say. That is a conditional element:
   "in combat", "low health", "inside a region", "holding a map".
 - Lines break only where the text has `\n`. Keep them short: a corner is about a
   fifth of the screen wide before it reaches the middle.
@@ -68,7 +68,7 @@ huds.show(player, HudWidget.layout("boss", HudAnchor.TOP, p -> Node.column(...))
   metadata packet for the displays it touches.
 - `hud-card` is in every sheet's base theme: the dark see-through panel and thin outline that read over any sky.
 - **HUD kit** (1.585.0), also in the base theme: `hud-row` and `hud-stack` (centred rows and columns, `hud-start`
-  to align left), `hud-chip` (a small pill: icon and value), `hud-banner` (an event line), `hud-objective`,
+  to align left), `hud-chip` (a small pill: icon and value), `hud-banner` (an event line), `hud-objective`, `hud-alert` (a warning line, error-edged),
   `hud-level` with `hud-bar` (a level bar), `hud-profile` (face, name and a line under it), `hud-panel` with
   `hud-panel-title` (a sidebar-like card), `hud-map`. ExyliaScreens ships one design for each.
 - **Rounded corners**: `border-radius: 2px` cuts each corner as pixel steps; the rows never overlap, so a
@@ -90,7 +90,7 @@ huds.show(player, HudWidget.layout("boss", HudAnchor.TOP, p -> Node.column(...))
 
 ## Notices
 
-`HudNotice.of(text)` slides in at the top right, stays three seconds and slides
+`HudNotice.of(text)` pops in at the top right, stays three seconds and shrinks
 away. Newer ones stand nearest the edge; past five at one anchor the oldest
 leaves early.
 
@@ -160,8 +160,9 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
 - **Cost.** One display per element and nothing layered: a HUD of ten widgets is
   ten entities. Only a changed text, a condition flipping, a reflowed stack or a
   pitch step sends anything.
-- Only translation and scale animate on a client: elements slide in from their
-  own edge, glide when their stack reflows, and slide out. Colours and opacity
+- Only translation and scale animate on a client: elements grow from their own
+  middle, glide when their stack reflows, and shrink back into it (1.588.0;
+  they slid in from the screen's edge before, which a client cuts). Colours and opacity
   do not fade.
 - A Bedrock client draws display entities poorly: give those players chat or a
   boss bar (`Guides.isBedrock`).
