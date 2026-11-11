@@ -112,5 +112,22 @@ search:hover { outline: 1px {primary}; }
 .anim-nudge { animation: nudge 30t ease-in-out infinite; }
 
 /* HUD widgets (1.582.0): a dark see-through card that reads over any sky or wall. */
-.hud-card { background: #c0120e1a; outline: 1px {primary}50; padding: 6px 8px; gap: 3px; }
+.hud-card { background: #c0120e1a; outline: 1px {primary}50; padding: 6px 8px; gap: 3px; border-radius: 2px; }
 .hud-card progress { height: 3px; background: {letters_black}30; }
+
+/* HUD kit (1.585.0): pills, a banner, a level bar, a profile and a side panel. Corners round only on a HUD. */
+.hud-row { flex-direction: row; gap: 4px; justify-content: center; align-items: center; }
+.hud-stack { gap: 3px; align-items: center; }
+.hud-start { align-items: start; }
+.hud-chip { flex-direction: row; gap: 3px; align-items: center; padding: 3px 6px; background: #b0120e1a; border-radius: 2px; }
+.hud-banner { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #b0120e1a; outline: 1px {primary}50; border-radius: 2px; }
+.hud-objective { padding: 3px 8px; background: #b0120e1a; outline: 1px {highlight}50; color: {highlight}; border-radius: 2px; }
+.hud-level { gap: 2px; align-items: center; }
+.hud-bar { width: 160px; height: 6px; background: #b0120e1a; color: linear-gradient(to right, {info}, {info_light}); }
+.hud-profile { flex-direction: row; gap: 5px; align-items: center; padding: 4px 6px; background: #b0120e1a; border-radius: 2px; }
+.hud-profile img { width: 16px; height: 16px; }
+.hud-profile column { gap: 1px; }
+.hud-panel { gap: 3px; padding: 6px 8px; background: #c0120e1a; outline: 1px {primary}50; border-radius: 2px; }
+.hud-panel-title { padding: 1px 0 3px 0; }
+.hud-line { flex-direction: row; gap: 3px; }
+.hud-map { padding: 2px; }

@@ -169,6 +169,7 @@ public final class Layout {
         h = mix(h, Objects.hashCode(node.background()));
         h = mix(h, Objects.hashCode(node.hover()));
         h = mix(h, Objects.hashCode(node.outline()));
+        h = mix(h, Double.hashCode(node.radius()));
         h = mix(h, Objects.hashCode(node.hoverOutline()));
         h = mix(h, Objects.hashCode(node.tooltip()));
         h = mix(h, Objects.hash(node.transform(), node.hoverTransform(), node.activeTransform(), node.activeBackground(),

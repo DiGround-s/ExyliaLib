@@ -67,23 +67,27 @@ public final class HudLayers {
         Node node = box.node();
         double cx = box.x() + box.w() / 2, cy = box.y() + box.h() / 2;
         int line = ScreenMath.argb(node.outline(), 0);
-        if (line != 0 && node.outlineWidth() > 0 && box.w() > 0 && box.h() > 0) {
-            // Four edges, never a rect behind the fill: a see-through fill would show it through its middle.
-            double t = node.outlineWidth();
-            double w = box.w() + 2 * t, h = box.h() + 2 * t;
-            out.add(rect(cx, box.y() - t / 2, w, t, line));
-            out.add(rect(cx, box.y() + box.h() + t / 2, w, t, line));
-            out.add(rect(box.x() - t / 2, cy, t, box.h(), line));
-            out.add(rect(box.x() + box.w() + t / 2, cy, t, box.h(), line));
-        }
         String colour = node.background();
         ScreenMath.Gradient gradient = ScreenMath.gradient(colour);
-        if (box.w() > 0 && box.h() > 0) {
-            if (gradient != null) {
-                bands(gradient, box, out);
-            } else {
-                int argb = ScreenMath.argb(colour, 0);
-                if (argb != 0) out.add(rect(cx, cy, box.w(), box.h(), argb));
+        int fill = gradient != null ? 0 : ScreenMath.argb(colour, 0);
+        if (node.radius() > 0 && box.w() > 0 && box.h() > 0 && (line != 0 || fill != 0 || gradient != null)) {
+            rounded(box, node, line, fill, gradient, out);
+        } else {
+            if (line != 0 && node.outlineWidth() > 0 && box.w() > 0 && box.h() > 0) {
+                // Four edges, never a rect behind the fill: a see-through fill would show it through its middle.
+                double t = node.outlineWidth();
+                double w = box.w() + 2 * t, h = box.h() + 2 * t;
+                out.add(rect(cx, box.y() - t / 2, w, t, line));
+                out.add(rect(cx, box.y() + box.h() + t / 2, w, t, line));
+                out.add(rect(box.x() - t / 2, cy, t, box.h(), line));
+                out.add(rect(box.x() + box.w() + t / 2, cy, t, box.h(), line));
+            }
+            if (box.w() > 0 && box.h() > 0) {
+                if (gradient != null) {
+                    paint(box, gradient, box.x(), box.y(), box.x() + box.w(), box.y() + box.h(), out);
+                } else if (fill != 0) {
+                    out.add(rect(cx, cy, box.w(), box.h(), fill));
+                }
             }
         }
         if (node.pixels() != null) {
@@ -131,24 +135,99 @@ public final class HudLayers {
         return new Layer(Kind.RECT, x, y, w, h, argb, null, 0, 1, 0, 0, 0);
     }
 
-    /** A gradient as bands, one each five pixels along it. */
-    private static void bands(ScreenMath.Gradient gradient, Layout.Placed box, List<Layer> out) {
-        double length = gradient.vertical() ? box.h() : box.w();
+    /**
+     * Rounded corners (1.585.0): the outline and the fill cut into rows that never overlap, each corner a pixel
+     * staircase. Rows alike are merged, so a card of radius 2 with an outline is about a dozen rects.
+     */
+    private static void rounded(Layout.Placed box, Node node, int line, int fill, ScreenMath.Gradient gradient,
+                                List<Layer> out) {
+        int t = line != 0 && node.outlineWidth() > 0 ? (int) Math.max(1, Math.round(node.outlineWidth())) : 0;
+        double ox = box.x() - t, oy = box.y() - t, wide = box.w() + 2 * t, tall = box.h() + 2 * t;
+        int r = (int) Math.min(Math.round(node.radius()), Math.floor(Math.min(wide, tall) / 2));
+        int inner = Math.max(0, r - t);
+        int zone = Math.max(r, t);
+        // Each corner row: {outer inset, inner inset or -1 when the whole row is outline}.
+        List<int[]> rows = new ArrayList<>();
+        for (int j = 0; j < zone; j++) {
+            int outer = j < r ? inset(r, j) : 0;
+            int in = j < t ? -1 : (j - t < inner ? inset(inner, j - t) : 0);
+            rows.add(new int[]{outer, in});
+        }
+        // Top rows, merged where alike.
+        int j = 0;
+        while (j < zone) {
+            int k = j + 1;
+            while (k < zone && java.util.Arrays.equals(rows.get(k), rows.get(j))) k++;
+            row(ox, oy + j, oy + k, wide, t, rows.get(j), line, fill, gradient, box, out);
+            j = k;
+        }
+        double middleTop = oy + zone, middleBottom = oy + tall - zone;
+        if (middleBottom > middleTop) {
+            row(ox, middleTop, middleBottom, wide, t, new int[]{0, 0}, line, fill, gradient, box, out);
+        }
+        j = zone;
+        while (j > 0) {
+            int k = j - 1;
+            while (k > 0 && java.util.Arrays.equals(rows.get(k - 1), rows.get(j - 1))) k--;
+            row(ox, oy + tall - j, oy + tall - k, wide, t, rows.get(j - 1), line, fill, gradient, box, out);
+            j = k;
+        }
+    }
+
+    /** One band of rows from {@code y0} to {@code y1}: outline on both sides and the fill between. */
+    private static void row(double ox, double y0, double y1, double wide, int t, int[] cut, int line, int fill,
+                            ScreenMath.Gradient gradient, Layout.Placed box, List<Layer> out) {
+        int outer = cut[0];
+        double left = ox + outer, right = ox + wide - outer;
+        if (right <= left) return;
+        if (cut[1] < 0) {
+            if (line != 0) out.add(span(left, y0, right, y1, line));
+            return;
+        }
+        double fillLeft = ox + t + cut[1], fillRight = ox + wide - t - cut[1];
+        if (line != 0 && fillLeft > left) {
+            out.add(span(left, y0, Math.min(fillLeft, right), y1, line));
+            if (fillRight < right) out.add(span(Math.max(fillRight, left), y0, right, y1, line));
+        }
+        if (fillRight > fillLeft) {
+            if (gradient != null) paint(box, gradient, fillLeft, y0, fillRight, y1, out);
+            else if (fill != 0) out.add(span(fillLeft, y0, fillRight, y1, fill));
+        }
+    }
+
+    /** How far row {@code j} of a corner of radius {@code r} stands in: a pixel circle (4 → 4, 2, 1, 1). */
+    static int inset(int r, int j) {
+        double dy = r - j;
+        return (int) Math.ceil(r - Math.sqrt(Math.max(0, (double) r * r - dy * dy)) - 1e-9);
+    }
+
+    private static Layer span(double x0, double y0, double x1, double y1, int argb) {
+        return rect((x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0, argb);
+    }
+
+    /**
+     * The part of {@code box}'s gradient inside {@code x0..x1}, {@code y0..y1}, as bands, one each five pixels
+     * along it. Edge to edge: a see-through band reaching into the next would draw a darker seam where they overlap.
+     */
+    private static void paint(Layout.Placed box, ScreenMath.Gradient gradient, double x0, double y0, double x1,
+                              double y1, List<Layer> out) {
+        boolean vertical = gradient.vertical();
+        double origin = vertical ? box.y() : box.x();
+        double length = vertical ? box.h() : box.w();
         int n = ScreenMath.bands(length);
         int start = 0;
         for (int i = 1; i <= n; i++) {
             int colour = gradient.at((start + 0.5) / n);
             if (i < n && gradient.at((i + 0.5) / n) == colour) continue;
-            // Edge to edge: a see-through band reaching into the next would draw a darker seam where they overlap.
-            double from = (double) start / n, to = (double) i / n;
-            if (gradient.vertical()) {
-                out.add(rect(box.x() + box.w() / 2, box.y() + box.h() * (from + to) / 2, box.w(), box.h() * (to - from),
-                        colour));
-            } else {
-                out.add(rect(box.x() + box.w() * (from + to) / 2, box.y() + box.h() / 2, box.w() * (to - from), box.h(),
-                        colour));
-            }
+            double from = origin + length * start / n, to = origin + length * i / n;
             start = i;
+            if (vertical) {
+                double a = Math.max(from, y0), b = Math.min(to, y1);
+                if (b > a) out.add(span(x0, a, x1, b, colour));
+            } else {
+                double a = Math.max(from, x0), b = Math.min(to, x1);
+                if (b > a) out.add(span(a, y0, b, y1, colour));
+            }
         }
     }
 }

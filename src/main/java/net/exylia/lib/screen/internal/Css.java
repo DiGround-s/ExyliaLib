@@ -34,7 +34,9 @@ public final class Css {
             // 1.497.0
             "background-image",
             // 1.565.0: staggered arrivals, animation longhands, text that types itself
-            "stagger", "animation-delay", "animation-iteration-count", "animation-direction", "text-reveal");
+            "stagger", "animation-delay", "animation-iteration-count", "animation-direction", "text-reveal",
+            // 1.585.0: pixel-rounded corners on a HUD
+            "border-radius");
 
     /** Properties a child takes from its parent when it sets none. */
     static final Set<String> INHERITED = Set.of("color", "font-size", "font-weight", "text-align", "white-space",

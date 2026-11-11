@@ -32,7 +32,7 @@ elements cost nothing themselves, but a box with a `background` or an `outline` 
 | `icon` | Item sprite by `material=` or text; `glyph=` stands in below 1.21.9 | `<icon>diamond_sword</icon>` | 1.485.0 | 1 display on 1.21.11+ (sprite glyph), otherwise 4 (pixel picture) |
 | `item` | Real item model, flat, 16 px: `material=`, `head=`, `texture=` or `url=` | `<item head="%player_name%"/>` | 1.488.0 | like `icon`: 1 sprite glyph, else 4 pixel copies; heads/chests fall back to the 3D item (1) |
 | `item3d` | Lit 3D model with glint; `spin` turns it (36 degrees a second, or `spin="72"`): a block leans towards the viewer and turns round, a flat item (a sword, a totem, cake, a sapling) stands upright and swings 40 degrees either way (1.520.0) | `<item3d material="diamond_sword" spin/>` | 1.499.0 | 1 item display; a spin is 1 transform a second (client interpolation) |
-| `img` | Picture: `src="img/x.png"` (markup folder), `skin="<player>"` (body 16x32), `face="<player>"` (8x8, 1.490.0); `turn` (1.492.0), `wearing` (1.498.0) | `<img face="%player_name%"/>` | 1.489.0 | `src`/`face`: 4 displays whatever its size; flat `skin`: 4; `skin turn`: 96 displays (stands still at detail level 2) |
+| `img` | Picture: `src="img/x.png"` (markup folder), `skin="<player>"` (body 16x32), `face="<player>"` (8x8, 1.490.0); `turn` (1.492.0), `wearing` (1.498.0); `map="40"` the ground around the viewer turned to where they face, `zoom` blocks a pixel, `round` a disc edged by `ring` (1.585.0) | `<img face="%player_name%"/>` | 1.489.0 | `src`/`face`/`map`: 4 displays whatever its size; flat `skin`: 4; `skin turn`: 96 displays (stands still at detail level 2) |
 | `window` | A hole in the screen looking at a preview played for real behind it, for this viewer alone: `preview="<value>"` (a `SpatialPreview`) or `wearing="<outfit>"`; its children stand in when there is nothing to show; size from CSS, `background` colours the back wall | `<window preview="effect_preview" class="window"/>` | 1.538.0 | up to 5 pieces per box it cuts, 1 wall, 1 floor; what plays costs what it costs in the world |
 | `canvas` | Sprite layer the plugin moves from Java (`session.scene("id")`); size from CSS `width`/`height` | `<canvas id="table"/>` | 1.500.0 | the sprites on it: item 1, picture 4, rect 1-2 |
 | `progress` | Bar: `value` of `max` (default 100), filled with CSS `color` | `<progress value="%xp%" max="100"/>` | 1.488.0 | 1-2 displays (filled part, rest) |
@@ -117,6 +117,7 @@ for `animation`.
 | `background` | `{token}`, `{token}40`, `#rrggbb`, `#aarrggbb`, `none`, `linear-gradient(...)` | `background: {primary}20;` | 1.485.0 (gradient 1.497.0) | 1 display; gradient: 1 per 5 px band (2 to 12) |
 | `background-image` | `url(img/x.png)`: cover-fit picture over the background colour | `background-image: url(img/banner.png);` | 1.497.0 | 4 displays |
 | `outline`, `border` | `1px {primary}`: a line outside the box | `outline: 1px {success};` | 1.485.0 | ~1 display; a hover outline adds it only while hovered |
+| `border-radius` | Corners cut as pixel steps (1 cuts the corner pixel; 2 to 4 round it). **HUD only**: a screen keeps square corners | `border-radius: 2px;` | 1.585.0 | on a HUD, about 5 rects a filled box, about 11 with an outline |
 | `color` | Text colour (inherited); the fill of `progress` | `color: {letters};` | 1.485.0 | free |
 | `font-size` | `14px` is 1.4 lines (inherited) | `font-size: 14px;` | 1.485.0 | free |
 | `font-weight` | `bold` (inherited) | `font-weight: bold;` | 1.485.0 | free |
@@ -150,7 +151,7 @@ Detail in [Expressions](screens.md#expressions-14940). Functions: `min`, `max`, 
 `level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`; 1.565.0:
 `cooldown('key')` (seconds left on a button's `cooldown="key ..."`, 0 when ready), `players('survival')`
 (players on that server as the proxy last counted, `players()` the whole network), `online('survival')`; 1.566.0:
-`health()` (0-20, half hearts) and `food()` (0-20); and any a plugin
+`health()` (0-20, half hearts) and `food()` (0-20); 1.585.0: `exp()` (0 to 1 into the current level); and any a plugin
 registered through `ExpressionFunctions`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
 
 ## Built-in actions

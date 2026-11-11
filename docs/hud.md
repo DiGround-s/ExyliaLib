@@ -67,6 +67,17 @@ huds.show(player, HudWidget.layout("boss", HudAnchor.TOP, p -> Node.column(...))
   work; state reads its defaults). A layout equal to the one on screen sends nothing; a changed value is one
   metadata packet for the displays it touches.
 - `hud-card` is in every sheet's base theme: the dark see-through panel and thin outline that read over any sky.
+- **HUD kit** (1.585.0), also in the base theme: `hud-row` and `hud-stack` (centred rows and columns, `hud-start`
+  to align left), `hud-chip` (a small pill: icon and value), `hud-banner` (an event line), `hud-objective`,
+  `hud-level` with `hud-bar` (a level bar), `hud-profile` (face, name and a line under it), `hud-panel` with
+  `hud-panel-title` (a sidebar-like card), `hud-map`. ExyliaScreens ships one design for each.
+- **Rounded corners**: `border-radius: 2px` cuts each corner as pixel steps; the rows never overlap, so a
+  see-through card shows no seam. Only a HUD draws them.
+- **Minimap**: `<img map="40" zoom="1" round ring="{primary}"/>` is the ground around the player, turned so the
+  way they face is up, with an arrow in the middle: the map colour of each column's top block, shaded by height as
+  a map is (the first solid block under the head in a world with a roof). Four displays whatever its size (8 to
+  64); it reads only loaded chunks the player's region owns, and a player who neither moves nor turns (6° steps)
+  is sampled again every two seconds. Give it `every: 10` or more.
 - Clicks, hovers, `transition`, `animation` and `enter` do nothing on a HUD; `item`, `item3d`, `window` and turning
   bodies are left out. Text shadows are never drawn (see below).
 - **Cost.** One display per rect, per text and four per picture; an outline is four. A card of two bars is about

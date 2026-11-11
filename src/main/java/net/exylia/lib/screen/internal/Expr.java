@@ -263,6 +263,11 @@ public final class Expr {
                 org.bukkit.entity.Player viewer = env.viewer();
                 yield viewer == null ? 0d : (double) viewer.getFoodLevel();
             }
+            case "exp" -> {
+                // 1.585.0: how far into the current level, 0 to 1, for a level bar.
+                org.bukkit.entity.Player viewer = env.viewer();
+                yield viewer == null ? 0d : (double) viewer.getExp();
+            }
             case "contains" -> args.size() > 1 && text(a).contains(text(args.get(1)));
             case "matches" -> args.size() > 1 && regex(text(args.get(1))).matcher(text(a)).matches();
             case "chance" -> {
@@ -333,7 +338,9 @@ public final class Expr {
             // 1.565.0
             "cooldown", "players", "online",
             // 1.566.0
-            "health", "food");
+            "health", "food",
+            // 1.585.0
+            "exp");
 
     // ------------------------------------------------------------------
     // Parsing

@@ -86,6 +86,7 @@ public final class Node {
     private String outline;
     private String hoverOutline;
     private double outlineWidth = 1;
+    private double radius;
     private Consumer<ScreenEvent> onClick;
     private Consumer<ScreenEvent> onScroll;
     private List<Component> tooltip;
@@ -913,6 +914,22 @@ public final class Node {
 
     public double outlineWidth() {
         return outlineWidth;
+    }
+
+    /**
+     * Rounds the box's corners by {@code pixels}, cut as pixel steps so they stay crisp. Drawn on a HUD; a screen
+     * keeps square corners, since each of its boxes is one display that moves and lights up as a whole.
+     *
+     * @since 1.585.0
+     */
+    public @NotNull Node radius(double pixels) {
+        this.radius = Math.max(0, pixels);
+        return this;
+    }
+
+    /** How far the corners are rounded, in pixels. @since 1.585.0 */
+    public double radius() {
+        return radius;
     }
 
     public @Nullable Consumer<ScreenEvent> onClick() {

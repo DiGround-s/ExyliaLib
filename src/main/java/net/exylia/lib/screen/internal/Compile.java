@@ -41,6 +41,8 @@ public final class Compile {
             "action-shift", "assist", "priority", "refresh", "prompt", "hint",
             // 1.503.0
             "persist",
+            // 1.585.0: <img map>
+            "map", "zoom", "round", "ring",
             // 1.498.0
             "vanish", "action-hover", "wearing", "spin",
             // 1.501.0

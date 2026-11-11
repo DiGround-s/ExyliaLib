@@ -1257,6 +1257,7 @@ public final class MarkupRender {
         if (style.containsKey("font-size") && node.kind() == Node.Kind.TEXT) node.scale(scale(style.get("font-size")));
         String[] line = outline(style.containsKey("outline") ? style.get("outline") : style.get("border"));
         if (line != null) node.outline(line[0], Double.parseDouble(line[1]));
+        if (style.containsKey("border-radius")) node.radius(px(style.get("border-radius"), 0));
         String align = style.get("align-items");
         if (align != null) node.align(switch (align.trim()) {
             case "center" -> Node.Align.CENTER;
@@ -1278,6 +1279,21 @@ public final class MarkupRender {
      * body. A picture that cannot be had is an empty box of its size, so the layout never jumps.
      */
     private Node image(El el, Scope scope) {
+        if (el.attr("map") != null) {
+            // <img map="32" zoom="2" round ring="{primary}">: the ground around the viewer, facing up (1.585.0).
+            int size = (int) Math.max(MiniMap.MIN, Math.min(MiniMap.MAX, px(fill(el.attr("map"), scope, false), 32)));
+            int zoom = (int) px(fill(attrOr(el, "zoom", "1"), scope, false), 1);
+            boolean round = el.attr("round") != null;
+            int ring = round ? ScreenMath.argb(fill(attrOr(el, "ring", "{primary}"), scope, false).trim(), 0) : 0;
+            org.bukkit.entity.Player viewer;
+            try {
+                viewer = session.viewer();
+            } catch (RuntimeException noViewer) {
+                viewer = null;
+            }
+            if (viewer == null) return Node.box().width(size).height(size);
+            return Node.image(size, size, MiniMap.of(viewer, size, zoom, round, ring));
+        }
         if (el.attr("skin") != null) {
             String name = fill(el.attr("skin"), scope, false).trim();
             // wearing="...": armour and a held item over the skin (1.498.0).
@@ -1295,7 +1311,7 @@ public final class MarkupRender {
         }
         String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope, false).trim();
         if (src.isEmpty()) {
-            parts.problems().accept(el.pos() + ": <img> needs src, skin or face");
+            parts.problems().accept(el.pos() + ": <img> needs src, skin, face or map");
             return Node.box();
         }
         if (parts.images() == null) {
