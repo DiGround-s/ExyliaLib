@@ -239,6 +239,11 @@ public void give(CommandSender sender, String player,
 The handler gets the same value as before. It names no Lamp type, so unlike the
 parameter types above it can come from this library.
 
+For any other one-word value with characters Brigadier refuses (a placeholder
+such as `%top_kills;name;1%`), use `command.lamp.TokenArgument` (since 1.583.0):
+it reads the same way and tells the client it is a player name, the one vanilla
+type the client also reads up to the next space, so nothing is drawn in red.
+
 ---
 
 ## Messages

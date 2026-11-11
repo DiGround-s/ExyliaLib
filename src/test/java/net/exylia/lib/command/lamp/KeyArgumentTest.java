@@ -44,4 +44,12 @@ class KeyArgumentTest {
     void unclosedQuote() {
         assertThrows(CommandSyntaxException.class, () -> read(new StringReader("\"tag:heart")));
     }
+
+    @Test
+    @DisplayName("a placeholder token keeps its percent signs and semicolons")
+    void placeholderToken() throws CommandSyntaxException {
+        StringReader reader = new StringReader("%topper_jump;top_name;1% Steve");
+        assertEquals("%topper_jump;top_name;1%", new TokenArgument().parse(reader));
+        assertEquals(' ', reader.peek());
+    }
 }

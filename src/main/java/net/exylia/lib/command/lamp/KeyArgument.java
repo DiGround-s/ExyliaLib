@@ -42,6 +42,11 @@ public final class KeyArgument implements CustomArgumentType<String, Key> {
 
     @Override
     public @NotNull String parse(@NotNull StringReader reader) throws CommandSyntaxException {
+        return read(reader);
+    }
+
+    /** Up to the next space, or a quoted string; what {@link TokenArgument} reads too. */
+    static String read(StringReader reader) throws CommandSyntaxException {
         if (reader.canRead() && StringReader.isQuotedStringStart(reader.peek())) {
             return reader.readQuotedString();
         }
