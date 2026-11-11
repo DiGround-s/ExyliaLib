@@ -62,6 +62,7 @@ the click lines.
 | `defaultValue(key)` (1.562.0) | the value the record's no-argument constructor gives, shown the same way |
 | `hint(key)` (1.562.0) | the card's click lines, translated, several lines in one value: the click and what follows it (`Type an amount, such as 10k.`), plus `Shift-right-click · reset` while the value is not its default |
 | `placeholders(prefix)` | every editable key as live values: `prefix` + key with `.` and `-` as `_`, and the same name with `_default` and `_click` |
+| `placeholders(prefix, keys)` | the same for only these keys (1.573.0): a hub showing two values of each page passes just those, since every live value is read on each redraw |
 | `card(viewer, key, click, back)` (1.562.0) | the click every card has: shift-right-click resets, a number or amount is typed prefilled (`10k`, `2.5M`, `-1` read as written), a switch flips, a choice steps (right-click back), a length of time, text, an item, a currency or a list of items is asked for |
 | `reset(viewer, key)` (1.562.0) | puts a key back to its default |
 | `tone(Lore.Tone)` (1.562.0) | the tone the click lines are drawn in, primary by default |

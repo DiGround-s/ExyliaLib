@@ -594,6 +594,18 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
 
     @SuppressWarnings("unchecked")
     private T recordDefaults() {
+        // A record is immutable and its no-argument constructor is the code's defaults: build it once,
+        // since settings screens read the defaults of every card every second.
+        T cached = builtDefaults;
+        if (cached != null) return cached;
+        cached = buildRecordDefaults();
+        builtDefaults = cached;
+        return cached;
+    }
+
+    private volatile T builtDefaults;
+
+    private T buildRecordDefaults() {
         try {
             var constructor = schemaType.getDeclaredConstructor();
             constructor.setAccessible(true);

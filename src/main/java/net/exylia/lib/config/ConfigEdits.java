@@ -129,11 +129,22 @@ public final class ConfigEdits {
     public @NotNull Map<String, Object> placeholders(@NotNull String prefix) {
         ConfigFile<?> loaded = file.get();
         if (loaded == null) return Map.of();
+        return placeholders(prefix, ConfigMenu.keys(loaded));
+    }
+
+    /**
+     * {@link #placeholders(String)} for only these keys: what a hub showing a few values of
+     * several files puts in its context, since every live value is read on each redraw.
+     *
+     * @since 1.573.0
+     */
+    public @NotNull Map<String, Object> placeholders(@NotNull String prefix, @NotNull java.util.Collection<String> keys) {
+        if (file.get() == null) return Map.of();
         Map<String, Object> values = new LinkedHashMap<>();
-        for (String key : ConfigMenu.keys(loaded)) {
+        for (String key : keys) {
             String name = prefix + key.replace('.', '_').replace('-', '_');
             values.put(name, live(key));
-            values.put(name + "_default", (Supplier<String>) () -> defaultValue(key));
+            values.put(name + "_default", defaultValue(key));
             values.put(name + "_click", (Supplier<String>) () -> hint(key));
         }
         return values;
