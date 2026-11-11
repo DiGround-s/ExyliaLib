@@ -79,6 +79,8 @@ final class LiveScreen implements ScreenSession {
     private static final double GUTTER_X = 24, GUTTER_Y = 6;
     /** Sprint and jump together open the settings from anywhere, whatever the screen binds its keys to. */
     static final String SETTINGS_KEYS = "sprint + jump";
+    /** The most of the window a screen is drawn across, however large its viewer chose. */
+    private static final double WINDOW_SHARE = 0.96;
     /** The settings button's side, in layout pixels. */
     private static final double GEAR = 16;
     /** The backdrop, in units: past the edge of any view. */
@@ -242,6 +244,7 @@ final class LiveScreen implements ScreenSession {
     private volatile boolean settingsOpen;
     /** The step of fitting the view shown, 1 height and 2 width, or 0. */
     private volatile int fitStep;
+    private volatile double fitFrom = ScreenPreferences.DEFAULT_FOV;
     /** The size changed: the next frame sends every look again, though each may compare equal. Guarded by {@code this}. */
     private boolean rescaled;
     /** The in-screen confirm waiting for an answer, or {@code null}. */
@@ -833,6 +836,7 @@ final class LiveScreen implements ScreenSession {
      */
     void fit(int step) {
         if (step > 0 && screen.wheel()) return;
+        if (fitStep == 0 && step > 0) fitFrom = ScreenPreferences.fov(player.getUniqueId());
         fitStep = step;
         if (step == 0 && FitPanel.SCREEN.equals(screen.name())) {
             close();
@@ -840,6 +844,11 @@ final class LiveScreen implements ScreenSession {
         }
         rescale();
         renderNow();
+    }
+
+    /** The FOV the player had before this fitting began. */
+    double fitFrom() {
+        return fitFrom;
     }
 
     int fitStep() {
@@ -872,8 +881,14 @@ final class LiveScreen implements ScreenSession {
         UUID id = player.getUniqueId();
         double fov = ScreenPreferences.fovScale(id);
         if (fitStep > 0) return fullUnit * fov;
-        double narrow = Math.min(1, ScreenPreferences.aspect(id) / (16.0 / 9));
-        return fullUnit * ScreenPreferences.size(id) / 100.0 * fov * narrow;
+        double aspect = ScreenPreferences.aspect(id);
+        double narrow = Math.min(1, aspect / (16.0 / 9));
+        double unit = fullUnit * ScreenPreferences.size(id) / 100.0 * fov * narrow;
+        if (screen.wheel()) return unit;
+        // Never past the window, whatever size was chosen: the layout and the settings button stay in view.
+        double half = DISTANCE * Math.tan(Math.toRadians(ScreenPreferences.fov(id) / 2));
+        double most = Math.min(half / (screen.height() / 2 + GUTTER_Y), half * aspect / (screen.width() / 2 + GEAR + 4));
+        return Math.min(unit, most * WINDOW_SHARE);
     }
 
     /**

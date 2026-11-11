@@ -207,6 +207,17 @@ public final class ScreenPreferences {
         if (live != null) live.rescale();
     }
 
+    /**
+     * Keeps a size the player chose for their old FOV looking the same at the new one: screens now grow with the FOV
+     * themselves, so a size picked to make up for a wide FOV would count twice.
+     */
+    static void keepSize(Player player, double from, double to) {
+        int size = size(player.getUniqueId());
+        if (from == to || size == clampSize(ScreenSettings.get().screenSize())) return;
+        long kept = Math.round(size * fovScale(from) / fovScale(to) / SIZE_STEP) * SIZE_STEP;
+        set(player, SIZE, Integer.toString(clampSize((int) kept)));
+    }
+
     private static double number(UUID player, String key, double fallback, double min, double max) {
         String value = value(player, key);
         try {

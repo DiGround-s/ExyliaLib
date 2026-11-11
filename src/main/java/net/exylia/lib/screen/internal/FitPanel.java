@@ -99,6 +99,7 @@ public final class FitPanel {
                 button(height ? "next" : "done", "{letters}" + Phrases.tr(height ? "Next" : "Done"), event -> {
                     if (height) live.fit(2);
                     else {
+                        ScreenPreferences.keepSize(player, live.fitFrom(), fov);
                         ScreenPreferences.view(player, fov, aspect, true);
                         live.fit(0);
                     }

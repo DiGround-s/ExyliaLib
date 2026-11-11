@@ -103,7 +103,9 @@ shrinks to fit), and the HUD's corners land on the window's corners. The card sa
 new fit; the settings panel's *Fit to window* row starts it again. A player who chose *Later* is not asked again on
 that server. A HUD asks only at a quiet moment (on the ground, not hurt, not falling, no vehicle, no screen open), with
 a screen of its own. Wheel screens never show it: they keep the player's FOV effects, which would spoil the measure.
-`first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
+A size chosen for the old FOV is converted when the fit changes it (a size picked to make up for FOV 90 would
+otherwise count twice), and since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fitted window,
+whatever size is chosen. `first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
 
 
 | Node call | Effect |
