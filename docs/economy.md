@@ -603,6 +603,16 @@ every scoreboard line went to the economy plugin.
 
 ---
 
+## Money supply
+
+`MoneySupply` holds the latest money supply of each currency: every balance
+added up and how many players hold some. The plugin that stores the balances
+reports it (`MoneySupply.report(currency, total, holders)`; ExyliaEconomy does
+so a minute after start and every ten minutes after), and a plugin that steers
+prices by how much money is around reads `MoneySupply.latest(currency)`, which
+is `null` until the first report. Nothing is persisted and nothing is queried:
+reading it is a map lookup, safe from any thread.
+
 ## Where the code is
 
 | | |
