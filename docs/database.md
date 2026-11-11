@@ -811,6 +811,15 @@ A file written by ExyliaLib 1.24 to 1.30 was flat (`type`, `host`, `user`, …).
 It is migrated to the layout above on first load, and its connection fields land
 in the block its `type` names, not in `mysql` regardless.
 
+### Starting on ExyliaLib's database (since 1.572.0)
+
+With `share-database: true` in ExyliaLib's `config.yml`, a plugin that has no
+`database.yml` yet starts with a copy of ExyliaLib's own, when that names a
+database server rather than H2. A network sets the shared database once, in
+ExyliaLib, and every plugin installed afterwards joins it. An existing file is
+never touched. `/exylialib setup` writes ExyliaLib's file and turns the switch
+on; see [setup.md](setup.md).
+
 ## Reading another plugin's database (since 1.480.0)
 
 An importer reads the plugin it replaces from that plugin's own SQLite file or

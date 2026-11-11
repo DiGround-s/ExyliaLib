@@ -1853,3 +1853,136 @@ Show HUD: Mostrar HUD
 Money, quests and notices kept on your screen while you play: Dinero, misiones y avisos en tu pantalla mientras juegas
 Lighter screens: Pantallas ligeras
 Less detail on full-screen menus, for a faster game: Menos detalle en los menús a pantalla completa, para un juego más fluido
+A client that cannot draw screens: Un cliente que no puede dibujar pantallas
+A port is 1 to 65535: Un puerto va de 1 a 65535
+Address: Dirección
+Admins stop being invited.: Se deja de invitar a los admins.
+Chest windows or full screens.: Ventanas de cofre o pantallas completas.
+Chest windows until they do.: Ventanas de cofre hasta que lo hagan.
+Choose the language, menus, colours: Elige el idioma, los menús, los colores
+Classic inventory menus.: Menús de inventario clásicos.
+Click to apply: Clic para aplicar
+Click to be asked next time: Clic para que se pregunte la próxima vez
+Click to finish: Clic para terminar
+Click to open the setup: Clic para abrir la configuración
+Click to set up: Clic para configurar
+Colour theme: Tema de color
+Colour theme · in use: Tema de color · en uso
+Colours, letters and the address.: Colores, letras y la dirección.
+Custom: Personalizado
+Database: Base de datos
+Database name: Nombre de la base de datos
+Database · in use: Base de datos · en uso
+Draws every line in small: Dibuja cada línea en
+Each player picks in {highlight}/settings{letters}.: Cada jugador elige en {highlight}/settings{letters}.
+Each plugin keeps its data in: Cada plugin guarda sus datos en
+Empty for the engine's default: Vacío para el valor del motor
+Engine: Motor
+Every client draws them.: Todos los clientes los dibujan.
+Every plugin on {highlight}default: Cada plugin en {highlight}default
+Every plugin redraws at once.: Cada plugin se redibuja al instante.
+Every plugin repaints at once.: Cada plugin se repinta al instante.
+Every plugin set to {highlight}default: Cada plugin configurado en {highlight}default
+Finish: Terminar
+First steps: Primeros pasos
+Four choices for every Exylia: Cuatro decisiones para cada
+Full-screen menus with a: Menús a pantalla completa con
+Go back: Volver
+Host: Host
+How the menus of every plugin open.: Cómo se abren los menús de cada plugin.
+In use: En uso
+Its name on the proxy, such as lobby-1: Su nombre en el proxy, como lobby-1
+LATER: MÁS TARDE
+Language: Idioma
+Last step: Último paso
+Lettering: Tipografía
+Letters, numbers, dots, dashes and underscores: Letras, números, puntos, guiones y guiones bajos
+Look: Aspecto
+Menu style · in use: Estilo de menú · en uso
+Menus: Menús
+Menus open this way from now on.: Los menús se abrirán así desde ahora.
+Messages: Mensajes
+Messages between servers: Mensajes entre servidores
+Move: Mover
+Network: Red
+Nothing to set up.: Nada que configurar.
+One MySQL, MariaDB, PostgreSQL: Una base MySQL, MariaDB, PostgreSQL
+Open it any time with /exylialib setup: Ábrela cuando quieras con /exylialib setup
+Opens with the current address.: Se abre con la dirección actual.
+Pick another one to switch.: Elige otra para cambiar.
+Players choose: Los jugadores eligen
+Players keep their data between: Los jugadores conservan sus datos entre
+Port: Puerto
+Reopen it with {highlight}/exylialib setup{letters}.: Vuelve a abrirla con {highlight}/exylialib setup{letters}.
+Running plugins switch on restart.: Los plugins activos cambian al reiniciar.
+SERVER SETUP: CONFIGURACIÓN DEL SERVIDOR
+SET UP: CONFIGURAR
+SETUP: CONFIGURACIÓN
+Says if a restart is still needed.: Indica si aún hace falta reiniciar.
+Server: Servidor
+Server address: Dirección del servidor
+Server language: Idioma del servidor
+Server language · in use: Idioma del servidor · en uso
+Server setup: Configuración del servidor
+Setup · step 1: Configuración · paso 1
+Setup · step 2: Configuración · paso 2
+Setup · step 3: Configuración · paso 3
+Setup · step 4: Configuración · paso 4
+Six languages, applied at once.: Seis idiomas, aplicados al instante.
+Small capitals: Versalitas
+Step 1: Paso 1
+Step 2: Paso 2
+Step 3: Paso 3
+Step 4: Paso 4
+Tested before anything is saved.: Se prueba antes de guardar nada.
+The address players join with,: La dirección con la que entran los jugadores,
+The colours and letters of every: Los colores y las letras de cada
+The language every plugin speaks.: El idioma que habla cada plugin.
+Theme: Tema
+This server: Este servidor
+This server only: Solo este servidor
+This server's name: Nombre de este servidor
+Three ways, applied at once.: Tres formas, aplicadas al instante.
+Through the database: A través de la base de datos
+Turns /settings on after a restart.: Activa /settings tras reiniciar.
+User: Usuario
+Welcome!: ¡Bienvenido!
+Where every plugin keeps its data.: Dónde guarda sus datos cada plugin.
+a file on this server. Right: un archivo de este servidor. Ideal
+always gets chest windows.: siempre recibe ventanas de cofre.
+and database of every Exylia plugin.: y la base de datos de cada plugin de Exylia.
+at the foot of every scoreboard.: al pie de cada marcador.
+'capitals: the Exylia look.': 'versalitas: el estilo Exylia.'
+cursor, drawn on 1.21.4+.: cursor, desde la 1.21.4+.
+for one server on its own.: para un servidor que va solo.
+message, menu and scoreboard.: mensaje, menú y marcador.
+or MongoDB every server shares.: o MongoDB que comparten todos los servidores.
+plugin. Each one applies at once.: plugin de Exylia. Cada una se aplica al instante.
+servers only when every server: servidores solo si todos los servidores
+shares one database.: comparten una misma base de datos.
+speaks it, and so does this setup.: lo habla, y esta configuración también.
+speaks the language chosen here.: habla el idioma elegido aquí.
+'{error}Could not connect: {letters}{0}': '{error}No se pudo conectar: {letters}{0}'
+'{letters}Address set to {highlight}{0}{letters}.': '{letters}Dirección establecida en {highlight}{0}{letters}.'
+? '{letters}Back to one server? The plugins the setup moved use their own files again after a restart. What they saved in {highlight}{0} {letters}stays there.'
+: '{letters}¿Volver a un solo servidor? Los plugins que movió la configuración vuelven a usar sus propios archivos tras reiniciar. Lo que guardaron en {highlight}{0} {letters}se queda allí.'
+'{letters}Language set to {highlight}{0}{letters}.': '{letters}Idioma establecido en {highlight}{0}{letters}.'
+'{letters}Menus set to {highlight}{0}{letters}.': '{letters}Menús establecidos en {highlight}{0}{letters}.'
+'{letters}Nothing was saved. Click {highlight}Network {letters}to try again with the same values.': '{letters}No se guardó nada. Haz clic en {highlight}Red {letters}para reintentar con los mismos valores.'
+'{letters}Saved. Every plugin uses its own file {warning}after a restart{letters}.': '{letters}Guardado. Cada plugin usa su propio archivo {warning}tras reiniciar{letters}.'
+'{letters}Saved. {highlight}{0} {letters}plugins move to {highlight}{1} {warning}on the next restart{letters}.': '{letters}Guardado. {highlight}{0} {letters}plugins pasan a {highlight}{1} {warning}en el próximo reinicio{letters}.'
+'{letters}Setup left for later. Open it any time with {highlight}/exylialib setup{letters}.': '{letters}Configuración pospuesta. Ábrela cuando quieras con {highlight}/exylialib setup{letters}.'
+'{letters}Small capitals {error}off{letters}.': '{letters}Versalitas {error}desactivadas{letters}.'
+'{letters}Small capitals {success}on{letters}.': '{letters}Versalitas {success}activadas{letters}.'
+'{letters}Testing the connection to {highlight}{0}{letters}…': '{letters}Probando la conexión con {highlight}{0}{letters}…'
+'{letters}Theme set to {highlight}{0}{letters}.': '{letters}Tema establecido en {highlight}{0}{letters}.'
+'{primary}Database password {muted}(- for none)': '{primary}Contraseña de la base de datos {muted}(- para ninguna)'
+'{primary}Redis': '{primary}Redis'
+'{primary}Redis password {muted}(- for none)': '{primary}Contraseña de Redis {muted}(- para ninguna)'
+'{primary}Shared database': '{primary}Base de datos compartida'
+'{primary}The address players join with': '{primary}La dirección con la que entran los jugadores'
+? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
+: '{success}Conectado. {letters}¿Mover {highlight}{0} {letters}plugins a {highlight}{1}{letters}? Sus filas se copian allí en el próximo reinicio.'
+'{success}Setup finished. {letters}Every change is already in place.': '{success}Configuración terminada. {letters}Todos los cambios ya están aplicados.'
+'{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Configuración terminada. {warning}Reinicia el servidor para que todos los cambios surtan efecto.'
+'{warning}Kept on their own file: {letters}{0}': '{warning}Siguen con su propio archivo: {letters}{0}'

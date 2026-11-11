@@ -70,6 +70,17 @@ public final class RedisRuntime {
     /** Whether the caller is a thread that must not wait on the network; a test seam. */
     private static volatile BooleanSupplier onServerThread = RedisRuntime::isServerThread;
 
+    /**
+     * Connects to Redis with these settings, pings and lets go, without touching the running clients.
+     *
+     * @param settings where Redis is
+     * @throws RuntimeException when it cannot be reached or refuses the password
+     * @since 1.572.0
+     */
+    public static void probe(@NotNull RedisSettings settings) {
+        JedisClient.ping(settings);
+    }
+
     private RedisRuntime() {
         throw new AssertionError("No instances.");
     }

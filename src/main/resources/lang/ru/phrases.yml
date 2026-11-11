@@ -1841,3 +1841,136 @@ Show HUD: Показывать HUD
 Money, quests and notices kept on your screen while you play: Деньги, задания и уведомления на экране во время игры
 Lighter screens: Облегчённые экраны
 Less detail on full-screen menus, for a faster game: Меньше деталей в полноэкранных меню, чтобы игра шла плавнее
+A client that cannot draw screens: Клиент, который не умеет рисовать экраны,
+A port is 1 to 65535: Порт — от 1 до 65535
+Address: Адрес
+Admins stop being invited.: Админов больше не приглашают.
+Chest windows or full screens.: Окна сундуков или полные экраны.
+Chest windows until they do.: Окна сундуков, пока не выберут.
+Choose the language, menus, colours: Выберите язык, меню, цвета
+Classic inventory menus.: Классические меню инвентаря.
+Click to apply: Нажмите, чтобы применить
+Click to be asked next time: Нажмите, чтобы спросить в следующий раз
+Click to finish: Нажмите, чтобы завершить
+Click to open the setup: Нажмите, чтобы открыть настройку
+Click to set up: Нажмите, чтобы настроить
+Colour theme: Цветовая тема
+Colour theme · in use: Цветовая тема · используется
+Colours, letters and the address.: Цвета, шрифт и адрес.
+Custom: Свой
+Database: База данных
+Database name: Имя базы данных
+Database · in use: База данных · используется
+Draws every line in small: Каждая строка рисуется
+Each player picks in {highlight}/settings{letters}.: Каждый игрок выбирает в {highlight}/settings{letters}.
+Each plugin keeps its data in: Каждый плагин хранит данные в
+Empty for the engine's default: Пусто — значение движка
+Engine: Движок
+Every client draws them.: Их рисует любой клиент.
+Every plugin on {highlight}default: Каждый плагин с {highlight}default
+Every plugin redraws at once.: Каждый плагин перерисуется сразу.
+Every plugin repaints at once.: Каждый плагин перекрасится сразу.
+Every plugin set to {highlight}default: Каждый плагин со значением {highlight}default
+Finish: Завершить
+First steps: Первые шаги
+Four choices for every Exylia: Четыре выбора для каждого
+Full-screen menus with a: Полноэкранные меню с
+Go back: Назад
+Host: Хост
+How the menus of every plugin open.: Как открываются меню каждого плагина.
+In use: Используется
+Its name on the proxy, such as lobby-1: Его имя на прокси, например lobby-1
+LATER: ПОЗЖЕ
+Language: Язык
+Last step: Последний шаг
+Lettering: Шрифт
+Letters, numbers, dots, dashes and underscores: Буквы, цифры, точки, дефисы и подчёркивания
+Look: Вид
+Menu style · in use: Стиль меню · используется
+Menus: Меню
+Menus open this way from now on.: Отныне меню открываются так.
+Messages: Сообщения
+Messages between servers: Сообщения между серверами
+Move: Перенести
+Network: Сеть
+Nothing to set up.: Настраивать нечего.
+One MySQL, MariaDB, PostgreSQL: Одна база MySQL, MariaDB, PostgreSQL
+Open it any time with /exylialib setup: 'Откройте в любой момент: /exylialib setup'
+Opens with the current address.: Откроется с текущим адресом.
+Pick another one to switch.: Выберите другой вариант, чтобы сменить.
+Players choose: Игроки выбирают
+Players keep their data between: Игроки сохраняют данные между
+Port: Порт
+Reopen it with {highlight}/exylialib setup{letters}.: 'Откройте снова: {highlight}/exylialib setup{letters}.'
+Running plugins switch on restart.: Работающие плагины перейдут после перезапуска.
+SERVER SETUP: НАСТРОЙКА СЕРВЕРА
+SET UP: НАСТРОИТЬ
+SETUP: НАСТРОЙКА
+Says if a restart is still needed.: Скажет, нужен ли ещё перезапуск.
+Server: Сервер
+Server address: Адрес сервера
+Server language: Язык сервера
+Server language · in use: Язык сервера · используется
+Server setup: Настройка сервера
+Setup · step 1: Настройка · шаг 1
+Setup · step 2: Настройка · шаг 2
+Setup · step 3: Настройка · шаг 3
+Setup · step 4: Настройка · шаг 4
+Six languages, applied at once.: Шесть языков, применяются сразу.
+Small capitals: Капитель
+Step 1: Шаг 1
+Step 2: Шаг 2
+Step 3: Шаг 3
+Step 4: Шаг 4
+Tested before anything is saved.: Проверяется до сохранения.
+The address players join with,: Адрес, по которому заходят игроки,
+The colours and letters of every: Цвета и шрифт каждого
+The language every plugin speaks.: Язык, на котором говорит каждый плагин.
+Theme: Тема
+This server: Этот сервер
+This server only: Только этот сервер
+This server's name: Имя этого сервера
+Three ways, applied at once.: Три варианта, применяются сразу.
+Through the database: Через базу данных
+Turns /settings on after a restart.: Включает /settings после перезапуска.
+User: Пользователь
+Welcome!: Добро пожаловать!
+Where every plugin keeps its data.: Где каждый плагин хранит данные.
+a file on this server. Right: файле на этом сервере. Подходит
+always gets chest windows.: всегда получает окна сундуков.
+and database of every Exylia plugin.: и базу данных каждого плагина Exylia.
+at the foot of every scoreboard.: внизу каждой боковой панели.
+'capitals: the Exylia look.': 'капителью: фирменный стиль Exylia.'
+cursor, drawn on 1.21.4+.: курсором, с версии 1.21.4+.
+for one server on its own.: для одного сервера.
+message, menu and scoreboard.: сообщения, меню и панели.
+or MongoDB every server shares.: или MongoDB для всех серверов.
+plugin. Each one applies at once.: плагина Exylia. Каждый применяется сразу.
+servers only when every server: серверами только если все серверы
+shares one database.: используют одну базу данных.
+speaks it, and so does this setup.: говорит на нём, как и эта настройка.
+speaks the language chosen here.: говорит на выбранном здесь языке.
+'{error}Could not connect: {letters}{0}': '{error}Не удалось подключиться: {letters}{0}'
+'{letters}Address set to {highlight}{0}{letters}.': '{letters}Адрес изменён на {highlight}{0}{letters}.'
+? '{letters}Back to one server? The plugins the setup moved use their own files again after a restart. What they saved in {highlight}{0} {letters}stays there.'
+: '{letters}Вернуться к одному серверу? Перенесённые плагины снова будут использовать свои файлы после перезапуска. Данные, сохранённые в {highlight}{0}{letters}, там и останутся.'
+'{letters}Language set to {highlight}{0}{letters}.': '{letters}Язык изменён на {highlight}{0}{letters}.'
+'{letters}Menus set to {highlight}{0}{letters}.': '{letters}Меню изменены на {highlight}{0}{letters}.'
+'{letters}Nothing was saved. Click {highlight}Network {letters}to try again with the same values.': '{letters}Ничего не сохранено. Нажмите {highlight}Сеть{letters}, чтобы повторить с теми же значениями.'
+'{letters}Saved. Every plugin uses its own file {warning}after a restart{letters}.': '{letters}Сохранено. Каждый плагин использует свой файл {warning}после перезапуска{letters}.'
+'{letters}Saved. {highlight}{0} {letters}plugins move to {highlight}{1} {warning}on the next restart{letters}.': '{letters}Сохранено. Плагинов: {highlight}{0} {letters}— перейдут на {highlight}{1} {warning}при следующем перезапуске{letters}.'
+'{letters}Setup left for later. Open it any time with {highlight}/exylialib setup{letters}.': '{letters}Настройка отложена. Откройте её в любой момент: {highlight}/exylialib setup{letters}.'
+'{letters}Small capitals {error}off{letters}.': '{letters}Капитель {error}выключена{letters}.'
+'{letters}Small capitals {success}on{letters}.': '{letters}Капитель {success}включена{letters}.'
+'{letters}Testing the connection to {highlight}{0}{letters}…': '{letters}Проверка подключения к {highlight}{0}{letters}…'
+'{letters}Theme set to {highlight}{0}{letters}.': '{letters}Тема изменена на {highlight}{0}{letters}.'
+'{primary}Database password {muted}(- for none)': '{primary}Пароль базы данных {muted}(- если нет)'
+'{primary}Redis': '{primary}Redis'
+'{primary}Redis password {muted}(- for none)': '{primary}Пароль Redis {muted}(- если нет)'
+'{primary}Shared database': '{primary}Общая база данных'
+'{primary}The address players join with': '{primary}Адрес, по которому заходят игроки'
+? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
+: '{success}Подключено. {letters}Перенести плагины ({highlight}{0}{letters}) в {highlight}{1}{letters}? Их записи будут скопированы туда при следующем перезапуске.'
+'{success}Setup finished. {letters}Every change is already in place.': '{success}Настройка завершена. {letters}Все изменения уже применены.'
+'{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Настройка завершена. {warning}Перезапустите сервер, чтобы все изменения вступили в силу.'
+'{warning}Kept on their own file: {letters}{0}': '{warning}Остались на своём файле: {letters}{0}'

@@ -95,6 +95,12 @@ import net.exylia.lib.config.Time;
 @Comment("")
 @Comment("logs: the staff audit log every plugin records into, browsed with")
 @Comment("/exylialib logs. Each plugin keeps its entries in its own database.")
+@Comment("")
+@Comment("share-database: when on, a plugin installed later starts on the database")
+@Comment("ExyliaLib's own database.yml names (a MySQL, MariaDB, PostgreSQL or MongoDB")
+@Comment("every server shares) instead of its own H2 file. Its database.yml is copied")
+@Comment("from ExyliaLib's the first time it is written; one that exists is never")
+@Comment("touched. /exylialib setup turns it on when this server joins a network.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt, fr, ru or tr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -155,7 +161,11 @@ public record LibrarySettings(
 
         Notices notices,
 
-        Logs logs
+        Logs logs,
+
+        @Key("share-database")
+        @Comment("Whether a newly installed plugin starts on ExyliaLib's database.yml instead of H2.")
+        boolean shareDatabase
 ) {
 
     /**
@@ -372,11 +382,17 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "normal", new Metrics(),
-                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs());
+                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false);
     }
 
     private static volatile LibrarySettings instance;
     private static volatile net.exylia.lib.config.ConfigFile<LibrarySettings> file;
+    private static volatile boolean freshInstall;
+
+    /** Whether this start wrote config.yml for the first time: the library was just installed. */
+    static boolean freshInstall() {
+        return freshInstall;
+    }
 
     /**
      * Loads the settings, creating the config file if absent.
@@ -384,6 +400,9 @@ public record LibrarySettings(
      */
     public static LibrarySettings load(ExyliaLib plugin) {
         if (instance != null) return instance;
+        // Asked before the file is written: a library starting with no config.yml is a fresh install,
+        // the one the setup wizard is offered to.
+        freshInstall = !new java.io.File(plugin.getDataFolder(), "config.yml").exists();
         file = Configs.define(plugin, "config", LibrarySettings.class)
                 // A server that ran the library before languages keeps the
                 // messages it had, moved into lang/custom/.
@@ -404,6 +423,15 @@ public record LibrarySettings(
         current.reload();
         instance = current.get();
         return instance;
+    }
+
+    /**
+     * The loaded file, for the setup wizard to write into; {@code null} before {@link #load}.
+     *
+     * @return the file
+     */
+    static @org.jetbrains.annotations.Nullable net.exylia.lib.config.ConfigFile<LibrarySettings> file() {
+        return file;
     }
 
     /** Returns the singleton, or defaults if not yet loaded. */

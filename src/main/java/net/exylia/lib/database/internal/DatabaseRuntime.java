@@ -22,6 +22,10 @@ import java.util.function.Supplier;
 /** Owns the ref-counted database targets used by consumer plugins. */
 public final class DatabaseRuntime {
 
+    /** The library's own plugin and folder name. */
+    private static final String LIBRARY = "ExyliaLib";
+
+
     private static final Set<String> SQL_ENGINES =
             Set.of("h2", "mysql", "mariadb", "postgres", "postgresql", "pgsql");
     private static final Object LOCK = new Object();
@@ -168,6 +172,7 @@ public final class DatabaseRuntime {
 
     /** Reads and validates this consumer's {@code database.yml}. */
     private static DatabaseSettings resolve(Plugin plugin) {
+        seedFromLibrary(plugin);
         DatabaseSettings values = Configs.define(plugin, "database", DatabaseSettings.class)
                 .version(2)
                 .migration(1, DatabaseRuntime::nest)
@@ -192,6 +197,38 @@ public final class DatabaseRuntime {
                 values.database().mysql(), values.database().mariadb(),
                 values.database().postgresql(), values.database().mongodb(),
                 values.database().redis(), values.database().crossServer()));
+    }
+
+    /**
+     * Starts a plugin's first {@code database.yml} as a copy of ExyliaLib's, when the server shares one.
+     *
+     * <p>Only when {@code share-database} is on in ExyliaLib's {@code config.yml}, the plugin has no
+     * {@code database.yml} yet, and ExyliaLib's names a database server rather than H2: a plugin installed
+     * on a network then joins it instead of keeping its rows in a file only this server reads. A file that
+     * exists is never touched.
+     */
+    private static void seedFromLibrary(Plugin plugin) {
+        if (LIBRARY.equals(plugin.getName()) || !net.exylia.lib.internal.LibrarySettings.get().shareDatabase()) {
+            return;
+        }
+        java.io.File own = new java.io.File(plugin.getDataFolder(), "database.yml");
+        java.io.File shared = new java.io.File(plugin.getDataFolder().getParentFile(), LIBRARY + "/database.yml");
+        if (own.exists() || !shared.isFile()) {
+            return;
+        }
+        String engine = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(shared)
+                .getString("database.type", "h2").trim();
+        if (engine.equalsIgnoreCase("h2")) {
+            return;
+        }
+        try {
+            java.nio.file.Files.createDirectories(own.toPath().getParent());
+            java.nio.file.Files.copy(shared.toPath(), own.toPath());
+            Debug.of(plugin).log("database.yml starts as a copy of ExyliaLib's (share-database): " + engine + ".");
+        } catch (java.io.IOException failed) {
+            Debug.of(plugin).warn("Could not copy ExyliaLib's database.yml (" + failed.getMessage()
+                    + "); this plugin starts on its own H2 file.");
+        }
     }
 
     /**

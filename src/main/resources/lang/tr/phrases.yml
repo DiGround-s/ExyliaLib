@@ -1853,3 +1853,136 @@ Show HUD: 'HUD''u göster'
 Money, quests and notices kept on your screen while you play: Oynarken ekranında kalan para, görevler ve bildirimler
 Lighter screens: Hafif ekranlar
 Less detail on full-screen menus, for a faster game: Tam ekran menülerde daha az ayrıntı, daha akıcı bir oyun için
+A client that cannot draw screens: Ekranları çizemeyen bir istemci
+A port is 1 to 65535: Port 1 ile 65535 arasındadır
+Address: Adres
+Admins stop being invited.: Yöneticiler artık davet edilmez.
+Chest windows or full screens.: Sandık pencereleri veya tam ekranlar.
+Chest windows until they do.: Seçene kadar sandık pencereleri.
+Choose the language, menus, colours: Her Exylia eklentisinin dilini, menülerini, renklerini
+Classic inventory menus.: Klasik envanter menüleri.
+Click to apply: Uygulamak için tıkla
+Click to be asked next time: Bir dahaki sefere sorulması için tıkla
+Click to finish: Bitirmek için tıkla
+Click to open the setup: Kurulumu açmak için tıkla
+Click to set up: Kurmak için tıkla
+Colour theme: Renk teması
+Colour theme · in use: Renk teması · kullanımda
+Colours, letters and the address.: Renkler, harfler ve adres.
+Custom: Özel
+Database: Veritabanı
+Database name: Veritabanı adı
+Database · in use: Veritabanı · kullanımda
+Draws every line in small: Her satırı küçük
+Each player picks in {highlight}/settings{letters}.: Her oyuncu {highlight}/settings{letters} içinde seçer.
+Each plugin keeps its data in: Her eklenti verilerini bu sunucudaki
+Empty for the engine's default: Boş bırakırsan motorun varsayılanı
+Engine: Motor
+Every client draws them.: Her istemci bunları çizer.
+Every plugin on {highlight}default: '{highlight}default{letters} kullanan her eklenti'
+Every plugin redraws at once.: Her eklenti anında yeniden çizilir.
+Every plugin repaints at once.: Her eklenti anında yeniden boyanır.
+Every plugin set to {highlight}default: '{highlight}default{letters} ayarlı her eklenti'
+Finish: Bitir
+First steps: İlk adımlar
+Four choices for every Exylia: Her Exylia eklentisi için
+Full-screen menus with a: Tam ekran menüler,
+Go back: Geri dön
+Host: Sunucu
+How the menus of every plugin open.: Her eklentinin menülerinin nasıl açılacağı.
+In use: Kullanımda
+Its name on the proxy, such as lobby-1: Proxy'deki adı, örneğin lobby-1
+LATER: SONRA
+Language: Dil
+Last step: Son adım
+Lettering: Yazı stili
+Letters, numbers, dots, dashes and underscores: Harfler, rakamlar, nokta, tire ve alt çizgi
+Look: Görünüm
+Menu style · in use: Menü stili · kullanımda
+Menus: Menüler
+Menus open this way from now on.: Menüler bundan sonra böyle açılır.
+Messages: Mesajlar
+Messages between servers: Sunucular arası mesajlar
+Move: Taşı
+Network: Ağ
+Nothing to set up.: Kurulacak bir şey yok.
+One MySQL, MariaDB, PostgreSQL: Tüm sunucuların paylaştığı tek bir
+Open it any time with /exylialib setup: İstediğin zaman /exylialib setup ile aç
+Opens with the current address.: Mevcut adresle açılır.
+Pick another one to switch.: Değiştirmek için başka birini seç.
+Players choose: Oyuncular seçer
+Players keep their data between: Oyuncular verilerini sunucular arasında
+Port: Port
+Reopen it with {highlight}/exylialib setup{letters}.: '{highlight}/exylialib setup{letters} ile yeniden aç.'
+Running plugins switch on restart.: Çalışan eklentiler yeniden başlatınca geçer.
+SERVER SETUP: SUNUCU KURULUMU
+SET UP: KUR
+SETUP: KURULUM
+Says if a restart is still needed.: Yeniden başlatma gerekip gerekmediğini söyler.
+Server: Sunucu
+Server address: Sunucu adresi
+Server language: Sunucu dili
+Server language · in use: Sunucu dili · kullanımda
+Server setup: Sunucu kurulumu
+Setup · step 1: Kurulum · adım 1
+Setup · step 2: Kurulum · adım 2
+Setup · step 3: Kurulum · adım 3
+Setup · step 4: Kurulum · adım 4
+Six languages, applied at once.: Altı dil, anında uygulanır.
+Small capitals: Küçük büyük harfler
+Step 1: Adım 1
+Step 2: Adım 2
+Step 3: Adım 3
+Step 4: Adım 4
+Tested before anything is saved.: Hiçbir şey kaydedilmeden önce test edilir.
+The address players join with,: Oyuncuların girdiği adres,
+The colours and letters of every: Her mesajın, menünün ve skor tablosunun
+The language every plugin speaks.: Her eklentinin konuştuğu dil.
+Theme: Tema
+This server: Bu sunucu
+This server only: Yalnızca bu sunucu
+This server's name: Bu sunucunun adı
+Three ways, applied at once.: Üç yol, anında uygulanır.
+Through the database: Veritabanı üzerinden
+Turns /settings on after a restart.: Yeniden başlatınca /settings'i açar.
+User: Kullanıcı
+Welcome!: Hoş geldin!
+Where every plugin keeps its data.: Her eklentinin verilerini nerede tuttuğu.
+a file on this server. Right: dosyada tutar. Tek başına
+always gets chest windows.: her zaman sandık penceresi alır.
+and database of every Exylia plugin.: ve veritabanını seç.
+at the foot of every scoreboard.: her skor tablosunun altında yer alır.
+'capitals: the Exylia look.': 'harflerle çizer: Exylia görünümü.'
+cursor, drawn on 1.21.4+.: imleçli, 1.21.4+ sürümünde.
+for one server on its own.: bir sunucu için uygundur.
+message, menu and scoreboard.: renkleri ve harfleri.
+or MongoDB every server shares.: MySQL, MariaDB, PostgreSQL veya MongoDB.
+plugin. Each one applies at once.: dört seçim. Her biri anında uygulanır.
+servers only when every server: yalnızca her sunucu
+shares one database.: tek bir veritabanını paylaşırsa korunur.
+speaks it, and so does this setup.: onu konuşur, bu kurulum da öyle.
+speaks the language chosen here.: burada seçilen dili konuşur.
+'{error}Could not connect: {letters}{0}': '{error}Bağlanılamadı: {letters}{0}'
+'{letters}Address set to {highlight}{0}{letters}.': '{letters}Adres {highlight}{0}{letters} olarak ayarlandı.'
+? '{letters}Back to one server? The plugins the setup moved use their own files again after a restart. What they saved in {highlight}{0} {letters}stays there.'
+: '{letters}Tek sunucuya dönülsün mü? Kurulumun taşıdığı eklentiler yeniden başlatınca kendi dosyalarını kullanır. {highlight}{0} {letters}içine kaydettikleri orada kalır.'
+'{letters}Language set to {highlight}{0}{letters}.': '{letters}Dil {highlight}{0}{letters} olarak ayarlandı.'
+'{letters}Menus set to {highlight}{0}{letters}.': '{letters}Menüler {highlight}{0}{letters} olarak ayarlandı.'
+'{letters}Nothing was saved. Click {highlight}Network {letters}to try again with the same values.': '{letters}Hiçbir şey kaydedilmedi. Aynı değerlerle tekrar denemek için {highlight}Ağ {letters}üzerine tıkla.'
+'{letters}Saved. Every plugin uses its own file {warning}after a restart{letters}.': '{letters}Kaydedildi. Her eklenti kendi dosyasını {warning}yeniden başlatınca {letters}kullanır.'
+'{letters}Saved. {highlight}{0} {letters}plugins move to {highlight}{1} {warning}on the next restart{letters}.': '{letters}Kaydedildi. {highlight}{0} {letters}eklenti {highlight}{1} {letters}sistemine {warning}sonraki yeniden başlatmada {letters}geçer.'
+'{letters}Setup left for later. Open it any time with {highlight}/exylialib setup{letters}.': '{letters}Kurulum sonraya bırakıldı. İstediğin zaman {highlight}/exylialib setup{letters} ile aç.'
+'{letters}Small capitals {error}off{letters}.': '{letters}Küçük büyük harfler {error}kapalı{letters}.'
+'{letters}Small capitals {success}on{letters}.': '{letters}Küçük büyük harfler {success}açık{letters}.'
+'{letters}Testing the connection to {highlight}{0}{letters}…': '{letters}{highlight}{0}{letters} bağlantısı test ediliyor…'
+'{letters}Theme set to {highlight}{0}{letters}.': '{letters}Tema {highlight}{0}{letters} olarak ayarlandı.'
+'{primary}Database password {muted}(- for none)': '{primary}Veritabanı şifresi {muted}(yoksa -)'
+'{primary}Redis': '{primary}Redis'
+'{primary}Redis password {muted}(- for none)': '{primary}Redis şifresi {muted}(yoksa -)'
+'{primary}Shared database': '{primary}Paylaşılan veritabanı'
+'{primary}The address players join with': '{primary}Oyuncuların girdiği adres'
+? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
+: '{success}Bağlandı. {highlight}{0} {letters}eklenti {highlight}{1}{letters} sistemine taşınsın mı? Kayıtları sonraki yeniden başlatmada oraya kopyalanır.'
+'{success}Setup finished. {letters}Every change is already in place.': '{success}Kurulum tamamlandı. {letters}Tüm değişiklikler zaten uygulandı.'
+'{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Kurulum tamamlandı. {warning}Tüm değişikliklerin geçerli olması için sunucuyu yeniden başlat.'
+'{warning}Kept on their own file: {letters}{0}': '{warning}Kendi dosyasında kalanlar: {letters}{0}'

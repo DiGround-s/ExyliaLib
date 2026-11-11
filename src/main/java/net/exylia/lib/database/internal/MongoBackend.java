@@ -230,6 +230,16 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Asks the server for an answer, since {@link #open} connects lazily: a wrong host or password
+     * only surfaces here, as the exception the driver throws.
+     *
+     * @since 1.572.0
+     */
+    public void ping() {
+        database.runCommand(new Document("ping", 1));
+    }
+
+    /**
      * The connection string to use, or {@code null} when there is none.
      *
      * <p>A {@code uri} property wins over the host, so an operator can paste

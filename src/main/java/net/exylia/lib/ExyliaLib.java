@@ -401,9 +401,13 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.database.wipe.internal.WipeRuntime.init(this);
         LibCommands.register(this);
         net.exylia.lib.internal.UpdatesMenu.init(this);
+        net.exylia.lib.internal.SetupWizard.init(this);
         // A tick after startup every plugin has enabled and read its files, so
         // pending defaults are announced once rather than file by file.
         Tasks.of(this).runLater(1L, () -> {
+            // Rows the setup wizard set aside before a move to a shared database, now that every
+            // plugin has opened its tables there.
+            net.exylia.lib.internal.SetupWizard.afterStartup();
             net.exylia.lib.text.Text notice = net.exylia.lib.internal.ReloadCommand.updatesNotice();
             if (notice != null) {
                 getLogger().warning(notice.plain() + " — /exylialib updates");
@@ -624,6 +628,26 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Inputs.defaultTimeout(java.time.Duration.ofSeconds(Math.max(1, settings.timeoutSeconds())));
         ChatTransport.setCancelWord(settings.cancelWord());
         DialogTransport.enabled(settings.preferDialogs());
+    }
+
+    /**
+     * The shared palette's file, for the setup wizard to write into.
+     *
+     * @return {@code colors.yml}
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public ConfigFile<Palette> paletteFile() {
+        return palette;
+    }
+
+    /**
+     * How menus open, for the setup wizard to write into.
+     *
+     * @return {@code screens.yml}
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public ConfigFile<net.exylia.lib.screen.ScreenSettings> screensFile() {
+        return screens;
     }
 
     /**
@@ -988,6 +1012,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
                     net.exylia.lib.text.Phrases.tr("{primary}&lEXYLIALIB {letters_black}•<reset> {info}{0} {letters}plugin update(s) available. {warning}Run /exylialib plugins to install them",
                             availablePlugins)).send(player));
         }
+        // A fresh install not set up yet: the first admins to join are offered the wizard.
+        net.exylia.lib.internal.SetupWizard.joined(player);
         if (player.hasPermission(net.exylia.lib.config.internal.DefaultUpdates.PERMISSION)
                 && net.exylia.lib.config.internal.DefaultUpdates.shouldNotify(id)) {
             Tasks.of(this).runAtEntityLater(player, UPDATES_NOTICE_TICKS, () -> {

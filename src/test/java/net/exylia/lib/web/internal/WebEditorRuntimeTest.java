@@ -665,7 +665,7 @@ class WebEditorRuntimeTest {
                 base.smallText(), base.textShadow(), base.fallbackHead(), base.timezone(),
                 base.ragdollSkinQuality(), base.metrics(), base.pluginUpdates(),
                 new LibrarySettings.WebEditor(enabled, base.webEditor().url()), base.webhookHead(),
-                base.settings(), base.toasts(), base.notices(), base.logs());
+                base.settings(), base.toasts(), base.notices(), base.logs(), base.shareDatabase());
     }
 
     /** The editor, remembered rather than reached. */

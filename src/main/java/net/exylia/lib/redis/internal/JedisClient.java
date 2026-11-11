@@ -86,6 +86,17 @@ final class JedisClient implements RedisClient {
      * @throws RuntimeException if Redis cannot be reached, so the caller can
      *                          report it and carry on without a cache
      */
+    /**
+     * Connects with these settings, pings and lets go: the setup wizard's check before it saves them.
+     *
+     * @param settings where Redis is
+     * @throws RuntimeException when it cannot be reached or refuses the password
+     * @since 1.572.0
+     */
+    static void ping(@NotNull RedisSettings settings) {
+        open(settings, "exylia-setup").close();
+    }
+
     static @NotNull JedisClient open(@NotNull RedisSettings settings, @NotNull String name) {
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(settings.poolSize());
