@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
@@ -239,8 +240,8 @@ final class LiveScreen implements ScreenSession {
     }
     /** Whether the settings panel is open. */
     private volatile boolean settingsOpen;
-    /** The settings panel was opened by itself on the player's first screen, so it greets them. */
-    private volatile boolean welcome;
+    /** The step of fitting the view shown, 1 height and 2 width, or 0. */
+    private volatile int fitStep;
     /** The size changed: the next frame sends every look again, though each may compare equal. Guarded by {@code this}. */
     private boolean rescaled;
     /** The in-screen confirm waiting for an answer, or {@code null}. */
@@ -418,7 +419,8 @@ final class LiveScreen implements ScreenSession {
         this.wire = wire;
         this.ids = ids;
         this.fullUnit = (screen.wheel() ? SPAN : SPAN * CAMERA_VIEW_SCALE) / Screen.WIDTH;
-        this.unit = fullUnit * ScreenPreferences.size(player.getUniqueId()) / 100.0;
+        this.fitStep = !screen.wheel() && (FitPanel.SCREEN.equals(screen.name()) || ScreenPreferences.askFit(player)) ? 1 : 0;
+        this.unit = targetUnit();
         this.viewUnit = Math.max(unit, fullUnit);
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
@@ -507,10 +509,6 @@ final class LiveScreen implements ScreenSession {
             out.add(rect(backIds[i], back.get(i), 0));
         }
         backdropIds = backIds;
-        if (ScreenPreferences.firstScreen(player)) {
-            settingsOpen = true;
-            welcome = true;
-        }
         Node scene = screen.scene();
         if (scene != null) {
             for (int i = 0; i < sceneIds.length; i++) {
@@ -777,7 +775,8 @@ final class LiveScreen implements ScreenSession {
             close();
             return;
         }
-        if (settingsOpen) root = over(root, SettingsPanel.of(this));
+        if (fitStep > 0) root = over(root, FitPanel.of(this));
+        else if (settingsOpen) root = over(root, SettingsPanel.of(this));
         Confirm ask = confirm;
         if (ask != null) root = withConfirm(root, ask);
         // The tree's fingerprint covers everything layout and drawing read from it, and a sprite arriving changes
@@ -825,13 +824,56 @@ final class LiveScreen implements ScreenSession {
     /** On the viewer's thread: opens or closes the settings panel. */
     void settings(boolean open) {
         settingsOpen = open;
-        if (!open) welcome = false;
         renderNow();
     }
 
-    /** Whether the settings panel greets a player on their first screen. */
-    boolean welcome() {
-        return welcome;
+    /**
+     * On the viewer's thread: shows a step of fitting the view ({@link FitPanel}), 1 the height and 2 the width, or
+     * ends it with 0, closing a screen opened only to fit.
+     */
+    void fit(int step) {
+        if (step > 0 && screen.wheel()) return;
+        fitStep = step;
+        if (step == 0 && FitPanel.SCREEN.equals(screen.name())) {
+            close();
+            return;
+        }
+        rescale();
+        renderNow();
+    }
+
+    int fitStep() {
+        return fitStep;
+    }
+
+    /** Whether this screen can show the fitting: a camera view only, as a wheel screen keeps the FOV effects. */
+    boolean canFit() {
+        return !screen.wheel();
+    }
+
+    double layoutWidth() {
+        return screen.width();
+    }
+
+    double layoutHeight() {
+        return screen.height();
+    }
+
+    /** Half a window's height at FOV 70, in layout pixels at the size fitting draws at. */
+    double fitHalfHeight() {
+        return DISTANCE * Math.tan(Math.toRadians(ScreenPreferences.DEFAULT_FOV / 2.0)) / fullUnit;
+    }
+
+    /**
+     * What a layout pixel is drawn at for this viewer: their size, grown with their field of view so a screen fills
+     * the same share of any window, and narrowed for a window narrower than 16:9. While fitting, the FOV alone.
+     */
+    private double targetUnit() {
+        UUID id = player.getUniqueId();
+        double fov = ScreenPreferences.fovScale(id);
+        if (fitStep > 0) return fullUnit * fov;
+        double narrow = Math.min(1, ScreenPreferences.aspect(id) / (16.0 / 9));
+        return fullUnit * ScreenPreferences.size(id) / 100.0 * fov * narrow;
     }
 
     /**
@@ -839,7 +881,7 @@ final class LiveScreen implements ScreenSession {
      * covers the boxes, the items and the cursor; the backdrop and the scene are sent here.
      */
     void rescale() {
-        double next = fullUnit * ScreenPreferences.size(player.getUniqueId()) / 100.0;
+        double next = targetUnit();
         List<PacketWrapper<?>> out = new ArrayList<>();
         synchronized (this) {
             if (!open || next == unit) return;

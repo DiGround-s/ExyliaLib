@@ -28,7 +28,8 @@ import java.util.Map;
  * @param cursorMode   how the cursor follows the mouse for players who did not choose (since 1.546.0): {@code NORMAL},
  *                     {@code RAW} or {@code PREDICTION}
  * @param cursorAssist whether cursor assist is on for players who did not choose (since 1.547.0)
- * @param firstScreenSetup whether a player's first screen opens with the settings panel shown (since 1.558.0)
+ * @param firstScreenSetup whether a player is asked to fit screens and the HUD to their window the first time they
+ *                         meet either (since 1.558.0; the fitting since 1.584.0)
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -137,11 +138,11 @@ public record ScreenSettings(
         @Menu.About({"Makes buttons easier to hit,", "unless the player says otherwise."})
         boolean cursorAssist,
 
-        @Comment("Open the settings panel (size, cursor speed, cursor) on the")
-        @Comment("first screen a player ever sees on this server, so they set")
-        @Comment("it up for their own FOV and mouse before anything else.")
+        @Comment("Ask a player to fit screens and the HUD to their FOV and window")
+        @Comment("the first time they meet either, since the server cannot see")
+        @Comment("them. Players can fit again from a screen's settings.")
         @Menu.Label("First screen setup") @Menu.Icon("COMPARATOR")
-        @Menu.About({"A player's first screen opens", "with its settings panel shown."})
+        @Menu.About({"Asks players to fit screens and", "the HUD to their window once."})
         boolean firstScreenSetup,
 
         @Comment("How admin menus open (any menu under an admin/ folder, and these")

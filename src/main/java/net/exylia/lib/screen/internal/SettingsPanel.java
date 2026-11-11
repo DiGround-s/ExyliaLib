@@ -36,16 +36,21 @@ final class SettingsPanel {
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.94), 4, Motion.Ease.OUT))
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.IN));
         panel.add(words("{primary}&l" + Phrases.tr("Screen settings")).textAlign(Node.Align.CENTER));
-        if (live.welcome()) {
-            panel.add(words("{letters}" + Phrases.tr("First screen: set its size and cursor speed")).scale(0.75)
-                    .textAlign(Node.Align.CENTER));
-        }
 
         int size = ScreenPreferences.size(id);
         panel.add(row("Size",
                 stepper("size", size + "%",
                         event -> ScreenPreferences.size(player, size - ScreenPreferences.SIZE_STEP),
                         event -> ScreenPreferences.size(player, size + ScreenPreferences.SIZE_STEP))));
+
+        if (live.canFit()) {
+            panel.add(row("Fit to window", button("fit", "{info}" + Phrases.tr("FOV") + " "
+                            + Math.round(ScreenPreferences.fov(id)), event -> {
+                        live.settings(false);
+                        live.fit(1);
+                    }).width(70)
+                    .tooltip("{letters}" + Phrases.tr("Match screens and the HUD to your FOV and window"))));
+        }
 
         double speed = ScreenPreferences.sensitivity(id);
         panel.add(row("Cursor speed",

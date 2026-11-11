@@ -52,8 +52,16 @@ final class HudGeometry {
      * @return {@code x, y}
      */
     static double[] place(HudAnchor anchor, double offset, double wide, double tall) {
-        double x = (anchor.x() * 2 - 1) * HALF_WIDTH;
-        double y = (anchor.y() * 2 - 1) * HALF_HEIGHT;
+        return place(anchor, offset, wide, tall, 1, ASPECT);
+    }
+
+    /**
+     * The same in a player's own window: {@code zoom} times the view's height at FOV 70 (the tangent of half their FOV
+     * over that of 35 degrees), {@code aspect} its width over its height.
+     */
+    static double[] place(HudAnchor anchor, double offset, double wide, double tall, double zoom, double aspect) {
+        double x = (anchor.x() * 2 - 1) * HALF_HEIGHT * zoom * aspect;
+        double y = (anchor.y() * 2 - 1) * HALF_HEIGHT * zoom;
         if (anchor.x() < 0.5) x += wide / 2;
         else if (anchor.x() > 0.5) x -= wide / 2;
         y = anchor.stacksUp() ? y + offset : y - offset - tall;

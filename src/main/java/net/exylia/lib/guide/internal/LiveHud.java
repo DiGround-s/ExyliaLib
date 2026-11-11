@@ -61,6 +61,8 @@ public final class LiveHud extends Piece {
     private final List<int[]> ghosts = new ArrayList<>();
     private double sentPitch = Double.NaN;
     private double sentSeat;
+    /** Whether the player was offered fitting the HUD to their window, or needs not be. */
+    private boolean fitOffered;
     private long now;
 
     LiveHud(ViewerSession session) {
@@ -146,11 +148,19 @@ public final class LiveHud extends Piece {
             sentPitch = pitch;
             sentSeat = seat;
         }
-        for (Map.Entry<HudAnchor, List<Element>> stack : stacks(player).entrySet()) {
+        // Fitted to the player's window: what they set on their first screen or HUD, FOV 70 at 16:9 until then.
+        java.util.UUID id = player.getUniqueId();
+        double zoom = net.exylia.lib.screen.internal.ScreenPreferences.fovScale(id);
+        double aspect = net.exylia.lib.screen.internal.ScreenPreferences.aspect(id);
+        Map<HudAnchor, List<Element>> stacks = stacks(player);
+        if (!fitOffered && !stacks.isEmpty()) {
+            fitOffered = net.exylia.lib.screen.internal.ScreenPreferences.fitted(id) || offerFit(player);
+        }
+        for (Map.Entry<HudAnchor, List<Element>> stack : stacks.entrySet()) {
             double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
-                element.place(stack.getKey(), offset);
-                offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.size);
+                element.place(stack.getKey(), offset, zoom, aspect);
+                offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 element.send(player, reseat);
             }
         }
@@ -200,7 +210,7 @@ public final class LiveHud extends Piece {
             }
             for (Element element : peer.elements()) {
                 if (element.spawned() && element.anchor() == anchor) {
-                    offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.size);
+                    offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 }
             }
         }
@@ -296,6 +306,15 @@ public final class LiveHud extends Piece {
         return HudGeometry.seated(spot[0] + look.tx() * k, spot[1] + look.ty() * k, sentPitch, sentSeat);
     }
 
+    /** Offers fitting the view when it is safe to open a screen; whether it was. */
+    private boolean offerFit(Player player) {
+        try {
+            return net.exylia.lib.screen.internal.FitPanel.offer(GuideRuntime.library(), player);
+        } catch (Throwable unavailable) {
+            return true;
+        }
+    }
+
     private static boolean stepsAside(Player player) {
         return player.isDead() || player.getGameMode() == GameMode.SPECTATOR || filmed(player)
                 || screenOpen(player) || GuideRuntime.hudHidden(player);
@@ -371,6 +390,9 @@ public final class LiveHud extends Piece {
         Component text;
         HudLayers.Drawn drawn;
         double size;
+        /** How much larger the player's FOV draws everything, and their window's width over height. */
+        double zoom = 1;
+        double aspect = HudGeometry.ASPECT;
         int background;
         double wide;
         double tall;
@@ -398,11 +420,18 @@ public final class LiveHud extends Piece {
             entering = false;
         }
 
-        void place(HudAnchor anchor, double offset) {
+        double drawSize() {
+            return size * zoom;
+        }
+
+        void place(HudAnchor anchor, double offset, double zoom, double aspect) {
+            if (zoom != this.zoom) measured = null;
+            this.zoom = zoom;
+            this.aspect = aspect;
             Object content = drawn != null ? drawn : text;
             if (content != measured) {
                 measured = content;
-                double pixel = HudGeometry.pixel(size);
+                double pixel = HudGeometry.pixel(drawSize());
                 if (drawn != null) {
                     wide = drawn.width() * pixel;
                     tall = drawn.height() * pixel;
@@ -412,12 +441,12 @@ public final class LiveHud extends Piece {
                             .filter(c -> c == '\n').count();
                     wide = (Centering.pixelWidth(text) + 3) * pixel;
                     tall = lines * HudGeometry.LINE * pixel;
-                    float scale = HudGeometry.scale(size);
+                    float scale = HudGeometry.scale(drawSize());
                     looks = List.of(new Look(0, 0, scale, scale, text, 255, SEE_THROUGH | HudGeometry.align(anchor),
                             background, LINE_WIDTH));
                 }
             }
-            spot = HudGeometry.place(anchor, offset, wide, tall);
+            spot = HudGeometry.place(anchor, offset, wide, tall, zoom, aspect);
         }
 
         /** A designed widget's layers as looks, {@code pixel} blocks to a layout pixel. */
@@ -441,7 +470,7 @@ public final class LiveHud extends Piece {
                                 alpha, SEE_THROUGH, 0, LINE_WIDTH));
                     }
                     case TEXT -> {
-                        double scale = HudGeometry.scale(size) * layer.scale();
+                        double scale = HudGeometry.scale(drawSize()) * layer.scale();
                         out.add(new Look((float) (cx - 0.5 * font * scale),
                                 (float) (cy - (HudGeometry.LINE * layer.lines() + 1) * font * scale / 2),
                                 (float) scale, (float) scale, layer.text(), 255, SEE_THROUGH | layer.flags(), 0,

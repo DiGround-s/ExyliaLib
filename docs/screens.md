@@ -93,10 +93,17 @@ Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a s
 Those two keys never reach a screen's own `keys`, and clients older than 1.21.2 do not send jump, so they have the
 button only. The same choices are in `/settings` → Interface.
 
-**First screen (1.558.0).** The first screen a player opens on a server comes with this panel already shown and a line
-asking them to set the size and cursor speed, since the server cannot see their FOV or mouse. It is shown once (kept in
-the player's data, so once per server on a network) and never to a player who already chose a size or speed.
-`first-screen-setup: false` in `screens.yml` turns it off.
+**Fit to your window (1.584.0).** The client never sends its FOV or window shape, so the player shows them once.
+The first time a player meets a camera-view screen or their HUD, whichever comes first, lines are drawn where their
+window's edges would be at FOV 70; they move them onto the real edges (step 1 the height, which is their FOV, step 2 the
+width, with 16:9, 16:10, 21:9 and 4:3 one click away), and the screen behind grows or shrinks as they do. The result is
+`view-fov`, `view-aspect` and `view-fitted` in `/settings` → Interface, network-wide like every preference: every
+screen is drawn larger by `tan(fov/2) / tan(35°)` so it fills the same share of any window (narrower than 16:9, it
+shrinks to fit), and the HUD's corners land on the window's corners. The card says that a changed FOV or window needs a
+new fit; the settings panel's *Fit to window* row starts it again. A player who chose *Later* is not asked again on
+that server. A HUD asks only at a quiet moment (on the ground, not hurt, not falling, no vehicle, no screen open), with
+a screen of its own. Wheel screens never show it: they keep the player's FOV effects, which would spoil the measure.
+`first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
 
 
 | Node call | Effect |

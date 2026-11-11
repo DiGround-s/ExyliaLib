@@ -128,6 +128,11 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
 
 - **Pitch.** The seat is above the eyes, so every element's offset is sent again
   when the pitch moves 3° (one metadata packet each).
+- **Fitted to the window (1.584.0).** Corners are placed for the player's own
+  FOV and window shape, the ones they fit on their first screen or HUD
+  ([screens](screens.md), "Fit to your window"), and every element is drawn
+  larger by the same share as their FOV, so it looks the same size at FOV 50
+  or 110. Until they fit, FOV 70 at 16:9.
 - **Sprinting.** Sprinting, speed and flying widen the client's view, so the
   HUD narrows a little towards the middle with the world, smoothly. It is not
   compensated: the server cannot see a client's *FOV Effects* slider, and a

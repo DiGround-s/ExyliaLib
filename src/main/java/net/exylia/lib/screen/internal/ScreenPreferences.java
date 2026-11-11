@@ -40,6 +40,13 @@ public final class ScreenPreferences {
     static final String ASSIST = "screen-cursor-assist";
     static final String MOTION = "screen-reduced-motion";
     static final String LIGHT = "screen-light";
+    static final String FOV = "view-fov";
+    static final String ASPECT = "view-aspect";
+    static final String FITTED = "view-fitted";
+
+    /** The field of view and window shape screens and the HUD are drawn for until a player fits them. */
+    static final int DEFAULT_FOV = 70, MIN_FOV = 30, MAX_FOV = 110;
+    static final double DEFAULT_ASPECT = 1.78, MIN_ASPECT = 1.0, MAX_ASPECT = 3.6;
 
     /** Cursor speed for a player who never chose one, and the range they may choose from. */
     static final double DEFAULT_SPEED = 3.0, MIN_SPEED = 0.1, MAX_SPEED = 10.0;
@@ -97,6 +104,18 @@ public final class ScreenPreferences {
                 .category("interface").icon("TARGET").name("Cursor assist")
                 .description("Makes buttons easier to hit", "on full-screen menus.")
                 .build());
+        Settings.register(lib, Setting.number(FOV, DEFAULT_FOV, MIN_FOV, MAX_FOV, 1)
+                .category("interface").icon("ENDER_EYE").name("Field of view")
+                .description("Your game's FOV, so screens", "and the HUD fit your window.")
+                .build());
+        Settings.register(lib, Setting.number(ASPECT, DEFAULT_ASPECT, MIN_ASPECT, MAX_ASPECT, 0.01)
+                .category("interface").icon("PAINTING").name("Window shape")
+                .description("Width over height of your", "game window: 1.78 is 16:9.")
+                .build());
+        Settings.register(lib, Setting.toggle(FITTED, false)
+                .category("interface").icon("ITEM_FRAME").name("Screens fitted")
+                .description("On once screens and the HUD", "are fitted to your window.")
+                .build());
         Settings.register(lib, Setting.toggle(MOTION, false)
                 .category("interface").icon("FEATHER").name("Reduced motion")
                 .description("Full-screen menus move only", "as much as they need to.")
@@ -149,6 +168,51 @@ public final class ScreenPreferences {
             return clampSize(value == null ? ScreenSettings.get().screenSize() : (int) Math.round(Double.parseDouble(value)));
         } catch (NumberFormatException broken) {
             return clampSize(ScreenSettings.get().screenSize());
+        }
+    }
+
+    /** The field of view the player fitted, in degrees: 70 until they do. */
+    public static double fov(UUID player) {
+        return number(player, FOV, DEFAULT_FOV, MIN_FOV, MAX_FOV);
+    }
+
+    /** The player's window, width over height: 16:9 until they fit it. */
+    public static double aspect(UUID player) {
+        return number(player, ASPECT, DEFAULT_ASPECT, MIN_ASPECT, MAX_ASPECT);
+    }
+
+    /**
+     * How much larger than at FOV 70 something must be drawn to fill the same share of this player's window: what
+     * screens and the HUD are scaled by.
+     */
+    public static double fovScale(UUID player) {
+        return fovScale(fov(player));
+    }
+
+    public static double fovScale(double fov) {
+        return Math.tan(Math.toRadians(fov / 2)) / Math.tan(Math.toRadians(DEFAULT_FOV / 2.0));
+    }
+
+    /** Whether the player fitted screens to their window: network-wide. */
+    public static boolean fitted(UUID player) {
+        return Boolean.parseBoolean(value(player, FITTED));
+    }
+
+    /** Stores the fitted view, rescaling a screen they have open; {@code done} marks them fitted. */
+    static void view(Player player, double fov, double aspect, boolean done) {
+        set(player, FOV, Long.toString(Math.round(Math.max(MIN_FOV, Math.min(MAX_FOV, fov)))));
+        set(player, ASPECT, Double.toString(Math.round(Math.max(MIN_ASPECT, Math.min(MAX_ASPECT, aspect)) * 100) / 100.0));
+        if (done) set(player, FITTED, "true");
+        LiveScreen live = ScreenRuntime.live(player.getUniqueId());
+        if (live != null) live.rescale();
+    }
+
+    private static double number(UUID player, String key, double fallback, double min, double max) {
+        String value = value(player, key);
+        try {
+            return value == null ? fallback : Math.max(min, Math.min(max, Double.parseDouble(value)));
+        } catch (NumberFormatException broken) {
+            return fallback;
         }
     }
 
@@ -249,20 +313,18 @@ public final class ScreenPreferences {
         return ids;
     }
 
-    private static final NamespacedKey SET_UP = legacyKey("screen_set_up");
+    private static final NamespacedKey ASKED = legacyKey("view_fit_asked");
 
     /**
-     * Whether this is the first screen the player sees here, marking it seen: on the viewer's thread. Kept in the
-     * player's data, so a network shows it once per server; a player who already chose a size or speed never sees it.
+     * Whether to ask the player to fit screens to their window now, marking it asked: on the viewer's thread. Never
+     * once they fitted (network-wide); once per server for a player who chose later, kept in their data.
      */
-    // ponytail: per-server flag; move to a stored setting if a hidden-setting kind appears.
-    static boolean firstScreen(Player player) {
-        if (library == null || !ScreenSettings.get().firstScreenSetup()) return false;
+    static boolean askFit(Player player) {
+        if (library == null || !ScreenSettings.get().firstScreenSetup() || fitted(player.getUniqueId())) return false;
         PersistentDataContainer data = player.getPersistentDataContainer();
-        if (data == null || data.has(SET_UP)) return false;
-        data.set(SET_UP, PersistentDataType.BOOLEAN, true);
-        UUID id = player.getUniqueId();
-        return size(id) == clampSize(ScreenSettings.get().screenSize()) && sensitivity(id) == DEFAULT_SPEED;
+        if (data == null || data.has(ASKED)) return false;
+        data.set(ASKED, PersistentDataType.BOOLEAN, true);
+        return true;
     }
 
     private static NamespacedKey legacyKey(String name) {

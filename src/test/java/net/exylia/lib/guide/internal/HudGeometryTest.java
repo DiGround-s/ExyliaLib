@@ -49,4 +49,14 @@ class HudGeometryTest {
         assertEquals(null, HudAnchor.parse("nowhere"));
     }
 
+    @Test
+    void aFittedViewMovesCornersOntoItsOwnEdges() {
+        double zoom = net.exylia.lib.screen.internal.ScreenPreferences.fovScale(90);
+        assertEquals(Math.tan(Math.toRadians(45)) / Math.tan(Math.toRadians(35)), zoom, 1e-9);
+        assertEquals(1, net.exylia.lib.screen.internal.ScreenPreferences.fovScale(70), 1e-9);
+        double[] corner = HudGeometry.place(HudAnchor.TOP_RIGHT, 0, 0, 0, zoom, 21.0 / 9);
+        double[] plain = HudGeometry.place(HudAnchor.TOP_RIGHT, 0, 0, 0);
+        assertEquals(plain[0] * zoom * (21.0 / 9) / HudGeometry.ASPECT, corner[0], 1e-9);
+        assertEquals(plain[1] * zoom, corner[1], 1e-9);
+    }
 }

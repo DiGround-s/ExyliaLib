@@ -51,6 +51,10 @@ public final class GuideRuntime {
     private static GuidePackets listener;
     private static volatile boolean available;
     private static Plugin library;
+
+    static Plugin library() {
+        return library;
+    }
     private static Logger logger = Logger.getLogger("ExyliaLib");
     private static boolean warned;
 
