@@ -148,8 +148,19 @@ public final class ScreenRuntime {
             net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, true);
         }
         ChatHold chat = CHAT.get(player.getUniqueId());
-        if (settings.quietChat() && chat != null && chat.begin(System.currentTimeMillis())) {
-            ScreenPackets.pushChatOut(player);
+        if (!settings.quietChat() || chat == null) return;
+        boolean was = chat.holding();
+        if (chat.begin(System.currentTimeMillis())) ScreenPackets.pushChatOut(player);
+        if (!was) proxyHold(player, true);
+    }
+
+    /**
+     * Asks the proxy to hold the chat it sends itself, which never passes through this server. Needs ExyliaProxyUtils
+     * 2.4.0+ with PacketEvents on the proxy; anywhere else the request is simply not answered.
+     */
+    private static void proxyHold(Player player, boolean on) {
+        if (net.exylia.lib.proxy.Proxy.isAvailable()) {
+            net.exylia.lib.proxy.Proxy.request(player, "chat-hold", on ? "on" : "off");
         }
     }
 
@@ -157,7 +168,9 @@ public final class ScreenRuntime {
     static void quietEnd(Player player) {
         net.exylia.lib.camera.internal.CameraRuntime.screenSidebar(player, false);
         ChatHold chat = CHAT.get(player.getUniqueId());
-        if (chat != null) chat.end().forEach(player::sendMessage);
+        if (chat == null || !chat.holding()) return;
+        proxyHold(player, false);
+        chat.end().forEach(player::sendMessage);
     }
 
     /** On a network thread. A line {@code player}'s client draws. */
