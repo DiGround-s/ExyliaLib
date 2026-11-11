@@ -2,6 +2,7 @@ package net.exylia.lib.hologram.internal;
 
 import net.exylia.lib.FakePlayer;
 import net.exylia.lib.FakeServer;
+import net.exylia.lib.text.internal.TextEffects;
 import net.exylia.lib.hologram.Hologram;
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.hologram.Holograms;
@@ -539,14 +540,14 @@ class HologramTest {
                 net.kyori.adventure.text.format.TextColor.color(0xFFFFFF);
 
         // 8 characters and a band 3 either side: the sweep lasts 1.4 s.
-        List<net.kyori.adventure.text.format.TextColor> lit = colours(Shimmer.shine(line, light, 0.6));
+        List<net.kyori.adventure.text.format.TextColor> lit = colours(TextEffects.shine(line, light, 0.6));
         assertTrue(lit.contains(light), lit.toString());
         assertTrue(lit.contains(net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE),
                 "the band is narrower than the line: " + lit);
-        assertEquals(null, Shimmer.shine(line, light, 2.0));
-        assertTrue(Shimmer.resting(line, 2.0));
+        assertEquals(null, TextEffects.shine(line, light, 2.0));
+        assertTrue(TextEffects.resting(line, 2.0));
         assertEquals("ABCDEFGH", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-                .plainText().serialize(Shimmer.shine(line, light, 0.6)));
+                .plainText().serialize(TextEffects.shine(line, light, 0.6)));
     }
 
     private static List<net.kyori.adventure.text.format.TextColor> colours(
@@ -559,7 +560,7 @@ class HologramTest {
     void flowMoves() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEF",
                 net.kyori.adventure.text.format.NamedTextColor.DARK_PURPLE);
-        assertFalse(colours(Shimmer.flow(line, 4, 0)).equals(colours(Shimmer.flow(line, 4, 0.25))));
+        assertFalse(colours(TextEffects.flow(line, 4, 0)).equals(colours(TextEffects.flow(line, 4, 0.25))));
     }
 
     @Test
@@ -1015,59 +1016,59 @@ class HologramTest {
     void framesTakeTurns() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("A||BB||C",
                 net.kyori.adventure.text.format.NamedTextColor.RED);
-        assertEquals("A", plain(Shimmer.frame(line, 0)));
-        assertEquals("BB", plain(Shimmer.frame(line, 1)));
-        assertEquals("BB", plain(Shimmer.frame(line, 4)));
+        assertEquals("A", plain(TextEffects.frame(line, 0)));
+        assertEquals("BB", plain(TextEffects.frame(line, 1)));
+        assertEquals("BB", plain(TextEffects.frame(line, 4)));
         assertEquals(net.kyori.adventure.text.format.NamedTextColor.RED,
-                Shimmer.frame(line, 1).children().get(0).color());
-        assertEquals("No frames", plain(Shimmer.frame(net.kyori.adventure.text.Component.text("No frames"), 3)));
+                TextEffects.frame(line, 1).children().get(0).color());
+        assertEquals("No frames", plain(TextEffects.frame(net.kyori.adventure.text.Component.text("No frames"), 3)));
 
         LineStyle style = LineStyle.parse("<frames:2>A||B").style();
-        assertEquals(Shimmer.key(style, line, 0.1), Shimmer.key(style, line, 1.9), "same frame, nothing to send");
-        assertFalse(Shimmer.key(style, line, 1.9) == Shimmer.key(style, line, 2.1));
+        assertEquals(TextEffects.key(style.effects(), line, 0.1), TextEffects.key(style.effects(), line, 1.9), "same frame, nothing to send");
+        assertFalse(TextEffects.key(style.effects(), line, 1.9) == TextEffects.key(style.effects(), line, 2.1));
     }
 
     @Test
     @DisplayName("a marquee scrolls a window through a long line and leaves a short one still")
     void marqueeScrolls() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEFGHIJ");
-        assertEquals("ABCD", plain(Shimmer.marquee(line, 4, 2, 0)));
-        assertEquals("CDEF", plain(Shimmer.marquee(line, 4, 2, 1)));
-        assertEquals("IJ  ", plain(Shimmer.marquee(line, 4, 2, 4)), "a gap before it comes round");
-        assertEquals("ABCD", plain(Shimmer.marquee(line, 4, 2, 7)), "14 characters a lap");
-        assertEquals("ABCDEFGHIJ", plain(Shimmer.marquee(line, 20, 2, 3)));
+        assertEquals("ABCD", plain(TextEffects.marquee(line, 4, 2, 0)));
+        assertEquals("CDEF", plain(TextEffects.marquee(line, 4, 2, 1)));
+        assertEquals("IJ  ", plain(TextEffects.marquee(line, 4, 2, 4)), "a gap before it comes round");
+        assertEquals("ABCD", plain(TextEffects.marquee(line, 4, 2, 7)), "14 characters a lap");
+        assertEquals("ABCDEFGHIJ", plain(TextEffects.marquee(line, 20, 2, 3)));
     }
 
     @Test
     @DisplayName("scrambled glyphs settle into the line from the left, spaces kept")
     void scrambleSettles() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("HELLO WORLD");
-        String early = plain(Shimmer.scramble(line, 0.25, 20, 7));
+        String early = plain(TextEffects.scramble(line, 0.25, 20, 7));
         assertEquals(11, early.length());
         assertTrue(early.startsWith("HELLO "), early);
         assertFalse(early.endsWith("WORLD"), early);
-        assertFalse(early.equals(plain(Shimmer.scramble(line, 0.25, 20, 8))), "each frame draws new glyphs");
-        assertEquals("HELLO WORLD", plain(Shimmer.scramble(line, 1, 20, 9)));
+        assertFalse(early.equals(plain(TextEffects.scramble(line, 0.25, 20, 8))), "each frame draws new glyphs");
+        assertEquals("HELLO WORLD", plain(TextEffects.scramble(line, 1, 20, 9)));
     }
 
     @Test
     @DisplayName("rainbow, blink and fade follow the clock")
     void clockedLooks() {
         net.kyori.adventure.text.Component line = net.kyori.adventure.text.Component.text("ABCDEF");
-        List<net.kyori.adventure.text.format.TextColor> now = colours(Shimmer.rainbow(line, 6, 0));
+        List<net.kyori.adventure.text.format.TextColor> now = colours(TextEffects.rainbow(line, 6, 0));
         assertEquals(6, now.stream().distinct().count(), now.toString());
-        assertFalse(now.equals(colours(Shimmer.rainbow(line, 6, 0.5))));
+        assertFalse(now.equals(colours(TextEffects.rainbow(line, 6, 0.5))));
 
-        assertTrue(Shimmer.blinkShown(1, 0.2));
-        assertFalse(Shimmer.blinkShown(1, 0.8));
-        assertEquals("", plain(Shimmer.dress(LineStyle.parse("<blink:1>x").style(), line, 0.8)));
+        assertTrue(TextEffects.blinkShown(1, 0.2));
+        assertFalse(TextEffects.blinkShown(1, 0.8));
+        assertEquals("", plain(TextEffects.dress(LineStyle.parse("<blink:1>x").style().effects(), line, 0.8)));
 
-        assertEquals(255, Shimmer.fadeOpacity(255, 2, 0));
-        assertEquals(Shimmer.FADE_FLOOR, Shimmer.fadeOpacity(255, 2, 1));
-        int middle = Shimmer.fadeOpacity(255, 2, 0.5);
+        assertEquals(255, TextEffects.fadeOpacity(255, 2, 0));
+        assertEquals(TextEffects.FADE_FLOOR, TextEffects.fadeOpacity(255, 2, 1));
+        int middle = TextEffects.fadeOpacity(255, 2, 0.5);
         assertEquals(0, middle % 8, "stepped, so it is only re-sent when it moves");
         assertTrue(middle > 100 && middle < 160, String.valueOf(middle));
-        assertEquals(128, Shimmer.fadeOpacity(128, 2, 0), "never brighter than the line");
+        assertEquals(128, TextEffects.fadeOpacity(128, 2, 0), "never brighter than the line");
     }
 
     @Test

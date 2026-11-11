@@ -1,6 +1,7 @@
 package net.exylia.lib.hologram;
 
 import net.exylia.lib.item.Source;
+import net.exylia.lib.text.internal.TextEffects;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -139,19 +140,19 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
     public static final double DEFAULT_BOB = 0.08;
     public static final double DEFAULT_PULSE = 0.06;
     public static final double DEFAULT_TYPEWRITER = 24;
-    public static final double DEFAULT_FLOW = 4;
+    public static final double DEFAULT_FLOW = TextEffects.DEFAULT_FLOW;
     /** @since 1.301.0 */
     public static final double DEFAULT_SWAY = 15;
     /** @since 1.301.0 */
-    public static final double DEFAULT_FRAMES = 2;
+    public static final double DEFAULT_FRAMES = TextEffects.DEFAULT_FRAMES;
     /** @since 1.301.0 */
-    public static final double DEFAULT_RAINBOW = 6;
+    public static final double DEFAULT_RAINBOW = TextEffects.DEFAULT_RAINBOW;
     /** @since 1.301.0 */
     public static final double DEFAULT_FADE = 3;
     /** @since 1.301.0 */
-    public static final double DEFAULT_BLINK = 1;
+    public static final double DEFAULT_BLINK = TextEffects.DEFAULT_BLINK;
     /** @since 1.301.0 */
-    public static final int DEFAULT_MARQUEE = 24;
+    public static final int DEFAULT_MARQUEE = TextEffects.DEFAULT_MARQUEE;
     /** @since 1.301.0 */
     public static final double DEFAULT_SCRAMBLE = 20;
 
@@ -285,35 +286,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
     public static @NotNull HologramLine parse(@Nullable String raw) {
         Builder line = new Builder();
         String rest = raw == null ? "" : raw;
-        while (rest.startsWith("<")) {
-            int colon = -1;
-            int close = -1;
-            for (int i = 1; i < rest.length(); i++) {
-                char c = rest.charAt(i);
-                if (c == ':' && colon < 0) {
-                    colon = i;
-                    if (i + 1 < rest.length() && rest.charAt(i + 1) == '"') {
-                        int quote = rest.indexOf('"', i + 2);
-                        if (quote < 0) {
-                            break;
-                        }
-                        i = quote;
-                    }
-                } else if (c == '>') {
-                    close = i;
-                    break;
-                }
-            }
-            if (close < 0) {
-                break;
-            }
-            String key = rest.substring(1, colon < 0 ? close : colon).toLowerCase(Locale.ROOT);
-            String value = colon < 0 ? "" : unquote(rest.substring(colon + 1, close).trim());
-            if (!line.accept(key, value)) {
-                break;
-            }
-            rest = rest.substring(close + 1);
-        }
+        rest = rest.substring(TextEffects.leadingTags(rest, line::accept));
         return line.text(rest).build();
     }
 
@@ -435,12 +408,6 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         return out.toString();
     }
 
-    private static String unquote(String value) {
-        return value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")
-                ? value.substring(1, value.length() - 1)
-                : value;
-    }
-
     /**
      * Builds a line. Every tag starts unwritten; {@code null} clears one, and a
      * blank string clears a text tag too.
@@ -461,8 +428,6 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private String condition;
         private String permission;
         private Double range;
-        private String shine;
-        private Double flow;
         private String head;
         private Double gap;
         private String align;
@@ -471,19 +436,11 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private Integer brightness;
         private String billboard;
         private String autoscale;
-        private Double shineSpeed;
-        private Double shinePause;
-        private Double shineWidth;
         private Double bobPeriod;
         private Double pulsePeriod;
         private Double sway;
         private Double swayPeriod;
-        private Double frames;
-        private Double rainbow;
         private Double fade;
-        private Double blink;
-        private Integer marquee;
-        private Double marqueeSpeed;
         private Double scramble;
         private String button;
         private String hover;
@@ -494,6 +451,9 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private Double slideTime;
         private String image;
         private Integer imageWidth;
+
+        /** The tags every text shares, read and kept as text effects. */
+        private final TextEffects.Written fx = new TextEffects.Written();
 
         private Builder() {
         }
@@ -623,12 +583,12 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         /** {@code null} for no shine, empty for the default colour. */
         public @NotNull Builder shine(@Nullable String shine) {
-            this.shine = shine == null ? null : shine.trim();
+            fx.shine = shine == null ? null : shine.trim();
             return this;
         }
 
         public @NotNull Builder flow(@Nullable Double flow) {
-            this.flow = flow;
+            fx.flow = flow;
             return this;
         }
 
@@ -679,19 +639,19 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         /** Characters a second; kept only with {@link #shine}. Since 1.301.0. */
         public @NotNull Builder shineSpeed(@Nullable Double shineSpeed) {
-            this.shineSpeed = shineSpeed;
+            fx.shineSpeed = shineSpeed;
             return this;
         }
 
         /** Seconds between sweeps; kept only with {@link #shine}. Since 1.301.0. */
         public @NotNull Builder shinePause(@Nullable Double shinePause) {
-            this.shinePause = shinePause;
+            fx.shinePause = shinePause;
             return this;
         }
 
         /** Half the band, in characters; kept only with {@link #shine}. Since 1.301.0. */
         public @NotNull Builder shineWidth(@Nullable Double shineWidth) {
-            this.shineWidth = shineWidth;
+            fx.shineWidth = shineWidth;
             return this;
         }
 
@@ -721,13 +681,13 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         /** Seconds a frame. Since 1.301.0. */
         public @NotNull Builder frames(@Nullable Double frames) {
-            this.frames = frames;
+            fx.frames = frames;
             return this;
         }
 
         /** Characters a second. Since 1.301.0. */
         public @NotNull Builder rainbow(@Nullable Double rainbow) {
-            this.rainbow = rainbow;
+            fx.rainbow = rainbow;
             return this;
         }
 
@@ -739,19 +699,19 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         /** Seconds a blink. Since 1.301.0. */
         public @NotNull Builder blink(@Nullable Double blink) {
-            this.blink = blink;
+            fx.blink = blink;
             return this;
         }
 
         /** Characters shown at once. Since 1.301.0. */
         public @NotNull Builder marquee(@Nullable Integer marquee) {
-            this.marquee = marquee;
+            fx.marquee = marquee;
             return this;
         }
 
         /** Characters a second; kept only with {@link #marquee}. Since 1.301.0. */
         public @NotNull Builder marqueeSpeed(@Nullable Double marqueeSpeed) {
-            this.marqueeSpeed = marqueeSpeed;
+            fx.marqueeSpeed = marqueeSpeed;
             return this;
         }
 
@@ -831,10 +791,10 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
 
         public @NotNull HologramLine build() {
             return new HologramLine(text, item, block, size, opacity, background, shadow, glow,
-                    spin, bob, pulse, typewriter, condition, permission, range, shine, flow, head,
-                    gap, align, width, seeThrough, brightness, billboard, autoscale, shineSpeed,
-                    shinePause, shineWidth, bobPeriod, pulsePeriod, sway, swayPeriod, frames,
-                    rainbow, fade, blink, marquee, marqueeSpeed, scramble, button, hover, region,
+                    spin, bob, pulse, typewriter, condition, permission, range, fx.shine, fx.flow, head,
+                    gap, align, width, seeThrough, brightness, billboard, autoscale, fx.shineSpeed,
+                    fx.shinePause, fx.shineWidth, bobPeriod, pulsePeriod, sway, swayPeriod, fx.frames,
+                    fx.rainbow, fade, fx.blink, fx.marquee, fx.marqueeSpeed, scramble, button, hover, region,
                     world, entity, slide, slideTime, image, imageWidth);
         }
 
@@ -857,24 +817,15 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                         }
                     }
                     case "glow" -> glow = value;
-                    case "spin" -> spin = number(value, DEFAULT_SPIN);
-                    case "typewriter" -> typewriter = number(value, DEFAULT_TYPEWRITER);
+                    case "spin" -> spin = TextEffects.number(value, DEFAULT_SPIN);
+                    case "typewriter" -> typewriter = TextEffects.number(value, DEFAULT_TYPEWRITER);
                     case "if" -> condition = value.isEmpty() ? null : value;
                     case "perm" -> permission = value.isEmpty() ? null : value;
                     case "range" -> range = Double.parseDouble(value);
-                    case "shine" -> {
-                        Map<String, Double> options = new HashMap<>();
-                        String colour = options(value, options, "speed", "pause", "width");
-                        shine = colour;
-                        shineSpeed = options.get("speed");
-                        shinePause = options.get("pause");
-                        shineWidth = options.get("width");
-                    }
-                    case "flow" -> flow = number(value, DEFAULT_FLOW);
                     case "bob", "pulse", "sway" -> {
                         Map<String, Double> options = new HashMap<>();
-                        String amount = options(value, options, "period");
-                        double parsed = number(amount, switch (key) {
+                        String amount = TextEffects.options(value, options, "period");
+                        double parsed = TextEffects.number(amount, switch (key) {
                             case "bob" -> DEFAULT_BOB;
                             case "pulse" -> DEFAULT_PULSE;
                             default -> DEFAULT_SWAY;
@@ -924,17 +875,8 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                         }
                         autoscale = curve;
                     }
-                    case "frames" -> frames = value.isEmpty() ? DEFAULT_FRAMES : seconds(value);
-                    case "rainbow" -> rainbow = number(value, DEFAULT_RAINBOW);
-                    case "fade" -> fade = value.isEmpty() ? DEFAULT_FADE : seconds(value);
-                    case "blink" -> blink = value.isEmpty() ? DEFAULT_BLINK : seconds(value);
-                    case "marquee" -> {
-                        Map<String, Double> options = new HashMap<>();
-                        String shown = options(value, options, "speed");
-                        marquee = shown.isEmpty() ? DEFAULT_MARQUEE : Integer.parseInt(shown);
-                        marqueeSpeed = options.get("speed");
-                    }
-                    case "scramble" -> scramble = number(value, DEFAULT_SCRAMBLE);
+                    case "fade" -> fade = value.isEmpty() ? DEFAULT_FADE : TextEffects.seconds(value);
+                    case "scramble" -> scramble = TextEffects.number(value, DEFAULT_SCRAMBLE);
                     case "button" -> {
                         if (value.isEmpty()) {
                             return false;
@@ -954,7 +896,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                     }
                     case "slide" -> {
                         Map<String, Double> options = new HashMap<>();
-                        String side = options(value, options, "time").toLowerCase(Locale.ROOT);
+                        String side = TextEffects.options(value, options, "time").toLowerCase(Locale.ROOT);
                         if (side.isEmpty()) {
                             side = DEFAULT_SLIDE;
                         }
@@ -966,7 +908,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                     }
                     case "image" -> {
                         Map<String, Double> options = new HashMap<>();
-                        String file = options(value, options, "width");
+                        String file = TextEffects.options(value, options, "width");
                         if (file.isEmpty()) {
                             return false;
                         }
@@ -975,7 +917,7 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
                         imageWidth = wide == null ? null : (int) Math.round(wide);
                     }
                     default -> {
-                        return false;
+                        return fx.accept(key, value);
                     }
                 }
                 return true;
@@ -988,50 +930,6 @@ public record HologramLine(@NotNull String text, @Nullable String item, @Nullabl
         private static final java.util.Set<String> ALIGNMENTS = java.util.Set.of("left", "center", "right");
         private static final java.util.Set<String> BILLBOARDS =
                 java.util.Set.of("fixed", "center", "vertical", "horizontal");
-
-        /**
-         * Splits {@code value,key=number,...} into the value, returned, and
-         * its options, put in {@code into}.
-         *
-         * @throws NumberFormatException for an option that is not one of
-         *                               {@code allowed} or not a number, so the
-         *                               tag stays in the text
-         */
-        private static String options(String value, Map<String, Double> into, String... allowed) {
-            String[] parts = value.split(",", -1);
-            int first = 0;
-            String main = "";
-            if (parts.length > 0 && parts[0].indexOf('=') < 0) {
-                main = parts[0].trim();
-                first = 1;
-            }
-            for (int i = first; i < parts.length; i++) {
-                String part = parts[i];
-                int equals = part.indexOf('=');
-                String name = equals < 0 ? "" : part.substring(0, equals).trim().toLowerCase(Locale.ROOT);
-                if (equals < 0 || !java.util.Arrays.asList(allowed).contains(name)) {
-                    throw new NumberFormatException("not an option: " + part);
-                }
-                into.put(name, seconds(part.substring(equals + 1).trim()));
-            }
-            return main;
-        }
-
-        /** A number of seconds, written bare, with {@code s} or with {@code ms}. */
-        private static double seconds(String value) {
-            String trimmed = value.trim().toLowerCase(Locale.ROOT);
-            if (trimmed.endsWith("ms")) {
-                return Double.parseDouble(trimmed.substring(0, trimmed.length() - 2)) / 1000;
-            }
-            if (trimmed.endsWith("s")) {
-                trimmed = trimmed.substring(0, trimmed.length() - 1);
-            }
-            return Double.parseDouble(trimmed);
-        }
-
-        private static double number(String value, double fallback) {
-            return value.isEmpty() ? fallback : Double.parseDouble(value);
-        }
 
         private static boolean blank(String value) {
             return value == null || value.isBlank();

@@ -4,6 +4,7 @@ import net.exylia.lib.effect.Timer;
 import net.exylia.lib.util.TimeFormats;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.text.internal.TextEffects;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
@@ -108,8 +109,10 @@ final class Rendered {
         // its own tokens are not the registry's to resolve.
         String scanned = anyTime ? withoutTimeTokens(raw) : raw;
         boolean placeholders = base == null ? Placeholders.isDynamic(scanned) : base.leavesPlaceholders(scanned);
-        this.dynamic = anyTime || placeholders;
-        this.timerOnly = anyTime && !placeholders;
+        // A text effect moves with the clock, so it is never built only once.
+        boolean moving = TextEffects.moves(raw);
+        this.dynamic = anyTime || placeholders || moving;
+        this.timerOnly = anyTime && !placeholders && !moving;
     }
 
     private static String withoutTimeTokens(String raw) {

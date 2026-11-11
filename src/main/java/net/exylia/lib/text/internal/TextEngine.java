@@ -84,7 +84,7 @@ public final class TextEngine {
     private static final List<TagResolver> EXTRA = new CopyOnWriteArrayList<>();
 
     private static final MiniMessage MINI_MESSAGE = MiniMessage.builder()
-            .editTags(builder -> builder.resolver(new ExtraTags()).resolver(Paint.RESOLVER).resolver(Animation.RESOLVER))
+            .editTags(builder -> builder.resolver(new ExtraTags()).resolver(Paint.RESOLVER))
             .build();
 
     /**
@@ -267,8 +267,11 @@ public final class TextEngine {
         if (text.isEmpty()) {
             return Component.empty();
         }
-        // An animation is cached per frame, never frozen at the first one.
-        text = Animation.frame(text);
+        // The body is what is cached; the frame is drawn from the clock on top.
+        TextEffects.Split effects = TextEffects.split(text);
+        if (effects != null) {
+            return effects.dress(parse(effects.body()));
+        }
 
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
@@ -301,7 +304,10 @@ public final class TextEngine {
         if (text.isEmpty()) {
             return Component.empty();
         }
-        text = Animation.frame(text);
+        TextEffects.Split effects = TextEffects.split(text);
+        if (effects != null) {
+            return effects.dress(parseUncached(effects.body()));
+        }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
             return shadowed(Component.text(smallText ? SmallText.apply(text) : text));
@@ -401,7 +407,10 @@ public final class TextEngine {
         if (!smallText) {
             return parse(text);
         }
-        text = Animation.frame(text);
+        TextEffects.Split effects = TextEffects.split(text);
+        if (effects != null) {
+            return effects.dress(parseExact(effects.body()));
+        }
         int flags = FormatScanner.scan(text);
         if (FormatScanner.isPlain(flags)) {
             return shadowed(Component.text(text));
@@ -446,8 +455,7 @@ public final class TextEngine {
         prepared = Icons.withoutRawSprites(prepared);
 
         try {
-            Component parsed = shallow(parser.deserialize(prepared));
-            return shadowed(Animation.has(text) ? Paint.animate(parsed) : parsed);
+            return shadowed(shallow(parser.deserialize(prepared)));
         } catch (RuntimeException exception) {
             // A malformed tag must not cost the caller its message. Showing the
             // raw text is far more useful than an exception in the log.

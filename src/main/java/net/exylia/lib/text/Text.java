@@ -10,6 +10,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.exylia.lib.text.internal.EffectTag;
 import net.exylia.lib.text.internal.EffectTagPlayer;
 import net.exylia.lib.text.internal.Paint;
+import net.exylia.lib.text.internal.TextEffects;
 import net.exylia.lib.text.internal.TextEngine;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
@@ -316,7 +317,9 @@ public final class Text {
         if (pairs.isEmpty()) {
             return TextEngine.parse(raw);
         }
-        String source = raw;
+        // Moved after the values are in, so a flow runs across them too.
+        TextEffects.Split effects = TextEffects.split(raw);
+        String source = effects == null ? raw : effects.body();
         List<String> values = new ArrayList<>(pairs.size() / 2);
         for (int i = 0; i < pairs.size(); i += 2) {
             String placeholder = pairs.get(i);
@@ -341,7 +344,8 @@ public final class Text {
             replacements[i] = TextEngine.parseRestricted(values.get(i), false);
         }
         Component substituted = substituteMarkers(component, replacements);
-        return painted ? Paint.apply(substituted) : substituted;
+        Component result = painted ? Paint.apply(substituted) : substituted;
+        return effects == null ? result : effects.dress(result);
     }
 
     /**
@@ -640,7 +644,8 @@ public final class Text {
 
         // Before parsing and before centring: the prefix carries its own colours
         // and its width counts towards a centred line.
-        String source = applyPrefix(parsed.message());
+        TextEffects.Split effects = TextEffects.split(parsed.message());
+        String source = applyPrefix(effects == null ? parsed.message() : effects.body());
 
         // Every value is stood in for by a single private-use character before
         // the text is parsed. A gradient colours one character at a time, so
@@ -706,6 +711,9 @@ public final class Text {
         component = substituteMarkers(component, replacements);
         if (painted) {
             component = Paint.apply(component);
+        }
+        if (effects != null) {
+            component = effects.dress(component);
         }
         return commands.isEmpty() ? component : fillClicks(component, commands);
     }

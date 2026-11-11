@@ -432,28 +432,40 @@ value in it is still MiniMessage's own, parsed once and cached. Only a
 gradient's colours are read; a phase argument is ignored when a value is
 inside.
 
-## Animations (since 1.577.0)
+## Moving text (since 1.579.0)
 
-`<animation:kind:colours…[:duration]>text</animation>` animates the colour of
-the text it wraps, written anywhere text is parsed:
+The colour and text effects of hologram lines work in any text the library
+parses: sidebar titles and lines, boss bars, action bars, titles. Same tags,
+same syntax, read from the very start of the text and moving all of it:
 
 ```yaml
 title:
-  - '<animation:scroll:{primary}:{secondary_light}:2s>&l✦ EXYLIA ✦</animation>'
+  - '<flow><gradient:{primary}:{secondary_light}>&l✦ EXYLIA ✦</gradient>'
 ```
 
-- `scroll` moves a looping gradient across the letters; `pulse` fades the
-  whole text through the colours.
-- Colours are palette tokens, `#hex` or named colours; the duration is one full
-  loop (`2s`, `1500ms`), `2s` when left out.
-- The frame comes from the clock, not from a frame counter, so it never jumps
-  back when a redraw comes late. It moves as often as the text is redrawn: a
-  sidebar with `update.interval: 2` draws 10 frames a second, `1` is the
-  smoothest. Text that is drawn once (a chat line, a lore line) shows a single
-  frame.
-- Each frame is one cache entry (one per 50 ms of the loop), so an animated
-  line costs a parse per frame, not per player.
-- Values inside the tag are not animated; animate fixed text.
+| Tag | Effect |
+| --- | --- |
+| `<flow>` / `<flow:8>` | the text's own colours flow along it, in characters a second (default 4); a gradient flows without a seam |
+| `<shine>` / `<shine:highlight,speed=15,pause=1,width=4>` | a band of light sweeps over it every few seconds |
+| `<rainbow>` / `<rainbow:10>` | a soft rainbow runs along it (default 6 characters a second) |
+| `<frames>` / `<frames:1.5>` | the text is split by <code>&#124;&#124;</code> into frames that take turns |
+| `<marquee:20>` / `<marquee:20,speed=3>` | shows 20 characters of a longer text at a time, scrolling |
+| `<blink>` / `<blink:0.5>` | the text shows and hides once every that many seconds |
+
+The [hologram line tags](hologram.md#line-tags) have every option. Fade,
+scramble, typewriter and the motion tags (bob, pulse, spin, sway) need a
+display entity and stay hologram-only.
+
+- The frame comes from the clock, never from how often the text is drawn. A
+  sidebar sends a moving line again only when its frame changed, so a smooth
+  flow wants `update.interval: 2` (or `1`); at the default `20` it moves in
+  one-second steps. Boss and action bars redraw at their own period.
+- Text drawn once (chat, lore, item names) shows one frame.
+- The text after the tags is parsed and cached as usual; only the frame is
+  drawn on top, per call.
+- A leading `<rainbow>` closed later by `</rainbow>` is MiniMessage's still
+  rainbow over that part, and is left to it.
+- Code: `text/internal/TextEffects.java`, shared with the hologram module.
 
 ## Icons (since 1.477.0)
 
@@ -685,10 +697,11 @@ stale.
   `text/Lines.java`, `text/LibraryMessages.java`, `text/Gradients.java`,
   `text/CharMaps.java`, `text/TimeTokens.java`.
 - Internal: `text/internal/` (`TextEngine`, `FormatScanner`,
-  `LegacyTranslator`, `TokenResolver`, `SmallText`).
+  `LegacyTranslator`, `TokenResolver`, `SmallText`, `TextEffects`).
 - Tests: `src/test/java/net/exylia/lib/text/TextModuleTest.java`,
   `SmallTextTest.java`, `LinesTest.java`, `LibraryMessagesTest.java`,
-  `GradientsTest.java`, `CharMapsTest.java`, `TimeTokensTest.java`.
+  `GradientsTest.java`, `CharMapsTest.java`, `TimeTokensTest.java`,
+  `internal/TextEffectsTest.java`.
 
 ## Writing a line out (since 1.528.0)
 

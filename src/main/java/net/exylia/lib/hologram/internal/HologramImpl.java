@@ -17,6 +17,7 @@ import net.exylia.lib.skull.SkullHandle;
 import net.exylia.lib.skull.SkullSource;
 import net.exylia.lib.skull.Skulls;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.text.internal.TextEffects;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.text.TimeTokens;
 import net.exylia.lib.util.worldguard.WorldGuardRegions;
@@ -471,7 +472,7 @@ final class HologramImpl implements Hologram {
                 // Falls through to the colour reading, which falls back to white.
             }
         }
-        return alpha << 24 | Shimmer.colour(token).value();
+        return alpha << 24 | TextEffects.colour(token).value();
     }
 
     /**
@@ -1164,7 +1165,7 @@ final class HologramImpl implements Hologram {
             previous[i] = text;
             changed = true;
             current[i].text(componentFor(i, lines[i], text, null));
-            Component shown = Shimmer.dress(current[i].style(), current[i].text(), seconds());
+            Component shown = TextEffects.dress(current[i].style().effects(), current[i].text(), seconds());
             for (Player viewer : currentViewers) {
                 if (receivesText(viewer.getUniqueId(), i)) {
                     HologramRuntime.sink().text(viewer, current[i], shown);
@@ -1224,7 +1225,7 @@ final class HologramImpl implements Hologram {
                 }
                 changed = true;
                 HologramRuntime.sink().text(viewer, current[i],
-                        Shimmer.dress(current[i].style(), current[i].text(), seconds()));
+                        TextEffects.dress(current[i].style().effects(), current[i].text(), seconds()));
             }
         }
         if (changed && paneled) {
@@ -1261,7 +1262,7 @@ final class HologramImpl implements Hologram {
     /** What a line says while aimed at, styled as the line is. */
     private Component hoverText(Player viewer, int line) {
         Template template = hoverTemplates[line];
-        return Shimmer.dress(styles[line], componentFor(line, template, textOf(template, viewer, values()), viewer),
+        return TextEffects.dress(styles[line].effects(), componentFor(line, template, textOf(template, viewer, values()), viewer),
                 seconds());
     }
 
@@ -1511,7 +1512,7 @@ final class HologramImpl implements Hologram {
             current[i].transform(current[i].transformAt(now));
             Component text = hoverText && hovering(states.get(uuid), i) ? hoverText(viewer, i)
                     : receivesText(uuid, i)
-                    ? Shimmer.dress(current[i].style(), current[i].text(), now / 1000.0)
+                    ? TextEffects.dress(current[i].style().effects(), current[i].text(), now / 1000.0)
                     : Component.empty();
             DisplayState.Transform view = viewOf(current[i], i, layout);
             if (slidingIn(uuid, i)) {
@@ -1759,18 +1760,18 @@ final class HologramImpl implements Hologram {
             if (!style.shimmers()) {
                 continue;
             }
-            long key = Shimmer.key(style, current[i].text(), seconds);
-            if (key != Shimmer.MOVING && key == keys[i]) {
+            long key = TextEffects.key(style.effects(), current[i].text(), seconds);
+            if (key != TextEffects.MOVING && key == keys[i]) {
                 continue;
             }
             keys[i] = key;
-            Component shared = config.perPlayer() ? null : Shimmer.dress(style, current[i].text(), seconds);
+            Component shared = config.perPlayer() ? null : TextEffects.dress(style.effects(), current[i].text(), seconds);
             for (Player viewer : currentViewers) {
                 if (!receivesText(viewer.getUniqueId(), i)) {
                     continue;
                 }
                 Component frame = shared != null ? shared
-                        : Shimmer.dress(style, textFor(viewer, i), seconds);
+                        : TextEffects.dress(style.effects(), textFor(viewer, i), seconds);
                 HologramRuntime.sink().text(viewer, current[i], frame);
             }
         }
@@ -1778,7 +1779,7 @@ final class HologramImpl implements Hologram {
 
     private void fade(List<Player> currentViewers, DisplayState display, int line, LineStyle style,
                       int[] alphas, double seconds) {
-        int alpha = Shimmer.fadeOpacity(display.properties().textOpacity(), style.fade(), seconds);
+        int alpha = TextEffects.fadeOpacity(display.properties().textOpacity(), style.fade(), seconds);
         if (alpha == alphas[line]) {
             return;
         }
@@ -2167,7 +2168,7 @@ final class HologramImpl implements Hologram {
                 continue;
             }
             HologramRuntime.sink().text(viewer, current[i], after ? hoverText(viewer, i)
-                    : Shimmer.dress(current[i].style(), textFor(viewer, i), seconds()));
+                    : TextEffects.dress(current[i].style().effects(), textFor(viewer, i), seconds()));
         }
     }
 
@@ -2332,17 +2333,17 @@ final class HologramImpl implements Hologram {
                     HologramRuntime.sink().text(viewer, current[i], hoverText(viewer, i));
                     continue;
                 }
-                Component whole = Shimmer.dress(style, textFor(viewer, i), seconds);
+                Component whole = TextEffects.dress(style.effects(), textFor(viewer, i), seconds);
                 if (style.scramble() > 0) {
                     double elapsed = (now - started[i]) / 1000.0;
-                    if (elapsed * style.scramble() >= Shimmer.length(whole)) {
+                    if (elapsed * style.scramble() >= TextEffects.length(whole)) {
                         started[i] = 0;
                         HologramRuntime.sink().text(viewer, current[i], whole);
                     } else {
                         any = true;
                         if (scrambles) {
                             HologramRuntime.sink().text(viewer, current[i],
-                                    Shimmer.scramble(whole, elapsed, style.scramble(), scrambleFrame));
+                                    TextEffects.scramble(whole, elapsed, style.scramble(), scrambleFrame));
                         }
                     }
                     continue;

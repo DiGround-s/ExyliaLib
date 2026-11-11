@@ -166,6 +166,26 @@ class BoardTest {
     }
 
     @Test
+    @DisplayName("a line with a text effect is re-sent as its frame moves, a still one is not")
+    void movingLineResendsEachFrame() {
+        net.exylia.lib.text.internal.TextEffects.clock(clock::get);
+        try {
+            Scoreboards.show(plugin, viewer.player(),
+                    config(List.of("FFA"), List.of("<marquee:3,speed=1>ABCDEFG", "static")));
+            drive();
+            sidebar().clear();
+
+            advanceSeconds(1);
+            drive();
+            assertEquals(1, sidebar().countStartingWith("line:0"));
+            assertEquals(0, sidebar().countStartingWith("line:1"));
+            assertEquals(0, sidebar().countStartingWith("title"));
+        } finally {
+            net.exylia.lib.text.internal.TextEffects.clock(null);
+        }
+    }
+
+    @Test
     @DisplayName("a placeholder with line breaks expands into several lines")
     void placeholderExpandsIntoLines() {
         top.set("first\nsecond\nthird");

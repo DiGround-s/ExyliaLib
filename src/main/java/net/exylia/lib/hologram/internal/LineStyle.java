@@ -2,6 +2,7 @@ package net.exylia.lib.hologram.internal;
 
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.hologram.HologramLine;
+import net.exylia.lib.text.internal.TextEffects;
 
 import java.util.Locale;
 
@@ -45,9 +46,7 @@ import java.util.Locale;
  *                   require not having it, or {@code null}
  * @param range      the furthest a viewer still sees the line, 0 for the
  *                   hologram's own view distance
- * @param shine      the colour of a band of light that sweeps over the line,
- *                   as a palette name or {@code #RRGGBB}, or {@code null}
- * @param flow       characters a second the line's own colours flow along it
+ * @param effects    the text effects every text shares
  * @param head       the player head an item line shows, as written, or
  *                   {@code null}
  * @param gap        extra blocks above the line
@@ -58,19 +57,11 @@ import java.util.Locale;
  * @param billboard  how it turns, or {@code null} to inherit
  * @param autoscale  whether it grows with the viewer's distance
  * @param curve      its own distance curve, or {@code null} for the hologram's
- * @param shineSpeed characters a second the shine travels
- * @param shinePause seconds between two sweeps
- * @param shineWidth half the shine band, in characters
  * @param bobPeriod  seconds a bob takes
  * @param pulsePeriod seconds a pulse takes
  * @param sway       degrees it turns back and forth
  * @param swayPeriod seconds a sway takes
- * @param frames     seconds each frame shows, 0 for no frames
- * @param rainbow    characters a second the rainbow runs, 0 for none
  * @param fade       seconds a fade takes, 0 for none
- * @param blink      seconds a blink takes, 0 for none
- * @param marquee    characters shown at once while scrolling, 0 for none
- * @param marqueeSpeed characters a second it scrolls
  * @param scramble   characters a second that settle when first seen, 0 for none
  * @param button     the name of its own click lines, or {@code null}
  * @param hover      what it says while aimed at, or {@code null}
@@ -86,14 +77,12 @@ import java.util.Locale;
 record LineStyle(String model, boolean block, double size, Integer opacity, String background,
                  Boolean shadow, String glow, double spin, double bob, double pulse,
                  double typewriter, String condition, String permission, double range,
-                 String shine, double flow, String head, double gap, String align,
+                 TextEffects.Effects effects, String head, double gap, String align,
                  Integer lineWidth, Boolean seeThrough, Integer brightness, String billboard,
-                 boolean autoscale, HologramConfig.DistanceScale curve, double shineSpeed,
-                 double shinePause, double shineWidth, double bobPeriod, double pulsePeriod,
-                 double sway, double swayPeriod, double frames, double rainbow, double fade,
-                 double blink, int marquee, double marqueeSpeed, double scramble, String button,
-                 String hover, String region, String world, String entity, String slide,
-                 double slideTime, String image, int imageWidth) {
+                 boolean autoscale, HologramConfig.DistanceScale curve, double bobPeriod,
+                 double pulsePeriod, double sway, double swayPeriod, double fade, double scramble,
+                 String button, String hover, String region, String world, String entity,
+                 String slide, double slideTime, String image, int imageWidth) {
 
     static final LineStyle PLAIN = of(HologramLine.of(""));
 
@@ -137,9 +126,7 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                 line.typewriter() == null ? 0 : Math.clamp(line.typewriter(), 1, 1000),
                 line.condition(), line.permission(),
                 line.range() == null ? 0 : Math.max(0, line.range()),
-                line.shine() == null ? null : line.shine().isEmpty() ? "letters" : line.shine(),
-                line.flow() == null ? 0 : Math.clamp(line.flow(), -40, 40),
-                line.head(),
+                effects(line), line.head(),
                 line.gap() == null ? 0 : Math.clamp(line.gap(), -5, 5),
                 line.align() == null ? null : line.align().toUpperCase(Locale.ROOT),
                 line.width() == null ? null : Math.clamp(line.width(), 1, 10_000),
@@ -147,23 +134,31 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
                 line.brightness() == null ? null : Math.clamp(line.brightness(), -1, 15),
                 line.billboard() == null ? null : line.billboard().toUpperCase(Locale.ROOT),
                 line.autoscale() != null, curve(line.autoscale()),
-                or(line.shineSpeed(), 10, 1, 100),
-                or(line.shinePause(), 2.5, 0, 60),
-                or(line.shineWidth(), 3, 0.5, 20),
                 or(line.bobPeriod(), 3, MIN_PERIOD, 60),
                 or(line.pulsePeriod(), 2, MIN_PERIOD, 60),
                 line.sway() == null ? 0 : Math.clamp(line.sway(), -180, 180),
                 or(line.swayPeriod(), 4, MIN_PERIOD, 60),
-                line.frames() == null ? 0 : Math.clamp(line.frames(), 0.2, 3600),
-                line.rainbow() == null ? 0 : Math.clamp(line.rainbow(), -40, 40),
                 line.fade() == null ? 0 : Math.clamp(line.fade(), 0.5, 60),
-                line.blink() == null ? 0 : Math.clamp(line.blink(), 0.2, 60),
-                line.marquee() == null ? 0 : Math.clamp(line.marquee(), 1, 200),
-                or(line.marqueeSpeed(), 6, 0.5, 40),
                 line.scramble() == null ? 0 : Math.clamp(line.scramble(), 1, 1000),
                 line.button(), line.hover(), line.region(), line.world(), line.entity(),
                 line.slide(), or(line.slideTime(), 0.6, 0.05, 10),
                 line.image(), line.imageWidth() == null ? 0 : Math.clamp(line.imageWidth(), 1, 96));
+    }
+
+    /** The line's text effects, clamped the way any text's are. */
+    private static TextEffects.Effects effects(HologramLine line) {
+        TextEffects.Written written = new TextEffects.Written();
+        written.shine = line.shine();
+        written.shineSpeed = line.shineSpeed();
+        written.shinePause = line.shinePause();
+        written.shineWidth = line.shineWidth();
+        written.flow = line.flow();
+        written.rainbow = line.rainbow();
+        written.frames = line.frames();
+        written.blink = line.blink();
+        written.marquee = line.marquee();
+        written.marqueeSpeed = line.marqueeSpeed();
+        return written.effects();
     }
 
     private static double or(Double value, double fallback, double min, double max) {
@@ -190,7 +185,7 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
 
     /** Whether what the line says, or its colours, change with the clock. */
     boolean shimmers() {
-        return shine != null || flow != 0 || rainbow != 0 || frames > 0 || marquee > 0 || blink > 0;
+        return effects.moves();
     }
 
     /** Whether its text opacity changes with the clock. */

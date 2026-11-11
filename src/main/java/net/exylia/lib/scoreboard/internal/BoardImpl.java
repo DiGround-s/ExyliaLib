@@ -6,7 +6,7 @@ import net.exylia.lib.placeholder.Template;
 import net.exylia.lib.scoreboard.Board;
 import net.exylia.lib.scoreboard.SidebarConfig;
 import net.exylia.lib.text.Text;
-import net.exylia.lib.text.internal.Animation;
+import net.exylia.lib.text.internal.TextEffects;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -69,6 +69,12 @@ final class BoardImpl implements Board {
     private int frame;
     private String lastTitle;
     private String[] lastLines = new String[0];
+    /**
+     * What was last drawn for a text that moves with the clock: its string
+     * stays the same while its frame does not, so the frames are compared.
+     */
+    private Component lastTitleShown;
+    private Component[] lastLinesShown = new Component[0];
 
     BoardImpl(String ownerName, Player player, SidebarConfig config, SidebarHandle sidebar) {
         this.ownerName = ownerName;
@@ -204,11 +210,16 @@ final class BoardImpl implements Board {
 
     private void renderTitle(boolean sendAll) {
         Template current = titleFrames[frame % titleFrames.length];
-        String text = Animation.frame(current.render(player, data));
+        String text = current.render(player, data);
         frame = (frame + 1) % titleFrames.length;
 
-        if (sendAll || !text.equals(lastTitle)) {
-            sidebar.title(componentFor(current, text));
+        boolean changed = sendAll || !text.equals(lastTitle);
+        if (changed || TextEffects.moves(text)) {
+            Component title = componentFor(current, text);
+            if (changed || !title.equals(lastTitleShown)) {
+                sidebar.title(title);
+            }
+            lastTitleShown = title;
             lastTitle = text;
         }
     }
@@ -220,7 +231,7 @@ final class BoardImpl implements Board {
         List<Template> sources = new ArrayList<>(lineTemplates.length);
 
         for (Template template : lineTemplates) {
-            String text = Animation.frame(template.render(player, data));
+            String text = template.render(player, data);
             if (text.indexOf('\n') < 0) {
                 rendered.add(text);
                 sources.add(template);
@@ -238,12 +249,19 @@ final class BoardImpl implements Board {
 
         int count = rendered.size();
         int previous = lastLines.length;
+        Component[] shown = new Component[count];
         for (int i = 0; i < count; i++) {
             String text = rendered.get(i);
-            if (sendAll || i >= previous || !text.equals(lastLines[i])) {
-                sidebar.line(i, componentFor(sources.get(i), text));
+            boolean changed = sendAll || i >= previous || !text.equals(lastLines[i]);
+            if (changed || TextEffects.moves(text)) {
+                Component line = componentFor(sources.get(i), text);
+                if (changed || !line.equals(lastLinesShown[i])) {
+                    sidebar.line(i, line);
+                }
+                shown[i] = line;
             }
         }
+        lastLinesShown = shown;
         // A placeholder can shrink the board between cycles; the leftover
         // lines the player still has have to be cleared explicitly.
         for (int i = count; i < previous; i++) {

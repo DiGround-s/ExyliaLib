@@ -48,6 +48,10 @@ Tags at the very start of a text line style that line alone. Look and models
 since 1.285.0; models with blocks, glow, motion, visibility and clicks since
 1.287.0.
 
+The colour and text effects (`shine`, `flow`, `rainbow`, `frames`, `marquee`,
+`blink`) are shared with every other text since 1.579.0: the same tags move a
+sidebar title or a boss bar (see [Moving text](text.md#moving-text-since-15790)).
+
 | Tag | Effect |
 | --- | --- |
 | `<size:2.2>` | scales the line on top of `properties.scale-*`; the lines above it move up to make room, so a title never overlaps |
@@ -637,6 +641,7 @@ packets while moving), `lines(List)`, `refresh()`, `updateData(Map)`,
   `HologramLine.java`.
 - Internal: `hologram/internal/` (`HologramImpl`, `HologramRuntime`,
   `DisplayPackets`, `DisplaySink`, `DisplayState`, `LineStyle`, `Typewriter`,
-  `Shimmer`, `Places`, `Mobs`, `ImageLines`,
-  `NoopHologram`). Time tokens: `text/TimeTokens.java`.
+  `Places`, `Mobs`, `ImageLines`,
+  `NoopHologram`). Time tokens: `text/TimeTokens.java`; text effects:
+  `text/internal/TextEffects.java`.
 - Tests: `src/test/java/net/exylia/lib/hologram/`, `text/TimeTokensTest.java`.
