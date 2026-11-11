@@ -125,7 +125,21 @@ public final class Paint {
      * @return the line with each run painted and no label left
      */
     public static Component apply(Component component) {
-        String key = keyOf(component.style());
+        return apply(component, PREFIX);
+    }
+
+    /**
+     * Paints every animation run at the frame its label names.
+     *
+     * @param component the parsed line
+     * @return the line with each animation painted and no label left
+     */
+    public static Component animate(Component component) {
+        return apply(component, Animation.PREFIX);
+    }
+
+    private static Component apply(Component component, String prefix) {
+        String key = keyOf(component.style(), prefix);
         if (key != null) {
             return paint(component, key);
         }
@@ -138,9 +152,9 @@ public final class Paint {
         int at = 0;
         while (at < children.size()) {
             Component child = children.get(at);
-            String run = keyOf(child.style());
+            String run = keyOf(child.style(), prefix);
             if (run == null) {
-                Component visited = apply(child);
+                Component visited = apply(child, prefix);
                 changed |= visited != child;
                 painted.add(visited);
                 at++;
@@ -149,7 +163,7 @@ public final class Paint {
             // A line flattened for depth carries the label on every piece:
             // consecutive pieces with one label are one run.
             int end = at + 1;
-            while (end < children.size() && run.equals(keyOf(children.get(end).style()))) {
+            while (end < children.size() && run.equals(keyOf(children.get(end).style(), prefix))) {
                 end++;
             }
             Component group = end - at == 1 ? child : Component.text().append(children.subList(at, end)).build();
@@ -161,6 +175,9 @@ public final class Paint {
     }
 
     private static Component paint(Component run, String key) {
+        if (key.startsWith(Animation.PREFIX)) {
+            return TextEngine.shadowed(Animation.paint(unlabel(run, key), key));
+        }
         List<TextColor> stops = new ArrayList<>();
         for (String hex : key.substring(PREFIX.length()).split("-")) {
             TextColor colour = TextColor.fromHexString('#' + hex);
@@ -173,7 +190,8 @@ public final class Paint {
     }
 
     private static Component unlabel(Component component, String key) {
-        Component result = key.equals(keyOf(component.style()))
+        Key font = component.style().font();
+        Component result = font != null && key.equals(font.value())
                 ? component.style(component.style().font(null)) : component;
         List<Component> children = result.children();
         if (children.isEmpty()) {
@@ -186,9 +204,9 @@ public final class Paint {
         return result.children(bare);
     }
 
-    private static @Nullable String keyOf(Style style) {
+    private static @Nullable String keyOf(Style style, String prefix) {
         Key font = style.font();
-        return font != null && "exylia".equals(font.namespace()) && font.value().startsWith(PREFIX)
+        return font != null && "exylia".equals(font.namespace()) && font.value().startsWith(prefix)
                 ? font.value() : null;
     }
 
@@ -202,7 +220,7 @@ public final class Paint {
         return false;
     }
 
-    private static @Nullable TextColor colour(String argument) {
+    static @Nullable TextColor colour(String argument) {
         if (argument.startsWith("#")) {
             return TextColor.fromHexString(argument);
         }

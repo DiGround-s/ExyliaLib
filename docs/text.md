@@ -432,6 +432,29 @@ value in it is still MiniMessage's own, parsed once and cached. Only a
 gradient's colours are read; a phase argument is ignored when a value is
 inside.
 
+## Animations (since 1.577.0)
+
+`<animation:kind:colours…[:duration]>text</animation>` animates the colour of
+the text it wraps, written anywhere text is parsed:
+
+```yaml
+title:
+  - '<animation:scroll:{primary}:{secondary_light}:2s>&l✦ EXYLIA ✦</animation>'
+```
+
+- `scroll` moves a looping gradient across the letters; `pulse` fades the
+  whole text through the colours.
+- Colours are palette tokens, `#hex` or named colours; the duration is one full
+  loop (`2s`, `1500ms`), `2s` when left out.
+- The frame comes from the clock, not from a frame counter, so it never jumps
+  back when a redraw comes late. It moves as often as the text is redrawn: a
+  sidebar with `update.interval: 2` draws 10 frames a second, `1` is the
+  smoothest. Text that is drawn once (a chat line, a lore line) shows a single
+  frame.
+- Each frame is one cache entry (one per 50 ms of the loop), so an animated
+  line costs a parse per frame, not per player.
+- Values inside the tag are not animated; animate fixed text.
+
 ## Icons (since 1.477.0)
 
 `{icon:...}` draws a game sprite inside a line: an item, a block, a particle or

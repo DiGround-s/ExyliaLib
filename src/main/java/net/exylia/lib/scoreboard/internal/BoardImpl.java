@@ -6,6 +6,7 @@ import net.exylia.lib.placeholder.Template;
 import net.exylia.lib.scoreboard.Board;
 import net.exylia.lib.scoreboard.SidebarConfig;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.text.internal.Animation;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -203,7 +204,7 @@ final class BoardImpl implements Board {
 
     private void renderTitle(boolean sendAll) {
         Template current = titleFrames[frame % titleFrames.length];
-        String text = current.render(player, data);
+        String text = Animation.frame(current.render(player, data));
         frame = (frame + 1) % titleFrames.length;
 
         if (sendAll || !text.equals(lastTitle)) {
@@ -219,7 +220,7 @@ final class BoardImpl implements Board {
         List<Template> sources = new ArrayList<>(lineTemplates.length);
 
         for (Template template : lineTemplates) {
-            String text = template.render(player, data);
+            String text = Animation.frame(template.render(player, data));
             if (text.indexOf('\n') < 0) {
                 rendered.add(text);
                 sources.add(template);
