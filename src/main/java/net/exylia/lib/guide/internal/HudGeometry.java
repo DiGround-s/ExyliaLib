@@ -78,9 +78,17 @@ final class HudGeometry {
 
     /** The translation for a spot in the view, with the seat above the eyes taken back off for this pitch. */
     static float[] seated(double x, double y, double pitch, double seat) {
+        return seated(x, y, pitch, seat, 1);
+    }
+
+    /**
+     * The same, the spot pulled {@code f} of the way towards the eye: it looks exactly as large and in the same place,
+     * only nearer, so stacked layers keep their order in the depth buffer.
+     */
+    static float[] seated(double x, double y, double pitch, double seat, double f) {
         double radians = Math.toRadians(pitch);
-        return new float[]{(float) x, (float) (y - seat * Math.cos(radians)),
-                (float) (-GuidePackets.VIEW_DISTANCE - seat * Math.sin(radians))};
+        return new float[]{(float) (x * f), (float) (y * f - seat * Math.cos(radians)),
+                (float) (-GuidePackets.VIEW_DISTANCE * f - seat * Math.sin(radians))};
     }
 
 

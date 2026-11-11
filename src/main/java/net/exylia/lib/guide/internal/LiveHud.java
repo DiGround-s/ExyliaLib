@@ -49,10 +49,16 @@ public final class LiveHud extends Piece {
     /** Long enough for its client to draw no element wider than this, in pixels: lines are broken by the text alone. */
     private static final int LINE_WIDTH = 1000;
     /**
-     * See-through, so a wall nearer than the text never hides it. No shadow: a see-through shadow is drawn without a
-     * depth test, so it lands over its own letters and the line reads doubled.
+     * See-through, so a wall nearer than the text never hides it. Only while something stands between the eye and an
+     * element: a see-through text writes no depth, so whatever translucent the client draws after it (portals, clouds,
+     * glass, water) lands on top of it. No shadow: a see-through shadow is drawn without a depth test, so it lands over
+     * its own letters and the line reads doubled.
      */
     private static final int SEE_THROUGH = 0x02;
+    /** Ticks an element stays see-through after its view clears, so it does not flicker at a wall's edge. */
+    private static final long CLEAR_TICKS = 10;
+    /** How much nearer each layer of an element stands than the one under it, in blocks: their order in depth. */
+    private static final double LAYER_DEPTH = 0.005;
     /** Every plugin's HUD on each player, in the order they arrived: they share one stack at each anchor. */
     private static final Map<java.util.UUID, List<LiveHud>> PEERS = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -157,10 +163,12 @@ public final class LiveHud extends Piece {
         if (!fitOffered && !stacks.isEmpty()) {
             fitOffered = net.exylia.lib.screen.internal.ScreenPreferences.fitted(id) || offerFit(player);
         }
+        View view = stacks.isEmpty() ? null : new View(player);
         for (Map.Entry<HudAnchor, List<Element>> stack : stacks.entrySet()) {
             double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
                 element.place(stack.getKey(), offset, zoom, aspect);
+                element.see(view.blocks(element.spot, element.wide, element.tall), now);
                 offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 element.send(player, reseat);
             }
@@ -280,11 +288,13 @@ public final class LiveHud extends Piece {
         boolean slide = !stepsAside(player) && element.spot != null;
         double k = SHRUNK;
         double[] out = slide ? HudGeometry.popped(element.spot, element.tall, k) : null;
-        for (Part part : element.parts) {
+        for (int i = 0; i < element.parts.size(); i++) {
+            Part part = element.parts.get(i);
             if (slide && part.sent != null) {
                 Look l = part.sent;
-                GuidePackets.riderTransform(player, part.id, at(out, l, k), (float) (l.sx() * k), (float) (l.sy() * k),
-                        GLIDE, null, -1);
+                double f = nearer(i);
+                GuidePackets.riderTransform(player, part.id, at(out, l, k, f), (float) (l.sx() * k * f),
+                        (float) (l.sy() * k * f), GLIDE, null, -1, -1);
             }
             ghosts.add(new int[]{part.id, (int) (slide ? now + GLIDE + 1 : now)});
         }
@@ -302,9 +312,69 @@ public final class LiveHud extends Piece {
         }
     }
 
-    /** Where a part stands, its element's bottom centre at {@code spot} and everything drawn {@code k} times as large. */
-    private float[] at(double[] spot, Look look, double k) {
-        return HudGeometry.seated(spot[0] + look.tx() * k, spot[1] + look.ty() * k, sentPitch, sentSeat);
+    /**
+     * Where a part stands, its element's bottom centre at {@code spot}, everything drawn {@code k} times as large and
+     * pulled {@code f} of the way to the eye.
+     */
+    private float[] at(double[] spot, Look look, double k, double f) {
+        return HudGeometry.seated(spot[0] + look.tx() * k, spot[1] + look.ty() * k, sentPitch, sentSeat, f);
+    }
+
+    /** How far towards the eye the {@code i}th layer of an element is pulled, so each one stands over the last. */
+    private static double nearer(int i) {
+        return 1 - i * LAYER_DEPTH / GuidePackets.VIEW_DISTANCE;
+    }
+
+    /**
+     * The player's view this draw, to tell whether anything stands in front of an element. A HUD sits
+     * {@link GuidePackets#VIEW_DISTANCE} ahead, so a block or a mob nearer than that would cover it unless it is
+     * see-through.
+     */
+    private static final class View {
+        private final Player player;
+        private final org.bukkit.Location eye;
+        private final org.bukkit.util.Vector ahead;
+        private final org.bukkit.util.Vector right;
+        private final org.bukkit.util.Vector up;
+
+        View(Player player) {
+            this.player = player;
+            this.eye = player.getEyeLocation();
+            this.ahead = eye.getDirection();
+            double yaw = Math.toRadians(eye.getYaw());
+            this.right = new org.bukkit.util.Vector(-Math.cos(yaw), 0, -Math.sin(yaw));
+            this.up = right.getCrossProduct(ahead);
+        }
+
+        /** Whether anything stands between the eye and an element's corners or middle. */
+        boolean blocks(double[] spot, double wide, double tall) {
+            if (spot == null) return false;
+            double l = spot[0] - wide / 2, r = spot[0] + wide / 2, b = spot[1], t = spot[1] + tall;
+            return hit(l, b) || hit(r, b) || hit(l, t) || hit(r, t) || hit(spot[0], b + tall / 2);
+        }
+
+        private boolean hit(double x, double y) {
+            org.bukkit.util.Vector to = ahead.clone().multiply(GuidePackets.VIEW_DISTANCE)
+                    .add(right.clone().multiply(x)).add(up.clone().multiply(y));
+            double length = to.length();
+            return eye.getWorld().rayTrace(eye, to.multiply(1 / length), length, org.bukkit.FluidCollisionMode.NEVER,
+                    false, 0, this::covers, View::covers) != null;
+        }
+
+        /** An entity that would cover the HUD: one the player sees, not their own vehicle or passenger. */
+        private boolean covers(org.bukkit.entity.Entity entity) {
+            return entity != player && !entity.isInvisible() && !(entity instanceof org.bukkit.entity.Display)
+                    && entity != player.getVehicle() && !player.getPassengers().contains(entity)
+                    && player.canSee(entity);
+        }
+
+        /** A block that would cover the HUD: everything drawn solid, not a portal's face or an invisible block. */
+        private static boolean covers(org.bukkit.block.Block block) {
+            return switch (block.getType()) {
+                case NETHER_PORTAL, END_PORTAL, END_GATEWAY, LIGHT, STRUCTURE_VOID, BARRIER -> false;
+                default -> true;
+            };
+        }
     }
 
     /** Offers fitting the view when it is safe to open a screen; whether it was. */
@@ -379,6 +449,7 @@ public final class LiveHud extends Piece {
     private static final class Part {
         final int id;
         Look sent;
+        int sentFlags;
 
         Part(int id) {
             this.id = id;
@@ -404,6 +475,25 @@ public final class LiveHud extends Piece {
         double sentK = 1;
         boolean entering;
         int pulse;
+        /** Whether its displays are see-through now, and since when its view has been clear (-1 while it is not). */
+        boolean seeThrough;
+        long clearSince = -1;
+
+        /** Turns see-through as soon as something covers it, back once it has been clear a little while. */
+        void see(boolean covered, long now) {
+            if (covered) {
+                seeThrough = true;
+                clearSince = -1;
+            } else if (seeThrough) {
+                if (clearSince < 0) clearSince = now;
+                else if (now - clearSince >= CLEAR_TICKS) seeThrough = false;
+            }
+        }
+
+        /** The text flags a look is drawn with now. */
+        int flags(Look look) {
+            return seeThrough ? look.flags() | SEE_THROUGH : look.flags();
+        }
 
         abstract HudAnchor anchor();
 
@@ -443,7 +533,7 @@ public final class LiveHud extends Piece {
                     wide = (Centering.pixelWidth(text) + 3) * pixel;
                     tall = lines * HudGeometry.LINE * pixel;
                     float scale = HudGeometry.scale(drawSize());
-                    looks = List.of(new Look(0, 0, scale, scale, text, 255, SEE_THROUGH | HudGeometry.align(anchor),
+                    looks = List.of(new Look(0, 0, scale, scale, text, 255, HudGeometry.align(anchor),
                             background, LINE_WIDTH));
                 }
             }
@@ -468,13 +558,13 @@ public final class LiveHud extends Piece {
                         out.add(new Look((float) (cx - 0.5 * font * sx), (float) (cy - layer.h() * pixel / 2 - sy * font),
                                 (float) sx, (float) sy,
                                 BLOCK.color(net.kyori.adventure.text.format.TextColor.color(layer.argb() & 0xFFFFFF)),
-                                alpha, SEE_THROUGH, 0, LINE_WIDTH));
+                                alpha, 0, 0, LINE_WIDTH));
                     }
                     case TEXT -> {
                         double scale = HudGeometry.scale(drawSize()) * layer.scale();
                         out.add(new Look((float) (cx - 0.5 * font * scale),
                                 (float) (cy - (HudGeometry.LINE * layer.lines() + 1) * font * scale / 2),
-                                (float) scale, (float) scale, layer.text(), 255, SEE_THROUGH | layer.flags(), 0,
+                                (float) scale, (float) scale, layer.text(), 255, layer.flags() & ~SEE_THROUGH, 0,
                                 LINE_WIDTH));
                     }
                     case PICTURE -> {
@@ -482,7 +572,7 @@ public final class LiveHud extends Piece {
                         double fx = cell / HudLayers.PICTURE_ADVANCE, fy = cell / HudLayers.PICTURE_LINE;
                         double x = cx + layer.dx() * fx, y = cy - layer.dy() * fy;
                         out.add(new Look((float) (x - 0.5 * fx), (float) (y - layer.lines() * HudLayers.PICTURE_LINE * fy / 2),
-                                (float) (fx / font), (float) (fy / font), layer.text(), 255, SEE_THROUGH, 0, 4000));
+                                (float) (fx / font), (float) (fy / font), layer.text(), 255, 0, 0, 4000));
                     }
                 }
             }
@@ -501,9 +591,11 @@ public final class LiveHud extends Piece {
                 double[] from = fresh ? HudGeometry.popped(spot, tall, k) : spot;
                 for (Look look : looks) {
                     Part part = new Part(GuidePackets.newId());
+                    double f = nearer(parts.size());
+                    part.sentFlags = flags(look);
                     GuidePackets.spawnRider(player, part.id, look.text(), look.lineWidth(), look.background(),
-                            look.opacity(), look.flags(), (float) (look.sx() * k), (float) (look.sy() * k),
-                            at(from, look, k), false);
+                            look.opacity(), part.sentFlags, (float) (look.sx() * k * f), (float) (look.sy() * k * f),
+                            at(from, look, k, f), false);
                     part.sent = look;
                     parts.add(part);
                 }
@@ -532,14 +624,18 @@ public final class LiveHud extends Piece {
                 Part part = parts.get(i);
                 Look look = looks.get(i);
                 boolean changed = !look.equals(part.sent);
-                if (!(entering || moved || reseat || changed || k != sentK)) continue;
+                int flags = flags(look);
+                boolean reflag = flags != part.sentFlags;
+                if (!(entering || moved || reseat || changed || reflag || k != sentK)) continue;
                 boolean retext = !look.text().equals(part.sent.text());
                 // New words jump to their own new place: cleaner than gliding the old ones there.
                 int t = changed && !moved && !entering ? 0 : ticks;
-                GuidePackets.riderTransform(player, part.id, at(spot, look, k), (float) (look.sx() * k),
-                        (float) (look.sy() * k), t, retext ? look.text() : null,
-                        look.opacity() != part.sent.opacity() ? look.opacity() : -1);
+                double f = nearer(i);
+                GuidePackets.riderTransform(player, part.id, at(spot, look, k, f), (float) (look.sx() * k * f),
+                        (float) (look.sy() * k * f), t, retext ? look.text() : null,
+                        look.opacity() != part.sent.opacity() ? look.opacity() : -1, reflag ? flags : -1);
                 part.sent = look;
+                part.sentFlags = flags;
             }
             entering = false;
             sentSpot = spot;

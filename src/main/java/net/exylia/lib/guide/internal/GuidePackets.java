@@ -314,12 +314,15 @@ final class GuidePackets extends PacketListenerAbstract {
      */
     static void riderTransform(Player viewer, int id, float[] translation, float scale, int ticks,
                                Component text) {
-        riderTransform(viewer, id, translation, scale, scale, ticks, text, -1);
+        riderTransform(viewer, id, translation, scale, scale, ticks, text, -1, -1);
     }
 
-    /** As above, scaled {@code sx} across and {@code sy} up, its text opacity changed unless {@code opacity} is -1. */
+    /**
+     * As above, scaled {@code sx} across and {@code sy} up, its text opacity and text flags changed unless they are
+     * -1.
+     */
     static void riderTransform(Player viewer, int id, float[] translation, float sx, float sy, int ticks,
-                               Component text, int opacity) {
+                               Component text, int opacity, int flags) {
         List<EntityData<?>> data = new ArrayList<>(6);
         data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks));
@@ -328,6 +331,7 @@ final class GuidePackets extends PacketListenerAbstract {
         data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(sx, sy, 1)));
         if (text != null) data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
         if (opacity >= 0) data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE, (byte) opacity));
+        if (flags >= 0) data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) flags));
         send(viewer, new WrapperPlayServerEntityMetadata(id, data));
     }
 
@@ -335,8 +339,8 @@ final class GuidePackets extends PacketListenerAbstract {
      * How far ahead of the eyes a view text floats. Far on purpose: the client's
      * view bobbing shifts the camera up to a tenth of a block while walking, which
      * a panel a block away shows as a bounce of several degrees; at sixteen it is
-     * a third of a degree. The text is see-through and scaled with the distance,
-     * so it looks the same.
+     * a third of a degree. The text is scaled with the distance, so it looks the
+     * same; a HUD turns see-through only while something stands in front of it.
      */
     static final float VIEW_DISTANCE = 16f;
 
