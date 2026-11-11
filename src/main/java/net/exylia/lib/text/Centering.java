@@ -243,7 +243,12 @@ public final class Centering {
                 component.style().decoration(net.kyori.adventure.text.format.TextDecoration.BOLD);
         boolean bold = state == net.kyori.adventure.text.format.TextDecoration.State.NOT_SET
                 ? inheritedBold : state == net.kyori.adventure.text.format.TextDecoration.State.TRUE;
+        if (isSprite(component)) {
+            // A sprite is drawn as one eight-pixel glyph, its gap included.
+            widths[0] += SPRITE_WIDTH;
+        }
         String content = component instanceof net.kyori.adventure.text.TextComponent text ? text.content()
+                : isSprite(component) ? ""
                 : net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
                 .serialize(component.children(List.of()));
         for (int i = 0; i < content.length(); i++) {
@@ -258,6 +263,17 @@ public final class Centering {
         for (net.kyori.adventure.text.Component child : component.children()) {
             measure(child, bold, widths);
         }
+    }
+
+    /** How wide a sprite is drawn, its one-pixel gap included. */
+    private static final int SPRITE_WIDTH = 9;
+
+    /**
+     * Whether a part is a sprite (an object component, Minecraft 1.21.9+).
+     * Matched by name: the API this compiles against may predate the type.
+     */
+    private static boolean isSprite(net.kyori.adventure.text.Component component) {
+        return component.getClass().getSimpleName().startsWith("ObjectComponent");
     }
 
     private static boolean isFormattingCode(char code) {

@@ -288,7 +288,8 @@ class BoardTest {
         board.updateData(Map.of("arena", "end"));
         drive();
 
-        assertEquals(List.of("line:0:Arena: end"), sidebar().writes());
+        // "end" is narrower than "nether": the board keeps its width with trailing spaces.
+        assertEquals(List.of("line:0:Arena: end"), sidebar().writes().stream().map(String::stripTrailing).toList());
     }
 
     @Test

@@ -74,15 +74,21 @@ final class BoardImpl implements Board {
      * stays the same while its frame does not, so the frames are compared.
      */
     private Component lastTitleShown;
+    /** Each line as parsed, reused while its text holds still. */
+    private Component[] lastLinesBuilt = new Component[0];
+    /** Each line as drawn: padded to the board's width, centred where asked. */
     private Component[] lastLinesShown = new Component[0];
+    private final BoardWidth width;
 
     BoardImpl(String ownerName, Player player, SidebarConfig config, SidebarHandle sidebar) {
         this.ownerName = ownerName;
         this.player = player;
         this.config = config;
         this.sidebar = sidebar;
-        this.titleFrames = compile(config.title());
-        this.lineTemplates = compile(config.lines());
+        // The client centres the title itself, so a <center> on it is just dropped.
+        this.titleFrames = compile(config.title().stream().map(BoardWidth::strip).toList());
+        this.lineTemplates = compile(config.lines().stream().map(BoardWidth::strip).toList());
+        this.width = new BoardWidth(config.lines());
         this.smart = config.update().smart();
         this.intervalMs = Math.max(TICK_MS, config.update().interval() * TICK_MS);
         this.stagger = Math.floorMod(player.getUniqueId().getLeastSignificantBits(), intervalMs);
@@ -226,20 +232,20 @@ final class BoardImpl implements Board {
 
     private void renderLines(boolean sendAll) {
         List<String> rendered = new ArrayList<>(lineTemplates.length);
-        // Which template produced each output line. A line that came out of an
-        // expansion has none: its text only exists as a resolved string.
-        List<Template> sources = new ArrayList<>(lineTemplates.length);
+        // Which configured line produced each output line. A line that came
+        // out of an expansion has none (-1): its text only exists as a string.
+        List<Integer> sources = new ArrayList<>(lineTemplates.length);
 
-        for (Template template : lineTemplates) {
-            String text = template.render(player, data);
+        for (int t = 0; t < lineTemplates.length; t++) {
+            String text = lineTemplates[t].render(player, data);
             if (text.indexOf('\n') < 0) {
                 rendered.add(text);
-                sources.add(template);
+                sources.add(t);
             } else {
                 int before = rendered.size();
                 appendExpanded(text, rendered);
                 for (int i = before; i < rendered.size(); i++) {
-                    sources.add(null);
+                    sources.add(-1);
                 }
             }
             if (rendered.size() >= SidebarHandle.MAX_LINES) {
@@ -249,24 +255,30 @@ final class BoardImpl implements Board {
 
         int count = rendered.size();
         int previous = lastLines.length;
-        Component[] shown = new Component[count];
+        Component[] built = new Component[count];
+        int[] origin = new int[count];
         for (int i = 0; i < count; i++) {
             String text = rendered.get(i);
+            origin[i] = sources.get(i);
             boolean changed = sendAll || i >= previous || !text.equals(lastLines[i]);
-            if (changed || TextEffects.moves(text)) {
-                Component line = componentFor(sources.get(i), text);
-                if (changed || !line.equals(lastLinesShown[i])) {
-                    sidebar.line(i, line);
-                }
-                shown[i] = line;
+            built[i] = changed || TextEffects.moves(text) || lastLinesBuilt[i] == null
+                    ? componentFor(origin[i] < 0 ? null : lineTemplates[origin[i]], text)
+                    : lastLinesBuilt[i];
+        }
+        // Laid out together: one line growing can move the padding of another.
+        Component[] shown = width.layout(built, origin, BoardManager.now());
+        for (int i = 0; i < count; i++) {
+            if (sendAll || i >= lastLinesShown.length || !shown[i].equals(lastLinesShown[i])) {
+                sidebar.line(i, shown[i]);
             }
         }
-        lastLinesShown = shown;
         // A placeholder can shrink the board between cycles; the leftover
         // lines the player still has have to be cleared explicitly.
         for (int i = count; i < previous; i++) {
             sidebar.line(i, null);
         }
+        lastLinesBuilt = built;
+        lastLinesShown = shown;
         lastLines = rendered.toArray(new String[0]);
     }
 

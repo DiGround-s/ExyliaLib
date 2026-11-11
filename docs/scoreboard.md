@@ -102,3 +102,29 @@ most 15 lines.
   `MegavexSidebar`, `NoopBoard`, `SidebarFactory`, `SidebarHandle`,
   `SidebarLibrary`, `TabHook`).
 - Tests: `src/test/java/net/exylia/lib/scoreboard/`.
+
+## Steady width and centred lines (since 1.580.0)
+
+A sidebar no longer jumps when a value changes length. The client sizes it to
+its widest line and anchors it on the right, so a ping going from 9 to 10 used
+to move the whole left edge. Now:
+
+- The board is never narrower than its widest line with every placeholder left
+  out (a section label such as `▸▸ STATISTICS` usually sets it).
+- A value that makes it wider widens it at once, and it keeps that width until
+  the line has been shorter for 10 seconds.
+- The width is held by padding the first blank line with spaces (the last line
+  when there is none), so nothing visible changes.
+
+Start a line with `<center>` to centre it within that width:
+
+```yaml
+lines:
+  - '<center>{letters_black}%server_time_dd/MM/yyyy%'
+  - ...
+  - '<center>{primary}{server-ip}'
+```
+
+Spaces are four pixels, so a centred line is at most two pixels off. The title
+needs no `<center>`: the client always centres it (one written there is dropped).
+Lines a placeholder expands into are never centred.
