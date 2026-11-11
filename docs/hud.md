@@ -31,7 +31,7 @@ the same id replaces it in place (no slide).
 | `when` (`Predicate<Player>`) | `when(condition)` | always |
 | `order` (its place in the anchor's stack, lowest at the edge) | `order(n)` | 0 |
 | `every` (ticks between reads, at least 2) | `every(ticks)` | 10; a fixed `Component` 1200 |
-| `background` (ARGB, `0` none) | `background(argb)` | `HudWidget.PANEL` |
+| `background` (ARGB, `0` none) | `background(argb)` | `0`; `HudWidget.PANEL` is the palette's panel |
 | `scale` (against the default text size) | `scale(size)` | 1 |
 
 - `text` and `when` run on the player's own thread, so they read memory, never
@@ -93,12 +93,15 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
 
 - **Pitch.** The seat is above the eyes, so every element's offset is sent again
   when the pitch moves 3° (one metadata packet each).
-- **Sprinting.** Sprinting, speed, slowness and flying widen the client's view
-  by a known factor, which would shrink the HUD towards the middle. The server
-  sees the same speed, so it draws everything larger by that factor as the view
-  widens: on screen the HUD stays where it was. Measured on a real 1.21.4
-  client. A player who turned *FOV Effects* below 100% sees it grow a little
-  while sprinting instead.
+- **Sprinting.** Sprinting, speed and flying widen the client's view, so the
+  HUD narrows a little towards the middle with the world, smoothly. It is not
+  compensated: the server cannot see a client's *FOV Effects* slider, and a
+  wrong guess pumps the whole HUD in and out on every sprint.
+- **No shadow, no panel by default.** The text is see-through so a wall never
+  hides it, and a see-through shadow is drawn over its own letters; a panel is
+  `background(HudWidget.PANEL)` or any ARGB.
+- **One stack per anchor across plugins.** Two plugins showing at the same
+  anchor stack one after the other (the first to show starts at the edge).
 - **Steps aside** while a screen is open, while a camera shot plays, while dead
   and in spectator mode, and when the player turned *Show HUD* off in
   `/settings` (kept on the player, across restarts; `Huds.hidden(player, hide)`

@@ -50,7 +50,7 @@ public record HudWidget(@NotNull String id, @NotNull HudAnchor anchor, @NotNull 
      */
     public static @NotNull HudWidget of(@NotNull String id, @NotNull HudAnchor anchor,
                                         @NotNull Function<Player, Component> text) {
-        return new HudWidget(id, anchor, text, null, 0, 10, PANEL, 1);
+        return new HudWidget(id, anchor, text, null, 0, 10, 0, 1);
     }
 
     /** A text that never changes. */

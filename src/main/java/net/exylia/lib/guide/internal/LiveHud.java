@@ -46,7 +46,13 @@ public final class LiveHud extends Piece {
     private static final int GLIDE = 4;
     /** Long enough for its client to draw no element wider than this, in pixels: lines are broken by the text alone. */
     private static final int LINE_WIDTH = 1000;
-    private static final int SHADOW_SEE_THROUGH = 0x01 | 0x02;
+    /**
+     * See-through, so a wall nearer than the text never hides it. No shadow: a see-through shadow is drawn without a
+     * depth test, so it lands over its own letters and the line reads doubled.
+     */
+    private static final int SEE_THROUGH = 0x02;
+    /** Every plugin's HUD on each player, in the order they arrived: they share one stack at each anchor. */
+    private static final Map<java.util.UUID, List<LiveHud>> PEERS = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final Queue<Consumer<Player>> queued = new ConcurrentLinkedQueue<>();
     private final Map<String, Widget> widgets = new LinkedHashMap<>();
@@ -54,12 +60,14 @@ public final class LiveHud extends Piece {
     private final List<int[]> ghosts = new ArrayList<>();
     private double sentPitch = Double.NaN;
     private double sentSeat;
-    /** How much larger everything is drawn against the view's widening ({@link HudGeometry#zoom}). */
-    private double zoom = 1;
     private long now;
 
     LiveHud(ViewerSession session) {
         super(session);
+        if (session != null) {
+            PEERS.computeIfAbsent(session.player().getUniqueId(),
+                    key -> new java.util.concurrent.CopyOnWriteArrayList<>()).add(this);
+        }
     }
 
     // ------------------------------------------------------------------ handle side, any thread
@@ -131,23 +139,18 @@ public final class LiveHud extends Piece {
         double seat = Math.max(0, player.getHeight() - player.getEyeHeight());
         boolean reseat = Double.isNaN(sentPitch) || Math.abs(pitch - sentPitch) >= PITCH_STEP
                 || Math.abs(seat - sentSeat) > 0.01;
-        double wantedZoom = HudGeometry.zoom(HudGeometry.fovModifier(speed(player), player.getWalkSpeed(),
-                player.isFlying()));
-        boolean rezoom = Math.abs(wantedZoom - zoom) > 0.004;
-        if (rezoom) {
-            zoom = wantedZoom;
-            reseat = true;
-        }
+        // No sprint FOV compensation: the server cannot know a client's FOV Effects slider, and guessing it wrong
+        // pumps the whole HUD in and out on every sprint. Drawn as is, it only narrows a little with the world.
         if (reseat) {
             sentPitch = pitch;
             sentSeat = seat;
         }
         for (Map.Entry<HudAnchor, List<Element>> stack : stacks(player).entrySet()) {
-            double offset = 0;
+            double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
                 element.place(stack.getKey(), offset);
                 offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.size);
-                element.send(player, reseat, rezoom);
+                element.send(player, reseat);
             }
         }
     }
@@ -167,6 +170,38 @@ public final class LiveHud extends Piece {
                 widget.text = text;
             }
         }
+    }
+
+    /**
+     * How far along an anchor's stack this HUD starts: past what the plugins that arrived before it show there, so two
+     * plugins' widgets never land on each other.
+     */
+    private double before(Player player, HudAnchor anchor) {
+        List<LiveHud> peers = PEERS.get(player.getUniqueId());
+        if (peers == null) return 0;
+        double offset = 0;
+        for (LiveHud peer : peers) {
+            if (peer == this) break;
+            if (peer.removed()) {
+                peers.remove(peer);
+                continue;
+            }
+            for (Element element : peer.elements()) {
+                if (element.id >= 0 && element.anchor() == anchor) {
+                    offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.size);
+                }
+            }
+        }
+        return offset;
+    }
+
+    /** Stops sharing the player's stacks; called when its session ends. */
+    void unshare() {
+        if (session == null) return;
+        PEERS.computeIfPresent(session.player().getUniqueId(), (key, peers) -> {
+            peers.remove(this);
+            return peers.isEmpty() ? null : peers;
+        });
     }
 
     /** What stands at each anchor, edge first: widgets by order, then notices newest first. */
@@ -242,18 +277,13 @@ public final class LiveHud extends Piece {
         }
     }
 
-    /** A spot in the view as sent: grown with the zoom, the seat taken off. */
+    /** A spot in the view as sent, the seat taken off. */
     private float[] at(double[] spot) {
-        return HudGeometry.seated(spot[0] * zoom, spot[1] * zoom, sentPitch, sentSeat);
+        return HudGeometry.seated(spot[0], spot[1], sentPitch, sentSeat);
     }
 
     private float sized(double size) {
-        return (float) (HudGeometry.scale(size) * zoom);
-    }
-
-    private static double speed(Player player) {
-        org.bukkit.attribute.AttributeInstance speed = player.getAttribute(net.exylia.lib.platform.Attributes.MOVEMENT_SPEED);
-        return speed == null ? Double.NaN : speed.getValue();
+        return (float) HudGeometry.scale(size);
     }
 
     private static boolean stepsAside(Player player) {
@@ -335,7 +365,7 @@ public final class LiveHud extends Piece {
             spot = HudGeometry.place(anchor, offset, wide, tall);
         }
 
-        void send(Player player, boolean reseat, boolean rezoom) {
+        void send(Player player, boolean reseat) {
             float scale = sized(size);
             boolean middle = anchor().x() == 0.5;
             if (id < 0) {
@@ -344,7 +374,7 @@ public final class LiveHud extends Piece {
                 sent = text;
                 sentScale = middle ? 0.01f : scale;
                 GuidePackets.spawnRider(player, id, text, LINE_WIDTH, background, 255,
-                        SHADOW_SEE_THROUGH | HudGeometry.align(anchor()), sentScale,
+                        SEE_THROUGH | HudGeometry.align(anchor()), sentScale,
                         at(from));
                 entering = true;
                 return;
@@ -365,7 +395,7 @@ public final class LiveHud extends Piece {
             } else if (retext) {
                 // Its own new size: jumping there with the new words reads cleaner than gliding the old ones.
                 ticks = 0;
-            } else if (moved || rezoom) {
+            } else if (moved) {
                 ticks = GLIDE;
             } else {
                 ticks = 2;
@@ -442,7 +472,7 @@ public final class LiveHud extends Piece {
             this.until = until;
             this.text = spec.text();
             this.size = BASE * spec.scale();
-            this.background = spec.big() ? 0 : HudWidget.PANEL;
+            this.background = 0;
         }
 
         @Override

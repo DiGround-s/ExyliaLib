@@ -97,6 +97,9 @@ final class ViewerSession {
             piece.erase(send);
         }
         pieces.clear();
+        if (hud != null) {
+            hud.unshare();
+        }
         if (timer != null) {
             timer.cancel();
             timer = null;

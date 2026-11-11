@@ -77,26 +77,5 @@ final class HudGeometry {
                 (float) (-GuidePackets.VIEW_DISTANCE - seat * Math.sin(radians))};
     }
 
-    /**
-     * The field of view a client widens to as it moves, against its own: sprinting, speed and slowness, flying. The
-     * client's own sum ({@code AbstractClientPlayer#getFieldOfViewModifier}) at the default FOV Effects of 100%.
-     *
-     * @param speed     the movement speed attribute, sprinting included
-     * @param walkSpeed Bukkit's walk speed ({@code 0.2} by default, twice the client's)
-     * @param flying    whether they fly
-     */
-    static double fovModifier(double speed, float walkSpeed, boolean flying) {
-        if (walkSpeed <= 0 || Double.isNaN(speed)) return 1;
-        double modifier = (speed / (walkSpeed / 2.0) + 1) / 2;
-        if (flying) modifier *= 1.1;
-        return Math.clamp(modifier, 0.1, 1.5);
-    }
 
-    /**
-     * How much larger to draw everything so a widened view shows it where it was: what a 70 degree view widened by
-     * {@code modifier} would shrink it by, the other way round.
-     */
-    static double zoom(double modifier) {
-        return Math.tan(Math.toRadians(35 * modifier)) / Math.tan(Math.toRadians(35));
-    }
 }

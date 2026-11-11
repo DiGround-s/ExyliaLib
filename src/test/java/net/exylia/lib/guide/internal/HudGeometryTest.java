@@ -49,13 +49,4 @@ class HudGeometryTest {
         assertEquals(null, HudAnchor.parse("nowhere"));
     }
 
-    @Test
-    void sprintingWidensTheViewAndTheHudGrowsBack() {
-        assertEquals(1, HudGeometry.fovModifier(0.1, 0.2f, false), 1e-6);
-        double sprint = HudGeometry.fovModifier(0.13, 0.2f, false);
-        assertEquals(1.15, sprint, 1e-6);
-        // A 70 degree view widened to 80.5 draws everything at 0.83 of its size; the HUD is drawn 1.21 times larger.
-        assertEquals(1.209, HudGeometry.zoom(sprint), 1e-3);
-        assertEquals(1, HudGeometry.zoom(1), 1e-9);
-    }
 }
