@@ -2007,3 +2007,7 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 "Later": "Sonra"
 "Match screens and the HUD to your FOV and window": "Ekranları ve HUD'u FOV'una ve pencerene uydurur"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Ekranlar ve HUD bunu kullanır. FOV'unu ya da pencereni mi değiştirdin? Ekran ayarlarından yeniden sığdır."
+"{letters}Choose an answer": "{letters}Bir cevap seç"
+"{muted}Sneak or click to continue": "{muted}Devam etmek için eğil ya da tıkla"
+"{muted}Click an answer": "{muted}Bir cevaba tıkla"
+"{muted}Scroll to choose · Sneak to answer": "{muted}Seçmek için kaydır · Cevaplamak için eğil"

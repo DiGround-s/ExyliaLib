@@ -319,6 +319,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // pointers, and the rule that hides players in a menu, under the library's own name.
         net.exylia.lib.spatial.SpatialMenus.init(this);
         net.exylia.lib.screen.internal.ScreenRuntime.init(this);
+        net.exylia.lib.dialogue.internal.DialogueRuntime.init(this);
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.register(this);

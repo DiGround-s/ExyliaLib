@@ -1995,3 +1995,7 @@ speaks the language chosen here.: parle la langue choisie ici.
 "Later": "Plus tard"
 "Match screens and the HUD to your FOV and window": "Adapte les écrans et le HUD à ton FOV et ta fenêtre"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Les écrans et le HUD l'utilisent. Tu as changé ton FOV ou ta fenêtre ? Ajuste à nouveau depuis les réglages de l'écran."
+"{letters}Choose an answer": "{letters}Choisis une réponse"
+"{muted}Sneak or click to continue": "{muted}Accroupis-toi ou clique pour continuer"
+"{muted}Click an answer": "{muted}Clique sur une réponse"
+"{muted}Scroll to choose · Sneak to answer": "{muted}Molette pour choisir · Accroupis-toi pour répondre"

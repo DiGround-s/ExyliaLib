@@ -1995,3 +1995,7 @@ speaks the language chosen here.: говорит на выбранном зде�
 "Later": "Позже"
 "Match screens and the HUD to your FOV and window": "Подгоняет экраны и HUD под ваш FOV и окно"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Это используют экраны и HUD. Изменили FOV или окно? Подгоните заново в настройках экрана."
+"{letters}Choose an answer": "{letters}Выберите ответ"
+"{muted}Sneak or click to continue": "{muted}Присядьте или кликните, чтобы продолжить"
+"{muted}Click an answer": "{muted}Кликните по ответу"
+"{muted}Scroll to choose · Sneak to answer": "{muted}Колесо — выбрать · Присесть — ответить"
