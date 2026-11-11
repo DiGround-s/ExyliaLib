@@ -63,7 +63,6 @@ public final class ScreenPreferences {
             CURSOR, new Legacy(legacyKey("screen_cursor"), PersistentDataType.STRING),
             ASSIST, new Legacy(legacyKey("screen_assist"), PersistentDataType.BOOLEAN),
             MOTION, new Legacy(legacyKey("screen_motion"), PersistentDataType.BOOLEAN),
-            SIZE, new Legacy(legacyKey("screen_size"), PersistentDataType.INTEGER),
             MenuStyles.SETTING, new Legacy(legacyKey("menu_style"), PersistentDataType.STRING));
 
     private static volatile Plugin library;
@@ -89,10 +88,6 @@ public final class ScreenPreferences {
         Settings.register(lib, Setting.number(SPEED, DEFAULT_SPEED, MIN_SPEED, MAX_SPEED, 0.1)
                 .category("interface").icon("COMPASS").name("Cursor speed")
                 .description("How fast the cursor moves", "on full-screen menus.")
-                .build());
-        Settings.register(lib, Setting.number(SIZE, clampSize(server.screenSize()), SIZE_MIN, SIZE_MAX, SIZE_STEP)
-                .category("interface").icon("SPYGLASS").name("Screen size")
-                .description("How large full-screen menus", "are drawn, in percent.")
                 .build());
         Setting.Builder cursor = Setting.choice(CURSOR, CursorLead.Mode.of(server.cursorMode()).name().toLowerCase(Locale.ROOT),
                         modeIds())
@@ -162,13 +157,13 @@ public final class ScreenPreferences {
         }
     }
 
+    /**
+     * How large screens are drawn, in percent: {@code screen-size} in {@code screens.yml}, the same for everyone. Players
+     * chose their own until 1.587.0; fitting the view to their FOV made that choice unneeded, and what they chose is
+     * no longer read.
+     */
     public static int size(UUID player) {
-        String value = value(player, SIZE);
-        try {
-            return clampSize(value == null ? ScreenSettings.get().screenSize() : (int) Math.round(Double.parseDouble(value)));
-        } catch (NumberFormatException broken) {
-            return clampSize(ScreenSettings.get().screenSize());
-        }
+        return clampSize(ScreenSettings.get().screenSize());
     }
 
     /** The field of view the player fitted, in degrees: 70 until they do. */
@@ -207,17 +202,6 @@ public final class ScreenPreferences {
         if (live != null) live.rescale();
     }
 
-    /**
-     * Keeps a size the player chose for their old FOV looking the same at the new one: screens now grow with the FOV
-     * themselves, so a size picked to make up for a wide FOV would count twice.
-     */
-    static void keepSize(Player player, double from, double to) {
-        int size = size(player.getUniqueId());
-        if (from == to || size == clampSize(ScreenSettings.get().screenSize())) return;
-        long kept = Math.round(size * fovScale(from) / fovScale(to) / SIZE_STEP) * SIZE_STEP;
-        set(player, SIZE, Integer.toString(clampSize((int) kept)));
-    }
-
     private static double number(UUID player, String key, double fallback, double min, double max) {
         String value = value(player, key);
         try {
@@ -254,12 +238,6 @@ public final class ScreenPreferences {
         set(player, SPEED, Double.toString(Math.max(MIN_SPEED, Math.min(MAX_SPEED, speed))));
     }
 
-    /** Sets a player's own size, applied at once to a screen they have open; {@code null} goes back to the server's. */
-    public static void size(Player player, Integer percent) {
-        set(player, SIZE, percent == null ? null : Integer.toString(clampSize(percent)));
-        LiveScreen live = ScreenRuntime.live(player.getUniqueId());
-        if (live != null) live.rescale();
-    }
 
     static void cursorMode(Player player, CursorLead.Mode mode) {
         set(player, CURSOR, id(mode));
@@ -285,7 +263,6 @@ public final class ScreenPreferences {
     /** Back to what the server says: every screen preference and the menu style. */
     static void reset(Player player) {
         for (String key : new String[]{SPEED, CURSOR, ASSIST, MOTION, LIGHT}) set(player, key, null);
-        size(player, null);
         MenuStyles.choose(player, null);
     }
 

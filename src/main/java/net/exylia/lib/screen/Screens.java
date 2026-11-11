@@ -163,16 +163,22 @@ public final class Screens {
         redrawAll(session -> true);
     }
 
-    /** How large {@code player}'s screens are drawn, in percent: their own choice over {@code screen-size}. @since 1.521.0 */
+    /**
+     * How large {@code player}'s screens are drawn, in percent: {@code screen-size} in {@code screens.yml} since 1.587.0,
+     * when players stopped choosing their own (fitting the view to their FOV does it). @since 1.521.0
+     */
     public static int size(@NotNull Player player) {
         return ScreenPreferences.size(player.getUniqueId());
     }
 
     /**
-     * Sets and keeps {@code player}'s own screen size, from 50 to 250 percent, applied at once to a screen they have
-     * open; {@code null} goes back to {@code screen-size}. @since 1.521.0
+     * Did nothing since 1.587.0: screens fit each player's FOV and window instead of a size they choose.
+     *
+     * @deprecated players fit their view once ({@code /settings} → Interface, or a screen's settings); the size for
+     *             everyone is {@code screen-size} in {@code screens.yml}
+     * @since 1.521.0
      */
+    @Deprecated(since = "1.587.0")
     public static void size(@NotNull Player player, @Nullable Integer percent) {
-        ScreenPreferences.size(player, percent);
     }
 }

@@ -244,7 +244,6 @@ final class LiveScreen implements ScreenSession {
     private volatile boolean settingsOpen;
     /** The step of fitting the view shown, 1 height and 2 width, or 0. */
     private volatile int fitStep;
-    private volatile double fitFrom = ScreenPreferences.DEFAULT_FOV;
     /** The size changed: the next frame sends every look again, though each may compare equal. Guarded by {@code this}. */
     private boolean rescaled;
     /** The in-screen confirm waiting for an answer, or {@code null}. */
@@ -836,7 +835,6 @@ final class LiveScreen implements ScreenSession {
      */
     void fit(int step) {
         if (step > 0 && screen.wheel()) return;
-        if (fitStep == 0 && step > 0) fitFrom = ScreenPreferences.fov(player.getUniqueId());
         fitStep = step;
         if (step == 0 && FitPanel.SCREEN.equals(screen.name())) {
             close();
@@ -844,11 +842,6 @@ final class LiveScreen implements ScreenSession {
         }
         rescale();
         renderNow();
-    }
-
-    /** The FOV the player had before this fitting began. */
-    double fitFrom() {
-        return fitFrom;
     }
 
     int fitStep() {

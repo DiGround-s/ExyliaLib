@@ -37,12 +37,6 @@ final class SettingsPanel {
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.IN));
         panel.add(words("{primary}&l" + Phrases.tr("Screen settings")).textAlign(Node.Align.CENTER));
 
-        int size = ScreenPreferences.size(id);
-        panel.add(row("Size",
-                stepper("size", size + "%",
-                        event -> ScreenPreferences.size(player, size - ScreenPreferences.SIZE_STEP),
-                        event -> ScreenPreferences.size(player, size + ScreenPreferences.SIZE_STEP))));
-
         if (live.canFit()) {
             panel.add(row("Fit to window", button("fit", "{info}" + Phrases.tr("FOV") + " "
                             + Math.round(ScreenPreferences.fov(id)), event -> {

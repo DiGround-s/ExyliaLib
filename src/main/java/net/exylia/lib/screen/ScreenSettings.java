@@ -22,7 +22,7 @@ import java.util.Map;
  * @param cursorAcceleration how much a fast mouse move speeds the cursor up (since 1.496.0): 0 for none
  * @param spriteObjects  whether items are drawn as one sprite glyph for 1.21.11+ clients on a 1.21.11+ server
  *                       (since 1.496.0), instead of a picture of four displays
- * @param screenSize   how large screens are drawn, in percent, for players who did not choose (since 1.519.0)
+ * @param screenSize   how large screens are drawn, in percent, for everyone (since 1.519.0; players chose their own until 1.587.0)
  * @param hideSidebar  whether a player's sidebar is hidden while a screen is open (since 1.522.0)
  * @param quietChat    whether chat is kept quiet while a screen is open (since 1.523.0)
  * @param cursorMode   how the cursor follows the mouse for players who did not choose (since 1.546.0): {@code NORMAL},
@@ -98,11 +98,9 @@ public record ScreenSettings(
         @Menu.About({"Items as one glyph where", "the client can draw it."})
         boolean spriteObjects,
 
-        @Comment("How large screens are drawn, in percent, for players who did not")
-        @Comment("choose their own size. 100 fills three quarters of the window at")
-        @Comment("FOV 70; each player's FOV slider changes that (FOV 110 needs about")
-        @Comment("200), and the server cannot see it, so players set their own with")
-        @Comment("the button at the bottom right of every screen.")
+        @Comment("How large screens are drawn, in percent, for everyone. 100 fills")
+        @Comment("three quarters of the window; each player's FOV and window are")
+        @Comment("fitted once on their first screen, so it holds at any FOV.")
         @Menu.Label("Screen size") @Menu.Icon("SPYGLASS")
         @Menu.About({"How large screens are drawn,", "in percent, from 50 to 250."})
         int screenSize,

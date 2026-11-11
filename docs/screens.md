@@ -55,13 +55,15 @@ backdrop (`Screen#backdrop`) reaches past it to the edges of the view.
 
 A screen's field of view is left to the player's FOV slider alone (since 1.521.0): FOV Effects, a sprint, a jump and
 speed effects change nothing. At FOV 70 the layout area fills three quarters of a 16:9 window; a wider slider draws it
-smaller (about half at FOV 110). The server cannot see the slider, so each player sets their own size in the settings
-panel, kept with their other preferences (see "Where preferences are kept"). `screen-size` in `screens.yml` (percent, 50 to 250, 100 by default) is the size of those who
-did not choose one. `Screens.size(player)` and `Screens.size(player, percent)` read and set it from Java.
+smaller (about half at FOV 110). The server cannot see the slider, so each player fits their view once (see "Fit to
+your window" below) and every screen is drawn for it. `screen-size` in `screens.yml` (percent, 50 to 250, 100 by
+default) is the size for everyone, read with `Screens.size(player)`. Players chose their own size until 1.587.0; the fit
+made it unneeded, so the choice was removed and what was stored is no longer read (`Screens.size(player, percent)` does
+nothing).
 
 ### Where preferences are kept (1.556.0)
 
-Size, cursor speed, cursor mode, cursor assist, reduced motion and menu style are library settings
+Cursor speed, cursor mode, cursor assist, reduced motion and menu style are library settings
 ([settings](settings.md)): table `exylia_player_settings` in the library's own database, `plugins/ExyliaLib/database.yml`.
 They are network-wide. Point that file of every server at one MySQL, MariaDB or PostgreSQL database and a player's
 choices follow them from server to server; with `redis.enabled` a change reaches the other servers at once. With the
@@ -81,7 +83,7 @@ Every screen draws a small button at its bottom right, in the gutter outside the
 it moves 24 pixels past the layout's sides and 6 past its top and bottom. Under a dialog the button is gone. It opens an
 in-screen panel:
 
-- **Size**, 50% to 250% in steps of 10. Applied at once to everything on screen, the cursor and the backdrop included.
+- **Fit to window**, the FOV the screen is fitted for: a click fits it again (see "Fit to your window").
 - **Cursor speed**, 0.1 to 10 (3 by default), as `Screens.sensitivity`.
 - **Cursor**, how the arrow follows the mouse (1.546.0): Normal, Raw or Prediction. See "The cursor modes".
 - **Cursor assist**, Off or On (1.547.0): makes buttons easier to hit. See "Cursor assist".
@@ -103,9 +105,7 @@ shrinks to fit), and the HUD's corners land on the window's corners. The card sa
 new fit; the settings panel's *Fit to window* row starts it again. A player who chose *Later* is not asked again on
 that server. A HUD asks only at a quiet moment (on the ground, not hurt, not falling, no vehicle, no screen open), with
 a screen of its own. Wheel screens never show it: they keep the player's FOV effects, which would spoil the measure.
-A size chosen for the old FOV is converted when the fit changes it (a size picked to make up for FOV 90 would
-otherwise count twice), and since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fitted window,
-whatever size is chosen. `first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
+Since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fitted window, whatever `screen-size` says. `first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
 
 
 | Node call | Effect |
