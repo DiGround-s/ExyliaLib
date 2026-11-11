@@ -1986,3 +1986,6 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Configuração concluída. {letters}Todas as mudanças já estão aplicadas.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Configuração concluída. {warning}Reinicie o servidor para que todas as mudanças tenham efeito.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Mantidos no próprio arquivo: {letters}{0}'
+'{muted}Unknown': '{muted}Desconhecido'
+'{success}Online': '{success}Online'
+'{error}Offline': '{error}Offline'

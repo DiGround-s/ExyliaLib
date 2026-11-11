@@ -383,7 +383,8 @@ public final class ProxyRuntime {
         setServers(List.of());
     }
 
-    private static void setServers(List<NetworkServer> list) {
+    /** Replaces the cached list; what each refresh does, and how a test stands a network up. */
+    public static void setServers(@NotNull List<NetworkServer> list) {
         Map<String, NetworkServer> byName = new java.util.HashMap<>();
         for (NetworkServer server : list) {
             byName.putIfAbsent(server.name().toLowerCase(java.util.Locale.ROOT), server);

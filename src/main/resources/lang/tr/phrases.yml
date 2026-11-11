@@ -1986,3 +1986,6 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Kurulum tamamlandı. {letters}Tüm değişiklikler zaten uygulandı.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Kurulum tamamlandı. {warning}Tüm değişikliklerin geçerli olması için sunucuyu yeniden başlat.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Kendi dosyasında kalanlar: {letters}{0}'
+'{muted}Unknown': '{muted}Bilinmiyor'
+'{success}Online': '{success}Çevrimiçi'
+'{error}Offline': '{error}Çevrimdışı'

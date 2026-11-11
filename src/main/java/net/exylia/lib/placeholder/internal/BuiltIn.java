@@ -2,11 +2,17 @@ package net.exylia.lib.placeholder.internal;
 
 import com.sun.management.OperatingSystemMXBean;
 import net.exylia.lib.placeholder.Placeholders;
+import net.exylia.lib.placeholder.Request;
+import net.exylia.lib.proxy.NetworkServer;
+import net.exylia.lib.proxy.Proxy;
 import net.exylia.lib.session.Claim;
 import net.exylia.lib.session.Sessions;
+import net.exylia.lib.text.Phrases;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+
+import java.util.Optional;
 
 /**
  * The placeholders every plugin would otherwise write again.
@@ -17,8 +23,10 @@ import org.bukkit.plugin.Plugin;
  * anything about economy, clans or ranks belongs to the plugin that owns that
  * data.
  *
- * <p>None are marked async safe. They read live Bukkit state, and claiming
- * otherwise would invite a plugin to call them off the main thread.
+ * <p>Only the {@code network_*} ones are marked async safe: they read the
+ * proxy's cached server list and nothing else. The rest read live Bukkit
+ * state, and claiming otherwise would invite a plugin to call them off the
+ * main thread.
  */
 public final class BuiltIn {
 
@@ -134,6 +142,56 @@ public final class BuiltIn {
                     return max <= 0 ? 0 : (int) Math.round(100.0 * used() / max);
                 })
                 .register();
+
+        // The proxy's view of the network, as of its last refresh: never a
+        // request, so a hologram or a sidebar reads them every frame for free.
+        Placeholders.group(plugin, "network")
+                .describe("Information about the servers of the network")
+                .async()
+                .add("online", request -> networkOnline())
+                // %network_players% is everybody; %network_players_<server>% one server.
+                .add("players", request -> request.args().isEmpty()
+                        ? networkOnline()
+                        : server(request).map(NetworkServer::players).orElse(0))
+                .add("state", request -> state(server(request)))
+                .register();
+    }
+
+    /**
+     * Everybody on the network.
+     *
+     * <p>The servers' own counts when the proxy has listed them, the names it
+     * knows otherwise, and never fewer than this server holds: off a network
+     * the answer is this server's count rather than zero. The online
+     * collection is Paper's copy-on-write view, safe to size from any thread.
+     */
+    private static int networkOnline() {
+        int sum = Proxy.servers().stream().mapToInt(NetworkServer::players).sum();
+        return Math.max(Math.max(sum, Proxy.players().size()), Bukkit.getOnlinePlayers().size());
+    }
+
+    /**
+     * The server a {@code network_*_<server>} placeholder names.
+     *
+     * <p>A name arrives split on underscores, so it is joined back with them:
+     * {@code %network_players_bed_wars%} asks for {@code bed_wars}.
+     */
+    private static Optional<NetworkServer> server(Request request) {
+        return request.args().isEmpty() ? Optional.empty() : Proxy.server(String.join("_", request.args()));
+    }
+
+    /**
+     * A server's state in the server's language, coloured by what it means.
+     *
+     * <p>Unknown when the proxy did not list it: no bridge, a proxy too old to
+     * list servers, or a name it does not have. Owners restyle these three in
+     * {@code plugins/ExyliaLib/lang/<code>/phrases.yml}.
+     */
+    private static String state(Optional<NetworkServer> server) {
+        if (server.isEmpty()) {
+            return Phrases.tr("{muted}Unknown");
+        }
+        return server.get().online() ? Phrases.tr("{success}Online") : Phrases.tr("{error}Offline");
     }
 
     /**

@@ -1974,3 +1974,6 @@ speaks the language chosen here.: parle la langue choisie ici.
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Configuration terminée. {letters}Tous les changements sont déjà en place.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Configuration terminée. {warning}Redémarrez le serveur pour que tous les changements prennent effet.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Restent sur leur propre fichier : {letters}{0}'
+'{muted}Unknown': '{muted}Inconnu'
+'{success}Online': '{success}En ligne'
+'{error}Offline': '{error}Hors ligne'

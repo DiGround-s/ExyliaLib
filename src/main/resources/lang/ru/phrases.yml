@@ -1974,3 +1974,6 @@ speaks the language chosen here.: говорит на выбранном зде�
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Настройка завершена. {letters}Все изменения уже применены.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Настройка завершена. {warning}Перезапустите сервер, чтобы все изменения вступили в силу.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Остались на своём файле: {letters}{0}'
+'{muted}Unknown': '{muted}Неизвестно'
+'{success}Online': '{success}Онлайн'
+'{error}Offline': '{error}Офлайн'

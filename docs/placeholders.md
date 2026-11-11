@@ -185,6 +185,20 @@ Registered by the library itself:
   samples to compare. The three memory values are the heap — whole megabytes
   in use, whole megabytes the JVM may take, and the first as a percentage of
   the second — not the memory of the machine the server runs on.
+- `network_*` (*since 1.578.0*): the proxy's view of the network, read from
+  the cache `Proxy.servers()` keeps (refreshed every 3 s while anybody is on
+  this server), so they never wait on the proxy and are safe off the main
+  thread. `online` (and bare `players`) is everybody on the network — the
+  servers' counts summed, never fewer than this server holds, so off a
+  network it reads this server's own count. `players_<server>` is one
+  server's count, `0` when the proxy does not list it. `state_<server>` is
+  `{success}Online`, `{error}Offline` or `{muted}Unknown` (no bridge, a proxy
+  older than ExyliaProxyUtils 2.2.0, or a name it does not have), in the
+  server's language through `Phrases`; restyle them in
+  `plugins/ExyliaLib/lang/<code>/phrases.yml`. `<server>` is the proxy's name
+  for it (its `server-id`), ignoring case, `_` included:
+  `%network_players_bed_wars%`, `%network_state_lobby%`. There is no "full":
+  the proxy does not report a server's player limit.
 
 ## Source and tests
 
