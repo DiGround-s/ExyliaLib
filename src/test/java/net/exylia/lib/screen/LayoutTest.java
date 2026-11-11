@@ -84,7 +84,14 @@ class LayoutTest {
     @Test
     void coloursAndTurns() {
         assertEquals(0xFF112233, ScreenMath.argb("#112233", 7));
-        assertEquals(0x80112233, ScreenMath.argb("#80112233", 7));
+        assertEquals(0x80112233, ScreenMath.argb("#11223380", 7));
+        assertEquals(0xFF112233, ScreenMath.argb("#123", 7));
+        assertEquals(0x88112233, ScreenMath.argb("#1238", 7));
+        assertEquals(7, ScreenMath.argb("#12345", 7));
+        // A card's --tone: #ff0000 read as var(--tone)30 is red at 30, as in CSS.
+        assertEquals(0x30ff0000, ScreenMath.argb("#ff000030", 7));
+        assertEquals(0x408a51c4, ScreenMath.argb("var(--primary)40", 7));
+        assertEquals(0xFFa89ab5, ScreenMath.argb("var(--letters-black)", 7));
         assertEquals(7, ScreenMath.argb("nope", 7));
         assertEquals(0, ScreenMath.argb(null, 7));
         assertEquals(-2, ScreenMath.turn(179, -179 - 4), 1e-9);

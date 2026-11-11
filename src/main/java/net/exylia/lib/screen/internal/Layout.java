@@ -26,7 +26,7 @@ public final class Layout {
     /** The depth an overlay's dimmer is drawn at; the overlay sits one deeper. Far above any page. */
     public static final int OVERLAY = 30;
     /** The dimmer behind an overlay: see-through, drawn as it is. */
-    public static final String DIMMER = "#b4050309";
+    public static final String DIMMER = "#050309b4";
 
     private Layout() {
     }

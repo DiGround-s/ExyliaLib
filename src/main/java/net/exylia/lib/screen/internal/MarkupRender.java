@@ -1203,11 +1203,17 @@ public final class MarkupRender {
     static String textOf(String words, Map<String, String> style) {
         StringBuilder out = new StringBuilder();
         String color = style.get("color");
-        if (color != null) out.append(color.startsWith("#") ? "<" + color + ">" : color);
+        if (color != null) out.append(color.startsWith("#") || color.startsWith("var(") ? hexTag(color) : color);
         String weight = style.get("font-weight");
         if (weight != null && (weight.equalsIgnoreCase("bold") || weight.equals("700"))) out.append("&l");
         // A value written for lore breaks its lines with <nl> (or <br>); on a screen that is a new line too.
         return out.append(NEW_LINE.matcher(words).replaceAll("\n")).toString();
+    }
+
+    /** A CSS colour as the text's {@code <#rrggbb>}: text has no alpha, so any is dropped. */
+    private static String hexTag(String colour) {
+        int argb = ScreenMath.argb(colour, 0);
+        return argb == 0 ? "" : String.format("<#%06x>", argb & 0xFFFFFF);
     }
 
     private static final Pattern NEW_LINE = Pattern.compile("<nl>|<br>|<newline>");

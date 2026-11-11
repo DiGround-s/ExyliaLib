@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * {@code :first-child}, {@code :last-child}, {@code :only-child}, {@code :nth-child(odd|even|n)},
  * {@code :not(simple)}, {@code :disabled}/{@code :checked}/{@code :selected} (aliases of the attributes), compounds
  * of those, descendants separated by spaces and children by {@code >}; several selectors per rule separated by
- * commas. Custom properties ({@code --accent: {primary}}) are inherited and read with {@code var(--accent)} or
+ * commas. Custom properties ({@code --accent: #8a51c4}) are inherited and read with {@code var(--accent)} or
  * {@code var(--accent, fallback)}. Comments are {@code /* ... * /}.
  *
  * <p>Internal: free to change without notice.
@@ -401,11 +401,19 @@ public final class Css {
         StringBuilder out = new StringBuilder();
         while (m.find()) {
             String found = vars.get(m.group(1));
+            if (found == null && m.group(2) == null) found = paletteVar(m.group(1));
             String replacement = found != null ? found : m.group(2) != null ? m.group(2).trim() : "";
             m.appendReplacement(out, Matcher.quoteReplacement(fill(replacement, vars, depth + 1)));
         }
         m.appendTail(out);
         return out.toString();
+    }
+
+    /** {@code --primary} (or {@code --letters-black}) as the server palette's {@code #rrggbb}, unless a sheet sets it. */
+    private static String paletteVar(String name) {
+        net.kyori.adventure.text.format.TextColor colour =
+                net.exylia.lib.text.Colors.get(name.substring(2).replace('-', '_'));
+        return colour == null ? null : colour.asHexString();
     }
 
     private Map<String, String> cascade(List<Target> path, int states) {

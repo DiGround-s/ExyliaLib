@@ -14,13 +14,15 @@ public final class ScreenMath {
     }
 
     /**
-     * A colour as ARGB: a palette token ({@code {primary}}), a token with a hex alpha ({@code {primary}40}),
-     * {@code #rrggbb} (opaque) or {@code #aarrggbb}; {@code fallback} for anything else, {@code 0} (nothing) for
-     * {@code null}, blank or {@code none}.
+     * A colour as ARGB, written as in CSS: {@code #rgb}, {@code #rgba}, {@code #rrggbb} or {@code #rrggbbaa} (alpha
+     * last, 1.592.0; it came first before), or a palette colour as {@code var(--primary)}, which may take a hex alpha
+     * after it ({@code var(--primary)40}). Palette tokens ({@code {primary}}, {@code {primary}40}) still read the same.
+     * {@code fallback} for anything else, {@code 0} (nothing) for {@code null}, blank, {@code none} or
+     * {@code transparent}.
      */
     public static int argb(String colour, int fallback) {
         if (colour == null || colour.isBlank()) return 0;
-        String value = colour.trim();
+        String value = palette(colour.trim());
         if (value.equalsIgnoreCase("none") || value.equalsIgnoreCase("transparent")) return 0;
         if (value.startsWith("{")) {
             int end = value.indexOf('}');
@@ -31,14 +33,27 @@ public final class ScreenMath {
             int a = alpha.isEmpty() ? 0xFF : Integer.parseInt(alpha, 16);
             return a << 24 | token.value();
         }
-        if (value.startsWith("#")) value = value.substring(1);
-        try {
-            if (value.length() == 6) return 0xFF000000 | Integer.parseInt(value, 16);
-            if (value.length() == 8) return (int) Long.parseLong(value, 16);
-        } catch (NumberFormatException ignored) {
-            // falls through
+        if (!value.startsWith("#")) return fallback;
+        String hex = value.substring(1);
+        if (!hex.matches("[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8}")) return fallback;
+        if (hex.length() <= 4) hex = hex.replaceAll("(.)", "$1$1");
+        long rgba = Long.parseLong(hex.length() == 6 ? hex + "ff" : hex, 16);
+        return (int) (rgba >>> 8) | (int) (rgba & 0xFF) << 24;
+    }
+
+    private static final java.util.regex.Pattern PALETTE_VAR =
+            java.util.regex.Pattern.compile("var\\(\\s*--([\\w-]+)\\s*\\)");
+
+    /** {@code value} with every {@code var(--<palette colour>)} written as that colour's {@code #rrggbb}. */
+    public static String palette(String value) {
+        if (!value.contains("var(")) return value;
+        java.util.regex.Matcher m = PALETTE_VAR.matcher(value);
+        StringBuilder out = new StringBuilder();
+        while (m.find()) {
+            TextColor token = Colors.get(m.group(1).replace('-', '_'));
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(token != null ? token.asHexString() : m.group()));
         }
-        return fallback;
+        return m.appendTail(out).toString();
     }
 
     /**

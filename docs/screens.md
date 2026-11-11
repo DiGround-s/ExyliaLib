@@ -119,7 +119,7 @@ Since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fit
 | `align(START/CENTER/END/STRETCH)` | children across the main axis; `STRETCH` by default |
 | `justify(START/CENTER/END/SPACE_BETWEEN)` | spare room along the main axis |
 | `scale` | text size: 1 is one font pixel per screen pixel, ten pixels a line |
-| `background`, `hover` | `{token}`, `#rrggbb` or `#aarrggbb`; `hover` also makes the box pointable |
+| `background`, `hover` | `#rrggbb`, `#rrggbbaa` (alpha last, 1.592.0), `var(--primary)` or `{token}`; `hover` also makes the box pointable |
 | `onClick`, `onScroll` | handlers, on the viewer's thread; the screen redraws after them |
 | `item(ItemStack)` (1.488.0) | the item's own model, flat, 16 px by default; a hovered one grows a little |
 | `overlay(true)`, `onDismiss` (1.488.0) | a dialog: left out of the flow, centred over a dimmer; only it takes the pointer, and a click outside it runs `onDismiss` (Shift closes the whole screen) |
@@ -443,7 +443,7 @@ card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
 | `flex-grow` | a share of the room left |
 | `align-items` | `start`, `center`, `end`, `stretch` |
 | `justify-content` | `start`, `center`, `end`, `space-between` |
-| `background` | `{token}`, `{token}40` (hex alpha), `#rrggbb`, `#aarrggbb`, `none`; a see-through colour is mixed over its container's and sent opaque (1.485.2) |
+| `background` | `#rrggbb`, `#rrggbbaa` (alpha last, 1.592.0), `var(--primary)`, `var(--primary)40`, `{token}`, `{token}40`, `none`; a see-through colour is mixed over its container's and sent opaque (1.485.2) |
 | `outline`, `border` | `1px {primary}`: a line outside the box |
 | `color`, `font-size`, `font-weight` | inherited; `font-size: 14px` is 1.4 lines, `font-weight: bold` |
 | `text-align` (1.488.0) | `left`, `center`, `right`; inherited |

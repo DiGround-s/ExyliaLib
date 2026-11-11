@@ -1,51 +1,51 @@
 /* ExyliaLib base theme for screens. Read before every plugin sheet, so any rule here can be overridden. */
-screen { flex-direction: column; align-items: center; justify-content: center; color: {letters}; }
-panel { background: {primary}18; outline: 1px {primary}40; padding: 10px; gap: 8px; }
+screen { flex-direction: column; align-items: center; justify-content: center; color: var(--letters); }
+panel { background: var(--primary)18; outline: 1px var(--primary)40; padding: 10px; gap: 8px; }
 row { flex-direction: row; gap: 6px; }
 column { gap: 6px; }
 
 h1 { font-size: 14px; font-weight: bold; }
 h2 { font-size: 12px; }
 b { font-weight: bold; }
-small { font-size: 8px; color: {letters_black}; }
-label { color: {letters_black}; }
+small { font-size: 8px; color: var(--letters-black); }
+label { color: var(--letters-black); }
 
-button { background: {primary}30; padding: 5px 10px; }
-button:hover { background: {primary}; }
-button[disabled] { background: {neutral}30; color: {muted}; }
+button { background: var(--primary)30; padding: 5px 10px; }
+button:hover { background: var(--primary); }
+button[disabled] { background: var(--neutral)30; color: var(--muted); }
 
 tabs, chips { flex-direction: row; gap: 4px; }
-tab { padding: 5px 12px; color: {letters_black}; background: {letters_black}14; }
-tab:hover { background: {primary}40; }
-tab[selected] { color: {letters}; background: {primary}; }
-chip { padding: 3px 8px; color: {letters_black}; background: {letters_black}14; }
-chip:hover { outline: 1px {primary}; }
-chip[selected] { color: {letters}; background: {primary}60; }
+tab { padding: 5px 12px; color: var(--letters-black); background: var(--letters-black)14; }
+tab:hover { background: var(--primary)40; }
+tab[selected] { color: var(--letters); background: var(--primary); }
+chip { padding: 3px 8px; color: var(--letters-black); background: var(--letters-black)14; }
+chip:hover { outline: 1px var(--primary); }
+chip[selected] { color: var(--letters); background: var(--primary)60; }
 
 grid, list { gap: 6px; }
-card { background: {letters_black}14; padding: 6px; gap: 3px; align-items: center; }
-card:hover { outline: 1px {primary}; background: {primary}30; }
-card[selected] { outline: 1px {success}; background: {success}18; }
-card[disabled] { background: {neutral}14; color: {muted}; }
-empty { color: {muted}; padding: 8px; align-items: center; justify-content: center; text-align: center; gap: 3px; }
+card { background: var(--letters-black)14; padding: 6px; gap: 3px; align-items: center; }
+card:hover { outline: 1px var(--primary); background: var(--primary)30; }
+card[selected] { outline: 1px var(--success); background: var(--success)18; }
+card[disabled] { background: var(--neutral)14; color: var(--muted); }
+empty { color: var(--muted); padding: 8px; align-items: center; justify-content: center; text-align: center; gap: 3px; }
 
-toggle { padding: 3px 8px; background: {neutral}40; color: {letters_black}; }
-toggle[checked] { background: {success}60; color: {letters}; }
-toggle:hover { outline: 1px {primary}; }
-checkbox { padding: 1px 3px; background: {letters_black}20; color: {success}; }
-checkbox:hover { outline: 1px {primary}; }
+toggle { padding: 3px 8px; background: var(--neutral)40; color: var(--letters-black); }
+toggle[checked] { background: var(--success)60; color: var(--letters); }
+toggle:hover { outline: 1px var(--primary); }
+checkbox { padding: 1px 3px; background: var(--letters-black)20; color: var(--success); }
+checkbox:hover { outline: 1px var(--primary); }
 
-pager { flex-direction: row; gap: 8px; color: {letters_black}; }
+pager { flex-direction: row; gap: 8px; color: var(--letters-black); }
 
 item { width: 16px; height: 16px; }
-progress { background: {letters_black}20; color: {primary}; height: 4px; }
+progress { background: var(--letters-black)20; color: var(--primary); height: 4px; }
 .spacer { flex-grow: 1; }
 
-modal { background: {primary}20; outline: 1px {primary}60; padding: 14px 18px; gap: 8px; align-items: center; }
+modal { background: var(--primary)20; outline: 1px var(--primary)60; padding: 14px 18px; gap: 8px; align-items: center; }
 modal h1 { font-size: 12px; }
 modal .actions { flex-direction: row; gap: 6px; }
-.danger { background: {error}50; }
-.danger:hover { background: {error}; }
+.danger { background: var(--error)50; }
+.danger:hover { background: var(--error); }
 
 /* Motion (1.496.0): short and quiet. A sheet turns any of it off with `none`; reduced motion skips it all. */
 screen { enter: scale(0.96) 5t ease-out; }
@@ -55,48 +55,48 @@ card:hover { transform: translateY(-2px); }
 button:active, card:active, chip:active, tab:active, toggle:active { transform: scale(0.96); }
 p { white-space: normal; max-width: 220px; }
 
-search { flex-direction: row; gap: 4px; padding: 4px 8px; background: {letters_black}14; color: {letters_black}; }
-search:hover { outline: 1px {primary}; }
+search { flex-direction: row; gap: 4px; padding: 4px 8px; background: var(--letters-black)14; color: var(--letters-black); }
+search:hover { outline: 1px var(--primary); }
 
 /* Component library (components/library.html). */
 .lib-page-head { align-items: center; gap: 2px; }
 .lib-stat { gap: 6px; }
-.lib-badge { padding: 1px 4px; background: {primary}40; }
-.lib-badge-success { background: {success}40; }
-.lib-badge-error { background: {error}50; }
-.lib-badge-warning { background: {warning}40; }
-.lib-badge-info { background: {info}40; }
+.lib-badge { padding: 1px 4px; background: var(--primary)40; }
+.lib-badge-success { background: var(--success)40; }
+.lib-badge-error { background: var(--error)50; }
+.lib-badge-warning { background: var(--warning)40; }
+.lib-badge-info { background: var(--info)40; }
 .lib-key-hint { gap: 4px; align-items: center; }
-.lib-key { padding: 1px 3px; background: {letters_black}30; outline: 1px {letters_black}60; }
+.lib-key { padding: 1px 3px; background: var(--letters-black)30; outline: 1px var(--letters-black)60; }
 
 /* Game frame (components/library.html): the 400 by 225 frame of every game drawn on a screen. */
 .game-frame { width: 400px; height: 225px; padding: 4px 6px 6px 6px; gap: 4px; }
 .game-head { align-items: center; height: 19px; }
 .game-title { font-size: 11px; }
-.game-idle { font-size: 8px; color: {warning}; animation: game-idle-beat 20t infinite; }
+.game-idle { font-size: 8px; color: var(--warning); animation: game-idle-beat 20t infinite; }
 @keyframes game-idle-beat { 0% { transform: scale(1); } 50% { transform: scale(1.04); } 100% { transform: scale(1); } }
 .game-tabs tab { padding: 4px 10px; font-size: 9px; }
 .game-play { flex-grow: 1; gap: 6px; }
-.game-board { background: {primary}0a; outline: 1px {primary}20; align-items: center; justify-content: center; }
-.game-side { flex-grow: 1; padding: 7px; gap: 4px; background: {primary}12; outline: 1px {primary}28; }
+.game-board { background: var(--primary)0a; outline: 1px var(--primary)20; align-items: center; justify-content: center; }
+.game-side { flex-grow: 1; padding: 7px; gap: 4px; background: var(--primary)12; outline: 1px var(--primary)28; }
 .game-figure { align-items: center; gap: 4px; }
 .game-figure small { font-size: 8px; }
-.game-action { flex-direction: column; height: 64px; align-items: center; justify-content: center; gap: 2px; padding: 7px 4px; background: {success}48; outline: 1px {success}70;
+.game-action { flex-direction: column; height: 64px; align-items: center; justify-content: center; gap: 2px; padding: 7px 4px; background: var(--success)48; outline: 1px var(--success)70;
   transition: transform 3t ease-out; }
-.game-action:hover { background: {success}80; transform: scale(1.02); }
-.game-action[disabled] { background: {neutral}24; outline: 1px {neutral}40; color: {muted}; }
+.game-action:hover { background: var(--success)80; transform: scale(1.02); }
+.game-action[disabled] { background: var(--neutral)24; outline: 1px var(--neutral)40; color: var(--muted); }
 .game-result { gap: 3px; align-items: stretch; enter: translateY(4px) 4t ease-out; }
 .game-result-title { font-size: 11px; text-align: center; }
 .game-result-detail { text-align: center; }
 .game-offer { gap: 3px; margin: 3px 0 0 0; enter: translateY(3px) 3t ease-out; }
-.game-again { align-items: center; text-align: center; padding: 7px 4px; background: {primary}70; outline: 1px {primary}; }
-.game-again:hover { background: {primary}; }
-.game-again[disabled] { background: {neutral}24; outline: 1px {neutral}40; color: {muted}; }
-.game-refused { text-align: center; color: {warning}; }
+.game-again { align-items: center; text-align: center; padding: 7px 4px; background: var(--primary)70; outline: 1px var(--primary); }
+.game-again:hover { background: var(--primary); }
+.game-again[disabled] { background: var(--neutral)24; outline: 1px var(--neutral)40; color: var(--muted); }
+.game-refused { text-align: center; color: var(--warning); }
 .game-choices { gap: 3px; }
-.game-choice { flex-grow: 1; align-items: center; text-align: center; padding: 4px 2px; font-size: 8px; background: {letters_black}18; }
-.game-choice:hover { background: {primary}50; }
-.game-page { flex-grow: 1; padding: 8px 10px; gap: 5px; background: {primary}0c; outline: 1px {primary}20; enter: translateY(3px) 3t ease-out; }
+.game-choice { flex-grow: 1; align-items: center; text-align: center; padding: 4px 2px; font-size: 8px; background: var(--letters-black)18; }
+.game-choice:hover { background: var(--primary)50; }
+.game-page { flex-grow: 1; padding: 8px 10px; gap: 5px; background: var(--primary)0c; outline: 1px var(--primary)20; enter: translateY(3px) 3t ease-out; }
 
 /* Motion kit (1.565.0): keyframes any screen may name in `animation` or the `animate` action. */
 @keyframes shake { 0% { transform: translateX(0); } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } 100% { transform: translateX(0); } }
@@ -112,23 +112,23 @@ search:hover { outline: 1px {primary}; }
 .anim-nudge { animation: nudge 30t ease-in-out infinite; }
 
 /* HUD widgets (1.582.0): a dark see-through card that reads over any sky or wall. */
-.hud-card { background: #c0120e1a; outline: 1px {primary}50; padding: 6px 8px; gap: 3px; border-radius: 2px; }
-.hud-card progress { height: 3px; background: {letters_black}30; }
+.hud-card { background: #120e1ac0; outline: 1px var(--primary)50; padding: 6px 8px; gap: 3px; border-radius: 2px; }
+.hud-card progress { height: 3px; background: var(--letters-black)30; }
 
 /* HUD kit (1.585.0): pills, a banner, a level bar, a profile and a side panel. Corners round only on a HUD. */
 .hud-row { flex-direction: row; gap: 4px; justify-content: center; align-items: center; }
 .hud-stack { gap: 3px; align-items: center; }
 .hud-start { align-items: start; }
-.hud-chip { flex-direction: row; gap: 3px; align-items: center; padding: 3px 6px; background: #b0120e1a; border-radius: 2px; }
-.hud-banner { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #b0120e1a; outline: 1px {primary}50; border-radius: 2px; }
-.hud-objective { padding: 3px 8px; background: #b0120e1a; outline: 1px {highlight}50; color: {highlight}; border-radius: 2px; }
-.hud-alert { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #b0120e1a; outline: 1px {error}60; border-radius: 2px; }
+.hud-chip { flex-direction: row; gap: 3px; align-items: center; padding: 3px 6px; background: #120e1ab0; border-radius: 2px; }
+.hud-banner { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #120e1ab0; outline: 1px var(--primary)50; border-radius: 2px; }
+.hud-objective { padding: 3px 8px; background: #120e1ab0; outline: 1px var(--highlight)50; color: var(--highlight); border-radius: 2px; }
+.hud-alert { flex-direction: row; gap: 4px; align-items: center; padding: 3px 8px; background: #120e1ab0; outline: 1px var(--error)60; border-radius: 2px; }
 .hud-level { gap: 2px; align-items: center; }
-.hud-bar { width: 160px; height: 6px; background: #b0120e1a; color: linear-gradient(to right, {info}, {info_light}); }
-.hud-profile { flex-direction: row; gap: 5px; align-items: center; padding: 4px 6px; background: #b0120e1a; border-radius: 2px; }
+.hud-bar { width: 160px; height: 6px; background: #120e1ab0; color: linear-gradient(to right, var(--info), var(--info-light)); }
+.hud-profile { flex-direction: row; gap: 5px; align-items: center; padding: 4px 6px; background: #120e1ab0; border-radius: 2px; }
 .hud-profile img { width: 16px; height: 16px; }
 .hud-profile column { gap: 1px; }
-.hud-panel { gap: 3px; padding: 6px 8px; background: #c0120e1a; outline: 1px {primary}50; border-radius: 2px; }
+.hud-panel { gap: 3px; padding: 6px 8px; background: #120e1ac0; outline: 1px var(--primary)50; border-radius: 2px; }
 .hud-panel-title { padding: 1px 0 3px 0; }
 .hud-line { flex-direction: row; gap: 3px; }
 .hud-map { padding: 2px; }

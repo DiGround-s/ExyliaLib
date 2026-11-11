@@ -86,13 +86,13 @@ class ScreenMarkupTest {
                 </screen>""");
         Fake session = new Fake(markup.screen());
         Node root = session.render();
-        assertEquals("{primary}", find(root, "t1").background());
+        assertEquals("#8a51c4", find(root, "t1").background());
         assertNotNull(find(root, "q"));
         assertEquals(null, find(root, "d"));
         session.click("t2");
         assertEquals("duels", session.state.get("tab"));
         root = session.render();
-        assertEquals("{primary}", find(root, "t2").background());
+        assertEquals("#8a51c4", find(root, "t2").background());
         assertNotNull(find(root, "d"));
         assertTrue(markup.problems().isEmpty(), markup.problems().toString());
     }

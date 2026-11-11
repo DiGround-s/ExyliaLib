@@ -16,8 +16,8 @@ class HudLayersTest {
     void panelsComeBeforeWhatStandsOnThem() {
         Node card = Node.column(
                 Node.text(Component.text("Health")),
-                Node.row(Node.box().grow(1).background("#ff00ff00")).height(3).background("#40ffffff"))
-                .padding(6).background("#c0101010").outline("#ff8a51c4", 1);
+                Node.row(Node.box().grow(1).background("#00ff00ff")).height(3).background("#ffffff40"))
+                .padding(6).background("#101010c0").outline("#8a51c4ff", 1);
         HudLayers.Drawn drawn = HudLayers.of(card);
         List<HudLayers.Layer> layers = drawn.layers();
         // Four outline edges, the card, the words, the bar's track and its fill.
@@ -33,7 +33,7 @@ class HudLayersTest {
     /** See-through bands must meet edge to edge: an overlap draws a darker seam. */
     @Test
     void gradientBandsDoNotOverlap() {
-        Node box = Node.box().width(50).height(10).background("linear-gradient(to right, #80000000, #80ffffff)");
+        Node box = Node.box().width(50).height(10).background("linear-gradient(to right, #00000080, #ffffff80)");
         List<HudLayers.Layer> bands = HudLayers.of(box).layers();
         assertTrue(bands.size() > 1);
         double right = 0;
@@ -49,8 +49,8 @@ class HudLayersTest {
     void roundedCornersCoverTheShapeOnce() {
         for (int radius = 1; radius <= 4; radius++) {
             for (boolean outlined : new boolean[]{false, true}) {
-                Node box = Node.box().width(20).height(12).background("#80112233").radius(radius);
-                if (outlined) box.outline("#ff8a51c4", 1);
+                Node box = Node.box().width(20).height(12).background("#11223380").radius(radius);
+                if (outlined) box.outline("#8a51c4ff", 1);
                 List<HudLayers.Layer> rects = HudLayers.of(box).layers();
                 int t = outlined ? 1 : 0, w = 20 + 2 * t, h = 12 + 2 * t;
                 int[] hits = new int[w * h];
@@ -88,7 +88,7 @@ class HudLayersTest {
     @Test
     void roundedGradientKeepsItsColours() {
         Node box = Node.box().width(40).height(8).radius(2)
-                .background("linear-gradient(to right, #ff000000, #ffffffff)");
+                .background("linear-gradient(to right, #000000ff, #ffffffff)");
         List<HudLayers.Layer> rects = HudLayers.of(box).layers();
         double area = 0;
         for (HudLayers.Layer r : rects) area += r.w() * r.h();

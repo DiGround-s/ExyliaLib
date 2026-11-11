@@ -48,7 +48,7 @@ public final class DialogueRuntime implements Listener {
     /** A swing at a block this close is mining, not a press. */
     private static final int REACH = 5;
     private static final String WIDGET = "dialogue";
-    private static final String BOX = "#c0120e1a";
+    private static final String BOX = "#120e1ac0";
     private static final String EDGE = "{primary}50";
 
     private static final Map<UUID, Talk> TALKS = new ConcurrentHashMap<>();

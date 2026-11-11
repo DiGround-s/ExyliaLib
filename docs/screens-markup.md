@@ -105,6 +105,13 @@ Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover`
 first, then each sheet. `var(--x, fallback)` and `--x: value` inherit. `@keyframes name { 0% {...} to {...} }`
 for `animation`.
 
+**Colours are written as in CSS** (1.592.0): `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`, with the alpha last
+(`#8a51c440` is the primary at a quarter). The server palette is there as variables, `var(--primary)`,
+`var(--letters-black)`, `var(--error-light)` and so on, so a palette change restyles every screen; a hex alpha may
+follow one (`var(--primary)40`, `var(--tone)30` when `--tone: #ff0000`). A sheet that sets `--primary` itself
+overrides the palette for its elements. The older `{primary}` and `{primary}40` still read the same, but new
+screens use the CSS spellings. Before 1.592.0 an eight-digit hex was `#aarrggbb`.
+
 | Property | What it does | Example | Since | Cost |
 | --- | --- | --- | --- | --- |
 | `flex-direction` | `row`, `column` (default) | `flex-direction: row;` | 1.485.0 | free |
@@ -114,7 +121,7 @@ for `animation`.
 | `flex-grow` | Share of the room left | `flex-grow: 1;` | 1.485.0 | free |
 | `align-items` | `start`, `center`, `end`, `stretch` | `align-items: center;` | 1.485.0 | free |
 | `justify-content` | `start`, `center`, `end`, `space-between` | `justify-content: space-between;` | 1.485.0 | free |
-| `background` | `{token}`, `{token}40`, `#rrggbb`, `#aarrggbb`, `none`, `linear-gradient(...)` | `background: {primary}20;` | 1.485.0 (gradient 1.497.0) | 1 display; gradient: 1 per 5 px band (2 to 12) |
+| `background` | `#rrggbb`, `#rrggbbaa`, `var(--primary)`, `var(--primary)20`, `none`, `linear-gradient(...)` | `background: var(--primary)20;` | 1.485.0 (gradient 1.497.0) | 1 display; gradient: 1 per 5 px band (2 to 12) |
 | `background-image` | `url(img/x.png)`: cover-fit picture over the background colour | `background-image: url(img/banner.png);` | 1.497.0 | 4 displays |
 | `outline`, `border` | `1px {primary}`: a line outside the box | `outline: 1px {success};` | 1.485.0 | ~1 display; a hover outline adds it only while hovered |
 | `border-radius` | Corners cut as pixel steps (1 cuts the corner pixel; 2 to 4 round it). **HUD only**: a screen keeps square corners | `border-radius: 2px;` | 1.585.0 | on a HUD, about 5 rects a filled box, about 11 with an outline |
