@@ -42,7 +42,9 @@ A theme changes the five identity colours only; `error`, `success`, `warning`,
 
 1. engine (MySQL, MariaDB, PostgreSQL, MongoDB), host, port (empty for the
    engine's default), database name, user, this server's name on the proxy,
-   and how messages travel between servers (through the database, or Redis);
+   its [network group](network.md#groups-which-servers-share-what-since-1576)
+   (optional, written to `config.yml` `network-group`), and how messages travel
+   between servers (through the database, or Redis);
 2. the password, as a `sensitive()` text input: never in chat, logs or a
    Discord bridge; `-` for none;
 3. with Redis, its host and port, then its password the same way.
@@ -50,31 +52,47 @@ A theme changes the five identity colours only; `error`, `success`, `warning`,
 The values are then **tested off the main thread**: a SQL pool is opened and
 closed (Hikari connects eagerly), MongoDB is pinged, Redis is pinged. A failure
 names the cause (passwords masked) and saves nothing; the form opens again with
-what was typed.
+what was typed. The test (1.581.0+) also refuses a server name that a running
+server of that database already uses (its row in `exylia_servers` written in
+the last 150 seconds): two servers under one name both own the same balances
+and places.
 
-On success the admin confirms *Move N plugins to MySQL?* and the setup:
+The same test looks at the shared database for each moving plugin's tables:
 
-- exports the rows of every Exylia plugin still on its own H2 file
-  (`plugins/<Plugin>/dumps/`, through the [transfer module](transfer.md)),
-  ExyliaLib's own included;
+- **Nothing there yet** (the first server): the admin confirms *Move N plugins
+  to MySQL?*.
+- **Some plugins already have rows** (a second server joining): one form asks,
+  per plugin, *Add mine, the network's wins on a clash* (the default), *Use the
+  network's, keep mine in my file*, or *Do not move this plugin*.
+
+Two moving plugins that both use one table name are named in a warning: their
+rows would mix in one table.
+
+Then the setup:
+
+- writes each moved plugin down in `plugins/ExyliaLib/moves.yml` with its old
+  H2 file and the choice (ExyliaLib's own rows always add);
 - points ExyliaLib's `database.yml` and each of those plugins' at the shared
   database (`type`, the engine block, `cross-server`, `redis.enabled`,
-  `redis.server-id`; comments and every other key kept);
+  `redis.server-id`, the old name added to `redis.previous-ids` when it
+  changed; comments and every other key kept);
 - turns `share-database` on, so a plugin installed later starts there too;
-- records the moved plugins and the dumps in `setup.yml`.
+- records the moved plugins in `setup.yml`.
 
 A plugin already on a database server is the owner's choice and is left alone.
-A plugin whose export fails stays on its own file, and the admin is told.
 
-After the restart, a tick after every plugin has enabled, each dump is imported
-into its plugin's tables there. An import refuses a table that already holds
-rows, so a network's second server, or a plugin that was already there, never
-doubles anything: the refusal is logged and the dump stays on disk for
-`/exylialib import`.
+### How the rows follow (since 1.581.0)
+
+After the restart nothing is imported in bulk. Each table is copied from the
+plugin's old H2 file **the moment the plugin first opens it**, before its first
+read ([database.md](database.md#a-plugin-that-moved-to-a-shared-database-since-1581)).
+So a plugin never sees an empty table and seeds defaults into it, no cache
+holds an empty state, and a table of a module turned on a week later still
+arrives. The old file is only read; it stays as the copy of what the server had.
 
 **This server only**, while on a network, puts ExyliaLib and the plugins the
-setup moved back on `type: h2` after a restart and turns `share-database` off.
-What they saved in the shared database stays there.
+setup moved back on `type: h2` after a restart, forgets their pending moves and
+turns `share-database` off. What they saved in the shared database stays there.
 
 ## `share-database`
 
@@ -85,9 +103,10 @@ it on for a network. See [database.md](database.md#configuration).
 
 ## Where the code is
 
-`net.exylia.lib.internal`: `SetupWizard` (state, invitation, imports after the
-restart), `SetupMenu` (the screens, built in code with `Phrases`, like the
+`net.exylia.lib.internal`: `SetupWizard` (state, invitation, dumps a setup older
+than 1.581.0 left to import), `SetupMenu` (the screens, built in code with `Phrases`, like the
 updates screens), `SetupNetwork` (forms, probe, the `database.yml` writes),
-`SetupCommand`. The copy for a new plugin is
+`SetupCommand`. The copies are `database.internal.Carry` and `Moves`; the
+server names `network.internal.ServerPresence`. The copy for a new plugin is
 `DatabaseRuntime.seedFromLibrary`. The probes are `MongoBackend.ping()` and
 `RedisRuntime.probe(RedisSettings)`.

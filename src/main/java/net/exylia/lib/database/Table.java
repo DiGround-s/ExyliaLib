@@ -57,4 +57,18 @@ public @interface Table {
      * @since 1.439.0
      */
     DataKind data() default DataKind.UNSPECIFIED;
+
+    /**
+     * Names the table had before, newest first.
+     *
+     * <p>When the table is created and one of these exists with every column
+     * the record declares, its rows are copied in, so a rename (to stop two
+     * plugins sharing {@code player_stats} on one database, say) keeps every
+     * row. The old table is left as it was. A table of another plugin under
+     * the old name lacks this record's columns and is never read. A scoped
+     * repository looks for each name under its scope.
+     *
+     * @since 1.581.0
+     */
+    String[] previous() default {};
 }

@@ -190,6 +190,14 @@ of its own for the server: it reads this one, so one line in one file moves a
 server between groups for every plugin. Data written under one group stays
 there when a server changes group.
 
+## Server names are unique (since 1.581.0)
+
+Ownership on a network is by `server-id`. Off H2, every server writes its row
+to `exylia_servers` (id, process, group, last seen) once a minute. A server
+that finds another live process under its own name logs a severe error, and
+the setup refuses a name a running server uses. When a server is renamed, the
+setup keeps the old name in `redis.previous-ids`.
+
 ## What a network needs configured
 
 - `database.redis.enabled: true` in the consumer's `database.yml`, the same

@@ -402,6 +402,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         LibCommands.register(this);
         net.exylia.lib.internal.UpdatesMenu.init(this);
         net.exylia.lib.internal.SetupWizard.init(this);
+        net.exylia.lib.network.internal.ServerPresence.start(this);
         // A tick after startup every plugin has enabled and read its files, so
         // pending defaults are announced once rather than file by file.
         Tasks.of(this).runLater(1L, () -> {

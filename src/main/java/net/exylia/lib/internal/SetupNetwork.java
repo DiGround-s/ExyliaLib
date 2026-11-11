@@ -7,7 +7,13 @@ import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.internal.MongoBackend;
 import net.exylia.lib.database.internal.SqlBackend;
 import net.exylia.lib.database.internal.SqlSettings;
-import net.exylia.lib.database.transfer.Transfers;
+import net.exylia.lib.database.internal.EntityModel;
+import net.exylia.lib.database.internal.MongoStorage;
+import net.exylia.lib.database.internal.Moves;
+import net.exylia.lib.database.internal.SqlStorage;
+import net.exylia.lib.database.internal.Storage;
+import net.exylia.lib.network.NetworkGroups;
+import net.exylia.lib.network.internal.ServerPresence;
 import net.exylia.lib.input.FormField;
 import net.exylia.lib.input.FormKey;
 import net.exylia.lib.input.FormValues;
@@ -41,8 +47,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Exylia plugin still on its own H2 file at it.
  *
  * <p>Nothing changes on the running server: each plugin's {@code database.yml} is rewritten and read on the
- * next start. The rows a plugin already has are exported first and imported there after that restart
- * ({@link SetupWizard#afterStartup()}), so a plugin installed with the server loses nothing by moving.
+ * next start. Each moved plugin is written down in {@link Moves}, and after that restart every one of its
+ * tables is copied from its old H2 file the first time it is opened, before the plugin can read it, so a
+ * plugin installed with the server loses nothing by moving. When the shared database already holds a
+ * plugin's rows (a second server joining), the admin chooses per plugin: keep the network's, add this
+ * server's, or leave the plugin on its own file.
  * {@code share-database} is turned on, so a plugin installed later starts on the same database.
  */
 final class SetupNetwork {
@@ -59,6 +68,7 @@ final class SetupNetwork {
     private static final FormKey<String> DATABASE = FormKey.text("database");
     private static final FormKey<String> USER = FormKey.text("user");
     private static final FormKey<String> SERVER = FormKey.text("server");
+    private static final FormKey<String> GROUP = FormKey.text("group");
     private static final FormKey<String> MESSAGES = FormKey.text("messages");
     private static final FormKey<String> REDIS_HOST = FormKey.text("redis_host");
     private static final FormKey<Long> REDIS_PORT = FormKey.integer("redis_port");
@@ -71,19 +81,30 @@ final class SetupNetwork {
      * @param port      {@code 0} for the engine's default
      * @param redis     whether messages between servers go through Redis rather than the database
      * @param serverId  this server's name on the network
+     * @param group     the network group it shares data with, empty for none
      */
     record Target(String engine, String host, int port, String database, String user, String password,
-                  String serverId, boolean redis, String redisHost, int redisPort, String redisPassword) {
+                  String serverId, boolean redis, String redisHost, int redisPort, String redisPassword,
+                  String group) {
 
         Target withPassword(String value) {
             return new Target(engine, host, port, database, user, value, serverId, redis, redisHost, redisPort,
-                    redisPassword);
+                    redisPassword, group);
         }
 
         Target withRedis(String host, int port, String password) {
             return new Target(engine, this.host, this.port, database, user, this.password, serverId, redis, host,
-                    port, password);
+                    port, password, group);
         }
+    }
+
+    /**
+     * What the shared database said about this move.
+     *
+     * @param occupied   moving plugins whose tables already hold rows there
+     * @param collisions table names two moving plugins both use
+     */
+    record Survey(List<String> occupied, List<String> collisions) {
     }
 
     private SetupNetwork() {
@@ -109,7 +130,7 @@ final class SetupNetwork {
                 !"database".equals(normal(yaml.getString("database.cross-server", "redis")))
                         && yaml.getBoolean("database.redis.enabled"),
                 yaml.getString("database.redis.host", "localhost"), yaml.getInt("database.redis.port", 6379),
-                yaml.getString("database.redis.password", ""));
+                yaml.getString("database.redis.password", ""), NetworkGroups.current());
     }
 
     static String engineName(String engine) {
@@ -137,7 +158,7 @@ final class SetupNetwork {
         player.closeInventory();
         Target start = DRAFTS.getOrDefault(player.getUniqueId(), java.util.Objects.requireNonNullElseGet(current(),
                 () -> new Target("mysql", "localhost", 0, "minecraft", "root", "", "server-1", false,
-                        "localhost", 6379, "")));
+                        "localhost", 6379, "", NetworkGroups.current())));
         PluginInputs inputs = Inputs.of(library);
         inputs.answered(player, inputs.form(player, Phrases.tr("{primary}Shared database"))
                         .field(ENGINE, FormField.choice(ENGINE, Phrases.tr("Engine"), List.of(
@@ -156,6 +177,11 @@ final class SetupNetwork {
                                 .hint(Phrases.tr("Its name on the proxy, such as lobby-1"))
                                 .validate(name -> name.matches("[A-Za-z0-9_.-]{1,48}"),
                                         Phrases.tr("Letters, numbers, dots, dashes and underscores")))
+                        .field(GROUP, FormField.text(GROUP, Phrases.tr("Network group")).optional()
+                                .defaultValue(start.group())
+                                .hint(Phrases.tr("Servers in one group share balances and markets, such as survival"))
+                                .validate(name -> name.isBlank() || name.trim().matches("[A-Za-z0-9_-]{1,32}"),
+                                        Phrases.tr("Letters, numbers, dashes and underscores")))
                         .field(MESSAGES, FormField.choice(MESSAGES, Phrases.tr("Messages between servers"), List.of(
                                 new FormField.Option("database", Phrases.tr("Through the database")),
                                 new FormField.Option("redis", "Redis"))).defaultValue(start.redis() ? "redis" : "database"))
@@ -169,7 +195,7 @@ final class SetupNetwork {
         return new Target(values.get(ENGINE), values.get(HOST).trim(), values.getOr(PORT, 0L).intValue(),
                 values.get(DATABASE).trim(), values.getOr(USER, "").trim(), start.password(),
                 values.get(SERVER).trim(), "redis".equals(values.get(MESSAGES)), start.redisHost(),
-                start.redisPort(), start.redisPassword());
+                start.redisPort(), start.redisPassword(), values.getOr(GROUP, "").trim());
     }
 
     private static void askPassword(Player player, Target target) {
@@ -217,18 +243,103 @@ final class SetupNetwork {
                 Text.escape(target.host()))).send(player);
         Tasks.of(library).runAsync(() -> {
             String problem = probe(library, target);
+            List<Plugin> moving = onTheirOwn();
+            Survey survey = null;
+            boolean taken = false;
+            if (problem == null) {
+                try {
+                    taken = taken(library, target);
+                    if (!taken) survey = survey(library, target, moving);
+                } catch (RuntimeException | LinkageError failure) {
+                    problem = reason(failure, target);
+                }
+            }
+            String failed = problem;
+            boolean refused = taken;
+            Survey found = survey;
             Tasks.of(library).runAtEntity(player, () -> {
-                if (problem == null) {
-                    confirmMove(player, target);
+                if (failed == null && !refused) {
+                    confirmMove(player, target, moving, found);
                     return;
                 }
-                Text.of("[sound:ENTITY_VILLAGER_NO|0.7|1.0]" + SetupWizard.prefix()
-                        + Phrases.tr("{error}Could not connect: {letters}{0}", Text.escape(problem))).send(player);
+                Text.of("[sound:ENTITY_VILLAGER_NO|0.7|1.0]" + SetupWizard.prefix() + (refused
+                        ? Phrases.tr("{error}A running server already uses the name {highlight}{0}{error}. {letters}Each server needs its own.",
+                                Text.escape(target.serverId()))
+                        : Phrases.tr("{error}Could not connect: {letters}{0}", Text.escape(failed)))).send(player);
                 Text.of(SetupWizard.prefix() + Phrases.tr("{letters}Nothing was saved. Click {highlight}Network {letters}to try again with the same values."))
                         .send(player);
                 SetupMenu.open(player, SetupMenu.NETWORK);
             });
         });
+    }
+
+    /** Opens the shared database for a moment as a storage the library's own code can read. */
+    private static <R> R withStorage(ExyliaLib library, Target target, java.util.function.Function<Storage, R> work) {
+        DatabaseSettings settings = settings(target);
+        SqlSettings sql = settings.toSql(library.getDataFolder().toPath());
+        if (settings.mongo()) {
+            try (MongoBackend backend = MongoBackend.open(sql, "setup")) {
+                return work.apply(new MongoStorage(backend, Runnable::run, warning -> { }));
+            }
+        }
+        try (SqlBackend backend = SqlBackend.open(sql, "setup")) {
+            return work.apply(new SqlStorage(backend, Runnable::run, warning -> { }));
+        }
+    }
+
+    /** Whether a server running right now on that database already goes by the name typed. */
+    private static boolean taken(ExyliaLib library, Target target) {
+        // This server's own row, when it is already on that database, is not another server.
+        return withStorage(library, target, storage -> ServerPresence.takenBy(storage, target.serverId()).isPresent());
+    }
+
+    /**
+     * Which moving plugins already have rows on the shared database, and which
+     * table names two of them both use. Only the tables each plugin opened on
+     * this start are known; one it opens later is copied all the same, merged.
+     */
+    static Survey survey(ExyliaLib library, Target target, List<Plugin> moving) {
+        Map<String, String> owners = new java.util.HashMap<>();
+        Set<String> collisions = new java.util.TreeSet<>();
+        Map<String, List<EntityModel<?>>> models = new java.util.LinkedHashMap<>();
+        for (Plugin plugin : moving) {
+            var database = Databases.find(plugin.getName());
+            if (database == null) continue;
+            List<EntityModel<?>> own = new ArrayList<>();
+            for (var repository : database.tables().values()) {
+                EntityModel<?> model = repository.model();
+                // The library's own tables (rewards, locks, logs) hold every plugin's rows by design.
+                if (model.type().getName().startsWith("net.exylia.lib.")) continue;
+                own.add(model);
+                String other = owners.putIfAbsent(model.table().toLowerCase(Locale.ROOT), plugin.getName());
+                if (other != null && !other.equals(plugin.getName())) {
+                    collisions.add(model.table() + " (" + other + ", " + plugin.getName() + ")");
+                }
+            }
+            models.put(plugin.getName(), own);
+        }
+        List<String> occupied = withStorage(library, target, storage -> {
+            List<String> out = new ArrayList<>();
+            models.forEach((name, list) -> {
+                for (EntityModel<?> model : list) {
+                    if (rows(storage, model) > 0) {
+                        out.add(name);
+                        return;
+                    }
+                }
+            });
+            return out;
+        });
+        return new Survey(occupied, new ArrayList<>(collisions));
+    }
+
+    private static long rows(Storage storage, EntityModel<?> model) {
+        try {
+            return storage.count(model, List.of(), List.of()).join();
+        } catch (RuntimeException missing) {
+            // Not there yet: nothing to choose about.
+            return 0L;
+        }
     }
 
     /** Connects with these values and lets go: {@code null} when everything answered, or why not. */
@@ -293,19 +404,43 @@ final class SetupNetwork {
 
     // ------------------------------------------------------------------ moving
 
-    private static void confirmMove(Player player, Target target) {
+    private static void confirmMove(Player player, Target target, List<Plugin> moving, Survey survey) {
         ExyliaLib library = SetupWizard.library();
         if (library == null) return;
-        List<Plugin> moving = onTheirOwn();
+        if (!survey.collisions().isEmpty()) {
+            Text.of(SetupWizard.prefix() + Phrases.tr("{warning}Two plugins use the same table: {letters}{0}{warning}. Update them before moving, or their rows mix.",
+                    Text.escape(String.join(", ", survey.collisions())))).send(player);
+        }
         PluginInputs inputs = Inputs.of(library);
-        inputs.answered(player, inputs.confirm(player, Phrases.tr(
-                                "{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.",
-                                moving.size(), engineName(target.engine())))
-                        .confirmLabel(Phrases.tr("Move"))
-                        .open(),
-                yes -> {
-                    if (yes) move(player, target, moving);
-                    else SetupMenu.open(player, SetupMenu.NETWORK);
+        if (survey.occupied().isEmpty()) {
+            inputs.answered(player, inputs.confirm(player, Phrases.tr(
+                                    "{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Each table is copied there the first time it is used after the restart.",
+                                    moving.size(), engineName(target.engine())))
+                            .confirmLabel(Phrases.tr("Move"))
+                            .open(),
+                    yes -> {
+                        if (yes) move(player, target, moving, Map.of());
+                        else SetupMenu.open(player, SetupMenu.NETWORK);
+                    },
+                    () -> SetupMenu.open(player, SetupMenu.NETWORK));
+            return;
+        }
+        // A second server joining: the network already has these plugins' rows.
+        var form = inputs.form(player, Phrases.tr("{primary}Already on the network"));
+        Map<String, FormKey<String>> keys = new java.util.LinkedHashMap<>();
+        for (String name : survey.occupied()) {
+            FormKey<String> key = FormKey.text("plugin_" + name.toLowerCase(Locale.ROOT));
+            keys.put(name, key);
+            form.field(key, FormField.choice(key, name, List.of(
+                    new FormField.Option("merge", Phrases.tr("Add mine, the network's wins on a clash")),
+                    new FormField.Option("network", Phrases.tr("Use the network's, keep mine in my file")),
+                    new FormField.Option("keep", Phrases.tr("Do not move this plugin")))).defaultValue("merge"));
+        }
+        inputs.answered(player, form.submitLabel(Phrases.tr("Move")).open(),
+                values -> {
+                    Map<String, String> choices = new java.util.HashMap<>();
+                    keys.forEach((name, key) -> choices.put(name, values.get(key)));
+                    move(player, target, moving, choices);
                 },
                 () -> SetupMenu.open(player, SetupMenu.NETWORK));
     }
@@ -335,57 +470,60 @@ final class SetupNetwork {
         return out;
     }
 
-    private static void move(Player player, Target target, List<Plugin> moving) {
+    /**
+     * Points the plugins at the shared database and writes each one down in
+     * {@link Moves}, so its rows follow table by table after the restart.
+     *
+     * @param choices per plugin the network already holds rows of: {@code merge}, {@code network} or {@code keep}
+     */
+    private static void move(Player player, Target target, List<Plugin> moving, Map<String, String> choices) {
         ExyliaLib library = SetupWizard.library();
         if (library == null) return;
-        // The library's own rows (notices, logs, playtime) move with the rest, when it keeps any.
-        List<Plugin> all = new ArrayList<>(moving);
-        if (onH2(library)) all.add(library);
-        Map<String, String> dumps = new ConcurrentHashMap<>();
-        Set<String> failed = ConcurrentHashMap.newKeySet();
-        List<CompletableFuture<?>> exports = new ArrayList<>();
-        for (Plugin plugin : all) {
-            if (Databases.find(plugin.getName()) == null || !h2File(plugin).isFile()) continue;
-            exports.add(Transfers.of(plugin).export(plugin.getDataFolder().toPath().resolve("dumps"))
-                    .thenAccept(report -> {
-                        if (report.successful() && report.file() != null) {
-                            dumps.put(plugin.getName(), report.file().toAbsolutePath().toString());
-                        } else {
-                            failed.add(plugin.getName());
-                            library.getLogger().warning("Setup: could not export " + plugin.getName()
-                                    + " (" + report.outcome() + "), so it stays on its own file: " + report.problems());
-                        }
-                    }));
-        }
-        CompletableFuture.allOf(exports.toArray(CompletableFuture[]::new)).whenComplete((ignored, error) ->
-                Tasks.of(library).runAsync(() -> {
-                    List<String> moved = new ArrayList<>();
-                    write(libraryFile(), target);
-                    for (Plugin plugin : moving) {
-                        if (failed.contains(plugin.getName())) continue;
-                        write(new File(plugin.getDataFolder(), FILE), target);
-                        moved.add(plugin.getName());
-                    }
-                    YamlConfiguration state = SetupWizard.state();
-                    Set<String> together = new LinkedHashSet<>(state.getStringList("moved"));
-                    together.addAll(moved);
-                    state.set("moved", new ArrayList<>(together));
-                    dumps.keySet().removeAll(failed);
-                    dumps.forEach((name, file) -> state.set("imports." + name, file));
-                    state.set("restart", true);
-                    SetupWizard.save(state);
-                    share(true);
-                    DRAFTS.remove(player.getUniqueId());
-                    Tasks.of(library).runAtEntity(player, () -> {
-                        SetupMenu.done(player, Phrases.tr("{letters}Saved. {highlight}{0} {letters}plugins move to {highlight}{1} {warning}on the next restart{letters}.",
-                                moved.size(), engineName(target.engine())));
-                        if (!failed.isEmpty()) {
-                            Text.of(SetupWizard.prefix() + Phrases.tr("{warning}Kept on their own file: {letters}{0}",
-                                    String.join(", ", failed))).send(player);
-                        }
-                        SetupMenu.open(player, SetupMenu.NETWORK);
-                    });
-                }));
+        Tasks.of(library).runAsync(() -> {
+            List<String> moved = new ArrayList<>();
+            List<String> kept = new ArrayList<>();
+            // The library's own rows (notices, logs, playtime) move with the rest, when it keeps any; they
+            // are per player or per server, so adding them to the network's never clashes.
+            if (onH2(library)) remember(library, Moves.Policy.MERGE);
+            write(libraryFile(), target);
+            for (Plugin plugin : moving) {
+                String choice = choices.getOrDefault(plugin.getName(), "merge");
+                if (choice.equals("keep")) {
+                    kept.add(plugin.getName());
+                    continue;
+                }
+                remember(plugin, choice.equals("network") ? Moves.Policy.NETWORK : Moves.Policy.MERGE);
+                write(new File(plugin.getDataFolder(), FILE), target);
+                moved.add(plugin.getName());
+            }
+            ConfigFile<LibrarySettings> settings = LibrarySettings.file();
+            if (settings != null) settings.set("network-group", target.group());
+            YamlConfiguration state = SetupWizard.state();
+            Set<String> together = new LinkedHashSet<>(state.getStringList("moved"));
+            together.addAll(moved);
+            state.set("moved", new ArrayList<>(together));
+            state.set("restart", true);
+            SetupWizard.save(state);
+            share(true);
+            DRAFTS.remove(player.getUniqueId());
+            Tasks.of(library).runAtEntity(player, () -> {
+                SetupMenu.done(player, Phrases.tr("{letters}Saved. {highlight}{0} {letters}plugins move to {highlight}{1} {warning}on the next restart{letters}.",
+                        moved.size(), engineName(target.engine())));
+                if (!kept.isEmpty()) {
+                    Text.of(SetupWizard.prefix() + Phrases.tr("{warning}Kept on their own file: {letters}{0}",
+                            String.join(", ", kept))).send(player);
+                }
+                SetupMenu.open(player, SetupMenu.NETWORK);
+            });
+        });
+    }
+
+    /** Writes a plugin's old H2 file down, when it has one, for its tables to be copied from. */
+    private static void remember(Plugin plugin, Moves.Policy policy) {
+        File file = h2File(plugin);
+        if (!file.isFile()) return;
+        String path = file.getAbsolutePath();
+        Moves.add(plugin.getName(), java.nio.file.Path.of(path.substring(0, path.length() - ".mv.db".length())), policy);
     }
 
     /** The single-server card while on a network: the moved plugins go back to their own files. */
@@ -410,9 +548,11 @@ final class SetupNetwork {
                         YamlConfiguration state = SetupWizard.state();
                         List<String> moved = state.getStringList("moved");
                         toH2(libraryFile());
+                        Moves.remove(LIBRARY);
                         for (String name : moved) {
                             Plugin plugin = Bukkit.getPluginManager().getPlugin(name);
                             if (plugin != null) toH2(new File(plugin.getDataFolder(), FILE));
+                            Moves.remove(name);
                         }
                         state.set("moved", null);
                         state.set("imports", null);
@@ -449,6 +589,13 @@ final class SetupNetwork {
             yaml.set("database.redis.host", target.redisHost());
             yaml.set("database.redis.port", target.redisPort());
             yaml.set("database.redis.password", target.redisPassword());
+        }
+        // The old name stays readable: rows a plugin keeps per server are found under it after the rename.
+        String old = yaml.getString("database.redis.server-id", "");
+        if (old != null && !old.isBlank() && !old.equals(target.serverId())) {
+            Set<String> previous = new LinkedHashSet<>(yaml.getStringList("database.redis.previous-ids"));
+            previous.add(old);
+            yaml.set("database.redis.previous-ids", new ArrayList<>(previous));
         }
         yaml.set("database.redis.server-id", target.serverId());
         save(yaml, file);

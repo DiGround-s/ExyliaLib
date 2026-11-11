@@ -56,6 +56,11 @@ public final class DatabaseRuntime {
         throw new AssertionError("No instances.");
     }
 
+    /** The library, once it enabled; {@code null} before. */
+    public static @Nullable Plugin library() {
+        return library;
+    }
+
     /** Starts lifecycle support without loading any consumer configuration. */
     public static void init(@NotNull Plugin plugin) {
         synchronized (LOCK) {
@@ -368,6 +373,8 @@ public final class DatabaseRuntime {
     /** Closes every active target and forgets lifecycle state. */
     public static void shutdown() {
         synchronized (LOCK) {
+            Carry.shutdown();
+            Moves.reset();
             shutdownLocked();
             library = null;
             executor = null;
@@ -422,6 +429,22 @@ public final class DatabaseRuntime {
             return target.submit(operation);
         }
 
+        /**
+         * Writes down that a plugin keeps a table on this target, and names the
+         * other plugin that already does when there is one.
+         *
+         * <p>Two plugins on one database with a table of the same name write
+         * into each other's rows. Each on its own H2 file never meets the
+         * other, which is why this is only found once a network shares a server.
+         *
+         * @return the other plugin, or {@code null} when the table is this one's alone
+         * @since 1.581.0
+         */
+        public @Nullable String claim(@NotNull String table, @NotNull String plugin) {
+            String owner = target.tables.putIfAbsent(table.toLowerCase(java.util.Locale.ROOT), plugin);
+            return owner == null || owner.equals(plugin) ? null : owner;
+        }
+
         public void release() {
             synchronized (LOCK) {
                 if (released) {
@@ -436,6 +459,9 @@ public final class DatabaseRuntime {
     }
 
     private static final class Target {
+        /** Which plugin keeps each table on this target, by lower-cased name. */
+        final Map<String, String> tables = new java.util.concurrent.ConcurrentHashMap<>();
+
         private final TargetKey key;
         private final SqlSettings settings;
         private final Plugin owner;

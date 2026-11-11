@@ -1969,11 +1969,19 @@ speaks the language chosen here.: говорит на выбранном зде�
 '{primary}Redis password {muted}(- for none)': '{primary}Пароль Redis {muted}(- если нет)'
 '{primary}Shared database': '{primary}Общая база данных'
 '{primary}The address players join with': '{primary}Адрес, по которому заходят игроки'
-? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
-: '{success}Подключено. {letters}Перенести плагины ({highlight}{0}{letters}) в {highlight}{1}{letters}? Их записи будут скопированы туда при следующем перезапуске.'
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Настройка завершена. {letters}Все изменения уже применены.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Настройка завершена. {warning}Перезапустите сервер, чтобы все изменения вступили в силу.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Остались на своём файле: {letters}{0}'
 '{muted}Unknown': '{muted}Неизвестно'
 '{success}Online': '{success}Онлайн'
 '{error}Offline': '{error}Офлайн'
+"Network group": "Группа сети"
+"Servers in one group share balances and markets, such as survival": "Серверы одной группы делят балансы и рынки, например survival"
+"Letters, numbers, dashes and underscores": "Буквы, цифры, дефисы и подчёркивания"
+"{error}A running server already uses the name {highlight}{0}{error}. {letters}Each server needs its own.": "{error}Работающий сервер уже использует имя {highlight}{0}{error}. {letters}У каждого сервера должно быть своё."
+"{warning}Two plugins use the same table: {letters}{0}{warning}. Update them before moving, or their rows mix.": "{warning}Два плагина используют одну таблицу: {letters}{0}{warning}. Обновите их перед переносом, иначе строки смешаются."
+"{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Each table is copied there the first time it is used after the restart.": "{success}Подключено. {letters}Перенести {highlight}{0} {letters}плагинов в {highlight}{1}{letters}? Каждая таблица копируется туда при первом использовании после перезапуска."
+"{primary}Already on the network": "{primary}Уже в сети"
+"Add mine, the network's wins on a clash": "Добавить мои, при конфликте побеждает сеть"
+"Use the network's, keep mine in my file": "Использовать сетевые, мои остаются в моём файле"
+"Do not move this plugin": "Не переносить этот плагин"

@@ -639,8 +639,45 @@ says `default`, `global`, `server` or another group's name.
   throws, so read it at enable.
 - Index names are scoped too: an explicit `@Index(name = ...)` becomes
   `scope_name`, because some engines name indexes per schema.
-- Rows written before a scope was set stay in the plain table. Moving them is
-  the plugin's job (or an export and import).
+- Rows written before a scope was set stay in the plain table. For data tied
+  to one place (arenas, spawns, regions), `repository(type, scope, true)`
+  (1.581.0+) starts a scoped table, the first time it is created, from the rows
+  under a previous `server-id`'s scope or else the plain table. Never for
+  valuables: two servers would each start with a copy.
+
+## A plugin that moved to a shared database (since 1.581.0)
+
+When the [setup](setup.md#the-database-step) points a plugin at a shared
+database, it writes the old H2 file down in `plugins/ExyliaLib/moves.yml`. The
+first time each table is prepared there, its rows are copied from that file
+before any operation of the repository runs, so the plugin reads its own data
+on its first read: no seeding into a table that only looked empty, no cache
+built on nothing. A table the plugin first opens later is copied then. A
+scoped table takes the old file's table of that scope, else the plain one.
+
+When the shared table already has rows, the move's choice decides: `merge`
+adds the keys the network lacks and keeps the network's row where both have
+one (logged, with the count); `network` adds nothing. A failed copy is not
+written down as done and is tried again on the next start.
+
+## Renaming a table: `@Table(previous = ...)` (since 1.581.0)
+
+```java
+@Table(value = "clan_player_stats", previous = "player_stats", data = DataKind.PROGRESS)
+```
+
+When the new table is created, the rows of the first old name that exists and
+has every column the record declares are copied into it. The column check is
+what keeps a table another plugin keeps under that old name from being read.
+On MongoDB, where any collection reads, only the record's own scoped tables are
+looked at.
+
+## Two plugins, one table name (since 1.581.0)
+
+Two plugins on one server that open the same table with different records log
+an error naming both: their rows mix. Rename one with `previous` above. The
+library's own tables (`exylia_*`, records under `net.exylia.lib`) are shared by
+design and never flagged.
 
 ## Hearing another server's writes (since 1.155.0)
 

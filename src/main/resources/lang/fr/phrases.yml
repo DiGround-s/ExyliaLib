@@ -1969,11 +1969,19 @@ speaks the language chosen here.: parle la langue choisie ici.
 '{primary}Redis password {muted}(- for none)': '{primary}Mot de passe Redis {muted}(- pour aucun)'
 '{primary}Shared database': '{primary}Base de données partagée'
 '{primary}The address players join with': '{primary}L''adresse pour rejoindre le serveur'
-? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
-: '{success}Connecté. {letters}Déplacer {highlight}{0} {letters}plugins vers {highlight}{1}{letters} ? Leurs lignes y sont copiées au prochain redémarrage.'
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Configuration terminée. {letters}Tous les changements sont déjà en place.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Configuration terminée. {warning}Redémarrez le serveur pour que tous les changements prennent effet.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Restent sur leur propre fichier : {letters}{0}'
 '{muted}Unknown': '{muted}Inconnu'
 '{success}Online': '{success}En ligne'
 '{error}Offline': '{error}Hors ligne'
+"Network group": "Groupe réseau"
+"Servers in one group share balances and markets, such as survival": "Les serveurs d'un groupe partagent soldes et marchés, comme survival"
+"Letters, numbers, dashes and underscores": "Lettres, chiffres, tirets et tirets bas"
+"{error}A running server already uses the name {highlight}{0}{error}. {letters}Each server needs its own.": "{error}Un serveur en marche utilise déjà le nom {highlight}{0}{error}. {letters}Chaque serveur a besoin du sien."
+"{warning}Two plugins use the same table: {letters}{0}{warning}. Update them before moving, or their rows mix.": "{warning}Deux plugins utilisent la même table : {letters}{0}{warning}. Mettez-les à jour avant de déplacer, sinon leurs lignes se mélangent."
+"{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Each table is copied there the first time it is used after the restart.": "{success}Connecté. {letters}Déplacer {highlight}{0} {letters}plugins vers {highlight}{1}{letters} ? Chaque table y est copiée la première fois qu'elle sert après le redémarrage."
+"{primary}Already on the network": "{primary}Déjà sur le réseau"
+"Add mine, the network's wins on a clash": "Ajouter les miens, le réseau l'emporte en cas de conflit"
+"Use the network's, keep mine in my file": "Utiliser ceux du réseau, garder les miens dans mon fichier"
+"Do not move this plugin": "Ne pas déplacer ce plugin"

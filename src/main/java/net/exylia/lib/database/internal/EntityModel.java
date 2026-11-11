@@ -712,6 +712,22 @@ public final class EntityModel<T> {
     }
 
     /**
+     * The same record under another table name, for reading rows a table kept
+     * before: an older name, or the plain table a scoped one grew out of.
+     *
+     * <p>Never prepared: it only reads a table that already exists, so its
+     * index names are whatever the record would give that table.
+     *
+     * @param name the table, exactly as it exists
+     * @return the model for that table
+     * @since 1.581.0
+     */
+    public @NotNull EntityModel<T> renamed(@NotNull String name) {
+        return name.equals(table) ? this
+                : new EntityModel<>(type, name, columns, id, indexes(type, name, columns), constructor, slots, blank);
+    }
+
+    /**
      * What tells this model's statements apart from every other model's: the
      * record and its table, since a scoped copy shares the record.
      */

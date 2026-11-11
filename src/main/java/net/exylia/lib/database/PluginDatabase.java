@@ -2,6 +2,7 @@ package net.exylia.lib.database;
 
 import net.exylia.lib.database.internal.DatabaseRuntime;
 import net.exylia.lib.database.internal.EntityModel;
+import net.exylia.lib.database.internal.Carry;
 import net.exylia.lib.database.internal.GatedStorage;
 import net.exylia.lib.database.internal.SqlSettings;
 import net.exylia.lib.database.internal.Storage;
@@ -174,7 +175,8 @@ public final class PluginDatabase {
             throw new IllegalStateException("The database view for " + plugin.getName()
                     + " was released because the plugin is disabled.");
         }
-        return (Repository<T>) repositories.computeIfAbsent(recordType, ignored -> build(EntityModel.of(recordType)));
+        return (Repository<T>) repositories.computeIfAbsent(recordType,
+                ignored -> build(EntityModel.of(recordType), "", false));
     }
 
     /**
@@ -197,8 +199,38 @@ public final class PluginDatabase {
      * @return the repository, the same instance for the same scope
      * @since 1.336.0
      */
-    @SuppressWarnings("unchecked")
     public <T> @NotNull Repository<T> repository(@NotNull Class<T> recordType, @Nullable String scope) {
+        return repository(recordType, scope, false);
+    }
+
+    /**
+     * A scoped repository that, when its table is created, starts with the
+     * rows the record kept before it was scoped.
+     *
+     * <p>For data that moves from one table every server shared into one per
+     * server or per group: arenas, regions and other places a server owns.
+     * The new table takes the rows of the same record under a previous
+     * {@code server-id} of this server (a rename) or, failing that, of the
+     * plain table. A server alone on its file loses nothing by the switch; on
+     * a shared database every server starts from the same shared rows and
+     * keeps only what it edits from then on, which is no worse than all of
+     * them reading one table. Never use it for anything that is worth
+     * something (balances, listings, items): two servers starting from the
+     * same rows would each hold a copy.
+     *
+     * <p>A plugin moved by the setup takes its old file's rows either way:
+     * that file was this server's alone.
+     *
+     * @param recordType the record class
+     * @param scope      the scope, or blank for the plain table
+     * @param inherit    whether a new scoped table copies the rows it had before
+     * @param <T>        the record type
+     * @return the repository, the same instance for the same scope
+     * @since 1.581.0
+     */
+    @SuppressWarnings("unchecked")
+    public <T> @NotNull Repository<T> repository(@NotNull Class<T> recordType, @Nullable String scope,
+                                                 boolean inherit) {
         String clean = scope(scope);
         if (clean.isEmpty()) return repository(recordType);
         if (released) {
@@ -206,7 +238,7 @@ public final class PluginDatabase {
                     + " was released because the plugin is disabled.");
         }
         return (Repository<T>) repositories.computeIfAbsent(new Scoped(recordType, clean),
-                ignored -> build(EntityModel.of(recordType).scoped(clean)));
+                ignored -> build(EntityModel.of(recordType).scoped(clean), clean, inherit));
     }
 
     /**
@@ -418,13 +450,22 @@ public final class PluginDatabase {
         }
     }
 
-    private <T> Repository<T> build(EntityModel<T> model) {
+    private <T> Repository<T> build(EntityModel<T> model, String scope, boolean inherit) {
         // Compiled first, by the caller, and outside the background work: a
         // record that cannot be stored must fail on the thread that asked,
         // where the stack trace points at the plugin's own onEnable.
         DatabaseRuntime.Lease target = lease();
         Debug debug = Debug.of(plugin);
-        return new Repository<>(new GatedStorage(retrying(() -> prepare(target, model)),
+        // The library's own records (pending rewards, locks, logs) are one
+        // table every plugin shares on purpose; only a plugin's own can clash.
+        String other = model.type().getName().startsWith("net.exylia.lib.") ? null
+                : target.claim(model.table(), plugin.getName());
+        if (other != null) {
+            debug.error("The table " + model.table() + " of " + plugin.getName() + " is also a table of " + other
+                    + " on this database. Both write into the same rows and neither reads what it wrote. Give one"
+                    + " of them a database of its own in its database.yml until it is updated.");
+        }
+        return new Repository<>(new GatedStorage(retrying(() -> prepare(target, model, scope, inherit)),
                 target::submit), model,
                 // Against the plugin that owns the repository, not the library:
                 // the console line has to name whose query broke.
@@ -521,7 +562,8 @@ public final class PluginDatabase {
         };
     }
 
-    private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model) {
+    private CompletableFuture<Storage> prepare(DatabaseRuntime.Lease target, EntityModel<?> model,
+                                               String scope, boolean inherit) {
         Debug debug = Debug.of(plugin);
         return target.submit(() -> target.storage().thenApply(opened ->
                 // Wrapped before the table is prepared, so preparing is what
@@ -531,7 +573,7 @@ public final class PluginDatabase {
                 // A supplier, not the cache: a Redis that is down while this
                 // runs must not leave the repository uncached for the run.
                 cached(model) ? wrap(opened) : opened).thenCompose(storage ->
-                storage.prepare(model).thenApply(report -> {
+                storage.prepare(model).thenCompose(report -> {
                     // Only the start where something changed is worth a line. On
                     // a server that has been running for months nothing changes
                     // on any start, and a line per table per boot is how a
@@ -549,7 +591,9 @@ public final class PluginDatabase {
                     if (blocked != null) {
                         debug.warn(blocked);
                     }
-                    return storage;
+                    // Rows the table inherits (a move from the old file, an
+                    // older name) land before anything can read it.
+                    return Carry.after(plugin, storage, model, report, scope, inherit);
                 }).exceptionallyCompose(failure -> {
                     debug.error("The table for " + model.type().getSimpleName() + " ("
                             + model.table() + ") could not be prepared. Nothing of that type"

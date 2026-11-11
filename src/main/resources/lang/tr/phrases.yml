@@ -1981,11 +1981,19 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 '{primary}Redis password {muted}(- for none)': '{primary}Redis şifresi {muted}(yoksa -)'
 '{primary}Shared database': '{primary}Paylaşılan veritabanı'
 '{primary}The address players join with': '{primary}Oyuncuların girdiği adres'
-? '{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Their rows are copied there on the next restart.'
-: '{success}Bağlandı. {highlight}{0} {letters}eklenti {highlight}{1}{letters} sistemine taşınsın mı? Kayıtları sonraki yeniden başlatmada oraya kopyalanır.'
 '{success}Setup finished. {letters}Every change is already in place.': '{success}Kurulum tamamlandı. {letters}Tüm değişiklikler zaten uygulandı.'
 '{success}Setup finished. {warning}Restart the server so every change takes effect.': '{success}Kurulum tamamlandı. {warning}Tüm değişikliklerin geçerli olması için sunucuyu yeniden başlat.'
 '{warning}Kept on their own file: {letters}{0}': '{warning}Kendi dosyasında kalanlar: {letters}{0}'
 '{muted}Unknown': '{muted}Bilinmiyor'
 '{success}Online': '{success}Çevrimiçi'
 '{error}Offline': '{error}Çevrimdışı'
+"Network group": "Ağ grubu"
+"Servers in one group share balances and markets, such as survival": "Bir gruptaki sunucular bakiye ve pazarları paylaşır, örneğin survival"
+"Letters, numbers, dashes and underscores": "Harfler, rakamlar, tireler ve alt çizgiler"
+"{error}A running server already uses the name {highlight}{0}{error}. {letters}Each server needs its own.": "{error}Çalışan bir sunucu zaten {highlight}{0} {error}adını kullanıyor. {letters}Her sunucunun kendi adı olmalı."
+"{warning}Two plugins use the same table: {letters}{0}{warning}. Update them before moving, or their rows mix.": "{warning}İki eklenti aynı tabloyu kullanıyor: {letters}{0}{warning}. Taşımadan önce güncelleyin, yoksa satırları karışır."
+"{success}Connected. {letters}Move {highlight}{0} {letters}plugins to {highlight}{1}{letters}? Each table is copied there the first time it is used after the restart.": "{success}Bağlandı. {highlight}{0} {letters}eklenti {highlight}{1} {letters}üzerine taşınsın mı? Her tablo, yeniden başlatmadan sonra ilk kullanıldığında oraya kopyalanır."
+"{primary}Already on the network": "{primary}Zaten ağda"
+"Add mine, the network's wins on a clash": "Benimkileri ekle, çakışmada ağınki kalır"
+"Use the network's, keep mine in my file": "Ağınkini kullan, benimkiler dosyamda kalsın"
+"Do not move this plugin": "Bu eklentiyi taşıma"

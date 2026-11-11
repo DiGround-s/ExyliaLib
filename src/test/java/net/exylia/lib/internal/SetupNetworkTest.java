@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SetupNetworkTest {
 
     private static final SetupNetwork.Target MYSQL = new SetupNetwork.Target("mysql", "10.0.0.5", 0, "network",
-            "exylia", "s3cret", "lobby-1", false, "localhost", 6379, "");
+            "exylia", "s3cret", "lobby-1", false, "localhost", 6379, "", "");
 
     @Test
     void writesTheSharedDatabaseAndKeepsEverythingElse(@TempDir Path folder) throws Exception {
