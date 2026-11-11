@@ -101,6 +101,13 @@ import net.exylia.lib.config.Time;
 @Comment("every server shares) instead of its own H2 file. Its database.yml is copied")
 @Comment("from ExyliaLib's the first time it is written; one that exists is never")
 @Comment("touched. /exylialib setup turns it on when this server joins a network.")
+@Comment("")
+@Comment("network-group: the group this server belongs to on the network, such as")
+@Comment("survival or boxpvp. Servers of one group share what a plugin keeps per")
+@Comment("group (a currency, an auction house, a history) and servers of another")
+@Comment("group keep theirs apart. Empty means no group: plugins treat this server")
+@Comment("as sharing with every server unless their own config says otherwise.")
+@Comment("Letters, digits, - and _, at most 24. Restart to apply.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt, fr, ru or tr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -165,7 +172,11 @@ public record LibrarySettings(
 
         @Key("share-database")
         @Comment("Whether a newly installed plugin starts on ExyliaLib's database.yml instead of H2.")
-        boolean shareDatabase
+        boolean shareDatabase,
+
+        @Key("network-group")
+        @Comment("This server's group on the network (survival, boxpvp...). Empty for none.")
+        String networkGroup
 ) {
 
     /**
@@ -382,7 +393,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "normal", new Metrics(),
-                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false);
+                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false, "");
     }
 
     private static volatile LibrarySettings instance;

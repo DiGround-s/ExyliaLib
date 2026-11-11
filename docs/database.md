@@ -621,10 +621,15 @@ own. `repository(type, scope)` stores the same record in a table of its own per
 scope, `scope_table`, on the same database and the same Redis cache:
 
 ```java
-String group = settings.networkGroup();          // "survival", or blank
+String group = NetworkGroups.scope(plugin, settings.listingsGroup()); // "survival", or blank
 Repository<Listing> listings = database.repository(Listing.class, group);
 database.onRemoteChange(Listing.class, group, change -> reload(change));
 ```
+
+Read the scope from [`NetworkGroups`](network.md#groups-which-servers-share-what-since-1576)
+(1.576.0+), never from a group setting of the plugin's own: the server's group
+is written once, in ExyliaLib's `config.yml`, and the plugin's setting only
+says `default`, `global`, `server` or another group's name.
 
 - A blank scope is the plain table, exactly `repository(type)`, so a plugin can
   offer the setting with blank as its default and change nothing for servers

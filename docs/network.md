@@ -157,6 +157,39 @@ Contracts:
   Player data stored as deltas under `RowLocks` should be saved before the
   handover, so the arriving server reads it current.
 
+## Groups: which servers share what (since 1.576.0)
+
+A network is rarely one game: two survivals share their money and their
+auction house, a boxpvp server keeps its own, the lobby has neither. Each
+server says its group once, in ExyliaLib's `config.yml`:
+
+```yaml
+network-group: survival   # empty: no group
+```
+
+Every plugin reads it through `net.exylia.lib.network.NetworkGroups`, and
+offers, per thing it keeps, the same four words:
+
+| Setting | Means |
+| --- | --- |
+| `default` (or blank) | this server's group; every server when it has none |
+| `global` | every server on the database |
+| `server` | this server alone, by its `server-id` |
+| any other name | that group, whatever this server's own is |
+
+| Call | What it does |
+| --- | --- |
+| `NetworkGroups.current()` | This server's group as a scope, `""` when none. An unusable name is reported once and read as none. |
+| `NetworkGroups.hasGroup()` | Whether it has one. |
+| `NetworkGroups.scope(plugin, setting)` | The database scope a setting names, for `repository(type, scope)`; `""` is the shared tables. Never throws. |
+| `NetworkGroups.matches(plugin, list)` | Whether this server is one of a list of groups and `server-id`s; empty is every server. For "this exists only on survival and boxpvp". |
+
+Names compare the way [database scopes](database.md) do: lower case, `-` is
+`_`, letters, digits and `_`, at most 24. A plugin never adds a group setting
+of its own for the server: it reads this one, so one line in one file moves a
+server between groups for every plugin. Data written under one group stays
+there when a server changes group.
+
 ## What a network needs configured
 
 - `database.redis.enabled: true` in the consumer's `database.yml`, the same
