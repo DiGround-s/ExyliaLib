@@ -67,13 +67,15 @@ public final class AdminScreens<T> {
      * @param unequip    takes it off, on that player's thread, or {@code null}
      * @param favourites empties a player's favourites, on that player's thread, or {@code null}
      * @param activity   the plugin's own live number for the hub, or {@code null}
+     * @param settings   opens the plugin's own settings screens, or {@code null} for the generic tree
      */
     public record Hooks(@NotNull String permission, @Nullable Places showcases,
                         @Nullable BiConsumer<Player, String> preview,
                         @Nullable Function<UUID, String> equipped,
                         @Nullable Consumer<Player> unequip,
                         @Nullable Consumer<Player> favourites,
-                        @Nullable Activity activity) {
+                        @Nullable Activity activity,
+                        @Nullable Consumer<Player> settings) {
     }
 
     /**
@@ -324,8 +326,12 @@ public final class AdminScreens<T> {
             case "players" -> players(viewer);
             case "showcases" -> places(viewer, true);
             case "blocks" -> places(viewer, false);
-            case "settings" -> net.exylia.lib.config.ConfigMenus.of(plugin)
-                    .permission(hooks.get().permission()).back(this::open).open(viewer);
+            case "settings" -> {
+                Consumer<Player> own = hooks.get().settings();
+                if (own != null) own.accept(viewer);
+                else net.exylia.lib.config.ConfigMenus.of(plugin)
+                        .permission(hooks.get().permission()).back(this::open).open(viewer);
+            }
             case "player" -> {
                 if (entry instanceof UUID chosen) player(viewer, chosen);
                 else if (target != null) player(viewer, target);

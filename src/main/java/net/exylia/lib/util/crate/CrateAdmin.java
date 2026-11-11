@@ -56,6 +56,7 @@ public final class CrateAdmin {
     private volatile @Nullable Consumer<Player> unequip;
     private volatile @Nullable Consumer<Player> favourites;
     private volatile @Nullable AdminScreens.Activity activity;
+    private volatile @Nullable Consumer<Player> settings;
 
     CrateAdmin(@NotNull Plugin plugin, @NotNull PluginCrates crates) {
         this.crates = crates;
@@ -135,6 +136,17 @@ public final class CrateAdmin {
     }
 
     /**
+     * The plugin's own settings screens, opened by the hub's Settings card in place of the generic
+     * config tree. Run on the viewer's thread.
+     *
+     * @since 1.574.0
+     */
+    public @NotNull CrateAdmin settings(@Nullable Consumer<Player> open) {
+        this.settings = open;
+        return this;
+    }
+
+    /**
      * Opens the hub. The crate must be started.
      *
      * @param admin who looks; must hold the permission, checked by the caller's command
@@ -144,6 +156,6 @@ public final class CrateAdmin {
     }
 
     AdminScreens.Hooks hooks() {
-        return new AdminScreens.Hooks(permission, showcases, preview, equipped, unequip, favourites, activity);
+        return new AdminScreens.Hooks(permission, showcases, preview, equipped, unequip, favourites, activity, settings);
     }
 }
