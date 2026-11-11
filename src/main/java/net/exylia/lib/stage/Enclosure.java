@@ -301,6 +301,9 @@ public final class Enclosure {
             if (!player.getWorld().equals(room.spot().getWorld())) return;
             Volume v = room.volume();
             double r = v.reach() * Math.sqrt(2) + 1;
+            // On Folia a room far from where the player stands belongs to another region: nothing near them to hide.
+            if (!Bukkit.isOwnedByCurrentRegion(player.getWorld(), (int) Math.floor(v.x()) >> 4, (int) Math.floor(v.z()) >> 4,
+                    ((int) Math.ceil(r) >> 4) + 1)) return;
             BoundingBox area = new BoundingBox(v.x() - r, v.bottom() - 1, v.z() - r, v.x() + r, v.top() + 1, v.z() + r);
             Set<UUID> now = new java.util.HashSet<>();
             for (Entity entity : player.getWorld().getNearbyEntities(area)) {
