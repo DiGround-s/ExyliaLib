@@ -172,7 +172,10 @@ Registered by the library itself:
   `food`, `gamemode`, `ping`, `x`, `y`, `z`, `activity`, `busy`. `activity` is
   the session (`net.exylia.lib.session`) the player is in, as its plugin names it
   (`Event`, `duel`, `FFA`), or empty while they are free; `busy` is whether
-  any plugin holds them.
+  any plugin holds them. `hud` (*since 1.591.0*) is whether a HUD is drawn for
+  them (`Huds.visible`): false on Bedrock, on clients older than 1.20.2 and for a
+  player who turned it off, so a sidebar or boss bar plugin can show its own only
+  then.
 - `target_*`: `name`, `uuid`.
 - `server_*`: `online`, `max`, `playing`, `playing_<name>`, `tps`, `mspt`, `cpu_system`, `cpu_process`,
   `ram_used`, `ram_max`, `ram_percent`. `playing` counts the players some

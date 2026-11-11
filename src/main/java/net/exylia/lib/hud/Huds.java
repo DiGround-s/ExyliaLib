@@ -86,4 +86,26 @@ public final class Huds {
     public static boolean hidden(@NotNull Player player) {
         return GuideRuntime.hudHidden(player);
     }
+
+    /**
+     * Whether this player's client can draw a HUD at all: PacketEvents is here, the player is on Java (not Bedrock
+     * through Geyser) and their client is 1.20.2 or newer, the floor screens share. An unknown client version counts as
+     * the server's. A HUD shown to a player who fails this is never drawn.
+     *
+     * @since 1.591.0
+     */
+    public static boolean supports(@NotNull Player player) {
+        return net.exylia.lib.ui.MenuStyles.canShowScreens(player);
+    }
+
+    /**
+     * Whether a HUD shown to this player is drawn: {@link #supports(Player) supported} and not {@link #hidden(Player)
+     * hidden} by their own choice. The test for showing something else instead (a sidebar, a boss bar); also
+     * {@code %player_hud%}.
+     *
+     * @since 1.591.0
+     */
+    public static boolean visible(@NotNull Player player) {
+        return supports(player) && !hidden(player);
+    }
 }

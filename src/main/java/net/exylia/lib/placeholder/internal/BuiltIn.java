@@ -109,6 +109,8 @@ public final class BuiltIn {
                         ? Sessions.holder(request.viewer()).map(Claim::kind).orElse("")
                         : null)
                 .add("busy", request -> request.hasViewer() ? !Sessions.isFree(request.viewer()) : null)
+                // Whether a HUD is drawn for the reader: a sidebar or boss bar plugin shows its own only when false.
+                .add("hud", request -> request.hasViewer() ? net.exylia.lib.hud.Huds.visible(request.viewer()) : null)
                 .register();
 
         Placeholders.group(plugin, "target")

@@ -318,7 +318,7 @@ public final class LiveHud extends Piece {
 
     private static boolean stepsAside(Player player) {
         return player.isDead() || player.getGameMode() == GameMode.SPECTATOR || filmed(player)
-                || screenOpen(player) || GuideRuntime.hudHidden(player);
+                || screenOpen(player) || !net.exylia.lib.hud.Huds.visible(player);
     }
 
     private static boolean screenOpen(Player player) {

@@ -164,8 +164,15 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
   middle, glide when their stack reflows, and shrink back into it (1.588.0;
   they slid in from the screen's edge before, which a client cuts). Colours and opacity
   do not fade.
-- A Bedrock client draws display entities poorly: give those players chat or a
-  boss bar (`Guides.isBedrock`).
+- **Who sees it** (*since 1.591.0*): `Huds.supports(player)` is a Java client of
+  1.20.2 or newer with PacketEvents on the server (the floor screens share; Bedrock
+  through Geyser and older clients through ViaBackwards fail it), and
+  `Huds.visible(player)` adds "and did not turn it off in /settings". A widget shown
+  to a player who is not `visible` is simply not drawn, so a plugin never branches to
+  avoid showing it; it branches only to show something else instead (a sidebar, a
+  boss bar, chat). `%player_hud%` is the same answer for other plugins' files.
+  ExyliaScreens' `scoreboards.yml` and `bossbars.yml` are that pattern: a HUD design,
+  and the vanilla sidebar or boss bar for everyone else.
 
 Try it in a client with `/exylialib hudtest show|notice [group]|moment|hide`.
 
