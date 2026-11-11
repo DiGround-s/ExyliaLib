@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,6 +58,20 @@ class PapiBridgeTest {
 
         assertEquals("\u23f0 Sep 02, 2026",
                 Placeholders.apply("%server_time_'\u23f0' MMM dd, yyyy%", player.player()));
+    }
+
+    @Test
+    @DisplayName("PlaceholderAPI is asked without the fallback, and the fallback still applies")
+    void fallbackStaysOurs() {
+        List<String> asked = new java.util.ArrayList<>();
+        PapiBridge.setApplierForTests((viewer, text) -> {
+            asked.add(text);
+            return text.replace("%server_time_dd/MM/yyyy%", "11/11/2026");
+        });
+
+        assertEquals("11/11/2026", Placeholders.apply("%server_time_dd/MM/yyyy|Hub%", player.player()));
+        assertEquals(List.of("%server_time_dd/MM/yyyy%"), asked);
+        assertEquals("Hub", Placeholders.apply("%missing_value|Hub%", player.player()));
     }
 
     @Test

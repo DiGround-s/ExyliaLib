@@ -214,8 +214,9 @@ public final class CompiledTemplate implements Template {
         if (request.viewer() == null) {
             return null;
         }
-        String resolved = PapiBridge.apply(request.viewer(), part.original());
-        return resolved.equals(part.original()) ? null : resolved;
+        String asked = part.forPapi();
+        String resolved = PapiBridge.apply(request.viewer(), asked);
+        return resolved.equals(asked) ? null : resolved;
     }
 
     /** Whether anything claims this name: a resolver, or a value for this render. */

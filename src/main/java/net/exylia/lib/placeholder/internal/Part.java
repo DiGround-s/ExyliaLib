@@ -30,6 +30,19 @@ public record Part(String literal,
         return new Part(text, null, List.of(), null, null, null);
     }
 
+    /**
+     * The placeholder as PlaceholderAPI should see it: as written, minus the
+     * fallback. The fallback is ours to apply, and an expansion that reads its
+     * arguments as a pattern (%server_time_dd/MM/yyyy|Hub%) fails on it.
+     */
+    public String forPapi() {
+        if (fallback == null || original == null) {
+            return original;
+        }
+        int pipe = original.indexOf('|');
+        return pipe < 0 ? original : original.substring(0, pipe) + "%";
+    }
+
     /** Returns whether this part is fixed text. */
     public boolean isLiteral() {
         return literal != null;
