@@ -322,6 +322,14 @@ player per re-read. Seated displays (`rideOn`) keep the viewers they were given.
 `Vfx.track(radius[, who])` does the same for a whole timeline; see
 [vfx.md](vfx.md).
 
+### Without outlines
+
+`displays.withoutOutlines()` (1.575.0) is a view of the same plugin displays
+that draws everything without its glow outline: each display starts without one
+and keeps it held off, so a later `glow(rgb)` changes nothing on screen. Hand it
+to a `Stage` (and whatever else draws the same board) where a server owner
+switched a board's glow off; `root()` is the plugin's own instance.
+
 ### Curves
 
 `DisplayMotion.Easing` names every curve the library has: the original seven,

@@ -26,9 +26,60 @@ import java.util.function.Predicate;
 public final class PluginDisplays {
 
     private final String pluginName;
+    /** Whether what it shows keeps its glow outline; {@code false} for {@link #withoutOutlines()}. */
+    private final boolean outlines;
+    /** The plugin's own instance, which this one is a view of; itself for that instance. */
+    private final PluginDisplays root;
+    private volatile PluginDisplays dark;
 
     PluginDisplays(@NotNull String pluginName) {
         this.pluginName = pluginName;
+        this.outlines = true;
+        this.root = this;
+    }
+
+    private PluginDisplays(@NotNull PluginDisplays root) {
+        this.pluginName = root.pluginName;
+        this.outlines = false;
+        this.root = root;
+    }
+
+    /**
+     * The same displays, drawn without any glow outline: every display shown through the view starts
+     * without one and keeps it held off ({@link DisplayHandle#outline}), so a later
+     * {@link DisplayHandle#glow} changes nothing on screen. For a board a server owner wants plain, handed
+     * to a {@code Stage} and everything else that draws it in place of the plugin's own instance.
+     * Everything it shows still belongs to the plugin and goes when it is disabled.
+     *
+     * @since 1.575.0
+     */
+    public @NotNull PluginDisplays withoutOutlines() {
+        if (!outlines) return this;
+        PluginDisplays view = dark;
+        if (view == null) {
+            view = new PluginDisplays(this);
+            dark = view;
+        }
+        return view;
+    }
+
+    /** Whether what it shows keeps its glow outline: {@code false} for a {@link #withoutOutlines()} view. @since 1.575.0 */
+    public boolean outlines() {
+        return outlines;
+    }
+
+    /** The plugin's own instance: itself, or the one a {@link #withoutOutlines()} view was taken from. @since 1.575.0 */
+    public @NotNull PluginDisplays root() {
+        return root;
+    }
+
+    private DisplayModel model(DisplayModel model) {
+        return outlines || model.glowArgb() < 0 ? model : model.glow(-1);
+    }
+
+    private @Nullable DisplayHandle held(@Nullable DisplayHandle handle) {
+        if (!outlines && handle != null) handle.outline(false);
+        return handle;
     }
 
     /**
@@ -47,7 +98,7 @@ public final class PluginDisplays {
      */
     public @Nullable DisplayHandle show(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
                                         @NotNull Location at, @NotNull List<Player> viewers) {
-        return DisplayRuntime.show(pluginName, model, motion, at, viewers);
+        return held(DisplayRuntime.show(pluginName, model(model), motion, at, viewers));
     }
 
     /**
@@ -58,7 +109,7 @@ public final class PluginDisplays {
      */
     public @Nullable DisplayHandle showKept(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
                                             @NotNull Location at, @NotNull List<Player> viewers) {
-        return DisplayRuntime.show(pluginName, model, motion, at, viewers, 0, true);
+        return held(DisplayRuntime.show(pluginName, model(model), motion, at, viewers, 0, true));
     }
 
     /**
@@ -108,8 +159,8 @@ public final class PluginDisplays {
     public @Nullable DisplayHandle show(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
                                         @NotNull Location at, double radius,
                                         @Nullable Predicate<Player> who) {
-        return DisplayRuntime.showTracked(pluginName, model, motion, at.clone(),
-                new DisplayRuntime.Audience(Math.max(0.0, radius), who));
+        return held(DisplayRuntime.showTracked(pluginName, model(model), motion, at.clone(),
+                new DisplayRuntime.Audience(Math.max(0.0, radius), who)));
     }
 
     /**
@@ -136,8 +187,8 @@ public final class PluginDisplays {
     public @Nullable DisplayHandle rideOn(@NotNull DisplayModel model, @NotNull DisplayMotion motion,
                                           @NotNull org.bukkit.entity.Entity ride,
                                           @NotNull List<Player> viewers) {
-        return DisplayRuntime.show(pluginName, model, motion, ride.getLocation(), viewers,
-                ride.getEntityId());
+        return held(DisplayRuntime.show(pluginName, model(model), motion, ride.getLocation(), viewers,
+                ride.getEntityId()));
     }
 
     /**

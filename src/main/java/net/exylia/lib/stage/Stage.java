@@ -711,7 +711,7 @@ public class Stage implements CardSprite.Canvas {
     public static void release(@NotNull Plugin plugin) {
         PluginDisplays mine = Displays.of(plugin);
         for (Set<Stage> open : OPEN.values()) {
-            open.stream().filter(stage -> stage.displays == mine).toList().forEach(Stage::forget);
+            open.stream().filter(stage -> stage.displays.root() == mine).toList().forEach(Stage::forget);
         }
     }
 
