@@ -32,6 +32,8 @@ Dialogues.of(this).open(player, talk).thenAccept(result -> {
 - A Bedrock player, a server without PacketEvents, and (in `HUD` mode) a player who hid their HUD read every line
   in chat and answer in a choice input.
 - The press that opened the conversation (a click on an NPC) never skips its first line.
+- A `SCREEN` conversation opens its screen two ticks later (1.593.0), so one opened from a teleport (a warp into a
+  region) is not closed by that same move.
 - `hints(...)` replaces the small line under the box (reading, choosing on the HUD, choosing on a screen); the
   library's own are in `phrases.yml`.
 - Faces are a player's skin (`face("Notch")`); until it loads a stranger's face stands in.

@@ -48,6 +48,8 @@ public final class DialogueRuntime implements Listener {
     /** A swing at a block this close is mining, not a press. */
     private static final int REACH = 5;
     private static final String WIDGET = "dialogue";
+    /** Ticks a screen waits before it opens, so a teleport that opened it has finished moving the player. */
+    private static final long SETTLE = 2;
     private static final String BOX = "#120e1ac0";
     private static final String EDGE = "{primary}50";
 
@@ -138,13 +140,22 @@ public final class DialogueRuntime implements Listener {
         next(talk);
         if (talk.over) return;
         if (talk.dialogue.mode() == Dialogue.Mode.SCREEN) {
-            talk.screen = Screens.of(talk.plugin).open(player, Screen.of(session -> layout(talk, true))
-                    .name("dialogue")
-                    .backdrop("#00000000")
-                    .onClose(session -> end(talk, Dialogue.Result.CANCELLED)));
-            if (talk.screen != null) return;
+            // Two ticks later: opened from a teleport (a warp into a region), the move would close the screen at once.
+            Tasks.of(talk.plugin).runAtEntityLater(player, SETTLE, () -> {
+                if (talk.over || !player.isOnline()) return;
+                talk.screen = Screens.of(talk.plugin).open(player, Screen.of(session -> layout(talk, true))
+                        .name("dialogue")
+                        .backdrop("#00000000")
+                        .onClose(session -> end(talk, Dialogue.Result.CANCELLED)));
+                if (talk.screen == null) showHud(talk);
+            }, () -> end(talk, Dialogue.Result.CANCELLED));
+            return;
         }
-        talk.hud = Huds.of(talk.plugin).show(player,
+        showHud(talk);
+    }
+
+    private static void showHud(Talk talk) {
+        talk.hud = Huds.of(talk.plugin).show(talk.player,
                 HudWidget.layout(WIDGET, HudAnchor.ABOVE_HOTBAR, p -> talk.over ? null : layout(talk, false)).every(2));
     }
 
