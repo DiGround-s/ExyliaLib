@@ -110,3 +110,7 @@ search:hover { outline: 1px {primary}; }
 .anim-float { animation: float 60t ease-in-out infinite; }
 .anim-pulse { animation: pulse 40t ease-in-out infinite; }
 .anim-nudge { animation: nudge 30t ease-in-out infinite; }
+
+/* HUD widgets (1.582.0): a dark see-through card that reads over any sky or wall. */
+.hud-card { background: #c0120e1a; outline: 1px {primary}50; padding: 6px 8px; gap: 3px; }
+.hud-card progress { height: 3px; background: {letters_black}30; }

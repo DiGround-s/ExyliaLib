@@ -42,6 +42,41 @@ the same id replaces it in place (no slide).
 - Lines break only where the text has `\n`. Keep them short: a corner is about a
   fifth of the screen wide before it reaches the middle.
 
+## Designed widgets
+
+*Since 1.582.0.* A widget can be designed as a screen is: boxes with backgrounds, gradients and outlines, rows and
+columns, words, `progress` bars and `img` pictures, laid out by the screens' flexbox
+([markup](screens-markup.md)).
+
+```java
+ScreenMarkup vitals = ScreenMarkup.load(folder.resolve("vitals.html"), folder.resolve("vitals.css"));
+huds.show(player, HudWidget.markup("vitals", HudAnchor.TOP_LEFT, vitals).every(4));
+
+// or a tree built in Java, null to hide it
+huds.show(player, HudWidget.layout("boss", HudAnchor.TOP, p -> Node.column(...)));
+```
+
+```html
+<column class="hud-card">
+  <row class="line"><text>{error}❤ {letters}Health</text><text>{error}${round(health())}</text></row>
+  <progress value="${health()}" max="20"/>
+</column>
+```
+
+- The tree is read again every `every` ticks on the player's thread (`${...}`, `%placeholders%`, `if`, `<for>` all
+  work; state reads its defaults). A layout equal to the one on screen sends nothing; a changed value is one
+  metadata packet for the displays it touches.
+- `hud-card` is in every sheet's base theme: the dark see-through panel and thin outline that read over any sky.
+- Clicks, hovers, `transition`, `animation` and `enter` do nothing on a HUD; `item`, `item3d`, `window` and turning
+  bodies are left out. Text shadows are never drawn (see below).
+- **Cost.** One display per rect, per text and four per picture; an outline is four. A card of two bars is about
+  ten. An element draws at most 64 and every display is resent on each pitch step, so keep designs small.
+- **How layers stay in order.** The displays are see-through, and a client draws see-through displays in the order
+  they were spawned, with no depth between them; a 1.21.9+ client also draws every see-through *background* after
+  every see-through glyph. So every rect is a full block glyph (never a display background) and the layers are
+  spawned back to front. A change of shape (a bar that empties, a line that appears) spawns the widget's displays
+  again in order. Measured on real 1.21.4 and 26.2 clients.
+
 ## Notices
 
 `HudNotice.of(text)` slides in at the top right, stays three seconds and slides

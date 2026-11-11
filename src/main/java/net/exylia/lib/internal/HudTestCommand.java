@@ -61,6 +61,45 @@ public final class HudTestCommand {
         huds().notify(player, HudNotice.moment(line("{error}&lDOUBLE KILL")));
     }
 
+    private static final net.exylia.lib.screen.ScreenMarkup VITALS = net.exylia.lib.screen.ScreenMarkup.parse("vitals.html", """
+            <column class="hud-card vitals">
+              <text class="head">{primary}✦ {letters}Vitals</text>
+              <row class="line"><text class="label">{error}❤ {letters}Health</text><text>{error}${round(health())}{letters_black}/20</text></row>
+              <progress class="hp" value="${health()}" max="20"/>
+              <row class="line"><text class="label">{warning}◆ {letters}Food</text><text>{warning}${food()}{letters_black}/20</text></row>
+              <progress class="food" value="${food()}" max="20"/>
+            </column>
+            """, """
+            .vitals { width: 110px; }
+            .head { padding: 0 0 2px 0; }
+            .line { justify-content: space-between; }
+            .hp { color: linear-gradient(to right, {error}, {error_light}); }
+            .food { color: {warning}; }
+            """);
+
+    private static final net.exylia.lib.screen.ScreenMarkup QUEST = net.exylia.lib.screen.ScreenMarkup.parse("quest.html", """
+            <column class="hud-card quest">
+              <text class="kind">{letters_black}Quest · Chapter 1</text>
+              <text class="title">{letters}The first ore</text>
+              <text>{success}✔ {letters_black}Reach the mine</text>
+              <text>{info}• {letters}Mine iron {info}2/5</text>
+              <progress value="2" max="5"/>
+            </column>
+            """, """
+            .quest { outline: 0; gap: 2px; }
+            .kind { font-size: 8px; }
+            .title { font-size: 12px; }
+            progress { height: 2px; color: {info}; background: {info}30; margin: 2px 0 0 0; }
+            """);
+
+    /** Designed widgets: a vitals card with live bars at the top left and a quest card on the left. */
+    @Subcommand("design")
+    public void design(@NotNull Player player) {
+        Huds huds = huds();
+        huds.show(player, HudWidget.markup("vitals", HudAnchor.TOP_LEFT, VITALS).every(4));
+        huds.show(player, HudWidget.markup("quest", HudAnchor.LEFT, QUEST));
+    }
+
     @Subcommand("hide")
     public void hide(@NotNull Player player) {
         huds().clear(player);

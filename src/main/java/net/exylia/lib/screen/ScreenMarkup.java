@@ -370,6 +370,63 @@ public final class ScreenMarkup {
         for (Markup.El child : el.elements()) persisted(child, out);
     }
 
+    /**
+     * The node tree this markup draws for {@code viewer} now, outside any screen: what a HUD widget shows
+     * ({@code HudWidget.markup}). Values, texts, rows, {@code if}, {@code <for>} and placeholders read as on a screen;
+     * state reads its defaults, and clicks, hovers and motion do nothing. On the viewer's thread.
+     *
+     * @since 1.582.0
+     */
+    public @NotNull Node node(@NotNull org.bukkit.entity.Player viewer) {
+        Compiled now = compiled;
+        Path folder = images != null ? images : now.images();
+        MarkupRender.Parts parts = new MarkupRender.Parts(now.root(), now.css(), bindings,
+                problem -> problems.add(name + ": " + problem), folder, now.words());
+        return MarkupRender.render(parts, new Still(viewer));
+    }
+
+    /** A session that only looks: what {@link #node} renders with. */
+    private static final class Still implements ScreenSession {
+        private static final Screen NONE = Screen.of(session -> Node.box());
+        private final org.bukkit.entity.Player viewer;
+
+        Still(org.bukkit.entity.Player viewer) {
+            this.viewer = viewer;
+        }
+
+        @Override
+        public @NotNull org.bukkit.entity.Player viewer() {
+            return viewer;
+        }
+
+        @Override
+        public @NotNull Screen screen() {
+            return NONE;
+        }
+
+        @Override
+        public <T> @NotNull T state(@NotNull String key, @NotNull T fallback) {
+            return fallback;
+        }
+
+        @Override
+        public void set(@NotNull String key, @Nullable Object value) {
+        }
+
+        @Override
+        public void redraw() {
+        }
+
+        @Override
+        public boolean open() {
+            return true;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
     /** A screen drawn from this markup; open it with {@link Screens#open}. */
     public @NotNull Screen screen() {
         return screen(Map.of());

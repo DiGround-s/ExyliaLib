@@ -4,6 +4,7 @@ import net.exylia.lib.hud.HudAnchor;
 import net.exylia.lib.hud.HudHandle;
 import net.exylia.lib.hud.HudNotice;
 import net.exylia.lib.hud.HudWidget;
+import net.exylia.lib.screen.internal.HudLayers;
 import net.exylia.lib.text.Centering;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -162,9 +163,20 @@ public final class LiveHud extends Piece {
             widget.again = false;
             widget.next = now + widget.spec.every();
             boolean on = widget.spec.when() == null || widget.spec.when().test(player);
+            if (widget.spec.layout() != null) {
+                net.exylia.lib.screen.Node tree = on ? widget.spec.layout().apply(player) : null;
+                HudLayers.Drawn drawn = tree == null ? null : HudLayers.of(tree);
+                if (drawn == null || drawn.layers().isEmpty()) {
+                    if (widget.spawned()) leave(player, widget);
+                    widget.drawn = null;
+                } else {
+                    widget.drawn = drawn;
+                }
+                continue;
+            }
             Component text = on ? widget.spec.text().apply(player) : null;
             if (text == null || PlainTextComponentSerializer.plainText().serialize(text).isBlank()) {
-                if (widget.id >= 0) leave(player, widget);
+                if (widget.spawned()) leave(player, widget);
                 widget.text = null;
             } else {
                 widget.text = text;
@@ -187,7 +199,7 @@ public final class LiveHud extends Piece {
                 continue;
             }
             for (Element element : peer.elements()) {
-                if (element.id >= 0 && element.anchor() == anchor) {
+                if (element.spawned() && element.anchor() == anchor) {
                     offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.size);
                 }
             }
@@ -208,7 +220,7 @@ public final class LiveHud extends Piece {
     private Map<HudAnchor, List<Element>> stacks(Player player) {
         Map<HudAnchor, List<Element>> stacks = new EnumMap<>(HudAnchor.class);
         List<Widget> shown = new ArrayList<>();
-        for (Widget widget : widgets.values()) if (widget.text != null) shown.add(widget);
+        for (Widget widget : widgets.values()) if (widget.has()) shown.add(widget);
         shown.sort(Comparator.comparingInt(widget -> widget.spec.order()));
         for (Widget widget : shown) stacks.computeIfAbsent(widget.spec.anchor(), key -> new ArrayList<>()).add(widget);
         for (int i = notices.size() - 1; i >= 0; i--) {
@@ -253,17 +265,19 @@ public final class LiveHud extends Piece {
 
     /** Slides an element out and destroys it once it is gone. */
     private void leave(Player player, Element element) {
-        if (element.id < 0) return;
-        if (!stepsAside(player) && element.spot != null) {
-            double[] out = HudGeometry.aside(element.anchor(), element.spot, element.wide, element.tall);
-            GuidePackets.riderTransform(player, element.id, at(out),
-                    element.anchor().x() == 0.5 ? 0.01f : sized(element.size), GLIDE, null);
-            ghosts.add(new int[]{element.id, (int) (now + GLIDE + 1)});
-        } else {
-            ghosts.add(new int[]{element.id, (int) now});
+        if (!element.spawned()) return;
+        boolean slide = !stepsAside(player) && element.spot != null;
+        double[] out = slide ? HudGeometry.aside(element.anchor(), element.spot, element.wide, element.tall) : null;
+        double k = element.anchor().x() == 0.5 ? SHRUNK : 1;
+        for (Part part : element.parts) {
+            if (slide && part.sent != null) {
+                Look l = part.sent;
+                GuidePackets.riderTransform(player, part.id, at(out, l, k), (float) (l.sx() * k), (float) (l.sy() * k),
+                        GLIDE, null, -1);
+            }
+            ghosts.add(new int[]{part.id, (int) (slide ? now + GLIDE + 1 : now)});
         }
-        element.id = -1;
-        element.sent = null;
+        element.parts.clear();
     }
 
     /** Destroys what has finished sliding out; everything when {@code all}. */
@@ -277,13 +291,9 @@ public final class LiveHud extends Piece {
         }
     }
 
-    /** A spot in the view as sent, the seat taken off. */
-    private float[] at(double[] spot) {
-        return HudGeometry.seated(spot[0], spot[1], sentPitch, sentSeat);
-    }
-
-    private float sized(double size) {
-        return (float) HudGeometry.scale(size);
+    /** Where a part stands, its element's bottom centre at {@code spot} and everything drawn {@code k} times as large. */
+    private float[] at(double[] spot, Look look, double k) {
+        return HudGeometry.seated(spot[0] + look.tx() * k, spot[1] + look.ty() * k, sentPitch, sentSeat);
     }
 
     private static boolean stepsAside(Player player) {
@@ -303,7 +313,7 @@ public final class LiveHud extends Piece {
     void clear(Player player) {
         bury(player, true);
         for (Element element : elements()) {
-            if (element.id >= 0) GuidePackets.destroyViewText(player, element.id);
+            for (Part part : element.parts) GuidePackets.destroyViewText(player, part.id);
             element.reset();
         }
         sentPitch = Double.NaN;
@@ -315,7 +325,7 @@ public final class LiveHud extends Piece {
         for (int[] ghost : ghosts) GuidePackets.forgetViewText(viewer, ghost[0]);
         ghosts.clear();
         for (Element element : elements()) {
-            if (element.id >= 0) GuidePackets.forgetViewText(viewer, element.id);
+            for (Part part : element.parts) GuidePackets.forgetViewText(viewer, part.id);
             element.reset();
         }
         sentPitch = Double.NaN;
@@ -329,84 +339,193 @@ public final class LiveHud extends Piece {
 
     // ------------------------------------------------------------------ elements
 
+    /** How small a middle element is drawn as it pops in or out. */
+    private static final double SHRUNK = 0.01;
+    /** The most displays one element draws; a design past it is cut, its frontmost layers first. */
+    private static final int MOST_PARTS = 64;
+    /** The full block glyph a rect is drawn with, and its size in font pixels. */
+    private static final Component BLOCK = Component.text("█");
+    private static final int BLOCK_SIDE = 8;
+
+    /**
+     * What one display shows, relative to its element: translation from the element's bottom centre and scale at
+     * size 1 (blocks), its text, opacity, flags and background.
+     */
+    private record Look(float tx, float ty, float sx, float sy, Component text, int opacity, int flags, int background,
+                        int lineWidth) {
+    }
+
+    /** One display of an element. */
+    private static final class Part {
+        final int id;
+        Look sent;
+
+        Part(int id) {
+            this.id = id;
+        }
+    }
+
     private abstract class Element {
-        int id = -1;
+        /** Its displays, in the order they were spawned: the order the client draws them, back to front. */
+        final List<Part> parts = new ArrayList<>();
         Component text;
-        Component sent;
+        HudLayers.Drawn drawn;
         double size;
         int background;
         double wide;
         double tall;
-        Component measured;
+        Object measured;
+        List<Look> looks = List.of();
         double[] spot;
         double[] sentSpot;
-        float sentScale;
+        double sentK = 1;
         boolean entering;
         int pulse;
 
         abstract HudAnchor anchor();
 
+        boolean has() {
+            return text != null || drawn != null;
+        }
+
+        boolean spawned() {
+            return !parts.isEmpty();
+        }
+
         void reset() {
-            id = -1;
-            sent = null;
+            parts.clear();
             sentSpot = null;
             entering = false;
         }
 
         void place(HudAnchor anchor, double offset) {
-            if (text != measured) {
-                measured = text;
+            Object content = drawn != null ? drawn : text;
+            if (content != measured) {
+                measured = content;
                 double pixel = HudGeometry.pixel(size);
-                int lines = 1 + (int) PlainTextComponentSerializer.plainText().serialize(text).chars()
-                        .filter(c -> c == '\n').count();
-                wide = (Centering.pixelWidth(text) + 3) * pixel;
-                tall = lines * HudGeometry.LINE * pixel;
+                if (drawn != null) {
+                    wide = drawn.width() * pixel;
+                    tall = drawn.height() * pixel;
+                    looks = looks(drawn, pixel);
+                } else {
+                    int lines = 1 + (int) PlainTextComponentSerializer.plainText().serialize(text).chars()
+                            .filter(c -> c == '\n').count();
+                    wide = (Centering.pixelWidth(text) + 3) * pixel;
+                    tall = lines * HudGeometry.LINE * pixel;
+                    float scale = HudGeometry.scale(size);
+                    looks = List.of(new Look(0, 0, scale, scale, text, 255, SEE_THROUGH | HudGeometry.align(anchor),
+                            background, LINE_WIDTH));
+                }
             }
             spot = HudGeometry.place(anchor, offset, wide, tall);
         }
 
+        /** A designed widget's layers as looks, {@code pixel} blocks to a layout pixel. */
+        private List<Look> looks(HudLayers.Drawn drawn, double pixel) {
+            List<Look> out = new ArrayList<>();
+            double w = drawn.width(), h = drawn.height();
+            double font = HudGeometry.FONT_PIXEL;
+            for (HudLayers.Layer layer : drawn.layers()) {
+                if (out.size() >= MOST_PARTS) break; // ponytail: cut past 64 displays; a budget per player if HUDs grow
+                double cx = (layer.x() - w / 2) * pixel, cy = (h - layer.y()) * pixel;
+                switch (layer.kind()) {
+                    case RECT -> {
+                        int alpha = layer.argb() >>> 24;
+                        // A client draws text under 4 of alpha fully opaque: such a faint rect is left out.
+                        if (alpha < 4) continue;
+                        double sx = layer.w() * pixel / (BLOCK_SIDE * font), sy = layer.h() * pixel / (BLOCK_SIDE * font);
+                        // The block stands one font pixel over its origin and is centred half a pixel right of it.
+                        out.add(new Look((float) (cx - 0.5 * font * sx), (float) (cy - layer.h() * pixel / 2 - sy * font),
+                                (float) sx, (float) sy,
+                                BLOCK.color(net.kyori.adventure.text.format.TextColor.color(layer.argb() & 0xFFFFFF)),
+                                alpha, SEE_THROUGH, 0, LINE_WIDTH));
+                    }
+                    case TEXT -> {
+                        double scale = HudGeometry.scale(size) * layer.scale();
+                        out.add(new Look((float) (cx - 0.5 * font * scale),
+                                (float) (cy - (HudGeometry.LINE * layer.lines() + 1) * font * scale / 2),
+                                (float) scale, (float) scale, layer.text(), 255, SEE_THROUGH | layer.flags(), 0,
+                                LINE_WIDTH));
+                    }
+                    case PICTURE -> {
+                        double cell = layer.w() * pixel;
+                        double fx = cell / HudLayers.PICTURE_ADVANCE, fy = cell / HudLayers.PICTURE_LINE;
+                        double x = cx + layer.dx() * fx, y = cy - layer.dy() * fy;
+                        out.add(new Look((float) (x - 0.5 * fx), (float) (y - layer.lines() * HudLayers.PICTURE_LINE * fy / 2),
+                                (float) (fx / font), (float) (fy / font), layer.text(), 255, SEE_THROUGH, 0, 4000));
+                    }
+                }
+            }
+            return out;
+        }
+
         void send(Player player, boolean reseat) {
-            float scale = sized(size);
             boolean middle = anchor().x() == 0.5;
-            if (id < 0) {
-                id = GuidePackets.newId();
-                double[] from = HudGeometry.aside(anchor(), spot, wide, tall);
-                sent = text;
-                sentScale = middle ? 0.01f : scale;
-                GuidePackets.spawnRider(player, id, text, LINE_WIDTH, background, 255,
-                        SEE_THROUGH | HudGeometry.align(anchor()), sentScale,
-                        at(from));
-                entering = true;
+            if (!spawned() || !sameShape()) {
+                boolean fresh = !spawned();
+                if (!fresh) {
+                    // Another shape: the layers are spawned again, back to front, so the client draws them in order.
+                    for (Part part : parts) GuidePackets.destroyViewText(player, part.id);
+                    parts.clear();
+                }
+                double[] from = fresh ? HudGeometry.aside(anchor(), spot, wide, tall) : spot;
+                double k = fresh && middle ? SHRUNK : 1;
+                for (Look look : looks) {
+                    Part part = new Part(GuidePackets.newId());
+                    GuidePackets.spawnRider(player, part.id, look.text(), look.lineWidth(), look.background(),
+                            look.opacity(), look.flags(), (float) (look.sx() * k), (float) (look.sy() * k),
+                            at(from, look, k), false);
+                    part.sent = look;
+                    parts.add(part);
+                }
+                GuidePackets.remount(player);
+                sentK = k;
+                sentSpot = fresh ? null : spot;
+                entering = fresh;
                 return;
             }
-            float wanted = scale;
+            double k = 1;
             boolean moved = sentSpot == null || sentSpot[0] != spot[0] || sentSpot[1] != spot[1];
-            boolean retext = !text.equals(sent);
             int ticks;
             if (pulse == 2) {
-                wanted = scale * 1.12f;
+                k = 1.12;
                 ticks = 2;
                 pulse = 1;
             } else if (pulse == 1) {
                 ticks = 3;
                 pulse = 0;
-            } else if (entering) {
-                ticks = GLIDE;
-            } else if (retext) {
-                // Its own new size: jumping there with the new words reads cleaner than gliding the old ones.
-                ticks = 0;
-            } else if (moved) {
+            } else if (entering || moved) {
                 ticks = GLIDE;
             } else {
                 ticks = 2;
             }
-            if (entering || moved || retext || reseat || wanted != sentScale) {
-                GuidePackets.riderTransform(player, id, at(spot), wanted, ticks, retext ? text : null);
-                entering = false;
-                sentSpot = spot;
-                sentScale = wanted;
-                sent = text;
+            for (int i = 0; i < parts.size(); i++) {
+                Part part = parts.get(i);
+                Look look = looks.get(i);
+                boolean changed = !look.equals(part.sent);
+                if (!(entering || moved || reseat || changed || k != sentK)) continue;
+                boolean retext = !look.text().equals(part.sent.text());
+                // New words jump to their own new place: cleaner than gliding the old ones there.
+                int t = changed && !moved && !entering ? 0 : ticks;
+                GuidePackets.riderTransform(player, part.id, at(spot, look, k), (float) (look.sx() * k),
+                        (float) (look.sy() * k), t, retext ? look.text() : null,
+                        look.opacity() != part.sent.opacity() ? look.opacity() : -1);
+                part.sent = look;
             }
+            entering = false;
+            sentSpot = spot;
+            sentK = k;
+        }
+
+        /** Whether the displays on the client can show {@link #looks} by a change of their data alone. */
+        private boolean sameShape() {
+            if (parts.size() != looks.size()) return false;
+            for (int i = 0; i < parts.size(); i++) {
+                Look sent = parts.get(i).sent, want = looks.get(i);
+                if (sent.flags() != want.flags() || sent.background() != want.background()
+                        || sent.lineWidth() != want.lineWidth()) return false;
+            }
+            return true;
         }
     }
 
@@ -427,16 +546,17 @@ public final class LiveHud extends Piece {
             return spec.anchor();
         }
 
-        /** Takes over the display of the widget it replaces, so a replacement changes in place. */
+        /** Takes over the displays of the widget it replaces, so a replacement changes in place. */
         void adopt(Widget old) {
-            if (old.spec.anchor() != spec.anchor() || old.background != background) {
-                if (old.id >= 0) ghosts.add(new int[]{old.id, (int) now});
+            if (old.spec.anchor() != spec.anchor()) {
+                for (Part part : old.parts) ghosts.add(new int[]{part.id, (int) now});
+                old.parts.clear();
                 return;
             }
-            id = old.id;
-            sent = old.sent;
+            parts.addAll(old.parts);
+            old.parts.clear();
             sentSpot = old.sentSpot;
-            sentScale = old.sentScale;
+            sentK = old.sentK;
         }
 
         @Override

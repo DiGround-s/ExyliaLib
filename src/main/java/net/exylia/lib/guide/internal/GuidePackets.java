@@ -259,6 +259,15 @@ final class GuidePackets extends PacketListenerAbstract {
      */
     static void spawnRider(Player viewer, int id, Component text, int lineWidth, int background, int opacity,
                            int flags, float scale, float[] translation) {
+        spawnRider(viewer, id, text, lineWidth, background, opacity, flags, scale, scale, translation, true);
+    }
+
+    /**
+     * As above, {@code sx} and {@code sy} the scale across and up; {@code mount} false leaves the passenger list to
+     * one {@link #remount} after a batch.
+     */
+    static void spawnRider(Player viewer, int id, Component text, int lineWidth, int background, int opacity,
+                           int flags, float sx, float sy, float[] translation, boolean mount) {
         org.bukkit.Location at = viewer.getLocation();
         send(viewer, new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()),
                 EntityTypes.TEXT_DISPLAY, new Vector3d(at.getX(), at.getY() + viewer.getHeight(), at.getZ()),
@@ -268,7 +277,7 @@ final class GuidePackets extends PacketListenerAbstract {
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
                 new Vector3f(translation[0], translation[1], translation[2])));
-        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(scale, scale, scale)));
+        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(sx, sy, 1)));
         data.add(new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER));
         data.add(new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
         data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
@@ -278,8 +287,13 @@ final class GuidePackets extends PacketListenerAbstract {
         data.add(new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) flags));
         send(viewer, new WrapperPlayServerEntityMetadata(id, data));
         RIDING_SELF.computeIfAbsent(viewer.getUniqueId(), key -> ConcurrentHashMap.newKeySet()).add(id);
+        if (mount) remount(viewer);
+    }
+
+    /** Sends the viewer's passenger list: their real passengers and every rider they carry. */
+    static void remount(Player viewer) {
         List<Entity> real = viewer.getPassengers();
-        Set<Integer> riding = RIDING_SELF.get(viewer.getUniqueId());
+        Set<Integer> riding = RIDING_SELF.getOrDefault(viewer.getUniqueId(), Set.of());
         int[] ids = new int[real.size() + riding.size()];
         int index = 0;
         for (Entity passenger : real) {
@@ -300,13 +314,20 @@ final class GuidePackets extends PacketListenerAbstract {
      */
     static void riderTransform(Player viewer, int id, float[] translation, float scale, int ticks,
                                Component text) {
-        List<EntityData<?>> data = new ArrayList<>(5);
+        riderTransform(viewer, id, translation, scale, scale, ticks, text, -1);
+    }
+
+    /** As above, scaled {@code sx} across and {@code sy} up, its text opacity changed unless {@code opacity} is -1. */
+    static void riderTransform(Player viewer, int id, float[] translation, float sx, float sy, int ticks,
+                               Component text, int opacity) {
+        List<EntityData<?>> data = new ArrayList<>(6);
         data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks));
         data.add(new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
                 new Vector3f(translation[0], translation[1], translation[2])));
-        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(scale, scale, scale)));
+        data.add(new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(sx, sy, 1)));
         if (text != null) data.add(new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text));
+        if (opacity >= 0) data.add(new EntityData<>(TEXT_OPACITY, EntityDataTypes.BYTE, (byte) opacity));
         send(viewer, new WrapperPlayServerEntityMetadata(id, data));
     }
 
