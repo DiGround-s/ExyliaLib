@@ -460,7 +460,8 @@ final class ScreenPackets extends PacketListenerAbstract {
                                  byte billboard) {
         // An opaque fill hides its glyphs in its own colour; a see-through one would show them, so it draws
         // spaces instead. ponytail: spaces leave the 1 px background padding at 1.5 % rather than 1 %.
-        boolean clear = (argb >>> 24) < 0xFF;
+        // In the world the glyphs' edges show as stripes from a few blocks away, so a fixed panel draws spaces too.
+        boolean clear = (argb >>> 24) < 0xFF || billboard == 0;
         double sx = w / ((clear ? CLEAR_WIDE : GRID_WIDE) * FONT_PIXEL);
         double sy = h / (GRID_TALL * FONT_PIXEL);
         // The client centres the glyphs half a pixel right of the origin and grows the box up from it.
