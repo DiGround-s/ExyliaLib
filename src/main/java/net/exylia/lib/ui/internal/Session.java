@@ -461,8 +461,9 @@ final class Session implements UiSession {
             UiItem template = list.template(null);
             if ((template != null && template.isDynamic()) || !entries(list.id()).isEmpty()
                     || sources.containsKey(list.id())) {
-                // A followed list was just built, live values and all.
-                drawSection(list, !sources.containsKey(list.id()));
+                // Live values are read again even for a followed list: its source may hand back the rows it
+                // built at open (/settings does), whose values are the ones from that moment.
+                drawSection(list, true);
             }
         }
         if (pulled) {
