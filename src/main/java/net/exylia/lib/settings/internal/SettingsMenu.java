@@ -6,6 +6,8 @@ import net.exylia.lib.action.Actions;
 import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.config.Languages;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.screen.ScreenSet;
+import net.exylia.lib.screen.Screens;
 import net.exylia.lib.settings.Setting;
 import net.exylia.lib.settings.Settings;
 import net.exylia.lib.settings.internal.SettingsRuntime.Category;
@@ -137,6 +139,22 @@ public final class SettingsMenu {
             target.load(PAGE + count, centred(files.get("settings_page"), 9, count));
         }
         menus = target;
+        screens(target.plugin());
+    }
+
+    /**
+     * The full-screen version of these menus, for the SCREEN menu style: {@code settings/settings.html} routes every
+     * one of their ids, so the menus above open it with no other code. A file the owner broke keeps the chest menus.
+     */
+    private static void screens(Plugin library) {
+        if (anchor != SettingsMenu.class) return;
+        try {
+            ScreenSet screens = Screens.of(library).files(SettingsMenu.class, "settings");
+            screens.reload();
+            screens.markup("settings").problems().forEach(problem -> Debug.of(library).warn("Screen " + problem));
+        } catch (RuntimeException broken) {
+            Debug.of(library).warn("The settings screen could not be read, its chest menus open instead: " + broken.getMessage());
+        }
     }
 
     /**
@@ -299,6 +317,12 @@ public final class SettingsMenu {
                 .withFormatted("name", Lore.name(TONE, announcements ? Phrases.tr("Announcements") : Phrases.tr("Settings"),
                         label(store)))
                 .with("glow", false)
+                .withFormatted("entry_name", label(store))
+                .with("entry_kind", announcements ? "channels" : "plugin")
+                .with("entry_state", "open")
+                .with("entry_count", listed.size())
+                .with("entry_muted", () -> announcements ? listed.stream()
+                        .filter(setting -> !Settings.enabled(player, store.plugin(), setting.key())).count() : 0)
                 .withFormatted("lore", () -> {
                     Lore lore = Lore.of(TONE)
                             .subtitle(announcements ? Phrases.tr("Chat announcements") : Phrases.tr("Plugin settings"))
@@ -328,6 +352,11 @@ public final class SettingsMenu {
                 .with("icon", category.icon())
                 .withFormatted("name", Lore.name(TONE, label(store), category.name()))
                 .with("glow", false)
+                .withFormatted("entry_name", category.name())
+                .withFormatted("entry_about", String.join("<nl>", category.description()))
+                .with("entry_kind", "category")
+                .with("entry_state", "open")
+                .with("entry_count", store.settings(category.id()).size())
                 .withFormatted("lore", String.join(Lines.NEWLINE, lore.lines()))
                 .build();
     }
@@ -342,8 +371,27 @@ public final class SettingsMenu {
                         && Settings.enabled(player, store.plugin(), setting.key()))
                 .withFormatted("lore", () -> lore(setting, allowed, available,
                         Settings.value(player, store.plugin(), setting.key())))
+                .withFormatted("entry_name", setting.name())
+                .withFormatted("entry_about", String.join("<nl>", setting.description()))
+                .with("entry_kind", setting.kind().name().toLowerCase(Locale.ROOT))
+                .with("entry_state", () -> state(setting, allowed, available,
+                        Settings.value(player, store.plugin(), setting.key())))
+                .withFormatted("entry_value", () -> {
+                    String value = Settings.value(player, store.plugin(), setting.key());
+                    String current = value == null ? setting.defaultValue() : value;
+                    return setting.kind() == Setting.Kind.CHOICE ? setting.label(current) : current;
+                })
+                .with("entry_server", setting.perServer() ? 1 : 0)
                 .template(allowed && available ? null : "inert")
                 .build();
+    }
+
+    /** What a setting's card shows: unavailable, locked, on, off, or set (a choice or a number). */
+    static String state(Setting setting, boolean allowed, boolean available, @Nullable String value) {
+        if (!available) return "unavailable";
+        if (!allowed) return "locked";
+        if (setting.kind() != Setting.Kind.TOGGLE) return "set";
+        return Boolean.parseBoolean(value == null ? setting.defaultValue() : value) ? "on" : "off";
     }
 
     /** A setting's lore: what it does, where it stands, and what a click does. */

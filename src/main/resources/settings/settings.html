@@ -1,0 +1,82 @@
+<!--
+  The /settings screen in the SCREEN menu style: the two sections, then the plugins, a plugin's categories and one
+  category's settings, as cards that say what each one does and where it stands now. It stands for the chest menus
+  of lang/<code>/menus/settings/ and reads their rows, so a click does what the chest's does.
+
+  One file for every language: the words come from lang/<code>/settings/settings.yml (t="key"). The look is in
+  theme.css; put your own rules in custom.css next to it and this file keeps updating with the library.
+  /exylialib screens check lists anything wrong with file:line:col; edits show on open screens within seconds.
+
+  Values: settings_section (SETTINGS or ANNOUNCEMENTS), settings_title, settings_parent (where back leads).
+  Rows (source="main"): icon, entry_name, entry_about (lines split by <nl>), entry_kind (plugin, channels, category,
+  toggle, choice, number), entry_state (open; for a setting on, off, set, locked, unavailable), entry_value (a
+  choice's label or a number), entry_count, entry_muted (channels muted), entry_server (1: only this server).
+  State: view (root on the first screen, list on the others).
+  Actions: exylialib:settings_open settings|announcements, exylialib:settings_click 1|-1, exylialib:settings_back.
+-->
+<screen backdrop="linear-gradient(to bottom, var(--primary)14, var(--info)06)"
+        routes="settings:view=root settings_list:view=list
+                settings_hub_1:view=list settings_hub_2:view=list settings_hub_3:view=list settings_hub_4:view=list
+                settings_hub_5:view=list settings_hub_6:view=list settings_hub_7:view=list
+                settings_page_1:view=list settings_page_2:view=list settings_page_3:view=list settings_page_4:view=list
+                settings_page_5:view=list settings_page_6:view=list settings_page_7:view=list">
+  <column class="frame">
+    <row class="head">
+      <item material="comparator" class="head-icon"/>
+      <column class="heading">
+        <h1 if="view == 'root'" t="title">{highlight}Settings</h1>
+        <h1 else>{letters_black}%settings_section% › {highlight}%settings_title%</h1>
+        <small if="view == 'root'" t="subtitle.root">{letters_black}How the server treats you, in one place</small>
+        <small else t="subtitle.list">{letters_black}Click a card to change it · hover to read what it does</small>
+      </column>
+    </row>
+
+    <row if="view == 'root'" class="sections fill">
+      <card class="section" action="exylialib:settings_open settings">
+        <item material="comparator" class="section-icon"/>
+        <b t="root.settings">Settings</b>
+        <p class="about" t="root.settings_about">How other players reach you and how each feature treats you</p>
+        <box class="spacer"/>
+        <box class="cta"><text t="open">Open</text><text class="arrow">›</text></box>
+      </card>
+      <card class="section" action="exylialib:settings_open announcements">
+        <item material="bell" class="section-icon"/>
+        <b t="root.announcements">Announcements</b>
+        <p class="about" t="root.announcements_about">Which server-wide messages reach your chat</p>
+        <box class="spacer"/>
+        <box class="cta"><text t="open">Open</text><text class="arrow">›</text></box>
+      </card>
+    </row>
+
+    <grid else source="main" columns="4" rows="2" class="fill">
+      <card class="entry ${entry_state}" disabled="${entry_state == 'locked' || entry_state == 'unavailable'}"
+            action="exylialib:settings_click 1" action-right="exylialib:settings_click -1">
+        <item row material="%icon%" class="entry-icon"/>
+        <b>%entry_name%</b>
+        <p class="about">%entry_about%</p>
+        <box class="spacer"/>
+        <row class="status">
+          <small if="entry_kind == 'plugin' || entry_kind == 'category'" t="count">{info}%entry_count% {letters_black}settings</small>
+          <small else if="entry_kind == 'channels'" t="channels">{info}%entry_count% {letters_black}channels · {error}%entry_muted% {letters_black}muted</small>
+          <small else if="entry_state == 'on'" t="on">{success}● On</small>
+          <small else if="entry_state == 'off'" t="off">{error}● Off</small>
+          <small else if="entry_state == 'set'" class="value">{info}%entry_value%</small>
+          <small else if="entry_state == 'locked'" t="locked">{error}✘ {letters_black}Not in your rank</small>
+          <small else t="unavailable">{letters_black}Off on this server</small>
+        </row>
+        <small if="entry_server == 1" class="note" t="this_server">{letters_black}Only on this server</small>
+        <small if="entry_state == 'on' || entry_state == 'off'" class="hint" t="hint.toggle">{letters_black}Click · switch</small>
+        <small else if="entry_state == 'set'" class="hint" t="hint.step">{letters_black}Click · next   Right · back</small>
+        <small else if="entry_state == 'open'" class="hint" t="hint.open">{letters_black}Click · open</small>
+      </card>
+      <empty><text t="empty.title">Nothing to set here</text><small t="empty.hint">Plugins on this server add theirs here</small></empty>
+    </grid>
+
+    <row class="foot">
+      <button if="view == 'list'" class="ghost small" action="exylialib:settings_back" t="back">‹ %settings_parent%</button>
+      <box class="spacer"/>
+      <pager if="view == 'list'" for="main" keys="a d"/>
+      <key-hint key="Shift"><text t="close">Close</text></key-hint>
+    </row>
+  </column>
+</screen>

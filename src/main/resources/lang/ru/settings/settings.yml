@@ -1,0 +1,28 @@
+# Words of the settings screen (settings/settings.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+title: '{highlight}Настройки'
+subtitle:
+  root: '{letters_black}Как сервер относится к тебе, в одном месте'
+  list: '{letters_black}Нажми на карточку, чтобы изменить · наведи, чтобы прочитать'
+root:
+  settings: 'Настройки'
+  settings_about: 'Как другие игроки связываются с тобой и как работает каждая функция'
+  announcements: 'Объявления'
+  announcements_about: 'Какие сообщения сервера приходят в твой чат'
+open: 'Открыть'
+count: '{info}%entry_count% {letters_black}настроек'
+channels: '{info}%entry_count% {letters_black}каналов · {error}%entry_muted% {letters_black}выкл.'
+'on': '{success}● Вкл.'
+'off': '{error}● Выкл.'
+locked: '{error}✘ {letters_black}Нет в твоём ранге'
+unavailable: '{letters_black}Выключено на этом сервере'
+this_server: '{letters_black}Только на этом сервере'
+hint:
+  toggle: '{letters_black}Клик · переключить'
+  step: '{letters_black}Клик · далее   ПКМ · назад'
+  open: '{letters_black}Клик · открыть'
+empty:
+  title: 'Здесь нечего настраивать'
+  hint: 'Плагины сервера добавляют свои сюда'
+back: '‹ %settings_parent%'
+close: 'Закрыть'

@@ -1,0 +1,42 @@
+/* The settings screen's look. ExyliaLib's base theme is read before this file, so anything here overrides it; put
+   your own rules in custom.css next to it. Sizes are screen pixels of a 400 by 225 screen; colours are palette tokens.
+   Settings take the primary tone; a setting that is on takes success, one that is off stays quiet. */
+
+small, b, h1, h2, text, button, label { flex-direction: row; gap: 3px; align-items: center; }
+small { font-size: 7px; }
+.spacer { flex-grow: 1; }
+.fill { flex-grow: 1; }
+
+.frame { width: 400px; height: 225px; gap: 7px; padding: 10px 12px; outline: 1px var(--primary)40;
+         background: linear-gradient(to bottom, var(--primary)0c, var(--info)05); }
+.head { flex-direction: row; align-items: center; gap: 6px; }
+.head-icon { width: 18px; height: 18px; }
+.heading { gap: 1px; }
+.heading h1 { font-size: 13px; }
+.foot { flex-direction: row; align-items: center; gap: 5px; height: 14px; }
+
+.sections { flex-direction: row; gap: 10px; justify-content: center; align-items: center; }
+.section { width: 150px; height: 130px; gap: 4px; padding: 10px 8px; align-items: center; background: var(--primary)0c; }
+.section:hover { background: var(--primary)26; outline: 1px var(--primary); }
+.section-icon { width: 28px; height: 28px; }
+.section b { font-size: 10px; }
+.section .about { width: 130px; max-width: 130px; font-size: 6px; }
+.cta { flex-direction: row; gap: 3px; padding: 3px 10px; background: var(--primary)30; }
+.section:hover .cta { background: var(--primary)60; }
+
+grid { gap: 5px; }
+.entry { height: 74px; gap: 2px; padding: 5px 4px; align-items: center; background: var(--primary)0c; }
+.entry:hover { background: var(--primary)26; outline: 1px var(--primary); }
+.entry.on { background: var(--success)10; }
+.entry.on:hover { background: var(--success)22; outline: 1px var(--success); }
+.entry[disabled], .entry[disabled]:hover { background: var(--letters-black)08; outline: none; }
+.entry-icon { width: 16px; height: 16px; }
+.entry b { font-size: 8px; text-align: center; }
+.about { width: 80px; max-width: 80px; font-size: 5px; color: var(--letters-black); text-align: center; }
+.status { flex-direction: row; gap: 3px; align-items: center; }
+.status small { font-size: 6px; }
+.note, .hint { font-size: 5px; }
+
+button.small { padding: 3px 6px; font-size: 7px; }
+.ghost { background: var(--letters-black)14; }
+.ghost:hover { background: var(--error)40; }

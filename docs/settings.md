@@ -129,6 +129,22 @@ prompts) is the library's phrase table (`lang/<code>/phrases.yml`).
 `Settings.open(player)` and `Settings.openAnnouncements(player)` open it from a
 plugin's own command.
 
+**SCREEN menu style (1.599.0).** For a player whose menu style for ExyliaLib is
+`SCREEN` (`screens.yml` `plugins: {ExyliaLib: SCREEN}`, the server's default, or
+their own choice), every screen above opens as one full screen,
+`plugins/ExyliaLib/settings/settings.html` with `theme.css`, words in
+`lang/<code>/settings/settings.yml`: the two sections as big cards, then the
+plugins, categories and settings as cards with what each one does, its state
+(on, off, a choice's label, a number, locked, off on this server), whether it only
+applies to this server and what a click does; a pager, a back button and Shift to
+close. It routes every id above (state `view`: `root` or `list`) and reads the
+same rows, which also carry `entry_name`, `entry_about` (lines split by `<nl>`),
+`entry_kind` (`plugin`, `channels`, `category`, `toggle`, `choice`, `number`),
+`entry_state` (`open`, `on`, `off`, `set`, `locked`, `unavailable`),
+`entry_value`, `entry_count`, `entry_muted` and `entry_server`. Left and right
+clicks do what they do in the chest. A file the owner broke keeps the chest
+menus.
+
 ## The command
 
 The library adds no player command unless the server asks. In ExyliaLib's

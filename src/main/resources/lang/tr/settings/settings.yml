@@ -1,0 +1,28 @@
+# Words of the settings screen (settings/settings.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+title: '{highlight}Ayarlar'
+subtitle:
+  root: '{letters_black}Sunucunun sana nasıl davrandığı, tek yerde'
+  list: '{letters_black}Değiştirmek için karta tıkla · okumak için üzerine gel'
+root:
+  settings: 'Ayarlar'
+  settings_about: 'Diğer oyuncuların sana nasıl ulaştığı ve her özelliğin sana nasıl davrandığı'
+  announcements: 'Duyurular'
+  announcements_about: 'Sunucunun hangi mesajları sohbetine gelir'
+open: 'Aç'
+count: '{info}%entry_count% {letters_black}ayar'
+channels: '{info}%entry_count% {letters_black}kanal · {error}%entry_muted% {letters_black}susturuldu'
+'on': '{success}● Açık'
+'off': '{error}● Kapalı'
+locked: '{error}✘ {letters_black}Rütbende yok'
+unavailable: '{letters_black}Bu sunucuda kapalı'
+this_server: '{letters_black}Sadece bu sunucuda'
+hint:
+  toggle: '{letters_black}Tıkla · değiştir'
+  step: '{letters_black}Tıkla · sonraki   Sağ · önceki'
+  open: '{letters_black}Tıkla · aç'
+empty:
+  title: 'Burada ayarlanacak bir şey yok'
+  hint: 'Sunucudaki pluginler kendilerininkini buraya ekler'
+back: '‹ %settings_parent%'
+close: 'Kapat'

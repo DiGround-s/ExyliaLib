@@ -1,0 +1,28 @@
+# Words of the settings screen (settings/settings.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+title: '{highlight}Configurações'
+subtitle:
+  root: '{letters_black}Como o servidor te trata, num só lugar'
+  list: '{letters_black}Clique numa carta para mudá-la · passe por cima para ler'
+root:
+  settings: 'Configurações'
+  settings_about: 'Como outros jogadores te alcançam e como cada recurso te trata'
+  announcements: 'Anúncios'
+  announcements_about: 'Quais mensagens do servidor chegam ao seu chat'
+open: 'Abrir'
+count: '{info}%entry_count% {letters_black}configurações'
+channels: '{info}%entry_count% {letters_black}canais · {error}%entry_muted% {letters_black}silenciados'
+'on': '{success}● Ativado'
+'off': '{error}● Desativado'
+locked: '{error}✘ {letters_black}Não está no seu cargo'
+unavailable: '{letters_black}Desligado neste servidor'
+this_server: '{letters_black}Só neste servidor'
+hint:
+  toggle: '{letters_black}Clique · alternar'
+  step: '{letters_black}Clique · próximo   Direito · anterior'
+  open: '{letters_black}Clique · abrir'
+empty:
+  title: 'Nada para ajustar aqui'
+  hint: 'Os plugins do servidor adicionam os seus aqui'
+back: '‹ %settings_parent%'
+close: 'Fechar'

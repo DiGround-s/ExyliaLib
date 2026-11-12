@@ -1,0 +1,28 @@
+# Words of the settings screen (settings/settings.html), one per t="key" there. Colour tokens such as {info} work
+# here; keep the %placeholders%. Edits show on open screens within seconds.
+title: '{highlight}Settings'
+subtitle:
+  root: '{letters_black}How the server treats you, in one place'
+  list: '{letters_black}Click a card to change it · hover to read what it does'
+root:
+  settings: 'Settings'
+  settings_about: 'How other players reach you and how each feature treats you'
+  announcements: 'Announcements'
+  announcements_about: 'Which server-wide messages reach your chat'
+open: 'Open'
+count: '{info}%entry_count% {letters_black}settings'
+channels: '{info}%entry_count% {letters_black}channels · {error}%entry_muted% {letters_black}muted'
+'on': '{success}● On'
+'off': '{error}● Off'
+locked: '{error}✘ {letters_black}Not in your rank'
+unavailable: '{letters_black}Off on this server'
+this_server: '{letters_black}Only on this server'
+hint:
+  toggle: '{letters_black}Click · switch'
+  step: '{letters_black}Click · next   Right · back'
+  open: '{letters_black}Click · open'
+empty:
+  title: 'Nothing to set here'
+  hint: 'Plugins on this server add theirs here'
+back: '‹ %settings_parent%'
+close: 'Close'
