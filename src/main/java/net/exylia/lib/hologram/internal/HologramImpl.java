@@ -222,6 +222,8 @@ final class HologramImpl implements Hologram {
     /** When each line started being typed for each viewer; 0 once it is whole. */
     private final Map<UUID, long[]> typing = new ConcurrentHashMap<>();
     private volatile long lastFrame = Long.MIN_VALUE;
+    /** When the last keyframe's glide ends: the moment its target pose is for. */
+    private volatile long glideEnd;
     private volatile long lastShimmer = -SHIMMER_MS;
 
     /**
@@ -1533,11 +1535,24 @@ final class HologramImpl implements Hologram {
     private void place(Player viewer, DisplayState[] current, int line, Layout layout, int ticks) {
         DisplayState display = current[line];
         if (display.mob() == null) {
+            if (ticks > 0 && display.style().animated()) {
+                ticks = glideTicks(glideEnd, HologramRuntime.now(), ticks);
+            }
             HologramRuntime.sink().transform(viewer, display, viewOf(display, line, layout), ticks);
         } else if (mount == null) {
             HologramRuntime.sink().pose(viewer, display, anchor().clone().add(0, layout.baseY()[line], 0),
                     viewOf(display, line, layout), true);
         }
+    }
+
+    /**
+     * Ticks to glide a moving line's new size or place over. Its transformation is the keyframe's,
+     * a pose for when the glide ends; sent over fewer ticks, a spin raced there and stood still
+     * until the next keyframe (a hitch each time the size by distance or a hover changed). Gliding
+     * to the same moment keeps it at its true speed.
+     */
+    static int glideTicks(long glideEnd, long now, int fallback) {
+        return glideEnd > now ? Math.max(1, (int) Math.round((glideEnd - now) / (double) TICK_MS)) : fallback;
     }
 
     /** Whether a line is still to slide in for a viewer. */
@@ -1713,6 +1728,7 @@ final class HologramImpl implements Hologram {
         }
         lastFrame = frame;
         long target = now + GLIDE_MS;
+        glideEnd = target;
         DisplayState[] current = displays;
         for (DisplayState display : current) {
             if (display.style().animated() && display.mob() == null) {
