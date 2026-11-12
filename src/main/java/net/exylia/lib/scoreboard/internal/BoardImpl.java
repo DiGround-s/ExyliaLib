@@ -3,8 +3,10 @@ package net.exylia.lib.scoreboard.internal;
 import net.exylia.lib.placeholder.Placeholders;
 import net.exylia.lib.placeholder.Request;
 import net.exylia.lib.placeholder.Template;
+import net.exylia.lib.placeholder.internal.PapiBridge;
 import net.exylia.lib.scoreboard.Board;
 import net.exylia.lib.scoreboard.SidebarConfig;
+import net.exylia.lib.text.Centering;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.text.internal.TextEffects;
 import net.kyori.adventure.text.Component;
@@ -32,6 +34,8 @@ final class BoardImpl implements Board {
 
     /** Milliseconds between two ticks of the server clock. */
     private static final long TICK_MS = 50L;
+    /** Ticks a first frame waits for PlaceholderAPI before drawing what it has. */
+    private static final int MAX_FIRST_FRAME_WAITS = 10;
 
     private final String ownerName;
     private final Player player;
@@ -67,6 +71,8 @@ final class BoardImpl implements Board {
     private volatile boolean reportedFailure;
 
     private int frame;
+    /** Driver ticks the first frame has waited for PlaceholderAPI; -1 once it is drawn. */
+    private int firstFrameWaits;
     private String lastTitle;
     private String[] lastLines = new String[0];
     /**
@@ -186,6 +192,10 @@ final class BoardImpl implements Board {
         }
         try {
             lastRender = BoardManager.now();
+            if (firstFrameWaitsForPapi()) {
+                markDue();
+                return;
+            }
             boolean sendAll = invalidated || !smart;
 
             renderTitle(sendAll);
@@ -212,6 +222,32 @@ final class BoardImpl implements Board {
         } finally {
             rendering.set(false);
         }
+    }
+
+    /**
+     * Whether the first frame should wait a tick for PlaceholderAPI.
+     *
+     * <p>Off the main thread a PlaceholderAPI value is the one the main thread
+     * remembered, and on join there is none: the first frame came out with
+     * {@code %luckperms_prefix%} as written, the board grew to fit it and held
+     * that width, so every {@code <center>} line sat far right until it let go.
+     * Rendering the strings once registers what is asked; the next main tick
+     * answers it.
+     */
+    private boolean firstFrameWaitsForPapi() {
+        if (firstFrameWaits < 0) {
+            return false;
+        }
+        titleFrames[frame % titleFrames.length].render(player, data);
+        for (Template template : lineTemplates) {
+            template.render(player, data);
+        }
+        if (firstFrameWaits < MAX_FIRST_FRAME_WAITS && PapiBridge.waiting(player)) {
+            firstFrameWaits++;
+            return true;
+        }
+        firstFrameWaits = -1;
+        return false;
     }
 
     private void renderTitle(boolean sendAll) {
@@ -266,7 +302,8 @@ final class BoardImpl implements Board {
                     : lastLinesBuilt[i];
         }
         // Laid out together: one line growing can move the padding of another.
-        Component[] shown = width.layout(built, origin, BoardManager.now());
+        int titleWidth = lastTitleShown == null ? 0 : Centering.pixelWidth(lastTitleShown);
+        Component[] shown = width.layout(built, origin, titleWidth, BoardManager.now());
         for (int i = 0; i < count; i++) {
             if (sendAll || i >= lastLinesShown.length || !shown[i].equals(lastLinesShown[i])) {
                 sidebar.line(i, shown[i]);

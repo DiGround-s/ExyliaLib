@@ -189,6 +189,30 @@ public final class PapiBridge {
         return value == null ? text : value;
     }
 
+    /**
+     * Whether a render off the main thread asked this player for a value the
+     * main thread has not answered yet, and will: the refresher is running.
+     *
+     * <p>Lets a board hold its first frame for the tick it takes, instead of
+     * drawing {@code %luckperms_prefix%} as written and sizing itself to it.
+     */
+    public static boolean waiting(Player player) {
+        if (player == null || refresher == null) {
+            return false;
+        }
+        Set<String> asked = WANTED.get(player.getUniqueId());
+        if (asked == null || asked.isEmpty()) {
+            return false;
+        }
+        Map<String, String> values = VALUES.get(player.getUniqueId());
+        for (String text : asked) {
+            if (values == null || !values.containsKey(text)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Asks PlaceholderAPI, from a thread that is allowed to. */
     private static String resolve(Player player, String text) {
         try {

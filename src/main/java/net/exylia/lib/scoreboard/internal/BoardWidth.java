@@ -68,12 +68,13 @@ final class BoardWidth {
      *
      * @param lines   each line as parsed
      * @param sources the configured line each came from, {@code -1} for a line a placeholder expanded into
+     * @param title   the title's width in pixels: the client sizes the board to it too
      * @param now     the clock, in milliseconds
      * @return the lines to draw
      */
-    Component[] layout(Component[] lines, int[] sources, long now) {
+    Component[] layout(Component[] lines, int[] sources, int title, long now) {
         int[] widths = new int[lines.length];
-        int widest = 0;
+        int widest = title;
         for (int i = 0; i < lines.length; i++) {
             widths[i] = Centering.pixelWidth(lines[i]);
             widest = Math.max(widest, widths[i]);

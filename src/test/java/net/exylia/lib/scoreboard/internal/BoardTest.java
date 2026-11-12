@@ -373,6 +373,31 @@ class BoardTest {
     }
 
     @Test
+    @DisplayName("a PlaceholderAPI value is in from the first frame, so a centred line never starts wide")
+    void firstFrameWaitsForPapi() {
+        // Off the main thread a PlaceholderAPI value is the one the main thread
+        // remembered last, and on join there is none yet: the first frame drew
+        // %luckperms_prefix% as written, the board grew to fit it, and every
+        // <center> line was padded to that width until the hold let go.
+        PapiBridge.setApplierForTests((viewer, text) -> text.replace("%rank%", "VIP"));
+        PapiBridge.startRefreshing(plugin);
+        FakeServer.online(viewer.player());
+        FakeServer.setPrimaryThread(false);
+
+        Scoreboards.show(plugin, viewer.player(),
+                config(List.of("FFA"), List.of("<center>X", "Rank: %rank%")));
+        for (int i = 0; i < 6; i++) {
+            drive();
+            advanceSeconds(1);
+        }
+
+        List<String> centred = sidebar().lines().stream().filter(l -> l.startsWith("0=")).toList();
+        assertFalse(sidebar().lines().stream().anyMatch(l -> l.contains("%rank%")), sidebar().lines().toString());
+        assertEquals(1, centred.size(), centred.toString());
+        assertTrue(sidebar().lines().contains("1=Rank: VIP"), sidebar().lines().toString());
+    }
+
+    @Test
     @DisplayName("a board closed while it renders is not reported as a failure")
     void closeDuringRenderIsNotReported() {
         List<LogRecord> reported = new ArrayList<>();

@@ -34,7 +34,7 @@ class BoardWidthTest {
     void centresWithinTheFixedWidth() {
         BoardWidth width = new BoardWidth(LINES);
         assertEquals(Centering.pixelWidth(Component.text("STATISTICS HEADER")), width.base());
-        Component[] shown = width.layout(lines("9"), SOURCES, 0);
+        Component[] shown = width.layout(lines("9"), SOURCES, 0, 0);
         String today = PlainTextComponentSerializer.plainText().serialize(shown[0]);
         assertTrue(today.startsWith("    ") && today.endsWith("TODAY"), today);
         assertEquals(width.base(), widest(shown), 4);
@@ -45,11 +45,22 @@ class BoardWidthTest {
     void holdsItsWidth() {
         BoardWidth width = new BoardWidth(LINES);
         String wide = "1234567890123456789";
-        int grown = widest(width.layout(lines(wide), SOURCES, 0));
+        int grown = widest(width.layout(lines(wide), SOURCES, 0, 0));
         assertTrue(grown > width.base());
         // Back to a short value: the blank line keeps the board as wide as it was.
-        assertEquals(grown, widest(width.layout(lines("9"), SOURCES, 1_000)), 4);
+        assertEquals(grown, widest(width.layout(lines("9"), SOURCES, 0, 1_000)), 4);
         // Long enough after: it shrinks back to its fixed width.
-        assertEquals(width.base(), widest(width.layout(lines("9"), SOURCES, 1_000 + BoardWidth.SHRINK_AFTER_MS)), 4);
+        assertEquals(width.base(), widest(width.layout(lines("9"), SOURCES, 0, 1_000 + BoardWidth.SHRINK_AFTER_MS)), 4);
+    }
+
+    @Test
+    @DisplayName("a title wider than every line is the width a centred line sits in")
+    void centresWithinTheTitle() {
+        BoardWidth width = new BoardWidth(List.of("<center>X", "Y"));
+        Component x = Component.text("X");
+        int title = Centering.pixelWidth(Component.text("A MUCH LONGER TITLE"));
+        Component[] shown = width.layout(new Component[]{x, Component.text("Y")}, new int[]{0, 1}, title, 0);
+        int padding = Centering.pixelWidth(shown[0]) - Centering.pixelWidth(x);
+        assertEquals((title - Centering.pixelWidth(x)) / 2, padding, 2);
     }
 }
