@@ -2064,3 +2064,5 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}Mesa {highlight}{0} {letters}colocada. Os jogadores clicam para jogar.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}Mesa {highlight}{0} {letters}removida.'
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}A mesa {highlight}{0} {letters}já está aí.'
+'{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} Clique esq. {letters_black}· {letters}usar este valor'
+'{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} Clique dir. {letters_black}· {letters}mudar o valor'
