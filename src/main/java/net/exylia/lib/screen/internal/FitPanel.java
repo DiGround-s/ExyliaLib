@@ -17,7 +17,8 @@ import java.util.function.Consumer;
  * Fits screens and the HUD to a player's window. The client never tells the server its field of view or window shape,
  * so the player shows it: lines are drawn where the window's edges would be at the FOV they pick, and they move them
  * onto the real edges, height first, then width. The result is one network-wide pair of preferences
- * ({@link ScreenPreferences#fov}, {@link ScreenPreferences#aspect}) that sizes every screen and places the HUD.
+ * ({@link ScreenPreferences#fov}, {@link ScreenPreferences#aspect}) that sizes every screen and places the HUD, and
+ * their FOV Effects slider ({@link ScreenPreferences#fovEffects}), which keeps the HUD still while they sprint.
  *
  * <p>Asked once, on a player's first screen or the first time their HUD shows, whichever comes first; again from the
  * screen settings. Drawn over a camera-view screen only: a wheel screen keeps the player's own FOV effects.
@@ -92,6 +93,11 @@ public final class FitPanel {
                         event -> ScreenPreferences.view(player, fov, value, false)));
             }
             card.add(shapes);
+            card.add(words("{letters}" + Phrases.tr("FOV Effects, in your video settings:")).scale(LABEL).wrap(190)
+                    .textAlign(Node.Align.CENTER));
+            double effects = Math.round(ScreenPreferences.fovEffects(id) * 100);
+            card.add(stepper("effects", "{highlight}" + Math.round(effects) + "%", new double[]{-10, -1, 1, 10},
+                    by -> ScreenPreferences.fovEffects(player, effects + by)));
         }
         card.add(Node.row(
                 button(height ? "later" : "back", "{letters}" + Phrases.tr(height ? "Later" : "Back"),

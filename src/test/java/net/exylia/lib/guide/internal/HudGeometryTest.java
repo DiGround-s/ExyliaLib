@@ -61,4 +61,24 @@ class HudGeometryTest {
         assertEquals(plain[0] * zoom * (21.0 / 9) / HudGeometry.ASPECT, corner[0], 1e-9);
         assertEquals(plain[1] * zoom, corner[1], 1e-9);
     }
+
+    @Test
+    void sprintingWidensOnlyAsMuchAsTheSliderLets() {
+        assertEquals(1.15, HudGeometry.fovModifier(0.13, 0.2f, false, 1), 1e-6);
+        assertEquals(1.075, HudGeometry.fovModifier(0.13, 0.2f, false, 0.5), 1e-6);
+        assertEquals(1, HudGeometry.fovModifier(0.13, 0.2f, false, 0), 1e-6);
+        assertEquals(1, HudGeometry.fovModifier(0.1, 0.2f, false, 1), 1e-6);
+        assertEquals(1, HudGeometry.widen(1, 70), 1e-9);
+        assertTrue(HudGeometry.widen(1.15, 70) > 1.15);
+    }
+
+    @Test
+    void samplesCoverTheRectangleNoFurtherApartThanTheStep() {
+        double[][] points = HudGeometry.samples(-10, 0, 10, 1, 1.5);
+        assertEquals(15 * 2, points.length);
+        for (double[] point : points) {
+            assertTrue(point[0] >= -10 && point[0] <= 10 && point[1] >= 0 && point[1] <= 1);
+        }
+        assertEquals(4, HudGeometry.samples(0, 0, 0, 0, 1.5).length);
+    }
 }

@@ -43,6 +43,7 @@ public final class ScreenPreferences {
     static final String FOV = "view-fov";
     static final String ASPECT = "view-aspect";
     static final String FITTED = "view-fitted";
+    static final String FOV_EFFECTS = "view-fov-effects";
 
     /** The field of view and window shape screens and the HUD are drawn for until a player fits them. */
     static final int DEFAULT_FOV = 70, MIN_FOV = 30, MAX_FOV = 110;
@@ -106,6 +107,10 @@ public final class ScreenPreferences {
         Settings.register(lib, Setting.number(ASPECT, DEFAULT_ASPECT, MIN_ASPECT, MAX_ASPECT, 0.01)
                 .category("interface").icon("PAINTING").name("Window shape")
                 .description("Width over height of your", "game window: 1.78 is 16:9.")
+                .build());
+        Settings.register(lib, Setting.number(FOV_EFFECTS, 100, 0, 100, 1)
+                .category("interface").icon("SUGAR").name("FOV effects")
+                .description("Your game's FOV Effects, so the", "HUD holds still while you sprint.")
                 .build());
         Settings.register(lib, Setting.toggle(FITTED, false)
                 .category("interface").icon("ITEM_FRAME").name("Screens fitted")
@@ -186,6 +191,19 @@ public final class ScreenPreferences {
 
     public static double fovScale(double fov) {
         return Math.tan(Math.toRadians(fov / 2)) / Math.tan(Math.toRadians(DEFAULT_FOV / 2.0));
+    }
+
+    /**
+     * The player's FOV Effects slider, from 0 to 1: how much of the client's widening while sprinting, with speed or
+     * flying, they see. Vanilla's 100% until they say otherwise.
+     */
+    public static double fovEffects(UUID player) {
+        return number(player, FOV_EFFECTS, 100, 0, 100) / 100;
+    }
+
+    /** Stores the player's FOV Effects slider, in percent. */
+    static void fovEffects(Player player, double percent) {
+        set(player, FOV_EFFECTS, Long.toString(Math.round(Math.max(0, Math.min(100, percent)))));
     }
 
     /** Whether the player fitted screens to their window: network-wide. */

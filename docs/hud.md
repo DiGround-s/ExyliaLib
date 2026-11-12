@@ -144,13 +144,19 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
   ([screens](screens.md), "Fit to your window"), and every element is drawn
   larger by the same share as their FOV, so it looks the same size at FOV 50
   or 110. Until they fit, FOV 70 at 16:9.
-- **Sprinting.** Sprinting, speed and flying widen the client's view, so the
-  HUD narrows a little towards the middle with the world, smoothly. It is not
-  compensated: the server cannot see a client's *FOV Effects* slider, and a
-  wrong guess pumps the whole HUD in and out on every sprint.
-- **No shadow, no panel by default.** The text is see-through so a wall never
-  hides it, and a see-through shadow is drawn over its own letters; a panel is
-  `background(HudWidget.PANEL)` or any ARGB.
+- **Sprinting (1.596.0).** Sprinting, speed and flying widen the client's
+  view by a known factor, which would pull the HUD towards the middle. The
+  server sees the same speed and draws everything larger by that factor, so on
+  screen the HUD stays where it is. The factor follows the player's *FOV
+  Effects* slider, which they tell once on the fit's width step (or in
+  `/settings`, Interface, *FOV effects*); vanilla's 100% until they do.
+- **Walls.** No shadow, no panel by default (`background(HudWidget.PANEL)` or
+  any ARGB). An element turns see-through only while something stands between
+  the eye and it: rays 1.5 blocks of the view apart over the element and a
+  0.75 margin around it look for blocks, its corners and middle for mobs, and it
+  stays see-through 30 ticks after its view clears. Portals, water and glass
+  still draw over it: a see-through text writes no depth, so translucent things
+  drawn after it land on top either way.
 - **One stack per anchor across plugins.** Two plugins showing at the same
   anchor stack one after the other (the first to show starts at the edge).
 - **Steps aside** while a screen is open, while a camera shot plays, while dead

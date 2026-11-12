@@ -91,5 +91,46 @@ final class HudGeometry {
                 (float) (-GuidePackets.VIEW_DISTANCE * f - seat * Math.sin(radians))};
     }
 
+    /**
+     * How much the client widens its view as the player moves, against its own: sprinting, speed and slowness,
+     * flying. The client's own sum ({@code AbstractClientPlayer#getFieldOfViewModifier}) with their FOV Effects slider.
+     *
+     * @param speed     the movement speed attribute, sprinting included
+     * @param walkSpeed Bukkit's walk speed ({@code 0.2} by default, twice the client's)
+     * @param flying    whether they fly
+     * @param effects   their FOV Effects slider, 0 to 1
+     */
+    static double fovModifier(double speed, float walkSpeed, boolean flying, double effects) {
+        if (walkSpeed <= 0 || Double.isNaN(speed)) return 1;
+        double modifier = (speed / (walkSpeed / 2.0) + 1) / 2;
+        if (flying) modifier *= 1.1;
+        return Math.clamp(1 + (modifier - 1) * effects, 0.1, 1.5);
+    }
 
+    /**
+     * How much larger to draw the HUD, around the middle of the view, so a view of {@code fov} degrees widened by
+     * {@code modifier} shows it where it was.
+     */
+    static double widen(double modifier, double fov) {
+        double half = Math.toRadians(fov / 2);
+        return Math.tan(half * modifier) / Math.tan(half);
+    }
+
+    /**
+     * Points spread over a rectangle of the view, its edges included, no further than {@code step} apart. A block
+     * nearer than the HUD is never smaller than one unit of it, so at a step under one no block over the rectangle is
+     * missed.
+     */
+    static double[][] samples(double left, double bottom, double right, double top, double step) {
+        int columns = Math.max(1, (int) Math.ceil((right - left) / step));
+        int rows = Math.max(1, (int) Math.ceil((top - bottom) / step));
+        double[][] out = new double[(columns + 1) * (rows + 1)][];
+        int n = 0;
+        for (int c = 0; c <= columns; c++) {
+            for (int r = 0; r <= rows; r++) {
+                out[n++] = new double[]{left + (right - left) * c / columns, bottom + (top - bottom) * r / rows};
+            }
+        }
+        return out;
+    }
 }

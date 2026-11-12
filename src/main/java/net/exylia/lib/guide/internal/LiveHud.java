@@ -56,7 +56,14 @@ public final class LiveHud extends Piece {
      */
     private static final int SEE_THROUGH = 0x02;
     /** Ticks an element stays see-through after its view clears, so it does not flicker at a wall's edge. */
-    private static final long CLEAR_TICKS = 10;
+    private static final long CLEAR_TICKS = 30;
+    /**
+     * How far around an element a block already turns it see-through, in blocks of the view: it turns before a wall
+     * reaches the text, and the time the flag takes to reach the client is not seen while turning.
+     */
+    private static final double COVER_MARGIN = 0.75;
+    /** How far apart the rays that look for a block in front of an element are, in blocks of the view. */
+    private static final double COVER_STEP = 1.5;
     /** How much nearer each layer of an element stands than the one under it, in blocks: their order in depth. */
     private static final double LAYER_DEPTH = 0.005;
     /** Every plugin's HUD on each player, in the order they arrived: they share one stack at each anchor. */
@@ -68,6 +75,8 @@ public final class LiveHud extends Piece {
     private final List<int[]> ghosts = new ArrayList<>();
     private double sentPitch = Double.NaN;
     private double sentSeat;
+    /** How much larger everything is drawn so the client's widened view while sprinting shows it where it was. */
+    private double widen = 1;
     /** Whether the player was offered fitting the HUD to their window, or needs not be. */
     private boolean fitOffered;
     private long now;
@@ -149,8 +158,6 @@ public final class LiveHud extends Piece {
         double seat = Math.max(0, player.getHeight() - player.getEyeHeight());
         boolean reseat = Double.isNaN(sentPitch) || Math.abs(pitch - sentPitch) >= PITCH_STEP
                 || Math.abs(seat - sentSeat) > 0.01;
-        // No sprint FOV compensation: the server cannot know a client's FOV Effects slider, and guessing it wrong
-        // pumps the whole HUD in and out on every sprint. Drawn as is, it only narrows a little with the world.
         if (reseat) {
             sentPitch = pitch;
             sentSeat = seat;
@@ -159,6 +166,15 @@ public final class LiveHud extends Piece {
         java.util.UUID id = player.getUniqueId();
         double zoom = net.exylia.lib.screen.internal.ScreenPreferences.fovScale(id);
         double aspect = net.exylia.lib.screen.internal.ScreenPreferences.aspect(id);
+        // Sprinting, speed and flying widen the client's view, which would pull the HUD towards the middle with the
+        // world: drawn larger by as much, it stays where it is. The FOV Effects slider is the player's own, told once.
+        double wanted = HudGeometry.widen(HudGeometry.fovModifier(speed(player), player.getWalkSpeed(),
+                        player.isFlying(), net.exylia.lib.screen.internal.ScreenPreferences.fovEffects(id)),
+                net.exylia.lib.screen.internal.ScreenPreferences.fov(id));
+        if (Math.abs(wanted - widen) > 0.002) {
+            widen = wanted;
+            reseat = true;
+        }
         Map<HudAnchor, List<Element>> stacks = stacks(player);
         if (!fitOffered && !stacks.isEmpty()) {
             fitOffered = net.exylia.lib.screen.internal.ScreenPreferences.fitted(id) || offerFit(player);
@@ -168,7 +184,7 @@ public final class LiveHud extends Piece {
             double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
                 element.place(stack.getKey(), offset, zoom, aspect);
-                element.see(view.blocks(element.spot, element.wide, element.tall), now);
+                element.see(view.blocks(element.spot, element.wide, element.tall, widen), now);
                 offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 element.send(player, reseat);
             }
@@ -293,8 +309,8 @@ public final class LiveHud extends Piece {
             if (slide && part.sent != null) {
                 Look l = part.sent;
                 double f = nearer(i);
-                GuidePackets.riderTransform(player, part.id, at(out, l, k, f), (float) (l.sx() * k * f),
-                        (float) (l.sy() * k * f), GLIDE, null, -1, -1);
+                GuidePackets.riderTransform(player, part.id, at(out, l, k, f), (float) (l.sx() * k * f * widen),
+                        (float) (l.sy() * k * f * widen), GLIDE, null, -1, -1);
             }
             ghosts.add(new int[]{part.id, (int) (slide ? now + GLIDE + 1 : now)});
         }
@@ -317,7 +333,8 @@ public final class LiveHud extends Piece {
      * pulled {@code f} of the way to the eye.
      */
     private float[] at(double[] spot, Look look, double k, double f) {
-        return HudGeometry.seated(spot[0] + look.tx() * k, spot[1] + look.ty() * k, sentPitch, sentSeat, f);
+        return HudGeometry.seated((spot[0] + look.tx() * k) * widen, (spot[1] + look.ty() * k) * widen, sentPitch,
+                sentSeat, f);
     }
 
     /** How far towards the eye the {@code i}th layer of an element is pulled, so each one stands over the last. */
@@ -346,19 +363,38 @@ public final class LiveHud extends Piece {
             this.up = right.getCrossProduct(ahead);
         }
 
-        /** Whether anything stands between the eye and an element's corners or middle. */
-        boolean blocks(double[] spot, double wide, double tall) {
+        /**
+         * Whether anything stands between the eye and an element, drawn {@code widen} times as large: a block over any
+         * part of it or the margin around it, a mob over a corner or the middle.
+         */
+        boolean blocks(double[] spot, double wide, double tall, double widen) {
             if (spot == null) return false;
-            double l = spot[0] - wide / 2, r = spot[0] + wide / 2, b = spot[1], t = spot[1] + tall;
-            return hit(l, b) || hit(r, b) || hit(l, t) || hit(r, t) || hit(spot[0], b + tall / 2);
+            double l = (spot[0] - wide / 2) * widen, r = (spot[0] + wide / 2) * widen;
+            double b = spot[1] * widen, t = (spot[1] + tall) * widen;
+            // ponytail: one ray per COVER_STEP; a block further than 16/COVER_STEP away can hide a sliver between two
+            for (double[] point : HudGeometry.samples(l - COVER_MARGIN, b - COVER_MARGIN, r + COVER_MARGIN,
+                    t + COVER_MARGIN, COVER_STEP)) {
+                if (block(point[0], point[1])) return true;
+            }
+            return mob(l, b) || mob(r, b) || mob(l, t) || mob(r, t) || mob((l + r) / 2, (b + t) / 2);
         }
 
-        private boolean hit(double x, double y) {
-            org.bukkit.util.Vector to = ahead.clone().multiply(GuidePackets.VIEW_DISTANCE)
+        private org.bukkit.util.Vector to(double x, double y) {
+            return ahead.clone().multiply(GuidePackets.VIEW_DISTANCE)
                     .add(right.clone().multiply(x)).add(up.clone().multiply(y));
+        }
+
+        private boolean block(double x, double y) {
+            org.bukkit.util.Vector to = to(x, y);
             double length = to.length();
-            return eye.getWorld().rayTrace(eye, to.multiply(1 / length), length, org.bukkit.FluidCollisionMode.NEVER,
-                    false, 0, this::covers, View::covers) != null;
+            return eye.getWorld().rayTraceBlocks(eye, to.multiply(1 / length), length,
+                    org.bukkit.FluidCollisionMode.NEVER, false, View::covers) != null;
+        }
+
+        private boolean mob(double x, double y) {
+            org.bukkit.util.Vector to = to(x, y);
+            double length = to.length();
+            return eye.getWorld().rayTraceEntities(eye, to.multiply(1 / length), length, 0, this::covers) != null;
         }
 
         /** An entity that would cover the HUD: one the player sees, not their own vehicle or passenger. */
@@ -384,6 +420,11 @@ public final class LiveHud extends Piece {
         } catch (Throwable unavailable) {
             return true;
         }
+    }
+
+    private static double speed(Player player) {
+        org.bukkit.attribute.AttributeInstance speed = player.getAttribute(net.exylia.lib.platform.Attributes.MOVEMENT_SPEED);
+        return speed == null ? Double.NaN : speed.getValue();
     }
 
     private static boolean stepsAside(Player player) {
@@ -594,7 +635,7 @@ public final class LiveHud extends Piece {
                     double f = nearer(parts.size());
                     part.sentFlags = flags(look);
                     GuidePackets.spawnRider(player, part.id, look.text(), look.lineWidth(), look.background(),
-                            look.opacity(), part.sentFlags, (float) (look.sx() * k * f), (float) (look.sy() * k * f),
+                            look.opacity(), part.sentFlags, (float) (look.sx() * k * f * widen), (float) (look.sy() * k * f * widen),
                             at(from, look, k, f), false);
                     part.sent = look;
                     parts.add(part);
@@ -631,8 +672,8 @@ public final class LiveHud extends Piece {
                 // New words jump to their own new place: cleaner than gliding the old ones there.
                 int t = changed && !moved && !entering ? 0 : ticks;
                 double f = nearer(i);
-                GuidePackets.riderTransform(player, part.id, at(spot, look, k, f), (float) (look.sx() * k * f),
-                        (float) (look.sy() * k * f), t, retext ? look.text() : null,
+                GuidePackets.riderTransform(player, part.id, at(spot, look, k, f), (float) (look.sx() * k * f * widen),
+                        (float) (look.sy() * k * f * widen), t, retext ? look.text() : null,
                         look.opacity() != part.sent.opacity() ? look.opacity() : -1, reflag ? flags : -1);
                 part.sent = look;
                 part.sentFlags = flags;
