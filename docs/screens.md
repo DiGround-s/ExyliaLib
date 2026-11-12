@@ -293,6 +293,26 @@ thread on Folia. Nothing survives the plugin: its screens close on disable.
 The module keeps nothing derived from the palette between renders (each render re-reads the tokens), so it
 has no `invalidateAll`.
 
+## Screens in the world (1.606.0)
+
+`WorldScreen.place(plugin, centre, screen, widthBlocks)` stands any screen (Java or markup) in the world as a flat
+panel: a leaderboard on a wall, a menu by a portal. The location is the panel's middle; its yaw is the way the
+front faces (0 south, 90 west, 180 north, -90 east). The height follows the screen's `size`.
+
+```java
+WorldScreen board = WorldScreen.place(plugin, location, screen, 3.0).range(32).reach(12);
+board.remove(); // on disable: it is sent as packets, nothing is saved in the world
+```
+
+- Every player within `range` gets their own session: `session.state("page", 1)` is per viewer.
+- The crosshair is the pointer (an observing `SpatialInput` pointer): a hovered box takes its `hover` and
+  `hoverOutline`, a swing or a use on a box with `onClick` presses it (`shift` is sneaking), a click anywhere
+  else reaches the world. Nobody is frozen. A right-click with an empty hand in the air is never sent by the
+  client, so left-click is the one that always works.
+- It redraws every second (placeholders), on hover, on click and on `set`; each look keeps its display, so only
+  what changed is sent and a box that goes is destroyed.
+- Drawn: boxes, outlines, text (a gradient takes its middle colour). Not drawn: items, images, motion, tooltips.
+
 ## Markup (since 1.485.0)
 
 `ScreenMarkup` reads a screen from a well-formed XHTML file and CSS sheets, so a server owner restyles it

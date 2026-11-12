@@ -55,7 +55,7 @@ class ScreenWireTest {
     private final List<List<PacketWrapper<?>>> raw = new ArrayList<>();
 
     /** PacketEvents' registries read their mappings through the API's settings: an API that only has those. */
-    private static final class MappingsOnly extends com.github.retrooper.packetevents.PacketEventsAPI<Object> {
+    static final class MappingsOnly extends com.github.retrooper.packetevents.PacketEventsAPI<Object> {
         @Override public boolean isLoaded() { return true; }
         @Override public void init() { }
         @Override public boolean isInitialized() { return true; }

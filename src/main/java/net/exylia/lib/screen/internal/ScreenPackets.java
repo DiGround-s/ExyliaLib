@@ -283,6 +283,12 @@ final class ScreenPackets extends PacketListenerAbstract {
                 0f, 0f, 0f, 0, Optional.empty());
     }
 
+    /** A text display facing {@code yaw} (0 south, 90 west): with billboard fixed its front is what the world sees. */
+    static PacketWrapper<?> spawnDisplay(int id, Vector3d at, float yaw) {
+        return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.TEXT_DISPLAY, at,
+                0f, yaw, yaw, 0, Optional.empty());
+    }
+
     /** An entity drawn as nothing, facing {@code yaw} and {@code pitch}: what a held camera looks out of and a client rides. */
     static PacketWrapper<?> spawnStill(int id, Vector3d at, float yaw, float pitch) {
         return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
@@ -446,6 +452,12 @@ final class ScreenPackets extends PacketListenerAbstract {
      * @param glide ticks the client takes to slide to it, 0 to jump
      */
     static PacketWrapper<?> rect(int id, double x, double y, double z, double w, double h, int argb, int glide) {
+        return rect(id, x, y, z, w, h, argb, glide, BILLBOARD_CENTER);
+    }
+
+    /** @param billboard 3 to turn with the view, 0 to stand fixed at the entity's own yaw (a screen in the world) */
+    static PacketWrapper<?> rect(int id, double x, double y, double z, double w, double h, int argb, int glide,
+                                 byte billboard) {
         // An opaque fill hides its glyphs in its own colour; a see-through one would show them, so it draws
         // spaces instead. ponytail: spaces leave the 1 px background padding at 1.5 % rather than 1 %.
         boolean clear = (argb >>> 24) < 0xFF;
@@ -458,7 +470,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) sx, (float) sy, SCALE_DEEP)),
-                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, billboard),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT,
                         Component.text(clear ? CLEAR_TEXT : GRID_TEXT, TextColor.color(argb & 0xFFFFFF))),
@@ -494,6 +506,12 @@ final class ScreenPackets extends PacketListenerAbstract {
     /** @param squeeze how narrowed across, 1 for not at all */
     static PacketWrapper<?> text(int id, double x, double y, double z, double scale, double squeeze, Component text, int glide,
                                  int lines, byte flags) {
+        return text(id, x, y, z, scale, squeeze, text, glide, lines, flags, BILLBOARD_CENTER);
+    }
+
+    /** @param billboard 3 to turn with the view, 0 to stand fixed at the entity's own yaw */
+    static PacketWrapper<?> text(int id, double x, double y, double z, double scale, double squeeze, Component text, int glide,
+                                 int lines, byte flags, byte billboard) {
         Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * scale * squeeze),
                 (float) (y - (Layout.LINE * Math.max(1, lines) + 1) * FONT_PIXEL * scale / 2), (float) z);
         return new WrapperPlayServerEntityMetadata(id, List.of(
@@ -501,7 +519,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (scale * squeeze), (float) scale, SCALE_DEEP)),
-                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, billboard),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 1000),
