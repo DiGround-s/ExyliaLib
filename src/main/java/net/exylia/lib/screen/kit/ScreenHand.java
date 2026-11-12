@@ -54,6 +54,22 @@ public final class ScreenHand {
         return left + (width - span) / 2 + index * pitch;
     }
 
+    /** Whether {@code count} cards overlap, so each shows only a strip: draw its index in the corner, not centred. */
+    public boolean overlaps(int count) {
+        return count > 1 && pitch(count) < card + GAP;
+    }
+
+    /**
+     * Fills a card frame: its {@code centre} while the hand does not overlap, or only the small {@code corner} mark
+     * (rank or symbol) at the top left, inside the strip that stays visible, like the index of a real card.
+     *
+     * @since 1.603.1
+     */
+    public static @NotNull Node indexed(@NotNull Node frame, @NotNull Node centre, @NotNull Node corner, boolean overlapped) {
+        if (!overlapped) return frame.add(centre);
+        return frame.add(corner.absolute(1, Double.NaN, Double.NaN, 1.5));
+    }
+
     /** A card that rises by {@code lift} pixels while the cursor is on it; where it can be clicked stays put. */
     public static @NotNull Node lifting(@NotNull Node card, double lift) {
         return card.hoverTransform(Motion.Transform.translate(0, -lift)).transition(3, Motion.Ease.OUT);
@@ -69,9 +85,9 @@ public final class ScreenHand {
      */
     public static @NotNull Node backs(int count, @NotNull Supplier<Node> back, double width, double height, int most) {
         int shown = Math.max(0, Math.min(count, most));
-        double step = width / 4;
-        Node fan = Node.box().size(width + Math.max(0, most - 1) * step, height);
-        for (int i = 0; i < shown; i++) fan.add(back.get().absolute(0, Double.NaN, Double.NaN, i * step));
+        double step = width / 2;
+        Node fan = Node.box().size(width + Math.max(0, shown - 1) * step, height);
+        for (int i = 0; i < shown; i++) fan.add(back.get().absolute(0, Double.NaN, Double.NaN, i * step).layer(i));
         return fan;
     }
 }
