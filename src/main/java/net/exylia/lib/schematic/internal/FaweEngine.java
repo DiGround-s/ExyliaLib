@@ -230,6 +230,12 @@ final class FaweEngine implements SchematicEngine {
     }
 
     private static BlockArrayClipboard inMemory(CuboidRegion region) {
-        return new BlockArrayClipboard(region, new MemoryOptimizedClipboard(region));
+        BlockArrayClipboard clipboard = new BlockArrayClipboard(region, new MemoryOptimizedClipboard(region));
+        // The origin is the box's minimum, as FAWE's own clipboards set it.
+        // A MemoryOptimizedClipboard starts at ZERO, so a save wrote the box's
+        // world position as its offset and every regeneration pasted the
+        // arena that far away from itself.
+        clipboard.setOrigin(region.getMinimumPoint());
+        return clipboard;
     }
 }
