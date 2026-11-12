@@ -105,10 +105,15 @@ public final class ScreenOrbit {
         if (spinning != null) spinning.cancel();
         ScreenScene.Timeline run = scene.timeline();
         if (scene.reducedMotion()) {
-            this.angle = angle.applyAsDouble(1);
-            this.radius = radius.applyAsDouble(1);
-            members.forEach(member -> place(member, 0));
-            if (landed != null) run.at(1, landed);
+            // No glide, but the same wait: the landing is sent when the spin would end, never as it starts, so a
+            // viewer without motion learns the result no sooner than anyone else.
+            int end = Math.max(1, ticks);
+            run.at(end, () -> {
+                this.angle = angle.applyAsDouble(1);
+                this.radius = radius.applyAsDouble(1);
+                members.forEach(member -> place(member, 0));
+                if (landed != null) landed.run();
+            });
             return spinning = run.play();
         }
         int steps = Math.max(1, ticks / Math.max(1, stepTicks));

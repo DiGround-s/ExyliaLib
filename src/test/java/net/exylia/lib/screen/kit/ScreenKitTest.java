@@ -119,4 +119,41 @@ class ScreenKitTest {
         trail.clear();
         assertFalse(scene.has("dot0"));
     }
+
+    @Test
+    void anOrbitWithoutMotionSendsTheLandingOnlyWhenTheSpinWouldEnd() {
+        List<Runnable> waiting = new ArrayList<>();
+        ScreenScene still = new ScreenScene("still", new ScreenScene.Host() {
+            @Override
+            public void redraw() {
+            }
+
+            @Override
+            public void later(int ticks, Runnable step) {
+                waiting.add(step);
+            }
+
+            @Override
+            public boolean reduced() {
+                return true;
+            }
+
+            @Override
+            public boolean spare() {
+                return true;
+            }
+        });
+        ScreenOrbit ball = new ScreenOrbit(still, 50, 50, 40);
+        ScreenScene.Sprite sprite = still.sprite("ball").rect(4, 4, "{letters}");
+        ball.add(sprite, 0, 4, 4);
+        double x = sprite.x(), y = sprite.y();
+        boolean[] landed = {false};
+        ball.spin(ball.landing(90, 3), 30, 2, 30, null, () -> landed[0] = true);
+        assertEquals(x, sprite.x(), 0.001);
+        assertEquals(y, sprite.y(), 0.001);
+        assertFalse(landed[0]);
+        new ArrayList<>(waiting).forEach(Runnable::run);
+        assertTrue(landed[0]);
+        assertEquals(18, sprite.x(), 0.001);
+    }
 }
