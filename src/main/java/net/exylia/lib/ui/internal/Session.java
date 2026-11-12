@@ -224,6 +224,13 @@ final class Session implements UiSession {
 
     @Override
     public @NotNull List<UiEntry> entries(@NotNull String section) {
+        // A routed screen reads the rows on every render, right after a click among them: a followed list
+        // answers fresh there, or the card clicked kept its old state until the next timed pull (up to 2 s).
+        Supplier<? extends Collection<UiEntry>> source = routed ? sources.get(section) : null;
+        if (source != null) {
+            Collection<UiEntry> rows = source.get();
+            entries.put(section, rows == null ? List.of() : List.copyOf(rows));
+        }
         return entries.getOrDefault(section, List.of());
     }
 

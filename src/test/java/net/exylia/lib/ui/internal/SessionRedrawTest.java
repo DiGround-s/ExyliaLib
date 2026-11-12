@@ -93,6 +93,28 @@ class SessionRedrawTest {
     }
 
     @Test
+    @DisplayName("a routed screen reads a followed list fresh, not from the last timed pull")
+    void routedScreenReadsFollowedRowsFresh() {
+        UiDefinition menu = load("""
+                title: Gadgets
+                size: 27
+                pagination:
+                  slots: '0-8'
+                  item_template:
+                    material: STONE
+                """);
+        Session session = new Session(null, null, menu, null, window(new ItemStack[27]), 1, Map.of());
+        String section = menu.section().id();
+        String[] equipped = {"hook"};
+        session.follow(section, () -> List.of(UiEntry.of(equipped[0]).build()));
+        session.headless(() -> { }, true);
+
+        equipped[0] = "paint";
+
+        assertEquals("paint", session.entries(section).get(0).value(), "the card clicked still showed its old state");
+    }
+
+    @Test
     @DisplayName("a list reopened on a remembered page is titled with that page")
     void reopenedTitleShowsRememberedPage() {
         UiDefinition menu = load("""
