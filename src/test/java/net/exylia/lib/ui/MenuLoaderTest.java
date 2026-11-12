@@ -861,6 +861,29 @@ class MenuLoaderTest {
     }
 
     @Test
+    @DisplayName("a pagination block beside a small section stays the list arrows and title follow")
+    void paginationBesideSection() {
+        // ExyliaCrates, menus/user/history.yml: the openings, plus a one-slot back section.
+        UiDefinition menu = load("""
+                title: "History %current_page%/%total_pages%"
+                size: 54
+                pagination:
+                  slots: "10-16"
+                  item_template:
+                    material: STONE
+                sections:
+                  back:
+                    slots: "49"
+                    item_template:
+                      material: ARROW
+                """);
+
+        assertEquals(2, menu.sections().size());
+        assertNotNull(menu.section());
+        assertEquals(UiSection.MAIN, menu.section().id());
+    }
+
+    @Test
     @DisplayName("several lists on one screen each keep their own slots and arrows")
     void sections() {
         // ExyliaPracticeCore, menus/player/leaderboard.yml: the players in the

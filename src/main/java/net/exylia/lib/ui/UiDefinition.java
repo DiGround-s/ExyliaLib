@@ -199,16 +199,19 @@ public record UiDefinition(
     }
 
     /**
-     * The only list this menu has, when it has exactly one.
+     * The menu's own list: the only one it has, or, beside other sections, the
+     * one its top-level {@code pagination} block wrote ({@link UiSection#MAIN}).
      *
      * <p>For the ordinary case, which is a hundred and fifty of the files in
      * the wild: a menu written with a {@code pagination} block has one section
-     * and its name is not interesting.
+     * and its name is not interesting. A menu that adds a small section (a
+     * one-slot back button) still pages and titles that block's list, so a bare
+     * {@code next_page} and {@code %current_page%} keep working (since 1.608.0).
      *
-     * @return the section, or {@code null} when there is not exactly one
+     * @return the section, or {@code null} when there are several and none is {@code main}
      */
     public @Nullable UiSection section() {
-        return sections.size() == 1 ? sections.values().iterator().next() : null;
+        return sections.size() == 1 ? sections.values().iterator().next() : sections.get(UiSection.MAIN);
     }
 
     /**
