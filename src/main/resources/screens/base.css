@@ -151,9 +151,9 @@ search:hover { outline: 1px var(--primary); }
 .lib-results-list { flex-direction: row; gap: 2px; }
 .lib-result { width: 14px; height: 12px; align-items: center; justify-content: center; background: var(--letters-black)30; }
 .lib-result b { font-size: 7px; }
-.lib-result-red { background: var(--error)a0; }
-.lib-result-black { background: #1a1424e0; outline: 1px var(--letters-black)50; }
-.lib-result-green { background: var(--success)70; }
+.lib-result-red { background: var(--error); outline: 1px var(--error-light)80; }
+.lib-result-black { background: #050308; outline: 1px var(--letters)50; }
+.lib-result-green { background: var(--success)90; outline: 1px var(--success); }
 .lib-chip-rack { justify-content: center; }
 .lib-chip-list { flex-direction: row; gap: 5px; }
 .lib-chip { align-items: center; gap: 1px; transition: transform 3t ease-out; }
