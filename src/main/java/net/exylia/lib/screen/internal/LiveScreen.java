@@ -1039,8 +1039,16 @@ final class LiveScreen implements ScreenSession {
         return scenes.computeIfAbsent(id, name -> new net.exylia.lib.screen.ScreenScene(name, sceneHost));
     }
 
-    /** Runs the {@link Node#onHover} of a box the cursor has just come onto, on the viewer's thread. */
+    /**
+     * Runs the {@link Node#onLeave} of the box the cursor has just left, then the {@link Node#onHover} of the one it
+     * has come onto, on the viewer's thread and in that order.
+     */
     private void entered(Layout.Placed under, String before) {
+        String now = under == null ? null : under.key();
+        if (hoveredBox != null && hoveredBox.key().equals(before) && !Objects.equals(now, before)
+                && hoveredBox.node().onLeave() != null) {
+            handle(hoveredBox.node().onLeave(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, hoveredBox.node().id()));
+        }
         if (under == null || under.key().equals(before) || under.node().onHover() == null) return;
         handle(under.node().onHover(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, under.node().id()));
     }

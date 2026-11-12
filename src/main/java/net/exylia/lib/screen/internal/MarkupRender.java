@@ -860,6 +860,12 @@ public final class MarkupRender {
             node.onHover(event -> runAll(hover, new ScreenEvent(event.session(), event.kind(), 0, event.node(), hoverRow,
                     false), el));
         }
+        List<List<String>> leave = el.attr("action-leave") == null ? null : actions(el.attr("action-leave"), scope);
+        if (leave != null) {
+            Object leaveRow = rowOf(scope);
+            node.onLeave(event -> runAll(leave, new ScreenEvent(event.session(), event.kind(), 0, event.node(), leaveRow,
+                    false), el));
+        }
         El owner = option == null ? null : stateOwner(path);
         if (shift != null) {
             boolean off = flags.contains("disabled");

@@ -47,6 +47,8 @@ public final class Compile {
             "chip",
             // 1.498.0
             "vanish", "action-hover", "wearing", "spin",
+            // 1.600.0
+            "action-leave",
             // 1.501.0
             "require", "deny", "require-right", "deny-right", "require-shift", "deny-shift",
             // 1.502.0: on <screen>, read by whichever plugin opens screens by command (ExyliaScreens)
@@ -365,7 +367,7 @@ public final class Compile {
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));
-        for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "dismiss", "deny",
+        for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "action-leave", "dismiss", "deny",
                 "deny-right", "deny-shift"}) {
             String action = el.attr(attr);
             if (action == null) continue;

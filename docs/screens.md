@@ -387,6 +387,9 @@ A `<nl>` (or `<br>`) inside text or a value, as lore values write their line bre
 - `action-hover="..."` (1.498.0): runs once each time the cursor comes onto the box (not again until it
   leaves): `action-hover="set wear %kit_wearing%"` shows what a card is about elsewhere on the screen. Any action
   works, but keep it to state: it runs on every pass of the cursor. `Node#onHover` in Java.
+- `action-leave="..."` (1.600.0): runs once each time the cursor leaves the box (onto another box, a gap or off the
+  screen), before the next box's `action-hover`. Pair it with a hover that lights something up, so the light goes
+  out with the cursor: `action-hover="set hover %id%" action-leave="clear hover"`. `Node#onLeave` in Java.
 - More built-in actions (1.496.0): `back` (the dialog, then the screen before; closes at the root),
   `sound <key> [volume] [pitch]`, `toast <success|error|info|warning> <text>` (the tone colours its edge),
   `confirm '<question>' [dangerous] [yes=Leave] [no=Stay] then <actions>` (an in-screen dialog; what follows

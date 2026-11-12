@@ -72,6 +72,7 @@ public final class Node {
     private boolean vanish;
     private double spin;
     private Consumer<ScreenEvent> onHover;
+    private Consumer<ScreenEvent> onLeave;
     private double width = -1;
     private double height = -1;
     private double grow;
@@ -327,6 +328,23 @@ public final class Node {
     /** @since 1.498.0 */
     public @Nullable Consumer<ScreenEvent> onHover() {
         return onHover;
+    }
+
+    /**
+     * Runs once each time the cursor leaves this box (onto another box, a gap or off the screen), on the viewer's
+     * thread, before the next box's {@link #onHover}: undo what the hover showed ({@code session().set("hovered_kit",
+     * "")}), so a highlight does not stay on a box the cursor has left. Makes the box pointable.
+     *
+     * @since 1.600.0
+     */
+    public @NotNull Node onLeave(@Nullable Consumer<ScreenEvent> handler) {
+        this.onLeave = handler;
+        return this;
+    }
+
+    /** @since 1.600.0 */
+    public @Nullable Consumer<ScreenEvent> onLeave() {
+        return onLeave;
     }
 
     /** A name for this box, handed back in {@link ScreenEvent#node()}; also keeps it stable between renders. */
@@ -942,7 +960,7 @@ public final class Node {
 
     /** Whether the cursor can land on it: it reacts to clicks, the wheel or hovering, or has a tooltip to show. */
     public boolean pointable() {
-        return onClick != null || onScroll != null || onHover != null || hover != null || hoverOutline != null
+        return onClick != null || onScroll != null || onHover != null || onLeave != null || hover != null || hoverOutline != null
                 || hoverTransform != null || tooltip != null;
     }
 }
