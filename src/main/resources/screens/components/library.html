@@ -93,7 +93,9 @@
   block; kicker is a small dark label over a big value; results-strip shows a source's last results as tiles;
   chip-rack the chips to bet with, the picked one ringed; table-action the big footer button.
   Rows: results-strip reads result_label and result_tone (red, black, green); chip-rack reads chip_id, chip_colour
-  (a palette colour) and chip_label, and sets the state named by `state` to the chip_id clicked.
+  (a palette colour) and chip_label, and sets the state named by `state` to the chip_id clicked. With `custom` (an
+  action, 1.601.0) a CUSTOM chip ends the rack: its click runs that action, which asks for an amount and sets the state
+  to `custom`; `custom_label` is what it reads once one is typed (Custom before).
 -->
 <template name="table-head" props="title subtitle= rules=table_rules">
   <column class="lib-table-head">
@@ -122,13 +124,19 @@
   <row class="lib-results"><list source="${source}" class="lib-results-list"><box class="lib-result lib-result-%result_tone%"><b>%result_label%</b></box><empty><small>${empty}</small></empty></list></row>
 </template>
 
-<template name="chip-rack" props="source state=chip">
+<template name="chip-rack" props="source state=chip custom= custom_label= custom_colour={secondary_light}">
   <row class="lib-chip-rack"><list source="${source}" class="lib-chip-list">
     <column class="lib-chip ${${state} == chip_id ? 'lib-chip-on' : ''}" action="set ${state} %chip_id%">
       <img chip="%chip_colour%" size="18" ring="${${state} == chip_id ? '{highlight}' : ''}"/>
       <small class="lib-chip-value">%chip_label%</small>
     </column>
-  </list></row>
+  </list>
+    <column if="'${custom}' != ''" class="lib-chip lib-chip-custom ${${state} == 'custom' ? 'lib-chip-on' : ''}" action="${custom}">
+      <img chip="${custom_colour}" size="18" ring="${${state} == 'custom' ? '{highlight}' : ''}"/>
+      <small if="'${custom_label}' == ''" class="lib-chip-value">${tr('Custom')}</small>
+      <small if="'${custom_label}' != ''" class="lib-chip-value">${custom_label}</small>
+    </column>
+  </row>
 </template>
 
 <template name="table-action" props="action tone=error">

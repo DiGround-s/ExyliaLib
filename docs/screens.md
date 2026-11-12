@@ -1364,7 +1364,7 @@ everything on show: no tabs, the rules in a modal. The kit in `components/librar
 | `<table-panel title="...">...</table-panel>` | a framed block with a small label |
 | `<kicker label="SINGLE ZERO">...</kicker>` | a small label over a big value |
 | `<results-strip source="last" empty="No spins yet"/>` | the last results as coloured tiles; rows give `result_label` and `result_tone` (`red`, `black`, `green`) |
-| `<chip-rack source="chips" state="chip"/>` | round chips; rows give `chip_id`, `chip_colour` (a palette colour) and `chip_label`; a click sets `state` to the chip's id and the picked one is ringed in `{highlight}` |
+| `<chip-rack source="chips" state="chip"/>` | round chips; rows give `chip_id`, `chip_colour` (a palette colour) and `chip_label`; a click sets `state` to the chip's id and the picked one is ringed in `{highlight}`; `custom="<action>"` (1.601.0) adds a CUSTOM chip at the end whose click runs that action (ask the amount with `session.aside(() -> inputs.amount(...).defaultValue(last).open())`, then `session.set(state, "custom")`), and `custom_label` is what it reads once set |
 | `<table-action action="leave" tone="error">...</table-action>` | the big footer button |
 
 A chip is a picture: `<img chip="{error}" size="18" ring="{highlight}">` (4 displays, any size up to 96).
