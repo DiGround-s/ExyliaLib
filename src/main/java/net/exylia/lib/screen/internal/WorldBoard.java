@@ -206,9 +206,22 @@ public final class WorldBoard {
         int pick(StagePlane plane, StagePlane.Hit hit) {
             if (hit == null) return -1;
             Location eyes = viewer.getEyeLocation();
-            if (plane.point(hit.across(), hit.up(), 0).distanceSquared(eyes) > reach * reach) return -1;
+            Location point = plane.point(hit.across(), hit.up(), 0);
+            double distance = point.distanceSquared(eyes);
+            if (distance > reach * reach) return -1;
             double[] at = pixel(hit, unit, screen.width(), screen.height());
-            return at == null ? -1 : button(placed, at[0], at[1]);
+            int index = at == null ? -1 : button(placed, at[0], at[1]);
+            // Only a button is worth a block trace: a wall in between hides it from hovers and clicks.
+            return index >= 0 && blocked(eyes, point, Math.sqrt(distance)) ? -1 : index;
+        }
+
+        /** Whether a block stands between the eyes and a point on the panel. */
+        static boolean blocked(Location eyes, Location point, double distance) {
+            if (distance < 0.1) return false;
+            var direction = point.toVector().subtract(eyes.toVector()).multiply(1 / distance);
+            // Stops just short of the panel, so the wall it hangs on is not in the way.
+            return eyes.getWorld().rayTraceBlocks(eyes, direction, distance - 0.05,
+                    org.bukkit.FluidCollisionMode.NEVER, true) != null;
         }
 
         void hover(int index) {
