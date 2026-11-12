@@ -81,6 +81,10 @@ plugin, the server gets one of each.
   `PlayerJoinEvent` waits one tick, because Folia refuses to teleport a player
   who is still logging in. Never call `teleportAsync` from a join listener
   yourself; ask here.
+- **Bursts are spread** *(since 1.604.1)*. The server starts at most 5 moves a
+  tick; past that a move waits for the next tick with room, so a game sending
+  fifty players home costs ten ticks of five world changes, not one MSPT spike.
+  Tune with `-Dexylialib.teleportsPerTick=N` (`0` turns it off).
 
 ## Describing a teleport
 

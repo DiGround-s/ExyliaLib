@@ -1063,29 +1063,41 @@ public final class PacketRuntime {
             UUID targetId = target.getUniqueId();
             ENTITY_IDS.put(target.getEntityId(), targetId);
             for (Player viewer : Bukkit.getOnlinePlayers()) {
-                if (viewer.equals(target)) {
-                    continue;
-                }
-                Set<UUID> hidden = HIDDEN.computeIfAbsent(viewer.getUniqueId(),
-                        ignored -> ConcurrentHashMap.newKeySet());
-                boolean allowed = allowed(viewer, target);
-                if (!allowed && hidden.add(targetId)) {
-                    // The record first: whatever the tracker sends from here on
-                    // is filtered before the despawn even arrives.
-                    Tasks.of(plugin).runAtEntity(viewer, () -> {
-                        viewer.hidePlayer(handle(), target);
-                        if (out != null) out.despawn(viewer, target.getEntityId(), targetId);
-                    });
-                } else if (allowed && (hidden.remove(targetId) | !viewer.canSee(target))) {
-                    // Not only when the record says hidden. The record is
-                    // forgotten on quit before the plugins that hid the player
-                    // hear about it, but the server keeps the hide on the
-                    // viewer by the target's UUID; without this a player who
-                    // quit hidden came back invisible to that viewer for good.
-                    Tasks.of(plugin).runAtEntity(viewer, () -> viewer.showPlayer(handle(), target));
+                if (!viewer.equals(target)) {
+                    refreshPair(out, viewer, target, targetId);
                 }
             }
         }
+
+        @Override
+        public void refresh(@NotNull Player viewer, @NotNull Player target) {
+            if (viewer.equals(target)) {
+                return;
+            }
+            ENTITY_IDS.put(target.getEntityId(), target.getUniqueId());
+            refreshPair(sink(), viewer, target, target.getUniqueId());
+        }
+
+        private void refreshPair(PacketSink out, Player viewer, Player target, UUID targetId) {
+            Set<UUID> hidden = HIDDEN.computeIfAbsent(viewer.getUniqueId(),
+                    ignored -> ConcurrentHashMap.newKeySet());
+            boolean allowed = allowed(viewer, target);
+            if (!allowed && hidden.add(targetId)) {
+                // The record first: whatever the tracker sends from here on
+                // is filtered before the despawn even arrives.
+                Tasks.of(plugin).runAtEntity(viewer, () -> {
+                    viewer.hidePlayer(handle(), target);
+                    if (out != null) out.despawn(viewer, target.getEntityId(), targetId);
+                });
+            } else if (allowed && (hidden.remove(targetId) | !viewer.canSee(target))) {
+                // Not only when the record says hidden. The record is
+                // forgotten on quit before the plugins that hid the player
+                // hear about it, but the server keeps the hide on the
+                // viewer by the target's UUID; without this a player who
+                // quit hidden came back invisible to that viewer for good.
+                Tasks.of(plugin).runAtEntity(viewer, () -> viewer.showPlayer(handle(), target));
+            }
+    }
 
         @Override
         public boolean canSee(@NotNull Player viewer, @NotNull Player target) {

@@ -45,6 +45,21 @@ public interface Visibility {
     void refresh(@NotNull Player target);
 
     /**
+     * Re-evaluates one pair only: whether {@code viewer} may see {@code target}.
+     *
+     * <p>{@link #refresh(Player)} walks every online viewer; a plugin fixing the
+     * other direction for each of them should call this instead, or one change
+     * costs every online player squared. Safe from any thread.
+     *
+     * @param viewer the player looking
+     * @param target the player looked at
+     * @since 1.604.1
+     */
+    default void refresh(@NotNull Player viewer, @NotNull Player target) {
+        refresh(target);
+    }
+
+    /**
      * Returns whether {@code viewer} currently sees {@code target}.
      *
      * @param viewer the player looking

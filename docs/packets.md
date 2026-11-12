@@ -37,6 +37,7 @@ is `SilentContainer`, which is plain Bukkit and works anywhere.
 Visibility visibility();
 void rule(VisibilityRule rule);              // one per plugin; all plugins' rules must agree
 void refresh(Player target);                 // re-evaluate for every online viewer
+void refresh(Player viewer, Player target);  // one pair only (1.604.1); use it inside a loop over players
 boolean canSee(Player viewer, Player target);
 void seal(Player viewer, Volume box);        // 1.420.0+; null lifts it
 ```

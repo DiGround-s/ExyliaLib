@@ -57,6 +57,21 @@ public final class Teleporter {
      */
     private static final Set<UUID> JOINING = ConcurrentHashMap.newKeySet();
 
+    /**
+     * How many moves the whole server starts in one tick.
+     *
+     * <p>A game ending sends every player in it home at once: a world change
+     * each, chunks resent, trackers rebuilt, all in the same tick, and MSPT
+     * spikes for everyone on the server. Past this budget a move waits for the
+     * next tick with room, so fifty players arrive over ten ticks instead of
+     * one. Ordinary play never reaches it. {@code -Dexylialib.teleportsPerTick=N}
+     * tunes it; {@code 0} turns it off.
+     */
+    private static final int MOVES_PER_TICK = Integer.getInteger("exylialib.teleportsPerTick", 5);
+    private static final long TICK_NANOS = 50_000_000L;
+    private static long slotTick;
+    private static int slotUsed;
+
     private Teleporter() {
         throw new AssertionError("No instances.");
     }
@@ -108,9 +123,14 @@ public final class Teleporter {
                 result.complete(TeleportResult.PLAYER_LEFT);
                 return;
             }
-            tasks.runAtEntity(player,
-                    () -> move(plugin, player, destination, cause, tasks, debug, historySize, result),
-                    () -> result.complete(TeleportResult.PLAYER_LEFT));
+            Runnable moveNow = () -> move(plugin, player, destination, cause, tasks, debug, historySize, result);
+            Runnable gone = () -> result.complete(TeleportResult.PLAYER_LEFT);
+            long wait = MOVES_PER_TICK > 0 ? nextSlot(MOVES_PER_TICK) : 0L;
+            if (wait == 0) {
+                tasks.runAtEntity(player, moveNow, gone);
+            } else {
+                tasks.runAtEntityLater(player, wait, moveNow, gone);
+            }
         };
         if (before == null) {
             go.run();
@@ -118,6 +138,21 @@ public final class Teleporter {
             before.whenComplete((ended, failure) -> go.run());
         }
         return result;
+    }
+
+    /** Ticks to wait before the next move fits in {@code perTick}. */
+    static synchronized long nextSlot(int perTick) {
+        long now = System.nanoTime() / TICK_NANOS;
+        if (slotTick < now) {
+            slotTick = now;
+            slotUsed = 0;
+        }
+        if (slotUsed >= perTick) {
+            slotTick++;
+            slotUsed = 0;
+        }
+        slotUsed++;
+        return slotTick - now;
     }
 
     /** Called by the library at the start of every join. */
