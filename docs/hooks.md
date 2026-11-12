@@ -51,6 +51,42 @@ Code: `hook/skill/SkillHooks` (API), `hook/skill/internal/SkillHookRuntime`
 (suspensions and the listened events). Adding a skill plugin is one line in
 `SkillHookRuntime.SOURCES`.
 
+## Pets
+
+*Since 1.604.0.* Entry point: `net.exylia.lib.hook.pet.PetHooks`.
+
+A vanished staff member whose pet keeps following them is not vanished. Put
+the pets away while the player must not be seen, and call them back after:
+
+```java
+PetHooks.hide(plugin, player);    // false when this plugin already hid them
+PetHooks.show(plugin, player);
+PetHooks.isHidden(player.getUniqueId());
+PetHooks.plugins();               // ["MCPets", "MyPet"]: what a hold puts away on this server
+```
+
+| Plugin | Put away | Called back |
+| --- | --- | --- |
+| MCPets | every active pet, despawned as a teleport (still the pet the player has out) | `spawn` at the player |
+| MyPet | the active pet, removed as one the player wants back | `createEntity` |
+
+### Behavior
+
+- **Held back while hidden.** A pet the player or the pet plugin calls while
+  they are hidden (a menu, a respawn timer, the respawn on join) is cancelled
+  and comes back with the rest on `show`.
+- **Per owner.** Pets come back once every plugin hiding the player showed them.
+- **Memory only.** On quit the hold is dropped and the pet plugin saves what
+  the player had out as usual, so a relog brings the pets back unless the
+  player is hidden again. The owner's disable drops its holds without
+  calling pets back.
+- **A changed API is logged once** at startup (`Pet hooks: <plugin> pets are
+  not put away…`) and that plugin is left out.
+- **Threads:** the player's thread; MCPets and MyPet are not Folia plugins.
+
+Code: `hook/pet/PetHooks` (API), `hook/pet/internal/PetHookRuntime` (holds and
+one `Source` per pet plugin). Adding a pet plugin is one entry in `SOURCES`.
+
 ## Permission groups
 
 *Since 1.469.0.* Entry point: `net.exylia.lib.hook.group.PermissionGroups`.

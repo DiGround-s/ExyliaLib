@@ -323,6 +323,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.init(this);
         CombatRuntime.init(this);
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.register(this);
+        net.exylia.lib.hook.pet.internal.PetHookRuntime.register(this);
         // Who set off a crystal, anchor or bed: one cache write per crystal hit
         // and per bed or anchor clicked where it explodes.
         getServer().getPluginManager().registerEvents(
@@ -891,6 +892,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.forget(event.getPlayer().getUniqueId());
+        net.exylia.lib.hook.pet.internal.PetHookRuntime.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.actionbar.internal.ActionBarRuntime.forget(event.getPlayer().getUniqueId());
         Cooldowns.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.npc.PreviewSkins.forget(event.getPlayer().getUniqueId());
@@ -1154,6 +1156,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.util.combat.internal.CombatRuntime.release(event.getPlugin());
         // Its players would otherwise stay without skills until they log out.
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.release(pluginName);
+        net.exylia.lib.hook.pet.internal.PetHookRuntime.release(pluginName);
         // An action bar segment is asked every two ticks for every player.
         net.exylia.lib.actionbar.internal.ActionBarRuntime.release(pluginName);
         Cosmetics.release(pluginName);
