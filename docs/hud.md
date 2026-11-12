@@ -94,6 +94,12 @@ huds.show(player, HudWidget.layout("boss", HudAnchor.TOP, p -> Node.column(...))
 away. Newer ones stand nearest the edge; past five at one anchor the oldest
 leaves early.
 
+**From a message file, no code** (*since 1.597.0*): a message that begins with
+`[hud]` or `[hud:<group>]` ([effect tag](text.md#effects-inside-a-message))
+is sent as a notice instead of a chat line, prefix dropped, and falls back to
+chat for anyone who cannot see the HUD. This is how plugins put their passive
+feedback on the HUD: `earned: "[hud:earned]{success}+%amount% {letters}coins"`.
+
 | Field | Copy | Default |
 | --- | --- | --- |
 | `anchor` | `anchor(where)` | `TOP_RIGHT` |
@@ -151,12 +157,14 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
   Effects* slider, which they tell once on the fit's width step (or in
   `/settings`, Interface, *FOV effects*); vanilla's 100% until they do.
 - **Walls.** No shadow, no panel by default (`background(HudWidget.PANEL)` or
-  any ARGB). An element turns see-through only while something stands between
-  the eye and it: rays 1.5 blocks of the view apart over the element and a
-  0.75 margin around it look for blocks, its corners and middle for mobs, and it
-  stays see-through 30 ticks after its view clears. Portals, water and glass
-  still draw over it: a see-through text writes no depth, so translucent things
-  drawn after it land on top either way.
+  any ARGB). When something stands between the eye and an element (a block,
+  leaves, glass, water's surface, a portal, a mob), the element is drawn just in
+  front of it, 0.4 blocks nearer and just as large on screen, so nothing covers
+  it and nothing translucent (clouds, portals, glass) is drawn over it. Rays 1.5
+  blocks of the view apart over the element and a 0.75 margin around it look for
+  blocks, its corners and middle for mobs; it moves back out 30 ticks after there
+  is room. Only a wall nearer than 1.9 blocks turns it see-through instead, since
+  view bobbing would shake something that close (*since 1.597.0*).
 - **One stack per anchor across plugins.** Two plugins showing at the same
   anchor stack one after the other (the first to show starts at the edge).
 - **Steps aside** while a screen is open, while a camera shot plays, while dead

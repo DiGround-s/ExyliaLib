@@ -162,6 +162,18 @@ kind's own arguments.
 | `particle` / `particles` | `NAME|count|offsetX|offsetY|offsetZ|speed` | `particle:FLAME|20` |
 | `firework` / `fireworks` | `SHAPE|colour|fade|flicker|trail|power` | `firework:BALL|#ff0000` |
 | `center` / `centered` | — | `center` |
+| `hud` | an optional group | `hud`, `hud:coins` |
+
+`hud` pops the line onto the player's [HUD](hud.md) as a notice instead of
+chat (*since 1.597.0*): top right, three seconds, without the chat prefix.
+Repeats with the same group merge into one line counting `×N`. A player whose
+client cannot draw the HUD, or who hid it, gets it in chat as before, so any
+message can carry it. Meant for passive feedback ("+120 coins", "Sold 3
+diamonds"): a line with something to click, or a centred one, stays in chat.
+
+```yaml
+earned: "[sound:ENTITY_EXPERIENCE_ORB_PICKUP|0.4|1.6;hud:earned]{success}+%amount% {letters}coins"
+```
 
 Contracts:
 

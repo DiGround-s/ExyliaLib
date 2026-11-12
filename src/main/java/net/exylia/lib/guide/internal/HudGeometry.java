@@ -117,6 +117,16 @@ final class HudGeometry {
     }
 
     /**
+     * How far of the way out an element can stand with something {@code cover} blocks ahead of the eye: {@code pad}
+     * in front of it, at most all the way to {@code distance}; -1 when that would be nearer than {@code least}.
+     */
+    static double room(double cover, double pad, double least, double distance) {
+        double ahead = cover - pad;
+        if (ahead >= distance) return 1;
+        return ahead < least ? -1 : ahead / distance;
+    }
+
+    /**
      * Points spread over a rectangle of the view, its edges included, no further than {@code step} apart. A block
      * nearer than the HUD is never smaller than one unit of it, so at a step under one no block over the rectangle is
      * missed.

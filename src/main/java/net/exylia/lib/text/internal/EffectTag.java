@@ -36,12 +36,15 @@ public final class EffectTag {
      * @param particles particle entries, each as written
      * @param fireworks firework entries, each as written
      * @param centered  whether the line asked to be centred
+     * @param hud       whether the line asked to pop onto the HUD instead of chat ({@code [hud]}), and what repeats
+     *                  merge on there ({@code [hud:coins]}): {@code null} for chat, {@code ""} for no group
      */
     public record Parsed(String message,
                          List<String> sounds,
                          List<String> particles,
                          List<String> fireworks,
-                         boolean centered) {
+                         boolean centered,
+                         String hud) {
 
         /** Returns whether anything at all was asked for. */
         public boolean hasEffects() {
@@ -75,6 +78,7 @@ public final class EffectTag {
         List<String> particles = new ArrayList<>(2);
         List<String> fireworks = new ArrayList<>(2);
         boolean centered = false;
+        String hud = null;
         boolean recognised = false;
 
         for (String piece : body.split(";")) {
@@ -84,6 +88,11 @@ public final class EffectTag {
             }
             if (trimmed.equalsIgnoreCase("center") || trimmed.equalsIgnoreCase("centered")) {
                 centered = true;
+                recognised = true;
+                continue;
+            }
+            if (trimmed.equalsIgnoreCase("hud")) {
+                hud = "";
                 recognised = true;
                 continue;
             }
@@ -98,6 +107,10 @@ public final class EffectTag {
                 case "sound", "sounds" -> recognised |= addAll(value, sounds);
                 case "particle", "particles" -> recognised |= addAll(value, particles);
                 case "firework", "fireworks" -> recognised |= addAll(value, fireworks);
+                case "hud" -> {
+                    hud = value;
+                    recognised = true;
+                }
                 default -> {
                     // Unknown kind: left alone, so a future tag added to a
                     // config does not silently eat the message.
@@ -111,7 +124,7 @@ public final class EffectTag {
             return plain(raw);
         }
         return new Parsed(message, List.copyOf(sounds), List.copyOf(particles),
-                List.copyOf(fireworks), centered);
+                List.copyOf(fireworks), centered, hud);
     }
 
     private static boolean addAll(String value, List<String> into) {
@@ -128,7 +141,7 @@ public final class EffectTag {
 
     private static Parsed plain(String raw) {
         return new Parsed(raw == null ? "" : raw,
-                List.of(), List.of(), List.of(), false);
+                List.of(), List.of(), List.of(), false, null);
     }
 
     /**

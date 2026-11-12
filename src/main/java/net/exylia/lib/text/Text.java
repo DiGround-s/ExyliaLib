@@ -1236,8 +1236,23 @@ public final class Text {
             if (parsed.hasEffects()) {
                 EffectTagPlayer.play(parsed, player);
             }
+            if (parsed.hud() != null && !parsed.centered() && net.exylia.lib.hud.Huds.visible(player)) {
+                hud(player, parsed.hud());
+                return;
+            }
         }
         receiver.sendMessage(build());
+    }
+
+    /**
+     * Pops this text onto the player's HUD as a notice, without the chat prefix; repeats of {@code group} merge.
+     */
+    private void hud(Player player, String group) {
+        String bare = raw.replace(PREFIX_TOKEN + " ", "").replace(PREFIX_TOKEN, "");
+        Component text = new Text(bare, substitutions, viewer, owner, resolveFormatted, verbatim).build();
+        Plugin plugin = owner != null ? owner : org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(Text.class);
+        net.exylia.lib.hud.Huds.of(plugin).notify(player,
+                net.exylia.lib.hud.HudNotice.of(text).group(group.isEmpty() ? null : group));
     }
 
     /**

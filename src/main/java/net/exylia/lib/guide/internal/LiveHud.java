@@ -49,13 +49,13 @@ public final class LiveHud extends Piece {
     /** Long enough for its client to draw no element wider than this, in pixels: lines are broken by the text alone. */
     private static final int LINE_WIDTH = 1000;
     /**
-     * See-through, so a wall nearer than the text never hides it. Only while something stands between the eye and an
-     * element: a see-through text writes no depth, so whatever translucent the client draws after it (portals, clouds,
-     * glass, water) lands on top of it. No shadow: a see-through shadow is drawn without a depth test, so it lands over
-     * its own letters and the line reads doubled.
+     * See-through, the last resort for a wall almost at the eye: a see-through text writes no depth, so whatever
+     * translucent the client draws after it (portals, clouds, glass, water) lands on top of it. Anything further is
+     * dealt with by drawing the element just in front of it instead. No shadow: a see-through shadow is drawn without
+     * a depth test, so it lands over its own letters and the line reads doubled.
      */
     private static final int SEE_THROUGH = 0x02;
-    /** Ticks an element stays see-through after its view clears, so it does not flicker at a wall's edge. */
+    /** Ticks an element stays drawn near after what covered it is gone, so it does not hop at a wall's edge. */
     private static final long CLEAR_TICKS = 30;
     /**
      * How far around an element a block already turns it see-through, in blocks of the view: it turns before a wall
@@ -64,6 +64,12 @@ public final class LiveHud extends Piece {
     private static final double COVER_MARGIN = 0.75;
     /** How far apart the rays that look for a block in front of an element are, in blocks of the view. */
     private static final double COVER_STEP = 1.5;
+    /**
+     * How far in front of what covers it an element is drawn, in blocks; nearer than {@link #NEAR_LEAST} it turns
+     * see-through instead, since view bobbing moves something that close by too much.
+     */
+    private static final double NEAR_PAD = 0.4;
+    private static final double NEAR_LEAST = 1.5;
     /** How much nearer each layer of an element stands than the one under it, in blocks: their order in depth. */
     private static final double LAYER_DEPTH = 0.005;
     /** Every plugin's HUD on each player, in the order they arrived: they share one stack at each anchor. */
@@ -184,7 +190,7 @@ public final class LiveHud extends Piece {
             double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
                 element.place(stack.getKey(), offset, zoom, aspect);
-                element.see(view.blocks(element.spot, element.wide, element.tall, widen), now);
+                element.see(view.cover(element.spot, element.wide, element.tall, widen), now);
                 offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 element.send(player, reseat);
             }
@@ -300,6 +306,7 @@ public final class LiveHud extends Piece {
 
     /** Shrinks an element into its middle and destroys it once it is gone. */
     private void leave(Player player, Element element) {
+        double depth = element.sentDepth;
         if (!element.spawned()) return;
         boolean slide = !stepsAside(player) && element.spot != null;
         double k = SHRUNK;
@@ -308,7 +315,7 @@ public final class LiveHud extends Piece {
             Part part = element.parts.get(i);
             if (slide && part.sent != null) {
                 Look l = part.sent;
-                double f = nearer(i);
+                double f = nearer(i) * depth;
                 GuidePackets.riderTransform(player, part.id, at(out, l, k, f), (float) (l.sx() * k * f * widen),
                         (float) (l.sy() * k * f * widen), GLIDE, null, -1, -1);
             }
@@ -353,6 +360,7 @@ public final class LiveHud extends Piece {
         private final org.bukkit.util.Vector ahead;
         private final org.bukkit.util.Vector right;
         private final org.bukkit.util.Vector up;
+        private final boolean underwater;
 
         View(Player player) {
             this.player = player;
@@ -361,22 +369,27 @@ public final class LiveHud extends Piece {
             double yaw = Math.toRadians(eye.getYaw());
             this.right = new org.bukkit.util.Vector(-Math.cos(yaw), 0, -Math.sin(yaw));
             this.up = right.getCrossProduct(ahead);
+            this.underwater = eye.getBlock().isLiquid();
         }
 
         /**
-         * Whether anything stands between the eye and an element, drawn {@code widen} times as large: a block over any
-         * part of it or the margin around it, a mob over a corner or the middle.
+         * How far ahead the nearest thing standing between the eye and an element is, in blocks along the view, or
+         * infinity when nothing does: a block, fluid or portal over any part of it or the margin around it, a mob over
+         * a corner or the middle. The element is drawn {@code widen} times as large.
          */
-        boolean blocks(double[] spot, double wide, double tall, double widen) {
-            if (spot == null) return false;
+        double cover(double[] spot, double wide, double tall, double widen) {
+            if (spot == null) return Double.POSITIVE_INFINITY;
             double l = (spot[0] - wide / 2) * widen, r = (spot[0] + wide / 2) * widen;
             double b = spot[1] * widen, t = (spot[1] + tall) * widen;
+            double nearest = Double.POSITIVE_INFINITY;
             // ponytail: one ray per COVER_STEP; a block further than 16/COVER_STEP away can hide a sliver between two
             for (double[] point : HudGeometry.samples(l - COVER_MARGIN, b - COVER_MARGIN, r + COVER_MARGIN,
                     t + COVER_MARGIN, COVER_STEP)) {
-                if (block(point[0], point[1])) return true;
+                nearest = Math.min(nearest, block(point[0], point[1]));
             }
-            return mob(l, b) || mob(r, b) || mob(l, t) || mob(r, t) || mob((l + r) / 2, (b + t) / 2);
+            double[][] corners = {{l, b}, {r, b}, {l, t}, {r, t}, {(l + r) / 2, (b + t) / 2}};
+            for (double[] corner : corners) nearest = Math.min(nearest, mob(corner[0], corner[1]));
+            return nearest;
         }
 
         private org.bukkit.util.Vector to(double x, double y) {
@@ -384,17 +397,24 @@ public final class LiveHud extends Piece {
                     .add(right.clone().multiply(x)).add(up.clone().multiply(y));
         }
 
-        private boolean block(double x, double y) {
-            org.bukkit.util.Vector to = to(x, y);
-            double length = to.length();
-            return eye.getWorld().rayTraceBlocks(eye, to.multiply(1 / length), length,
-                    org.bukkit.FluidCollisionMode.NEVER, false, View::covers) != null;
+        /** How far along the view a hit is, or infinity for none. */
+        private double along(org.bukkit.util.RayTraceResult hit) {
+            return hit == null ? Double.POSITIVE_INFINITY : hit.getHitPosition().subtract(eye.toVector()).dot(ahead);
         }
 
-        private boolean mob(double x, double y) {
+        private double block(double x, double y) {
             org.bukkit.util.Vector to = to(x, y);
             double length = to.length();
-            return eye.getWorld().rayTraceEntities(eye, to.multiply(1 / length), length, 0, this::covers) != null;
+            // Water's surface covers the HUD like glass does, but not while the eye is under it.
+            return along(eye.getWorld().rayTraceBlocks(eye, to.multiply(1 / length), length,
+                    underwater ? org.bukkit.FluidCollisionMode.NEVER : org.bukkit.FluidCollisionMode.ALWAYS, false,
+                    View::covers));
+        }
+
+        private double mob(double x, double y) {
+            org.bukkit.util.Vector to = to(x, y);
+            double length = to.length();
+            return along(eye.getWorld().rayTraceEntities(eye, to.multiply(1 / length), length, 0, this::covers));
         }
 
         /** An entity that would cover the HUD: one the player sees, not their own vehicle or passenger. */
@@ -404,10 +424,10 @@ public final class LiveHud extends Piece {
                     && player.canSee(entity);
         }
 
-        /** A block that would cover the HUD: everything drawn solid, not a portal's face or an invisible block. */
+        /** A block that would cover the HUD: everything drawn, portals' faces included, not an invisible block. */
         private static boolean covers(org.bukkit.block.Block block) {
             return switch (block.getType()) {
-                case NETHER_PORTAL, END_PORTAL, END_GATEWAY, LIGHT, STRUCTURE_VOID, BARRIER -> false;
+                case LIGHT, STRUCTURE_VOID, BARRIER -> false;
                 default -> true;
             };
         }
@@ -516,18 +536,37 @@ public final class LiveHud extends Piece {
         double sentK = 1;
         boolean entering;
         int pulse;
-        /** Whether its displays are see-through now, and since when its view has been clear (-1 while it is not). */
+        /**
+         * How far of the way out it is drawn ({@code 1} at {@link GuidePackets#VIEW_DISTANCE}), the same when last
+         * sent, whether it is see-through, and since when it could stand further out (-1 while it cannot).
+         */
+        double depth = 1;
+        double sentDepth = 1;
         boolean seeThrough;
         long clearSince = -1;
 
-        /** Turns see-through as soon as something covers it, back once it has been clear a little while. */
-        void see(boolean covered, long now) {
-            if (covered) {
+        /**
+         * Draws it just in front of the nearest thing covering it, {@code cover} blocks ahead, at once; see-through
+         * when that is almost at the eye. Back out only once there has been room a little while.
+         */
+        void see(double cover, long now) {
+            double room = HudGeometry.room(cover, NEAR_PAD, NEAR_LEAST, GuidePackets.VIEW_DISTANCE);
+            if (room < 0) {
                 seeThrough = true;
+                depth = 1;
                 clearSince = -1;
-            } else if (seeThrough) {
+            } else if (seeThrough || room < depth) {
+                seeThrough = false;
+                depth = room;
+                clearSince = -1;
+            } else if (room > depth + 1 / GuidePackets.VIEW_DISTANCE) {
                 if (clearSince < 0) clearSince = now;
-                else if (now - clearSince >= CLEAR_TICKS) seeThrough = false;
+                else if (now - clearSince >= CLEAR_TICKS) {
+                    depth = room;
+                    clearSince = -1;
+                }
+            } else {
+                clearSince = -1;
             }
         }
 
@@ -550,6 +589,7 @@ public final class LiveHud extends Piece {
             parts.clear();
             sentSpot = null;
             entering = false;
+            sentDepth = depth;
         }
 
         double drawSize() {
@@ -632,7 +672,7 @@ public final class LiveHud extends Piece {
                 double[] from = fresh ? HudGeometry.popped(spot, tall, k) : spot;
                 for (Look look : looks) {
                     Part part = new Part(GuidePackets.newId());
-                    double f = nearer(parts.size());
+                    double f = nearer(parts.size()) * depth;
                     part.sentFlags = flags(look);
                     GuidePackets.spawnRider(player, part.id, look.text(), look.lineWidth(), look.background(),
                             look.opacity(), part.sentFlags, (float) (look.sx() * k * f * widen), (float) (look.sy() * k * f * widen),
@@ -643,6 +683,7 @@ public final class LiveHud extends Piece {
                 GuidePackets.remount(player);
                 sentK = k;
                 sentSpot = fresh ? null : spot;
+                sentDepth = depth;
                 entering = fresh;
                 return;
             }
@@ -661,17 +702,19 @@ public final class LiveHud extends Piece {
             } else {
                 ticks = 2;
             }
+            // Nearer or further but just as large on screen: it jumps there, a glide would pass behind the wall.
+            boolean redepth = depth != sentDepth;
             for (int i = 0; i < parts.size(); i++) {
                 Part part = parts.get(i);
                 Look look = looks.get(i);
                 boolean changed = !look.equals(part.sent);
                 int flags = flags(look);
                 boolean reflag = flags != part.sentFlags;
-                if (!(entering || moved || reseat || changed || reflag || k != sentK)) continue;
+                if (!(entering || moved || reseat || changed || reflag || redepth || k != sentK)) continue;
                 boolean retext = !look.text().equals(part.sent.text());
                 // New words jump to their own new place: cleaner than gliding the old ones there.
-                int t = changed && !moved && !entering ? 0 : ticks;
-                double f = nearer(i);
+                int t = redepth || changed && !moved && !entering ? 0 : ticks;
+                double f = nearer(i) * depth;
                 GuidePackets.riderTransform(player, part.id, at(spot, look, k, f), (float) (look.sx() * k * f * widen),
                         (float) (look.sy() * k * f * widen), t, retext ? look.text() : null,
                         look.opacity() != part.sent.opacity() ? look.opacity() : -1, reflag ? flags : -1);
@@ -681,6 +724,7 @@ public final class LiveHud extends Piece {
             entering = false;
             sentSpot = spot;
             sentK = k;
+            sentDepth = depth;
         }
 
         /** Whether the displays on the client can show {@link #looks} by a change of their data alone. */

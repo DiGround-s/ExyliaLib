@@ -248,4 +248,15 @@ class EffectTagTest {
                     .plainText().serialize(component);
         }
     }
+
+    @Test
+    @DisplayName("[hud] asks for the HUD, [hud:coins] names what repeats merge on")
+    void readsHud() {
+        assertEquals("", EffectTag.parse("[hud]{success}+120 coins").hud());
+        EffectTag.Parsed grouped = EffectTag.parse("[sound:PLING;hud:coins]+120");
+        assertEquals("coins", grouped.hud());
+        assertEquals("+120", grouped.message());
+        assertEquals(1, grouped.sounds().size());
+        assertEquals(null, EffectTag.parse("[Server] hi").hud());
+    }
 }

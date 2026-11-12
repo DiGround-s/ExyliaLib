@@ -81,4 +81,12 @@ class HudGeometryTest {
         }
         assertEquals(4, HudGeometry.samples(0, 0, 0, 0, 1.5).length);
     }
+
+    @Test
+    void anElementStandsJustInFrontOfWhatCoversIt() {
+        assertEquals(1, HudGeometry.room(Double.POSITIVE_INFINITY, 0.4, 1.5, 16));
+        assertEquals(1, HudGeometry.room(16.4, 0.4, 1.5, 16), 1e-9);
+        assertEquals(0.25, HudGeometry.room(4.4, 0.4, 1.5, 16), 1e-9);
+        assertEquals(-1, HudGeometry.room(1.8, 0.4, 1.5, 16));
+    }
 }
