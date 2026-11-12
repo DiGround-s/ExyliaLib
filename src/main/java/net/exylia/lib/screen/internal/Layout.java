@@ -142,12 +142,29 @@ public final class Layout {
      * paragraph beside other boxes wraps late and is drawn smaller to fit; give it a width or max-width there.
      */
     private static void room(Node node, double available, Ctx ctx) {
-        double own = node.width() >= 0 ? node.width() : available;
+        // a zero width that grows is a flex basis, not a size: it gets the room its parent hands it
+        boolean fixed = node.width() > 0 || (node.width() == 0 && node.grow() <= 0);
+        double own = fixed ? node.width() : available;
         double[] m = node.margin();
-        own = Math.max(0, own - (node.width() >= 0 ? 0 : m[1] + m[3]));
+        own = Math.max(0, own - (fixed ? 0 : m[1] + m[3]));
         ctx.room.put(node, own);
         double inner = Math.max(0, own - node.padLeft() - node.padRight());
-        for (Node child : node.children()) room(child, inner, ctx);
+        // A row's zero-width growing children (grid cells) end up sharing what is left, so that is the room their
+        // text wraps in, not the zero they start from. ponytail: the fixed siblings are not taken off first.
+        double grow = 0;
+        int flow = 0;
+        if (node.kind() == Node.Kind.ROW) {
+            for (Node child : node.children()) {
+                if (child.overlay() || child.absolute() != null) continue;
+                flow++;
+                if (child.width() == 0 && child.grow() > 0) grow += child.grow();
+            }
+        }
+        double share = Math.max(0, inner - node.gap() * Math.max(0, flow - 1));
+        for (Node child : node.children()) {
+            boolean shared = grow > 0 && child.width() == 0 && child.grow() > 0 && !child.overlay() && child.absolute() == null;
+            room(child, shared ? share * child.grow() / grow : inner, ctx);
+        }
     }
 
     /**

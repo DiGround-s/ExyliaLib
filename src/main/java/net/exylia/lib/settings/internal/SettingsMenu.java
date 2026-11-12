@@ -318,6 +318,7 @@ public final class SettingsMenu {
                         label(store)))
                 .with("glow", false)
                 .withFormatted("entry_name", label(store))
+                .with("entry_about", "")
                 .with("entry_kind", announcements ? "channels" : "plugin")
                 .with("entry_state", "open")
                 .with("entry_count", listed.size())

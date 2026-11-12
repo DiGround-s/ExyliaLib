@@ -53,7 +53,7 @@
             action="exylialib:settings_click 1" action-right="exylialib:settings_click -1">
         <item row material="%icon%" class="entry-icon"/>
         <b>%entry_name%</b>
-        <p class="about">%entry_about%</p>
+        <p if="entry_about != ''" class="about">%entry_about%</p>
         <box class="spacer"/>
         <row class="status">
           <small if="entry_kind == 'plugin' || entry_kind == 'category'" t="count">{info}%entry_count% {letters_black}settings</small>
