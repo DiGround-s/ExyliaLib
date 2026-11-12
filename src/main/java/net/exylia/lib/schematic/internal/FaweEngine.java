@@ -2,6 +2,7 @@ package net.exylia.lib.schematic.internal;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fastasyncworldedit.core.extent.clipboard.DiskOptimizedClipboard;
 import com.fastasyncworldedit.core.extent.clipboard.MemoryOptimizedClipboard;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
@@ -153,6 +154,7 @@ final class FaweEngine implements SchematicEngine {
             clipboard = reader.read(UUID.randomUUID(), size -> inMemory(
                     new CuboidRegion(BlockVector3.ZERO, size.subtract(BlockVector3.ONE))));
         }
+        clipboard = keepInMemory(clipboard);
         clipboards.put(source.getAbsolutePath(), clipboard);
         return clipboard;
     }
@@ -168,6 +170,65 @@ final class FaweEngine implements SchematicEngine {
      * gigabytes of identical files. These clipboards are the engine's cache,
      * not a player's clipboard: they never belong on disk.
      */
+    /**
+     * Moves a clipboard FAWE put on disk into memory, and removes its file.
+     *
+     * <p>Only the fast {@code .schem} reader honours the factory handed to
+     * {@code read}; the MCEdit {@code .schematic} and plain Sponge readers
+     * ignore it and follow {@code use-disk}, so each read of an old arena
+     * still opened a {@code .bd} file. This copies it into memory at once and
+     * deletes the file, closing first: Windows refuses to delete a mapped one.
+     * Copying rather than keeping the disk clipboard until eviction means a
+     * clipboard is never closed under a paste that is still reading it.
+     */
+    private static Clipboard keepInMemory(Clipboard clipboard) throws Exception {
+        File backing = diskFile(clipboard);
+        if (backing == null) {
+            return clipboard;
+        }
+        try {
+            BlockArrayClipboard copy = inMemory(new CuboidRegion(
+                    clipboard.getMinimumPoint(), clipboard.getMaximumPoint()));
+            copy.setOrigin(clipboard.getOrigin());
+            ForwardExtentCopy forward = new ForwardExtentCopy(clipboard, clipboard.getRegion(),
+                    copy, clipboard.getMinimumPoint());
+            forward.setCopyingEntities(true);
+            forward.setCopyingBiomes(false);
+            Operations.complete(forward);
+            return copy;
+        } finally {
+            try {
+                clipboard.close();
+            } catch (Exception ignored) {
+                // The file is still removed below, or on exit.
+            }
+            if (backing.exists() && !backing.delete()) {
+                backing.deleteOnExit();
+            }
+        }
+    }
+
+    /**
+     * Returns the {@code .bd} file behind a clipboard, or {@code null} when
+     * it lives in memory.
+     *
+     * <p>{@code getParent} and {@code DiskOptimizedClipboard} are FAWE
+     * internals: a FAWE where they moved throws a {@link LinkageError}, and the
+     * clipboard is then used as read rather than failing the paste.
+     */
+    private static File diskFile(Clipboard clipboard) {
+        try {
+            Clipboard inner = clipboard;
+            while (inner instanceof BlockArrayClipboard array
+                    && array.getParent() != null && array.getParent() != inner) {
+                inner = array.getParent();
+            }
+            return inner instanceof DiskOptimizedClipboard disk ? disk.getFile() : null;
+        } catch (LinkageError ignored) {
+            return null;
+        }
+    }
+
     private static BlockArrayClipboard inMemory(CuboidRegion region) {
         return new BlockArrayClipboard(region, new MemoryOptimizedClipboard(region));
     }
