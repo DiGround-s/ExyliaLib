@@ -72,7 +72,7 @@ public final class BlockRuntime {
     }
 
     /** {@code button} is {@code null} for the last right press, kept apart from the debounce. */
-    private record Click(UUID player, Position position, @Nullable BlockButton button) {
+    private record Click(UUID player, @Nullable Position position, @Nullable BlockButton button) {
     }
 
     /** Registers a block, replacing whatever held its location. */
@@ -208,6 +208,7 @@ public final class BlockRuntime {
     public static boolean isRepeat(@NotNull UUID player, @NotNull Position position, @NotNull BlockButton button,
                                    boolean adventure) {
         long now = System.currentTimeMillis();
+        RECENT.put(new Click(player, null, null), now);
         // The last right press, repeat or not: a held button swings on every one.
         Click pressed = new Click(player, position, null);
         if (button == BlockButton.RIGHT) {
@@ -221,5 +222,14 @@ public final class BlockRuntime {
         if (last != null && now - last < DEBOUNCE_MILLIS) return true;
         RECENT.put(click, now);
         return false;
+    }
+
+    /**
+     * Whether the player clicked a registered block a moment ago. The client
+     * follows a block click with an item use in the air, which item listeners skip.
+     */
+    public static boolean justClicked(@NotNull UUID player) {
+        Long last = RECENT.getIfPresent(new Click(player, null, null));
+        return last != null && System.currentTimeMillis() - last < DEBOUNCE_MILLIS;
     }
 }

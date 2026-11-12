@@ -2051,3 +2051,4 @@ speaks the language chosen here.: parle la langue choisie ici.
 '{success}{0} {letters}playing now': '{success}{0} {letters}en train de jouer'
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}Table {highlight}{0} {letters}placée. Les joueurs cliquent pour jouer.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}Table {highlight}{0} {letters}retirée.'
+'{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}La table {highlight}{0} {letters}est déjà là.'

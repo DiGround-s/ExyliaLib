@@ -169,6 +169,11 @@ final class OverlayItemListener implements Listener {
         if (action == Action.PHYSICAL) {
             return;
         }
+        // A clickable block (a crate, a table spot) owns its click: pressing the
+        // held item too would open its screen a tick later, over the block's.
+        if (net.exylia.lib.block.Blocks.ownsClick(event)) {
+            return;
+        }
         Player player = event.getPlayer();
         OverlayView view = OverlayRuntime.viewOf(player.getUniqueId());
         if (view == null) {

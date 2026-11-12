@@ -188,6 +188,13 @@ public final class SpotsMenu {
     public static void create(@NotNull Player viewer, @NotNull ClickSpots spots, @NotNull String kind,
                               @Nullable String id) {
         place(viewer, spots, target -> {
+            Optional<ClickSpots.Spot> taken = occupant(spots, target, null);
+            if (taken.isPresent()) {
+                // One spot per block, entity or NPC: a second would steal the first one's click.
+                Text.of(Phrases.tr(TAKEN, taken.get().id())).send(viewer);
+                detail(viewer, spots, taken.get().id());
+                return;
+            }
             ClickSpots.Spot spot = spots.create(kind, target, id);
             Text.of(Phrases.tr("{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.",
                     spot.id())).send(viewer);
@@ -197,9 +204,24 @@ public final class SpotsMenu {
 
     static void move(Player viewer, ClickSpots spots, String id) {
         place(viewer, spots, target -> {
-            spots.move(id, target);
+            Optional<ClickSpots.Spot> taken = occupant(spots, target, id);
+            if (taken.isPresent()) Text.of(Phrases.tr(TAKEN, taken.get().id())).send(viewer);
+            else spots.move(id, target);
             detail(viewer, spots, id);
         }, () -> detail(viewer, spots, id));
+    }
+
+    private static final String TAKEN = "{warning}! {letters}Table {highlight}{0} {letters}is already there.";
+
+    /** The spot already on what was clicked, other than {@code except}. */
+    static Optional<ClickSpots.Spot> occupant(ClickSpots spots, WizardTarget target, @Nullable String except) {
+        Location at = target.location();
+        String world = at.getWorld() == null ? "" : at.getWorld().getName();
+        return spots.all().stream().filter(spot -> !spot.id().equals(except)).filter(spot -> target.npc() != null
+                ? target.npc().equals(spot.npc())
+                : target.entity() != null ? target.entity().equals(spot.entity())
+                : spot.isBlock() && spot.world().equals(world) && spot.x() == at.getBlockX()
+                        && spot.y() == at.getBlockY() && spot.z() == at.getBlockZ()).findFirst();
     }
 
     private static void place(Player viewer, ClickSpots spots, Consumer<WizardTarget> placed, Runnable cancelled) {

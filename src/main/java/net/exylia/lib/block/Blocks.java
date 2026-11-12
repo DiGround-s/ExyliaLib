@@ -94,6 +94,20 @@ public final class Blocks {
         return BlockRuntime.at(block);
     }
 
+    /**
+     * Whether a click on a held item belongs to a registered block instead: the
+     * click is on one, or is the item use in the air the client sends right after
+     * clicking one. Item listeners (hotbars, lobby items) return early on it, so
+     * the block's screen is not replaced by the item's.
+     *
+     * @since 1.605.0
+     */
+    public static boolean ownsClick(@NotNull org.bukkit.event.player.PlayerInteractEvent event) {
+        Block block = event.getClickedBlock();
+        if (block != null) return BlockRuntime.at(block) != null;
+        return BlockRuntime.justClicked(event.getPlayer().getUniqueId());
+    }
+
     /** Whether a block is registered by any plugin. */
     public static boolean isRegistered(@NotNull Block block) {
         return BlockRuntime.at(block) != null;

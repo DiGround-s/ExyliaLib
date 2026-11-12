@@ -2063,3 +2063,4 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 '{success}{0} {letters}playing now': '{success}{0} {letters}şu an oynuyor'
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}{highlight}{0} {letters}masası yerleştirildi. Oyuncular oynamak için tıklar.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}{highlight}{0} {letters}masası kaldırıldı.'
+'{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}{highlight}{0} {letters}masası zaten orada.'

@@ -2051,3 +2051,4 @@ speaks the language chosen here.: говорит на выбранном зде�
 '{success}{0} {letters}playing now': '{success}{0} {letters}играют сейчас'
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}Стол {highlight}{0} {letters}установлен. Игроки нажимают, чтобы играть.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}Стол {highlight}{0} {letters}убран.'
+'{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}Стол {highlight}{0} {letters}уже стоит здесь.'
