@@ -147,6 +147,20 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void aGridOfSetRowsSharesItsHeightEvenOnAShortPage() {
+        ScreenMarkup markup = ScreenMarkup.parse("grid", """
+                <screen>
+                  <grid source="kits" columns="2" rows="3">
+                    <card><b>%playing%</b></card>
+                  </grid>
+                </screen>""");
+        markup.source("kits", s -> kits(3));
+        Node grid = find(new Fake(markup.screen()).render(), "kits");
+        assertEquals(3, grid.children().size());
+        for (Node line : grid.children()) assertEquals(1, line.grow());
+    }
+
+    @Test
     void aRequirementPicksTheDenyStepsWhenItFails() {
         ScreenMarkup markup = ScreenMarkup.parse("req", """
                 <screen>

@@ -740,6 +740,7 @@ public final class MarkupRender {
         int offset = offset(key, all.size(), window, columns);
         int end = Math.min(all.size(), offset + window);
         int visible = end - offset;
+        boolean paged = windowed && el.attr("rows") != null && node.kind() != Node.Kind.ROW;
         boolean own = el.attr("state") != null;
         Set<String> seen = new HashSet<>();
         if (own) owners.add(el);
@@ -771,8 +772,9 @@ public final class MarkupRender {
                 }
                 int column = (i - offset) % columns;
                 if (column == 0) {
-                    // A line fills its container: stretched across a column, grown along a row.
-                    line = Node.row().gap(px(style.get("gap"), 0)).grow(node.kind() == Node.Kind.ROW ? 1 : 0);
+                    // A line fills its container: stretched across a column, grown along a row. Down a
+                    // column a grid of set rows shares its height between them, as CSS 1fr rows do.
+                    line = Node.row().gap(px(style.get("gap"), 0)).grow(node.kind() == Node.Kind.ROW || paged ? 1 : 0);
                     node.add(line);
                 }
                 for (int c = 0; c < built.size(); c++) {
@@ -782,6 +784,10 @@ public final class MarkupRender {
                     line.add(cell.grow(1).id(c == 0 ? base : base + "." + c));
                 }
                 if (i == end - 1) for (int pad = column + 1; pad < columns; pad++) line.add(Node.box().width(0).grow(1));
+                // A short last page keeps every row the size it is on a full one.
+                if (i == end - 1 && paged) for (int rows = (visible + columns - 1) / columns; rows < window / columns; rows++) {
+                    node.add(Node.row().grow(1));
+                }
             }
         } finally {
             if (own) owners.remove(owners.size() - 1);
