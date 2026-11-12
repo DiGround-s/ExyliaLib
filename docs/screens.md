@@ -1371,3 +1371,10 @@ A chip is a picture: `<img chip="{error}" size="18" ring="{highlight}">` (4 disp
 `net.exylia.lib.screen.kit.ScreenDiscs` makes the same chip, and a wheel of coloured segments, as pixels for a scene
 sprite (`sprite.image(size, size, ScreenDiscs.wheel(size, colours, "{highlight}", "#1a1424", 0.55))`).
 
+**A hand of cards (1.602.0).** `net.exylia.lib.screen.kit.ScreenHand` lays a hand across a strip of a scene: side by
+side while it fits, overlapping more as it grows, so one card or thirty span the same strip and each keeps a part
+the cursor can hit. `new ScreenHand(left, width, cardWidth)`, then `x(index, count)` for each card's left edge (give
+each card `layer(index)` so the later one lies on top). `ScreenHand.lifting(node, 6)` makes the hovered card rise
+without moving where it is clicked. A rival's hand is `ScreenHand.backs(count, () -> back, w, h, 5)`: a small fan
+of backs, so only the count reaches that client. ExyliaTabletop's cards and poker are the reference.
+

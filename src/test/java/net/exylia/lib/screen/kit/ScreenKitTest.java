@@ -156,4 +156,17 @@ class ScreenKitTest {
         assertTrue(landed[0]);
         assertEquals(18, sprite.x(), 0.001);
     }
+
+    @Test
+    void aHandSpreadsWhileItFitsThenOverlapsWithinItsStrip() {
+        ScreenHand hand = new ScreenHand(10, 280, 26);
+        assertEquals(28, hand.pitch(3));
+        assertEquals(10 + (280 - 82) / 2.0, hand.x(0, 3));
+        for (int count : new int[]{1, 5, 10, 20, 40}) {
+            assertTrue(hand.x(0, count) >= 10);
+            assertEquals(10 + 280, hand.x(count - 1, count) + 26 + (hand.x(0, count) - 10), 1e-9);
+            assertTrue(hand.pitch(count) > 0);
+        }
+        assertTrue(hand.pitch(20) < hand.pitch(10));
+    }
 }
