@@ -78,13 +78,13 @@ final class HologramImpl implements Hologram {
     static final long STEP_MS = 500L;
 
     /**
-     * How long each keyframe is glided over: one tick longer than a step. Steps are counted on
-     * the clock but sent on ticks, so they arrive 10 or 11 ticks apart; a glide of exactly one
-     * step ran out before an 11-tick gap and the line stood still for a tick. Gliding a tick
-     * longer, towards where the line will be by then, means the next keyframe always takes over
-     * while it is still moving.
+     * How long each keyframe is glided over: four ticks longer than a step. Steps are counted on
+     * the clock but sent on ticks, and the network adds its own jitter, so a keyframe can reach
+     * the client a tick or two late; a glide that ran out first left the line standing still for
+     * a tick, a small periodic hitch in every spin. The line moves at its true speed for the whole
+     * glide, so a keyframe that arrives anywhere inside it takes over without a seam.
      */
-    static final long GLIDE_MS = STEP_MS + TICK_MS;
+    static final long GLIDE_MS = STEP_MS + 4 * TICK_MS;
     private static final int GLIDE_TICKS = (int) (GLIDE_MS / TICK_MS);
 
     /**

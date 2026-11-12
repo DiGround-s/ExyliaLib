@@ -62,7 +62,7 @@ sidebar title or a boss bar (see [Moving text](text.md#moving-text-since-15790))
 | `<block:BEACON>` | the line is a floating block, turning around its own centre when it spins |
 | `<head:Notch>` | the line is a player head, drawn like an item line: a player name, a UUID, a base64 texture, a `textures.minecraft.net` URL or a bare texture hash (`urlhead-`/`basehead-`/`playerhead-` values read too). `<size:0.5>` makes it small, `<size:2>` large (since 1.297.0). A placeholder is read per viewer: `<head:%player_name%>` shows each player their own head (1.537.0) |
 | `<glow>` / `<glow:#8a51c4>` | glow outline on an item or block line, in the team colour or the one given |
-| `<spin>` / `<spin:180>` | turns the line, in degrees a second (default 90, negative turns the other way) |
+| `<spin>` / `<spin:180>` | turns the line, in degrees a second (default 90, negative turns the other way; at most 240 since 1.597.1) |
 | `<bob>` / `<bob:0.15>` | floats the line up and down, in blocks (default 0.08) |
 | `<pulse>` / `<pulse:0.1>` | the line breathes, growing and shrinking by that fraction (default 0.06) |
 | `<shine>` / `<shine:highlight>` / `<shine:#ffd700>` | a band of light sweeps over the line every few seconds (default colour: the palette's `letters`) |

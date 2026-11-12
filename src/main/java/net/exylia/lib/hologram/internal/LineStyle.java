@@ -89,8 +89,8 @@ record LineStyle(String model, boolean block, double size, Integer opacity, Stri
     /** An item or block at size 1 is half a block, a little taller than a text line. */
     static final double MODEL_HEIGHT = 0.5;
 
-    /** The fastest spin that still reads as one direction over a keyframe glide (165 degrees in 550 ms). */
-    private static final double MAX_SPIN = 300;
+    /** The fastest spin that still reads as one direction over a keyframe glide (168 degrees in 700 ms). */
+    private static final double MAX_SPIN = 240;
 
     /**
      * The shortest period a keyframed motion may have: keyframes are 500 ms
