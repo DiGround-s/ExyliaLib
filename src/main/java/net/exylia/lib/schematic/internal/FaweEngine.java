@@ -2,6 +2,7 @@ package net.exylia.lib.schematic.internal;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.fastasyncworldedit.core.extent.clipboard.MemoryOptimizedClipboard;
 import com.sk89q.worldedit.EditSession;
 import com.sk89q.worldedit.WorldEdit;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
@@ -10,6 +11,7 @@ import com.sk89q.worldedit.extent.clipboard.Clipboard;
 import com.sk89q.worldedit.extent.clipboard.io.BuiltInClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormat;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardFormats;
+import com.sk89q.worldedit.extent.clipboard.io.ClipboardReader;
 import com.sk89q.worldedit.extent.clipboard.io.ClipboardWriter;
 import com.sk89q.worldedit.function.operation.ForwardExtentCopy;
 import com.sk89q.worldedit.function.operation.Operations;
@@ -19,9 +21,12 @@ import com.sk89q.worldedit.session.ClipboardHolder;
 import org.bukkit.World;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.time.Duration;
+import java.util.UUID;
 
 /**
  * The only class that names FastAsyncWorldEdit.
@@ -75,7 +80,7 @@ final class FaweEngine implements SchematicEngine {
         CuboidRegion region = new CuboidRegion(target,
                 BlockVector3.at(bounds.minX(), bounds.minY(), bounds.minZ()),
                 BlockVector3.at(bounds.maxX(), bounds.maxY(), bounds.maxZ()));
-        BlockArrayClipboard clipboard = new BlockArrayClipboard(region);
+        BlockArrayClipboard clipboard = inMemory(region);
 
         // changeSetNull, not the deprecated disableHistory: FAWE 2.8.4
         // deprecates the latter and the build carries zero warnings. History is
@@ -142,8 +147,28 @@ final class FaweEngine implements SchematicEngine {
             throw new IllegalStateException(
                     "no clipboard format recognises " + source.getName());
         }
-        Clipboard clipboard = format.load(source);
+        Clipboard clipboard;
+        try (InputStream in = new FileInputStream(source);
+             ClipboardReader reader = format.getReader(in)) {
+            clipboard = reader.read(UUID.randomUUID(), size -> inMemory(
+                    new CuboidRegion(BlockVector3.ZERO, size.subtract(BlockVector3.ONE))));
+        }
         clipboards.put(source.getAbsolutePath(), clipboard);
         return clipboard;
+    }
+
+    /**
+     * A clipboard held in memory, whatever FAWE's {@code clipboard.use-disk}.
+     *
+     * <p>{@code format.load} and {@code new BlockArrayClipboard(region)} follow
+     * that setting, and with it on each one opens a {@code .bd} file under
+     * {@code FastAsyncWorldEdit/clipboard/} that nothing closes or deletes until
+     * the next start. This cache drops a clipboard every ten minutes or past
+     * eight, so a practice server re-read the same arenas all day and piled up
+     * gigabytes of identical files. These clipboards are the engine's cache,
+     * not a player's clipboard: they never belong on disk.
+     */
+    private static BlockArrayClipboard inMemory(CuboidRegion region) {
+        return new BlockArrayClipboard(region, new MemoryOptimizedClipboard(region));
     }
 }
