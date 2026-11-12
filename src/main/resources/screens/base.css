@@ -132,3 +132,36 @@ search:hover { outline: 1px var(--primary); }
 .hud-panel-title { padding: 1px 0 3px 0; }
 .hud-line { flex-direction: row; gap: 3px; }
 .hud-map { padding: 2px; }
+
+/* Table kit (components/library.html, 1.598.0): a shared table game on one screen. */
+.lib-table-head { gap: 3px; align-items: stretch; }
+.lib-table-top { align-items: center; }
+.lib-table-side { width: 60px; }
+.lib-table-end { justify-content: end; }
+.lib-table-heading { flex-grow: 1; align-items: center; gap: 1px; }
+.lib-table-title { font-size: 13px; }
+.lib-table-rules { padding: 3px 8px; font-size: 8px; background: var(--primary)40; outline: 1px var(--primary)80; }
+.lib-table-rules:hover { background: var(--primary)90; }
+.lib-table-divider { height: 1px; background: var(--primary)50; }
+.lib-table-modal { gap: 4px; max-width: 260px; }
+.lib-table-panel { gap: 3px; padding: 5px 6px; background: var(--primary)12; outline: 1px var(--primary)30; }
+.lib-table-label { font-size: 7px; }
+.lib-kicker { gap: 1px; align-items: center; }
+.lib-results { justify-content: center; }
+.lib-results-list { flex-direction: row; gap: 2px; }
+.lib-result { width: 14px; height: 12px; align-items: center; justify-content: center; background: var(--letters-black)30; }
+.lib-result b { font-size: 7px; }
+.lib-result-red { background: var(--error)a0; }
+.lib-result-black { background: #1a1424e0; outline: 1px var(--letters-black)50; }
+.lib-result-green { background: var(--success)70; }
+.lib-chip-rack { justify-content: center; }
+.lib-chip-list { flex-direction: row; gap: 5px; }
+.lib-chip { align-items: center; gap: 1px; transition: transform 3t ease-out; }
+.lib-chip:hover { transform: scale(1.1); }
+.lib-chip-on { transform: scale(1.12); }
+.lib-chip-value { font-size: 7px; }
+.lib-table-action { align-items: center; justify-content: center; padding: 6px 4px; font-size: 9px; }
+.lib-table-action-error { background: var(--error)60; outline: 1px var(--error); }
+.lib-table-action-error:hover { background: var(--error)a0; }
+.lib-table-action-success { background: var(--success)48; outline: 1px var(--success)70; }
+.lib-table-action-success:hover { background: var(--success)80; }

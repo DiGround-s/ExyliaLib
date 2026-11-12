@@ -1300,6 +1300,13 @@ public final class MarkupRender {
             if (viewer == null) return Node.box().width(size).height(size);
             return Node.image(size, size, MiniMap.of(viewer, size, zoom, round, ring));
         }
+        if (el.attr("chip") != null) {
+            // <img chip="{error}" size="16" ring="{highlight}">: a casino chip in a palette colour (1.598.0).
+            int size = (int) Math.max(6, Math.min(Node.MAX_IMAGE, px(fill(attrOr(el, "size", "16"), scope, false), 16)));
+            String ring = el.attr("ring") == null ? null : fill(el.attr("ring"), scope, false).trim();
+            return Node.image(size, size, net.exylia.lib.screen.kit.ScreenDiscs.chip(size,
+                    fill(el.attr("chip"), scope, false).trim(), ring));
+        }
         if (el.attr("skin") != null) {
             String name = fill(el.attr("skin"), scope, false).trim();
             // wearing="...": armour and a held item over the skin (1.498.0).
@@ -1317,7 +1324,7 @@ public final class MarkupRender {
         }
         String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope, false).trim();
         if (src.isEmpty()) {
-            parts.problems().accept(el.pos() + ": <img> needs src, skin, face or map");
+            parts.problems().accept(el.pos() + ": <img> needs src, skin, face, map or chip");
             return Node.box();
         }
         if (parts.images() == null) {

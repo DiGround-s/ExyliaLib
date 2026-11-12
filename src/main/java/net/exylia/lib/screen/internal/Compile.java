@@ -43,6 +43,8 @@ public final class Compile {
             "persist",
             // 1.585.0: <img map>
             "map", "zoom", "round", "ring",
+            // 1.598.0: <img chip>
+            "chip",
             // 1.498.0
             "vanish", "action-hover", "wearing", "spin",
             // 1.501.0

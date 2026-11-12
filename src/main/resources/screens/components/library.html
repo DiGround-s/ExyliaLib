@@ -86,3 +86,51 @@
 <template name="game-page" props="tab">
   <column if="game_tab == '${tab}'" id="game-page-${tab}" class="game-page"><slot/></column>
 </template>
+
+<!--
+  The table kit (1.598.0, docs/screens.md, "A game table on one screen"): one screen for a shared table game, every
+  part on show at once. table-head is the title row with a RULES button that opens table-rules; table-panel is a framed
+  block; kicker is a small dark label over a big value; results-strip shows a source's last results as tiles;
+  chip-rack the chips to bet with, the picked one ringed; table-action the big footer button.
+  Rows: results-strip reads result_label and result_tone (red, black, green); chip-rack reads chip_id, chip_colour
+  (a palette colour) and chip_label, and sets the state named by `state` to the chip_id clicked.
+-->
+<template name="table-head" props="title subtitle= rules=table_rules">
+  <column class="lib-table-head">
+    <row class="lib-table-top">
+      <box class="lib-table-side"/>
+      <column class="lib-table-heading"><h1 class="lib-table-title">${title}</h1><small if="'${subtitle}' != ''">${subtitle}</small></column>
+      <row class="lib-table-side lib-table-end"><button class="lib-table-rules" action="toggle ${rules}" t="table.rules">${tr('Rules')}</button></row>
+    </row>
+    <box class="lib-table-divider"/>
+  </column>
+</template>
+
+<template name="table-rules" props="title rules=table_rules">
+  <modal if="${rules}" dismiss="clear ${rules}"><column class="lib-table-modal"><h1>${title}</h1><slot/></column></modal>
+</template>
+
+<template name="table-panel" props="title=">
+  <column class="lib-table-panel"><small if="'${title}' != ''" class="lib-table-label">${title}</small><slot/></column>
+</template>
+
+<template name="kicker" props="label tone=letters_black">
+  <column class="lib-kicker"><small class="lib-table-label">{${tone}}${label}</small><slot/></column>
+</template>
+
+<template name="results-strip" props="source empty=">
+  <row class="lib-results"><list source="${source}" class="lib-results-list"><box class="lib-result lib-result-%result_tone%"><b>%result_label%</b></box><empty><small>${empty}</small></empty></list></row>
+</template>
+
+<template name="chip-rack" props="source state=chip">
+  <row class="lib-chip-rack"><list source="${source}" class="lib-chip-list">
+    <column class="lib-chip ${${state} == chip_id ? 'lib-chip-on' : ''}" action="set ${state} %chip_id%">
+      <img chip="%chip_colour%" size="18" ring="${${state} == chip_id ? '{highlight}' : ''}"/>
+      <small class="lib-chip-value">%chip_label%</small>
+    </column>
+  </list></row>
+</template>
+
+<template name="table-action" props="action tone=error">
+  <button class="lib-table-action lib-table-action-${tone}" action="${action}"><slot/></button>
+</template>

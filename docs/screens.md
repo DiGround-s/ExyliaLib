@@ -999,6 +999,8 @@ Every screen knows these templates; a plugin's own template of the same name win
 | `<dialog title="Sure?" when="confirm" dismiss="clear confirm">...</dialog>` | a themed `modal` |
 | `<game-frame title="...">`, `<game-play>`, `<game-board>`, `<game-side>`, `<game-figure value tone>`, `<game-action action disabled>`, `<game-result/>`, `<game-page tab="how">` (1.531.0) | the frame of a game: see [Giving a game its screen form](#giving-a-game-its-screen-form) |
 
+| `<table-head title subtitle rules>`, `<table-rules title rules>`, `<table-panel title>`, `<kicker label tone>`, `<results-strip source empty>`, `<chip-rack source state>`, `<table-action action tone>` (1.598.0) | a shared table game on one screen: see [A game table on one screen](#a-game-table-on-one-screen) |
+
 **Shared bindings.** `screens.bindings().value(...).action(...)` registers for every screen of a `ScreenSet`
 (`ScreenBindings`, same methods as `ScreenMarkup`); a screen's own registration of a name wins.
 
@@ -1346,3 +1348,23 @@ the checks that flag in its own config.
 `/exylialib screentest open [spectator|wheel]` (permission `exylialib.admin`) opens a demo built with
 `Node`; `/exylialib screentest markup [spectator|wheel]` opens the same kind of screen from
 `screens/demo.html` and `screens/demo.css` in the library jar.
+
+## A game table on one screen
+
+Since 1.598.0 a shared table game (roulette first, ExyliaCasino `screens/roulette_table.html`) is one screen with
+everything on show: no tabs, the rules in a modal. The kit in `components/library.html`:
+
+| Part | What it draws |
+| --- | --- |
+| `<table-head title="..." subtitle="..." rules="table_rules"/>` | the big centred title and subtitle, a RULES button at the right that toggles the state `rules`, a divider |
+| `<table-rules title="..." rules="table_rules">...</table-rules>` | the rules modal; clicking outside closes it |
+| `<table-panel title="...">...</table-panel>` | a framed block with a small label |
+| `<kicker label="SINGLE ZERO">...</kicker>` | a small label over a big value |
+| `<results-strip source="last" empty="No spins yet"/>` | the last results as coloured tiles; rows give `result_label` and `result_tone` (`red`, `black`, `green`) |
+| `<chip-rack source="chips" state="chip"/>` | round chips; rows give `chip_id`, `chip_colour` (a palette colour) and `chip_label`; a click sets `state` to the chip's id and the picked one is ringed in `{highlight}` |
+| `<table-action action="leave" tone="error">...</table-action>` | the big footer button |
+
+A chip is a picture: `<img chip="{error}" size="18" ring="{highlight}">` (4 displays, any size up to 96).
+`net.exylia.lib.screen.kit.ScreenDiscs` makes the same chip, and a wheel of coloured segments, as pixels for a scene
+sprite (`sprite.image(size, size, ScreenDiscs.wheel(size, colours, "{highlight}", "#1a1424", 0.55))`).
+
