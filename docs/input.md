@@ -670,7 +670,7 @@ Tried in this order. The first that can represent the request and returns
 
 | Order | `TransportKind` | Chosen when | Can represent |
 | --- | --- | --- | --- |
-| 0 | `SCREEN` (1.516.0) | the player's menus are screens (`MenuStyles.screens(player)`, MenuStyle `SCREEN`) | `ConfirmInput`, `FlagInput`, a `ChoiceInput` of up to 12 options: a dialog on a screen (question, buttons or icon cards, Cancel). Shift or Cancel cancels. Longer lists and typed answers fall through |
+| 0 | `SCREEN` (1.516.0) | the player's menus are screens (`MenuStyles.screens(player)`, MenuStyle `SCREEN`) | `ConfirmInput`, `FlagInput`, a `ChoiceInput` of up to 12 options: a dialog on a screen (question, buttons or icon cards, Cancel). Shift or Cancel cancels. Longer lists and typed answers fall through. Since 1.607.0 `amount`, `integer` and `decimal` are a keypad there: digits, a point, the K/M/B suffixes the parser reads (`1.7M`), quick steps (`+1K`, `+10K`, `×2`, `Max` when the request has a maximum, `±` when it takes negatives), the value read back in full and checked live, Confirm (or Space), and **Type it**, which hands the same request to the dialog (its timeout kept). It opens with the request's `defaultValue`. Text still falls through |
 | 1 | `DIALOG` | `prefer-dialogs` is on, PacketEvents is loaded, and the client is **1.21.6 or newer** | everything except `SearchInput`; a choice is one button per option, up to 12 of them |
 | 2 | `BEDROCK` | the player is on Bedrock and Floodgate is installed and enabled | forms and single requests, except `SearchInput` |
 | 3 | `ANVIL_SEARCH` | the request is a `SearchInput` | searchable choices only |

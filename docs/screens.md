@@ -1324,7 +1324,7 @@ it. Chest menus drawn as screens show enchantments the same way. `ItemTexts.tool
   menu, or a plugin action (`plugin:action`) a screen calls. One from anywhere else (a screen's own Java binding,
   a party update refreshing lobby items, a state change) leaves the screen up. Since 1.517.0 that close happens when the click ends, and not at all when the click went on to ask something
   (`closeInventory()` then `inputs().confirm(...)`, as chest code does): the screen steps aside for the question and
-  comes back after it. A confirm or choice for a player on screens is drawn as a screen dialog; a choice of more than
+  comes back after it. A confirm or choice for a player on screens is drawn as a screen dialog, and a number or amount as a keypad (1.607.0); a choice of more than
   twelve answers pages with A/D. Before 1.509.0 such an action left the screen up; `UiSession#close` closes
   either style in every version.
 

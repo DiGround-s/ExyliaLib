@@ -183,7 +183,26 @@ public final class InputRuntime {
         return future;
     }
 
+    /**
+     * Shows a session again through the transports after {@code from}, its timeout kept: a screen keypad's
+     * "Type it" hands its number to the dialog this way.
+     */
+    static void handOff(InputSession session, TransportKind from) {
+        Player player = Bukkit.getPlayer(session.playerId());
+        if (player == null || !(session.request() instanceof net.exylia.lib.input.InputRequest<?, ?> request)) {
+            session.end(InputOutcome.UNAVAILABLE);
+            return;
+        }
+        List<Transport> rest = candidates(request.preferredTransports()).stream()
+                .filter(transport -> transport.kind() != from).toList();
+        display(session, player, rest, false);
+    }
+
     private static void display(InputSession session, Player player, List<Transport> candidates) {
+        display(session, player, candidates, true);
+    }
+
+    private static void display(InputSession session, Player player, List<Transport> candidates, boolean timeout) {
         if (ACTIVE.get(session.playerId()) != session || session.terminalResult() != null) {
             return;
         }
@@ -205,7 +224,7 @@ public final class InputRuntime {
             try {
                 if (candidate.show(session)) {
                     session.shownBy(candidate);
-                    if (session.terminalResult() == null) {
+                    if (timeout && session.terminalResult() == null) {
                         scheduleTimeout(session);
                     }
                     return;

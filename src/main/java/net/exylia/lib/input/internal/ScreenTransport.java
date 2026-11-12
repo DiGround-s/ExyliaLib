@@ -34,7 +34,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * dialog on a screen of their own instead of a small chest window. Cancel, Shift or anything closing the screen
  * cancels the request. A choice of more than twelve answers pages, turned with A and D or the arrows (1.517.0).
  * A search is a grid with its own keys (1.525.0, {@link ScreenSearch}).
- * Anything else (text, numbers) is left to the next transport.
+ * Numbers and amounts are a keypad (1.607.0, {@link ScreenKeypad}). Anything else (text) is left to the next
+ * transport.
  *
  * @since 1.516.0
  */
@@ -64,7 +65,8 @@ public final class ScreenTransport implements Transport {
         if (!(session.request() instanceof InputRequest<?, ?> request)) return false;
         ScreenSearch<?> search = request instanceof SearchInput<?> input ? search(session, input) : null;
         List<Option> options = options(request);
-        if (options == null && search == null) return false;
+        ScreenKeypad keypad = ScreenKeypad.handles(request) ? new ScreenKeypad(session, request, () -> typeIt(session)) : null;
+        if (options == null && search == null && keypad == null) return false;
         Plugin owner = Bukkit.getPluginManager().getPlugin(session.pluginName());
         if (owner == null || !owner.isEnabled()) owner = library;
         // Held by a camera the question goes through the next transport: a dialog or chat is seen from anywhere.
@@ -72,15 +74,23 @@ public final class ScreenTransport implements Transport {
         boolean asked = request.preferredTransports().contains(kind()) && MenuStyles.canShowScreens(player);
         if (!asked && !MenuStyles.of(owner).screens(player) || net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player)) return false;
         ScreenSearch<?> finder = search == null ? null : search.owner(owner);
-        Screen screen = Screen.of(s -> finder != null ? finder.draw(s) : dialog(s, session, request, options))
+        Screen screen = Screen.of(s -> finder != null ? finder.draw(s) : keypad != null ? keypad.draw(s)
+                        : dialog(s, session, request, options))
                 .onClose(s -> {
-                    shown.remove(session.playerId(), s);
-                    session.end(InputOutcome.CANCELLED);
+                    // Gone from the map means it was closed on purpose (answered, or "Type it" handing it on).
+                    if (shown.remove(session.playerId(), s)) session.end(InputOutcome.CANCELLED);
                 });
         ScreenSession opened = Screens.of(owner).open(player, screen);
         if (opened == null) return false;
         shown.put(session.playerId(), opened);
         return true;
+    }
+
+    /** "Type it" on the keypad: the keypad closes without cancelling and the request goes on to the dialog. */
+    private void typeIt(InputSession session) {
+        ScreenSession screen = shown.remove(session.playerId());
+        if (screen != null && screen.open()) screen.close();
+        InputRuntime.handOff(session, kind());
     }
 
     @Override

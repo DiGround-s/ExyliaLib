@@ -2066,3 +2066,6 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}A mesa {highlight}{0} {letters}já está aí.'
 '{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} Clique esq. {letters_black}· {letters}usar este valor'
 '{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} Clique dir. {letters_black}· {letters}mudar o valor'
+'Type it': 'Digitar'
+'Max': 'Máx'
+'Use K, M or B for thousands, millions, billions.': 'Use K, M ou B para mil, milhões, bilhões.'

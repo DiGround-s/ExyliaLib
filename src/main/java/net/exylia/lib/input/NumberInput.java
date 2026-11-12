@@ -52,4 +52,14 @@ public final class NumberInput<T extends Number & Comparable<T>>
         return validate(value -> value.compareTo(maximum) <= 0,
                 Phrases.tr("Enter a value of at most {0}.", maximum));
     }
+
+    /** The inclusive lower bound, or {@code null} when none was set. @since 1.607.0 */
+    public @org.jetbrains.annotations.Nullable T minimum() {
+        return minimum;
+    }
+
+    /** The inclusive upper bound, or {@code null} when none was set. @since 1.607.0 */
+    public @org.jetbrains.annotations.Nullable T maximum() {
+        return maximum;
+    }
 }

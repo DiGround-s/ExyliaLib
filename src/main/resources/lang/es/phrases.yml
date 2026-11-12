@@ -2066,3 +2066,6 @@ speaks the language chosen here.: habla el idioma elegido aquí.
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}La mesa {highlight}{0} {letters}ya está ahí.'
 '{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} Clic izq. {letters_black}· {letters}usar esta cantidad'
 '{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} Clic der. {letters_black}· {letters}cambiar la cantidad'
+'Type it': 'Escribir'
+'Max': 'Máx'
+'Use K, M or B for thousands, millions, billions.': 'Usa K, M o B para miles, millones, miles de millones.'
