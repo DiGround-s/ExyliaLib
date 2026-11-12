@@ -320,6 +320,37 @@ public final class PluginWizards {
     }
 
     /**
+     * Asks a player to click a block, an entity or an NPC, and hands back which.
+     *
+     * <p>The place gesture for anything that can sit on either: a world table on a
+     * block or on an NPC, a shop on a sign or on a villager. Only this pick takes
+     * entity clicks, so every other pick keeps ignoring them.
+     *
+     * @param player    who is asked
+     * @param title     what the progress bar names
+     * @param prompt    what the player is told to click
+     * @param accepted  told what was clicked, on the player's thread
+     * @param abandoned run when they backed out instead, or {@code null}
+     * @return the running flow
+     * @since 1.603.0
+     */
+    public @NotNull WizardRun askTarget(@NotNull Player player, @NotNull String title, @NotNull String prompt,
+                                        @NotNull Consumer<WizardTarget> accepted,
+                                        @Nullable Runnable abandoned) {
+        java.util.UUID id = player.getUniqueId();
+        WizardRuntime.beginTarget(id);
+        return one(player, title, () -> {
+                    WizardRuntime.endTarget(id);
+                    if (abandoned != null) abandoned.run();
+                },
+                builder -> builder.pick(POINT, prompt),
+                values -> {
+                    WizardTarget hit = WizardRuntime.endTarget(id);
+                    accepted.accept(hit != null ? hit : new WizardTarget(values.getLocation(POINT), null, null));
+                });
+    }
+
+    /**
      * Asks a player to select a volume and hands back what they selected.
      *
      * <p>The shared block selector: the same wand, the same preview and the same

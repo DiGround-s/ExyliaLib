@@ -6,6 +6,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.entity.Player;
+import net.exylia.lib.npc.PlacedNpcClickEvent;
+import net.exylia.lib.util.wizard.WizardTarget;
 
 /**
  * The module's single Bukkit listener.
@@ -50,6 +56,36 @@ final class WizardListener implements Listener {
         if (session.interacted(event.getClickedBlock(), event.getPlayer().isSneaking())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Feeds an entity right-click to a pick that takes entities
+     * ({@link net.exylia.lib.util.wizard.PluginWizards#askTarget}); other picks ignore it.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onEntity(PlayerInteractEntityEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        if (WizardRuntime.target(event.getPlayer().getUniqueId(), new WizardTarget(
+                event.getRightClicked().getLocation(), event.getRightClicked().getUniqueId(), null))) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** The same for a left click, which reaches the server as a hit. */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
+        if (WizardRuntime.target(player.getUniqueId(), new WizardTarget(
+                event.getEntity().getLocation(), event.getEntity().getUniqueId(), null))) {
+            event.setCancelled(true);
+        }
+    }
+
+    /** The same for a library placed NPC, which is packets only and fires no entity event. */
+    @EventHandler
+    public void onNpc(PlacedNpcClickEvent event) {
+        WizardRuntime.target(event.getPlayer().getUniqueId(), new WizardTarget(
+                event.npc().location(), null, event.owner().getName() + ":" + event.npcId()));
     }
 
     /**

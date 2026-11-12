@@ -9,6 +9,7 @@ import net.exylia.lib.util.wizard.Wizard;
 import net.exylia.lib.util.wizard.WizardOutcome;
 import net.exylia.lib.util.wizard.WizardRun;
 import net.exylia.lib.util.wizard.WizardSettings;
+import net.exylia.lib.util.wizard.WizardTarget;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -178,6 +179,8 @@ public final class WizardRuntime {
      * @param player the player's id
      */
     public static void forget(@NotNull UUID player) {
+        TARGETING.remove(player);
+        HITS.remove(player);
         WizardSession session = ACTIVE.get(player);
         if (session != null) {
             session.end(WizardOutcome.DISCONNECTED);
@@ -232,6 +235,45 @@ public final class WizardRuntime {
         OWNERS.clear();
         hands = player -> player.getInventory().getItemInMainHand();
         listening = false;
+    }
+
+    /** Players whose pick also takes an entity or NPC click, and what they hit. */
+    private static final java.util.Set<UUID> TARGETING = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentMap<UUID, WizardTarget> HITS = new ConcurrentHashMap<>();
+
+    /**
+     * Lets the player's current pick be answered by an entity or NPC click too.
+     *
+     * @param player the player's id
+     * @since 1.603.0
+     */
+    public static void beginTarget(@NotNull UUID player) {
+        HITS.remove(player);
+        TARGETING.add(player);
+    }
+
+    /**
+     * Ends {@link #beginTarget} and hands back the entity or NPC clicked, if one was.
+     *
+     * @param player the player's id
+     * @return the entity or NPC target, {@code null} when a block answered
+     * @since 1.603.0
+     */
+    public static @Nullable WizardTarget endTarget(@NotNull UUID player) {
+        TARGETING.remove(player);
+        return HITS.remove(player);
+    }
+
+    /** Answers a targeting pick with an entity or NPC; {@code true} when it was taken. */
+    static boolean target(@NotNull UUID player, @NotNull WizardTarget hit) {
+        if (!TARGETING.contains(player)) return false;
+        WizardSession session = ACTIVE.get(player);
+        if (session == null) return false;
+        // Stored first: answering the pick may finish the run on this very call.
+        HITS.put(player, hit);
+        if (session.locationPicked(hit.location())) return true;
+        HITS.remove(player);
+        return false;
     }
 
     /** The session a listener or a test should route an event to. */
