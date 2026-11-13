@@ -115,8 +115,7 @@ final class DisplayPackets implements DisplaySink {
                         EntityDataTypes.INT, ticks),
                 new EntityData<>(DisplayState.TRANSLATION, EntityDataTypes.VECTOR3F,
                         new Vector3f(transform.tx(), transform.ty(), transform.tz())),
-                new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F,
-                        new Vector3f(transform.sx(), transform.sy(), transform.sz())),
+                new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F, scaleOf(display, transform)),
                 new EntityData<>(DisplayState.ROTATION_LEFT, EntityDataTypes.QUATERNION,
                         new Quaternion4f(0, transform.qy(), 0, transform.qw())))));
     }
@@ -251,7 +250,9 @@ final class DisplayPackets implements DisplaySink {
     public void item(Player viewer, DisplayState display, org.bukkit.inventory.ItemStack item) {
         send(viewer, new WrapperPlayServerEntityMetadata(display.entityId(),
                 List.of(new EntityData<>(DisplayState.ITEM, EntityDataTypes.ITEMSTACK,
-                        SpigotConversionUtil.fromBukkitItemStack(item)))));
+                                SpigotConversionUtil.fromBukkitItemStack(item)),
+                        new EntityData<>(DisplayState.ITEM_TRANSFORM, EntityDataTypes.BYTE,
+                                offCentre(item.getType()) ? FIXED : (byte) 0))));
     }
 
     @Override
@@ -369,8 +370,7 @@ final class DisplayPackets implements DisplaySink {
         List<EntityData<?>> data = new ArrayList<>(12);
 
         data.add(new EntityData<>(DisplayState.BILLBOARD, EntityDataTypes.BYTE, display.billboard()));
-        data.add(new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F,
-                new Vector3f(transform.sx(), transform.sy(), transform.sz())));
+        data.add(new EntityData<>(DisplayState.SCALE, EntityDataTypes.VECTOR3F, scaleOf(display, transform)));
         if (transform.hasTranslation()) {
             data.add(new EntityData<>(DisplayState.TRANSLATION, EntityDataTypes.VECTOR3F,
                     new Vector3f(transform.tx(), transform.ty(), transform.tz())));
@@ -401,15 +401,49 @@ final class DisplayPackets implements DisplaySink {
                         (byte) properties.textOpacity()));
                 data.add(new EntityData<>(DisplayState.TEXT_FLAGS, EntityDataTypes.BYTE, display.textFlags()));
             }
-            case ITEM -> data.add(new EntityData<>(DisplayState.ITEM, EntityDataTypes.ITEMSTACK,
-                    SpigotConversionUtil.fromBukkitItemStack(
-                            display.item() != null ? display.item()
-                                    : new org.bukkit.inventory.ItemStack(display.material()))));
+            case ITEM -> {
+                data.add(new EntityData<>(DisplayState.ITEM, EntityDataTypes.ITEMSTACK,
+                        SpigotConversionUtil.fromBukkitItemStack(
+                                display.item() != null ? display.item()
+                                        : new org.bukkit.inventory.ItemStack(display.material()))));
+                if (offCentre(display)) {
+                    data.add(new EntityData<>(DisplayState.ITEM_TRANSFORM, EntityDataTypes.BYTE, FIXED));
+                }
+            }
             case BLOCK -> data.add(new EntityData<>(DisplayState.BLOCK_STATE, EntityDataTypes.BLOCK_STATE,
                     SpigotConversionUtil.fromBukkitBlockData(
                             display.material().createBlockData()).getGlobalId()));
         }
         return data;
+    }
+
+    /** The item frame's display context: the one where a hand-held model sits on its own centre. */
+    private static final byte FIXED = 8;
+
+    /** The shield's FIXED context shrinks it to 0.55; undone so size:1 stays the size it was. */
+    private static final float SHIELD_FIXED_SCALE = 0.55f;
+
+    /**
+     * A shield or a trident drawn as is (context NONE) sits half a block off its own axis, built
+     * for a hand, so a spinning one orbits the line instead of turning in place. Every other
+     * special model (chests, heads, beds, banners) fills its block and turns on its centre.
+     */
+    static boolean offCentre(DisplayState display) {
+        return display.kind() == HologramConfig.Kind.ITEM && offCentre(shown(display));
+    }
+
+    static boolean offCentre(org.bukkit.Material type) {
+        return type == org.bukkit.Material.SHIELD || type == org.bukkit.Material.TRIDENT;
+    }
+
+    private static org.bukkit.Material shown(DisplayState display) {
+        return display.item() != null ? display.item().getType() : display.material();
+    }
+
+    private static Vector3f scaleOf(DisplayState display, DisplayState.Transform transform) {
+        float grow = display.kind() == HologramConfig.Kind.ITEM && shown(display) == org.bukkit.Material.SHIELD
+                ? 1 / SHIELD_FIXED_SCALE : 1;
+        return new Vector3f(transform.sx() * grow, transform.sy() * grow, transform.sz() * grow);
     }
 
     private static EntityType typeOf(HologramConfig.Kind kind) {
