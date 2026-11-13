@@ -47,6 +47,34 @@ public final class MotionCss {
         return out;
     }
 
+    /**
+     * {@code text-gradient}: colours ({@code #rrggbb}, {@code var(--primary)}, {@code {token}}) and an optional
+     * duration for one slide, or {@code rainbow} and an optional duration; {@code null} for {@code none} or with fewer
+     * than one colour.
+     */
+    public static Motion.TextGradient textGradient(String value) {
+        List<Integer> colours = new ArrayList<>();
+        boolean rainbow = false;
+        int ticks = 0;
+        for (String word : ScreenMath.palette(value.trim()).split("[\\s,]+")) {
+            if (word.isEmpty()) continue;
+            if (word.equalsIgnoreCase("none")) return null;
+            if (word.equalsIgnoreCase("rainbow")) {
+                rainbow = true;
+                continue;
+            }
+            int t = ticks(word);
+            if (t >= 0) {
+                ticks = t;
+                continue;
+            }
+            int argb = ScreenMath.argb(word, 0);
+            if (argb != 0) colours.add(argb & 0xFFFFFF);
+        }
+        if (!rainbow && colours.isEmpty()) return null;
+        return new Motion.TextGradient(colours.stream().mapToInt(Integer::intValue).toArray(), rainbow, ticks);
+    }
+
     /** Ticks: {@code 4t}, {@code 4} (ticks), {@code 200ms}, {@code 0.3s}; -1 when it is not a duration. */
     public static int ticks(String word) {
         Matcher m = DURATION.matcher(word.trim().toLowerCase(Locale.ROOT));

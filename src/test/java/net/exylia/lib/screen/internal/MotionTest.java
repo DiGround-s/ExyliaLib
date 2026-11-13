@@ -180,4 +180,39 @@ class MotionTest {
         }
         org.junit.jupiter.api.Assertions.assertEquals(0, LiveScreen.turnAngle(0, true, 5000));
     }
+
+    @Test
+    void textGradientSteps() {
+        Motion.TextGradient g = MotionCss.textGradient("#000000 #ffffff 40t");
+        assertNotNull(g);
+        assertEquals(40, g.ticks());
+        // Steps of TextGradient.STEP ticks: the words change no faster than that.
+        assertEquals(0, g.phase(0), 1e-9);
+        assertEquals(0, g.phase(3), 1e-9);
+        assertEquals(0.1, g.phase(4), 1e-9);
+        assertEquals(0, g.phase(40), 1e-9, "it loops");
+        // At phase 0 a moving gradient looks as the still one: first stop to last.
+        assertEquals(0x000000, g.colourAt(0, 5, 0));
+        assertEquals(0xffffff, g.colourAt(4, 5, 0));
+        // Half a loop on, the ends have swapped: the slide has no seam.
+        assertEquals(0xffffff, g.colourAt(0, 5, 0.5));
+        Motion.TextGradient still = MotionCss.textGradient("#000000 #ffffff");
+        assertEquals(0, still.ticks());
+        assertEquals(0, still.phase(17), 1e-9);
+        assertEquals(0xffffff, still.colourAt(4, 5, 0));
+        assertTrue(MotionCss.textGradient("rainbow 60t").rainbow());
+        assertNull(MotionCss.textGradient("none"));
+        assertNull(MotionCss.textGradient("12t"));
+    }
+
+    @Test
+    void textPaintKeepsWordsAndStyle() {
+        Component words = Component.text("Ab\nc", net.kyori.adventure.text.format.Style.style(
+                net.kyori.adventure.text.format.TextDecoration.BOLD));
+        Component painted = TextPaint.paint(words, MotionCss.textGradient("#ff0000 #0000ff"), 0);
+        assertEquals("Ab\nc", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(painted));
+        assertEquals(net.kyori.adventure.text.format.TextDecoration.State.TRUE,
+                painted.decoration(net.kyori.adventure.text.format.TextDecoration.BOLD));
+        assertEquals(4, painted.children().size(), "three characters and the line break: " + painted);
+    }
 }

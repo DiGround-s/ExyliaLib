@@ -1202,6 +1202,9 @@ public final class MarkupRender {
         // text-reveal: 1t types the words out a character a tick (1.565.0); none or 0 shows them at once.
         String reveal = text.get("text-reveal");
         if (reveal != null && MotionCss.ticks(reveal) > 0) node.reveal(MotionCss.ticks(reveal));
+        // text-gradient: <colour> <colour>... [duration] | rainbow [duration] (1.610.0); none keeps the words' colours.
+        String gradient = text.get("text-gradient");
+        if (gradient != null) node.textGradient(MotionCss.textGradient(gradient));
         String align = text.get("text-align");
         if (align != null) node.textAlign(switch (align.trim()) {
             case "center" -> Node.Align.CENTER;

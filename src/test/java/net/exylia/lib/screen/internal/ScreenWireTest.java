@@ -333,6 +333,44 @@ class ScreenWireTest {
         System.out.println("[screen choreo] middle " + middle + "\n[screen choreo] pop " + pop);
     }
 
+    /** A shimmering title repaints a few times a second; past the cap and when still, words hold still. */
+    @Test
+    void shimmerIsBounded() {
+        var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();
+        if (previous == null) com.github.retrooper.packetevents.PacketEvents.setAPI(new MappingsOnly());
+        try {
+            assertTrue(shimmerSecond("<p class=\"lib-shimmer\">Welcome back, pick a mode</p><p>Still</p>") <= 5,
+                    "one shimmer repaints every 4 ticks at the most");
+            assertTrue(shimmerSecond("<for each=\"i in 1..10\"><p class=\"lib-rainbow\">Line ${i}</p></for>") <= 30,
+                    "at most six texts a screen shimmer");
+            assertEquals(0, shimmerSecond("<p style=\"text-gradient: var(--primary) var(--info)\">Still gradient</p>"),
+                    "a gradient without a duration holds still");
+        } finally {
+            com.github.retrooper.packetevents.PacketEvents.setAPI(previous);
+        }
+    }
+
+    private int shimmerSecond(String body) {
+        FakeServer.install();
+        FakeServer.reset();
+        FakePlayer viewer = new FakePlayer("Shiny").at(new Location(null, 0, 64, 0));
+        viewer.inventory(Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[]{PlayerInventory.class},
+                (self, method, args) -> FakeServer.defaultValue(method.getReturnType())));
+        ScreenMarkup markup = ScreenMarkup.parse("shimmer", "<screen><panel>" + body + "</panel></screen>", "");
+        assertTrue(markup.problems().isEmpty(), markup.problems().toString());
+        AtomicInteger ids = new AtomicInteger(6000);
+        LiveScreen live = new LiveScreen(FakeServer.newPlugin("ScreenShimmer"), viewer.player(), markup.screen(),
+                new ScreenPackets.Wire(sent::add), ids::incrementAndGet);
+        live.start();
+        FakeServer.tick(20);
+        take();
+        FakeServer.tick(20);
+        Stats second = take();
+        live.close();
+        System.out.println("[screen shimmer] " + second);
+        return second.packets;
+    }
+
     @Test
     void backgroundsStayWithinBudget() {
         var previous = com.github.retrooper.packetevents.PacketEvents.getAPI();

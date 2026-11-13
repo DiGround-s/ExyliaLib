@@ -477,6 +477,7 @@ card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
 | `white-space` (1.496.0) | `normal` wraps text to its box, `nowrap` (default) keeps one line; inherited |
 | `text-shadow` (1.496.0) | `none` (default) or anything else for the vanilla shadow; inherited |
 | `transform`, `transition`, `enter`, `leave`, `animation` (1.496.0) | see [Motion](#motion-14960) |
+| `text-gradient` (1.610.0) | colours and an optional duration, or `rainbow`; inherited. See [Motion](#motion-14960) |
 | `background: linear-gradient(...)`, `background-image: url(img/x.png)` (1.497.0) | see [Backgrounds](#backgrounds-14970) |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
@@ -721,6 +722,20 @@ modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
   Java: one play on a box, over its own transform. `deny="animate shake"` is the house refusal.
 - Easings `bounce` and `elastic` (1.565.0) spring past the end; a glide along them takes up to eight steps.
 - The base theme ships keyframes `shake`, `pop`, `pulse`, `float`, `nudge`, `jump`, `flip`, `drop-in`.
+- `text-gradient: <colour> <colour>... [duration]` (1.610.0) paints the words with a gradient, first colour to last;
+  with a duration the gradient slides along them once in that time (a shimmer), looping without a seam.
+  `text-gradient: rainbow [duration]` uses every hue, softened to stay readable. Colours are `var(--primary)`,
+  `{token}` or `#rrggbb`; `none` keeps the words' own colours. Inherited, so it can sit on a heading or a button and
+  reach its words. A CSS property rather than MiniMessage `<gradient>`, so a sheet (and `colors.yml`) restyles it
+  without touching the words, and the engine can hold it still. `Node#textGradient(Motion.TextGradient)` in Java.
+  Cost: the words' display is re-sent at most every 4 ticks (`Motion.TextGradient.STEP`), five times a second for a
+  60t slide, each counted against `motion-ceiling`; at most six texts a screen slide, the rest hold their gradient
+  still, as they do under reduced motion, lighter screens and a screen lowered in detail over its budget.
+- Opt-in classes (1.610.0) for any element, no keyframes to write: `.lib-pulse` (a gentle beat for the main call to
+  action), `.lib-float`, `.lib-nudge`, `.lib-shimmer` (the house `{primary}` to `{secondary_light}` sliding over 60t),
+  `.lib-rainbow` (rainbow over 80t) and `.lib-wave` on a container (its children arrive 2t apart and float in a wave).
+  The older `.anim-pulse`, `.anim-float`, `.anim-nudge` are the same loops. Nothing in the base theme uses them, so no
+  screen changes until it names one.
 - An element's own `style="..."` (1.565.0) wins over every rule and may set `--custom` properties for its children.
 - Not drawn (Minecraft cannot): rotation, opacity and colour glides, rounded corners, blur. A fade is a scale from
   nearly nothing; a colour change steps.
