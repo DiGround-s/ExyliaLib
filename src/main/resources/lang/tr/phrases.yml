@@ -2064,3 +2064,8 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}{highlight}{0} {letters}masası yerleştirildi. Oyuncular oynamak için tıklar.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}{highlight}{0} {letters}masası kaldırıldı.'
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}{highlight}{0} {letters}masası zaten orada.'
+'{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} Sol tık {letters_black}· {letters}bu tutarı kullan'
+'{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} Sağ tık {letters_black}· {letters}tutarı değiştir'
+'Type it': 'Yaz'
+'Max': 'Maks'
+'Use K, M or B for thousands, millions, billions.': 'Bin, milyon, milyar için K, M veya B kullan.'

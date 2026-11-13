@@ -95,7 +95,8 @@
   Rows: results-strip reads result_label and result_tone (red, black, green); chip-rack reads chip_id, chip_colour
   (a palette colour) and chip_label, and sets the state named by `state` to the chip_id clicked. With `custom` (an
   action, 1.601.0) a CUSTOM chip ends the rack: its click runs that action, which asks for an amount and sets the state
-  to `custom`; `custom_label` is what it reads once one is typed (Custom before).
+  to `custom`; `custom_label` is what it reads once one is typed (Custom before). A right-click runs the action with
+  the argument `edit` (1.606.0), so a left-click can reuse the amount typed and a right-click always asks again; its tooltip says so (1.606.1).
 -->
 <template name="table-head" props="title subtitle= rules=table_rules">
   <column class="lib-table-head">
@@ -131,7 +132,8 @@
       <small class="lib-chip-value">%chip_label%</small>
     </column>
   </list>
-    <column if="'${custom}' != ''" class="lib-chip lib-chip-custom ${${state} == 'custom' ? 'lib-chip-on' : ''}" action="${custom}">
+    <column if="'${custom}' != ''" class="lib-chip lib-chip-custom ${${state} == 'custom' ? 'lib-chip-on' : ''}" action="${custom}" action-right="${custom} edit"
+            tooltip="${tr('{info}{icon:click} Left-click {letters_black}· {letters}use this amount')}<nl>${tr('{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount')}">
       <img chip="${custom_colour}" size="18" ring="${${state} == 'custom' ? '{highlight}' : ''}"/>
       <small if="'${custom_label}' == ''" class="lib-chip-value">${tr('Custom')}</small>
       <small if="'${custom_label}' != ''" class="lib-chip-value">${custom_label}</small>

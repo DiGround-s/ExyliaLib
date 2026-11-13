@@ -232,6 +232,8 @@ sections:
 
 A `pagination` block becomes one section named `main`, so a menu with one list
 never has to know section names exist.
+A menu that adds `sections:` beside it (a one-slot back button) still pages and
+titles `main`: bare `previous_page`/`next_page` and `%current_page%` follow it.
 
 ### Filling one
 

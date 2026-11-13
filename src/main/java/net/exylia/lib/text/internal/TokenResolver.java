@@ -38,14 +38,28 @@ final class TokenResolver {
 
         int length = text.length();
         StringBuilder result = new StringBuilder(length + 16);
-        result.append(text, 0, open);
 
-        boolean inTag = insideTag(text, open);
-        int cursor = open;
+        // A tag's quoted argument is text again (a hover's show_text), so a
+        // token there is a whole colour tag, not a tag argument. Quotes nest
+        // through the tags written inside them.
+        boolean inTag = false;
+        java.util.ArrayDeque<Character> quotes = new java.util.ArrayDeque<>();
+        int cursor = 0;
         while (cursor < length) {
             char current = text.charAt(cursor);
             if (current != '{') {
-                if (current == '<') {
+                if (current == '\\' && !quotes.isEmpty() && cursor + 1 < length) {
+                    result.append(current).append(text.charAt(cursor + 1));
+                    cursor += 2;
+                    continue;
+                }
+                if (inTag && (current == '\'' || current == '"')) {
+                    quotes.push(current);
+                    inTag = false;
+                } else if (!inTag && !quotes.isEmpty() && current == quotes.peek()) {
+                    quotes.pop();
+                    inTag = true;
+                } else if (current == '<') {
                     inTag = true;
                 } else if (current == '>') {
                     inTag = false;
@@ -74,11 +88,6 @@ final class TokenResolver {
         }
 
         return result.toString();
-    }
-
-    /** Whether {@code index} sits between a {@code <} and the {@code >} that closes it. */
-    private static boolean insideTag(String text, int index) {
-        return text.lastIndexOf('<', index) > text.lastIndexOf('>', index);
     }
 
     /** {@code <#8a51c4>} as the argument a tag takes, {@code #8a51c4}. */

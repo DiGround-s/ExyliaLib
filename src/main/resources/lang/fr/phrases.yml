@@ -2052,3 +2052,8 @@ speaks the language chosen here.: parle la langue choisie ici.
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}Table {highlight}{0} {letters}placée. Les joueurs cliquent pour jouer.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}Table {highlight}{0} {letters}retirée.'
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}La table {highlight}{0} {letters}est déjà là.'
+'{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} Clic gauche {letters_black}· {letters}utiliser ce montant'
+'{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} Clic droit {letters_black}· {letters}changer le montant'
+'Type it': 'Saisir'
+'Max': 'Max'
+'Use K, M or B for thousands, millions, billions.': 'K, M ou B pour milliers, millions, milliards.'

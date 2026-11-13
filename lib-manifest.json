@@ -6880,9 +6880,45 @@
       "requiresRestart": true,
       "releaseTag": "v1.605.3",
       "sourceCommit": "3fbfd4e1fcb878ae4cfbc2fa45321d24c17b7941"
+    },
+    "1.606.1": {
+      "version": "1.606.1",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.606.1/ExyliaLib-1.606.1.jar",
+      "sha256": "c236cab8e28d1b759ed4b7b1dc0886130832b77a3e0b43ed6495bc55b8abd54a",
+      "major": 1,
+      "requiresRestart": true,
+      "releaseTag": "v1.606.1",
+      "sourceCommit": "900ad1ff81829bfd913ce33fb5d9aaaf1be97d41"
+    },
+    "1.607.0": {
+      "version": "1.607.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.607.0/ExyliaLib-1.607.0.jar",
+      "sha256": "0ab9746b01c5ac5f5f42c5470cafaf6a7c89ba001f7b45db854f3c61a6ec107d",
+      "major": 1,
+      "requiresRestart": true,
+      "releaseTag": "v1.607.0",
+      "sourceCommit": "321b7d6502b6d23a038651fceb069f01241fc330"
+    },
+    "1.608.0": {
+      "version": "1.608.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.608.0/ExyliaLib-1.608.0.jar",
+      "sha256": "35987c5fa1a6b08713ac21820bf64165a360a46fb8447d32df1fed6ed6a6820d",
+      "major": 1,
+      "requiresRestart": true,
+      "releaseTag": "v1.608.0",
+      "sourceCommit": "89b3954e5b034fc33032e0e9d5d78cc7d5da68ee"
+    },
+    "1.609.0": {
+      "version": "1.609.0",
+      "url": "https://github.com/DiGround-s/ExyliaLib/releases/download/v1.609.0/ExyliaLib-1.609.0.jar",
+      "sha256": "f571b6b965b9afb151ac5002e0a705e04acb4f5021ca9290684598a2d94b38e3",
+      "major": 1,
+      "requiresRestart": true,
+      "releaseTag": "v1.609.0",
+      "sourceCommit": "e4024cd96871e02fe44dfefc21f990b0540d3cd4"
     }
   },
   "latest": {
-    "major1": "1.605.3"
+    "major1": "1.609.0"
   }
 }

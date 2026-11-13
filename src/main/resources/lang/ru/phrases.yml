@@ -2052,3 +2052,8 @@ speaks the language chosen here.: говорит на выбранном зде�
 '{success}✔ {letters}Table {highlight}{0} {letters}placed. Players click it to play.': '{success}✔ {letters}Стол {highlight}{0} {letters}установлен. Игроки нажимают, чтобы играть.'
 '{success}✔ {letters}Table {highlight}{0} {letters}removed.': '{success}✔ {letters}Стол {highlight}{0} {letters}убран.'
 '{warning}! {letters}Table {highlight}{0} {letters}is already there.': '{warning}! {letters}Стол {highlight}{0} {letters}уже стоит здесь.'
+'{info}{icon:click} Left-click {letters_black}· {letters}use this amount': '{info}{icon:click} ЛКМ {letters_black}· {letters}поставить эту сумму'
+'{info}{icon:right_click} Right-click {letters_black}· {letters}change the amount': '{info}{icon:right_click} ПКМ {letters_black}· {letters}изменить сумму'
+'Type it': 'Ввести'
+'Max': 'Макс'
+'Use K, M or B for thousands, millions, billions.': 'K, M или B: тысячи, миллионы, миллиарды.'
