@@ -19,6 +19,8 @@ import java.util.logging.Logger;
  */
 public final class TemplateCache {
 
+    private static final java.util.concurrent.atomic.AtomicInteger GENERATION = new java.util.concurrent.atomic.AtomicInteger();
+
     private static final Cache<String, CompiledTemplate> CACHE = Caffeine.newBuilder()
             .maximumSize(4096)
             .expireAfterAccess(Duration.ofMinutes(10))
@@ -59,7 +61,15 @@ public final class TemplateCache {
      * @return a fresh compiled template
      */
     public static CompiledTemplate compile(String text, Logger logger) {
-        return new CompiledTemplate(text, TemplateCompiler.compile(text, Registry::known, Registry::verbatim), logger);
+        // Read before compiling, so a registration racing the compile marks it stale rather than fresh.
+        int generation = GENERATION.get();
+        return new CompiledTemplate(text, TemplateCompiler.compile(text, Registry::known, Registry::verbatim),
+                logger, generation);
+    }
+
+    /** Bumped on every registration change; held templates compare it to re-split their names. */
+    static int generation() {
+        return GENERATION.get();
     }
 
     /**
@@ -70,6 +80,7 @@ public final class TemplateCache {
      * now be wrong.
      */
     public static void invalidate() {
+        GENERATION.incrementAndGet();
         CACHE.invalidateAll();
         // The expansions compile the same names against their own owner, so the
         // change that made these wrong made those wrong too.

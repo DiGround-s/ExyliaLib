@@ -19,8 +19,11 @@ import java.util.logging.Logger;
 public final class CompiledTemplate implements Template {
 
     private final String raw;
-    private final List<Part> parts;
-    private final List<String> names;
+    // Re-split when a placeholder is registered after this was compiled: a holder that keeps its template
+    // (a hologram line, a scoreboard row) otherwise keeps a name it read as unknown for the whole boot.
+    private volatile List<Part> parts;
+    private volatile List<String> names;
+    private volatile int generation;
     private final boolean dynamic;
 
     /** Set when the text has no placeholders, so rendering returns it directly. */
@@ -29,17 +32,17 @@ public final class CompiledTemplate implements Template {
     private final Logger logger;
 
     CompiledTemplate(String raw, List<Part> parts, Logger logger) {
+        this(raw, parts, logger, TemplateCache.generation());
+    }
+
+    CompiledTemplate(String raw, List<Part> parts, Logger logger, int generation) {
         this.raw = raw;
         this.parts = parts;
         this.logger = logger;
+        this.generation = generation;
 
-        List<String> found = new ArrayList<>(4);
-        for (Part part : parts) {
-            if (!part.isLiteral()) {
-                found.add(part.name());
-            }
-        }
-        this.names = List.copyOf(found);
+        List<String> found = namesOf(parts);
+        this.names = found;
         this.dynamic = !found.isEmpty();
 
         if (dynamic) {
@@ -54,6 +57,29 @@ public final class CompiledTemplate implements Template {
             }
             this.constant = fixed.toString();
         }
+    }
+
+    private static List<String> namesOf(List<Part> parts) {
+        List<String> found = new ArrayList<>(4);
+        for (Part part : parts) {
+            if (!part.isLiteral()) {
+                found.add(part.name());
+            }
+        }
+        return List.copyOf(found);
+    }
+
+    /** The parts, split again first when the registry changed since they were. */
+    private List<Part> parts() {
+        int now = TemplateCache.generation();
+        if (!dynamic || generation == now) {
+            return parts;
+        }
+        List<Part> fresh = TemplateCompiler.compile(raw, Registry::known, Registry::verbatim);
+        names = namesOf(fresh);
+        parts = fresh;
+        generation = now;
+        return fresh;
     }
 
     @Override
@@ -125,7 +151,7 @@ public final class CompiledTemplate implements Template {
         // rarely has to grow.
         StringBuilder result = new StringBuilder(raw.length() + 16);
 
-        for (Part part : parts) {
+        for (Part part : parts()) {
             if (part.isLiteral()) {
                 result.append(part.literal());
                 continue;
@@ -232,13 +258,14 @@ public final class CompiledTemplate implements Template {
 
     @Override
     public @NotNull List<String> placeholders() {
+        parts();
         return names;
     }
 
     /** Every placeholder exactly as written, in order: {@code %name%}, arguments and all. */
     public @NotNull List<String> originals() {
-        List<String> written = new ArrayList<>(names.size());
-        for (Part part : parts) {
+        List<String> written = new ArrayList<>(parts().size());
+        for (Part part : parts()) {
             if (!part.isLiteral()) written.add(part.original());
         }
         return written;
@@ -299,8 +326,8 @@ public final class CompiledTemplate implements Template {
         if (!dynamic) {
             return List.of();
         }
-        List<String> pairs = new ArrayList<>(names.size() * 3);
-        for (Part part : parts) {
+        List<String> pairs = new ArrayList<>(parts().size() * 3);
+        for (Part part : parts()) {
             if (part.isLiteral()) {
                 continue;
             }
@@ -337,7 +364,7 @@ public final class CompiledTemplate implements Template {
 
     /** Returns whether every placeholder used here is safe off the main thread. */
     public boolean isAsyncSafe() {
-        for (Part part : parts) {
+        for (Part part : parts()) {
             if (part.isLiteral()) {
                 continue;
             }
@@ -352,7 +379,7 @@ public final class CompiledTemplate implements Template {
     /** Returns the placeholders this template could not match to a resolver. */
     public List<String> unresolved() {
         List<String> missing = new ArrayList<>();
-        for (Part part : parts) {
+        for (Part part : parts()) {
             if (!part.isLiteral() && !Registry.known(part.name())) {
                 missing.add(part.name());
             }
