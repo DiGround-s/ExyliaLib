@@ -118,6 +118,11 @@ public final class VanillaSprites {
         return GENERATION.get();
     }
 
+    /** Whether the item is drawn tinted (dyed leather, potions, leaves): the client's atlas sprite is untinted. */
+    static boolean tinted(ItemStack item) {
+        return item != null && tint(item) >= 0;
+    }
+
     private static int tint(ItemStack item) {
         if (item.getItemMeta() instanceof LeatherArmorMeta leather) return leather.getColor().asRGB();
         if (item.getItemMeta() instanceof PotionMeta potion) {

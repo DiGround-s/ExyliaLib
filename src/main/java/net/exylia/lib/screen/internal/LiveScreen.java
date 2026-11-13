@@ -1479,7 +1479,8 @@ final class LiveScreen implements ScreenSession {
                         // A 1.21.11+ client draws the sprite itself: one display.
                         wanted.put(key, xf(new TextLook(ix, iy, side * grow / 8, top, glyph, 1, 0), xf));
                         mine.add(key);
-                    } else if (sprite == null || lod >= 3) {
+                    } else if (sprite == null || lod >= 3 || VanillaSprites.tinted(node.item())) {
+                        // A tinted item (dyed leather, a potion) is shown as the item itself: its dye and trim in one display.
                         wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, top, node.item()), xf));
                         mine.add(key);
                     } else {
@@ -1750,7 +1751,8 @@ final class LiveScreen implements ScreenSession {
 
     /** The item as one sprite glyph, for a client and server that draw sprites; {@code null} otherwise. */
     private Component spriteGlyph(org.bukkit.inventory.ItemStack item) {
-        if (!spriteGlyphs || item.getType().isBlock()) return null;
+        // A tinted item is shown as itself: the atlas glyph would be the grey, undyed texture.
+        if (!spriteGlyphs || item.getType().isBlock() || VanillaSprites.tinted(item)) return null;
         return net.exylia.lib.text.Text.of("<white>{icon:items:item/" + item.getType().getKey().getKey() + "|◆}").build();
     }
 
