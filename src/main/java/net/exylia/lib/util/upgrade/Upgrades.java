@@ -154,6 +154,22 @@ public final class Upgrades {
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
     }
 
+    /**
+     * {@code spawners:upgrade:speed}: named after the plugin that asked, found on the stack, so two
+     * plugins' upgrades never share one prefix; {@code upgrade:<id>} when no plugin is found.
+     */
+    private static Transaction reason(Upgrade upgrade) {
+        Class<?> caller = StackWalker.getInstance(StackWalker.Option.RETAIN_CLASS_REFERENCE).walk(frames -> frames
+                .map(StackWalker.StackFrame::getDeclaringClass)
+                .filter(type -> type != Upgrades.class)
+                .findFirst().orElse(Upgrades.class));
+        try {
+            return Transaction.of(org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(caller), "upgrade:" + upgrade.id());
+        } catch (IllegalArgumentException | IllegalStateException notAPlugin) {
+            return Transaction.of("upgrade:" + upgrade.id());
+        }
+    }
+
     private static CompletableFuture<Purchase> settle(UUID player, Upgrade.Check check, Upgrade upgrade, IntConsumer store) {
         switch (check.state()) {
             case MAXED -> {
@@ -176,7 +192,7 @@ public final class Upgrades {
         }
         CompletableFuture<EconomyResponse> charged;
         try {
-            charged = charge.charge(upgrade.currency(check.next()), player, check.price(), Transaction.of("upgrade:" + upgrade.id()));
+            charged = charge.charge(upgrade.currency(check.next()), player, check.price(), reason(upgrade));
         } catch (RuntimeException failure) {
             charged = CompletableFuture.failedFuture(failure);
         }

@@ -448,8 +448,10 @@ public final class BuiltinEffects {
         return (ctx, report) -> {
             double value = amount.applyOr(0, ctx.level()) * ctx.scale();
             if (value <= 0) return;
-            Modifiers.pay(ctx.holder(), ctx.abilities().plugin().getName().toLowerCase(Locale.ROOT),
-                    BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP));
+            org.bukkit.plugin.Plugin owner = ctx.abilities().plugin();
+            Modifiers.pay(ctx.holder().getUniqueId(), owner.getName().toLowerCase(Locale.ROOT), null, null,
+                    BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP),
+                    net.exylia.lib.economy.Transaction.of(owner, "ability"));
         };
     }
 
