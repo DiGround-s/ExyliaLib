@@ -78,6 +78,16 @@ public sealed interface SpatialPreview {
     }
 
     /**
+     * {@link #sequence(Sequence, Player, String)} played again every {@code everyMillis}, or once each play ends
+     * when that is longer: a short hit effect reads as a steady stream instead of a pause between plays.
+     * 0 keeps the default pace. Since 1.611.0.
+     */
+    static @NotNull SpatialPreview sequence(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing,
+                                            long everyMillis) {
+        return new Effect(sequence, skin, facing, Math.max(0, everyMillis));
+    }
+
+    /**
      * A body performing {@code sequence} on the pedestal, for the viewer alone: an emote or a dance. No
      * mannequin stands in for it: the performing body is the preview, so there is only ever one. An
      * endless sequence keeps going; a finite one starts again once its pieces are gone. {@code null}
@@ -163,10 +173,17 @@ public sealed interface SpatialPreview {
                   int trailEveryTicks, @Nullable Sequence impact) implements SpatialPreview {
     }
 
-    record Effect(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing) implements SpatialPreview {
+    /** {@code everyMillis}: how often it plays again, never cutting a play short; 0 for the default pace. */
+    record Effect(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing, long everyMillis)
+            implements SpatialPreview {
         /** An effect seen as the layout says: the shape this record had before 1.454.0. */
         public Effect(@NotNull Sequence sequence, @Nullable Player skin) {
-            this(sequence, skin, null);
+            this(sequence, skin, null, 0);
+        }
+
+        /** The shape this record had before 1.611.0: the default pace. */
+        public Effect(@NotNull Sequence sequence, @Nullable Player skin, @Nullable String facing) {
+            this(sequence, skin, facing, 0);
         }
     }
 }

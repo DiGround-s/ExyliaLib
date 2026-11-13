@@ -494,7 +494,8 @@ public abstract class PreviewPlayer {
                     : where.wearing(RagdollModel.of(effect.skin()));
             run = Sequences.of(plugin).play(effect.sequence(), where);
             long length = effect.sequence().isEndless() ? Long.MAX_VALUE / 4 : effect.sequence().durationMillis();
-            nextPlay = now + Math.max(2500L, length + 1500L);
+            nextPlay = now + (effect.everyMillis() > 0 ? Math.max(effect.everyMillis(), length)
+                    : Math.max(2500L, length + 1500L));
             if (look().vanishOnPlay()) {
                 // As the previews' vanish-on-hit: the mannequin is gone while it plays, so a kill reads
                 // as a death. It stands again once the effect's last piece is gone (never while an
