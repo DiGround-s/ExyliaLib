@@ -147,6 +147,30 @@ was 7%.
 | `/hub` | 28% | |
 | `/shop` | 33% | |
 
+### Client frame cost per display kind
+
+The same client on the screencam's Xeon E5-2680 v4 (a slow CPU, the stand-in for a weak PC), uncapped, 150 of one
+kind in a column, ExyliaLib 1.612.0. The world alone ran at ~776 fps and an empty screen at ~603.
+
+| Kind | fps with 150 | Cost each a frame |
+| --- | --- | --- |
+| Box (rect) | ~78 before 1.612.0 | ~75 µs before, now near a text |
+| Text | ~440 | ~4 µs |
+| Item | ~250 | ~15 µs |
+| Block | ~553 | ~1 µs |
+
+Boxes used to carry a 16x16 grid of glyphs behind their background, which the client laid out every frame; since
+1.612.0 a box is one space with the background scaled to size, so it costs no more than an empty text. Shipped
+screens before and after that change:
+
+| Screen | Before | After |
+| --- | --- | --- |
+| Markup demo | ~235 fps | ~345 fps |
+| ExyliaKillEffect `/killeffects` | ~76 fps | ~144 fps |
+| ExyliaArmorSkin `/wardrobe` | ~101 fps | ~347 fps |
+
+Items are now the dearest thing on a screen: keep item sprites to what the screen needs.
+
 Repeat it with `bot/screencam.py` on a test server: show the HUD (F1), open F3 with a held key, open each screen and
 read the second F3 line after four seconds.
 

@@ -37,7 +37,6 @@ import net.exylia.lib.packet.internal.EntityClicks;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -96,24 +95,14 @@ final class ScreenPackets extends PacketListenerAbstract {
      * slid towards the middle of the view, by more the further from it.
      */
     private static final float SCALE_DEEP = 0.15f;
-    private static final int GRID = 16;
-    private static final String GRID_TEXT;
-    private static final String CLEAR_TEXT;
-    private static final double GRID_WIDE = GRID * 6 + 1;
-    /** A space advances four pixels. */
-    private static final double CLEAR_WIDE = GRID * 4 + 1;
-    /** Sixteen lines of ten pixels: unlike the width, the client's background adds nothing to the height. */
-    private static final double GRID_TALL = GRID * 10;
-
-    static {
-        StringBuilder grid = new StringBuilder();
-        for (int line = 0; line < GRID; line++) {
-            if (line > 0) grid.append('\n');
-            grid.append("M".repeat(GRID));
-        }
-        GRID_TEXT = grid.toString();
-        CLEAR_TEXT = GRID_TEXT.replace('M', ' ');
-    }
+    /**
+     * A rect is one space with the display's background scaled to size: the background is the words' width plus one
+     * pixel wide (a space advances four) and ten pixels a line tall. A space draws no glyph, so the client lays out
+     * nothing per frame; the 16x16 grid of glyphs it once carried cost about 75 µs a rect a frame.
+     */
+    private static final String RECT_TEXT = " ";
+    private static final double RECT_WIDE = 5;
+    private static final double RECT_TALL = 10;
 
     private static ScreenPackets installed;
     /** The most lines a client's chat shows at once at its default height. */
@@ -458,12 +447,8 @@ final class ScreenPackets extends PacketListenerAbstract {
     /** @param billboard 3 to turn with the view, 0 to stand fixed at the entity's own yaw (a screen in the world) */
     static PacketWrapper<?> rect(int id, double x, double y, double z, double w, double h, int argb, int glide,
                                  byte billboard) {
-        // An opaque fill hides its glyphs in its own colour; a see-through one would show them, so it draws
-        // spaces instead. ponytail: spaces leave the 1 px background padding at 1.5 % rather than 1 %.
-        // In the world the glyphs' edges show as stripes from a few blocks away, so a fixed panel draws spaces too.
-        boolean clear = (argb >>> 24) < 0xFF || billboard == 0;
-        double sx = w / ((clear ? CLEAR_WIDE : GRID_WIDE) * FONT_PIXEL);
-        double sy = h / (GRID_TALL * FONT_PIXEL);
+        double sx = w / (RECT_WIDE * FONT_PIXEL);
+        double sy = h / (RECT_TALL * FONT_PIXEL);
         // The client centres the glyphs half a pixel right of the origin and grows the box up from it.
         Vector3f at = new Vector3f((float) (x - 0.5 * FONT_PIXEL * sx), (float) (y - h / 2), (float) z);
         return new WrapperPlayServerEntityMetadata(id, List.of(
@@ -474,7 +459,7 @@ final class ScreenPackets extends PacketListenerAbstract {
                 new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, billboard),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
                 new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT,
-                        Component.text(clear ? CLEAR_TEXT : GRID_TEXT, TextColor.color(argb & 0xFFFFFF))),
+                        Component.text(RECT_TEXT)),
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 1000),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, argb),
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 0)));
