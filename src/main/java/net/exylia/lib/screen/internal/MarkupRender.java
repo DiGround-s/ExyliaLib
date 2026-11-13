@@ -1369,9 +1369,21 @@ public final class MarkupRender {
             if (s.row() == null) continue;
             java.util.function.Supplier<org.bukkit.inventory.ItemStack> own = rowItems.get(s.row());
             org.bukkit.inventory.ItemStack stack = own == null ? null : own.get();
-            return stack == null || stack.getType().isAir() ? null : stack;
+            return stack == null || stack.getType().isAir() ? null : drawnAs(stack);
         }
         return null;
+    }
+
+    /**
+     * A chest icon worn as paper with another item's model (how a smithing template hides its own tooltip lines)
+     * is drawn here as the item it shows, since a screen draws by type and would show the paper.
+     */
+    private static org.bukkit.inventory.ItemStack drawnAs(org.bukkit.inventory.ItemStack stack) {
+        if (stack.getType() != org.bukkit.Material.PAPER || !net.exylia.lib.platform.Features.itemModel()) return stack;
+        org.bukkit.inventory.meta.ItemMeta meta = stack.getItemMeta();
+        if (meta == null || !meta.hasItemModel()) return stack;
+        org.bukkit.Material shown = org.bukkit.Registry.MATERIAL.get(meta.getItemModel());
+        return shown == null || !shown.isItem() ? stack : new org.bukkit.inventory.ItemStack(shown, stack.getAmount());
     }
 
     /** {@code material}, or a head by {@code head} (a player), {@code texture} (base64) or {@code url}. */
