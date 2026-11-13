@@ -36,11 +36,13 @@ public final class Css {
             // 1.565.0: staggered arrivals, animation longhands, text that types itself
             "stagger", "animation-delay", "animation-iteration-count", "animation-direction", "text-reveal",
             // 1.585.0: pixel-rounded corners on a HUD
-            "border-radius");
+            "border-radius",
+            // 1.610.0: gradient and shimmering words
+            "text-gradient");
 
     /** Properties a child takes from its parent when it sets none. */
     static final Set<String> INHERITED = Set.of("color", "font-size", "font-weight", "text-align", "white-space",
-            "text-shadow", "text-reveal");
+            "text-shadow", "text-reveal", "text-gradient");
 
     /** Pointer states a style is asked for: the cursor or the keyboard focus is on it, it was just clicked. */
     public static final int HOVER = 1, ACTIVE = 2;

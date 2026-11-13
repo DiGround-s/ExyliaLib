@@ -101,6 +101,7 @@ public final class Node {
     private Motion.Keyframes animation;
     private int stagger;
     private int reveal;
+    private Motion.TextGradient textGradient;
     private double marginTop, marginRight, marginBottom, marginLeft;
     private double[] absolute;
     private int layer;
@@ -754,6 +755,22 @@ public final class Node {
     /** Ticks per character its words type out at, 0 for at once. @since 1.565.0 */
     public int reveal() {
         return reveal;
+    }
+
+    /**
+     * Its words painted with a gradient, sliding along them when it moves (a shimmer); {@code null} keeps their own
+     * colours. See {@link Motion.TextGradient}.
+     *
+     * @since 1.610.0
+     */
+    public @NotNull Node textGradient(@Nullable Motion.TextGradient gradient) {
+        this.textGradient = gradient;
+        return this;
+    }
+
+    /** The gradient its words are painted with, or {@code null}. @since 1.610.0 */
+    public @Nullable Motion.TextGradient textGradient() {
+        return textGradient;
     }
 
     /** {top, right, bottom, left}. @since 1.496.0 */

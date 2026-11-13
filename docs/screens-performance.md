@@ -86,6 +86,7 @@ Asserted in `ScreenWireTest` (bytes are estimated per field, enough to compare f
 | Move inside the same box | 0 packets | `framesSendOnlyWhatChanged` |
 | `set` twice + `redraw` in one tick | 1 render | `framesSendOnlyWhatChanged` |
 | One second of a pulsing badge | more than 0, at most 30 packets | `motionStaysWithinBudget` |
+| One second of a shimmering title (60t) / ten rainbow lines (1.610.0) | at most 5 / at most 30 packets | `shimmerIsBounded` |
 | Eased hover lift of one card | more than 0 packets, under 3000 bytes | `motionStaysWithinBudget` |
 | A dialog arriving | more than 0, under 60 packets | `motionStaysWithinBudget` |
 | A toast | more than 0, under 20 packets | `motionStaysWithinBudget` |

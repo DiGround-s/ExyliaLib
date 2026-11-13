@@ -148,7 +148,8 @@ Durations: `4t` or `4` ticks, `200ms`, `0.3s`. Easings: `linear`, `ease-in`, `ea
 
 Keyframes every screen has (base theme, 1.565.0): `shake`, `pop`, `pulse`, `float`, `nudge`, `jump`, `flip`,
 `drop-in`, and the classes `.anim-float`, `.anim-pulse`, `.anim-nudge` that loop them. A sheet's own keyframes of
-the same name win.
+the same name win. Since 1.610.0 also `.lib-pulse`, `.lib-float`, `.lib-nudge`, `.lib-shimmer`, `.lib-rainbow` and
+`.lib-wave`, and the property `text-gradient` ([Motion](screens.md#motion-14960)).
 
 ## Expressions and functions
 

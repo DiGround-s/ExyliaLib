@@ -273,6 +273,8 @@ final class LiveScreen implements ScreenSession {
     }
     /** The longest a staggered box waits for its turn, ticks: a long list fills in, it does not trickle. */
     private static final int STAGGER_CAP = 40;
+    /** The most texts on one screen whose gradient slides; past it they hold still. */
+    private static final int SHIMMERS = 6;
     private long animClock;
     private int animStep = 2;
     private TaskHandle animator;
@@ -1352,6 +1354,7 @@ final class LiveScreen implements ScreenSession {
         List<Layout.Placed> drawing = placed;
         boolean turns = false;
         boolean animates = false;
+        int shimmers = 0;
         RectLook hole = null;
         if (overlayFrom > 0) {
             drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
@@ -1567,6 +1570,18 @@ final class LiveScreen implements ScreenSession {
                             if (node.textAlign() == Node.Align.START || node.textAlign() == Node.Align.STRETCH) tx += moved * unit;
                             else if (node.textAlign() == Node.Align.END) tx -= moved * unit;
                             words = part;
+                            typing = true;
+                            animates = true;
+                        }
+                    }
+                    Motion.TextGradient paint = node.textGradient();
+                    if (paint != null) {
+                        // A shimmer moves only while there is room for it: not under reduced motion or a lowered
+                        // detail, and on at most SHIMMERS texts a screen; the others hold their gradient still.
+                        boolean slides = paint.moving() && lod == 0 && !reduced() && shimmers < SHIMMERS;
+                        words = TextPaint.paint(words, paint, slides ? paint.phase(phaseAt) : 0);
+                        if (slides) {
+                            shimmers++;
                             typing = true;
                             animates = true;
                         }
@@ -2072,6 +2087,8 @@ final class LiveScreen implements ScreenSession {
             if (box.node().animation() != null) shortest = Math.min(shortest, box.node().animation().ticks());
             // Words typing out move every step: the finest one.
             if (box.node().reveal() > 0) shortest = 16;
+            // A shimmer repaints every TextGradient.STEP ticks at the most: steps of 4.
+            if (box.node().textGradient() != null && box.node().textGradient().moving()) shortest = Math.min(shortest, 32);
         }
         for (Played p : played.values()) shortest = Math.min(shortest, p.keyframes().ticks());
         int step = Math.max(2, Math.min(10, shortest / 8));

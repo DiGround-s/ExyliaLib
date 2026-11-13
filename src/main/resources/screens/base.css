@@ -107,9 +107,14 @@ search:hover { outline: 1px var(--primary); }
 @keyframes jump { 0% { transform: translateY(0); } 35% { transform: translateY(-6px); } 70% { transform: translateY(0); } 85% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
 @keyframes flip { 0% { transform: scaleX(1); } 50% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
 @keyframes drop-in { 0% { transform: translateY(-10px) scale(0.9); } 100% { transform: translateY(0) scale(1); } }
-.anim-float { animation: float 60t ease-in-out infinite; }
-.anim-pulse { animation: pulse 40t ease-in-out infinite; }
-.anim-nudge { animation: nudge 30t ease-in-out infinite; }
+.anim-float, .lib-float { animation: float 60t ease-in-out infinite; }
+.anim-pulse, .lib-pulse { animation: pulse 40t ease-in-out infinite; }
+.anim-nudge, .lib-nudge { animation: nudge 30t ease-in-out infinite; }
+/* Opt-in utilities (1.610.0): a shimmering house gradient, a soft rainbow, and a wave that runs across a container. */
+.lib-shimmer { text-gradient: var(--primary) var(--secondary-light) 60t; }
+.lib-rainbow { text-gradient: rainbow 80t; }
+.lib-wave { stagger: 2t; }
+.lib-wave > * { animation: float 60t ease-in-out infinite; }
 
 /* HUD widgets (1.582.0): a dark see-through card that reads over any sky or wall. */
 .hud-card { background: #120e1ac0; outline: 1px var(--primary)50; padding: 6px 8px; gap: 3px; border-radius: 2px; }

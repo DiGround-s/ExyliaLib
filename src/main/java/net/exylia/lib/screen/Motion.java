@@ -218,4 +218,101 @@ public final class Motion {
             return before.transform();
         }
     }
+
+    /**
+     * Words painted with a gradient, as CSS {@code text-gradient: <colour> <colour>... [duration]} or
+     * {@code text-gradient: rainbow [duration]}. With {@code ticks} above 0 the gradient slides along the words once
+     * every {@code ticks}: a shimmer. The words are re-sent at most every {@link #STEP} ticks, counted against the
+     * motion ceiling; under reduced motion or lighter screens it holds still at its start.
+     *
+     * @param colours {@code 0xRRGGBB} stops from the first character to the last; ignored when {@code rainbow}
+     * @param rainbow every hue in turn rather than {@code colours}
+     * @param ticks   ticks for one full slide, 0 for a gradient that holds still
+     * @since 1.610.0
+     */
+    public record TextGradient(int @NotNull [] colours, boolean rainbow, int ticks) {
+
+        /** The fewest ticks between two repaints of moving words. */
+        public static final int STEP = 4;
+
+        public TextGradient {
+            colours = colours.clone();
+            ticks = Math.max(0, ticks);
+        }
+
+        /** Whether it moves. */
+        public boolean moving() {
+            return ticks > 0;
+        }
+
+        /**
+         * How far it has slid {@code tick} ticks in, 0 (inclusive) to 1 (exclusive), in steps of {@link #STEP} ticks so
+         * the words change no faster than that; always 0 when it holds still.
+         */
+        public double phase(long tick) {
+            if (ticks <= 0) return 0;
+            int steps = Math.max(1, ticks / STEP);
+            long step = Math.floorMod(tick, (long) ticks) * steps / ticks;
+            return step / (double) steps;
+        }
+
+        /**
+         * The colour of character {@code i} of {@code n} at {@code phase}. Still, it runs from the first stop to the
+         * last; moving, the stops loop back to the first so the slide has no seam, and the words show half of that
+         * loop, so at phase 0 it looks as the still one does.
+         */
+        public int colourAt(int i, int n, double phase) {
+            double t = n <= 1 ? 0 : i / (double) (n - 1);
+            if (rainbow) return hsv((t * 0.85 + phase) % 1.0);
+            if (colours.length == 0) return 0xFFFFFF;
+            if (colours.length == 1) return colours[0];
+            if (!moving()) return along(colours, t * (colours.length - 1));
+            double at = ((t / 2 + phase) % 1.0) * colours.length;
+            int a = (int) at % colours.length;
+            return mix(colours[a], colours[(a + 1) % colours.length], at - Math.floor(at));
+        }
+
+        private static int along(int[] stops, double at) {
+            int a = Math.min(stops.length - 2, (int) at);
+            return mix(stops[a], stops[a + 1], at - a);
+        }
+
+        private static int mix(int a, int b, double f) {
+            int r = (int) Math.round(((a >> 16) & 0xFF) + (((b >> 16) & 0xFF) - ((a >> 16) & 0xFF)) * f);
+            int g = (int) Math.round(((a >> 8) & 0xFF) + (((b >> 8) & 0xFF) - ((a >> 8) & 0xFF)) * f);
+            int bl = (int) Math.round((a & 0xFF) + ((b & 0xFF) - (a & 0xFF)) * f);
+            return r << 16 | g << 8 | bl;
+        }
+
+        /** A soft rainbow: every hue at 60% saturation, so it stays readable on a dark screen. */
+        private static int hsv(double hue) {
+            double h = hue * 6, s = 0.6, c = s, x = c * (1 - Math.abs(h % 2 - 1)), m = 1 - c;
+            double r, g, b;
+            switch ((int) h % 6) {
+                case 0 -> { r = c; g = x; b = 0; }
+                case 1 -> { r = x; g = c; b = 0; }
+                case 2 -> { r = 0; g = c; b = x; }
+                case 3 -> { r = 0; g = x; b = c; }
+                case 4 -> { r = x; g = 0; b = c; }
+                default -> { r = c; g = 0; b = x; }
+            }
+            return (int) Math.round((r + m) * 255) << 16 | (int) Math.round((g + m) * 255) << 8 | (int) Math.round((b + m) * 255);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof TextGradient g && rainbow == g.rainbow && ticks == g.ticks
+                    && java.util.Arrays.equals(colours, g.colours);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * (31 * java.util.Arrays.hashCode(colours) + Boolean.hashCode(rainbow)) + ticks;
+        }
+
+        @Override
+        public @NotNull String toString() {
+            return "TextGradient[" + (rainbow ? "rainbow" : java.util.Arrays.toString(colours)) + ", " + ticks + "t]";
+        }
+    }
 }

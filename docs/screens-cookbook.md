@@ -141,6 +141,19 @@ In `SCREEN` menu style the plugin's `menus.open(player, "player/queue_kit", cont
 screen reads `%category_id%`, `source="main"` and `ns:id` actions from the menu itself, so no Java is needed. Needs
 the screen to come from a `ScreenSet`. See [Routing a menu id](screens.md#routing-a-menu-id-to-a-screen).
 
+## A title that shimmers (1.610.0)
+
+Opt-in classes from the base theme, no keyframes to write:
+
+```html
+<p class="lib-shimmer">Season 4</p>
+<button class="lib-pulse" action="play">Play now</button>
+<row class="lib-wave"><card>...</card><card>...</card><card>...</card></row>
+```
+
+`text-gradient: var(--success) var(--success-light) 40t` in a sheet gives any other colours or speed. Keep it to the
+one thing the eye should land on; past six sliding texts a screen the rest hold still.
+
 ## Dynamic classes
 
 Classes filled per render (1.503.0) take part in CSS matching:
