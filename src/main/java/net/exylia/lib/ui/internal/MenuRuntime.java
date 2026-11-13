@@ -105,6 +105,18 @@ public final class MenuRuntime {
         boolean isEmpty() {
             return context.isEmpty() && pages.values().stream().allMatch(page -> page <= 1);
         }
+
+        /**
+         * Whether it was left in the menu opened about the same thing: one menu
+         * shown for many shops must not open the next shop on the last one's page.
+         */
+        boolean about(Map<String, Object> opening) {
+            for (Map.Entry<String, Object> kept : context.entrySet()) {
+                Object now = opening.get(kept.getKey());
+                if (now != null && !now.equals(kept.getValue())) return false;
+            }
+            return true;
+        }
     }
 
     /** Bumped every time somebody opens something, so stale work knows it is stale. */
@@ -278,6 +290,7 @@ public final class MenuRuntime {
         }
 
         Remembered where = take(viewer, definition.id());
+        if (where != null && !where.about(context)) where = null;
 
         MenuHolder holder = new MenuHolder();
         Inventory inventory = Session.inventoryFor(holder, definition, viewer, context, sections,
