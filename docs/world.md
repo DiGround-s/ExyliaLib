@@ -110,9 +110,17 @@ TemporaryWorld.reserve(width, depth).thenAccept(plot -> {
 });
 ```
 
-- **Never kept.** The folder `exylialib_temporary` is deleted when the library
-  enables (load `STARTUP`, before any world loads, so a crash leaves nothing
-  behind) and again when it disables. Created on first use only.
+- **Never kept.** Its folder is deleted when the library enables (load
+  `STARTUP`, before any world loads, so a crash leaves nothing behind) and
+  again when it disables. Folia cannot unload a world while stopping, so there
+  it goes at the next start. Created on first use only.
+- **Where it lives.** 1.21.x: `exylialib_temporary` beside the main world.
+  26.x stores every world inside the main one by key:
+  `<level-name>/dimensions/exylialib/temporary` when Worlds creates it (Folia),
+  `<level-name>/dimensions/minecraft/exylialib_temporary` when `WorldCreator`
+  does. All three are checked, and nothing else is ever deleted. Until 1.614.2
+  only the 1.21.x path was, so on 26.x the world survived every restart and
+  came back with every old arena copy in it.
 - **Where a plot lands.** The world is cut into 64-block cells, searched ring by
   ring from the origin. A plot is chunk aligned and keeps an empty gap to its
   neighbours wider than the server's view distance, so no copy sees another.

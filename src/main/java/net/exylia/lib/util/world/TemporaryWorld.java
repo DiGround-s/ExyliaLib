@@ -8,6 +8,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.WorldType;
@@ -17,10 +19,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -40,7 +46,12 @@ import java.util.stream.Stream;
  * <h2>Lifecycle</h2>
  * The world is never kept. Its folder is deleted when the library enables —
  * before any world loads, so a copy left by a crash is gone too — and again
- * when the library disables. It is created on the first {@link #world()} or
+ * when the library disables, except on Folia, which cannot unload it there and
+ * leaves it to the next start. On 26.x the folder is
+ * {@code <main world>/dimensions/exylialib/temporary} (or
+ * {@code minecraft/exylialib_temporary} when made without Worlds) rather than
+ * {@code exylialib_temporary} beside the main world; every one of those is
+ * checked. It is created on the first {@link #world()} or
  * {@link #reserve} call, not at startup, so a server whose plugins never ask
  * for it pays nothing. A plugin that wants its first match to start without
  * waiting calls {@link #world()} from its {@code onEnable}.
@@ -190,9 +201,15 @@ public final class TemporaryWorld {
      */
     public static void start(@NotNull Plugin plugin) {
         library = plugin;
-        Path folder = folder();
-        if (find() == null && Files.exists(folder)) {
-            wiped = CompletableFuture.runAsync(() -> deleteFolder(folder));
+        if (find() != null) {
+            return;
+        }
+        List<Path> leftovers = folders().stream().filter(Files::exists).toList();
+        if (!leftovers.isEmpty()) {
+            wiped = CompletableFuture.runAsync(() -> {
+                leftovers.forEach(TemporaryWorld::deleteFolder);
+                LOGGER.info("[TemporaryWorld] Deleted what a previous run left in " + leftovers);
+            });
         }
     }
 
@@ -206,13 +223,14 @@ public final class TemporaryWorld {
         World world = loaded();
         current = null;
         if (world == null) {
-            deleteFolder(folder());
+            deleteFolders();
             return;
         }
         if (Platform.isFolia()) {
-            // Folia cannot unload a world itself; the next start removes the folder
-            // if Worlds does not get to it first.
-            Worlds.delete(world);
+            // Folia cannot unload a world, and Worlds deletes through the global
+            // region scheduler, which no longer ticks once the server is stopping,
+            // so asking here could never finish. The world is saved on the way
+            // down and the next start deletes its folder before any world loads.
             return;
         }
         World fallback = Bukkit.getWorlds().get(0);
@@ -221,7 +239,7 @@ public final class TemporaryWorld {
         }
         // Inline: the server is stopping and a background delete would be killed.
         if (Bukkit.unloadWorld(world, false)) {
-            deleteFolder(folder());
+            deleteFolders();
         }
     }
 
@@ -237,7 +255,7 @@ public final class TemporaryWorld {
                     LOGGER.warning("[TemporaryWorld] '" + NAME + "' was already loaded and could not be deleted");
                     return CompletableFuture.completedFuture(null);
                 }
-                deleteFolder(folder());
+                deleteFolders();
                 return create();
             });
         }
@@ -323,8 +341,53 @@ public final class TemporaryWorld {
         return future;
     }
 
-    private static Path folder() {
-        return Bukkit.getWorldContainer().toPath().resolve(NAME);
+    /**
+     * Every folder the world can have been written to, and the only paths this
+     * class ever deletes.
+     *
+     * <p>1.21.x keeps a plugin's world in its own folder next to the main one.
+     * 26.x stores every world inside the main world, under
+     * {@code dimensions/<namespace>/<value>} of its key: {@code exylialib/temporary}
+     * when Worlds made it, {@code minecraft/exylialib_temporary} when
+     * {@code WorldCreator} did. Looking only at the 1.21.x folder is what left the
+     * world on disk on 26.x, where the next run loaded it back with every arena
+     * copy still in it.
+     */
+    private static List<Path> folders() {
+        List<Path> folders = new ArrayList<>(3);
+        folders.add(Bukkit.getWorldContainer().toPath().resolve(NAME));
+        Path level = levelDirectory();
+        if (level != null) {
+            Path dimensions = level.resolve("dimensions");
+            folders.add(dimensions.resolve(KEY.namespace()).resolve(KEY.value()));
+            folders.add(dimensions.resolve(NamespacedKey.MINECRAFT).resolve(NAME));
+        }
+        return folders;
+    }
+
+    /**
+     * The main world's folder, from {@code Server#getLevelDirectory()}: 26.x API,
+     * reached reflectively because this library compiles against 1.21.4. It reads
+     * the server's storage, so it answers at startup, before any world loads.
+     *
+     * @return the folder, or {@code null} on a server older than 26.x, which has
+     *         no {@code dimensions/} layout for plugin worlds
+     */
+    private static @Nullable Path levelDirectory() {
+        try {
+            MethodHandle getter = MethodHandles.publicLookup().findVirtual(
+                    Server.class, "getLevelDirectory", MethodType.methodType(Path.class));
+            return (Path) getter.invoke(Bukkit.getServer());
+        } catch (NoSuchMethodException | IllegalAccessException older) {
+            return null;
+        } catch (Throwable failure) {
+            LOGGER.warning("[TemporaryWorld] Could not read the main world's folder: " + failure);
+            return null;
+        }
+    }
+
+    private static void deleteFolders() {
+        folders().forEach(TemporaryWorld::deleteFolder);
     }
 
     private static void deleteFolder(Path folder) {
