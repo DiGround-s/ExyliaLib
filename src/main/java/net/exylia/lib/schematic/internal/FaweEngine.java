@@ -116,20 +116,26 @@ final class FaweEngine implements SchematicEngine {
             throws Exception {
         Clipboard clipboard = load(source);
         com.sk89q.worldedit.world.World target = BukkitAdapter.adapt(world);
-        try (EditSession session = WorldEdit.getInstance().newEditSessionBuilder()
-                .world(target)
-                .changeSetNull()
-                .limitUnlimited()
-                .build()) {
-            Operations.complete(new ClipboardHolder(clipboard)
-                    .createPaste(session)
-                    .to(BlockVector3.at(x, y, z))
-                    // Air included: what the last match built is cleared rather
-                    // than pasted around.
-                    .ignoreAirBlocks(false)
-                    .copyEntities(copyEntities)
-                    .copyBiomes(false)
-                    .build());
+        // One paste at a time per clipboard: the cached clipboard is shared, and
+        // MemoryOptimizedClipboard reads through one decompression buffer, so two
+        // pastes of the same arena at once (its copies and a regeneration) threw
+        // ArrayIndexOutOfBoundsException and left the arena half pasted.
+        synchronized (clipboard) {
+            try (EditSession session = WorldEdit.getInstance().newEditSessionBuilder()
+                    .world(target)
+                    .changeSetNull()
+                    .limitUnlimited()
+                    .build()) {
+                Operations.complete(new ClipboardHolder(clipboard)
+                        .createPaste(session)
+                        .to(BlockVector3.at(x, y, z))
+                        // Air included: what the last match built is cleared rather
+                        // than pasted around.
+                        .ignoreAirBlocks(false)
+                        .copyEntities(copyEntities)
+                        .copyBiomes(false)
+                        .build());
+            }
         }
     }
 
