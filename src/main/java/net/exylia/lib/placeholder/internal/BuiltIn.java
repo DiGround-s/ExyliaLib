@@ -7,6 +7,7 @@ import net.exylia.lib.proxy.NetworkServer;
 import net.exylia.lib.proxy.Proxy;
 import net.exylia.lib.session.Claim;
 import net.exylia.lib.session.Sessions;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Phrases;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -58,29 +59,28 @@ public final class BuiltIn {
     private static volatile int processLoad;
 
     /**
-     * The last TPS reading, and when it was taken.
+     * The last tick readings, taken once a second on the server thread.
      *
-     * <p>{@code Bukkit.getTPS()} averages over the recorded tick history and
-     * allocates an array to hand three numbers back. A scoreboard asking every
-     * player for it every frame pays that per player; the number is a rolling
-     * one-minute mean, so a reading from within the last second is the same
-     * answer.
+     * <p>Placeholders are rendered from async tasks (a scoreboard's frame),
+     * and Folia answers {@code getTPS()} and {@code getAverageTickTime()} only
+     * on a ticking region: anywhere else they throw. Sampled on the global
+     * region (the main thread on Paper) and shared, every caller reads a
+     * field, and a sidebar asking per player per frame no longer averages
+     * the tick history each time.
      */
-    private static volatile long tpsAt = Long.MIN_VALUE / 2;
-    private static volatile double tps;
+    private static volatile double tps = 20;
+    private static volatile double mspt;
 
     private BuiltIn() {
     }
 
-    /** The one-minute TPS mean, re-read at most once a second. */
-    private static double tps() {
-        long now = System.nanoTime();
-        if (now - tpsAt < SAMPLE_NANOS) {
-            return tps;
+    private static void sampleTicks() {
+        try {
+            tps = Bukkit.getTPS()[0];
+            mspt = Bukkit.getAverageTickTime();
+        } catch (RuntimeException unsupported) {
+            // A fork without the figures keeps the last reading.
         }
-        tpsAt = now;
-        tps = Bukkit.getTPS()[0];
-        return tps;
     }
 
     /**
@@ -89,6 +89,7 @@ public final class BuiltIn {
      * @param plugin ExyliaLib itself, which owns them
      */
     public static void register(Plugin plugin) {
+        Tasks.of(plugin).runTimer(1, 20, BuiltIn::sampleTicks);
         Placeholders.group(plugin, "player")
                 .describe("Information about the player reading the text")
                 .add("name", request -> request.hasViewer() ? request.viewer().getName() : null)
@@ -127,8 +128,8 @@ public final class BuiltIn {
                 // %server_playing_<name>% only the ones held by that plugin or
                 // in that activity: %server_playing_exyliaduels%, %server_playing_ffa%.
                 .add("playing", request -> playing(String.join(" ", request.args())))
-                .add("tps", request -> round(tps()))
-                .add("mspt", request -> millis(Bukkit.getAverageTickTime()))
+                .add("tps", request -> round(tps))
+                .add("mspt", request -> millis(mspt))
                 .add("cpu_system", request -> {
                     sample();
                     return systemLoad;
