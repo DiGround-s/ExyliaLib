@@ -52,6 +52,8 @@ final class RunningTeleport implements TeleportHandle {
     private final int startBlockZ;
 
     private volatile long remainingTicks;
+    /** When remainingTicks last changed, so readers between two steps see time keep moving. */
+    private volatile long steppedAt = System.nanoTime();
     private volatile TaskHandle timer;
     /** What the countdown shows, cleared the moment the teleport ends however it ends. */
     private volatile Display countdown;
@@ -98,7 +100,12 @@ final class RunningTeleport implements TeleportHandle {
         if (future.isDone()) {
             return 0.0;
         }
-        return Ticks.toSeconds(Math.max(0, remainingTicks));
+        // The timer steps every quarter second; an action bar redrawn every
+        // two ticks would show "2.0, 2.0, 1.8, 1.8, 1.5". Interpolate inside
+        // the step, never past it, so a lagging server cannot run it early.
+        long ticks = Math.max(0, remainingTicks);
+        double since = Math.min(TICK_PERIOD / 20.0, (System.nanoTime() - steppedAt) / 1e9);
+        return Math.max(Ticks.toSeconds(Math.max(0, ticks - TICK_PERIOD)), Ticks.toSeconds(ticks) - since);
     }
 
     // ------------------------------------------------------------------ start
@@ -112,6 +119,7 @@ final class RunningTeleport implements TeleportHandle {
         // The warmup's own length, because the effect is the warmup being
         // shown: a file that could set the number itself could only ever
         // disagree with the teleport it is counting.
+        steppedAt = System.nanoTime();
         countdown = play(plan.onStart(), remainingWarmupSeconds());
         // Reported once immediately: a countdown whose first frame only appears
         // a quarter of a second in reads as a delay before the delay.
@@ -124,6 +132,7 @@ final class RunningTeleport implements TeleportHandle {
                 return;
             }
             remainingTicks -= TICK_PERIOD;
+            steppedAt = System.nanoTime();
             if (remainingTicks <= 0) {
                 handle.cancel();
                 perform();
