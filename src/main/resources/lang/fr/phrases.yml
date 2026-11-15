@@ -1989,10 +1989,15 @@ speaks the language chosen here.: parle la langue choisie ici.
 "FOV": "FOV"
 "Fit to your window": "Ajuster à ta fenêtre"
 "Fit to window": "Ajuster à la fenêtre"
-"Step 1 of 2 · Height": "Étape 1 sur 2 · Hauteur"
-"Step 2 of 2 · Width": "Étape 2 sur 2 · Largeur"
-"Move the lines onto the top and bottom edges of your window.": "Place les lignes sur les bords haut et bas de ta fenêtre."
-"Move the lines onto the left and right edges of your window.": "Place les lignes sur les bords gauche et droit de ta fenêtre."
+"Step 1 of 3 · Height": "Étape 1 sur 3 · Hauteur"
+"Step 2 of 3 · Width": "Étape 2 sur 3 · Largeur"
+"Step 3 of 3 · Sprinting": "Étape 3 sur 3 · Sprint"
+"Scroll your mouse wheel until the lines touch the top and bottom of your window.": "Tourne la molette de ta souris jusqu'à ce que les lignes touchent le haut et le bas de ta fenêtre."
+"Pick your screen's shape, or scroll until the lines touch the left and right of your window.": "Choisis la forme de ton écran, ou tourne la molette jusqu'à ce que les lignes touchent la gauche et la droite de ta fenêtre."
+"When you sprint, does your view zoom out a little?": "Quand tu sprintes, ta vue s'élargit-elle un peu ?"
+"Yes, it zooms out": "Oui, elle s'élargit"
+"No, it stays still": "Non, elle ne bouge pas"
+"It does unless you lowered FOV Effects in your video settings.": "Elle s'élargit, sauf si tu as baissé les Effets du champ de vision dans tes paramètres vidéo."
 "Later": "Plus tard"
 "Match screens and the HUD to your FOV and window": "Adapte les écrans et le HUD à ton FOV et ta fenêtre"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Les écrans et le HUD l'utilisent. Tu as changé ton FOV ou ta fenêtre ? Ajuste à nouveau depuis les réglages de l'écran."
@@ -2000,7 +2005,6 @@ speaks the language chosen here.: parle la langue choisie ici.
 "{muted}Sneak or click to continue": "{muted}Accroupis-toi ou clique pour continuer"
 "{muted}Click an answer": "{muted}Clique sur une réponse"
 "{muted}Scroll to choose · Sneak to answer": "{muted}Molette pour choisir · Accroupis-toi pour répondre"
-"FOV Effects, in your video settings:": "Effets de champ de vision, dans vos paramètres vidéo :"
 'Custom': 'Personnalisée'
 'A click here opens the game.': 'Un clic ici ouvre le jeu.'
 'Admin': 'Admin'

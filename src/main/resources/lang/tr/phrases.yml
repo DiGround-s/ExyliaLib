@@ -2001,10 +2001,15 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 "FOV": "FOV"
 "Fit to your window": "Pencerene sığdır"
 "Fit to window": "Pencereye sığdır"
-"Step 1 of 2 · Height": "Adım 1/2 · Yükseklik"
-"Step 2 of 2 · Width": "Adım 2/2 · Genişlik"
-"Move the lines onto the top and bottom edges of your window.": "Çizgileri pencerenin üst ve alt kenarlarına getir."
-"Move the lines onto the left and right edges of your window.": "Çizgileri pencerenin sol ve sağ kenarlarına getir."
+"Step 1 of 3 · Height": "Adım 1/3 · Yükseklik"
+"Step 2 of 3 · Width": "Adım 2/3 · Genişlik"
+"Step 3 of 3 · Sprinting": "Adım 3/3 · Koşarken"
+"Scroll your mouse wheel until the lines touch the top and bottom of your window.": "Çizgiler pencerenin üst ve alt kenarlarına değene kadar fare tekerleğini çevir."
+"Pick your screen's shape, or scroll until the lines touch the left and right of your window.": "Ekranının biçimini seç ya da çizgiler pencerenin sol ve sağ kenarlarına değene kadar tekerleği çevir."
+"When you sprint, does your view zoom out a little?": "Koşarken görüşün biraz uzaklaşıyor mu?"
+"Yes, it zooms out": "Evet, uzaklaşıyor"
+"No, it stays still": "Hayır, sabit kalıyor"
+"It does unless you lowered FOV Effects in your video settings.": "FOV Efektleri'ni video ayarlarından düşürmediysen uzaklaşır."
 "Later": "Sonra"
 "Match screens and the HUD to your FOV and window": "Ekranları ve HUD'u FOV'una ve pencerene uydurur"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Ekranlar ve HUD bunu kullanır. FOV'unu ya da pencereni mi değiştirdin? Ekran ayarlarından yeniden sığdır."
@@ -2012,7 +2017,6 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 "{muted}Sneak or click to continue": "{muted}Devam etmek için eğil ya da tıkla"
 "{muted}Click an answer": "{muted}Bir cevaba tıkla"
 "{muted}Scroll to choose · Sneak to answer": "{muted}Seçmek için kaydır · Cevaplamak için eğil"
-"FOV Effects, in your video settings:": "Görüş alanı efektleri, video ayarlarınızda:"
 'Custom': 'Özel'
 'A click here opens the game.': 'Buraya tıklamak oyunu açar.'
 'Admin': 'Yönetici'

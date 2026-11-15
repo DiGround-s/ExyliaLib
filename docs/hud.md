@@ -154,8 +154,8 @@ frame, so walking, jumping and turning cost no packet and nothing trails.
   view by a known factor, which would pull the HUD towards the middle. The
   server sees the same speed and draws everything larger by that factor, so on
   screen the HUD stays where it is. The factor follows the player's *FOV
-  Effects* slider, which they tell once on the fit's width step (or in
-  `/settings`, Interface, *FOV effects*); vanilla's 100% until they do.
+  Effects* slider, which they tell once on the fit's last step, a yes/no
+  "does sprinting zoom out?" (or in `/settings`, Interface, *FOV effects*); vanilla's 100% until they do.
 - **Walls.** No shadow, no panel by default (`background(HudWidget.PANEL)` or
   any ARGB). When something stands between the eye and an element (a block,
   leaves, glass, water's surface, a portal, a mob), the element is drawn just in

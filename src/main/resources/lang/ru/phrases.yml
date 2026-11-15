@@ -1989,10 +1989,15 @@ speaks the language chosen here.: говорит на выбранном зде�
 "FOV": "FOV"
 "Fit to your window": "Подгонка под окно"
 "Fit to window": "Под окно"
-"Step 1 of 2 · Height": "Шаг 1 из 2 · Высота"
-"Step 2 of 2 · Width": "Шаг 2 из 2 · Ширина"
-"Move the lines onto the top and bottom edges of your window.": "Сдвиньте линии к верхнему и нижнему краям окна."
-"Move the lines onto the left and right edges of your window.": "Сдвиньте линии к левому и правому краям окна."
+"Step 1 of 3 · Height": "Шаг 1 из 3 · Высота"
+"Step 2 of 3 · Width": "Шаг 2 из 3 · Ширина"
+"Step 3 of 3 · Sprinting": "Шаг 3 из 3 · Бег"
+"Scroll your mouse wheel until the lines touch the top and bottom of your window.": "Крутите колёсико мыши, пока линии не коснутся верхнего и нижнего краёв окна."
+"Pick your screen's shape, or scroll until the lines touch the left and right of your window.": "Выберите форму экрана или крутите колёсико, пока линии не коснутся левого и правого краёв окна."
+"When you sprint, does your view zoom out a little?": "Когда вы бежите, обзор немного отдаляется?"
+"Yes, it zooms out": "Да, отдаляется"
+"No, it stays still": "Нет, не меняется"
+"It does unless you lowered FOV Effects in your video settings.": "Отдаляется, если вы не уменьшали «Эффекты поля зрения» в настройках графики."
 "Later": "Позже"
 "Match screens and the HUD to your FOV and window": "Подгоняет экраны и HUD под ваш FOV и окно"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "Это используют экраны и HUD. Изменили FOV или окно? Подгоните заново в настройках экрана."
@@ -2000,7 +2005,6 @@ speaks the language chosen here.: говорит на выбранном зде�
 "{muted}Sneak or click to continue": "{muted}Присядьте или кликните, чтобы продолжить"
 "{muted}Click an answer": "{muted}Кликните по ответу"
 "{muted}Scroll to choose · Sneak to answer": "{muted}Колесо — выбрать · Присесть — ответить"
-"FOV Effects, in your video settings:": "Эффекты поля зрения, в настройках графики:"
 'Custom': 'Своя'
 'A click here opens the game.': 'Нажатие здесь открывает игру.'
 'Admin': 'Админ'

@@ -2001,10 +2001,15 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 "FOV": "FOV"
 "Fit to your window": "Ajustar à sua janela"
 "Fit to window": "Ajustar à janela"
-"Step 1 of 2 · Height": "Passo 1 de 2 · Altura"
-"Step 2 of 2 · Width": "Passo 2 de 2 · Largura"
-"Move the lines onto the top and bottom edges of your window.": "Mova as linhas até as bordas superior e inferior da sua janela."
-"Move the lines onto the left and right edges of your window.": "Mova as linhas até as bordas esquerda e direita da sua janela."
+"Step 1 of 3 · Height": "Passo 1 de 3 · Altura"
+"Step 2 of 3 · Width": "Passo 2 de 3 · Largura"
+"Step 3 of 3 · Sprinting": "Passo 3 de 3 · Correndo"
+"Scroll your mouse wheel until the lines touch the top and bottom of your window.": "Gire a roda do mouse até as linhas tocarem as bordas de cima e de baixo da sua janela."
+"Pick your screen's shape, or scroll until the lines touch the left and right of your window.": "Escolha o formato da sua tela, ou gire a roda até as linhas tocarem as bordas esquerda e direita da sua janela."
+"When you sprint, does your view zoom out a little?": "Quando você corre, sua visão se afasta um pouco?"
+"Yes, it zooms out": "Sim, se afasta"
+"No, it stays still": "Não, fica parada"
+"It does unless you lowered FOV Effects in your video settings.": "Se afasta, a não ser que você tenha baixado os Efeitos do FOV nas configurações de vídeo."
 "Later": "Mais tarde"
 "Match screens and the HUD to your FOV and window": "Ajusta as telas e o HUD ao seu FOV e janela"
 "Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings.": "As telas e o HUD usam isto. Mudou seu FOV ou a janela? Ajuste de novo nas configurações da tela."
@@ -2012,7 +2017,6 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 "{muted}Sneak or click to continue": "{muted}Agache ou clique para continuar"
 "{muted}Click an answer": "{muted}Clique em uma resposta"
 "{muted}Scroll to choose · Sneak to answer": "{muted}Role para escolher · Agache para responder"
-"FOV Effects, in your video settings:": "Efeitos de FOV, nas suas configurações de vídeo:"
 'Custom': 'Personalizada'
 'A click here opens the game.': 'Um clique aqui abre o jogo.'
 'Admin': 'Admin'
