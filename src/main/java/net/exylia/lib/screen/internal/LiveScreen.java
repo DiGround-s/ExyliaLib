@@ -1284,12 +1284,13 @@ final class LiveScreen implements ScreenSession {
             Layout.Placed b = list.get(i);
             Cx parent = b.parent() >= 0 && b.parent() < i ? at[b.parent()] : null;
             Node n = b.node();
-            // A box below a staggering one, with only plain boxes between (a grid's rows), takes the next turn;
-            // everything inside it waits with it.
+            // A new box below a staggering one, with only plain boxes between (a grid's rows), takes the next turn;
+            // everything inside it waits with it. Boxes already on screen take no turn, so a page that keeps most of
+            // its rows (tracked ids) brings in the new ones at once rather than after every row above them.
             int up = b.parent() >= 0 && b.parent() < i ? b.parent() : -1;
             delay[i] = up >= 0 ? delay[up] : 0;
             boolean staggered = false;
-            if (!plain(n)) {
+            if (!plain(n) && !lastBoxes.containsKey(b.key())) {
                 int q = up;
                 while (q >= 0 && plain(list.get(q).node())) q = list.get(q).parent() >= 0 && list.get(q).parent() < q ? list.get(q).parent() : -1;
                 if (q >= 0 && list.get(q).node().stagger() > 0) {
