@@ -1,5 +1,6 @@
 package net.exylia.lib.util.crate;
 
+import net.exylia.lib.cosmetic.CosmeticScopes;
 import net.exylia.lib.util.PermissionNumbers;
 import net.exylia.lib.action.ActionResult;
 import net.exylia.lib.action.PluginActions;
@@ -40,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.UnaryOperator;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -444,11 +446,15 @@ public final class PluginCrates {
     public @NotNull CompletableFuture<Boolean> unlock(@NotNull UUID player, @NotNull String rewardId) {
         String id = checked(rewardId);
         AtomicBoolean added = new AtomicBoolean();
-        return require().store().edit(player, row -> {
+        CrateStore store = require().store();
+        UnaryOperator<CrateRow> change = row -> {
             CrateRow after = row.withUnlocked(id);
             added.set(after != row);
             return after;
-        }).thenApply(ignored -> added.get());
+        };
+        // A purchase paid in a global currency counts on every server.
+        return (CosmeticScopes.grantingShared() ? store.editShared(player, change) : store.edit(player, change))
+                .thenApply(ignored -> added.get());
     }
 
     /**
@@ -459,9 +465,9 @@ public final class PluginCrates {
     public @NotNull CompletableFuture<Boolean> lock(@NotNull UUID player, @NotNull String rewardId) {
         String id = TierTable.normalise(rewardId);
         AtomicBoolean removed = new AtomicBoolean();
-        return require().store().edit(player, row -> {
+        return everyRow(player, row -> {
             CrateRow after = row.withoutUnlocked(id);
-            removed.set(after != row);
+            if (after != row) removed.set(true);
             return after;
         }).thenApply(ignored -> removed.get());
     }
@@ -473,8 +479,8 @@ public final class PluginCrates {
      */
     public @NotNull CompletableFuture<Integer> clearUnlocks(@NotNull UUID player) {
         AtomicInteger had = new AtomicInteger();
-        return require().store().edit(player, row -> {
-            had.set(row.unlockedIds().size());
+        return everyRow(player, row -> {
+            had.addAndGet(row.unlockedIds().size());
             return row.withoutUnlocks();
         }).thenApply(ignored -> had.get());
     }
@@ -486,7 +492,17 @@ public final class PluginCrates {
      * @return the keys afterwards
      */
     public @NotNull CompletableFuture<Integer> addKeys(@NotNull UUID player, int keys) {
-        return require().store().edit(player, row -> row.withKeys(row.keys() + keys)).thenApply(CrateRow::keys);
+        CrateStore store = require().store();
+        if (!store.scoped()) return store.edit(player, row -> row.withKeys(row.keys() + keys)).thenApply(CrateRow::keys);
+        // Taken from this server's keys first, and what they fall short of from the global ones.
+        AtomicInteger missing = new AtomicInteger();
+        return store.edit(player, row -> {
+                    missing.set(Math.max(0, -keys - row.keys()));
+                    return row.withKeys(row.keys() + keys);
+                })
+                .thenCompose(ignored -> missing.get() == 0 ? CompletableFuture.completedFuture(null)
+                        : store.editShared(player, row -> row.withKeys(row.keys() - missing.get())))
+                .thenCompose(ignored -> store.fetch(player)).thenApply(CrateRow::keys);
     }
 
     /**
@@ -495,7 +511,13 @@ public final class PluginCrates {
      * @return the keys afterwards
      */
     public @NotNull CompletableFuture<Integer> setKeys(@NotNull UUID player, int keys) {
-        return require().store().edit(player, row -> row.withKeys(keys)).thenApply(CrateRow::keys);
+        CrateStore store = require().store();
+        if (!store.scoped()) return store.edit(player, row -> row.withKeys(keys)).thenApply(CrateRow::keys);
+        // The global keys are kept up to the total asked; this server's make up the rest.
+        int total = Math.max(0, keys);
+        return store.editShared(player, row -> row.withKeys(Math.min(row.keys(), total)))
+                .thenCompose(global -> store.edit(player, row -> row.withKeys(total - global.keys())))
+                .thenCompose(ignored -> store.fetch(player)).thenApply(CrateRow::keys);
     }
 
     // ------------------------------------------------------------------
@@ -670,6 +692,13 @@ public final class PluginCrates {
     }
 
     // ------------------------------------------------------------------
+
+    /** A change made to every row a player has: the global one and, when scoped, this server's. */
+    private CompletableFuture<?> everyRow(UUID player, UnaryOperator<CrateRow> change) {
+        CrateStore store = require().store();
+        if (!store.scoped()) return store.edit(player, change);
+        return store.edit(player, change).thenCompose(ignored -> store.editShared(player, change));
+    }
 
     private @Nullable CrateRow row(UUID player) {
         Running<?> current = running;

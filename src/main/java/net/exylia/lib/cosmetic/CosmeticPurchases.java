@@ -205,7 +205,7 @@ public final class CosmeticPurchases {
 
         CompletableFuture<Boolean> granted;
         try {
-            granted = grant.get();
+            granted = CosmeticScopes.granting(CosmeticScopes.isShared(price), grant);
         } catch (Throwable failure) {
             granted = CompletableFuture.failedFuture(failure);
         }

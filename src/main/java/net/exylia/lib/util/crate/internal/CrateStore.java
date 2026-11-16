@@ -2,6 +2,7 @@ package net.exylia.lib.util.crate.internal;
 
 import net.exylia.lib.database.Databases;
 import net.exylia.lib.database.Repository;
+import net.exylia.lib.cosmetic.CosmeticScopes;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.crate.CrateImport;
@@ -36,6 +37,14 @@ import java.util.function.UnaryOperator;
  * <h2>Somebody who is not here</h2>
  * Read, changed and written, and never cached: the row of somebody on another
  * server would go stale in this one's memory the moment they changed it.
+ *
+ * <h2>Scoped</h2>
+ * When {@link CosmeticScopes#home} names a scope, a player has two rows: the
+ * global one ({@code plugin:uuid}, which takes the start keys and the import)
+ * and this scope's ({@code plugin@scope:uuid}). They read as one: unlocks are
+ * both rows', keys are both rows' added up. What changes here goes on the
+ * scope's row, a key is spent from it first, and only {@link #editShared}
+ * writes the global row.
  */
 public final class CrateStore implements Listener {
 
@@ -58,6 +67,8 @@ public final class CrateStore implements Listener {
     private final Consumer<UUID> changed;
     private final Function<UUID, CompletableFuture<CrateImport>> importer;
     private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
+    /** The scope's rows, or {@code null} when this store's rows are the only ones. */
+    private final @Nullable CrateStore home;
 
     /**
      * @param plugin    whose database holds the table, and whose rows these are
@@ -77,12 +88,30 @@ public final class CrateStore implements Listener {
      */
     public CrateStore(@NotNull Plugin plugin, @NotNull IntSupplier startKeys, @NotNull Consumer<UUID> changed,
                       @NotNull Function<UUID, CompletableFuture<CrateImport>> importer) {
+        this(plugin, plugin.getName(), startKeys, changed, importer, CosmeticScopes.home(plugin));
+    }
+
+    private CrateStore(Plugin plugin, String owner, IntSupplier startKeys, Consumer<UUID> changed,
+                       Function<UUID, CompletableFuture<CrateImport>> importer, String scope) {
         this.plugin = plugin;
-        this.owner = plugin.getName();
+        this.owner = owner;
         this.rows = Databases.of(plugin).repository(CrateRow.class);
         this.startKeys = startKeys;
         this.changed = changed;
         this.importer = importer;
+        this.home = scope.isEmpty() ? null
+                : new CrateStore(plugin, owner + '@' + scope, () -> 0, changed, uuid -> null, "");
+    }
+
+    /** For tests: a store scoped as {@code scope}, whatever ExyliaLib's config says. */
+    public static @NotNull CrateStore scopedForTests(@NotNull Plugin plugin, @NotNull IntSupplier startKeys,
+                                                     @NotNull String scope) {
+        return new CrateStore(plugin, plugin.getName(), startKeys, uuid -> { }, uuid -> null, scope);
+    }
+
+    /** Whether this server keeps its own rows beside the global ones. */
+    public boolean scoped() {
+        return home != null;
     }
 
     // ------------------------------------------------------------------
@@ -110,7 +139,7 @@ public final class CrateStore implements Listener {
         Session created = new Session();
         Session session = sessions.computeIfAbsent(uuid, ignored -> created);
         if (session == created) load(uuid, session, 0);
-        return session.ready;
+        return home == null ? session.ready : CompletableFuture.allOf(session.ready, home.open(uuid));
     }
 
     /** Forgets a player who left. Their row was already written, change by change. */
@@ -118,6 +147,7 @@ public final class CrateStore implements Listener {
         Session session = sessions.remove(uuid);
         // Anybody waiting on a read that will never be used goes on without it.
         if (session != null) session.ready.complete(null);
+        if (home != null) home.close(uuid);
     }
 
     /** Forgets everybody, when the plugin goes away. */
@@ -170,8 +200,22 @@ public final class CrateStore implements Listener {
 
     /** An online player's row, or {@code null} when it is not in memory. */
     public @Nullable CrateRow row(@NotNull UUID uuid) {
+        CrateRow own = ownRow(uuid);
+        if (home == null || own == null) return own;
+        CrateRow scoped = home.row(uuid);
+        return scoped == null ? null : merged(own, scoped);
+    }
+
+    private @Nullable CrateRow ownRow(UUID uuid) {
         Session session = sessions.get(uuid);
         return session == null ? null : session.row;
+    }
+
+    /** The scope's row seen with the global one: both rows' unlocks, both rows' keys. */
+    private static CrateRow merged(CrateRow global, CrateRow scoped) {
+        CrateRow view = scoped.withKeys(scoped.keys() + global.keys());
+        for (String id : global.unlockedIds()) view = view.withUnlocked(id);
+        return view;
     }
 
     /**
@@ -182,7 +226,12 @@ public final class CrateStore implements Listener {
      * as what was imported instead, and that row is created here.
      */
     public @NotNull CompletableFuture<CrateRow> fetch(@NotNull UUID uuid) {
-        CrateRow cached = row(uuid);
+        if (home != null) return fetchOwn(uuid).thenCombine(home.fetch(uuid), CrateStore::merged);
+        return fetchOwn(uuid);
+    }
+
+    private CompletableFuture<CrateRow> fetchOwn(UUID uuid) {
+        CrateRow cached = ownRow(uuid);
         if (cached != null) return CompletableFuture.completedFuture(cached);
         return rows.find(CrateRow.key(owner, uuid))
                 .thenCompose(found -> {
@@ -209,6 +258,10 @@ public final class CrateStore implements Listener {
      * @return whether a key was spent; {@code false} too when the row is not in memory
      */
     public boolean spendKey(@NotNull UUID uuid) {
+        if (home != null) {
+            if (row(uuid) == null) return false;
+            if (home.spendKey(uuid)) return true;
+        }
         Session session = sessions.get(uuid);
         if (session == null) return false;
         synchronized (session) {
@@ -225,6 +278,10 @@ public final class CrateStore implements Listener {
      * @return whether it was new to them; {@code false} too when the row is not in memory
      */
     public boolean unlockNow(@NotNull UUID uuid, @NotNull String rewardId) {
+        if (home != null) {
+            CrateRow both = row(uuid);
+            return both != null && !both.isUnlocked(rewardId) && home.unlockNow(uuid, rewardId);
+        }
         Session session = sessions.get(uuid);
         if (session == null) return false;
         synchronized (session) {
@@ -246,6 +303,17 @@ public final class CrateStore implements Listener {
      * @return the row as it is afterwards
      */
     public @NotNull CompletableFuture<CrateRow> edit(@NotNull UUID uuid, @NotNull UnaryOperator<CrateRow> change) {
+        return home != null ? home.edit(uuid, change) : editShared(uuid, change);
+    }
+
+    /**
+     * Changes a player's global row, the one every server reads. The same as
+     * {@link #edit} when this server is not {@link #scoped}.
+     *
+     * @return the global row as it is afterwards
+     */
+    public @NotNull CompletableFuture<CrateRow> editShared(@NotNull UUID uuid,
+                                                           @NotNull UnaryOperator<CrateRow> change) {
         Session session = sessions.get(uuid);
         if (session != null) {
             synchronized (session) {
@@ -255,7 +323,7 @@ public final class CrateStore implements Listener {
             }
             // Still being read: once it is, this is either a row in memory or,
             // when they left first, a row that is not.
-            return session.ready.thenCompose(ignored -> edit(uuid, change));
+            return session.ready.thenCompose(ignored -> editShared(uuid, change));
         }
 
         return rows.find(CrateRow.key(owner, uuid))
