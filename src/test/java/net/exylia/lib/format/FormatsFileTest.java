@@ -144,7 +144,7 @@ class FormatsFileTest {
                 Configs.define(plugin, "formats", FormatSettings.class).load();
         Formats.apply(edited.get());
 
-        assertEquals("€1,250.00", Formats.money(1250L));
+        assertEquals("€1,250", Formats.money(1250L));
     }
 
     @Test

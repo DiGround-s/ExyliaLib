@@ -18,9 +18,9 @@ class CurrencyInfoTest {
     @Test
     @DisplayName("an amount is grouped, scaled and wrapped in the format")
     void formats() {
-        assertEquals("$1,250.00", dollars.format(new BigDecimal("1250")));
+        assertEquals("$1,250", dollars.format(new BigDecimal("1250")));
         assertEquals("$0.50", dollars.format(new BigDecimal("0.5")));
-        assertEquals("-$3.00", dollars.format(new BigDecimal("-3")));
+        assertEquals("-$3", dollars.format(new BigDecimal("-3")));
         assertEquals("1,000,000 ⛃", coins.format(new BigDecimal("1000000.99")));
     }
 
@@ -56,7 +56,7 @@ class CurrencyInfoTest {
         assertEquals("Bucks", merged.namePlural());
         assertEquals("$", merged.symbol());
         assertEquals(2, merged.decimals());
-        assertEquals("$5.00", merged.format(new BigDecimal("5")));
+        assertEquals("$5", merged.format(new BigDecimal("5")));
     }
 
     @Test
@@ -65,6 +65,6 @@ class CurrencyInfoTest {
         CurrencyInfo bare = CurrencyInfo.of("mystery_coins", "", "", "");
         assertEquals("Mystery coins", bare.name());
         assertEquals("Mystery coins", bare.namePlural());
-        assertEquals("12.00", bare.format(new BigDecimal("12")));
+        assertEquals("12", bare.format(new BigDecimal("12")));
     }
 }

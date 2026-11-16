@@ -49,7 +49,7 @@ class FormatPlaceholdersTest {
     @Test
     @DisplayName("%exylia_money_<n>% formats an amount")
     void money() {
-        assertEquals("Balance: $1,250.00", Placeholders.apply("Balance: %exylia_money_1250%"));
+        assertEquals("Balance: $1,250", Placeholders.apply("Balance: %exylia_money_1250%"));
     }
 
     @Test
@@ -98,7 +98,7 @@ class FormatPlaceholdersTest {
     @Test
     @DisplayName("a reload reaches the placeholders too")
     void followsSettings() {
-        assertEquals("$1,250.00", Placeholders.apply("%exylia_money_1250%"));
+        assertEquals("$1,250", Placeholders.apply("%exylia_money_1250%"));
 
         Formats.apply(new FormatSettings(
                 new FormatSettings.Money("€", FormatSettings.SymbolPosition.AFTER,
@@ -119,7 +119,7 @@ class FormatPlaceholdersTest {
     @Test
     @DisplayName("an unresolved argument leaves the placeholder visible")
     void nonNumericStaysVisible() {
-        // Not "$0.00": that looks exactly like a player with no money, and the
+        // Not "$0": that looks exactly like a player with no money, and the
         // missing economy plugin behind it would go unnoticed until somebody
         // rich complained.
         assertEquals("%exylia_money_abc%", Placeholders.apply("%exylia_money_abc%"));
@@ -158,7 +158,7 @@ class FormatPlaceholdersTest {
         try {
             Locale.setDefault(Locale.forLanguageTag("es-ES"));
 
-            assertEquals("$1,250.00", Placeholders.apply("%exylia_money_1250%"));
+            assertEquals("$1,250", Placeholders.apply("%exylia_money_1250%"));
             assertEquals("1.5K", Placeholders.apply("%exylia_compact_1500%"));
             assertEquals("75.5%", Placeholders.apply("%exylia_percent_75.5%"));
         } finally {

@@ -482,7 +482,7 @@ That resolves through the fallback list, and if nothing can serve, returns
 something a player reads, through the owner's `formats.yml`.
 
 ```java
-Formats.money(Economy.balance(player));   // "$1,250.00"
+Formats.money(Economy.balance(player));   // "$1,250"
 ```
 
 `Formats.money(BigDecimal)` keeps the value exact end to end, so a balance never
@@ -705,7 +705,7 @@ guessing `vault:<plugin>` from the stack. Outside such a call it is `null`.
 
 `Economy.info(id)` is a `CurrencyInfo`: name, plural, symbol, icon, decimals
 and two formats. `Economy.format(id, amount)` writes an amount the way *that*
-currency writes it — `$1,250.00`, `3 Tokens`, `1.2k⛃`. The plugin that keeps
+currency writes it — `$1,250`, `3 Tokens`, `1.2k⛃`. The plugin that keeps
 the owner's currency file lays their choices over any provider with
 `Economy.overlays(map)` (since 1.159.0), replacing whatever it laid before.
 `Formats.money` keeps formatting the default currency.

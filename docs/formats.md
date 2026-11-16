@@ -4,7 +4,7 @@ Numbers, money, percentages and dates written the way a player should read
 them — and read back the way a player types them.
 
 ```java
-Formats.money(1250);        // "$1,250.00"
+Formats.money(1250);        // "$1,250"     (whole amounts drop the decimals; $1,250.50 keeps them)
 Formats.compact(1_500);     // "1.5K"
 Formats.percent(75);        // "75%"
 Formats.relative(stamp);    // "3d ago"

@@ -170,7 +170,7 @@ public final class ActiveFormats {
             // value rather than on whatever a binary approximation of it landed
             // near.
             BigDecimal scaled = magnitude.setScale(moneyDecimals, RoundingMode.HALF_UP);
-            number = grouped(scaled.toPlainString());
+            number = grouped(trimmed(scaled));
         }
         return withSymbol(number, negative);
     }
@@ -216,7 +216,7 @@ public final class ActiveFormats {
             return withSymbol(compactBig(magnitude), negative);
         }
         return withSymbol(
-                grouped(magnitude.setScale(moneyDecimals, RoundingMode.UNNECESSARY).toPlainString()),
+                grouped(magnitude.toPlainString()),
                 negative);
     }
 
@@ -339,7 +339,12 @@ public final class ActiveFormats {
                 return shortened.toPlainString() + suffixes[index];
             }
         }
-        return grouped(magnitude.setScale(moneyDecimals, RoundingMode.HALF_UP).toPlainString());
+        return grouped(trimmed(magnitude.setScale(moneyDecimals, RoundingMode.HALF_UP)));
+    }
+
+    /** {@code 1250.00} as {@code 1250}, {@code 1250.50} kept: a whole amount shows no decimals. */
+    static String trimmed(BigDecimal scaled) {
+        return scaled.remainder(BigDecimal.ONE).signum() == 0 ? scaled.setScale(0).toPlainString() : scaled.toPlainString();
     }
 
     /**
@@ -366,7 +371,7 @@ public final class ActiveFormats {
 
     /** Zero at the configured scale, for the amounts that are not amounts. */
     private String zero() {
-        return BigDecimal.ZERO.setScale(moneyDecimals, RoundingMode.UNNECESSARY).toPlainString();
+        return "0";
     }
 
     /**

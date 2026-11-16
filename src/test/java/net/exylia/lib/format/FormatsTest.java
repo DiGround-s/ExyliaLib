@@ -40,19 +40,19 @@ class FormatsTest {
         @Test
         @DisplayName("money is grouped, has two decimals and leads with $")
         void money() {
-            assertEquals("$1,250.00", Formats.money(1250L));
-            assertEquals("$0.00", Formats.money(0L));
-            assertEquals("$999,999.00", Formats.money(999_999L));
+            assertEquals("$1,250", Formats.money(1250L));
+            assertEquals("$0", Formats.money(0L));
+            assertEquals("$999,999", Formats.money(999_999L));
             assertEquals("$12.50", Formats.money(new BigDecimal("12.5")));
         }
 
         @Test
         @DisplayName("a negative amount keeps its sign in front of the symbol")
         void negativeMoney() {
-            // -$5.00, never $-5.00: the second is not how any bank statement in
+            // -$5, never $-5: the second is not how any bank statement in
             // the world writes it, and a player reading a menu should not have
             // to work out where the minus went.
-            assertEquals("-$5.00", Formats.money(-5L));
+            assertEquals("-$5", Formats.money(-5L));
         }
 
         @Test
@@ -62,7 +62,7 @@ class FormatsTest {
             assertEquals("$1M", Formats.money(1_000_000L));
             // Just below the threshold it stays exact, so a price a player has
             // to approve never hides what they are about to pay.
-            assertEquals("$999,999.00", Formats.money(999_999L));
+            assertEquals("$999,999", Formats.money(999_999L));
         }
 
         @Test
@@ -155,8 +155,8 @@ class FormatsTest {
             apply(money(new FormatSettings.Money(
                     "€", FormatSettings.SymbolPosition.AFTER, true, 2, false, 1_000_000L)));
 
-            assertEquals("1,250.00 €", Formats.money(1250L));
-            assertEquals("-5.00 €", Formats.money(-5L));
+            assertEquals("1,250 €", Formats.money(1250L));
+            assertEquals("-5 €", Formats.money(-5L));
         }
 
         @Test
@@ -177,7 +177,7 @@ class FormatsTest {
             apply(money(new FormatSettings.Money(
                     "$", FormatSettings.SymbolPosition.BEFORE, false, 2, false, 1_000_000L)));
 
-            assertEquals("$2,500,000.00", Formats.money(2_500_000L));
+            assertEquals("$2,500,000", Formats.money(2_500_000L));
         }
 
         @Test
@@ -284,7 +284,7 @@ class FormatsTest {
             for (int index = 0; index < 100; index++) {
                 total = total.add(new BigDecimal("0.01"));
             }
-            assertEquals("$1.00", Formats.money(total));
+            assertEquals("$1", Formats.money(total));
 
             double drifting = 0;
             for (int index = 0; index < 100; index++) {
@@ -327,8 +327,8 @@ class FormatsTest {
         @Test
         @DisplayName("a balance that is not a number does not print NaN")
         void notANumber() {
-            assertEquals("$0.00", Formats.money(Double.NaN));
-            assertEquals("$0.00", Formats.money(Double.POSITIVE_INFINITY));
+            assertEquals("$0", Formats.money(Double.NaN));
+            assertEquals("$0", Formats.money(Double.POSITIVE_INFINITY));
         }
 
         @Test
@@ -355,12 +355,12 @@ class FormatsTest {
         @Test
         @DisplayName("takes effect on the next call, with no restart")
         void reapplies() {
-            assertEquals("$1,250.00", Formats.money(1250L));
+            assertEquals("$1,250", Formats.money(1250L));
 
             apply(money(new FormatSettings.Money(
                     "€", FormatSettings.SymbolPosition.AFTER, true, 2, false, 1_000_000L)));
 
-            assertEquals("1,250.00 €", Formats.money(1250L));
+            assertEquals("1,250 €", Formats.money(1250L));
         }
 
         @Test
@@ -376,7 +376,7 @@ class FormatsTest {
 
             Formats.reset();
 
-            assertEquals("$1,250.00", Formats.money(1250L));
+            assertEquals("$1,250", Formats.money(1250L));
         }
 
         @Test
@@ -392,7 +392,7 @@ class FormatsTest {
 
             // The symbol and the decimal count came from the same record: a
             // reader can never see one without the other.
-            assertEquals("£1,250.000", Formats.money(1250L));
+            assertEquals("£1,250.500", Formats.money(new java.math.BigDecimal("1250.5")));
             assertEquals("£", Formats.settings().money().symbol());
         }
     }
@@ -413,7 +413,7 @@ class FormatsTest {
 
             // A slightly odd number is a better outcome than a server that will
             // not start over a cosmetic setting.
-            assertEquals("$1,250.00000000", Formats.money(1250L));
+            assertEquals("$1,250.50000000", Formats.money(new java.math.BigDecimal("1250.5")));
         }
 
         @Test
@@ -451,14 +451,14 @@ class FormatsTest {
             // of view — which is what makes it impossible to see coming.
             Locale.setDefault(Locale.forLanguageTag("es-ES"));
 
-            assertEquals("$1,250.00", Formats.money(1250L));
+            assertEquals("$1,250", Formats.money(1250L));
             assertEquals("$1,250.50", Formats.money(new BigDecimal("1250.5")));
             assertEquals("1.5K", Formats.compact(1_500L));
             assertEquals("75.5%", Formats.percent(75.5));
 
             Locale.setDefault(Locale.GERMANY);
 
-            assertEquals("$1,250.00", Formats.money(1250L));
+            assertEquals("$1,250", Formats.money(1250L));
             assertEquals("2.3M", Formats.compact(2_340_000L));
         } finally {
             Locale.setDefault(original);

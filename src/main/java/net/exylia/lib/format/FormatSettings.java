@@ -19,7 +19,7 @@ import net.exylia.lib.config.Comment;
  *
  * <h2>Usage</h2>
  * <pre>{@code
- * Formats.money(balance);      // "$1,250.00"
+ * Formats.money(balance);      // "$1,250"
  * Formats.compact(kills);      // "1.5K"
  * Formats.percent(winRate);    // "75%"
  * }</pre>
@@ -46,7 +46,7 @@ import net.exylia.lib.config.Comment;
 public record FormatSettings(
 
         @Comment("How an amount of currency is written.")
-        @Comment("These defaults produce: $1,250.00 — and, past the")
+        @Comment("These defaults produce: $1,250 — and, past the")
         @Comment("threshold below, $2.5M")
         Money money,
 
@@ -97,25 +97,25 @@ public record FormatSettings(
             String symbol,
 
             @Comment("Which side of the number the symbol goes on.")
-            @Comment("before gives $1,250.00 — after gives 1,250.00$")
+            @Comment("before gives $1,250 — after gives 1,250$")
             @Comment("A negative amount always keeps its minus sign in front of")
-            @Comment("everything: -$5.00, never $-5.00.")
+            @Comment("everything: -$5, never $-5.")
             SymbolPosition symbolPosition,
 
             @Comment("Whether a space separates the symbol from the number.")
-            @Comment("true gives $ 1,250.00 or 1,250.00 €")
+            @Comment("true gives $ 1,250 or 1,250 €")
             @Comment("Set this rather than writing a space inside the symbol:")
             @Comment("YAML drops leading and trailing spaces unless the value is")
             @Comment("quoted, so a space typed there disappears without warning.")
             boolean spaceAfterSymbol,
 
-            @Comment("How many decimal places to show. 0 to 8.")
-            @Comment("2 is the usual choice for money. Use 0 on a server whose")
-            @Comment("balances are always whole, to keep scoreboards short.")
+            @Comment("How many decimal places to show at most. 0 to 8.")
+            @Comment("A whole amount shows none, so 1,250.00 reads 1,250 while")
+            @Comment("1,250.50 keeps its cents. 0 never shows any.")
             int decimals,
 
             @Comment("Whether large amounts are shortened to 2.5M instead of")
-            @Comment("being written out as 2,500,000.00.")
+            @Comment("being written out as 2,500,000.")
             @Comment("The shortening itself follows the 'compact' section below,")
             @Comment("so both a balance and a kill count are shortened the same")
             @Comment("way. This setting only decides whether money does it.")
@@ -123,12 +123,12 @@ public record FormatSettings(
 
             @Comment("The amount from which shortening starts, when it is on.")
             @Comment("Below this the amount is written out in full, so a price")
-            @Comment("a player has to approve stays exact: 999,999.00 rather")
+            @Comment("a player has to approve stays exact: 999,999 rather")
             @Comment("than 1M, which would hide what they are about to pay.")
             long compactThreshold
     ) {
 
-        /** The Exylia money format: {@code $1,250.00}. */
+        /** The Exylia money format: {@code $1,250}. */
         public Money() {
             this("$", SymbolPosition.BEFORE, false, 2, true, 1_000_000L);
         }
@@ -141,10 +141,10 @@ public record FormatSettings(
      */
     public enum SymbolPosition {
 
-        /** {@code $1,250.00} — the convention in English and most of Latin America. */
+        /** {@code $1,250} — the convention in English and most of Latin America. */
         BEFORE,
 
-        /** {@code 1,250.00 €} — the convention in most of Europe. */
+        /** {@code 1,250 €} — the convention in most of Europe. */
         AFTER
     }
 

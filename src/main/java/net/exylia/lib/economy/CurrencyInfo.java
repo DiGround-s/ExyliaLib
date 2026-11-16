@@ -22,7 +22,7 @@ import java.util.Locale;
  * A format is a line with three placeholders: {@code %amount%} (the number,
  * grouped and scaled to {@link #decimals()}), {@code %symbol%} and
  * {@code %name%} (singular or plural, by the amount). The default
- * {@code "%symbol%%amount%"} writes {@code $1,250.00}; a token currency might
+ * {@code "%symbol%%amount%"} writes {@code $1,250}, and {@code $1,250.50} when it has cents; a token currency might
  * prefer {@code "%amount% %name%"} for {@code 3 Tokens}.
  *
  * @param id           the provider's id
@@ -165,9 +165,11 @@ public record CurrencyInfo(
         return amount.signum() < 0 ? "-" + text : text;
     }
 
-    /** {@code 1234567.5} as {@code 1,234,567.50}. */
+    /** {@code 1234567.50} as {@code 1,234,567.50}, {@code 1234567.00} as {@code 1,234,567}. */
     private String grouped(BigDecimal scaled) {
-        String plain = scaled.abs().toPlainString();
+        // A whole amount shows no decimals: $1,250 rather than $1,250.00, $1,250.50 kept.
+        BigDecimal abs = scaled.abs();
+        String plain = abs.remainder(BigDecimal.ONE).signum() == 0 ? abs.setScale(0).toPlainString() : abs.toPlainString();
         int dot = plain.indexOf('.');
         String whole = dot < 0 ? plain : plain.substring(0, dot);
         String fraction = dot < 0 ? "" : plain.substring(dot);

@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The claims {@code docs/formats.md} and {@code formats.yml} make, executed.
  *
  * <p>Every worked example written in a comment above a setting is a promise to
- * a server owner: they read {@code # These defaults produce: $1,250.00}, decide
+ * a server owner: they read {@code # These defaults produce: $1,250}, decide
  * the file needs no editing, and never check. A comment that lies is worse than
  * no comment, because it is believed.
  */
@@ -36,10 +36,10 @@ class DocumentedFormatsTest {
     }
 
     @Test
-    @DisplayName("formats.yml: \"These defaults produce: $1,250.00\"")
+    @DisplayName("formats.yml: \"These defaults produce: $1,250\"")
     void moneyDefaultExample() {
-        assertEquals("$1,250.00", Formats.money(1250L));
-        assertEquals("$1,250.00", Formats.money(new BigDecimal("1250")));
+        assertEquals("$1,250", Formats.money(1250L));
+        assertEquals("$1,250", Formats.money(new BigDecimal("1250")));
     }
 
     @Test
@@ -49,12 +49,12 @@ class DocumentedFormatsTest {
     }
 
     @Test
-    @DisplayName("formats.yml: \"a price a player has to approve stays exact: 999,999.00\"")
+    @DisplayName("formats.yml: \"a price a player has to approve stays exact: 999,999\"")
     void belowThresholdStaysExact() {
         // The claim that justifies the threshold existing. A confirmation
         // screen reading "1M" for an amount that is not one million is how
         // somebody approves a purchase they did not agree to.
-        assertEquals("$999,999.00", Formats.money(999_999L));
+        assertEquals("$999,999", Formats.money(999_999L));
     }
 
     @Test
@@ -79,11 +79,11 @@ class DocumentedFormatsTest {
     }
 
     @Test
-    @DisplayName("formats.yml: \"-$5.00, never $-5.00\"")
+    @DisplayName("formats.yml: \"-$5, never $-5\"")
     void negativeKeepsSignInFront() {
         // A minus sign after the currency symbol reads as part of the number
         // and is easy to miss entirely on a scoreboard.
-        assertEquals("-$5.00", Formats.money(-5L));
+        assertEquals("-$5", Formats.money(-5L));
     }
 
     @Test
@@ -112,7 +112,7 @@ class DocumentedFormatsTest {
                 new FormatSettings.Date(Dates.Style.ISO));
         Formats.apply(euros);
 
-        assertEquals("1,250.00 €", Formats.money(1250L));
+        assertEquals("1,250 €", Formats.money(1250L));
         assertEquals("1.5k", Formats.compact(1_500L));
         assertEquals("+75%", Formats.percent(75));
     }
@@ -135,7 +135,7 @@ class DocumentedFormatsTest {
     @DisplayName("a broken number renders as zero, never as NaN")
     void nonFinite() {
         // A menu showing "$NaN" is a support ticket about the wrong plugin.
-        assertEquals("$0.00", Formats.money(Double.NaN));
+        assertEquals("$0", Formats.money(Double.NaN));
         assertEquals("0", Formats.compact(Double.POSITIVE_INFINITY));
     }
 
@@ -149,7 +149,7 @@ class DocumentedFormatsTest {
         try {
             for (String tag : new String[] {"es-ES", "de-DE", "fr-FR"}) {
                 Locale.setDefault(Locale.forLanguageTag(tag));
-                assertEquals("$1,250.00", Formats.money(1250L), tag);
+                assertEquals("$1,250", Formats.money(1250L), tag);
                 assertEquals("1.5K", Formats.compact(1_500L), tag);
                 assertEquals("75.5%", Formats.percent(75.5), tag);
             }
@@ -180,7 +180,7 @@ class DocumentedFormatsTest {
 
         for (int index = 0; index < 5_000; index++) {
             String rendered = Formats.money(1250L);
-            assertTrue(rendered.equals("$1,250.00") || rendered.equals("1,250 €"),
+            assertTrue(rendered.equals("$1,250") || rendered.equals("1,250 €"),
                     "half-applied settings produced: " + rendered);
         }
         reloader.join();
@@ -192,7 +192,7 @@ class DocumentedFormatsTest {
         // Startup order is not something a consumer controls, and an exception
         // from a formatter during onEnable reads as a bug in the consumer.
         Formats.reset();
-        assertEquals("$1,250.00", Formats.money(1250L));
+        assertEquals("$1,250", Formats.money(1250L));
     }
 
     @Test

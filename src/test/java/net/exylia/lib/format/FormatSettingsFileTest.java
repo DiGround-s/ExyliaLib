@@ -74,7 +74,7 @@ class FormatSettingsFileTest {
 
         // The comments are the manual: this file is the only reason to open it.
         assertTrue(yaml.contains("# Number and date formats shared by every Exylia plugin."), yaml);
-        assertTrue(yaml.contains("# before gives $1,250.00"), yaml);
+        assertTrue(yaml.contains("# before gives $1,250"), yaml);
     }
 
     @Test
@@ -89,13 +89,13 @@ class FormatSettingsFileTest {
         // component rather than on the nested record: a comment on the type is
         // silently dropped for a section that the parent already documents, so
         // the examples would vanish from the file while every other test passed.
-        assertTrue(yaml.contains("# These defaults produce: $1,250.00"), yaml);
+        assertTrue(yaml.contains("# These defaults produce: $1,250"), yaml);
         assertTrue(yaml.contains("# These defaults produce: 1.5K, 2.3M, 1.5B"), yaml);
         assertTrue(yaml.contains("# These defaults produce: 75% and 75.5%"), yaml);
         assertTrue(yaml.contains("# These defaults produce: 17/08/2026"), yaml);
 
         // Each example sits above its own section, not collected at the top.
-        assertTrue(yaml.indexOf("# These defaults produce: $1,250.00") < yaml.indexOf("money:"), yaml);
+        assertTrue(yaml.indexOf("# These defaults produce: $1,250") < yaml.indexOf("money:"), yaml);
         assertTrue(yaml.indexOf("# These defaults produce: 17/08/2026") < yaml.indexOf("date:"), yaml);
     }
 
@@ -151,7 +151,7 @@ class FormatSettingsFileTest {
         Formats.apply(file.get());
         file.onReload(Formats::apply);
 
-        assertEquals("$1,250.00", Formats.money(1250L));
+        assertEquals("$1,250", Formats.money(1250L));
 
         Files.writeString(folder.resolve("formats.yml"), """
                 money:
@@ -191,6 +191,6 @@ class FormatSettingsFileTest {
         // Reported, not fatal: a cosmetic setting must never be the reason a
         // server does not start.
         assertTrue(file.issues().size() >= 2, "both bad values should be reported");
-        assertEquals("$1,250.00", Formats.money(1250L));
+        assertEquals("$1,250", Formats.money(1250L));
     }
 }
