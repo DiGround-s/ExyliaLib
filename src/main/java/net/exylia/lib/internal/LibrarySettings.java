@@ -108,13 +108,6 @@ import net.exylia.lib.config.Time;
 @Comment("group keep theirs apart. Empty means no group: plugins treat this server")
 @Comment("as sharing with every server unless their own config says otherwise.")
 @Comment("Letters, digits, - and _, at most 24. Restart to apply.")
-@Comment("")
-@Comment("cosmetics: where what a player unlocks in a cosmetic plugin (a kill effect,")
-@Comment("a chat colour, a crate prize) counts. scope 'global' shares it with every")
-@Comment("server; 'server', 'default' (this server's network-group) or a group name")
-@Comment("keeps what is unlocked here to those servers, while what was unlocked")
-@Comment("globally still counts here. A purchase paid in one of global-currencies is")
-@Comment("always global. Restart to apply.")
 public record LibrarySettings(
         @Comment("Language of the whole server: en, es, pt, fr, ru or tr. Every Exylia plugin whose own")
         @Comment("language is 'default' follows it, and so do the library's screens and prompts.")
@@ -183,32 +176,8 @@ public record LibrarySettings(
 
         @Key("network-group")
         @Comment("This server's group on the network (survival, boxpvp...). Empty for none.")
-        String networkGroup,
-
-        Cosmetics cosmetics
+        String networkGroup
 ) {
-
-    /**
-     * The {@code cosmetics:} block.
-     *
-     * @param scope            global, server, default or a group name
-     * @param globalCurrencies currencies whose purchases count on every server
-     * @since 1.618.0
-     */
-    public record Cosmetics(
-            @Comment("Where what is unlocked here counts: global, server, default or a group name.")
-            String scope,
-
-            @Key("global-currencies")
-            @Comment("Currencies whose purchases count on every server, whatever the scope.")
-            java.util.List<String> globalCurrencies
-    ) {
-
-        /** The default: everything is global. */
-        public Cosmetics() {
-            this("global", java.util.List.of("zenith"));
-        }
-    }
 
     /**
      * The {@code toasts:} block.
@@ -424,7 +393,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "normal", new Metrics(),
-                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false, "", new Cosmetics());
+                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false, "");
     }
 
     private static volatile LibrarySettings instance;
