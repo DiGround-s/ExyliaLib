@@ -142,7 +142,7 @@ final class LiveScreen implements ScreenSession {
     private int glyphs;
     private final TaskScheduler tasks;
     private final Map<String, Object> state = new ConcurrentHashMap<>();
-    private final Vector3d origin;
+    private Vector3d origin;
     /** Blocks a layout pixel stands for; read everywhere, written under {@code this} and {@link #input}. */
     private volatile double unit;
     /** {@link #unit} at 100%. */
@@ -202,6 +202,8 @@ final class LiveScreen implements ScreenSession {
     private final Map<String, Drawn> drawn = new HashMap<>();
     private List<Layout.Placed> placed = List.of();
     private volatile boolean open = true;
+    /** False while an airborne viewer is brought down to the floor, before anything is sent. */
+    private volatile boolean standing;
     /** Stepped aside for an input: nothing drawn, nothing taken, until it ends. */
     private volatile boolean away;
     private boolean overBudget;
@@ -313,7 +315,7 @@ final class LiveScreen implements ScreenSession {
     /** Where the held camera faces: a spawn packet carries a turn in 256 steps. */
     private float cameraYaw;
     /** Where the eyes looked when the screen opened: a window tips them, and closing gives that back. */
-    private final float openPitch;
+    private float openPitch;
     private volatile boolean tipped;
     /** How many displays the screen itself has drawn: what a window's stage has left of the budget. */
     private volatile int drawnCount;
@@ -428,14 +430,7 @@ final class LiveScreen implements ScreenSession {
         this.viewUnit = Math.max(unit, fullUnit);
         this.serverSlot = player.getInventory().getHeldItemSlot();
         this.heldSlot = serverSlot;
-        Location eyes = player.getEyeLocation();
-        // A camera-view client stands up as it turns spectator, so a sneaking or swimming viewer's eyes rise.
-        double eyeY = screen.wheel() ? eyes.getY() : eyes.getY() - player.getEyeHeight() + player.getEyeHeight(true);
-        this.origin = new Vector3d(eyes.getX(), eyeY, eyes.getZ());
-        this.lastYaw = eyes.getYaw();
-        this.homeYaw = lastYaw;
-        this.lastPitch = eyes.getPitch();
-        this.openPitch = lastPitch;
+        aim();
         state.putAll(Persisted.load(player, screen));
         state.putAll(screen.state());
         this.spriteGlyphs = spritesFor(player);
@@ -481,6 +476,23 @@ final class LiveScreen implements ScreenSession {
     // Lifecycle
     // ------------------------------------------------------------------
 
+    /** Stands the screen at the viewer's eyes as they are now: again when they were brought down before it shows. */
+    void aim() {
+        Location eyes = player.getEyeLocation();
+        // A camera-view client stands up as it turns spectator, so a sneaking or swimming viewer's eyes rise.
+        double eyeY = screen.wheel() ? eyes.getY() : eyes.getY() - player.getEyeHeight() + player.getEyeHeight(true);
+        this.origin = new Vector3d(eyes.getX(), eyeY, eyes.getZ());
+        this.lastYaw = eyes.getYaw();
+        this.homeYaw = lastYaw;
+        this.lastPitch = eyes.getPitch();
+        this.openPitch = lastPitch;
+    }
+
+    /** Whether the screen started: until then nothing of it is on the client. */
+    boolean standing() {
+        return standing;
+    }
+
     /** On the viewer's thread. */
     void show() {
         ScreenRuntime.quietBegin(player);
@@ -502,6 +514,7 @@ final class LiveScreen implements ScreenSession {
 
     /** On the viewer's thread, once the world is sealed: the screen's own entities, then its first render. */
     void start() {
+        standing = true;
         hitboxId = ids.getAsInt();
         for (int i = 0; i < cursorIds.length; i++) cursorIds[i] = ids.getAsInt();
         List<PacketWrapper<?>> out = new ArrayList<>(ScreenPackets.spawnHitbox(hitboxId, origin));
@@ -564,6 +577,11 @@ final class LiveScreen implements ScreenSession {
             animator = null;
         }
         ScreenRuntime.closed(this);
+        if (!standing) {
+            // Closed while the viewer was still being brought down: nothing was sent, nothing to take back.
+            runOnClose();
+            return;
+        }
         if (ticker != null) ticker.cancel();
         closeStage();
         ids.add(hitboxId);
@@ -589,6 +607,10 @@ final class LiveScreen implements ScreenSession {
             Packets.of(plugin).fakeGameMode().cameraView(player, false);
         }
         if (player.isOnline()) ScreenRuntime.quietEndSoon(player);
+        runOnClose();
+    }
+
+    private void runOnClose() {
         Consumer<ScreenSession> onClose = screen.onClose();
         if (onClose != null && player.isOnline() && plugin.isEnabled()) {
             tasks.runAtEntity(player, () -> guarded(() -> onClose.accept(this)));
@@ -600,7 +622,7 @@ final class LiveScreen implements ScreenSession {
             @NotNull java.util.function.Supplier<? extends java.util.concurrent.CompletionStage<T>> input) {
         List<Integer> ids = new ArrayList<>();
         synchronized (this) {
-            if (!open || away) return input.get();
+            if (!open || away || !standing) return input.get();
             away = true;
             for (Drawn d : drawn.values()) ids.add(d.id());
             drawn.clear();
@@ -738,7 +760,7 @@ final class LiveScreen implements ScreenSession {
      */
     @Override
     public void redraw() {
-        if (!open()) return;
+        if (!open() || !standing) return;
         if (dirty.compareAndSet(false, true)) tasks.runAtEntity(player, this::renderIfDirty);
     }
 

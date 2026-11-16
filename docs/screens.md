@@ -219,7 +219,10 @@ on close. From code: `net.exylia.lib.input.Links.open(player, url, title)` and `
 - **Keys** (1.492.0): W, A, S, D and Space click the box bound to them (`key=`, `pager keys=`). Show the bindings in
   the screen itself: a short row of key hints under the content is the house style.
 
-While a screen is open the player is frozen in place (`Packets#movement`), and everything else in the world is
+While a screen is open the player is frozen in place (`Packets#movement`). Opened in mid-air (a jump, a step off a
+ledge), the viewer is first brought straight down to the floor under them and the screen shows there, a tick later on
+Folia (1.616.0, `Footing.ground`); `open` still returns the session at once, and that move does not close it. A longer
+fall, the void, flying, gliding or water leave them where they are. Everything else in the world is
 out of their sight (1.492.0, `Visibility#seal` around the screen): other players, their name tags, mobs and other
 plugins' holograms never show through or at its edges. It all comes back on close or while an input is aside.
 

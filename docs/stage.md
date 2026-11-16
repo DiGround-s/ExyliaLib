@@ -245,6 +245,18 @@ climbing) and `Footing.landed(plugin, player)`, a future completing `true` on th
 player's thread once they are, `false` after `Footing.WAIT_TICKS` (100) in the
 air, a quit or a death.
 
+**Brought down, not waited for (1.616.0).** `Footing.ground(plugin, player)` moves a
+player in mid-air (a jump, a step off a ledge) straight down onto the floor under
+them, through `Teleports` with no warmup, no fall damage and no `/back` entry, and
+completes `true` on their thread once they stand there. It leaves them as they are
+(completing `false` at once, so a `thenRun` goes on in the same call) when they fly,
+glide, swim, climb, ride, play in creative or spectator, wait out a teleport's
+countdown, or have no floor within `Footing.GROUND_REACH` (8 blocks) or only water
+or lava under them. `landed` tries it first and waits only when it moved nobody.
+Screens (`Screens#open`) and camera shots ground their viewer the same way before
+holding them still, so nobody floats frozen in the air for others to see or gets
+kicked for flying.
+
 Every player goes to the same spot: a room is drawn for its player alone and
 every other player is hidden from them, so any number play there at once, each
 in their own room, with no offsets to fit into the terrain. Where each came from

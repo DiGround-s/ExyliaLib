@@ -218,7 +218,9 @@ so `freeze(player)` later frees the camera and keeps the player pinned.
 
 Limits: knockback, pistons and a plugin teleport still move the player
 server-side; the anchor does not follow. Freeze again after moving them on
-purpose.
+purpose. `freeze` holds a player in mid-air where they are: bring them down
+first with `Footing.ground(plugin, player).thenRun(...)` (1.616.0, see
+`stage.md`), as screens, spatial menus, crate scenes and camera shots do.
 
 ## FakeGameMode
 

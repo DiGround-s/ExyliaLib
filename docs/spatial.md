@@ -894,8 +894,9 @@ gains `clear-view: true`. The crate scene does the same (`clear-view` in
 `spatial/crate.yml`).
 
 **Opened in mid-air (since 1.442.0).** A FRONT menu (and the crate scene) asked for
-while the player is falling or jumping waits for them to land, up to five seconds,
-and opens there ([`Footing`](stage.md#a-play-spot)); still in the air after that
+while the player is falling or jumping is opened on the floor under them, brought
+straight down ([`Footing.ground`](stage.md#a-play-spot), 1.616.0); a longer fall waits
+for them to land, up to five seconds, and opens there ([`Footing`](stage.md#a-play-spot)); still in the air after that
 (the void, an elytra) or killed by the fall, nothing opens and the theme's
 `error-sound` plays. A menu at a placed spot walks them there as before. Before,
 it opened where they hung in the air: the board floated there, `freeze` held the

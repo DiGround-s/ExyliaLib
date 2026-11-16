@@ -68,7 +68,8 @@ walking the camera around that point.
 
 ## What it does to the player
 
-A player looking through a camera is frozen and their client is drawn as a
+A player looking through a camera is frozen (in mid-air, first brought down to
+the floor under them, since 1.616.0) and their client is drawn as a
 spectator — no hand, no hotbar — because somebody who cannot see their own body
 should not be walking, and should not be shown equipment belonging to a body
 that is not on screen. Both are put back at the end, and **only if this module

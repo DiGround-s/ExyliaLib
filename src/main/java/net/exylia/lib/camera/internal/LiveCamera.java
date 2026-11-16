@@ -106,7 +106,10 @@ final class LiveCamera implements CameraHandle {
             wasFrozen[index] = packets.movement().isFrozen(viewer);
             wasCameraView[index] = packets.fakeGameMode().isCameraView(viewer);
             if (!wasFrozen[index]) {
-                packets.movement().freeze(viewer);
+                // Brought down to the floor first when in mid-air, so the body left behind does not float.
+                net.exylia.lib.stage.Footing.ground(plugin, viewer).thenRun(() -> {
+                    if (!gone && viewer.isOnline()) packets.movement().freeze(viewer);
+                });
             }
             if (!wasCameraView[index]) {
                 packets.fakeGameMode().cameraView(viewer, true);

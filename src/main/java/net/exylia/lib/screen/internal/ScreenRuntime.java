@@ -73,7 +73,14 @@ public final class ScreenRuntime {
         close(player.getUniqueId());
         LiveScreen live = new LiveScreen(plugin, player, screen);
         OPEN.put(player.getUniqueId(), live);
-        live.show();
+        // Held in mid-air the viewer would float for everyone to see and count as flying: brought down to the
+        // floor first, and the screen shows there. At once (in this call) when they already stand.
+        net.exylia.lib.stage.Footing.ground(plugin, player).thenRun(() -> {
+            if (!live.standing() && live.open() && OPEN.get(player.getUniqueId()) == live && player.isOnline()) {
+                live.aim();
+                live.show();
+            }
+        });
         return live;
     }
 
@@ -348,6 +355,9 @@ public final class ScreenRuntime {
         /** The screen stands where the eyes were: a real move (a match found, a warp) leaves it behind. */
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onTeleport(PlayerTeleportEvent event) {
+            LiveScreen live = OPEN.get(event.getPlayer().getUniqueId());
+            // Not shown yet (the viewer brought down to the floor first): it shows wherever they arrive.
+            if (live != null && !live.standing()) return;
             if (event.getTo() == null || event.getFrom().getWorld() != event.getTo().getWorld()
                     || event.getFrom().distanceSquared(event.getTo()) > 1) {
                 close(event.getPlayer().getUniqueId());
