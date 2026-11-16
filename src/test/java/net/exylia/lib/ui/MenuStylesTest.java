@@ -38,6 +38,8 @@ class MenuStylesTest {
     void parsesWhatConfigsWrite() {
         assertEquals(MenuStyle.SCREEN, MenuStyle.parse(" screen "));
         assertEquals(MenuStyle.CLASSIC, MenuStyle.parse("CLASSIC"));
+        assertEquals(MenuStyle.BOARD, MenuStyle.parse("boards"));
+        assertEquals(MenuStyle.BOARD, MenuStyle.parse("BOARD"));
         assertNull(MenuStyle.parse("DEFAULT"));
         assertNull(MenuStyle.parse(null));
         assertNull(MenuStyle.parse(""));

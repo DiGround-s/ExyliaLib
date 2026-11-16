@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * {@code /exylialib style <classic|screen|default> [player] [plugin]}: switches a player's menu style on the spot,
+ * {@code /exylialib style <classic|screen|board|default> [player] [plugin]}: switches a player's menu style on the spot,
  * for one plugin or all, to compare chest and screen menus without editing any config. {@code default} clears it.
  * {@code /exylialib style game <screen|3d|default> [player] [plugin]} does the same for the form games are played in,
  * leaving menus alone.
@@ -43,7 +43,7 @@ public final class StyleCommand {
         String wanted = style.toLowerCase(Locale.ROOT);
         MenuStyle parsed = MenuStyle.parse(wanted);
         if (parsed == null && !wanted.equals("default")) {
-            reply(sender, Phrases.tr("{letters_black}▎ {error}Style must be classic, screen or default"));
+            reply(sender, Phrases.tr("{letters_black}▎ {error}Style must be classic, screen, board or default"));
             return;
         }
         MenuStyles.override(who, plugin, parsed);
@@ -53,7 +53,7 @@ public final class StyleCommand {
         }
         reply(sender, Phrases.tr("{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}",
                 who.getName(), wanted + (plugin == null ? "" : " · " + plugin)));
-        if (parsed == MenuStyle.SCREEN && !MenuStyles.canShowScreens(who)) {
+        if (parsed != MenuStyle.CLASSIC && !MenuStyles.canShowScreens(who)) {
             reply(sender, Phrases.tr("{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus", who.getName()));
         }
     }
@@ -91,7 +91,7 @@ public final class StyleCommand {
     public static final class Styles implements SuggestionProvider<BukkitCommandActor> {
         @Override
         public Collection<String> getSuggestions(@NotNull ExecutionContext<BukkitCommandActor> context) {
-            return List.of("classic", "screen", "default");
+            return List.of("classic", "screen", "board", "default");
         }
     }
 

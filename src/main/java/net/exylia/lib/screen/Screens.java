@@ -2,6 +2,7 @@ package net.exylia.lib.screen;
 
 import net.exylia.lib.screen.internal.ScreenPreferences;
 import net.exylia.lib.screen.internal.ScreenRuntime;
+import net.exylia.lib.screen.internal.WorldBoard;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -66,18 +67,39 @@ public final class Screens {
      * @return the open session, or {@code null} when PacketEvents is missing or a camera holds the player
      */
     public @Nullable ScreenSession open(@NotNull Player player, @NotNull Screen screen) {
+        WorldBoard.close(player.getUniqueId());
         return ScreenRuntime.open(plugin, player, screen);
     }
 
-    /** Closes the player's screen when this plugin opened it. */
+    /**
+     * Shows {@code screen} to {@code player} as a board floating in front of them instead of at their eyes: they keep
+     * walking and looking around, aim at it with the crosshair and click (a sneak-click is a shift-click). It glides
+     * back in front of them when they walk or turn away from it, and closes on a sneak with no click (when
+     * {@code screens.yml}'s {@code board.close-with-sneak} says so), damage, death, a world change, another window
+     * opening or {@link ScreenSession#close()}. Its size and distance are {@code screens.yml}'s {@code board}.
+     * Closes the screen or board the player had open. On the player's thread.
+     *
+     * <p>Boxes, text and items are drawn; pictures and motion are not. A plugin whose menus follow the player's style
+     * says so with {@link net.exylia.lib.ui.MenuStyles#boards(boolean)} and opens one when the style is
+     * {@link net.exylia.lib.ui.MenuStyle#BOARD}.
+     *
+     * @return the open session, or {@code null} when PacketEvents is missing or a camera holds the player
+     * @since 1.617.0
+     */
+    public @Nullable ScreenSession openBoard(@NotNull Player player, @NotNull Screen screen) {
+        return WorldBoard.follow(plugin, player, screen);
+    }
+
+    /** Closes the player's screen or board when this plugin opened it. */
     public void close(@NotNull Player player) {
         ScreenSession session = session(player);
         if (session != null) session.close();
     }
 
-    /** The screen this plugin has open for the player, if any. */
+    /** The screen or board ({@link #openBoard}, since 1.617.0) this plugin has open for the player, if any. */
     public @Nullable ScreenSession session(@NotNull Player player) {
-        return ScreenRuntime.session(plugin, player);
+        ScreenSession board = WorldBoard.following(plugin, player);
+        return board != null ? board : ScreenRuntime.session(plugin, player);
     }
 
     /**
@@ -145,6 +167,7 @@ public final class Screens {
      */
     public void redrawAll(@NotNull java.util.function.Predicate<ScreenSession> which) {
         ScreenRuntime.redrawAll(plugin, which);
+        WorldBoard.redrawAll(plugin, which);
     }
 
     /** Redraws every screen this plugin has open. @since 1.496.0 */

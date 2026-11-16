@@ -39,23 +39,37 @@ import java.util.function.IntSupplier;
  * with their own state, hover and clicks. Nothing is frozen and nothing turns with the view; the crosshair is the
  * pointer (an {@linkplain SpatialInput#observe observing} one), a swing or a use on a button is its click.
  *
- * <p>Boxes, outlines and text are drawn as on a screen in front of the eyes; items, pictures and motion are not.
+ * <p>Boxes, outlines, text and items are drawn as on a screen in front of the eyes; pictures and motion are not.
  * Each look has a display of its own, kept from frame to frame, so a redraw changes only what changed and a box
  * that goes is destroyed with it.
+ *
+ * <p>A {@linkplain #follow following} board is one player's menu instead: it stands in front of them, and when they
+ * walk away from it or turn well away it glides back in front of them (its displays are teleported with the
+ * client's position glide, never spawned again, unless they were teleported far).
  */
 public final class WorldBoard {
 
     /** Billboard fixed: the display keeps the yaw it was spawned with. */
     private static final byte FIXED = 0;
+    /** The look key's end that marks an item, drawn by an item display rather than a text display. */
+    private static final String ITEM = "#it";
     /** Blocks between two layers, nearer the front for deeper boxes. */
     static final double LAYER = 0.004;
 
     private final Plugin plugin;
     private final TaskScheduler tasks;
-    private final Location centre;
-    private final float yaw;
+    /** Where the panel stands and the way it faces: moved for a following board, on its viewer's thread. */
+    private volatile Location centre;
+    private volatile float yaw;
     private final Screen screen;
     private final double unit;
+    /** The one player a following board is for; {@code null} for a board standing in the world. */
+    private final @Nullable Player owner;
+    private final double distance;
+    private final boolean closeWithSneak;
+    /** Where the owner's eyes were, and their yaw, when the board last sat down in front of them. */
+    private Location seatFrom;
+    private float seatYaw;
     private final Map<UUID, View> views = new ConcurrentHashMap<>();
     private double range = 32;
     private double reach = 12;
@@ -68,12 +82,184 @@ public final class WorldBoard {
      * @param width  how wide the panel is, in blocks; the height follows the screen's own shape
      */
     public WorldBoard(@NotNull Plugin plugin, @NotNull Location centre, @NotNull Screen screen, double width) {
+        this(plugin, centre, screen, width, null, 0, false);
+    }
+
+    private WorldBoard(Plugin plugin, Location centre, Screen screen, double width, @Nullable Player owner,
+                       double distance, boolean closeWithSneak) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
         this.centre = centre.clone();
         this.yaw = centre.getYaw();
         this.screen = screen;
         this.unit = width / screen.width();
+        this.owner = owner;
+        this.distance = distance;
+        this.closeWithSneak = closeWithSneak;
+    }
+
+    // ------------------------------------------------------------------
+    // Following boards: one player's menu floating in front of them
+    // ------------------------------------------------------------------
+
+    /** Blocks the eyes may wander from where the board sat down before it follows. */
+    static final double WALK = 1.5;
+    /** Degrees the view may turn from the board before it follows. */
+    static final float TURN = 55;
+    /** Blocks past which a move is a teleport: the board is drawn again there rather than glided across. */
+    static final double JUMP = 8;
+    /** Ticks a board takes to glide back in front of its player. */
+    static final int GLIDE = 6;
+
+    /** The boards following players, by player: one each, and a screen closes it. */
+    private static final Map<UUID, View> FOLLOWING = new ConcurrentHashMap<>();
+
+    /**
+     * Opens {@code screen} as a board floating in front of {@code player}, sized and placed as {@code screens.yml}'s
+     * {@code board} says, closing their screen or board first. On the player's thread.
+     *
+     * @return the session, or {@code null} without PacketEvents or while a camera holds the player
+     */
+    public static @Nullable ScreenSession follow(@NotNull Plugin plugin, @NotNull Player player, @NotNull Screen screen) {
+        if (!net.exylia.lib.packet.Packets.isAvailable()) return null;
+        if (ScreenRuntime.refused(player)) return null;
+        closeAll(player.getUniqueId());
+        net.exylia.lib.screen.ScreenSettings.Board settings = net.exylia.lib.screen.ScreenSettings.get().boardOrDefault();
+        double distance = Math.max(1, Math.min(8, settings.distance()));
+        double width = Math.max(0.5, Math.min(12, settings.width()));
+        Location eyes = player.getEyeLocation();
+        WorldBoard board = new WorldBoard(plugin, seat(eyes, distance), screen, width, player, distance,
+                settings.closeWithSneak());
+        board.seatFrom = eyes;
+        board.seatYaw = eyes.getYaw();
+        View view = board.new View(player, ScreenPackets.Wire.to(player), ScreenPackets::newId);
+        board.views.put(player.getUniqueId(), view);
+        FOLLOWING.put(player.getUniqueId(), view);
+        view.attach();
+        view.render();
+        board.ticker = board.tasks.runTimer(20, 20, board::redrawAll);
+        board.tracker = board.tasks.runAtEntityTimer(player, 2, 2, board::follow);
+        return view;
+    }
+
+    /** The board this plugin has following {@code player}, or {@code null}. */
+    public static @Nullable ScreenSession following(@NotNull Plugin plugin, @NotNull Player player) {
+        View view = FOLLOWING.get(player.getUniqueId());
+        return view != null && view.board().plugin == plugin ? view : null;
+    }
+
+    /** Closes the board following {@code player}, if any. */
+    public static void close(@NotNull UUID player) {
+        View view = FOLLOWING.get(player);
+        if (view != null) view.drop();
+    }
+
+    /** Closes the player's board and their screen: they have one of either at a time. */
+    static void closeAll(UUID player) {
+        close(player);
+        LiveScreen live = ScreenRuntime.live(player);
+        if (live != null) live.close();
+    }
+
+    /** Redraws every board {@code plugin} has following a player whose session passes {@code which}. */
+    public static void redrawAll(@NotNull Plugin plugin, @NotNull java.util.function.Predicate<ScreenSession> which) {
+        for (View view : FOLLOWING.values()) {
+            if (view.board().plugin == plugin && which.test(view)) view.redraw();
+        }
+    }
+
+    /**
+     * The middle of a board {@code distance} blocks ahead of the eyes at their height, facing back at them: upright,
+     * whatever the pitch, so looking down at the ground does not tip it over.
+     */
+    static Location seat(Location eyes, double distance) {
+        double rad = Math.toRadians(eyes.getYaw());
+        return new Location(eyes.getWorld(), eyes.getX() - Math.sin(rad) * distance, eyes.getY(),
+                eyes.getZ() + Math.cos(rad) * distance, Location.normalizeYaw(eyes.getYaw() + 180), 0);
+    }
+
+    /** Whether eyes this far from the seat and turned this far from it should bring the board back in front. */
+    static boolean strayed(double movedSquared, float turned) {
+        return movedSquared > WALK * WALK || Math.abs(Location.normalizeYaw(turned)) > TURN;
+    }
+
+    /** Every two ticks on the owner's thread: brings the board back in front of them when they strayed from it. */
+    private void follow() {
+        View view = owner == null ? null : views.get(owner.getUniqueId());
+        if (view == null || removed) return;
+        if (ScreenRuntime.cameraHeld(owner)) {
+            view.drop();
+            return;
+        }
+        Location eyes = owner.getEyeLocation();
+        if (eyes.getWorld() != centre.getWorld()) {
+            view.drop();
+            return;
+        }
+        double moved = eyes.distanceSquared(seatFrom);
+        if (!strayed(moved, eyes.getYaw() - seatYaw)) return;
+        view.reseat(eyes, moved > JUMP * JUMP);
+    }
+
+    /** Closes following boards on what closes a screen, and on a sneak with no click. Called by the library on enable. */
+    public static void init(@NotNull Plugin library) {
+        library.getServer().getPluginManager().registerEvents(new Closer(), library);
+    }
+
+    static final class Closer implements org.bukkit.event.Listener {
+
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+        public void onSneak(org.bukkit.event.player.PlayerToggleSneakEvent event) {
+            View view = FOLLOWING.get(event.getPlayer().getUniqueId());
+            if (view == null || !view.board().closeWithSneak) return;
+            if (event.isSneaking()) {
+                view.sneakArmed = true;
+                view.sneakClicked = false;
+            } else if (view.sneakArmed && !view.sneakClicked) {
+                view.drop();
+            } else {
+                view.sneakArmed = false;
+            }
+        }
+
+        /** A click while sneaking makes that sneak a shift-click, so letting go of it does not close the board. */
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+        public void onSwing(org.bukkit.event.player.PlayerAnimationEvent event) {
+            clicked(event.getPlayer());
+        }
+
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+        public void onInteract(org.bukkit.event.player.PlayerInteractEvent event) {
+            clicked(event.getPlayer());
+        }
+
+        private static void clicked(Player player) {
+            View view = FOLLOWING.get(player.getUniqueId());
+            if (view != null && player.isSneaking()) view.sneakClicked = true;
+        }
+
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+        public void onDamage(org.bukkit.event.entity.EntityDamageEvent event) {
+            if (event.getEntity() instanceof Player player) close(player.getUniqueId());
+        }
+
+        /** A window opening (another plugin's menu, a chest) takes over from the board. */
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR, ignoreCancelled = true)
+        public void onInventory(org.bukkit.event.inventory.InventoryOpenEvent event) {
+            close(event.getPlayer().getUniqueId());
+        }
+
+        /** {@code closeInventory()} from a board's own click closes it, as it closes the chest it stands for. */
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+        public void onInventoryClose(org.bukkit.event.inventory.InventoryCloseEvent event) {
+            View view = FOLLOWING.get(event.getPlayer().getUniqueId());
+            if (view != null && view.clicking && ScreenRuntime.closesScreen(event)) view.closeAfterClick = true;
+        }
+
+        @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.MONITOR)
+        public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+            close(event.getPlayer().getUniqueId());
+        }
     }
 
     public void range(double range) {
@@ -177,7 +363,14 @@ public final class WorldBoard {
         private volatile String hovered;
         private volatile boolean pending;
         private SpatialPointer pointer;
+        private Hotspot hotspot;
         private volatile boolean dropped;
+        /** A sneak began while the board was open, and whether a click came during it (a shift-click). */
+        volatile boolean sneakArmed;
+        volatile boolean sneakClicked;
+        /** Inside one of the board's clicks, and whether that click closed the inventory. */
+        volatile boolean clicking;
+        volatile boolean closeAfterClick;
 
         View(Player viewer, ScreenPackets.Wire wire, IntSupplier ids) {
             this.viewer = viewer;
@@ -190,17 +383,52 @@ public final class WorldBoard {
             return placed;
         }
 
+        WorldBoard board() {
+            return WorldBoard.this;
+        }
+
         /** Gives the viewer the pointer that hovers and clicks it. On the viewer's thread. */
         void attach() {
-            StagePlane plane = plane();
             pointer = SpatialInput.of(plugin).observe(viewer);
-            pointer.add(Hotspot.custom(plane, hit -> pick(plane, hit))
-                    .onCell(index -> hover(index))
-                    .onPress(this::press));
+            hotspot = pointer.add(hotspot(plane()));
             pointer.onEnd(end -> {
                 views.remove(viewer.getUniqueId(), this);
                 drop();
             });
+        }
+
+        private Hotspot hotspot(StagePlane plane) {
+            return Hotspot.custom(plane, hit -> pick(plane, hit))
+                    .onCell(index -> hover(index))
+                    .onPress(this::press);
+        }
+
+        /**
+         * Sits the board down in front of {@code eyes} again: its displays glide there, or, after a teleport
+         * ({@code jump}), are drawn there afresh. On the viewer's thread.
+         */
+        synchronized void reseat(Location eyes, boolean jump) {
+            if (dropped) return;
+            Location seat = seat(eyes, distance);
+            centre = seat;
+            yaw = seat.getYaw();
+            seatFrom = eyes.clone();
+            seatYaw = eyes.getYaw();
+            Hotspot old = hotspot;
+            hotspot = pointer.add(hotspot(plane()));
+            pointer.remove(old);
+            if (jump) {
+                if (!sent.isEmpty()) {
+                    wire.send(List.of(ScreenPackets.destroy(sent.values().stream().mapToInt(Integer::intValue).toArray())));
+                    sent.clear();
+                }
+                render();
+                return;
+            }
+            Vector3d at = new Vector3d(seat.getX(), seat.getY(), seat.getZ());
+            List<PacketWrapper<?>> frame = new ArrayList<>(sent.size());
+            for (int id : sent.values()) frame.add(ScreenPackets.moveTo(id, at, yaw));
+            if (!frame.isEmpty()) wire.send(frame);
         }
 
         int pick(StagePlane plane, StagePlane.Hit hit) {
@@ -211,8 +439,9 @@ public final class WorldBoard {
             if (distance > reach * reach) return -1;
             double[] at = pixel(hit, unit, screen.width(), screen.height());
             int index = at == null ? -1 : button(placed, at[0], at[1]);
-            // Only a button is worth a block trace: a wall in between hides it from hovers and clicks.
-            return index >= 0 && blocked(eyes, point, Math.sqrt(distance)) ? -1 : index;
+            // Only a button is worth a block trace: a wall in between hides it from hovers and clicks. A board
+            // following its player is theirs wherever it floats, a wall it sank into included.
+            return index >= 0 && owner == null && blocked(eyes, point, Math.sqrt(distance)) ? -1 : index;
         }
 
         /** Whether a block stands between the eyes and a point on the panel. */
@@ -240,8 +469,22 @@ public final class WorldBoard {
             Consumer<ScreenEvent> handler = shift && node.onShiftClick() != null ? node.onShiftClick() : node.onClick();
             if (handler == null) return;
             if (screen.onInput() != null) screen.onInput().accept(this);
-            handler.accept(new ScreenEvent(this, click.kind() == SpatialClick.Kind.RIGHT
-                    ? ScreenEvent.Kind.RIGHT : ScreenEvent.Kind.LEFT, 0, node.id(), null, shift));
+            if (shift) sneakClicked = true;
+            clicking = true;
+            closeAfterClick = false;
+            try {
+                handler.accept(new ScreenEvent(this, click.kind() == SpatialClick.Kind.RIGHT
+                        ? ScreenEvent.Kind.RIGHT : ScreenEvent.Kind.LEFT, 0, node.id(), null, shift));
+            } finally {
+                clicking = false;
+            }
+            // Code written for a chest closes it with closeInventory() before a game or a prompt: so does the board,
+            // unless the click went on to ask something.
+            if (closeAfterClick && owner != null
+                    && !net.exylia.lib.input.internal.InputRuntime.hasActive(viewer.getUniqueId())) {
+                drop();
+                return;
+            }
             render();
         }
 
@@ -253,12 +496,17 @@ public final class WorldBoard {
             Map<String, Look> looks = looks(laid);
             placed = laid;
             List<PacketWrapper<?>> frame = new ArrayList<>(looks.size() + 4);
-            Vector3d at = new Vector3d(centre.getX(), centre.getY(), centre.getZ());
+            Location here = centre;
+            float facing = yaw;
+            Vector3d at = new Vector3d(here.getX(), here.getY(), here.getZ());
             for (Map.Entry<String, Look> look : looks.entrySet()) {
                 if (!sent.containsKey(look.getKey())) {
                     int id = ids.getAsInt();
                     sent.put(look.getKey(), id);
-                    frame.add(ScreenPackets.spawnDisplay(id, at, yaw));
+                    frame.add(look.getKey().endsWith(ITEM) ? ScreenPackets.spawnItem(id, at, facing)
+                            : ScreenPackets.spawnDisplay(id, at, facing));
+                    // A following board glides when it moves.
+                    if (owner != null) frame.add(ScreenPackets.moveTicks(id, GLIDE));
                 }
             }
             List<Integer> gone = new ArrayList<>();
@@ -341,6 +589,16 @@ public final class WorldBoard {
                     out.put(box.key() + "#t", id -> ScreenPackets.text(id, tx, ty, (layer + 1) * LAYER, scale, 1,
                             text, 0, count, flags, FIXED));
                 }
+                if (node.item() != null) {
+                    double side = Math.min(box.w() - node.padLeft() - node.padRight(), box.h() - node.padTop() - node.padBottom());
+                    double ix = (box.x() + node.padLeft() + (box.w() - node.padLeft() - node.padRight()) / 2 - w / 2) * unit;
+                    double iy = (h / 2 - box.y() - node.padTop() - (box.h() - node.padTop() - node.padBottom()) / 2) * unit;
+                    // A hovered item grows a little, as a slot under the cursor would.
+                    double size = side * unit * (over && node.hoverTransform() == null ? 1.15 : 1);
+                    org.bukkit.inventory.ItemStack item = node.item();
+                    if (side > 0) out.put(box.key() + ITEM, id -> ScreenPackets.item(id, ix, iy, (layer + 2) * LAYER,
+                            size, 1, item, 0, FIXED));
+                }
             }
             return out;
         }
@@ -362,6 +620,13 @@ public final class WorldBoard {
             if (dropped) return;
             dropped = true;
             views.remove(viewer.getUniqueId(), this);
+            if (owner != null) {
+                // A following board is this one view: it ends with it.
+                removed = true;
+                FOLLOWING.remove(viewer.getUniqueId(), this);
+                if (tracker != null) tracker.cancel();
+                if (ticker != null) ticker.cancel();
+            }
             if (pointer != null) pointer.detach();
             if (!sent.isEmpty()) {
                 wire.send(List.of(ScreenPackets.destroy(sent.values().stream().mapToInt(Integer::intValue).toArray())));
@@ -402,6 +667,15 @@ public final class WorldBoard {
         @Override
         public void close() {
             drop();
+        }
+
+        @Override
+        public boolean back() {
+            var back = screen.onBack();
+            if (back == null || dropped) return false;
+            boolean went = back.test(this);
+            if (went) redraw();
+            return went;
         }
     }
 

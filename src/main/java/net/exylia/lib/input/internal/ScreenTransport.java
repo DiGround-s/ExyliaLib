@@ -72,7 +72,8 @@ public final class ScreenTransport implements Transport {
         // Held by a camera the question goes through the next transport: a dialog or chat is seen from anywhere.
         // A request naming this transport comes from a screen (a game's screen form) whatever the player's menus are.
         boolean asked = request.preferredTransports().contains(kind()) && MenuStyles.canShowScreens(player);
-        if (!asked && !MenuStyles.of(owner).screens(player) || net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player)) return false;
+        // A board player keeps walking: a question at their eyes would stop them, so it goes to a dialog or chat.
+        if (!asked && MenuStyles.of(owner).resolve(player) != net.exylia.lib.ui.MenuStyle.SCREEN || net.exylia.lib.screen.internal.ScreenRuntime.cameraHeld(player)) return false;
         ScreenSearch<?> finder = search == null ? null : search.owner(owner);
         Screen screen = Screen.of(s -> finder != null ? finder.draw(s) : keypad != null ? keypad.draw(s)
                         : dialog(s, session, request, options))

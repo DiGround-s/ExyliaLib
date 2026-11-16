@@ -2,6 +2,7 @@ package net.exylia.lib.screen;
 
 import net.exylia.lib.config.Comment;
 import net.exylia.lib.config.Menu;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
@@ -30,12 +31,18 @@ import java.util.Map;
  * @param cursorAssist whether cursor assist is on for players who did not choose (since 1.547.0)
  * @param firstScreenSetup whether a player is asked to fit screens and the HUD to their window the first time they
  *                         meet either (since 1.558.0; the fitting since 1.584.0)
+ * @param adminStyle   {@code CLASSIC} keeps admin menus chest windows, {@code FOLLOW} lets them follow the style
+ *                     (since 1.562.0)
+ * @param board        how a BOARD menu floats in front of the player (since 1.617.0)
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
 @Comment("")
 @Comment("CLASSIC opens chest windows. SCREEN opens full-screen menus drawn")
 @Comment("in front of the player, with a mouse cursor and no resource pack.")
+@Comment("BOARD floats the menu as a panel in the world in front of the")
+@Comment("player, who keeps walking and aims with the crosshair; a plugin")
+@Comment("that has no boards shows SCREEN instead.")
 @Comment("A client that cannot draw screens (Bedrock, or older than 1.20.2)")
 @Comment("always gets chest windows.")
 @Comment("")
@@ -44,10 +51,10 @@ import java.util.Map;
 public record ScreenSettings(
 
         @Comment("The style of every plugin that does not set its own")
-        @Comment("menu-style (or sets it to DEFAULT). CLASSIC or SCREEN.")
+        @Comment("menu-style (or sets it to DEFAULT). CLASSIC, SCREEN or BOARD.")
         @Menu.Label("Default style") @Menu.Icon("CHEST")
         @Menu.About({"How menus open unless a plugin", "or the player says otherwise."})
-        @Menu.Choices(value = {"CLASSIC", "SCREEN"}, labels = {"Chest windows", "Screens"})
+        @Menu.Choices(value = {"CLASSIC", "SCREEN", "BOARD"}, labels = {"Chest windows", "Screens", "Floating board"})
         String defaultStyle,
 
         @Comment("Whether players may choose chest windows or screens for")
@@ -150,8 +157,55 @@ public record ScreenSettings(
         @Menu.Label("Admin menus") @Menu.Icon("COMMAND_BLOCK")
         @Menu.About({"Admin menus as chest windows,", "or following the menu style."})
         @Menu.Choices(value = {"CLASSIC", "FOLLOW"}, labels = {"Chest windows", "Follow the style"})
-        String adminStyle
+        String adminStyle,
+
+        @Comment("How a BOARD menu floats in front of the player.")
+        Board board
 ) {
+
+    /**
+     * A BOARD menu: a panel in the world in front of the player, who is not frozen. It glides back in front of them
+     * when they walk away from it or turn well away.
+     *
+     * @param distance       blocks from the eyes to the panel
+     * @param width          blocks across; the height follows the screen's shape
+     * @param closeWithSneak whether a sneak with no click closes it (sneak and click is a shift-click)
+     * @since 1.617.0
+     */
+    public record Board(
+            @Comment("Blocks from the player's eyes to the panel.")
+            @Menu.Label("Board distance") @Menu.Icon("LEAD") @Menu.Range(min = 1.5, max = 6)
+            double distance,
+
+            @Comment("How wide the panel is, in blocks. Its height follows the menu.")
+            @Menu.Label("Board width") @Menu.Icon("PAINTING") @Menu.Range(min = 1, max = 8)
+            double width,
+
+            @Comment("Whether sneaking without clicking closes it. Sneak and click")
+            @Comment("is a shift-click either way.")
+            @Menu.Label("Close with sneak") @Menu.Icon("LEATHER_BOOTS")
+            boolean closeWithSneak
+    ) {
+
+        /** 2.6 blocks away, 4.2 wide, a sneak closes it. */
+        public Board() {
+            this(2.6, 4.2, true);
+        }
+    }
+
+    /** The settings as they were before 1.617.0, with the default board. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat, String cursorMode, boolean cursorAssist,
+                          boolean firstScreenSetup, String adminStyle) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, firstScreenSetup, adminStyle, new Board());
+    }
+
+    /** The board in force, never {@code null}. @since 1.617.0 */
+    public @NotNull Board boardOrDefault() {
+        return board == null ? new Board() : board;
+    }
 
     /** CLASSIC for everyone, players may choose, cards on, full motion. */
     public ScreenSettings() {

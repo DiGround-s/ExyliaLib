@@ -311,6 +311,25 @@ final class ScreenPackets extends PacketListenerAbstract {
         PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, new WrapperPlayServerCamera(entity));
     }
 
+    /** An item display facing {@code yaw}, as {@link #spawnDisplay(int, Vector3d, float)} faces a text display. */
+    static PacketWrapper<?> spawnItem(int id, Vector3d at, float yaw) {
+        return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
+                0f, yaw, yaw, 0, Optional.empty());
+    }
+
+    /** The display's metadata field that times a teleport's glide (1.20.2+). */
+    private static final int POS_ROT_DURATION = 10;
+
+    /** How many ticks the client takes to glide a display to where a {@link #moveTo} puts it, 0 to jump. */
+    static PacketWrapper<?> moveTicks(int id, int ticks) {
+        return new WrapperPlayServerEntityMetadata(id, List.of(new EntityData<>(POS_ROT_DURATION, EntityDataTypes.INT, ticks)));
+    }
+
+    /** Moves a display and turns it to {@code yaw}; it glides over its {@link #moveTicks}. */
+    static PacketWrapper<?> moveTo(int id, Vector3d at, float yaw) {
+        return new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport(id, at, yaw, 0f, false);
+    }
+
     static PacketWrapper<?> spawnItem(int id, Vector3d at) {
         return new WrapperPlayServerSpawnEntity(id, Optional.of(UUID.randomUUID()), EntityTypes.ITEM_DISPLAY, at,
                 0f, 0f, 0f, 0, Optional.empty());
@@ -326,7 +345,13 @@ final class ScreenPackets extends PacketListenerAbstract {
 
     /** @param squeeze how narrowed across, 1 for not at all */
     static PacketWrapper<?> item(int id, double x, double y, double z, double size, double squeeze, ItemStack item, int glide) {
-        List<EntityData<?>> data = new ArrayList<>(itemPose(x, y, z, size, squeeze, glide));
+        return item(id, x, y, z, size, squeeze, item, glide, BILLBOARD_CENTER);
+    }
+
+    /** @param billboard 3 to turn with the view, 0 to stand fixed at the entity's own yaw (a screen in the world) */
+    static PacketWrapper<?> item(int id, double x, double y, double z, double size, double squeeze, ItemStack item, int glide,
+                                 byte billboard) {
+        List<EntityData<?>> data = new ArrayList<>(itemPose(x, y, z, size, squeeze, glide, billboard));
         data.add(new EntityData<>(ITEM, EntityDataTypes.ITEMSTACK, converted(item)));
         data.add(new EntityData<>(ITEM_CONTEXT, EntityDataTypes.BYTE, CONTEXT_GUI));
         return new WrapperPlayServerEntityMetadata(id, data);
@@ -346,13 +371,18 @@ final class ScreenPackets extends PacketListenerAbstract {
     }
 
     private static List<EntityData<?>> itemPose(double x, double y, double z, double size, double squeeze, int glide) {
+        return itemPose(x, y, z, size, squeeze, glide, BILLBOARD_CENTER);
+    }
+
+    private static List<EntityData<?>> itemPose(double x, double y, double z, double size, double squeeze, int glide,
+                                                byte billboard) {
         return List.of(
                 new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
                 new EntityData<>(TRANSFORM_DURATION, EntityDataTypes.INT, glide),
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f((float) x, (float) y, (float) z)),
                 new EntityData<>(LEFT_ROTATION, EntityDataTypes.QUATERNION, FACING_VIEWER),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) (size * squeeze), (float) size, (float) (size * FLAT))),
-                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, billboard),
                 new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT));
     }
 

@@ -1748,7 +1748,7 @@ World: Mundo
 'You are on the first page.': 'Estás en la primera página.'
 'You are on the last page.': 'Estás en la última página.'
 '{letters_black}▎ {error}Name a player': '{letters_black}▎ {error}Nombra a un jugador'
-'{letters_black}▎ {error}Style must be classic, screen or default': '{letters_black}▎ {error}El estilo debe ser classic, screen o default'
+'{letters_black}▎ {error}Style must be classic, screen, board or default': '{letters_black}▎ {error}El estilo debe ser classic, screen, board o default'
 '{letters_black}▎ {success}Menu style cleared {letters_black}» {letters}{0}': '{letters_black}▎ {success}Estilo de menú quitado {letters_black}» {letters}{0}'
 '{letters_black}▎ {success}Menu style set {letters_black}» {letters}{0}{letters_black}: {info}{1}': '{letters_black}▎ {success}Estilo de menú aplicado {letters_black}» {letters}{0}{letters_black}: {info}{1}'
 '{letters_black}▎ {warning}{0} cannot draw screens, they still get classic menus': '{letters_black}▎ {warning}{0} no puede dibujar pantallas, seguirá con menús clásicos'
@@ -1799,6 +1799,7 @@ Done: Listo
 Server's choice: Lo que elija el servidor
 Chest windows: Ventanas de cofre
 Screens: Pantallas
+Floating board: Tablero flotante
 Ctrl + Space opens this from anywhere: Ctrl + Espacio lo abre desde cualquier lado
 'First screen: set its size and cursor speed': 'Primera pantalla: ajusta su tamaño y la velocidad del cursor'
 Type to narrow it down: 'Escribe para acotar'

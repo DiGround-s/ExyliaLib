@@ -19,10 +19,20 @@ public enum MenuStyle {
      * Screens: a menu with a screen of its own opens that screen, and every other chest menu is drawn as cards
      * on a screen, its clicks still handled by the chest menu.
      */
-    SCREEN;
+    SCREEN,
 
     /**
-     * Reads a style as a config file writes it: {@code CLASSIC} or {@code SCREEN}, in any case. A
+     * A board: the screen floats as a flat panel in the world in front of the player, who is not frozen, keeps
+     * walking and aims with the crosshair ({@link net.exylia.lib.screen.Screens#openBoard}). Only a plugin that says
+     * it handles boards ({@link MenuStyles#boards(boolean)}) is ever handed it; every other plugin gets
+     * {@link #SCREEN} where BOARD was chosen.
+     *
+     * @since 1.617.0
+     */
+    BOARD;
+
+    /**
+     * Reads a style as a config file writes it: {@code CLASSIC}, {@code SCREEN} or {@code BOARD}, in any case. A
      * {@code MenuStyle} is returned as it is.
      *
      * @return the style, or {@code null} for {@code DEFAULT}, a blank value, {@code null} or anything else, which
@@ -34,6 +44,7 @@ public enum MenuStyle {
         return switch (value.toString().trim().toUpperCase(Locale.ROOT)) {
             case "CLASSIC", "CHEST", "MENU" -> CLASSIC;
             case "SCREEN", "SCREENS" -> SCREEN;
+            case "BOARD", "BOARDS" -> BOARD;
             default -> null;
         };
     }

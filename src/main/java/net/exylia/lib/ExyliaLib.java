@@ -359,6 +359,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Players' menu style and screen preferences are library settings, kept in this plugin's own database: after
         // the database module, so a reload with players online can read theirs.
         net.exylia.lib.ui.MenuStyles.init(this);
+        net.exylia.lib.screen.internal.WorldBoard.init(this);
         net.exylia.lib.screen.internal.ScreenPreferences.init(this);
         // The name-to-id directory. After the proxy and the skull module,
         // whose bridge and whose Mojang client are its two expensive tiers.

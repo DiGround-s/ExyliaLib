@@ -88,7 +88,7 @@ in-screen panel:
 - **Cursor**, how the arrow follows the mouse (1.546.0): Normal, Raw or Prediction. See "The cursor modes".
 - **Cursor assist**, Off or On (1.547.0): makes buttons easier to hit. See "Cursor assist".
 - **Reduced motion**, as `Screens.reducedMotion`.
-- **Menu style**, while `player-choice` is on: the server's choice, chest windows or screens, for menus opened after.
+- **Menu style**, while `player-choice` is on: the server's choice, chest windows, screens or a floating board (1.617.0), for menus opened after.
 - **Reset** forgets all of them.
 
 Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a size so large the button is out of view.
@@ -316,7 +316,42 @@ board.remove(); // on disable: it is sent as packets, nothing is saved in the wo
   client, so left-click is the one that always works.
 - It redraws every second (placeholders), on hover, on click and on `set`; each look keeps its display, so only
   what changed is sent and a box that goes is destroyed.
-- Drawn: boxes, outlines, text (a gradient takes its middle colour). Not drawn: items, images, motion, tooltips.
+- Drawn: boxes, outlines, text (a gradient takes its middle colour) and, since 1.617.0, items. Not drawn: images,
+  motion, tooltips.
+
+## Boards in front of the player (1.617.0)
+
+`Screens.of(plugin).openBoard(player, screen)` opens any screen as a board floating in front of one player, the
+way `open` puts it at their eyes. It returns a `ScreenSession` like `open` (`null` without PacketEvents or while a
+camera holds the player), and `session(player)`, `close(player)` and `redrawAll` cover it too. One player has a
+screen or a board, never both: each open closes the other.
+
+- It stands `board.distance` blocks ahead of the eyes, at eye height, `board.width` blocks wide, upright whatever
+  the pitch. Nobody is frozen: the player walks, looks around, aims with the crosshair and clicks; a sneak-click is
+  a shift-click (`ScreenEvent.shift()`).
+- It follows lazily: when the eyes are more than 1.5 blocks from where it sat down, or the view turns more than 55°
+  from it, its displays glide back in front (an entity teleport with a 6-tick client glide, nothing respawned). A
+  move past 8 blocks (a teleport) draws it again there.
+- It closes on a sneak with no click (`board.close-with-sneak`), damage, death, quit, a world change, a camera
+  taking the player, another window opening, `session.close()`, and a click whose handler calls
+  `closeInventory()` (chest code going to a game or a prompt), unless that click went on to ask something.
+- Drawn as a world screen (boxes, outlines, text, items); no pictures, motion or tooltips. A board is its player's:
+  no wall hides its buttons.
+- Questions (`inputs()`) asked from a board go to a dialog or chat, never a screen at the eyes.
+
+```yaml
+# screens.yml
+board:
+  distance: 2.6          # blocks in front of the eyes
+  width: 4.2             # blocks across
+  close-with-sneak: true # a sneak with no click closes it
+```
+
+Plugin menus open as boards when the viewer's style is `BOARD` and the plugin said it handles them, on enable:
+
+```java
+MenuStyles.of(this).boards(true);
+```
 
 ## Markup (since 1.485.0)
 
@@ -1201,7 +1236,15 @@ the words twenty screens of one kit have in common.
 ## Chest windows or screens: menu style (1.495.0)
 
 Every plugin's chest menus can open as screens with no code of its own. Which one a player gets is a
-`MenuStyle` (`net.exylia.lib.ui`): `CLASSIC` (chest windows, the default) or `SCREEN`. `Menus.of(plugin).open*`
+`MenuStyle` (`net.exylia.lib.ui`):
+
+| Style | Menus open as | Config spellings |
+|---|---|---|
+| `CLASSIC` | chest windows, the default | `CLASSIC` |
+| `SCREEN` | a screen at the eyes; the player stands still | `SCREEN` |
+| `BOARD` (1.617.0) | a board floating in front of the player, who keeps walking ([Boards in front of the player](#boards-in-front-of-the-player-1617-0)) | `BOARD`, `BOARDS` |
+
+ `Menus.of(plugin).open*`
 asks `MenuStyles` on every open; in `SCREEN` the chest menu still runs as always (rows, context, actions, pages,
 redraws, `UiKeys.SESSION`), but its window is never opened and a screen draws it instead:
 
@@ -1246,12 +1289,17 @@ The first rule that answers wins:
 | 5 | The server's choice for that plugin | `plugins/ExyliaLib/screens.yml` `plugins: {ExyliaJobs: SCREEN}` |
 | 6 | The server's default, `CLASSIC` as shipped | `screens.yml` `default-style` |
 
+Whatever rule answers `BOARD`, a plugin that has not called `MenuStyles.of(plugin).boards(true)` gets `SCREEN`
+instead, so a server can choose boards everywhere and plugins that do not handle them keep screens. Rule 1 still
+gives `CLASSIC`. `screens(player)` is true for `SCREEN` and `BOARD` (both are drawn as screens); ask `resolve` to
+tell them apart. A game's form follows `SCREEN` only: a `BOARD` player plays games in the world.
+
 ### Trying a style: `/exylialib style`
 
 `/exylialib style game screen|3d|default [player] [plugin]` (1.531.0) tries which form a game is played in, on top of
 the style, until it is cleared or the player leaves: see [Giving a game its screen form](#giving-a-game-its-screen-form).
 
-`/exylialib style <classic|screen|default> [player] [plugin]` (permission `exylialib.admin`) switches a player's
+`/exylialib style <classic|screen|board|default> [player] [plugin]` (permission `exylialib.admin`) switches a player's
 menu style instantly, with no config edit: without a player it is you, without a plugin it covers every plugin,
 with one only that plugin's menus (names tab-complete from the plugins that use `MenuStyles`). `default` clears
 the player's overrides (all of them, or just that plugin's when one is named). It applies to the next menu opened.
@@ -1260,13 +1308,14 @@ A client that cannot draw screens still gets `CLASSIC`, and the command says so.
 `screens.yml` (`ScreenSettings`, editable in game with `/exylialib config`):
 
 ```yaml
-default-style: CLASSIC     # CLASSIC or SCREEN, for every plugin that does not choose
+default-style: CLASSIC     # CLASSIC, SCREEN or BOARD, for every plugin that does not choose
 player-choice: true        # players may pick their own in /settings
 plugins: {}                # ExyliaJobs: SCREEN
 chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
 cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
 cursor-assist: false       # makes buttons easier to hit, for players who did not choose (1.547.0)
 admin-style: CLASSIC       # admin menus as chest windows, or FOLLOW the style (1.562.0)
+board: {distance: 2.6, width: 4.2, close-with-sneak: true}   # BOARD menus (1.617.0)
 ```
 
 A plugin with a `menu-style` key of its own hands it over once, on enable:
@@ -1278,6 +1327,7 @@ MenuStyles.of(this).defaultStyle(() -> settings.get().ui().menuStyle());   // "C
 | Call | Answers |
 |---|---|
 | `MenuStyles.of(plugin).resolve(player)` / `.screens(player)` | the style that player gets for that plugin now |
+| `MenuStyles.of(plugin).boards(true)` | this plugin opens `BOARD` menus as boards; without it they are `SCREEN` |
 | `MenuStyles.canShowScreens(player)` | rule 1 |
 | `MenuStyles.choice(player)` / `MenuStyles.choose(player, style)` | the player's own pick (`null` = the server's); kept across restarts, any thread |
 | `MenuStyles.choosable()` | whether `player-choice` is on |

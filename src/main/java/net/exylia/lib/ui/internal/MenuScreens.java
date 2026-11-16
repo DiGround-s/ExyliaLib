@@ -76,7 +76,8 @@ final class MenuScreens {
         MenuStyles styles = MenuStyles.of(runtime.plugin());
         // Admin menus stay windows, unless the viewer asked for screens with /exylialib style.
         if (ScreenSettings.get().adminWindows() && admin(definition.id())
-                && styles.staffOverride(viewer) != net.exylia.lib.ui.MenuStyle.SCREEN) return false;
+                && styles.staffOverride(viewer) != net.exylia.lib.ui.MenuStyle.SCREEN
+                && styles.staffOverride(viewer) != net.exylia.lib.ui.MenuStyle.BOARD) return false;
         if (!styles.screens(viewer)) return false;
         return ScreenRoutes.find(runtime.plugin(), definition.id()) != null || ScreenSettings.get().chestSkin();
     }
@@ -131,7 +132,9 @@ final class MenuScreens {
         // The back action goes to the menu this one was opened from, as the window's back button would.
         screen.onBack(session -> back(shown));
         SHOWN.put(viewer.getUniqueId(), shown);
-        ScreenSession opened = Screens.of(plugin).open(viewer, screen);
+        // A plugin that handles boards shows them floating in front of a player who chose them.
+        ScreenSession opened = MenuStyles.of(plugin).resolve(viewer) == net.exylia.lib.ui.MenuStyle.BOARD
+                ? Screens.of(plugin).openBoard(viewer, screen) : Screens.of(plugin).open(viewer, screen);
         if (opened == null) {
             SHOWN.remove(viewer.getUniqueId(), shown);
             return false;

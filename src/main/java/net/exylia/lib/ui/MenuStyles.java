@@ -58,6 +58,7 @@ public final class MenuStyles {
 
     private final Plugin plugin;
     private volatile Supplier<?> defaultStyle = () -> null;
+    private volatile boolean boards;
 
     private MenuStyles(Plugin plugin) {
         this.plugin = plugin;
@@ -77,7 +78,28 @@ public final class MenuStyles {
         return this;
     }
 
-    /** The style {@code player} gets for this plugin's menus now. Safe from any thread. */
+    /**
+     * Says this plugin handles {@link MenuStyle#BOARD}: {@link #resolve} may answer it, and the plugin opens its own
+     * screens with {@link net.exylia.lib.screen.Screens#openBoard} when it does. Its chest menus and routed screens
+     * become boards on their own. Off by default, so a plugin written before boards, which only knows CLASSIC and
+     * SCREEN, is never handed BOARD: it gets SCREEN where a player or the server chose BOARD.
+     *
+     * @since 1.617.0
+     */
+    public @NotNull MenuStyles boards(boolean handled) {
+        this.boards = handled;
+        return this;
+    }
+
+    /** Whether this plugin said it handles boards ({@link #boards(boolean)}). @since 1.617.0 */
+    public boolean boards() {
+        return boards;
+    }
+
+    /**
+     * The style {@code player} gets for this plugin's menus now. Safe from any thread. {@link MenuStyle#BOARD} only for
+     * a plugin that {@linkplain #boards(boolean) handles boards}; SCREEN in its place for every other.
+     */
     public @NotNull MenuStyle resolve(@NotNull Player player) {
         ScreenSettings settings = ScreenSettings.get();
         Object own;
@@ -87,9 +109,14 @@ public final class MenuStyles {
             own = null;
         }
         Map<String, String> plugins = settings.plugins();
-        return decide(canShowScreens(player), staffOverride(player), settings.playerChoice() ? choice(player) : null,
+        return own(decide(canShowScreens(player), staffOverride(player), settings.playerChoice() ? choice(player) : null,
                 MenuStyle.parse(own), plugins == null ? null : MenuStyle.parse(plugins.get(plugin.getName())),
-                MenuStyle.parse(settings.defaultStyle()));
+                MenuStyle.parse(settings.defaultStyle())));
+    }
+
+    /** BOARD as this plugin can take it: SCREEN for one that does not handle boards. */
+    private @Nullable MenuStyle own(@Nullable MenuStyle style) {
+        return style == MenuStyle.BOARD && !boards ? MenuStyle.SCREEN : style;
     }
 
     /**
@@ -100,18 +127,22 @@ public final class MenuStyles {
      */
     public @Nullable MenuStyle chosen(@NotNull Player player) {
         MenuStyle staff = staffOverride(player);
-        if (staff != null) return staff;
-        return ScreenSettings.get().playerChoice() ? choice(player) : null;
+        if (staff != null) return own(staff);
+        return own(ScreenSettings.get().playerChoice() ? choice(player) : null);
     }
 
-    /** Whether {@code player} gets screens for this plugin's menus now. */
+    /**
+     * Whether {@code player} gets screens for this plugin's menus now: SCREEN, or BOARD (a screen floating in the world)
+     * for a plugin that {@linkplain #boards(boolean) handles boards}. Ask {@link #resolve} to tell the two apart.
+     */
     public boolean screens(@NotNull Player player) {
-        return resolve(player) == MenuStyle.SCREEN;
+        MenuStyle style = resolve(player);
+        return style == MenuStyle.SCREEN || style == MenuStyle.BOARD;
     }
 
     /**
      * The form {@code player} gets for a game of this plugin: a screen for a player whose menu style is SCREEN, the
-     * world for one on chest windows. Ask once, at the start of a round. Safe from any thread.
+     * world for one on chest windows or a board (a game is not drawn on a board). Ask once, at the start of a round. Safe from any thread.
      *
      * @since 1.531.0
      */
@@ -260,11 +291,11 @@ public final class MenuStyles {
             }
         }, lib);
         Settings.category(lib, "interface", "ITEM_FRAME", "Interface", "How menus look to you.");
-        Settings.register(lib, Setting.choice(SETTING, "default", "default", "classic", "screen")
+        Settings.register(lib, Setting.choice(SETTING, "default", "default", "classic", "screen", "board")
                 .category("interface")
                 .icon("ITEM_FRAME")
                 .name("Menu style")
-                .label("default", "Server's choice").label("classic", "Chest windows").label("screen", "Screens")
+                .label("default", "Server's choice").label("classic", "Chest windows").label("screen", "Screens").label("board", "Floating board")
                 .description("Chest windows, or full-screen", "menus with a {highlight}mouse cursor{letters}.")
                 .available(MenuStyles::choosable, "Chosen by the server")
                 .build());

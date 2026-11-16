@@ -107,12 +107,17 @@ final class SettingsPanel {
 
     private static MenuStyle nextStyle(MenuStyle style) {
         if (style == null) return MenuStyle.CLASSIC;
-        return style == MenuStyle.CLASSIC ? MenuStyle.SCREEN : null;
+        if (style == MenuStyle.CLASSIC) return MenuStyle.SCREEN;
+        return style == MenuStyle.SCREEN ? MenuStyle.BOARD : null;
     }
 
     private static String styleName(MenuStyle style) {
         if (style == null) return Phrases.tr("Server's choice");
-        return Phrases.tr(style == MenuStyle.CLASSIC ? "Chest windows" : "Screens");
+        return Phrases.tr(switch (style) {
+            case CLASSIC -> "Chest windows";
+            case SCREEN -> "Screens";
+            case BOARD -> "Floating board";
+        });
     }
 
     private static Node row(String label, Node control) {
