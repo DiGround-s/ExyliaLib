@@ -697,6 +697,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // should not need a restart.
         CleanupRuntime.reload();
         LibraryMessages.reload();
+        net.exylia.lib.party.Parties.reload();
         // A rank edited in the permissions plugin is honoured now rather than
         // when the cached permission modifiers expire.
         net.exylia.lib.modifier.internal.ModifierRuntime.reload();
@@ -868,6 +869,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Prefixes.releaseAll();
         Reloads.releaseAll();
         Sessions.releaseAll();
+        net.exylia.lib.party.Parties.shutdown();
         net.exylia.lib.player.internal.PlayerRuntime.shutdown();
         Debug.releaseAll();
     }
@@ -1326,6 +1328,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // strand a repository asked for during the plugin's own teardown.
         Configs.release(plugin);
         net.exylia.lib.config.internal.DefaultUpdates.release(plugin.getName());
+        net.exylia.lib.party.Parties.release(plugin.getName());
         // Last: everything above reports through it, so a line written while
         // the plugin lets go still names the plugin it belongs to.
         Debug.release(plugin);

@@ -36,6 +36,7 @@ public final class LibCommands {
         lamp.register(new ScreensCommand());
         lamp.register(new StyleCommand());
         lamp.register(new SetupCommand());
+        net.exylia.lib.party.Parties.init(plugin, () -> PartyCommand.install(lamp, plugin.getLogger()));
         LibrarySettings.PlayerSettings.Command settings = LibrarySettings.get().settings().command();
         if (settings.enabled() && settings.name() != null && !settings.name().isBlank()) {
             java.util.List<String> names = new java.util.ArrayList<>();

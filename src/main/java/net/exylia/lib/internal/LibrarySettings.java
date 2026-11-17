@@ -176,8 +176,59 @@ public record LibrarySettings(
 
         @Key("network-group")
         @Comment("This server's group on the network (survival, boxpvp...). Empty for none.")
-        String networkGroup
+        String networkGroup,
+
+        @Comment("Player parties (/party), shared by every plugin that groups players: dungeons,")
+        @Comment("duels, events. The command only appears once a plugin uses parties.")
+        Parties parties
 ) {
+
+    /**
+     * The {@code parties:} block.
+     *
+     * @param command     the /party command
+     * @param maxSize     most members a party holds, leader included
+     * @param inviteExpiry how long an invitation waits for an answer
+     * @param rejoinGrace how long a member who left the server keeps their place
+     * @since 1.621.0
+     */
+    public record Parties(
+            PlayerSettings.Command command,
+
+            @Comment("Most members in one party, the leader included. At least 2.")
+            int maxSize,
+
+            @Comment("How long an invitation waits for an answer.")
+            java.time.Duration inviteExpiry,
+
+            @Comment("How long a member who left the server keeps their place before leaving the party.")
+            java.time.Duration rejoinGrace
+    ) {
+
+        /** The default: /party (and /p), five members, a minute to answer, five minutes to come back. */
+        public Parties() {
+            this(new PlayerSettings.Command(true, "party", java.util.List.of("p")), 5,
+                    java.time.Duration.ofSeconds(60), java.time.Duration.ofMinutes(5));
+        }
+
+        public Parties {
+            if (command == null) command = new PlayerSettings.Command(true, "party", java.util.List.of("p"));
+            if (inviteExpiry == null || inviteExpiry.isNegative() || inviteExpiry.isZero()) inviteExpiry = java.time.Duration.ofSeconds(60);
+            if (rejoinGrace == null || rejoinGrace.isNegative()) rejoinGrace = java.time.Duration.ofMinutes(5);
+            maxSize = Math.max(2, maxSize);
+        }
+    }
+
+    /** The settings before parties had any. */
+    public LibrarySettings(String language, boolean autoUpdate, int updateCheckMinutes, boolean debug, boolean smallText,
+                           String textShadow, String fallbackHead, String timezone, String ragdollSkinQuality,
+                           Metrics metrics, PluginUpdates pluginUpdates, WebEditor webEditor, String webhookHead,
+                           PlayerSettings settings, Toasts toasts, Notices notices, Logs logs, boolean shareDatabase,
+                           String networkGroup) {
+        this(language, autoUpdate, updateCheckMinutes, debug, smallText, textShadow, fallbackHead, timezone,
+                ragdollSkinQuality, metrics, pluginUpdates, webEditor, webhookHead, settings, toasts, notices, logs,
+                shareDatabase, networkGroup, new Parties());
+    }
 
     /**
      * The {@code toasts:} block.
@@ -393,7 +444,7 @@ public record LibrarySettings(
     /** Safe defaults used when no config file exists yet. */
     public LibrarySettings() {
         this(Languages.ENGLISH, true, 30, false, true, "auto:0.4", DEFAULT_FALLBACK_HEAD, "", "normal", new Metrics(),
-                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false, "");
+                new PluginUpdates(), new WebEditor(), DEFAULT_WEBHOOK_HEAD, new PlayerSettings(), new Toasts(), new Notices(), new Logs(), false, "", new Parties());
     }
 
     private static volatile LibrarySettings instance;

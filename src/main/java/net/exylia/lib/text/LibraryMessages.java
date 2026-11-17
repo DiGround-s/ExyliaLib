@@ -65,27 +65,37 @@ public record LibraryMessages(
         @NotNull Logs logs,
 
         @Comment("Setting a table down by clicking its chairs, and the line over each seat.")
-        @NotNull Tables tables
+        @NotNull Tables tables,
+
+        @Comment("What /party says: invitations, members coming and going, party chat and ready checks.")
+        @NotNull net.exylia.lib.party.PartyMessages parties
 ) {
 
     /** The Exylia defaults. */
     public LibraryMessages() {
-        this(new Wizard(), new Selection(), new Players(), new Purchase(), new Logs(), new Tables());
+        this(new Wizard(), new Selection(), new Players(), new Purchase(), new Logs(), new Tables(),
+                new net.exylia.lib.party.PartyMessages());
+    }
+
+    /** The messages before parties had any, with their defaults. */
+    public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase, Logs logs,
+                           Tables tables) {
+        this(wizard, selection, players, purchase, logs, tables, null);
     }
 
     /** The messages before tables had any, with their defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase, Logs logs) {
-        this(wizard, selection, players, purchase, logs, null);
+        this(wizard, selection, players, purchase, logs, null, null);
     }
 
     /** The messages before the staff log had any, with its defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players, Purchase purchase) {
-        this(wizard, selection, players, purchase, null, null);
+        this(wizard, selection, players, purchase, null, null, null);
     }
 
     /** The messages before purchases had any, with the purchase defaults. */
     public LibraryMessages(Wizard wizard, Selection selection, Players players) {
-        this(wizard, selection, players, null, null, null);
+        this(wizard, selection, players, null, null, null, null);
     }
 
     public LibraryMessages {
@@ -106,6 +116,9 @@ public record LibraryMessages(
         }
         if (tables == null) {
             tables = new Tables();
+        }
+        if (parties == null) {
+            parties = new net.exylia.lib.party.PartyMessages();
         }
     }
 

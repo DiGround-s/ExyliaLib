@@ -98,6 +98,8 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Screen performance](screens-performance.md) | Display and packet budgets, the detail ladder, what is diffed or resent, caches and the wire numbers the tests assert | 1.483.0 |
 | [Crate scene](crate-scene.md) | The in-world crate opening: a crate built from displays, a reel slowing onto the server's prize, a rarity-scaled reveal and the prize tried on, "open another" and "done"; `crate.opening: SPATIAL` in any crate | 1.418.0 |
 | [Lobby](lobby.md) | Tables, seats and invitations: open tables, invitations answered with clickable buttons, min and max seats, start when full or on the host's word, expiry, a seat dropping mid-play, one table per player server-wide — stakes stay with the plugin through hooks | 1.356.0 |
+| [Parties](parties.md) | Player parties shared by every plugin: /party (installed only when a plugin uses it), invitations with buttons, leader, kick, party chat, a rejoin grace period, ready checks, watchers for joins, leaves and ends | 1.621.0 |
+| [Downed](downed.md) | Downed instead of dead: a lethal hit leaves the player crawling on a bleed-out boss bar, a teammate sneaking beside them revives them; who goes down, who may revive, times and the bleed-out outcome are the plugin's | 1.621.0 |
 | [Logs](logs.md) | A staff audit log every plugin records into, browsed with /exylialib logs | 1.296.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
 | [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
