@@ -87,11 +87,14 @@ public final class SpatialPointer {
     private volatile boolean slotMoved;
     private volatile @Nullable TaskHandle timer;
     private volatile boolean ended;
+    /** Where it was made: Folia fires no {@code PlayerChangedWorldEvent}, so the poll checks it. */
+    private final org.bukkit.World world;
 
     SpatialPointer(SpatialInput input, Player viewer, boolean observing) {
         this.input = input;
         this.viewer = viewer;
         this.observing = observing;
+        this.world = viewer.getWorld();
         SpatialTheme theme = SpatialTheme.defaults();
         this.hoverSound = theme.hoverSound();
         this.pressSound = theme.selectSound();
@@ -276,6 +279,10 @@ public final class SpatialPointer {
     /** One poll: what is under the crosshair now. */
     void poll() {
         if (ended) return;
+        if (viewer.getWorld() != world) {
+            end(End.WORLD);
+            return;
+        }
         if (observing && (SpatialInput.active(viewer).isPresent() || Tuner.active(viewer).isPresent())) {
             // An attached pointer (a game, a menu) or the tuner has the player: the board is not theirs now.
             setHovered(null, -1);
