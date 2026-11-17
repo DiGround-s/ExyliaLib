@@ -17,6 +17,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Rows from other servers rank here, and resets start a span over without touching all time. */
@@ -113,6 +114,30 @@ class LeaderboardsTest {
         Leaderboards.syncForTests("level");
         assertTrue(table.where("board", "level").find().join().isEmpty());
         assertEquals(0, boards.view("level", Span.ALL_TIME).size());
+    }
+
+    @Test
+    void aSeasonRanksWhatWasGainedInsideItsWindow() {
+        assertEquals(0, boards.view("level", Span.SEASON).size());
+        assertTrue(boards.view("level", Span.SEASON).remaining().isEmpty());
+        boards.track("level", LeaderboardSource.placeholder("%level%"));
+        boards.season("level", java.time.Instant.ofEpochMilli(5), java.time.Instant.ofEpochMilli(50));
+        Leaderboards.syncForTests("level");
+        Leaderboards.sampleForTests("level", ANNA, "Anna", 10, 1);   // before it starts
+        Leaderboards.sampleForTests("level", ANNA, "Anna", 12, 10);  // running
+        Leaderboards.sampleForTests("level", ANNA, "Anna", 20, 40);
+        Leaderboards.sampleForTests("level", ANNA, "Anna", 99, 60);  // over
+        Leaderboards.syncForTests("level");
+        assertEquals(10, boards.view("level", Span.SEASON).valueOf(ANNA).orElseThrow());
+        assertEquals(99, boards.view("level", Span.ALL_TIME).valueOf(ANNA).orElseThrow());
+        assertEquals(java.time.Duration.ZERO, boards.view("level", Span.SEASON).remaining().orElseThrow());
+        assertThrows(IllegalArgumentException.class,
+                () -> boards.season("level", java.time.Instant.ofEpochMilli(5), java.time.Instant.ofEpochMilli(5)));
+
+        boards.reset("level", Span.SEASON).join();
+        Leaderboards.syncForTests("level");
+        assertEquals(0, boards.view("level", Span.SEASON).size());
+        assertEquals(99, boards.view("level", Span.ALL_TIME).valueOf(ANNA).orElseThrow());
     }
 
     private String[] keys() {

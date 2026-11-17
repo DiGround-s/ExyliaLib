@@ -87,4 +87,39 @@ class RankingTest {
         assertEquals(35, ranking.byPlayer().get(ANNA).value());
         assertEquals(0, Ranking.rank(rows, WEEK, THIS_WEEK[WEEK]).entries().size());
     }
+
+    private static String[] season(String key) {
+        String[] keys = java.util.Arrays.copyOf(THIS_WEEK, 5);
+        keys[Ranking.SEASON] = key;
+        return keys;
+    }
+
+    @Test
+    void aSeasonCountsOnlyWhatWasGainedWhileItRan() {
+        String s1 = "100-200#0";
+        // Seen before the season: nothing counts, the season key is still empty.
+        LeaderboardRow before = Ranking.sample(null, "xp", "*", ANNA, "p1", 10, season(""), false, 1);
+        LeaderboardRow early = Ranking.sample(before, "xp", "*", ANNA, "p1", 15, season(""), false, 2);
+        assertEquals(0, Ranking.counted(early, Ranking.SEASON, ""));
+        // It starts: the base is the last stored value.
+        LeaderboardRow started = Ranking.sample(early, "xp", "*", ANNA, "p1", 20, season(s1), true, 3);
+        assertEquals(5, Ranking.counted(started, Ranking.SEASON, s1));
+        LeaderboardRow running = Ranking.sample(started, "xp", "*", ANNA, "p1", 40, season(s1), true, 4);
+        assertEquals(25, Ranking.counted(running, Ranking.SEASON, s1));
+        // It ended: more gains do not count, the standing is frozen.
+        LeaderboardRow after = Ranking.sample(running, "xp", "*", ANNA, "p1", 90, season(s1), false, 5);
+        assertEquals(25, Ranking.counted(after, Ranking.SEASON, s1));
+        assertEquals(0, Ranking.counted(after, Ranking.SEASON, "200-300#0"));
+        // The next season starts from the value last stored.
+        LeaderboardRow next = Ranking.sample(after, "xp", "*", ANNA, "p1", 95, season("200-300#0"), true, 6);
+        assertEquals(5, Ranking.counted(next, Ranking.SEASON, "200-300#0"));
+    }
+
+    @Test
+    void rowsWithoutASeasonNeverChangeForIt() {
+        LeaderboardRow old = new LeaderboardRow("id", "kills", "*", ANNA, "p1", 40,
+                THIS_WEEK[0], 40, THIS_WEEK[1], 40, THIS_WEEK[2], 40, THIS_WEEK[3], 40, 1, null, 0, 0);
+        assertSame(old, Ranking.sample(old, "kills", "*", ANNA, "p1", 40, THIS_WEEK, 2));
+        assertEquals(0, Ranking.counted(old, Ranking.SEASON, null));
+    }
 }

@@ -20,6 +20,7 @@ import net.exylia.lib.database.Table;
  * @param week  resets of the weekly span
  * @param month resets of the monthly span
  * @param year  resets of the yearly span
+ * @param season resets of the season span (since 1.620.0)
  * @since 1.563.0
  */
 @Table(value = "exylia_leaderboards", cache = false, data = DataKind.PROGRESS)
@@ -28,20 +29,22 @@ public record LeaderboardMeta(
         @Column("day_resets") int day,
         @Column("week_resets") int week,
         @Column("month_resets") int month,
-        @Column("year_resets") int year) {
+        @Column("year_resets") int year,
+        @Column("season_resets") int season) {
 
     /** A board never reset. */
     public static LeaderboardMeta fresh(String board) {
-        return new LeaderboardMeta(board, 0, 0, 0, 0);
+        return new LeaderboardMeta(board, 0, 0, 0, 0, 0);
     }
 
-    /** Resets of a period: 0 day, 1 week, 2 month, 3 year. */
+    /** Resets of a period: 0 day, 1 week, 2 month, 3 year, 4 season. */
     public int resets(int period) {
         return switch (period) {
             case 0 -> day;
             case 1 -> week;
             case 2 -> month;
-            default -> year;
+            case 3 -> year;
+            default -> season;
         };
     }
 
@@ -51,6 +54,7 @@ public record LeaderboardMeta(
                 day + (period == 0 || period < 0 ? 1 : 0),
                 week + (period == 1 || period < 0 ? 1 : 0),
                 month + (period == 2 || period < 0 ? 1 : 0),
-                year + (period == 3 || period < 0 ? 1 : 0));
+                year + (period == 3 || period < 0 ? 1 : 0),
+                season + (period == 4 || period < 0 ? 1 : 0));
     }
 }

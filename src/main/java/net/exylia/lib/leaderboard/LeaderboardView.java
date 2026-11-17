@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -104,8 +105,18 @@ public final class LeaderboardView {
         return ranking().entries().size();
     }
 
-    /** How long until this span starts over; empty for {@link Span#ALL_TIME}. */
+    /**
+     * How long until this span starts over; empty for {@link Span#ALL_TIME}.
+     * For {@link Span#SEASON}, how long until the season ends: zero once it
+     * ended, empty with no season.
+     */
     public @NotNull Optional<Duration> remaining() {
+        if (span == Span.SEASON) {
+            return Leaderboards.season(board).map(season -> {
+                Duration left = Duration.between(Instant.now(), season.to());
+                return left.isNegative() ? Duration.ZERO : left;
+            });
+        }
         PeriodClock.Period period = span.period();
         return period == null ? Optional.empty() : Optional.of(Duration.ofMillis(Leaderboards.clockInUse().remaining(period)));
     }

@@ -37,6 +37,9 @@ import java.util.UUID;
  * @param yearKey   the year {@code yearBase} belongs to
  * @param yearBase  the value the year started from
  * @param updated   when the value last changed, epoch millis; breaks ties
+ * @param seasonKey   the season {@code seasonBase} belongs to; {@code null} on rows from before seasons, or with none
+ * @param seasonBase  the value the season started from
+ * @param seasonValue the value last sampled while the season was open: frozen once it ends
  * @since 1.563.0
  */
 @Table(value = "exylia_leaderboard_values", cache = false, data = DataKind.PROGRESS)
@@ -55,7 +58,10 @@ public record LeaderboardRow(
         @Column("month_base") double monthBase,
         @Column(value = "year_key", length = 32) String yearKey,
         @Column("year_base") double yearBase,
-        @Column("updated") long updated) {
+        @Column("updated") long updated,
+        @Column(value = "season_key", length = 64) String seasonKey,
+        @Column("season_base") double seasonBase,
+        @Column("season_value") double seasonValue) {
 
     /** The scope of a row every server writes, for a source that reads the same everywhere. */
     public static final String SHARED = "*";
@@ -65,23 +71,25 @@ public record LeaderboardRow(
         return board + "|" + scope + "|" + player;
     }
 
-    /** The period key of a span: 0 day, 1 week, 2 month, 3 year. */
+    /** The period key of a span: 0 day, 1 week, 2 month, 3 year, 4 season. */
     public String key(int period) {
         return switch (period) {
             case 0 -> dayKey;
             case 1 -> weekKey;
             case 2 -> monthKey;
-            default -> yearKey;
+            case 3 -> yearKey;
+            default -> seasonKey;
         };
     }
 
-    /** The value a span started from: 0 day, 1 week, 2 month, 3 year. */
+    /** The value a span started from: 0 day, 1 week, 2 month, 3 year, 4 season. */
     public double base(int period) {
         return switch (period) {
             case 0 -> dayBase;
             case 1 -> weekBase;
             case 2 -> monthBase;
-            default -> yearBase;
+            case 3 -> yearBase;
+            default -> seasonBase;
         };
     }
 }

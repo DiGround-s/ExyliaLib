@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -28,6 +29,15 @@ public record Ranking(List<LeaderboardView.Entry> entries, Map<UUID, Leaderboard
     /** How many periods a row keeps a base for: day, week, month, year. */
     public static final int PERIODS = 4;
 
+    /** The index of the season span, after the four clock periods. */
+    public static final int SEASON = 4;
+
+    /** What a new sample makes of a row, on a board with no season. */
+    public static LeaderboardRow sample(@Nullable LeaderboardRow old, String board, String scope, UUID player,
+                                        String name, double value, String[] keys, long now) {
+        return sample(old, board, scope, player, name, value, keys, false, now);
+    }
+
     /**
      * What a new sample makes of a row.
      *
@@ -36,15 +46,22 @@ public record Ranking(List<LeaderboardView.Entry> entries, Map<UUID, Leaderboard
      * reset) counts for the new period. A row seen for the first time starts
      * every period from the value it has now: nothing was gained yet.
      *
-     * @param old    the row so far, or {@code null}
-     * @param keys   the current key of each period
+     * <p>The season works the same way, with one more rule: its value follows
+     * the source only while the season is open, so what is gained after it
+     * ends does not count.
+     *
+     * @param old        the row so far, or {@code null}
+     * @param keys       the current key of each period, then optionally the season's ({@code null}: no season;
+     *                   empty: not started yet)
+     * @param seasonOpen whether the season is running now
      * @return {@code old} itself when nothing changed, otherwise the new row
      */
     public static LeaderboardRow sample(@Nullable LeaderboardRow old, String board, String scope, UUID player,
-                                        String name, double value, String[] keys, long now) {
+                                        String name, double value, String[] keys, boolean seasonOpen, long now) {
+        String season = keys.length > SEASON ? keys[SEASON] : null;
         if (old == null) {
             return new LeaderboardRow(LeaderboardRow.id(board, scope, player), board, scope, player, name, value,
-                    keys[0], value, keys[1], value, keys[2], value, keys[3], value, now);
+                    keys[0], value, keys[1], value, keys[2], value, keys[3], value, now, season, value, value);
         }
         boolean changed = value != old.value() || !name.equals(old.name());
         String[] rowKeys = new String[PERIODS];
@@ -55,20 +72,27 @@ public record Ranking(List<LeaderboardView.Entry> entries, Map<UUID, Leaderboard
             rowKeys[period] = keys[period];
             bases[period] = rolled ? old.value() : old.base(period);
         }
+        boolean seasonRolled = !Objects.equals(season, old.seasonKey());
+        double seasonBase = seasonRolled ? old.value() : old.seasonBase();
+        double seasonValue = seasonOpen ? value : seasonRolled ? old.value() : old.seasonValue();
+        changed |= seasonRolled || seasonValue != old.seasonValue();
         if (!changed) return old;
         return new LeaderboardRow(old.id(), board, scope, player, name, value,
                 rowKeys[0], bases[0], rowKeys[1], bases[1], rowKeys[2], bases[2], rowKeys[3], bases[3],
-                value != old.value() ? now : old.updated());
+                value != old.value() ? now : old.updated(), season, seasonBase, seasonValue);
     }
 
     /**
      * What a row counts for in a span.
      *
-     * @param period {@code -1} for all time, else 0 day, 1 week, 2 month, 3 year
+     * @param period {@code -1} for all time, else 0 day, 1 week, 2 month, 3 year, 4 season
      * @param key    the current key of that period; ignored for all time
      */
     public static double counted(LeaderboardRow row, int period, @Nullable String key) {
         if (period < 0) return row.value();
+        if (period == SEASON) {
+            return key != null && !key.isEmpty() && key.equals(row.seasonKey()) ? row.seasonValue() - row.seasonBase() : 0;
+        }
         return row.key(period).equals(key) ? row.value() - row.base(period) : 0;
     }
 
@@ -81,7 +105,7 @@ public record Ranking(List<LeaderboardView.Entry> entries, Map<UUID, Leaderboard
      * between two sorts.
      *
      * @param rows   every row of the board
-     * @param period {@code -1} for all time, else 0 day, 1 week, 2 month, 3 year
+     * @param period {@code -1} for all time, else 0 day, 1 week, 2 month, 3 year, 4 season
      * @param key    the current key of that period; ignored for all time
      */
     public static Ranking rank(Collection<LeaderboardRow> rows, int period, @Nullable String key) {

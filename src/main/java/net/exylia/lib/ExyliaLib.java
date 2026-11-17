@@ -1210,6 +1210,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // goes away.
         Teleports.release(pluginName);
         net.exylia.lib.respawn.Respawns.release(pluginName);
+        net.exylia.lib.objectives.Objectives.release(pluginName);
         // Same reason, and it is the whole point of this module's cleanup: a
         // paste in flight is a chain of tasks on that plugin's own scheduler,
         // so cancelling the scheduler first would leave the stage that

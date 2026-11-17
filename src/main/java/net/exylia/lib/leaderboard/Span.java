@@ -7,13 +7,22 @@ import org.jetbrains.annotations.Nullable;
  * Which stretch of time a leaderboard ranks.
  *
  * <p>{@link #ALL_TIME} ranks the source's current value; every other span ranks
- * what was gained since that period of the board's {@link PeriodClock} began.
+ * what was gained since that period of the board's {@link PeriodClock} began,
+ * or, for {@link #SEASON}, within the board's season.
  *
  * @since 1.563.0
  */
 public enum Span {
     ALL_TIME(null), DAILY(PeriodClock.Period.DAILY), WEEKLY(PeriodClock.Period.WEEKLY),
-    MONTHLY(PeriodClock.Period.MONTHLY), YEARLY(PeriodClock.Period.YEARLY);
+    MONTHLY(PeriodClock.Period.MONTHLY), YEARLY(PeriodClock.Period.YEARLY),
+    /**
+     * What was gained between two instants a plugin sets with
+     * {@link Leaderboards#season}: nothing before the start, frozen after the
+     * end, and empty while the board has no season.
+     *
+     * @since 1.620.0
+     */
+    SEASON(null);
 
     private final @Nullable PeriodClock.Period period;
 
@@ -21,12 +30,12 @@ public enum Span {
         this.period = period;
     }
 
-    /** The clock period this span follows, or {@code null} for {@link #ALL_TIME}. */
+    /** The clock period this span follows, or {@code null} for {@link #ALL_TIME} and {@link #SEASON}. */
     public @Nullable PeriodClock.Period period() {
         return period;
     }
 
-    /** {@code -1} for all time, else the period's index: 0 day, 1 week, 2 month, 3 year. */
+    /** {@code -1} for all time, else the period's index: 0 day, 1 week, 2 month, 3 year, 4 season. */
     int index() {
         return ordinal() - 1;
     }

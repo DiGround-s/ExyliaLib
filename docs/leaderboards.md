@@ -69,6 +69,7 @@ placeholder from a plugin with no shared database.
 | --- | --- |
 | `ALL_TIME` | the source's value now |
 | `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY` | what was gained since that period of the clock began |
+| `SEASON` | what was gained between the two instants the board's season names (1.620.0) |
 
 Periods follow the [`PeriodClock`](util.md) set with `boards.clock(...)`
 (default: midnight in the server's zone, weeks from Monday). A day starts at
@@ -79,6 +80,31 @@ renames the current periods, which then start over.
 
 Players who count zero in a span are not ranked: the weekly board lists only
 those who gained something this week.
+
+### Seasons (1.620.0)
+
+A season is a stretch a plugin chooses, such as a battle pass season, rather
+than one the clock gives:
+
+```java
+boards.track("pass_xp", LeaderboardSource.placeholder("%pass_total_xp%"));
+boards.season("pass_xp", season.start(), season.end());   // every enable, every server
+LeaderboardView top = boards.view("pass_xp", Span.SEASON);
+top.top(10);
+top.remaining();   // until the season ends; zero once it ended, empty with no season
+```
+
+- `season(id, from, to)` takes `from` inclusive and `to` exclusive, and throws
+  `IllegalArgumentException` unless `to` is after `from`. It is kept in memory,
+  not stored: the plugin that owns the season sets it on every enable, on every
+  server that ranks the board. `Leaderboards.season(id)` reads it back.
+- Before the season starts nobody ranks. While it runs, a player counts what
+  they gained since it started. After it ends, the standings stay frozen as they
+  were, until another season is set.
+- Setting another window starts a new season from each player's last stored
+  value. Setting the same one again changes nothing, so calling it on every
+  enable is safe. `reset(id, Span.SEASON)` starts the current season over.
+- With no season set, `SEASON` is empty.
 
 ## Reading
 
@@ -129,6 +155,7 @@ String mine = weekly.rankOf(viewer.getUniqueId()).stream().mapToObj(r -> "#" + r
 | `tracked()` | the ids tracked on this server, by any plugin |
 | `reset(id)` | starts a board over on every server: every row deleted, every period started again. All time follows the source, so it comes back as players are read (and from offline players, when the source can): a rebuild, not a zeroing |
 | `reset(id, span)` | starts one span over on every server, within a sort; all time and the other spans are untouched |
+| `season(id, from, to)` / `Leaderboards.season(id)` | the stretch `Span.SEASON` ranks, see *Seasons* (1.620.0) |
 | `sampleEvery(Duration)` | how often online players are read; default `DEFAULT_SAMPLE_EVERY`, a minute; at least a second |
 | `sortEvery(Duration)` | how often boards are reloaded and sorted; default `DEFAULT_SORT_EVERY`, 30 seconds; at least a second |
 | `clock(PeriodClock)` / `clock()` | the clock every board follows |
@@ -171,8 +198,11 @@ to a source that reads something else mixes old rows with new ones: reset it.
 `board|scope|player`; `board`, `scope` (the server id, or `*` for a source that
 reads the same everywhere), `player`, `name`, `value`, and `day_key`/`day_base`,
 `week_key`/`week_base`, `month_key`/`month_base`, `year_key`/`year_base`,
-`updated`). `exylia_leaderboards`: one row per board that was ever reset
-(`id`, `day_resets`, `week_resets`, `month_resets`, `year_resets`).
+`updated`, and since 1.620.0 `season_key`/`season_base`/`season_value`, the
+value frozen when the season ends). `exylia_leaderboards`: one row per board
+that was ever reset (`id`, `day_resets`, `week_resets`, `month_resets`,
+`year_resets`, `season_resets`). The season columns are added to existing
+tables on start; older rows read as having no season.
 
 Both are `PROGRESS`; values are owned by `player`, so `/exylialib wipe` and
 `/exylialib resetplayer` cover them and a reset player leaves every board at

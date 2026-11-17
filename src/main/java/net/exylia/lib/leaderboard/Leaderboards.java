@@ -20,11 +20,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.time.DayOfWeek;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
@@ -95,6 +98,8 @@ public final class Leaderboards {
     /** Every plugin load that opened the boards, in order; guarded by {@link #LOCK}. */
     private static final List<Plugin> OPENERS = new ArrayList<>();
     private static final Map<String, Board> BOARDS = new ConcurrentHashMap<>();
+    /** Each board's season, by board id, as the plugins on this server set it. */
+    private static final Map<String, Season> SEASONS = new ConcurrentHashMap<>();
     /** Players online here whose rows were read: only they are sampled. */
     private static final Set<UUID> LOADED = ConcurrentHashMap.newKeySet();
     private static final Set<UUID> LOADING = ConcurrentHashMap.newKeySet();
@@ -147,15 +152,29 @@ public final class Leaderboards {
             return source.isPerServer() ? server : LeaderboardRow.SHARED;
         }
 
-        /** Each period's current key: its name and how often an admin reset it. */
-        String[] keys() {
+        /**
+         * Each period's current key: its name and how often an admin reset it,
+         * then the season's: {@code null} with no season, empty before it starts.
+         */
+        String[] keys(long at) {
             PeriodClock now = clock;
             Span[] spans = Span.values();
-            String[] keys = new String[Ranking.PERIODS];
+            String[] keys = new String[Ranking.PERIODS + 1];
             for (int period = 0; period < Ranking.PERIODS; period++) {
                 keys[period] = now.key(spans[period + 1].period()) + "#" + meta.resets(period);
             }
+            Season season = SEASONS.get(id);
+            if (season != null) {
+                keys[Ranking.SEASON] = at < season.from().toEpochMilli() ? ""
+                        : season.from().toEpochMilli() + "-" + season.to().toEpochMilli() + "#" + meta.resets(Ranking.SEASON);
+            }
             return keys;
+        }
+
+        /** Whether the board's season is running at that moment. */
+        boolean seasonOpen(long at) {
+            Season season = SEASONS.get(id);
+            return season != null && at >= season.from().toEpochMilli() && at < season.to().toEpochMilli();
         }
 
         /** Whether this server is the one writing a row: its player is here and it is this server's scope. */
@@ -225,6 +244,56 @@ public final class Leaderboards {
 
     static PeriodClock clockInUse() {
         return clock;
+    }
+
+    /**
+     * The stretch {@link Span#SEASON} ranks.
+     *
+     * @param from when it starts, inclusive
+     * @param to   when it ends, exclusive
+     * @since 1.620.0
+     */
+    public record Season(@NotNull Instant from, @NotNull Instant to) {
+        public Season {
+            Objects.requireNonNull(from, "from");
+            Objects.requireNonNull(to, "to");
+            if (!to.isAfter(from)) throw new IllegalArgumentException("A season ends after it starts (" + from + " .. " + to + ")");
+        }
+    }
+
+    /**
+     * Sets the season a board's {@link Span#SEASON} ranks: what players gain
+     * from {@code from} until {@code to}. Before it starts nobody ranks; after
+     * it ends the standings stay as they were, until another season is set.
+     *
+     * <pre>{@code
+     * boards.track("pass_xp", LeaderboardSource.placeholder("%pass_total_xp%"));
+     * boards.season("pass_xp", season.start(), season.end());   // on every enable, on every server
+     * boards.view("pass_xp", Span.SEASON).top(10);
+     * }</pre>
+     *
+     * <p>Kept in memory, not stored: the plugin that owns the season sets it
+     * on every enable, on every server that ranks it. Setting another window
+     * starts the season over; setting the same one again changes nothing.
+     *
+     * @param id   the board, tracked or not yet
+     * @param from when it starts, inclusive
+     * @param to   when it ends, exclusive
+     * @return this
+     * @throws IllegalArgumentException when {@code to} is not after {@code from}
+     * @since 1.620.0
+     */
+    public @NotNull Leaderboards season(@NotNull String id, @NotNull Instant from, @NotNull Instant to) {
+        Season next = new Season(from, to);
+        Season previous = SEASONS.put(id, next);
+        Board board = BOARDS.get(id);
+        if (board != null && !next.equals(previous) && board.ready) sort(board);
+        return this;
+    }
+
+    /** A board's season, if a plugin set one. */
+    public static @NotNull Optional<Season> season(@NotNull String id) {
+        return Optional.ofNullable(SEASONS.get(id));
     }
 
     // ------------------------------------------------------------------
@@ -393,6 +462,7 @@ public final class Leaderboards {
 
     private static void clear() {
         BOARDS.clear();
+        SEASONS.clear();
         LOADED.clear();
         LOADING.clear();
         host = null;
@@ -518,7 +588,7 @@ public final class Leaderboards {
         String scope = board.scope();
         String rowId = LeaderboardRow.id(board.id, scope, player);
         LeaderboardRow old = board.rows.get(rowId);
-        LeaderboardRow next = Ranking.sample(old, board.id, scope, player, name, value, board.keys(), now);
+        LeaderboardRow next = Ranking.sample(old, board.id, scope, player, name, value, board.keys(now), board.seasonOpen(now), now);
         if (next == old) return;
         board.rows.put(rowId, next);
         // A first row at zero says nothing yet: kept in memory for its bases, written once it moves.
@@ -620,7 +690,7 @@ public final class Leaderboards {
 
     /** Sorts every span from memory. */
     static void sort(Board board) {
-        String[] keys = board.keys();
+        String[] keys = board.keys(System.currentTimeMillis());
         List<LeaderboardRow> snapshot = List.copyOf(board.rows.values());
         Span[] spans = Span.values();
         Ranking[] next = new Ranking[spans.length];
@@ -689,8 +759,9 @@ public final class Leaderboards {
         String name = player.getName();
         if (name == null || value == 0 || !Double.isFinite(value) || board.seeding == null) return;
         String rowId = LeaderboardRow.id(board.id, scope, player.getUniqueId());
-        LeaderboardRow row = Ranking.sample(null, board.id, scope, player.getUniqueId(), name, value, board.keys(),
-                System.currentTimeMillis());
+        long now = System.currentTimeMillis();
+        LeaderboardRow row = Ranking.sample(null, board.id, scope, player.getUniqueId(), name, value, board.keys(now),
+                board.seasonOpen(now), now);
         if (board.rows.putIfAbsent(rowId, row) == null) board.dirty.add(rowId);
     }
 
