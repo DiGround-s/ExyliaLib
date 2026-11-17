@@ -447,8 +447,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         }
         if (type == PacketType.Play.Server.SET_SLOT) {
             WrapperPlayServerSetSlot packet = new WrapperPlayServerSetSlot(event);
-            ItemStack drawn = decorated(viewer, limits, packet.getItem(),
-                    ItemDecor.place(viewerId, packet.getWindowId(), packet.getSlot()));
+            ItemStack item = packet.getItem();
+            ItemPlace place = ItemDecor.place(viewerId, packet.getWindowId(), packet.getSlot());
+            ItemStack drawn = DrawnSlots.drawn(viewerId, packet.getWindowId(), packet.getSlot(), item, place, limits,
+                    () -> decorated(viewer, limits, item, place));
             if (drawn != null) {
                 packet.setItem(drawn);
                 event.markForReEncode(true);
@@ -458,8 +460,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             List<ItemStack> items = new ArrayList<>(packet.getItems());
             boolean changed = false;
             for (int slot = 0; slot < items.size(); slot++) {
-                ItemStack drawn = decorated(viewer, limits, items.get(slot),
-                        ItemDecor.place(viewerId, packet.getWindowId(), slot));
+                ItemStack item = items.get(slot);
+                ItemPlace place = ItemDecor.place(viewerId, packet.getWindowId(), slot);
+                ItemStack drawn = DrawnSlots.drawn(viewerId, packet.getWindowId(), slot, item, place, limits,
+                        () -> decorated(viewer, limits, item, place));
                 if (drawn != null) {
                     items.set(slot, drawn);
                     changed = true;

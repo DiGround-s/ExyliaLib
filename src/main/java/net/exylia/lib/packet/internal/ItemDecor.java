@@ -66,11 +66,13 @@ final class ItemDecor {
         PROVIDERS.remove(owner.getName());
         PROVIDERS.put(owner.getName(), new Registered(owner, provider));
         ordered = List.copyOf(PROVIDERS.values());
+        DrawnSlots.forget(null);
     }
 
     static synchronized boolean unregister(@NotNull String plugin) {
         boolean removed = PROVIDERS.remove(plugin) != null;
         ordered = List.copyOf(PROVIDERS.values());
+        DrawnSlots.forget(null);
         FAILED.remove(plugin);
         return removed;
     }
@@ -108,6 +110,7 @@ final class ItemDecor {
     }
 
     static void forget(@NotNull UUID viewer) {
+        DrawnSlots.forget(viewer);
         PENDING.remove(viewer);
         WINDOWS.remove(viewer);
     }

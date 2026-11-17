@@ -105,6 +105,12 @@ public final class Languages {
     /** Languages set from code, by plugin name, ahead of any {@code config.yml}. */
     private static final Map<String, String> CHOSEN = new ConcurrentHashMap<>();
 
+    /** Each {@code config.yml}'s language, with the date and size it was read at, so it is parsed only when it changes. */
+    private static final Map<File, ReadCode> READ = new ConcurrentHashMap<>();
+
+    private record ReadCode(long modified, long size, String code) {
+    }
+
     private Languages() {
     }
 
@@ -160,6 +166,18 @@ public final class Languages {
         if (!config.isFile()) {
             return DEFAULT;
         }
+        long modified = config.lastModified();
+        long size = config.length();
+        ReadCode known = READ.get(config);
+        if (known != null && known.modified() == modified && known.size() == size) {
+            return known.code();
+        }
+        String code = parse(plugin, dataFolder, config);
+        READ.put(config, new ReadCode(modified, size, code));
+        return code;
+    }
+
+    private static String parse(Plugin plugin, File dataFolder, File config) {
         String raw = YamlConfiguration.loadConfiguration(config).getString(KEY, DEFAULT);
         String code = raw.trim().toLowerCase(Locale.ROOT);
         if (!CODE.matcher(code).matches()) {
