@@ -47,7 +47,7 @@ public final class ScreenPreferences {
 
     /** The field of view and window shape screens and the HUD are drawn for until a player fits them. */
     static final int DEFAULT_FOV = 70, MIN_FOV = 30, MAX_FOV = 110;
-    static final double DEFAULT_ASPECT = 1.78, MIN_ASPECT = 1.0, MAX_ASPECT = 3.6;
+    static final double DEFAULT_ASPECT = 1.78, MIN_ASPECT = 0.5, MAX_ASPECT = 3.6;
 
     /** Cursor speed for a player who never chose one, and the range they may choose from. */
     static final double DEFAULT_SPEED = 3.0, MIN_SPEED = 0.1, MAX_SPEED = 10.0;
