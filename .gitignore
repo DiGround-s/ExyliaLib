@@ -15,3 +15,12 @@ dist/
 
 *.log
 .DS_Store
+
+# Local tooling and build output
+.codegraph/
+.atl/
+.orca/
+.playwright-mcp/
+.claude/settings.local.json
+/target/
+*.class
