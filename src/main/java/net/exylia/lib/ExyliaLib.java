@@ -213,6 +213,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(new net.exylia.lib.trade.internal.TradeListener(), this);
         // Players whose stays are still being recovered keep their hands off everything.
         getServer().getPluginManager().registerEvents(new net.exylia.lib.session.internal.Recovering(), this);
+        // Players changing mode keep their items still until they have arrived.
+        getServer().getPluginManager().registerEvents(new net.exylia.lib.session.internal.TransitHolds(), this);
         // The chat answer to a prompt is taken out of chat separately: it has to
         // land on whichever chat event this server uses, or a legacy listener
         // reads the answer before the cancel reaches it.

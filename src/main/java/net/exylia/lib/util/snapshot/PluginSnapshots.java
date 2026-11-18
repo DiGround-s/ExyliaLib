@@ -1,6 +1,7 @@
 package net.exylia.lib.util.snapshot;
 
 import net.exylia.lib.database.Databases;
+import net.exylia.lib.session.internal.TransitHolds;
 import net.exylia.lib.database.PluginDatabase;
 import net.exylia.lib.database.Repository;
 import net.exylia.lib.debug.Debug;
@@ -29,6 +30,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * One plugin's view of the snapshot module.
@@ -142,8 +144,13 @@ public final class PluginSnapshots {
      */
     public @NotNull CompletableFuture<Void> save(@NotNull Player player,
                                                  @NotNull String contextId) {
+        // What is parked in the crafting grid goes back into the inventory, so
+        // the snapshot holds it instead of the next mode inheriting it.
+        PlayerState.emptyCraftingGrid(player, true);
         SnapshotRow row = SnapshotRow.of(player.getUniqueId(), contextId, Snapshot.of(player),
                 teleports().here(player), SnapshotRuntime.stamp());
+        // A snapshot is taken on the way out of one mode into another.
+        TransitHolds.begin(player.getUniqueId());
         return store().thenCompose(repository -> repository.save(row));
     }
 
@@ -303,14 +310,14 @@ public final class PluginSnapshots {
                                                        @Nullable Consumer<Location> wentBack,
                                                        @NotNull Set<SnapshotPart> parts) {
         UUID uuid = player.getUniqueId();
-        return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
+        return held(uuid, store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
                 .thenCompose(found -> {
                     SnapshotRow row = readable(found);
                     if (row == null) {
                         return CompletableFuture.completedFuture(false);
                     }
                     return applyAndDelete(player, repository, row, parts, wentBack);
-                }));
+                })), Boolean.TRUE::equals);
     }
 
     /**
@@ -378,7 +385,7 @@ public final class PluginSnapshots {
                                                                 @NotNull Set<SnapshotPart> parts,
                                                                 boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
-        return store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
+        return held(uuid, store().thenCompose(repository -> repository.find(SnapshotRow.key(uuid, contextId))
                 .thenCompose(found -> {
                     SnapshotRow row = readable(found);
                     if (row == null || thisServerOnly && !savedHere(row)) {
@@ -386,7 +393,7 @@ public final class PluginSnapshots {
                     }
                     return goneHome(player, liveHere(row.lastLocation()), goHome)
                             .thenCompose(ignored -> applyAndDelete(player, repository, row, parts, null));
-                }));
+                })), Boolean.TRUE::equals);
     }
 
     /**
@@ -416,6 +423,16 @@ public final class PluginSnapshots {
      * copy of somebody's inventory to tidy up a log line.
      */
     /** Whether a row was saved on this server; one with no server in its place counts as here. */
+    /**
+     * Holds the player's items while a restore is under way, and a second more
+     * when it gave something back: they are between two modes until it lands.
+     */
+    private static <T> @NotNull CompletableFuture<T> held(@NotNull UUID uuid, @NotNull CompletableFuture<T> work,
+                                                          @NotNull Predicate<T> restored) {
+        TransitHolds.during(uuid, work, restored);
+        return work;
+    }
+
     private boolean savedHere(@NotNull SnapshotRow row) {
         ExyliaLocation place = row.lastLocation();
         return place == null || teleports().isHere(place);
@@ -641,7 +658,7 @@ public final class PluginSnapshots {
                                                           @Nullable Consumer<Location> wentBack,
                                                           boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
-        return contexts(uuid, thisServerOnly).thenCompose(rows -> {
+        return held(uuid, contexts(uuid, thisServerOnly).thenCompose(rows -> {
             if (rows.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
@@ -662,7 +679,7 @@ public final class PluginSnapshots {
                         .thenApply(restored -> restored ? count + 1 : count));
             }
             return chain;
-        });
+        }), count -> count > 0);
     }
 
     /**
@@ -708,7 +725,7 @@ public final class PluginSnapshots {
                                                                    @Nullable Function<Location, CompletableFuture<?>> goHome,
                                                                    boolean thisServerOnly) {
         UUID uuid = player.getUniqueId();
-        return contexts(uuid, thisServerOnly).thenCompose(rows -> {
+        return held(uuid, contexts(uuid, thisServerOnly).thenCompose(rows -> {
             if (rows.isEmpty()) {
                 return CompletableFuture.completedFuture(0);
             }
@@ -723,7 +740,7 @@ public final class PluginSnapshots {
                         }
                         return chain;
                     }));
-        });
+        }), count -> count > 0);
     }
 
     /**

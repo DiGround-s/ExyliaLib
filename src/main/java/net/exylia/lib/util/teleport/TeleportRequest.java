@@ -1,5 +1,6 @@
 package net.exylia.lib.util.teleport;
 
+import net.exylia.lib.session.internal.TransitHolds;
 import net.exylia.lib.debug.Debug;
 import net.exylia.lib.effect.EffectConfig;
 import net.exylia.lib.effect.Effects;
@@ -377,7 +378,11 @@ public final class TeleportRequest {
                 settings.safeSearchRadius(), settings.safeMaxAttempts(),
                 cooldownSeconds > 0 ? cooldownKey : null,
                 onStart, onArrive, onCancel, ticks(), bookkeeping, then);
-        return TeleportRuntime.start(plan);
+        TeleportHandle handle = TeleportRuntime.start(plan);
+        // A move that starts while the player changes mode stretches the
+        // transit to a second after they land.
+        TransitHolds.track(player.getUniqueId(), handle.future());
+        return handle;
     }
 
     /** {@link #onTick} with {@link #tickSound} played alongside it. */

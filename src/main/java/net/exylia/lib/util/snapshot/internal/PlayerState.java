@@ -7,7 +7,10 @@ import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.CraftingInventory;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.PotionEffect;
@@ -286,6 +289,10 @@ public final class PlayerState {
                 inventory.setHeldItemSlot(heldSlot);
             }
             player.setItemOnCursor(snapshot.cursor());
+            // The 2x2 crafting grid is in no snapshot either. Whatever sits there
+            // now belongs to the state being replaced, and closing the inventory
+            // would hand it back on top of the restored one.
+            emptyCraftingGrid(player, false);
             touchedInventory = true;
         }
         if (wanted(snapshot, parts, SnapshotPart.ARMOR)) {
@@ -461,6 +468,34 @@ public final class PlayerState {
      *
      * @param player the player to clear
      */
+    /**
+     * Empties the player's own 2x2 crafting grid, which no snapshot holds.
+     *
+     * @param player the player
+     * @param keep   whether the items go back into their inventory (what is
+     *               left over stays in the grid) or are dropped from existence
+     */
+    public static void emptyCraftingGrid(@NotNull Player player, boolean keep) {
+        InventoryView view = player.getOpenInventory();
+        Inventory top = view == null ? null : view.getTopInventory();
+        if (top == null || top.getType() != InventoryType.CRAFTING || !(top instanceof CraftingInventory grid)) {
+            return;
+        }
+        ItemStack[] matrix = grid.getMatrix();
+        boolean changed = false;
+        for (int slot = 0; slot < matrix.length; slot++) {
+            ItemStack item = matrix[slot];
+            if (item == null || item.isEmpty()) continue;
+            changed = true;
+            matrix[slot] = null;
+            if (keep) {
+                Map<Integer, ItemStack> left = player.getInventory().addItem(item);
+                if (!left.isEmpty()) matrix[slot] = left.values().iterator().next();
+            }
+        }
+        if (changed) grid.setMatrix(matrix);
+    }
+
     public static void clear(@NotNull Player player) {
         PlayerInventory inventory = player.getInventory();
         inventory.clear();
