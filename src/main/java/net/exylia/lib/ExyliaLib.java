@@ -281,6 +281,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         PapiBridge.startRefreshing(this);
         BoardManager.init(this, SidebarLibrary.load(this, getLogger()));
         HologramRuntime.init(this);
+        net.exylia.lib.node.internal.NodeRuntime.init(this);
         // After holograms and before anything that draws: display effects are
         // packets, and their driver is one timer for every display on the
         // server rather than one per effect.
@@ -763,6 +764,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Before releasing tasks: their refresh drivers are among them.
         BoardManager.stopEverything();
         HologramRuntime.removeEverything();
+        net.exylia.lib.node.internal.NodeRuntime.removeEverything();
         // Before the modules it draws through, for the same reason as on a disable.
         net.exylia.lib.guide.Guides.releaseAll();
         ClientRuntime.shutdown();
@@ -891,6 +893,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Effects.stopFor(event.getPlayer());
         BoardManager.stopFor(event.getPlayer());
         HologramRuntime.forget(event.getPlayer());
+        net.exylia.lib.node.internal.NodeRuntime.forget(event.getPlayer());
         net.exylia.lib.npc.internal.PlacedRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
         NametagRuntime.forget(event.getPlayer());
@@ -1081,6 +1084,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.movement.DoubleJump.release(event.getPlugin());
         net.exylia.lib.movement.JumpPads.release(event.getPlugin());
         net.exylia.lib.hotbar.Hotbars.release(event.getPlugin());
+        net.exylia.lib.node.ClientNodes.release(event.getPlugin());
         net.exylia.lib.kitroom.KitRooms.release(pluginName);
         net.exylia.lib.screen.internal.ScreenRuntime.release(event.getPlugin());
         // First: ending a tuning session stops its boss bars and lets the
