@@ -1,0 +1,108 @@
+# DO NOT EDIT — REGENERIERT BEI JEDEM START.
+#
+# Jeder Block, der beim Anklicken die Crate des Plugins öffnet.
+#
+# Werte: %admin_title%
+# Pro Zeile: %place_number% %place_world% %place_x% %place_y% %place_z% %place_server%
+title: '{primary}&lCRATE-BLÖCKE {letters_black}» {highlight}%admin_title% {muted}%current_page%/%total_pages%'
+size: 54
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    hide_tooltip: false
+    name: '{muted}Keine weiteren Crate-Blöcke'
+    lore:
+      - "{letters_black}Binde einen Block, um ihn hier zu listen."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Erste Seite"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Letzte Seite →"
+
+pagination:
+  slots: '0-35'
+  item_template:
+    material: ENDER_CHEST
+    name: "{letters}Crate-Block {letters_black}▸ <gradient:{primary}:{secondary_light}>#%place_number%</gradient>"
+    lore:
+      - "{letters_black}Gebundener Block"
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:map} {letters}Welt{letters_black}: {info}%place_world%"
+      - "  {letters_black}· {info}{icon:compass} {letters}Bei{letters_black}: {info}%place_x%{letters_black}, {info}%place_y%{letters_black}, {info}%place_z%"
+      - "  {letters_black}· {info}{icon:ping} {letters}Server{letters_black}: {info}%place_server%"
+      - ""
+      - "{primary}{icon:click} Linksklick zum Teleportieren"
+      - "{error}{icon:right_click} Rechtsklick zum Entfernen"
+      - "{letters_black}Du musst bestätigen."
+    actions:
+      - 'left,shift_left: exylialib:cosmetics place_tp'
+      - 'right,shift_right: exylialib:cosmetics place_remove'
+  navigation:
+    previous:
+      slot: 48
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{error}:{error_light}>← Zurück</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+    next:
+      slot: 50
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{success}:{success_light}>Weiter →</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+items:
+  add:
+    slot: 45
+    material: LIME_DYE
+    name: "{letters}Crate-Blöcke {letters_black}▸ <gradient:{success}:{success_light}>Block binden</gradient>"
+    lore:
+      - "{letters_black}Neuer Crate-Block"
+      - ""
+      - "{success}✎ Information"
+      - " {letters}Bindet den Block, den du"
+      - " {letters}ansiehst (max. sechs Blöcke)."
+      - ""
+      - "{success}{icon:click} Klicken zum Hinzufügen"
+    actions:
+      - 'exylialib:cosmetics place_add'
+  back:
+    slot: 49
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{letters}Zurück {letters_black}▸ <gradient:{error}:{error_light}>Admin-Hub</gradient>"
+    lore:
+      - "{error}{icon:click} Klicken, um zurückzugehen"
+    actions:
+      - 'exylialib:cosmetics hub'
+  clear:
+    slot: 53
+    material: BARRIER
+    name: "{letters}Crate-Blöcke {letters_black}▸ <gradient:{error}:{error_light}>Alle lösen</gradient>"
+    lore:
+      - "{letters_black}Gefahrenzone"
+      - ""
+      - "{error}✎ Information"
+      - " {letters}Löst jeden Block, der"
+      - " {letters}diese Crate öffnet."
+      - ""
+      - "{error}{icon:click} Klicken zum Leeren"
+      - "{letters_black}Du musst bestätigen."
+    actions:
+      - 'exylialib:cosmetics place_clear'

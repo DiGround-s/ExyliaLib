@@ -1,0 +1,42 @@
+# Die Modi-Screens: alle Spielweisen, die die Plugins auf diesem Server anbieten.
+# Style sie frei um: Die Bibliothek ergänzt nur Keys, die in dieser Datei fehlen.
+# Der Hub: bis zu sieben Kategorie-Karten. pagination.slots wird von der
+# Bibliothek gesetzt und zentriert die Karten in der dritten Reihe (Slots 18-26).
+menu-version: 1
+
+title: '{primary}&lMODI'
+size: 45
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+pagination:
+  item_template:
+    material: '%icon%'
+    name: '%name%'
+    glow: '%glow%'
+    lore:
+      - '%lore%'
+    actions:
+      - 'exylialib:modes_click'
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: "<gradient:{info}:{info_light}>Modi</gradient>"
+    lore:
+      - "{letters_black}Servermodi"
+      - ""
+      - "{info}✎ Information"
+      - " {letters}Alle Spielweisen auf diesem"
+      - " {letters}Server, nach {highlight}Art {letters}gruppiert."
+      - ""
+      - "{info}✦ Stats"
+      - "  {letters_black}· {info}{icon:eye} {letters}Spielen gerade{letters_black}: {info}%modes_playing%"

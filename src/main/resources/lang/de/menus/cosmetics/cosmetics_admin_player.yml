@@ -1,0 +1,129 @@
+# DO NOT EDIT — REGENERIERT BEI JEDEM START.
+#
+# Ein Spieler: Crate-Keys, Freischaltungen und was er ausgerüstet hat.
+#
+# Werte: %admin_title% %admin_catalogue% %player_name% %player_keys%
+#         %player_unlocked% %player_equipped%
+title: '{primary}&lSPIELER {letters_black}» {highlight}%player_name%'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: "10-16"
+    spacing: split
+items:
+  header:
+    slot: 4
+    material: 'playerhead-%player_name%'
+    name: "<gradient:{primary}:{secondary_light}>%player_name%</gradient>"
+    lore:
+      - "{letters_black}Spieler"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys, Freischaltungen und was"
+      - " {letters}der Spieler {highlight}trägt{letters}."
+  keys:
+    group: cards
+    material: TRIPWIRE_HOOK
+    name: "{letters}Spieler {letters_black}▸ <gradient:{primary}:{secondary_light}>Crate-Keys</gradient> &8[{info}%player_keys%&8]"
+    lore:
+      - "{letters_black}Spieler-Einstellung"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys auf dem Account, die die"
+      - " {letters}Crate öffnen und nie {highlight}verfallen{letters}."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:key} {letters}Keys{letters_black}: {info}%player_keys%"
+      - ""
+      - "{primary}{icon:click} Linksklick {letters_black}· {letters}+1 Key"
+      - "{primary}{icon:right_click} Rechtsklick {letters_black}· {letters}-1 Key"
+      - "{primary}{icon:click} Shift-Klick {letters_black}· {letters}Menge eingeben"
+    actions:
+      - 'left: exylialib:cosmetics keys 1'
+      - 'right: exylialib:cosmetics keys -1'
+      - 'shift_left,shift_right: exylialib:cosmetics keys ask'
+  unlocks:
+    group: cards
+    material: CHEST
+    name: "{letters}Spieler {letters_black}▸ <gradient:{primary}:{secondary_light}>Freischaltungen</gradient>"
+    lore:
+      - "{letters_black}Setup-Bereich"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Vergib oder entziehe jedes Cosmetic,"
+      - " {letters}dauerhaft wie ein {highlight}Crate{letters}-Gewinn."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {success}{icon:star} {letters}Besitz{letters_black}: {success}%player_unlocked%{letters_black}/{info}%admin_catalogue%"
+      - ""
+      - "{primary}{icon:click} Klicken zum Verwalten"
+    actions:
+      - 'exylialib:cosmetics unlocks'
+  equipped:
+    group: cards
+    condition: '%admin_has_equipped% == true'
+    material: ARMOR_STAND
+    name: "{letters}Spieler {letters_black}▸ <gradient:{primary}:{secondary_light}>Ausgerüstet</gradient>"
+    lore:
+      - "{letters_black}Spieler-Einstellung"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Was der Spieler gerade trägt."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:eye} {letters}Ausgerüstet{letters_black}: %player_equipped%"
+      - ""
+      - "{error}{icon:click} Klicken zum Ablegen"
+      - "{letters_black}Du musst es bestätigen."
+    actions:
+      - 'exylialib:cosmetics unequip'
+  favourites:
+    slot: 18
+    condition: '%admin_has_favourites% == true'
+    material: BLAZE_POWDER
+    name: "{letters}Spieler {letters_black}▸ <gradient:{error}:{error_light}>Favoriten leeren</gradient>"
+    lore:
+      - "{letters_black}Gefahrenzone"
+      - ""
+      - "{error}✎ Information"
+      - " {letters}Leert die Merkliste des Spielers."
+      - ""
+      - "{error}{icon:click} Klicken zum Leeren"
+      - "{letters_black}Du musst es bestätigen."
+    actions:
+      - 'exylialib:cosmetics favourites'
+  back:
+    slot: 22
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{letters}Zurück {letters_black}▸ <gradient:{error}:{error_light}>Spieler</gradient>"
+    lore:
+      - "{error}{icon:click} Klicken zum Zurückgehen"
+    actions:
+      - 'exylialib:cosmetics players'
+  clear:
+    slot: 26
+    material: BARRIER
+    name: "{letters}Spieler {letters_black}▸ <gradient:{error}:{error_light}>Unlocks leeren</gradient>"
+    lore:
+      - "{letters_black}Gefahrenzone"
+      - ""
+      - "{error}✎ Information"
+      - " {letters}Nimmt {highlight}alles {letters}zurück, was der"
+      - " {letters}Spieler gewonnen oder erhalten hat."
+      - ""
+      - "{error}{icon:click} Klicken zum Leeren"
+      - "{letters_black}Du musst es bestätigen."
+    actions:
+      - 'exylialib:cosmetics clear_unlocks'

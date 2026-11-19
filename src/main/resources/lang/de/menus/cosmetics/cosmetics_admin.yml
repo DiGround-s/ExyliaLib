@@ -1,0 +1,125 @@
+# DO NOT EDIT — REGENERIERT BEI JEDEM START.
+#
+# Das Admin-Hub eines Cosmetic-Plugins, geöffnet über dessen Admin-Befehl ohne Argumente.
+# Jedes Cosmetic-Plugin, das auf dem Crate der Library aufbaut, teilt sich diese Screens.
+#
+# Werte: %admin_title% %admin_catalogue% %admin_online% %admin_showcases% %admin_blocks%
+# %admin_in_use% %admin_wearing% (Spieler mit einem angelegten), %admin_activity_label% %admin_activity%
+# (die eigene Live-Zahl des Plugins); eine Zeile mit einem Wert, den das Plugin nicht liefert, wird nicht gezeichnet.
+title: '{primary}&lADMIN {letters_black}» {highlight}%admin_title%'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+groups:
+  cards:
+    slots: "10-16"
+    spacing: split
+items:
+  header:
+    slot: 4
+    material: NETHER_STAR
+    name: "<gradient:{primary}:{secondary_light}>%admin_title%</gradient>"
+    lore:
+      - "{letters_black}Cosmetics-Admin"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Katalog, Spieler, Showcases"
+      - " {letters}und Crate-Blöcke."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosmetics{letters_black}: {info}%admin_catalogue%"
+      - "  {letters_black}· {info}{icon:eye} {letters}Im Einsatz{letters_black}: {info}%admin_in_use% {letters}von {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+  catalogue:
+    group: cards
+    material: BOOKSHELF
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Katalog</gradient>"
+    lore:
+      - "{letters_black}Setup-Bereich"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Jedes Cosmetic: Item vergeben,"
+      - " {letters}Crate-Keys oder eine {highlight}Vorschau {letters}ansehen."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:star} {letters}Cosmetics{letters_black}: {info}%admin_catalogue%"
+      - ""
+      - "{primary}{icon:click} Klicken zum Durchsuchen"
+    actions:
+      - 'exylialib:cosmetics catalogue'
+  players:
+    group: cards
+    material: PLAYER_HEAD
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Spieler</gradient>"
+    lore:
+      - "{letters_black}Setup-Bereich"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Keys, Freischaltungen und was"
+      - " {letters}jeder Online-Spieler {highlight}trägt{letters}."
+      - "%admin_players_status%"
+      - "%admin_players_status%{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:eye} {letters}Trägt gerade eins{letters_black}: {info}%admin_wearing% {letters}von {info}%admin_online%"
+      - "  {letters_black}· {info}{icon:spark} {letters}%admin_activity_label%{letters_black}: {info}%admin_activity%"
+      - ""
+      - "{primary}{icon:click} Klicken zum Durchsuchen"
+    actions:
+      - 'exylialib:cosmetics players'
+  showcases:
+    group: cards
+    condition: '%admin_has_showcases% == true'
+    material: ARMOR_STAND
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Showcases</gradient>"
+    lore:
+      - "{letters_black}Setup-Bereich"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Orte, die Cosmetics in einer"
+      - " {letters}{highlight}Schleife {letters}allen in der Nähe zeigen."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Platziert{letters_black}: {info}%admin_showcases%"
+      - ""
+      - "{primary}{icon:click} Klicken zum Verwalten"
+    actions:
+      - 'exylialib:cosmetics showcases'
+  blocks:
+    group: cards
+    material: ENDER_CHEST
+    name: "{letters}Cosmetics {letters_black}▸ <gradient:{primary}:{secondary_light}>Crate-Blöcke</gradient>"
+    lore:
+      - "{letters_black}Setup-Bereich"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Blöcke, die die Crate öffnen,"
+      - " {letters}wenn ein Spieler sie {highlight}anklickt{letters}."
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Gebunden{letters_black}: {info}%admin_blocks%"
+      - ""
+      - "{primary}{icon:click} Klicken zum Verwalten"
+    actions:
+      - 'exylialib:cosmetics blocks'
+  settings:
+    slot: 18
+    material: COMPARATOR
+    name: "{letters}Plugin {letters_black}▸ <gradient:{primary}:{secondary_light}>Einstellungen</gradient>"
+    lore:
+      - "{letters_black}Konfiguration"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Ändere die Einstellungen dieses"
+      - " {letters}Plugins ohne seine {highlight}Dateien {letters}zu bearbeiten."
+      - ""
+      - "{primary}{icon:click} Klicken {letters_black}· {letters}Einstellungen öffnen"
+    actions:
+      - 'exylialib:cosmetics settings'

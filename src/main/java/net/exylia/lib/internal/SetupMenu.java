@@ -55,7 +55,8 @@ public final class SetupMenu {
             new Language("pt", "Português", "LIME_BANNER"),
             new Language("fr", "Français", "WHITE_BANNER"),
             new Language("ru", "Русский", "RED_BANNER"),
-            new Language("tr", "Türkçe", "MAGENTA_BANNER"));
+            new Language("tr", "Türkçe", "MAGENTA_BANNER"),
+            new Language("de", "Deutsch", "YELLOW_BANNER"));
 
     /** A colour theme: the five colours that make the identity; the meaning colours stay as they are. */
     record Theme(String id, String name, String icon, String primary, String secondary, String secondaryLight,

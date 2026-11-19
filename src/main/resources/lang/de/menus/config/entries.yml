@@ -1,0 +1,92 @@
+# Die Einträge eines Blocks in einer Inhaltsdatei: ein Button pro Eintrag.
+# Werte: %cfg_plugin% %cfg_where% %cfg_back_to%
+# Pro Zeile: %cfg_key% %cfg_name% %cfg_icon% %cfg_value% %cfg_hint%
+# NICHT BEARBEITEN — WIRD BEIM START JEDES MAL NEU GENERIERT.
+title: '{primary}&lINHALT {letters_black}» {highlight}%cfg_where% {muted}%current_page%/%total_pages%'
+size: 54
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    hide_tooltip: false
+    name: '{muted}Keine weiteren Einträge'
+    lore:
+      - "{letters_black}Erstelle einen, um ihn hier aufzulisten."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Erste Seite"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Letzte Seite →"
+
+pagination:
+  slots: '0-35'
+  item_template:
+    material: '%cfg_icon%'
+    name: "{letters}Eintrag {letters_black}▸ <gradient:{primary}:{secondary_light}>%cfg_name%</gradient>"
+    lore:
+      - "{letters_black}Listeneintrag"
+      - ""
+      - "{primary}✦ Status"
+      - "  {letters_black}· {letters}Enthält{letters_black}: %cfg_value%"
+      - ""
+      - "%cfg_hint%"
+      - "{primary}{icon:click} Shift-Linksklick {letters_black}· {letters}duplizieren"
+      - "{error}{icon:right_click} Shift-Rechtsklick {letters_black}· {letters}löschen"
+      - "{letters_black}Du musst es bestätigen."
+    actions:
+      - 'left: exylialib:config_entry open %cfg_key%'
+      - 'right: exylialib:config_entry open %cfg_key%'
+      - 'shift_left: exylialib:config_entry duplicate %cfg_key%'
+      - 'shift_right: exylialib:config_entry delete %cfg_key%'
+  navigation:
+    previous:
+      slot: 48
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{error}:{error_light}>← Zurück</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+    next:
+      slot: 50
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{success}:{success_light}>Weiter →</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+items:
+  create:
+    slot: 45
+    material: LIME_DYE
+    name: "{letters}Erstellen {letters_black}▸ <gradient:{success}:{success_light}>Neuer Eintrag</gradient>"
+    lore:
+      - "{letters_black}Neuer Eintrag"
+      - ""
+      - "{success}✎ Information"
+      - " {letters}Fügt einen neuen Eintrag hinzu,"
+      - " {letters}den du hier {highlight}bearbeiten{letters} kannst."
+      - ""
+      - "{success}{icon:click} Klick {letters_black}· {letters}Erstellen"
+    actions:
+      - 'exylialib:config_entry create'
+  back:
+    slot: 49
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{letters}Zurück {letters_black}▸ <gradient:{error}:{error_light}>%cfg_back_to%</gradient>"
+    lore:
+      - "{error}{icon:click} Klicken, um zurückzugehen"
+    actions:
+      - 'exylialib:config_back'

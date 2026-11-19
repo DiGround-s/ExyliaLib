@@ -1,0 +1,47 @@
+# Die Einstellungsbildschirme aller Plugins, angezeigt über /settings.
+# Gestalte sie frei um: Die Bibliothek ergänzt nur Schlüssel, die in dieser Datei fehlen.
+# Der Hauptbildschirm: Einstellungen und Ankündigungen.
+menu-version: 1
+
+title: '{primary}&lEINSTELLUNGEN'
+size: 27
+type: SIMPLE
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+items:
+  settings:
+    slot: 12
+    material: COMPARATOR
+    name: "<gradient:{primary}:{secondary_light}>Einstellungen</gradient>"
+    lore:
+      - "{letters_black}Deine Einstellungen"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Wie andere Spieler dich erreichen"
+      - " {letters}und wie jedes Feature dich behandelt."
+      - ""
+      - "{primary}{icon:click} Klicke zum Öffnen"
+    actions:
+      - 'exylialib:settings_open settings'
+  announcements:
+    slot: 14
+    material: BELL
+    name: "<gradient:{primary}:{secondary_light}>Ankündigungen</gradient>"
+    lore:
+      - "{letters_black}Deine Einstellungen"
+      - ""
+      - "{primary}✎ Information"
+      - " {letters}Welche serverweiten"
+      - " {letters}Nachrichten in deinem {highlight}Chat{letters} landen."
+      - ""
+      - "{primary}{icon:click} Klicke zum Öffnen"
+    actions:
+      - 'exylialib:settings_open announcements'

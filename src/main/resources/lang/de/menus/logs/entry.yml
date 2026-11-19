@@ -1,0 +1,105 @@
+# One staff log entry in full: its whole detail at the top, and below it every
+# item it kept, drawn as the item itself. Each group starts a row with its label.
+# Restyle it freely: the library only adds keys missing from this file.
+#
+# Values: %log_icon% %log_plugin% %log_action% %log_actor% %log_target% %log_detail%
+#         %log_server% %log_location% %log_when% %log_date%
+# Group row: %group_label% %group_count%
+title: '{primary}&lLOG-EINTRAG {letters_black}» {highlight}%log_action% {muted}%current_page%/%total_pages%'
+size: 54
+type: PAGINATION
+open_sounds:
+  - "minecraft:item.book.page_turn|1.0|1.2"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Erste Seite"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Letzte Seite →"
+
+pagination:
+  slots: '9-44'
+  # Starts each group: whose items these were, or what happened to them.
+  group_template:
+    material: NAME_TAG
+    name: "{letters}Gruppe {letters_black}▸ <gradient:{info}:{info_light}>%group_label%</gradient>"
+    lore:
+      - "{letters_black}Item-Gruppe"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {info}{icon:iron} {letters}Stacks{letters_black}: {info}%group_count%"
+      - ""
+      - "{info}{icon:click} Fahr über die Items daneben"
+  # A group that moved nothing, such as the empty side of a gift.
+  nothing_template:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}Nichts in dieser Gruppe'
+    lore:
+      - "{letters_black}Auf dieser Seite wurden keine Items bewegt."
+  # An entry that kept no items.
+  empty_template:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: '{muted}Keine Items gespeichert'
+    lore:
+      - "{letters_black}Alles, was dieser Eintrag geloggt hat, steht oben."
+  # The blank rest of a group's row.
+  spacer_template:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  navigation:
+    previous:
+      slot: 48
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{error}:{error_light}>← Zurück</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+    next:
+      slot: 50
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{success}:{success_light}>Weiter →</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+items:
+  entry:
+    slot: 4
+    material: '%log_icon%'
+    name: "{letters}Log {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
+    lore:
+      - "{letters_black}Staff-Log"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {info}{icon:book} {letters}Plugin{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Von{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Ziel{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Details"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Ort"
+      - "  {letters_black}· {info}{icon:ping} {letters}Server{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Position{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {info}{icon:clock} {letters}Zeitpunkt{letters_black}: {info}%log_when%"
+      - "    {letters_black}%log_date%"
+  back:
+    slot: 49
+    sound: "minecraft:item.bundle.remove_one|1.0|0.5"
+    material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMjIzZmI2NzQyOTcxNmIyMWJjNmU4ZTdkNjY5Y2VkZGY2NWIxM2UwNzkwYTVjZTU1YjJlMDc3YjgyZDE5ZTEyNCJ9fX0='
+    name: "{letters}Zurück {letters_black}▸ <gradient:{error}:{error_light}>Logs</gradient>"
+    lore:
+      - "{error}{icon:click} Klicke zum Zurückgehen"
+    actions:
+      - 'exylialib:logs_back'

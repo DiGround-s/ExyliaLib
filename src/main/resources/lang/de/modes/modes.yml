@@ -1,0 +1,12 @@
+# Wörter des Modi-Bildschirms (modes/modes.html), eines pro t="key" dort. Farb-Tokens wie {info} funktionieren
+# hier; die %Platzhalter% bleiben erhalten. Änderungen erscheinen innerhalb weniger Sekunden auf offenen Bildschirmen.
+subtitle: '{letters_black}Wähle einen zum Spielen · fahre über eine Karte zum Lesen'
+count: '{info}%entry_count% {letters_black}Modi'
+open: '{success}● Offen'
+closed: '{error}● Geschlossen'
+locked: '{error}✘ {letters_black}Nicht in deinem Rang'
+playing: '{letters_black}· {info}%entry_players% {letters_black}spielen'
+empty:
+  title: 'Noch keine Modi'
+  hint: 'Plugins auf diesem Server fügen ihre hier hinzu'
+back: '‹ %modes_parent%'

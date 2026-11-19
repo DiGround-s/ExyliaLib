@@ -1,0 +1,28 @@
+# Einstellungen-Bildschirm (settings/settings.html): Wörter, je eines pro t="key". Farb-Tokens wie {info} funktionieren
+# hier; die %Platzhalter% bleiben. Änderungen erscheinen innerhalb von Sekunden auf geöffneten Bildschirmen.
+title: '{highlight}Einstellungen'
+subtitle:
+  root: '{letters_black}Wie der Server dich behandelt, an einem Ort'
+  list: '{letters_black}Klick auf eine Karte zum Ändern · Hover für Details'
+root:
+  settings: 'Einstellungen'
+  settings_about: 'Wie andere Spieler dich erreichen und wie jede Funktion dich behandelt'
+  announcements: 'Ankündigungen'
+  announcements_about: 'Welche serverweiten Nachrichten in deinem Chat landen'
+open: 'Öffnen'
+count: '{info}%entry_count% {letters_black}Einstellungen'
+channels: '{info}%entry_count% {letters_black}Kanäle · {error}%entry_muted% {letters_black}stummgeschaltet'
+'on': '{success}● An'
+'off': '{error}● Aus'
+locked: '{error}✘ {letters_black}Nicht in deinem Rang'
+unavailable: '{letters_black}Auf diesem Server aus'
+this_server: '{letters_black}Nur auf diesem Server'
+hint:
+  toggle: '{letters_black}Klick · umschalten'
+  step: '{letters_black}Klick · weiter   Rechts · zurück'
+  open: '{letters_black}Klick · öffnen'
+empty:
+  title: 'Hier gibt es nichts einzustellen'
+  hint: 'Plugins auf diesem Server fügen ihre hier hinzu'
+back: '‹ %settings_parent%'
+close: 'Schließen'

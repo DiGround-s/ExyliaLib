@@ -190,9 +190,9 @@ final class ConfigFields {
     }
 
     /** The languages Exylia plugins ship, after {@code default}, which follows ExyliaLib's. */
-    static final List<String> LANGUAGES = List.of("default", "en", "es", "fr", "pt", "ru", "tr");
+    static final List<String> LANGUAGES = List.of("default", "en", "es", "fr", "pt", "ru", "tr", "de");
     private static final List<String> LANGUAGE_NAMES =
-            List.of("Default", "English", "Español", "Français", "Português", "Русский", "Türkçe");
+            List.of("Default", "English", "Español", "Français", "Português", "Русский", "Türkçe", "Deutsch");
 
     /**
      * The values a text key cycles through and what each is called, or {@code null} when it is

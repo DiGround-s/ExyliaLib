@@ -1,0 +1,119 @@
+# The staff audit log, shown by /exylialib logs: one player's entries, or
+# everybody's, newest first, across every plugin that keeps a log.
+# Restyle it freely: the library only adds keys missing from this file.
+#
+# Values: %logs_subject% %logs_plugin% %logs_action% %logs_count%
+# Per row: %log_id% %log_icon% %log_plugin% %log_action% %log_actor% %log_target%
+#          %log_detail% %log_server% %log_location% %log_when% %log_date%
+#          %log_view% (the click hint: view the items, or open the entry)
+title: '{primary}&lLOGS {letters_black}» {highlight}%logs_subject% {muted}%current_page%/%total_pages%'
+size: 54
+type: PAGINATION
+open_sounds:
+  - "minecraft:block.ender_chest.open|0.6|1.4"
+click_sounds:
+  - "minecraft:block.note_block.hat|0.7|1.0"
+close_sounds:
+  - "minecraft:block.barrel.close|0.6|0.7"
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+  pagination:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    hide_tooltip: false
+    name: '{muted}Keine Einträge mehr'
+    lore:
+      - "{letters_black}Plugins protokollieren hier, wenn Staff handelt."
+  custom:
+    page_first:
+      slots: '48'
+      material: GRAY_DYE
+      name: "{muted}← Erste Seite"
+    page_last:
+      slots: '50'
+      material: GRAY_DYE
+      name: "{muted}Letzte Seite →"
+
+pagination:
+  slots: '0-35'
+  item_template:
+    material: '%log_icon%'
+    name: "{letters}Log {letters_black}▸ <gradient:{info}:{info_light}>%log_action%</gradient>"
+    lore:
+      - "{letters_black}Staff-Log"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {info}{icon:book} {letters}Plugin{letters_black}: {info}%log_plugin%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Von{letters_black}: {highlight}%log_actor%"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Ziel{letters_black}: {highlight}%log_target%"
+      - ""
+      - "{info}✎ Details"
+      - "%log_detail%"
+      - ""
+      - "{info}✦ Ort"
+      - "  {letters_black}· {info}{icon:ping} {letters}Server{letters_black}: {info}%log_server%"
+      - "  {letters_black}· {info}{icon:map} {letters}Position{letters_black}: {info}%log_location%"
+      - "  {letters_black}· {info}{icon:clock} {letters}Zeitpunkt{letters_black}: {info}%log_when%"
+      - "    {letters_black}%log_date%"
+      - ""
+      - "%log_view%"
+    actions:
+      - 'exylialib:logs_entry %log_id%'
+  navigation:
+    previous:
+      slot: 48
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{error}:{error_light}>← Zurück</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+    next:
+      slot: 50
+      sound: "minecraft:item.book.page_turn|1.0|1.0"
+      material: 'basehead-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0='
+      name: "{letters}Seite {letters_black}▸ <gradient:{success}:{success_light}>Weiter →</gradient>"
+      lore:
+        - "  {letters_black}· {letters}Seite{letters_black}: {info}%current_page%{letters_black}/{info}%total_pages%"
+# A command opens this screen, so it has no BACK: ESC closes it.
+items:
+  plugin:
+    slot: 45
+    material: COMPARATOR
+    name: "{letters}Filter {letters_black}▸ <gradient:{info}:{info_light}>Plugin</gradient>"
+    lore:
+      - "{letters_black}Log-Filter"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {highlight}{icon:search} {letters}Anzeige{letters_black}: {highlight}%logs_plugin%"
+      - ""
+      - "{info}{icon:click} Linksklick {letters_black}· {letters}nächstes Plugin"
+      - "{info}{icon:right_click} Rechtsklick {letters_black}· {letters}alle Plugins"
+    actions:
+      - 'left: exylialib:logs_plugin next'
+      - 'right: exylialib:logs_plugin all'
+  action:
+    slot: 46
+    material: HOPPER
+    name: "{letters}Filter {letters_black}▸ <gradient:{info}:{info_light}>Aktion</gradient>"
+    lore:
+      - "{letters_black}Log-Filter"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {highlight}{icon:search} {letters}Anzeige{letters_black}: {highlight}%logs_action%"
+      - ""
+      - "{info}{icon:click} Linksklick {letters_black}· {letters}nächste Aktion"
+      - "{info}{icon:right_click} Rechtsklick {letters_black}· {letters}alle Aktionen"
+    actions:
+      - 'left: exylialib:logs_action next'
+      - 'right: exylialib:logs_action all'
+  info:
+    slot: 49
+    material: BOOK
+    name: "<gradient:{info}:{info_light}>Logs</gradient>"
+    lore:
+      - "{letters_black}Staff-Logs"
+      - ""
+      - "{info}✦ Status"
+      - "  {letters_black}· {highlight}{icon:tag} {letters}Spieler{letters_black}: {highlight}%logs_subject%"
+      - "  {letters_black}· {info}{icon:book} {letters}Einträge{letters_black}: {info}%logs_count%"
