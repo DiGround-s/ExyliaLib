@@ -20,7 +20,7 @@ import java.util.Optional;
  * <pre>{@code
  * price: 500                              # the default currency
  * price: {amount: 500, currency: gems}    # a named one
- * price:                                  # either: the player picks when they can pay both (1.628.0)
+ * price:                                  # either: the player picks when they can pay both (1.629.0)
  *   - {amount: 1500, currency: dinero}
  *   - {amount: 250, currency: zenith}
  *
@@ -65,7 +65,7 @@ public record Price(@NotNull BigDecimal amount, @Nullable String currency, @NotN
         return alternatives.isEmpty() ? this : new Price(amount, currency);
     }
 
-    /** Every way to pay it, each of one currency, in the config's order. @since 1.628.0 */
+    /** Every way to pay it, each of one currency, in the config's order. @since 1.629.0 */
     public @NotNull List<Price> choices() {
         List<Price> all = new ArrayList<>(1 + alternatives.size());
         all.add(single());
@@ -73,7 +73,7 @@ public record Price(@NotNull BigDecimal amount, @Nullable String currency, @NotN
         return all;
     }
 
-    /** The ways this server can take right now; empty when none. @since 1.628.0 */
+    /** The ways this server can take right now; empty when none. @since 1.629.0 */
     public @NotNull List<Price> options() {
         return choices().stream().filter(Price::payableAlone).toList();
     }

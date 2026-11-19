@@ -551,7 +551,7 @@ public record LibraryMessages(
      * @param alreadyOwned  they own it already
      * @param failed        charged, not granted, refunded
      * @param refundFailed  charged, not granted, and the refund was refused
-     * @param choose        the title of the question which currency to pay in (1.628.0)
+     * @param choose        the title of the question which currency to pay in (1.629.0)
      * @param optionLocal   under a currency whose purchase counts on this server only
      * @param optionShared  under a currency whose purchase counts on the whole network
      * @since 1.239.0

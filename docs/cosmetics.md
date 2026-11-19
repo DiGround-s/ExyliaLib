@@ -9,7 +9,7 @@ armour trims and skins, chat cosmetics) shares, in `net.exylia.lib.cosmetic`.
 | `CosmeticPurchases` / `Price` | buying a cosmetic: confirm, charge, grant, refund on failure | 1.239.0 |
 | `CosmeticDefault` | what a player who never picked one gets, by rank | 1.468.0 |
 
-## A choice of currencies (1.628.0)
+## A choice of currencies (1.629.0)
 
 A price (`price:` of a cosmetic, or a line of `shop.tier-prices`) can be a list: the player pays in
 any one of them.
