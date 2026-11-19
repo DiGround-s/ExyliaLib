@@ -145,4 +145,29 @@ public interface ScreenSession {
      */
     default void animate(@NotNull String id, @NotNull Motion.Keyframes keyframes) {
     }
+
+    /**
+     * One stop of a {@link #coach} tour: the box whose {@link Node#id} is {@code node} is lit and the rest dimmed, with
+     * {@code text} (written with {@code Text}) beside it. A blank or missing node shows the words in the middle.
+     *
+     * @since 1.630.0
+     */
+    record Mark(@NotNull String node, @NotNull String text) {
+    }
+
+    /**
+     * Walks the viewer through the screen, one {@link Mark} at a time, over everything else: a click anywhere goes on
+     * to the next. {@code done} runs on the viewer's thread after the last, or never when the screen closes first. A
+     * newer tour replaces this one; an empty list ends it.
+     *
+     * @since 1.630.0
+     */
+    default void coach(java.util.@NotNull List<Mark> marks, java.util.function.@Nullable Consumer<ScreenSession> done) {
+        if (done != null && marks.isEmpty()) done.accept(this);
+    }
+
+    /** Whether a {@link #coach} tour is showing. @since 1.630.0 */
+    default boolean coaching() {
+        return false;
+    }
 }

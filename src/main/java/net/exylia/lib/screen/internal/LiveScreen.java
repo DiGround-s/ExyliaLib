@@ -822,6 +822,8 @@ final class LiveScreen implements ScreenSession {
             lastToastVersion = toastVersion;
             List<Layout.Placed> laid = new ArrayList<>(core);
             addToasts(laid);
+            Coach tour = coach;
+            if (tour != null && ask == null && !settingsOpen && fitStep <= 0) addCoach(laid, core, tour);
             overlayFrom = Layout.overlayStart(laid);
             // Outside the layout, and gone under a dialog: a dialog takes every click.
             if (overlayFrom < 0) {
@@ -1178,6 +1180,119 @@ final class LiveScreen implements ScreenSession {
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.9), 5, Motion.Ease.BACK))
                 .leave(Motion.Tween.of(Motion.Transform.scale(0.94), 3, Motion.Ease.IN));
         return over(root, dialog);
+    }
+
+    // ------------------------------------------------------------------
+    // Coach marks
+    // ------------------------------------------------------------------
+
+    /** The tour walking the viewer through the screen, or {@code null}. */
+    private volatile Coach coach;
+    private record Coach(List<Mark> marks, int at, Consumer<ScreenSession> done) {
+    }
+
+    @Override
+    public void coach(@NotNull List<Mark> marks, @Nullable Consumer<ScreenSession> done) {
+        if (marks.isEmpty()) {
+            coach = null;
+            if (done != null) guarded(() -> done.accept(this));
+        } else {
+            coach = new Coach(List.copyOf(marks), 0, done);
+        }
+        resync = true;
+        redraw();
+    }
+
+    @Override
+    public boolean coaching() {
+        return coach != null;
+    }
+
+    /** On the viewer's thread, from a click anywhere while the tour shows. */
+    private void nextMark() {
+        Coach tour = coach;
+        if (tour == null) return;
+        if (tour.at() + 1 < tour.marks().size()) {
+            coach = new Coach(tour.marks(), tour.at() + 1, tour.done());
+        } else {
+            coach = null;
+            if (tour.done() != null) guarded(() -> tour.done().accept(this));
+        }
+        resync = true;
+        redraw();
+    }
+
+    /**
+     * Lays the tour's stop over {@code laid}: the screen dimmed around the marked box (found in {@code core}), a ring
+     * on it and the words beside it, all one overlay that takes every click. Holds the lock.
+     */
+    private void addCoach(List<Layout.Placed> laid, List<Layout.Placed> core, Coach tour) {
+        Mark mark = tour.marks().get(tour.at());
+        double width = screen.width();
+        double height = screen.height();
+        Layout.Placed target = null;
+        if (!mark.node().isBlank()) {
+            for (Layout.Placed box : core) {
+                if (mark.node().equals(box.node().id())) {
+                    target = box;
+                    break;
+                }
+            }
+        }
+        Node root = Node.box().onClick(event -> nextMark());
+        String step = tour.marks().size() > 1 ? (tour.at() + 1) + "/" + tour.marks().size() + " · " : "";
+        Node bubble = Node.column(
+                        Node.text(net.exylia.lib.text.Text.of(mark.text()).build()).wrap(180),
+                        Node.text(net.exylia.lib.text.Text.of("{letters_black}" + step + phrase("Click to continue")).build())
+                                .scale(0.75))
+                .padding(8, 10).gap(5).background(TIP_BACKGROUND).outline("{primary}80", 1)
+                .enter(Motion.Tween.of(Motion.Transform.scale(0.92), 4, Motion.Ease.BACK));
+        double[] size = Layout.measure(bubble);
+        double bw = Math.min(size[0], width - 8);
+        double bh = Math.min(size[1], height - 8);
+        double bx;
+        double by;
+        if (target == null) {
+            root.add(Node.box().background(Layout.DIMMER).absolute(0, 0, 0, 0));
+            bx = (width - bw) / 2;
+            by = (height - bh) / 2;
+        } else {
+            double pad = 3;
+            double x0 = Math.max(0, target.x() - pad);
+            double y0 = Math.max(0, target.y() - pad);
+            double x1 = Math.min(width, target.x() + target.w() + pad);
+            double y1 = Math.min(height, target.y() + target.h() + pad);
+            // Four panes around the lit box, so it shows through untouched.
+            dim(root, 0, 0, width, y0);
+            dim(root, 0, y1, width, height - y1);
+            dim(root, 0, y0, x0, y1 - y0);
+            dim(root, x1, y0, width - x1, y1 - y0);
+            root.add(Node.box().outline("{highlight}", 1.5).absolute(y0, Double.NaN, Double.NaN, x0).size(x1 - x0, y1 - y0));
+            double gap = 6;
+            if (y1 + gap + bh <= height) {
+                by = y1 + gap;
+                bx = (x0 + x1 - bw) / 2;
+            } else if (y0 - gap - bh >= 0) {
+                by = y0 - gap - bh;
+                bx = (x0 + x1 - bw) / 2;
+            } else {
+                by = (y0 + y1 - bh) / 2;
+                bx = x1 + gap + bw <= width ? x1 + gap : x0 - gap - bw;
+            }
+            bx = Math.max(4, Math.min(width - bw - 4, bx));
+            by = Math.max(4, Math.min(height - bh - 4, by));
+        }
+        root.add(bubble.absolute(by, Double.NaN, Double.NaN, bx).size(bw, bh));
+        List<Layout.Placed> boxes = Layout.lay(root, width, height);
+        int shift = laid.size();
+        for (Layout.Placed box : boxes) {
+            // The tour's root at the dimmer's depth: it is the overlay, the one thing a click can reach.
+            laid.add(box.moved("~coach" + tour.at() + ":" + box.key(), 0, 0, Layout.OVERLAY - 1, shift));
+        }
+    }
+
+    private static void dim(Node root, double x, double y, double w, double h) {
+        if (w > 0 && h > 0) root.add(Node.box().background(Layout.DIMMER).absolute(y, Double.NaN, Double.NaN, x).size(w, h));
     }
 
     /** On the viewer's thread, from a confirm's buttons or its dismissal. */

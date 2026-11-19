@@ -73,6 +73,11 @@ public final class ScreenRuntime {
         close(player.getUniqueId());
         LiveScreen live = new LiveScreen(plugin, player, screen);
         OPEN.put(player.getUniqueId(), live);
+        try {
+            plugin.getServer().getPluginManager().callEvent(new net.exylia.lib.screen.ScreenOpenEvent(player, live));
+        } catch (RuntimeException failure) {
+            plugin.getLogger().log(Level.WARNING, "A ScreenOpenEvent listener failed for " + player.getName(), failure);
+        }
         // Held in mid-air the viewer would float for everyone to see and count as flying: brought down to the
         // floor first, and the screen shows there. At once (in this call) when they already stand.
         net.exylia.lib.stage.Footing.ground(plugin, player).thenRun(() -> {
