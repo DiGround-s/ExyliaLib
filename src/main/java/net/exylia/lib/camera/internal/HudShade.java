@@ -339,10 +339,6 @@ final class HudShade extends PacketListenerAbstract {
     }
 
     private static void quiet(Player player, PacketWrapper<?> packet) {
-        try {
-            PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, packet);
-        } catch (Throwable gone) {
-            // A player who left between the check and the send: nothing to give back.
-        }
+        net.exylia.lib.packet.internal.SilentPackets.send(player, packet);
     }
 }

@@ -165,7 +165,7 @@ final class ScreenPackets extends PacketListenerAbstract {
     /** Blank lines, past every listener, so what was in view leaves it while the screen is up. */
     static void pushChatOut(Player player) {
         WrapperPlayServerSystemChatMessage blank = new WrapperPlayServerSystemChatMessage(false, Component.empty());
-        for (int i = 0; i < CHAT_HEIGHT; i++) PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, blank);
+        for (int i = 0; i < CHAT_HEIGHT; i++) net.exylia.lib.packet.internal.SilentPackets.send(player, blank);
     }
 
     static int newId() {
@@ -308,7 +308,7 @@ final class ScreenPackets extends PacketListenerAbstract {
      * cinematics, and a screen must not read its own camera as one and close. In order with what the wire queued before.
      */
     static void look(Player player, int entity) {
-        PacketEvents.getAPI().getPlayerManager().sendPacketSilently(player, new WrapperPlayServerCamera(entity));
+        net.exylia.lib.packet.internal.SilentPackets.send(player, new WrapperPlayServerCamera(entity));
     }
 
     /** An item display facing {@code yaw}, as {@link #spawnDisplay(int, Vector3d, float)} faces a text display. */

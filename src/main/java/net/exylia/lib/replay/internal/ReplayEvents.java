@@ -335,8 +335,10 @@ final class ReplayEvents implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event) {
+        // A plugin may fire its own teleport event without a cause.
+        PlayerTeleportEvent.TeleportCause cause = event.getCause();
         actor(ReplayMark.TELEPORT, event.getPlayer(),
-                event.getCause().name().getBytes(StandardCharsets.UTF_8));
+                (cause == null ? "UNKNOWN" : cause.name()).getBytes(StandardCharsets.UTF_8));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

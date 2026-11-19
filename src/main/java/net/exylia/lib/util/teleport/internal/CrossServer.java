@@ -712,7 +712,9 @@ public final class CrossServer {
                 redis.set(presenceKeyOf(settings, id), settings.serverId(), PRESENCE_TTL_SECONDS);
             }
         } catch (RuntimeException unreachable) {
-            Debug.of(library).error("Could not record which players are on this server", unreachable);
+            // Not an error: the heartbeat writes every entry again in 30s, and an entry lasts 90s.
+            Debug.of(library).warn("Could not record which players are on this server ("
+                    + unreachable.getMessage() + "); the next heartbeat tries again");
         }
     }
 

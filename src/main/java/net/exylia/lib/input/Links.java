@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -121,11 +122,12 @@ public final class Links {
     private static void add(List<Link> links, Set<String> seen, String words, @Nullable ClickEvent click) {
         if (click == null || links.size() >= MAX || !seen.add(click(click))) return;
         String value = Text.clickValue(click);
-        Link.Kind kind = switch (click.action()) {
-            case OPEN_URL -> Link.Kind.OPEN_URL;
-            case COPY_TO_CLIPBOARD -> Link.Kind.COPY;
-            case RUN_COMMAND -> Link.Kind.RUN_COMMAND;
-            case SUGGEST_COMMAND -> Link.Kind.SUGGEST_COMMAND;
+        // Matched by name: Adventure 5 turned Action into a class, so an enum switch throws NoSuchMethodError.
+        Link.Kind kind = switch (click.action().toString().toLowerCase(Locale.ROOT)) {
+            case "open_url" -> Link.Kind.OPEN_URL;
+            case "copy_to_clipboard" -> Link.Kind.COPY;
+            case "run_command" -> Link.Kind.RUN_COMMAND;
+            case "suggest_command" -> Link.Kind.SUGGEST_COMMAND;
             default -> null;
         };
         if (kind == null || value == null || value.isBlank()) return;

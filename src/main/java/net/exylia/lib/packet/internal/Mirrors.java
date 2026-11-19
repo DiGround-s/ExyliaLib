@@ -17,6 +17,7 @@ import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.InventoryView;
@@ -180,11 +181,15 @@ public final class Mirrors implements SilentContainer {
     static void forget(Player viewer) {
         STATE.remove(viewer.getUniqueId());
         for (Map.Entry<UUID, Open> entry : STATE.entrySet()) {
-            // Their inventory was the source: the window closes with them.
-            if (viewer.equals(entry.getValue().mirror.source().getHolder())) {
+            // Their inventory was the source: the window closes with them. Only a player's own inventories can be
+            // theirs, and asking any other for its holder reads a block, which on Folia may sit in another region.
+            Inventory source = entry.getValue().mirror.source();
+            InventoryType type = source.getType();
+            if ((type == InventoryType.PLAYER || type == InventoryType.ENDER_CHEST) && viewer.equals(source.getHolder())) {
                 Player other = Bukkit.getPlayer(entry.getKey());
-                if (other != null) {
-                    other.closeInventory();
+                Plugin owner = Bukkit.getPluginManager().getPlugin(entry.getValue().mirror.plugin());
+                if (other != null && owner != null) {
+                    Tasks.of(owner).runAtEntity(other, other::closeInventory);
                 }
                 STATE.remove(entry.getKey());
             }
