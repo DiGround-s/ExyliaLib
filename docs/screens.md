@@ -79,7 +79,7 @@ Screen state a screen keeps with `persist="player"` is not a preference and stay
 
 ## The settings button
 
-Every screen draws a small button at its bottom right, in the gutter outside the layout, which the cursor reaches:
+Every screen draws a small **✕** at its top right (1.627.0) that closes it, as Shift does, and a small button at its bottom right, in the gutter outside the layout, which the cursor reaches:
 it moves 24 pixels past the layout's sides and 6 past its top and bottom. Under a dialog the button is gone. It opens an
 in-screen panel:
 

@@ -406,8 +406,9 @@ class ScreenWireTest {
         live.start();
         FakeServer.tick(8);
         Stats open = take();
-        // Hitbox, up to 12 backdrop bands, 4 scene and 4 cursor copies, up to 12 panel bands, 4 picture copies, text.
-        assertTrue(open.packets < 120, "a painted screen opens in a bounded number of packets: " + open);
+        // Hitbox, up to 12 backdrop bands, 4 scene and 4 cursor copies, up to 12 panel bands, 4 picture copies, text,
+        // and the settings and close buttons.
+        assertTrue(open.packets < 126, "a painted screen opens in a bounded number of packets: " + open);
         // A 96 x 54 scene is four copies of 54 lines of blocks and gaps: the bulk of this, and sent once.
         assertTrue(open.bytes < 100_000, "and a sparse scene stays within a chunk or two, sent once: " + open);
         FakeServer.tick(40);

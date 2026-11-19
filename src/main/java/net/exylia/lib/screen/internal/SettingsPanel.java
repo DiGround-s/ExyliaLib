@@ -105,6 +105,15 @@ final class SettingsPanel {
                 .onClick(event -> live.settings(true));
     }
 
+    /** The small button at a screen's top right: closes it, as Shift does. */
+    static Node closeButton(LiveScreen live) {
+        return words("{letters}✕").textAlign(Node.Align.CENTER).id("~close").padding(3)
+                .hover("{error}50").outline("{error}30", 1).tooltip("{letters}" + Phrases.tr("Close"))
+                .onClick(event -> {
+                    if (live.open()) live.close();
+                });
+    }
+
     private static MenuStyle nextStyle(MenuStyle style) {
         if (style == null) return MenuStyle.CLASSIC;
         if (style == MenuStyle.CLASSIC) return MenuStyle.SCREEN;

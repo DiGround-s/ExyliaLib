@@ -824,7 +824,10 @@ final class LiveScreen implements ScreenSession {
             addToasts(laid);
             overlayFrom = Layout.overlayStart(laid);
             // Outside the layout, and gone under a dialog: a dialog takes every click.
-            if (overlayFrom < 0) laid.add(new Layout.Placed(gear(), "~gear", screen.width() + 3, screen.height() - GEAR, GEAR, GEAR, 0));
+            if (overlayFrom < 0) {
+                laid.add(new Layout.Placed(closer(), "~close", screen.width() + 3, 0, GEAR, GEAR, 0));
+                laid.add(new Layout.Placed(gear(), "~gear", screen.width() + 3, screen.height() - GEAR, GEAR, GEAR, 0));
+            }
             placed = laid;
             view = new View(laid, overlayFrom);
             retime(core);
@@ -840,6 +843,13 @@ final class LiveScreen implements ScreenSession {
     }
 
     private Node gearNode;
+    private Node closeNode;
+
+    /** The close button at the top right, as Shift does. Holds the lock. */
+    private Node closer() {
+        if (closeNode == null) closeNode = SettingsPanel.closeButton(this);
+        return closeNode;
+    }
 
     /** The settings button, one node for the whole screen. Holds the lock. */
     private Node gear() {
