@@ -593,6 +593,35 @@ curve, a cap, a requirement, a charge, and a second click that charged twice.
       '5': { cost: '64', currency: diamonds, permission: 'myplugin.speed.max', requirements: {}, values: { delay: 100 } }
   ```
 
+## Curve — endless level tracks
+
+*Since 1.631.0.* `net.exylia.lib.util.upgrade.Curve`.
+
+```java
+Curve strength = new Curve(new BigDecimal("50"), new BigDecimal("1.15"), 100, 0.5);
+strength.price(owned);                // the next level: 50 × 1.15^owned
+strength.price(owned, 10);            // the next ten bought together
+strength.affordable(owned, balance);  // how many of the next levels the balance pays for ("buy max")
+strength.levels(owned);               // what the levels owned are worth: 200 past a cap of 100 count as 110
+```
+
+For idle and clicker games, whose tracks never end and whose prices outgrow a
+`double` long before the game does. `Upgrade` stays the track for levels with a
+maximum, formulas, requirements and a charge.
+
+| Call | Contract |
+| --- | --- |
+| `Curve(base, growth, softCap, falloff)` | `base` positive, `growth` 1 or more, `falloff` in (0, 1]; `softCap` 0 or less counts every level in full. `Curve(base, growth)` is that with no cap |
+| `price(owned)` | `base × growth^owned`, in `BigDecimal` with twenty significant digits (`Curve.MC`) |
+| `price(owned, count)` | the next `count` levels together (a geometric series); zero for none |
+| `affordable(owned, budget)` | the most levels `price(owned, count)` fits in `budget`; estimated with logarithms that never overflow, then settled exactly |
+| `levels(owned)` | effective levels: in full up to `softCap`, then `softCap + (owned − softCap)^falloff`, so each level past the cap is worth less but never nothing |
+
+- The plugin keeps the levels, charges the price and applies `levels(owned)` to
+  whatever the level raises; the curve is pure math and any thread may call it.
+- A rebirth ladder is the same record: `new Curve(cost, growth).price(rebirths)`,
+  and multi-rebirth is `affordable`.
+
 ## DecayingCounter — volumes with a half-life
 
 Since 1.478.0. How much of something happened *recently*: a market that pays
