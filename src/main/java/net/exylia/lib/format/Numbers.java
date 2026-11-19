@@ -116,6 +116,92 @@ public final class Numbers {
         return Long.toString(value);
     }
 
+    // ----------------------------------------------------------- endless
+
+    /** The named groups from {@code Q} (10^15) to {@code Dc} (10^33); letters take over after them. */
+    private static final String[] NAMED = {"Q", "Qi", "Sx", "Sp", "Oc", "No", "Dc"};
+
+    /** The first thousands group written in letters ({@code aa}, 10^36). */
+    private static final int FIRST_LETTER_GROUP = 5 + NAMED.length;
+
+    /**
+     * A number of any size shortened with a suffix that never runs out, for games
+     * whose values have no ceiling (clickers, tycoons).
+     *
+     * <p>Up to the quadrillions it is exactly {@link #compact(double)}. Then come
+     * {@code Qi Sx Sp Oc No Dc} (10^18 to 10^33), and after them two lowercase
+     * letters per thousands group: {@code aa} is 10^36, {@code ab} 10^39 …
+     * {@code zz}, then {@code aaa}, and so on for as long as a {@code BigDecimal}
+     * goes. Cut, never rounded up, like {@code compact}.
+     *
+     * <pre>{@code
+     * Numbers.endless(new BigDecimal("1500"));     // "1.5K"
+     * Numbers.endless(new BigDecimal("2.5E33"));   // "2.5Dc"
+     * Numbers.endless(new BigDecimal("7.25E37"));  // "72.5aa"
+     * }</pre>
+     *
+     * @param value the number
+     * @return the shortened text
+     * @since 1.626.0
+     */
+    public static @NotNull String endless(@NotNull BigDecimal value) {
+        int exponent = exponent(value);
+        // A double is exact below 2^53, so compact cannot round 999.9Q up to 1000Q.
+        if (exponent < 15) {
+            return compact(value.doubleValue());
+        }
+        int group = exponent / 3;
+        return truncated(value.movePointLeft(group * 3), 1) + groupSuffix(group);
+    }
+
+    /**
+     * A number of any size in scientific notation, for players who would rather
+     * read exponents than suffixes: {@code 1.52e45}. Two decimals at most, cut.
+     * Below a thousand it is written as {@link #compact(double)} writes it.
+     *
+     * @param value the number
+     * @return the text
+     * @since 1.626.0
+     */
+    public static @NotNull String scientific(@NotNull BigDecimal value) {
+        int exponent = exponent(value);
+        if (exponent < 3) {
+            return compact(value.doubleValue());
+        }
+        return truncated(value.movePointLeft(exponent), 2) + "e" + exponent;
+    }
+
+    /** The power of ten of the number's leading digit; {@code 0} for zero. */
+    private static int exponent(BigDecimal value) {
+        return value.signum() == 0 ? 0 : value.precision() - value.scale() - 1;
+    }
+
+    private static String truncated(BigDecimal value, int decimals) {
+        BigDecimal cut = value.setScale(decimals, RoundingMode.DOWN).stripTrailingZeros();
+        return cut.signum() == 0 ? "0" : cut.toPlainString();
+    }
+
+    /** The suffix of a thousands group of 5 or more (5 is {@code Q}). */
+    private static String groupSuffix(int group) {
+        if (group < FIRST_LETTER_GROUP) {
+            return NAMED[group - 5];
+        }
+        long index = group - FIRST_LETTER_GROUP;
+        int length = 2;
+        long count = 26 * 26;
+        while (index >= count) {
+            index -= count;
+            length++;
+            count *= 26;
+        }
+        char[] letters = new char[length];
+        for (int position = length - 1; position >= 0; position--) {
+            letters[position] = (char) ('a' + index % 26);
+            index /= 26;
+        }
+        return new String(letters);
+    }
+
     // ----------------------------------------------------------- grouped
 
     /**

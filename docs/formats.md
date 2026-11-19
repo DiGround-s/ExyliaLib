@@ -63,6 +63,8 @@ Fixed, allocation-free beyond the string returned, safe from any thread.
 | Method | Example |
 | --- | --- |
 | `compact(long)` / `compact(double)` | `1500` → `"1.5K"` |
+| `endless(BigDecimal)` | `7.25E40` → `"72.5ab"`: no ceiling, for clickers and tycoons (*1.626.0*) |
+| `scientific(BigDecimal)` | `1.5299E45` → `"1.52e45"` (*1.626.0*) |
 | `grouped(long)` | `1234567` → `"1,234,567"` |
 | `grouped(double, int)` | `(1234.5, 2)` → `"1,234.50"` |
 | `decimals(double, int)` | `(3.14159, 2)` → `"3.14"` |
@@ -72,6 +74,19 @@ Fixed, allocation-free beyond the string returned, safe from any thread.
 | `percentOf(double, double)` | `(3, 4)` → `"75%"` |
 | `ordinal(long)` | `3` → `"3rd"`, `11` → `"11th"` |
 | `roman(int)` | `3` → `"III"`, `14` → `"XIV"`; outside 1-3999 the digits (*1.387.0*) |
+
+### Endless notation
+
+`endless(BigDecimal)` is `compact` for numbers with no ceiling. It reads exactly
+like `compact` below 10^15, then `Q Qi Sx Sp Oc No Dc` (10^15 to 10^33), then two
+lowercase letters per thousands group: `aa` is 10^36, `ab` 10^39 … `zz`, then
+`aaa`, for as long as a `BigDecimal` goes. Cut, never rounded up.
+`scientific(BigDecimal)` writes the same values as `1.52e45`, for players who
+would rather read exponents; a plugin keeps which one each player chose.
+
+Keep such values as `BigDecimal` rounded to a fixed `MathContext` (`DECIMAL64`
+is plenty): a `double` stops at 1.8e308, and an unrounded sum of 1e300 and 1
+keeps three hundred digits.
 
 ### Compact notation
 

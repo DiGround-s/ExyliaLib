@@ -3,6 +3,7 @@ package net.exylia.lib.format;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -232,5 +233,30 @@ class NumbersTest {
         assertEquals("0", Numbers.roman(0));
         assertEquals("-2", Numbers.roman(-2));
         assertEquals("4000", Numbers.roman(4000));
+    }
+
+    @Test
+    @DisplayName("endless notation continues compact and never runs out of suffixes")
+    void endlessNeverRunsOut() {
+        assertEquals("999", Numbers.endless(new BigDecimal("999")));
+        assertEquals("1.5K", Numbers.endless(new BigDecimal("1500")));
+        assertEquals("999.9Q", Numbers.endless(new BigDecimal("999999999999999999")));
+        assertEquals("1Qi", Numbers.endless(new BigDecimal("1E18")));
+        assertEquals("2.5Dc", Numbers.endless(new BigDecimal("2.59E33")));
+        assertEquals("1aa", Numbers.endless(new BigDecimal("1E36")));
+        assertEquals("72.5ab", Numbers.endless(new BigDecimal("7.25E40")));
+        assertEquals("1zz", Numbers.endless(new BigDecimal("1E" + (36 + 675 * 3))));
+        assertEquals("1aaa", Numbers.endless(new BigDecimal("1E" + (36 + 676 * 3))));
+        assertEquals("-1.5aa", Numbers.endless(new BigDecimal("-1.5E36")));
+        assertEquals("0", Numbers.endless(BigDecimal.ZERO));
+    }
+
+    @Test
+    @DisplayName("scientific notation cuts to two decimals")
+    void scientificCuts() {
+        assertEquals("999", Numbers.scientific(new BigDecimal("999")));
+        assertEquals("1.52e45", Numbers.scientific(new BigDecimal("1.5299E45")));
+        assertEquals("1e3", Numbers.scientific(new BigDecimal("1000")));
+        assertEquals("1e100000", Numbers.scientific(new BigDecimal("1E100000")));
     }
 }
