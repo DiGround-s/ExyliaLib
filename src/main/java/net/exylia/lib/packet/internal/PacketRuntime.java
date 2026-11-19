@@ -1144,6 +1144,11 @@ public final class PacketRuntime {
         }
 
         @Override
+        public void spare(@NotNull Player viewer, int entityId, boolean on) {
+            if (sink() != null) Scenes.spare(viewer, entityId, on);
+        }
+
+        @Override
         public void clear(@NotNull Player viewer) {
             KEPT.remove(viewer.getUniqueId());
             Set<Location> shown = FAKED.remove(viewer.getUniqueId());

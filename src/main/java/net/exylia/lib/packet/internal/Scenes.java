@@ -22,6 +22,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -80,6 +81,8 @@ final class Scenes {
         final Map<String, Volume> boxes = new ConcurrentHashMap<>();
         /** The newest entity id there was when the first box went up. */
         volatile int watermark = Integer.MAX_VALUE;
+        /** Entities kept in sight inside every box: the one the viewer is talking to. */
+        final Set<Integer> spared = ConcurrentHashMap.newKeySet();
     }
 
     private static final Map<UUID, View> VIEWS = new ConcurrentHashMap<>();
@@ -122,10 +125,22 @@ final class Scenes {
             }
             view.boxes.put(owner, box);
         }
+        refresh(viewer, view);
+    }
+
+    /** Keeps one entity in a viewer's sight inside their boxes, or lets the boxes park it again. */
+    static void spare(Player viewer, int entityId, boolean on) {
+        View view = VIEWS.computeIfAbsent(viewer.getUniqueId(), ignored -> new View());
+        if (on ? !view.spared.add(entityId) : !view.spared.remove(entityId)) return;
+        refresh(viewer, view);
+    }
+
+    /** Parks what should be parked now and puts back what should not. */
+    private static void refresh(Player viewer, View view) {
         User user = PacketEvents.getAPI().getPlayerManager().getUser(viewer);
         if (user == null) return;
         view.seen.forEach((id, seen) -> {
-            boolean park = shouldPark(view, seen);
+            boolean park = shouldPark(view, id, seen);
             if (park == seen.parked) return;
             seen.parked = park;
             try {
@@ -197,7 +212,7 @@ final class Scenes {
         Seen seen = new Seen(at.getX(), at.getY(), at.getZ(), spawn.getYaw(), spawn.getPitch());
         seen.own = !view.boxes.isEmpty() && id > view.watermark && !PacketRuntime.isPlayerEntity(id);
         view.seen.put(id, seen);
-        if (shouldPark(view, seen)) {
+        if (shouldPark(view, id, seen)) {
             seen.parked = true;
             spawn.setPosition(away(seen));
             event.markForReEncode(true);
@@ -230,7 +245,7 @@ final class Scenes {
         seen.y += dy;
         seen.z += dz;
         if (view.boxes.isEmpty() && !seen.parked) return;
-        boolean park = shouldPark(view, seen);
+        boolean park = shouldPark(view, id, seen);
         if (park == seen.parked) return;
         seen.parked = park;
         // The move itself is let through: the client applies it where the entity is now, then this.
@@ -246,7 +261,7 @@ final class Scenes {
         seen.yaw = yaw;
         seen.pitch = pitch;
         if (view.boxes.isEmpty() && !seen.parked) return;
-        boolean park = shouldPark(view, seen);
+        boolean park = shouldPark(view, id, seen);
         if (park) {
             // Parked, or parked now: the client is never told where it really is.
             event.setCancelled(true);
@@ -260,8 +275,8 @@ final class Scenes {
         seen.parked = false;
     }
 
-    private static boolean shouldPark(View view, Seen seen) {
-        if (seen.own || seen.carrier || view.boxes.isEmpty()) return false;
+    private static boolean shouldPark(View view, int id, Seen seen) {
+        if (seen.own || seen.carrier || view.boxes.isEmpty() || view.spared.contains(id)) return false;
         for (Volume box : view.boxes.values()) {
             if (box.touches(seen.x - HALF_WIDTH, seen.y, seen.z - HALF_WIDTH, seen.x + HALF_WIDTH, seen.y + HEIGHT,
                     seen.z + HALF_WIDTH)) {

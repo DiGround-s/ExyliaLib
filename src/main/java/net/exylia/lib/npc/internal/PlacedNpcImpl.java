@@ -176,6 +176,13 @@ final class PlacedNpcImpl implements PlacedNpc {
         setGlow(viewer, null);
     }
 
+    @Override
+    public void keepInSight(@NotNull Player viewer, boolean on) {
+        net.exylia.lib.packet.Visibility visibility = net.exylia.lib.packet.Packets.of(owner).visibility();
+        visibility.spare(viewer, entityId, on);
+        if (seatId >= 0) visibility.spare(viewer, seatId, on);
+    }
+
     private synchronized void setGlow(Player player, @Nullable Integer rgb) {
         UUID uuid = player.getUniqueId();
         Integer before = rgb == null ? glows.remove(uuid) : glows.put(uuid, rgb);

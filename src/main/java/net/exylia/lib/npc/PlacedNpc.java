@@ -235,6 +235,17 @@ public interface PlacedNpc {
     default void resetGlow(@NotNull Player viewer) {
     }
 
+    /**
+     * Keeps it in one viewer's sight inside a sealed screen box (a {@link net.exylia.lib.dialogue.Dialogue.Mode#SCREEN}
+     * dialogue hides everything around the player): on while they talk to it, off after.
+     *
+     * @param viewer who talks to it
+     * @param on     whether it stays in sight
+     * @since 1.624.0
+     */
+    default void keepInSight(@NotNull Player viewer, boolean on) {
+    }
+
     /** Whether a player has it on screen. */
     boolean isViewing(@NotNull Player player);
 

@@ -96,4 +96,16 @@ public interface Visibility {
      */
     default void seal(@NotNull Player viewer, @org.jetbrains.annotations.Nullable Volume box) {
     }
+
+    /**
+     * Keeps one entity in a viewer's sight inside every box sealed for them, whoever sealed it: the NPC
+     * a screen dialogue is held with. {@code false} lets the boxes take it again. Forgotten on quit.
+     *
+     * @param viewer   the player
+     * @param entityId the entity, as it was sent to them
+     * @param on       whether it is kept
+     * @since 1.624.0
+     */
+    default void spare(@NotNull Player viewer, int entityId, boolean on) {
+    }
 }
