@@ -113,11 +113,44 @@ class CosmeticPurchasesTest {
         assertTrue(Price.resolve(null, null, tiers).isEmpty());
     }
 
+    @Test
+    @DisplayName("a choice of currencies: read from a list, a currency this server lacks left out, the one they can pay charged")
+    void choiceOfCurrencies() {
+        Price either = Price.parse(java.util.List.of(Map.of("amount", 900, "currency", "gems"),
+                Map.of("amount", 20, "currency", "coins"), Map.of("amount", 1, "currency", "nowhere"))).orElseThrow();
+        assertEquals(3, either.choices().size());
+        assertEquals("gems", either.currency());
+
+        Gems coins = new Gems("coins");
+        Economy.register(coins);
+        try {
+            assertEquals(2, either.options().size());
+            // 800 gems cannot pay 900, so the coins are charged without asking.
+            coins.balances.put(uuid, new BigDecimal("50"));
+            assertEquals(CosmeticPurchases.Result.SUCCESS, await(CosmeticPurchases.purchase(plugin, steve.player(),
+                    "flame", "Flame", either, () -> false, () -> CompletableFuture.completedFuture(true))));
+            assertEquals(0, new BigDecimal("30").compareTo(coins.balances.get(uuid)));
+            assertEquals(0, new BigDecimal("800").compareTo(gems.balances.get(uuid)));
+
+            // A basket adds up choice by choice.
+            Price total = net.exylia.lib.spatial.internal.Catalogs.total(java.util.List.of(either, either));
+            assertEquals(0, new BigDecimal("1800").compareTo(total.amount()));
+            assertEquals(0, new BigDecimal("40").compareTo(total.alternatives().getFirst().amount()));
+        } finally {
+            Economy.unregister("coins");
+        }
+        assertEquals(1, either.options().size());
+    }
+
     /** An in-memory currency. */
     private static final class Gems implements CurrencyProvider {
         final Map<UUID, BigDecimal> balances = new ConcurrentHashMap<>();
+        private final String id;
 
-        @Override public @NotNull String id() { return "gems"; }
+        Gems() { this("gems"); }
+        Gems(String id) { this.id = id; }
+
+        @Override public @NotNull String id() { return id; }
         @Override public @NotNull String displayName() { return "Gems"; }
         @Override public boolean isAvailable() { return true; }
         @Override public @NotNull BigDecimal balance(@NotNull UUID player) { return balances.getOrDefault(player, BigDecimal.ZERO); }

@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}Buna zaten sahipsin: {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Kilit açılamadı: {highlight}%item%{letters}. İade edilen tutar {info}%price%{letters}.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Kilit açılamadı: {highlight}%item% {letters}ve iade başarısız oldu, tutar {info}%price%{letters}. {warning}Yetkililerle iletişime geç.'
+  choose: '{highlight}%item% {letters}için ödeme'
+  option-local: '{muted}Yalnızca bu sunucuda açılır'
+  option-shared: '{success}Tüm ağda açılır'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Kayıtlar okunamadı. Biraz sonra tekrar dene.'
   empty: '{letters_black}▎ {muted}Kayıt yok: {highlight}%subject% {muted}/ {info}%plugin% {letters_black}» {info}%action%{muted}.'

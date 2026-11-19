@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}Tu possèdes déjà {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Impossible de débloquer {highlight}%item%{letters}. {info}%price% {letters}t''a été remboursé.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Impossible de débloquer {highlight}%item% {letters}et le remboursement de {info}%price% {letters}a échoué. {warning}Contacte le staff.'
+  choose: '{letters}Payer {highlight}%item% {letters}avec'
+  option-local: '{muted}Débloqué sur ce serveur seulement'
+  option-shared: '{success}Débloqué sur tout le réseau'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Impossible de lire les journaux. Réessaie dans un instant.'
   empty: '{letters_black}▎ {muted}Rien d''enregistré pour {highlight}%subject% {muted}dans {info}%plugin% {letters_black}» {info}%action%{muted}.'

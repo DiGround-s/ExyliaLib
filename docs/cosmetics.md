@@ -9,6 +9,25 @@ armour trims and skins, chat cosmetics) shares, in `net.exylia.lib.cosmetic`.
 | `CosmeticPurchases` / `Price` | buying a cosmetic: confirm, charge, grant, refund on failure | 1.239.0 |
 | `CosmeticDefault` | what a player who never picked one gets, by rank | 1.468.0 |
 
+## A choice of currencies (1.628.0)
+
+A price (`price:` of a cosmetic, or a line of `shop.tier-prices`) can be a list: the player pays in
+any one of them.
+
+```yaml
+shop:
+  tier-prices:
+    rare:
+      - {amount: 1500, currency: dinero}   # counts on this server only, with ownership.scope: server
+      - {amount: 250, currency: zenith}    # counts everywhere, in ownership.global-currencies
+```
+
+A currency this server has no economy for is left out (`Price.options()`), so one list works on
+every server. When the player can pay more than one, `CosmeticPurchases` asks which, each choice
+saying whether it unlocks on this server only or the whole network (`purchase.choose`,
+`option-local`, `option-shared` in ExyliaLib's messages); with only one they can pay, it is charged.
+`%price%` shows every choice, as `1,500 Dinero / 250 Zeniths`. No plugin change is needed.
+
 ## Defaults by rank
 
 A server wants new players to have *something*, and VIPs something better,

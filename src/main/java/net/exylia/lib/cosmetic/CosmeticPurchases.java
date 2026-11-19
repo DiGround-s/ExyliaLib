@@ -14,6 +14,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,12 @@ import java.util.function.Supplier;
  * a refund that is refused too is logged as severe with everything needed to
  * fix it by hand. Every outcome tells the player, from {@code messages.yml}
  * under {@code purchase}.
+ *
+ * <h2>A choice of currencies</h2>
+ * A {@link Price} with alternatives is paid in one of them. When the player can
+ * pay more than one, they are asked which, each choice saying whether it counts
+ * on this server only or on the whole network ({@link CosmeticScopes}); that
+ * question is the confirmation. With only one they can pay, that one is charged.
  *
  * <h2>Threads</h2>
  * Callable from any thread. Money moves on the server's global thread, where
@@ -112,10 +119,20 @@ public final class CosmeticPurchases {
             @NotNull Plugin plugin, @NotNull Player player, @NotNull String itemId, @NotNull String itemName,
             @NotNull Price price, @NotNull BooleanSupplier owned,
             @NotNull Supplier<CompletableFuture<Boolean>> grant) {
+        List<Price> options = price.options();
+        if (options.size() > 1) {
+            if (owned.getAsBoolean()) {
+                say(player, LibraryMessages.get().purchase().alreadyOwned(), itemName, price, null);
+                return CompletableFuture.completedFuture(Result.ALREADY_OWNED);
+            }
+            return choose(plugin, player, itemId, itemName, options, owned, grant);
+        }
+        if (options.size() == 1) price = options.getFirst();
         Result refused = precheck(player, itemName, price, owned);
         if (refused != null) return CompletableFuture.completedFuture(refused);
 
         LibraryMessages.Purchase lines = LibraryMessages.get().purchase();
+        Price single = price;
         // The name and the price come from the server's own config, never from a player.
         String prompt = lines.confirm().replace("%item%", itemName).replace("%price%", price.format());
         return Inputs.of(plugin).confirm(player, prompt)
@@ -123,8 +140,32 @@ public final class CosmeticPurchases {
                 .open()
                 .toCompletableFuture()
                 .thenCompose(answer -> answer.completed() && Boolean.TRUE.equals(answer.value())
-                        ? purchase(plugin, player, itemId, itemName, price, owned, grant)
+                        ? purchase(plugin, player, itemId, itemName, single, owned, grant)
                         : CompletableFuture.completedFuture(Result.CANCELLED));
+    }
+
+    /** Asks which currency to pay in, each choice saying where the unlock counts, then buys with it. */
+    private static CompletableFuture<Result> choose(Plugin plugin, Player player, String itemId, String itemName,
+                                                    List<Price> options, BooleanSupplier owned,
+                                                    Supplier<CompletableFuture<Boolean>> grant) {
+        LibraryMessages.Purchase lines = LibraryMessages.get().purchase();
+        boolean global = CosmeticScopes.home(plugin).isEmpty();
+        return Inputs.of(plugin).choice(player, lines.choose().replace("%item%", itemName), options)
+                .label(Price::format)
+                .key(option -> option.currency() == null ? "default" : option.currency())
+                .description(option -> global || CosmeticScopes.isShared(plugin, option)
+                        ? lines.optionShared() : lines.optionLocal())
+                .open()
+                .toCompletableFuture()
+                .thenCompose(answer -> answer.completed()
+                        ? purchase(plugin, player, itemId, itemName, answer.value(), owned, grant)
+                        : CompletableFuture.completedFuture(Result.CANCELLED));
+    }
+
+    /** The ways of paying {@code price} that {@code player} can afford, in the config's order. */
+    private static List<Price> affordable(Player player, List<Price> options) {
+        UUID uuid = player.getUniqueId();
+        return options.stream().filter(option -> option.view().balance(uuid).compareTo(option.amount()) >= 0).toList();
     }
 
     // ------------------------------------------------------------ buy
@@ -139,7 +180,8 @@ public final class CosmeticPurchases {
     }
 
     /**
-     * Charges the price and grants the cosmetic, with no confirmation.
+     * Charges the price and grants the cosmetic, with no confirmation. A choice of currencies the player
+     * can pay more than one of still asks which.
      *
      * @param plugin   the cosmetic plugin; names the ledger entries {@code <plugin>:buy:<itemId>}
      * @param player   the buyer
@@ -155,10 +197,20 @@ public final class CosmeticPurchases {
             @NotNull Plugin plugin, @NotNull Player player, @NotNull String itemId, @NotNull String itemName,
             @NotNull Price price, @NotNull BooleanSupplier owned,
             @NotNull Supplier<CompletableFuture<Boolean>> grant) {
+        List<Price> options = price.options();
+        if (options.size() > 1) {
+            List<Price> can = affordable(player, options);
+            if (can.size() > 1 && !owned.getAsBoolean()) return choose(plugin, player, itemId, itemName, can, owned, grant);
+            // None: the first is refused for want of money, as a one-currency price is.
+            price = can.isEmpty() ? options.getFirst() : can.getFirst();
+        } else if (options.size() == 1) {
+            price = options.getFirst();
+        }
+        Price paid = price;
         UUID uuid = player.getUniqueId();
         // Taken before any hop, so two clicks in the same tick cannot both get past it.
         if (!IN_FLIGHT.add(uuid)) {
-            tell(plugin, player, LibraryMessages.get().purchase().busy(), itemName, price, null);
+            tell(plugin, player, LibraryMessages.get().purchase().busy(), itemName, paid, null);
             return CompletableFuture.completedFuture(Result.BUSY);
         }
         CompletableFuture<Result> done = new CompletableFuture<>();
@@ -167,7 +219,7 @@ public final class CosmeticPurchases {
             // The player's thread, not the global one: items and experience can only be taken there.
             Tasks.of(plugin).runAtEntity(player, () -> {
                 try {
-                    charge(plugin, player, itemId, itemName, price, owned, grant, done);
+                    charge(plugin, player, itemId, itemName, paid, owned, grant, done);
                 } catch (Throwable failure) {
                     done.completeExceptionally(failure);
                 }
@@ -253,7 +305,13 @@ public final class CosmeticPurchases {
      */
     public static @Nullable Result check(@NotNull Player player, @NotNull String itemName, @NotNull Price price,
                                          @NotNull BooleanSupplier owned) {
-        return precheck(player, itemName, price, owned);
+        List<Price> options = price.options();
+        if (options.size() > 1) {
+            List<Price> can = affordable(player, options);
+            if (!can.isEmpty()) return precheck(player, itemName, can.getFirst(), owned);
+            return precheck(player, itemName, options.getFirst(), owned);
+        }
+        return precheck(player, itemName, options.isEmpty() ? price : options.getFirst(), owned);
     }
 
     /** What stops a purchase before any money moves, already told to the player; {@code null} to go on. */

@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}У тебя уже есть {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Не удалось открыть {highlight}%item%{letters}. {info}%price% {letters}возвращено.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Не удалось открыть {highlight}%item%{letters}, и возврат {info}%price% {letters}не прошёл. {warning}Свяжись с персоналом.'
+  choose: '{letters}Чем оплатить {highlight}%item%{letters}?'
+  option-local: '{muted}Открывается только на этом сервере'
+  option-shared: '{success}Открывается во всей сети'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Не удалось прочитать журнал. Попробуй чуть позже.'
   empty: '{letters_black}▎ {muted}Ничего не записано для {highlight}%subject% {muted}в {info}%plugin% {letters_black}» {info}%action%{muted}.'

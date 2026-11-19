@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}Du besitzt {highlight}%item% {letters}bereits.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}{highlight}%item% {letters}konnte nicht freigeschaltet werden. Du hast {info}%price% {letters}zurückerhalten.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}{highlight}%item% {letters}konnte nicht freigeschaltet werden, und die Erstattung von {info}%price% {letters}ist fehlgeschlagen. {warning}Wende dich an das Team.'
+  choose: '{letters}{highlight}%item% {letters}bezahlen mit'
+  option-local: '{muted}Nur auf diesem Server freigeschaltet'
+  option-shared: '{success}Im ganzen Netzwerk freigeschaltet'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Die Logs konnten nicht gelesen werden. Versuche es gleich noch einmal.'
   empty: '{letters_black}▎ {muted}Für {highlight}%subject% {muted}ist in {info}%plugin% {letters_black}» {info}%action% {muted}nichts protokolliert.'

@@ -20,16 +20,25 @@ public final class Catalogs {
     private Catalogs() {
     }
 
-    /** What a basket costs in one price, or {@code null} when it is empty or mixes currencies. */
+    /**
+     * What a basket costs in one price, or {@code null} when it is empty or mixes currencies. Prices
+     * with a choice of currencies add up choice by choice, when every one offers the same.
+     */
     public static @Nullable Price total(List<Price> prices) {
         if (prices.isEmpty()) return null;
-        String currency = prices.get(0).currency();
-        BigDecimal sum = BigDecimal.ZERO;
-        for (Price price : prices) {
-            if (!Objects.equals(price.currency(), currency)) return null;
-            sum = sum.add(price.amount());
+        List<Price> first = prices.get(0).choices();
+        List<Price> sums = new java.util.ArrayList<>();
+        for (int i = 0; i < first.size(); i++) {
+            String currency = first.get(i).currency();
+            BigDecimal sum = BigDecimal.ZERO;
+            for (Price price : prices) {
+                List<Price> choices = price.choices();
+                if (choices.size() != first.size() || !Objects.equals(choices.get(i).currency(), currency)) return null;
+                sum = sum.add(choices.get(i).amount());
+            }
+            sums.add(new Price(sum, currency));
         }
-        return new Price(sum, currency);
+        return new Price(sums.get(0).amount(), sums.get(0).currency(), sums.subList(1, sums.size()));
     }
 
     /** {@code items} with the ones {@code first} accepts moved to the front, each half in its own order. */

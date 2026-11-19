@@ -551,6 +551,9 @@ public record LibraryMessages(
      * @param alreadyOwned  they own it already
      * @param failed        charged, not granted, refunded
      * @param refundFailed  charged, not granted, and the refund was refused
+     * @param choose        the title of the question which currency to pay in (1.628.0)
+     * @param optionLocal   under a currency whose purchase counts on this server only
+     * @param optionShared  under a currency whose purchase counts on the whole network
      * @since 1.239.0
      */
     public record Purchase(
@@ -586,7 +589,19 @@ public record LibraryMessages(
             @Key("refund-failed")
             @Comment("Sent when the cosmetic could not be given and the refund")
             @Comment("failed too; the console logs what to give back. %item% %price%.")
-            @NotNull String refundFailed
+            @NotNull String refundFailed,
+
+            @Comment("The title of the screen that asks which currency to pay in, when a")
+            @Comment("price takes several and they can pay more than one. %item%.")
+            String choose,
+
+            @Key("option-local")
+            @Comment("Under a currency whose purchase counts on this server only.")
+            String optionLocal,
+
+            @Key("option-shared")
+            @Comment("Under a currency whose purchase counts on the whole network.")
+            String optionShared
     ) {
 
         /** The confirmation screen's title. */
@@ -628,11 +643,27 @@ public record LibraryMessages(
                 "[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {highlight}%item% {letters}could not be unlocked "
                         + "and the refund of {info}%price% {letters}failed. {warning}Please contact staff.";
 
+        /** Which currency to pay in. */
+        public static final String DEFAULT_CHOOSE = "{letters}Pay for {highlight}%item% {letters}with";
+
+        /** Counts on this server only. */
+        public static final String DEFAULT_OPTION_LOCAL = "{muted}Unlocked on this server only";
+
+        /** Counts on the whole network. */
+        public static final String DEFAULT_OPTION_SHARED = "{success}Unlocked on the whole network";
+
         /** The Exylia defaults. */
         public Purchase() {
             this(DEFAULT_CONFIRM, DEFAULT_CONFIRM_BUTTON, DEFAULT_SUCCESS, DEFAULT_INSUFFICIENT,
                     DEFAULT_UNAVAILABLE, DEFAULT_BUSY, DEFAULT_ALREADY_OWNED, DEFAULT_FAILED,
-                    DEFAULT_REFUND_FAILED);
+                    DEFAULT_REFUND_FAILED, null, null, null);
+        }
+
+        /** The messages before a choice of currencies had any, with their defaults. */
+        public Purchase(String confirm, String confirmButton, String success, String insufficient,
+                        String unavailable, String busy, String alreadyOwned, String failed, String refundFailed) {
+            this(confirm, confirmButton, success, insufficient, unavailable, busy, alreadyOwned, failed,
+                    refundFailed, null, null, null);
         }
 
         public Purchase {
@@ -645,6 +676,9 @@ public record LibraryMessages(
             alreadyOwned = orDefault(alreadyOwned, DEFAULT_ALREADY_OWNED);
             failed = orDefault(failed, DEFAULT_FAILED);
             refundFailed = orDefault(refundFailed, DEFAULT_REFUND_FAILED);
+            choose = orDefault(choose, DEFAULT_CHOOSE);
+            optionLocal = orDefault(optionLocal, DEFAULT_OPTION_LOCAL);
+            optionShared = orDefault(optionShared, DEFAULT_OPTION_SHARED);
         }
     }
 

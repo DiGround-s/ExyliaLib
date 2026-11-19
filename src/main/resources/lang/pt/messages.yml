@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}Você já possui {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Não foi possível desbloquear {highlight}%item%{letters}. {info}%price% {letters}foi reembolsado.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Não foi possível desbloquear {highlight}%item% {letters}e o reembolso de {info}%price% {letters}falhou. {warning}Contate a staff.'
+  choose: '{letters}Como pagar {highlight}%item%{letters}?'
+  option-local: '{muted}Desbloqueado só neste servidor'
+  option-shared: '{success}Desbloqueado em toda a rede'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}Não foi possível ler os registros. Tente de novo em instantes.'
   empty: '{letters_black}▎ {muted}Nada registrado para {highlight}%subject% {muted}em {info}%plugin% {letters_black}» {info}%action%{muted}.'

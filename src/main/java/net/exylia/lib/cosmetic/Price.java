@@ -7,17 +7,22 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * What a cosmetic costs: an amount of one currency.
+ * What a cosmetic costs: an amount of one currency, or a choice of several.
  *
  * <pre>{@code
  * price: 500                              # the default currency
  * price: {amount: 500, currency: gems}    # a named one
+ * price:                                  # either: the player picks when they can pay both (1.628.0)
+ *   - {amount: 1500, currency: dinero}
+ *   - {amount: 250, currency: zenith}
  *
  * shop:
  *   tier-prices:
@@ -30,22 +35,53 @@ import java.util.Optional;
  * Optional<Price> price = Price.resolve(Price.parse(entry.price()).orElse(null), entry.tier(), tiers);
  * }</pre>
  *
- * @param amount   how much, always above zero
- * @param currency the currency's id, or {@code null} for the default currency
+ * <p>{@link #amount()}, {@link #currency()} and {@link #view()} are the first choice's; a server with no
+ * economy for a currency leaves that choice out ({@link #options()}).
+ *
+ * @param amount       how much, always above zero
+ * @param currency     the currency's id, or {@code null} for the default currency
+ * @param alternatives the other ways to pay it, each of one currency; empty for most prices
  * @since 1.239.0
  */
-public record Price(@NotNull BigDecimal amount, @Nullable String currency) {
+public record Price(@NotNull BigDecimal amount, @Nullable String currency, @NotNull List<Price> alternatives) {
 
     public Price {
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("a price must be above zero, got " + amount);
         }
         currency = currency == null || currency.isBlank() ? null : currency.trim().toLowerCase(Locale.ROOT);
+        List<Price> flat = new ArrayList<>();
+        if (alternatives != null) for (Price other : alternatives) if (other != null) flat.addAll(other.choices());
+        alternatives = List.copyOf(flat);
+    }
+
+    /** One amount of one currency. */
+    public Price(@NotNull BigDecimal amount, @Nullable String currency) {
+        this(amount, currency, List.of());
+    }
+
+    /** This price paid one way only: the first choice. */
+    public @NotNull Price single() {
+        return alternatives.isEmpty() ? this : new Price(amount, currency);
+    }
+
+    /** Every way to pay it, each of one currency, in the config's order. @since 1.628.0 */
+    public @NotNull List<Price> choices() {
+        List<Price> all = new ArrayList<>(1 + alternatives.size());
+        all.add(single());
+        all.addAll(alternatives);
+        return all;
+    }
+
+    /** The ways this server can take right now; empty when none. @since 1.628.0 */
+    public @NotNull List<Price> options() {
+        return choices().stream().filter(Price::payableAlone).toList();
     }
 
     /**
      * Reads a price as a config writes it: a number, a number as text
-     * ({@code 2.5k} too), or a block with {@code amount} and {@code currency}.
+     * ({@code 2.5k} too), a block with {@code amount} and {@code currency},
+     * or a list of those for a choice of currencies.
      *
      * <p>Anything else is empty: zero, a negative, an exponent, text that is
      * not a number. Empty means "no price", so a typo makes a cosmetic
@@ -55,6 +91,14 @@ public record Price(@NotNull BigDecimal amount, @Nullable String currency) {
      * @return the price, or empty when there is none or it cannot be read
      */
     public static @NotNull Optional<Price> parse(@Nullable Object raw) {
+        if (raw instanceof List<?> list) {
+            // Either of them; one that cannot be read is left out, not the whole price.
+            List<Price> read = new ArrayList<>();
+            for (Object each : list) if (!(each instanceof List<?>)) parse(each).ifPresent(read::add);
+            if (read.isEmpty()) return Optional.empty();
+            Price first = read.getFirst();
+            return Optional.of(new Price(first.amount(), first.currency(), read.subList(1, read.size())));
+        }
         if (raw instanceof ConfigurationSection section) raw = section.getValues(false);
         String currency = null;
         if (raw instanceof Map<?, ?> block) {
@@ -102,17 +146,27 @@ public record Price(@NotNull BigDecimal amount, @Nullable String currency) {
         return Optional.ofNullable(tierPrices.get(tier.trim().toLowerCase(Locale.ROOT)));
     }
 
-    /** The price written the way its currency writes it, such as {@code 500 Gems}: what {@code %price%} shows. */
+    /**
+     * The price written the way its currency writes it, such as {@code 500 Gems}: what {@code %price%}
+     * shows. A choice is every way this server takes, as {@code 1,500 Dinero / 250 Zeniths}.
+     */
     public @NotNull String format() {
-        return Economy.format(currency, amount);
+        if (alternatives.isEmpty()) return Economy.format(currency, amount);
+        List<Price> shown = options();
+        if (shown.isEmpty()) shown = choices();
+        return String.join(" / ", shown.stream().map(each -> Economy.format(each.currency(), each.amount())).toList());
     }
 
-    /** Whether an economy can take this price right now. */
+    /** Whether an economy can take this price right now, in any of its currencies. */
     public boolean payable() {
+        return !options().isEmpty();
+    }
+
+    private boolean payableAlone() {
         return net.exylia.lib.economy.internal.CurrencyRegistry.resolve(currency).isPresent();
     }
 
-    /** The economy operations of this price's currency. */
+    /** The economy operations of this price's currency (the first choice's). */
     public @NotNull Economy.CurrencyView view() {
         return Economy.of(currency);
     }

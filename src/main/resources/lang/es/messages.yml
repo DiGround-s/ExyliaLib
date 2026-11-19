@@ -43,6 +43,9 @@ purchase:
   already-owned: '{warning}➥ {letters}Ya tienes {highlight}%item%{letters}.'
   failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}No se pudo desbloquear {highlight}%item%{letters}. Se te devolvieron {info}%price%{letters}.'
   refund-failed: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}No se pudo desbloquear {highlight}%item% {letters}y falló el reembolso de {info}%price%{letters}. {warning}Contacta con el staff.'
+  choose: '{letters}¿Cómo pagas {highlight}%item%{letters}?'
+  option-local: '{muted}Se desbloquea solo en esta modalidad'
+  option-shared: '{success}Se desbloquea en toda la red'
 logs:
   unavailable: '[sound:ENTITY_VILLAGER_NO|0.7|1]{error}✖ {letters}No se pudieron leer los registros. Inténtalo de nuevo en un momento.'
   empty: '{letters_black}▎ {muted}No hay nada registrado para {highlight}%subject% {muted}en {info}%plugin% {letters_black}» {info}%action%{muted}.'
