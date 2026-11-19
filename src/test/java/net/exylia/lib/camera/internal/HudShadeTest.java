@@ -1,6 +1,10 @@
 package net.exylia.lib.camera.internal;
 
+import com.github.retrooper.packetevents.manager.server.ServerVersion;
+import com.github.retrooper.packetevents.protocol.player.ClientVersion;
+import com.github.retrooper.packetevents.wrapper.PacketWrapper;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBossBar.Action;
+import net.exylia.lib.camera.Hud;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +15,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** What a client's boss bars are, followed from the packets, so a hidden HUD comes back as it is then. */
@@ -35,5 +40,16 @@ class HudShadeTest {
         HudShade.follow(player, bar, Action.REMOVE, null, 0, null, null, null);
         assertTrue(HudShade.bars(player).isEmpty());
         HudShade.forget(player);
+    }
+
+    @Test
+    @DisplayName("a held chat line lets go of the event's buffer, so sending it later cannot write into a recycled one")
+    void heldLineDropsTheEventBuffer() {
+        PacketWrapper<?> line = new PacketWrapper<>(ClientVersion.V_1_21, ServerVersion.V_1_21, 0);
+        line.setBuffer(new Object());
+        HudShade.Shade shade = new HudShade.Shade(EnumSet.noneOf(Hud.class));
+        HudShade.hold(shade, line);
+        assertNull(line.getBuffer());
+        assertEquals(1, shade.held.size());
     }
 }

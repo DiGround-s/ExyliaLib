@@ -65,7 +65,7 @@ final class HudShade extends PacketListenerAbstract {
         Set<BossBar.Flag> flags = EnumSet.noneOf(BossBar.Flag.class);
     }
 
-    private static final class Shade {
+    static final class Shade {
         final Set<Hud> hidden;
         final List<PacketWrapper<?>> held = new ArrayList<>();
 
@@ -276,7 +276,11 @@ final class HudShade extends PacketListenerAbstract {
         }
     }
 
-    private static void hold(Shade shade, PacketWrapper<?> line) {
+    static void hold(Shade shade, PacketWrapper<?> line) {
+        // A wrapper read from an event still points at that event's buffer, which is freed once the event is
+        // cancelled and then handed to another packet by the pool. Sent later, PacketEvents would write the chat
+        // line into whatever packet owns it now (a kick: "set_entity_data ... bytes extra") and free it twice.
+        line.setBuffer(null);
         synchronized (shade) {
             if (shade.held.size() < HELD_CHAT) {
                 shade.held.add(line);
