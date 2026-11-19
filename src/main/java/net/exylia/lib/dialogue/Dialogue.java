@@ -55,7 +55,7 @@ public record Dialogue(@NotNull List<Line> lines, @NotNull List<Component> answe
      *
      * @param text    the words
      * @param speaker the name over them; {@code null} for narration
-     * @param face    a player name whose face is drawn beside them; {@code null} for none
+     * @param face    a player name, or a skin texture value, whose face is drawn beside them; {@code null} for none
      */
     public record Line(@NotNull Component text, @Nullable Component speaker, @Nullable String face) {
 

@@ -163,7 +163,8 @@ public final class Pictures {
 
     /** A player's body seen from the front, 16 by 32, or {@code null} while their skin is on its way. */
     public static @Nullable Picture body(String player) {
-        String texture = Skulls.player(player).build().texture();
+        // A texture value (base64, never a name's length) is drawn as it is: no profile lookup to wait on.
+        String texture = player.length() > 40 ? player : Skulls.player(player).build().texture();
         String url = texture == null ? null : Textures.urlOf(texture);
         if (url == null) return null;
         Picture known = BODIES.getIfPresent(url);

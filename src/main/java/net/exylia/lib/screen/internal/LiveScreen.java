@@ -2314,6 +2314,8 @@ final class LiveScreen implements ScreenSession {
     /** The backdrop: one rect past every edge of the view, or a gradient's bands over the view, the outer two stretched. */
     private List<RectLook> backdropLooks() {
         ScreenMath.Gradient gradient = ScreenMath.gradient(screen.backdrop());
+        // A clear backdrop (a dialogue over the world) draws nothing: mixed over black it would hide the world.
+        if (gradient == null && (ScreenMath.argb(screen.backdrop(), 0xFF0B0912) >>> 24) == 0) return List.of();
         if (gradient == null) return List.of(new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, BACK_LAYER, backdropBase()));
         double vw = Screen.WIDTH * VIEW * viewUnit, vh = Screen.HEIGHT * VIEW * viewUnit;
         List<RectLook> bands = new ArrayList<>(bands(gradient, 0xFF000000, 0, 0, vw, vh, BACK_LAYER,
