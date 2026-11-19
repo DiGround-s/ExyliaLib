@@ -7,6 +7,7 @@ against the source — rules and routes are in `AGENTS.md` under
 
 | Module | What it is for | Since |
 | --- | --- | --- |
+| [Analytics](analytics.md) | Optional custom events for Exylia Analytics, a no-op without it | 1.625.0 |
 | [Task](task.md) | Scheduling that runs on Spigot, Paper and Folia from one call | 1.0.0 |
 | [Config](config.md) | YAML files declared and read as Java records | 1.1.0 |
 | [Config menus](config-menus.md) | `ConfigEdits` (1.555.0): the plumbing for a plugin's own settings screens, the ones its admin hub carries. Also every plugin's record settings (maps and lists included), and the YAML catalogues and record files it registers, changed from a menu in game (`/exylialib config`), drawn from the schema (optional `Menu` annotations for labels, icons, pages, formats, ranges), written back to the YAML; one file opened straight away with `file(name)` (1.557.0) | 1.443.0 |
