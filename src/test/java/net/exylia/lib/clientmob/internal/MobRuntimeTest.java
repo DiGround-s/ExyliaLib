@@ -91,6 +91,16 @@ class MobRuntimeTest {
     }
 
     @Test
+    void walkChainedOnArrivalKeepsMoving() {
+        ClientMob mob = mobs.spawn(owner.player(), EntityType.CHICKEN, new Location(world, 5, 64, 0));
+        CompletableFuture<Void> second = mob.moveTo(new Location(world, 5, 64, 1), 10.0)
+                .thenCompose(done -> mob.moveTo(new Location(world, 5, 64, 3), 10.0));
+        FakeServer.tick(20);
+        assertTrue(second.isDone());
+        assertEquals(3.0, mob.location().getZ(), 1e-9);
+    }
+
+    @Test
     void newerMoveReplacesTheOldOne() {
         ClientMob mob = mobs.spawn(owner.player(), EntityType.ZOMBIE, new Location(world, 5, 64, 0));
         CompletableFuture<Void> first = mob.moveTo(new Location(world, 5, 64, 50), 1.0);

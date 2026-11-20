@@ -161,6 +161,8 @@ public final class MobRuntime {
             try {
                 if (mob.advance(MOVE_SECONDS)) {
                     MOVING.remove(mob);
+                    // A walk started on arrival, often from the finished walk's own future, keeps it moving.
+                    if (mob.walking()) startMoving(mob);
                 }
             } catch (Throwable t) {
                 MOVING.remove(mob);
