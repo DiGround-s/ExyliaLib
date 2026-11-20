@@ -1252,8 +1252,9 @@ final class LiveScreen implements ScreenSession {
         double bh = Math.min(size[1], height - 8);
         double bx;
         double by;
+        java.util.Set<Node> panes = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
         if (target == null) {
-            root.add(Node.box().background(Layout.DIMMER).absolute(0, 0, 0, 0));
+            panes.add(dim(root, 0, 0, width, height));
             bx = (width - bw) / 2;
             by = (height - bh) / 2;
         } else {
@@ -1263,36 +1264,66 @@ final class LiveScreen implements ScreenSession {
             double x1 = Math.min(width, target.x() + target.w() + pad);
             double y1 = Math.min(height, target.y() + target.h() + pad);
             // Four panes around the lit box, so it shows through untouched.
-            dim(root, 0, 0, width, y0);
-            dim(root, 0, y1, width, height - y1);
-            dim(root, 0, y0, x0, y1 - y0);
-            dim(root, x1, y0, width - x1, y1 - y0);
-            root.add(Node.box().outline("{highlight}", 1.5).absolute(y0, Double.NaN, Double.NaN, x0).size(x1 - x0, y1 - y0));
-            double gap = 6;
+            panes.add(dim(root, 0, 0, width, y0));
+            panes.add(dim(root, 0, y1, width, height - y1));
+            panes.add(dim(root, 0, y0, x0, y1 - y0));
+            panes.add(dim(root, x1, y0, width - x1, y1 - y0));
+            panes.remove(null);
+            root.add(Node.box().outline("{highlight}", 2).absolute(y0, Double.NaN, Double.NaN, x0).size(x1 - x0, y1 - y0));
+            double gap = 14;
+            String glyph;
             if (y1 + gap + bh <= height) {
                 by = y1 + gap;
                 bx = (x0 + x1 - bw) / 2;
+                glyph = "▲";
             } else if (y0 - gap - bh >= 0) {
                 by = y0 - gap - bh;
                 bx = (x0 + x1 - bw) / 2;
+                glyph = "▼";
             } else {
                 by = (y0 + y1 - bh) / 2;
-                bx = x1 + gap + bw <= width ? x1 + gap : x0 - gap - bw;
+                boolean right = x1 + gap + bw <= width;
+                bx = right ? x1 + gap : x0 - gap - bw;
+                glyph = right ? "◀" : "▶";
             }
             bx = Math.max(4, Math.min(width - bw - 4, bx));
             by = Math.max(4, Math.min(height - bh - 4, by));
+            // An arrow in the gap, pointing at the lit box and nudging toward it.
+            boolean across = glyph.equals("◀") || glyph.equals("▶");
+            double sign = glyph.equals("▲") || glyph.equals("◀") ? -1 : 1;
+            Node arrow = Node.text(net.exylia.lib.text.Text.of("{highlight}" + glyph).build()).scale(1.25)
+                    .animation(new Motion.Keyframes(List.of(new Motion.Frame(0, Motion.Transform.NONE),
+                            new Motion.Frame(1, across ? Motion.Transform.translate(sign * 2, 0)
+                                    : Motion.Transform.translate(0, sign * 2))),
+                            8, Motion.Ease.IN_OUT, true, 0, 1, true));
+            double[] as = Layout.measure(arrow);
+            double ax = across ? (glyph.equals("◀") ? x1 + (gap - as[0]) / 2 : x0 - (gap + as[0]) / 2)
+                    : (x0 + x1 - as[0]) / 2;
+            double ay = across ? (y0 + y1 - as[1]) / 2
+                    : glyph.equals("▲") ? y1 + (gap - as[1]) / 2 : y0 - (gap + as[1]) / 2;
+            root.add(arrow.absolute(ay, Double.NaN, Double.NaN, ax).size(as[0], as[1]));
         }
         root.add(bubble.absolute(by, Double.NaN, Double.NaN, bx).size(bw, bh));
         List<Layout.Placed> boxes = Layout.lay(root, width, height);
         int shift = laid.size();
         for (Layout.Placed box : boxes) {
-            // The tour's root at the dimmer's depth: it is the overlay, the one thing a click can reach.
-            laid.add(box.moved("~coach" + tour.at() + ":" + box.key(), 0, 0, Layout.OVERLAY - 1, shift));
+            // The root at the dimmer's depth starts the overlay, the one thing a click can reach. The panes join it
+            // there as see-through rects (keyed ~dim so they are re-sent after any new box behind them); the ring,
+            // arrow and words sit above, solid.
+            boolean pane = panes.contains(box.node());
+            laid.add(box.moved((pane ? "~dim" : "~coach") + tour.at() + ":" + box.key(), 0, 0,
+                    pane ? Layout.OVERLAY - 1 - box.depth() : Layout.OVERLAY - 1, shift));
         }
     }
 
-    private static void dim(Node root, double x, double y, double w, double h) {
-        if (w > 0 && h > 0) root.add(Node.box().background(Layout.DIMMER).absolute(y, Double.NaN, Double.NaN, x).size(w, h));
+    /** The coach's shade: light enough that the menu behind still reads. */
+    private static final String COACH_DIM = "#05030970";
+
+    private static Node dim(Node root, double x, double y, double w, double h) {
+        if (w <= 0 || h <= 0) return null;
+        Node pane = Node.box().background(COACH_DIM).absolute(y, Double.NaN, Double.NaN, x).size(w, h);
+        root.add(pane);
+        return pane;
     }
 
     /** On the viewer's thread, from a confirm's buttons or its dismissal. */
@@ -1504,6 +1535,8 @@ final class LiveScreen implements ScreenSession {
         boolean animates = false;
         int shimmers = 0;
         RectLook hole = null;
+        // Under the coach's light shade the menu's items stay in view, as its words do.
+        boolean coached = overlayFrom >= 0 && placed.get(overlayFrom).key().startsWith("~coach");
         if (overlayFrom > 0) {
             drawing = new ArrayList<>(placed.subList(overlayFrom, placed.size()));
             drawing.addAll(placed.subList(0, overlayFrom));
@@ -1523,7 +1556,17 @@ final class LiveScreen implements ScreenSession {
             boolean rises = over && node.onClick() != null && node.hoverTransform() == null && node.activeTransform() == null;
             Xf xf = here == null ? null : here.xf();
             List<String> mine = new ArrayList<>();
-            if (box.depth() == Layout.OVERLAY - 1) {
+            if (box.depth() == Layout.OVERLAY - 1 && !box.key().equals("~dim")) {
+                // The coach's root and panes: no fill but the panes' own see-through shade, the menu shows through.
+                beneath[box.depth()] = ScreenMath.over(ScreenMath.argb(COACH_DIM, 0), backdrop);
+                int shade = ScreenMath.argb(node.background(), 0);
+                if (shade != 0 && box.w() > 0 && box.h() > 0) {
+                    String key = box.key() + "#bg";
+                    wanted.put(key, new RectLook(centreX(box), centreY(box), box.w() * unit, box.h() * unit,
+                            2 + box.depth() * 3, shade));
+                    mine.add(key);
+                }
+            } else if (box.depth() == Layout.OVERLAY - 1) {
                 // The dimmer: the one see-through rect, over opaque ones only, so it blends in a fixed order.
                 int dim = ScreenMath.argb(Layout.DIMMER, 0);
                 beneath[box.depth()] = ScreenMath.over(dim, backdrop);
@@ -1596,7 +1639,7 @@ final class LiveScreen implements ScreenSession {
                             Pictures.glyphs(cut, cols, rows, beneath[depth]), rows, wanted, xf));
                 }
                 // An item is a solid model the dimmer cannot shade, so under an open overlay it is left out.
-                if (node.item() != null && (overlayFrom < 0 || box.depth() >= Layout.OVERLAY - 1)) {
+                if (node.item() != null && (overlayFrom < 0 || coached || box.depth() >= Layout.OVERLAY - 1)) {
                     double side = Math.min(box.w() - node.padLeft() - node.padRight(), box.h() - node.padTop() - node.padBottom());
                     double ix = (box.x() + node.padLeft() + (box.w() - node.padLeft() - node.padRight()) / 2
                             - screen.width() / 2) * unit;
@@ -1992,15 +2035,17 @@ final class LiveScreen implements ScreenSession {
             // box behind it.
             order = new ArrayList<>(order);
             order.sort(java.util.Comparator.comparingInt(key -> layerOf(wanted.get(key))));
-            String dim = null;
-            for (String key : order) if (key.startsWith("~dim")) dim = key;
-            if (dim != null && drawn.containsKey(dim)) {
-                int dimLayer = layerOf(wanted.get(dim));
+            List<String> dims = new ArrayList<>();
+            for (String key : order) if (key.startsWith("~dim") && drawn.containsKey(key)) dims.add(key);
+            if (!dims.isEmpty()) {
+                int dimLayer = layerOf(wanted.get(dims.get(0)));
                 for (String key : order) {
                     if (!drawn.containsKey(key) && layerOf(wanted.get(key)) < dimLayer) {
-                        Drawn d = drawn.remove(dim);
-                        bump(d.id());
-                        out.add(ScreenPackets.destroy(new int[]{d.id()}));
+                        for (String dim : dims) {
+                            Drawn d = drawn.remove(dim);
+                            bump(d.id());
+                            out.add(ScreenPackets.destroy(new int[]{d.id()}));
+                        }
                         break;
                     }
                 }
