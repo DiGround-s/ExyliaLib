@@ -1701,6 +1701,7 @@ Code root: `src/main/java/net/exylia/lib/`. Test root:
 | placeholder | `placeholder/Placeholders`, `Template`, `Resolver`, `Request` | `placeholder/internal/` | [docs/placeholders.md](docs/placeholders.md) | 1.3.0 |
 | effect | `effect/Effects`, `Timer`, `Ticks`, `Display`, `EffectConfig` | `effect/internal/` | [docs/effects.md](docs/effects.md) | 1.4.0 |
 | scoreboard | `scoreboard/Scoreboards`, `Board`, `SidebarConfig` | `scoreboard/internal/` | [docs/scoreboard.md](docs/scoreboard.md) | 1.5.0 |
+| tablist | `tablist/TabLists`, `PluginTabList` | `tablist/internal/` (`TabRuntime`, `TabDiff`) | [docs/tablist.md](docs/tablist.md) | 1.633.0 |
 | hologram | `hologram/Holograms`, `Hologram`, `HologramConfig` | `hologram/internal/` | [docs/hologram.md](docs/hologram.md) | 1.6.0 |
 | interaction | `interaction/Interactions`, `Interaction`, `InteractionToken`, `Click` | — | [docs/interactions.md](docs/interactions.md) | 1.291.0 |
 | client | `client/Clients`, `PluginClients`, `Waypoint`, `Cooldown`, `ClientBrand`, `ClientTeam`, `PluginTeams` | `client/internal/` (+ `TeamRegistry`) | [docs/client.md](docs/client.md) | 1.7.0 (teams 1.36.0, ownership 1.48.0) |

@@ -40,6 +40,8 @@ public final class Features {
             hasClass("net.kyori.adventure.text.ObjectComponent")
                     && hasMethod("net.kyori.adventure.text.minimessage.tag.standard.StandardTags", "sprite", null);
 
+    private static final boolean PLAYER_LIST_ORDER = hasPlayerListOrder();
+
     private Features() {
     }
 
@@ -116,6 +118,25 @@ public final class Features {
             } else {
                 type.getMethod(name, Class.forName(parameter, false, loader));
             }
+            return true;
+        } catch (ReflectiveOperationException | LinkageError absent) {
+            return false;
+        }
+    }
+
+    /**
+     * Whether {@code Player#setPlayerListOrder} exists (Paper 1.21.2+).
+     *
+     * @return {@code true} when a tab list can be ordered
+     * @since 1.633.0
+     */
+    public static boolean playerListOrder() {
+        return PLAYER_LIST_ORDER;
+    }
+
+    private static boolean hasPlayerListOrder() {
+        try {
+            org.bukkit.entity.Player.class.getMethod("setPlayerListOrder", int.class);
             return true;
         } catch (ReflectiveOperationException | LinkageError absent) {
             return false;

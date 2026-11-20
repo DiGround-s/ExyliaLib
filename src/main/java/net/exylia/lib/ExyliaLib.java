@@ -302,6 +302,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.replay.internal.ReplayRuntime.init(this);
         ClientRuntime.init(this);
         NametagRuntime.init(this);
+        net.exylia.lib.tablist.internal.TabRuntime.init(this);
         PacketRuntime.init(this);
         // After the packet module, which a shot borrows the freeze and the
         // spectator view from, and whose driver is one timer for every camera
@@ -769,6 +770,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.guide.Guides.releaseAll();
         ClientRuntime.shutdown();
         NametagRuntime.shutdown();
+        // Before the task module: its timer is one of them.
+        net.exylia.lib.tablist.internal.TabRuntime.shutdown();
         // Before the packet module: giving a view back, unfreezing and drawing
         // a client as itself again all go through it.
         Cameras.releaseAll();
@@ -897,6 +900,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.npc.internal.PlacedRuntime.forget(event.getPlayer());
         ClientRuntime.forget(event.getPlayer());
         NametagRuntime.forget(event.getPlayer());
+        net.exylia.lib.tablist.internal.TabRuntime.forget(event.getPlayer());
         ClanRuntime.forget(event.getPlayer().getUniqueId());
         CombatRuntime.forget(event.getPlayer().getUniqueId());
         net.exylia.lib.hook.skill.internal.SkillHookRuntime.forget(event.getPlayer().getUniqueId());
@@ -974,6 +978,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // An outgoing metadata packet carries an entity id and nothing else, so
         // the way back to the player has to be recorded while they are here.
         NametagRuntime.register(player);
+        net.exylia.lib.tablist.internal.TabRuntime.join(player);
         BoardManager.reinit(player);
         // Their skin is a picture on Mojang's texture server, and an effect
         // cannot wait for one. Read now, used whenever they die.
@@ -1144,6 +1149,8 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Same reason: putting a nametag back to normal is a packet to a player
         // who is still on the server.
         NametagRuntime.release(pluginName);
+        // Players who are still here get their tab list back.
+        net.exylia.lib.tablist.internal.TabRuntime.release(pluginName);
         // Before the packet module, and for its own reason: a player left
         // looking through a camera nobody took away is looking out of an
         // entity that no longer exists, and cannot walk, see their own body
