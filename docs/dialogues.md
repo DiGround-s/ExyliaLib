@@ -21,7 +21,7 @@ Dialogues.of(this).open(player, talk).thenAccept(result -> {
 
 | `mode` | Where | How the player answers |
 | --- | --- | --- |
-| `HUD` (default) | a [HUD](hud.md) widget over the hotbar | They keep walking and looking round. A sneak, a click on the air or a click on an NPC goes on; the first press finishes the line. Under the last line the wheel moves the choice (the held item stays put), a number key picks that answer, a sneak or click confirms. |
+| `HUD` (default) | a [HUD](hud.md) widget over the hotbar | They keep walking and looking round. A sneak, a click on the air or a click on an NPC goes on (a click on a [client node](nodes.md), such as a crop, does not); the first press finishes the line. Under the last line the wheel moves the choice (the held item stays put), a number key picks that answer, a sneak or click confirms. |
 | `SCREEN` | a [screen](screens.md) with a cursor, the box at the bottom | They stand still. A click on the box goes on; under the last line they click an answer. Closing the screen cancels. |
 
 ## Contracts

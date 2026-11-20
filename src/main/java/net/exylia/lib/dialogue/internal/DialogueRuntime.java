@@ -25,6 +25,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import net.exylia.lib.node.ClientNodes;
 import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -302,7 +303,9 @@ public final class DialogueRuntime implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onSwing(PlayerAnimationEvent event) {
         Talk talk = onHud(event.getPlayer());
-        if (talk != null && event.getPlayer().getTargetBlockExact(REACH) == null) press(talk);
+        // A swing at a block is mining, and one with a node click is that click (a harvest): neither is a press.
+        if (talk != null && event.getPlayer().getTargetBlockExact(REACH) == null
+                && !ClientNodes.pressedWithin(event.getPlayer(), PRESS_GAP)) press(talk);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

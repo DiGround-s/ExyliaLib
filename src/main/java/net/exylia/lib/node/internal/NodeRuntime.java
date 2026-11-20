@@ -48,6 +48,8 @@ public final class NodeRuntime {
     private static final Map<UUID, Viewer> VIEWERS = new ConcurrentHashMap<>();
     /** Each node under both of its entity ids, which is how a click finds it. */
     private static final Map<Integer, NodeImpl> BY_ID = new ConcurrentHashMap<>();
+    /** When each player last pressed one of their nodes, read by swings that should not count twice. */
+    private static final Map<UUID, Long> PRESSED = new ConcurrentHashMap<>();
 
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
@@ -203,6 +205,7 @@ public final class NodeRuntime {
 
     /** Forgets a leaving player's nodes. No packets: the client is gone. */
     public static void forget(Player player) {
+        PRESSED.remove(player.getUniqueId());
         Viewer viewer = VIEWERS.remove(player.getUniqueId());
         if (viewer == null) {
             return;
@@ -232,6 +235,15 @@ public final class NodeRuntime {
     }
 
     /** Whether an entity id is one of a node's. */
+    static void pressed(Player player) {
+        PRESSED.put(player.getUniqueId(), System.currentTimeMillis());
+    }
+
+    public static boolean pressedWithin(Player player, long millis) {
+        Long at = PRESSED.get(player.getUniqueId());
+        return at != null && System.currentTimeMillis() - at <= millis;
+    }
+
     static boolean owns(int entityId) {
         return BY_ID.containsKey(entityId);
     }

@@ -105,6 +105,18 @@ public final class ClientNodes {
         return NodeRuntime.clear(owner, viewer);
     }
 
+    /**
+     * Whether the player pressed one of their nodes within the last {@code millis}. The arm swing a
+     * client sends with that click is then part of the click, not a click on the air.
+     *
+     * @param player the player
+     * @param millis how far back
+     * @return whether they did
+     */
+    public static boolean pressedWithin(@NotNull Player player, long millis) {
+        return NodeRuntime.pressedWithin(player, millis);
+    }
+
     /** Whether nodes reach players here: PacketEvents is installed and loaded. */
     public static boolean isAvailable() {
         return NodeRuntime.isAvailable();

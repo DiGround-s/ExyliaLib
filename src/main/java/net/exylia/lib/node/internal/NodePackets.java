@@ -163,6 +163,7 @@ final class NodePackets implements NodeSink {
                     return;
                 }
                 event.setCancelled(true);
+                NodeRuntime.pressed(player);
                 if (press.counts()) {
                     boolean sneaking = press.sneaking() != null ? press.sneaking() : player.isSneaking();
                     NodeRuntime.clicked(player, press.entityId(), Click.of(press.attack(), sneaking));
