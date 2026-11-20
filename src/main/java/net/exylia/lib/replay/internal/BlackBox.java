@@ -912,7 +912,10 @@ public final class BlackBox {
             draft.bottom = bottom >> 4;
             draft.top = top >> 4;
         }
-        return new Plan(focus, start, end, drafts);
+        // Somebody recorded for less than the window (just joined, out of
+        // vanish or spectator) starts the replay when they appear: before that
+        // it is empty ground, and a viewer waits up to a minute for nobody.
+        return new Plan(focus, drafts.getFirst().from, end, drafts);
     }
 
     /**
