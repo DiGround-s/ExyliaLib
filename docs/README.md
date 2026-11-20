@@ -118,6 +118,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Custom minigames](custom-minigames.md) | Registering a minigame of your own with ExyliaEvents: what you declare, what it does for you | 1.186.0 |
 | [Movement](movement.md) | Double jump (flight-toggle trick with cooldown, effect, permission and a per-player predicate, never leaving flight on for a player who stopped qualifying) and jump pads (one block or a material rule such as any plate on slime, look or fixed direction, edited live), with the landing fall cancelled | 1.559.0 |
 | [Hotbars](hotbars.md) | Lobby hotbars on the overlay module: named sets of buttons with slot, item, click actions and commands, permission (hidden or a locked look), per-button cooldown, frozen in place, shown and hidden per player, redrawn when permissions change | 1.559.0 |
+| [Restock shops](restocks.md) | A limited stock of offers drawn by weight that rotates every N minutes, the same on every server with no storage, with an atomic per-player limit per window and a restock callback; the plugin prices and delivers | 1.632.0 |
 Migration notes:
 
 - [Migrating ExyliaFFA](migration-ffa.md) — what FFA needs, and the four things
