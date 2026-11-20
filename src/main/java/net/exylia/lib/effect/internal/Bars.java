@@ -1,5 +1,6 @@
 package net.exylia.lib.effect.internal;
 
+import net.exylia.lib.actionbar.internal.ActionBarRuntime;
 import net.exylia.lib.client.Clients;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -87,7 +88,10 @@ final class Bars {
     // ------------------------------------------------------------------
 
     static void actionBar(Player viewer, Component text) {
-        viewer.sendActionBar(text);
+        // While the shared action bar runs (a combat tag, cooldowns), join it rather than flicker against it.
+        if (!ActionBarRuntime.flash(viewer, text)) {
+            viewer.sendActionBar(text);
+        }
     }
 
     static void clearActionBar(Player viewer) {

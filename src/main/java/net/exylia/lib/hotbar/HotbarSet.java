@@ -18,10 +18,12 @@ import java.util.Set;
  * @param hideRest whether the slots it does not draw look empty; {@code true} by default
  * @param pickup   whether the player may still pick items up; {@code false} by default
  * @param refresh  when the buttons redraw, for names or lore with placeholders; never by default
+ * @param hits     whether a left-click on a mob or player that the held button does not answer
+ *                 lands as an ordinary hit; {@code false} (swallowed) by default
  * @since 1.559.0
  */
 public record HotbarSet(@NotNull String name, @NotNull List<HotbarItem> items, @NotNull OverlayLock lock,
-                        boolean hideRest, boolean pickup, @NotNull UiRefresh refresh) {
+                        boolean hideRest, boolean pickup, @NotNull UiRefresh refresh, boolean hits) {
 
     public HotbarSet {
         Objects.requireNonNull(name, "name");
@@ -37,18 +39,34 @@ public record HotbarSet(@NotNull String name, @NotNull List<HotbarItem> items, @
         Objects.requireNonNull(refresh, "refresh");
     }
 
+    /** A set whose buttons swallow every hit, as before {@code hits} existed. */
+    public HotbarSet(@NotNull String name, @NotNull List<HotbarItem> items, @NotNull OverlayLock lock,
+                     boolean hideRest, boolean pickup, @NotNull UiRefresh refresh) {
+        this(name, items, lock, hideRest, pickup, refresh, false);
+    }
+
     /** A lobby hotbar: everything frozen, the rest blank, no pickups, never redrawn. */
     public static @NotNull HotbarSet of(@NotNull String name, @NotNull List<HotbarItem> items) {
-        return new HotbarSet(name, items, OverlayLock.FULL, true, false, UiRefresh.NEVER);
+        return new HotbarSet(name, items, OverlayLock.FULL, true, false, UiRefresh.NEVER, false);
+    }
+
+    /**
+     * The same set, letting a hit the held button does not answer land: for a game played with
+     * the hotbar in hand, where hitting mobs or players is part of it.
+     *
+     * @since 1.640.0
+     */
+    public @NotNull HotbarSet withHits(boolean hits) {
+        return new HotbarSet(name, items, lock, hideRest, pickup, refresh, hits);
     }
 
     /** The same set, redrawn as {@code refresh} says. */
     public @NotNull HotbarSet withRefresh(@NotNull UiRefresh refresh) {
-        return new HotbarSet(name, items, lock, hideRest, pickup, refresh);
+        return new HotbarSet(name, items, lock, hideRest, pickup, refresh, hits);
     }
 
     /** The same set with another lock, blank-rest and pickup policy. */
     public @NotNull HotbarSet withInventory(@NotNull OverlayLock lock, boolean hideRest, boolean pickup) {
-        return new HotbarSet(name, items, lock, hideRest, pickup, refresh);
+        return new HotbarSet(name, items, lock, hideRest, pickup, refresh, hits);
     }
 }

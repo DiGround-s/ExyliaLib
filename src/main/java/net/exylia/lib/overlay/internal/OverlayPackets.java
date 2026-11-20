@@ -620,7 +620,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
                 ? (sneaking ? ClickKind.SHIFT_LEFT : ClickKind.LEFT)
                 : (sneaking ? ClickKind.SHIFT_RIGHT : ClickKind.RIGHT);
         OverlayClicks.WorldPress press = worldPress(view, slot, kind);
-        if (press == OverlayClicks.WorldPress.PASS) {
+        if (press == OverlayClicks.WorldPress.PASS || view.definition().letsHitThrough(kind, view.pressedAt(slot))) {
             return;
         }
         event.setCancelled(true);

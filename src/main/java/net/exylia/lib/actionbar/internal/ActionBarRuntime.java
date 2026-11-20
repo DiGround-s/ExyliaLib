@@ -30,6 +30,8 @@ public final class ActionBarRuntime {
     static final long PERIOD_TICKS = 2L;
     private static final long JOIN_DELAY_TICKS = 20L;
     private static final String SEPARATOR = "&r {muted}| &r";
+    /** A one-off line nobody renews is dropped this long after it was last sent. */
+    private static final long FLASH_MS = 3000L;
 
     private static final List<Segment> SEGMENTS = new CopyOnWriteArrayList<>();
     private static final Map<UUID, Viewer> VIEWERS = new ConcurrentHashMap<>();
@@ -108,6 +110,23 @@ public final class ActionBarRuntime {
         }
     }
 
+    /**
+     * Shows a one-off line, an effect's action bar, in front of the segments
+     * instead of over them, so neither erases the other. An empty text ends it.
+     *
+     * @return {@code false} when no segment runs for this player, so the caller sends it itself
+     */
+    public static boolean flash(Player player, Component text) {
+        Viewer viewer = VIEWERS.get(player.getUniqueId());
+        if (viewer == null || viewer.task == null || viewer.task.isCancelled()) {
+            return false;
+        }
+        viewer.flash = Component.empty().equals(text) ? null : text;
+        viewer.flashUntil = System.currentTimeMillis() + FLASH_MS;
+        refresh(player);
+        return true;
+    }
+
     public static void shutdown() {
         synchronized (LOCK) {
             SEGMENTS.clear();
@@ -159,6 +178,11 @@ public final class ActionBarRuntime {
             return;
         }
         List<Component> parts = null;
+        Component flash = viewer.flash;
+        if (flash != null && System.currentTimeMillis() < viewer.flashUntil) {
+            parts = new ArrayList<>(2);
+            parts.add(flash);
+        }
         for (Segment segment : SEGMENTS) {
             Component part = ask(segment, player);
             if (part != null && !Component.empty().equals(part)) {
@@ -194,5 +218,7 @@ public final class ActionBarRuntime {
     private static final class Viewer {
         private final ActionBarLine line = new ActionBarLine();
         private volatile TaskHandle task;
+        private volatile Component flash;
+        private volatile long flashUntil;
     }
 }

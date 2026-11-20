@@ -1,6 +1,7 @@
 package net.exylia.lib.overlay;
 
 import net.exylia.lib.ui.ClickBindings;
+import net.exylia.lib.ui.ClickKind;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.ui.UiRefresh;
 import net.exylia.lib.ui.UiSounds;
@@ -32,6 +33,8 @@ import java.util.Map;
  *                 than showing what the player really has
  * @param sounds    what pressing a slot sounds like
  * @param emptyHand what a slot the overlay owns but draws nothing in does
+ * @param attacks   whether a hit on a mob or player with a drawn item that does not answer
+ *                  that click lands as an ordinary hit, rather than being swallowed
  * @since 1.79.0
  */
 public record OverlayDefinition(
@@ -42,7 +45,8 @@ public record OverlayDefinition(
         boolean pickup,
         boolean hideRest,
         @NotNull UiSounds sounds,
-        @NotNull ClickBindings emptyHand) {
+        @NotNull ClickBindings emptyHand,
+        boolean attacks) {
 
     public OverlayDefinition {
         for (int slot : items.keySet()) {
@@ -53,6 +57,31 @@ public record OverlayDefinition(
             }
         }
         items = Map.copyOf(items);
+    }
+
+    /** An overlay that swallows every hit made with one of its items, as before {@code attacks} existed. */
+    public OverlayDefinition(@NotNull String id, @NotNull Map<Integer, UiItem> items, @NotNull UiRefresh refresh,
+                             @NotNull OverlayLock lock, boolean pickup, boolean hideRest, @NotNull UiSounds sounds,
+                             @NotNull ClickBindings emptyHand) {
+        this(id, items, refresh, lock, pickup, hideRest, sounds, emptyHand, false);
+    }
+
+    /**
+     * Whether a hit lands through the held item.
+     *
+     * <p>A left-click on a mob or player is swallowed when the held slot draws an item, so a
+     * button never hits anyone with whatever is hidden under it. A game where the overlay is
+     * the player's whole hotbar, and hitting is part of playing, turns this on: a hit the held
+     * item has no binding for then reaches the server as an ordinary one.
+     *
+     * @param kind the click
+     * @param drawn the item drawn there, or {@code null}
+     * @return whether to let the hit through
+     * @since 1.640.0
+     */
+    public boolean letsHitThrough(@NotNull ClickKind kind, @Nullable UiItem drawn) {
+        return attacks && drawn != null && (kind == ClickKind.LEFT || kind == ClickKind.SHIFT_LEFT)
+                && !drawn.bindings().bound(kind);
     }
 
     /**
@@ -126,6 +155,7 @@ public record OverlayDefinition(
         private boolean hideRest;
         private UiSounds sounds = UiSounds.DEFAULTS;
         private ClickBindings emptyHand = ClickBindings.none();
+        private boolean attacks;
 
         private Builder(String id) {
             this.id = id;
@@ -213,8 +243,20 @@ public record OverlayDefinition(
             return this;
         }
 
+        /**
+         * Lets a hit the held item does not answer land as an ordinary hit.
+         *
+         * @param attacks whether hits get through
+         * @return this
+         * @since 1.640.0
+         */
+        public @NotNull Builder attacks(boolean attacks) {
+            this.attacks = attacks;
+            return this;
+        }
+
         public @NotNull OverlayDefinition build() {
-            return new OverlayDefinition(id, items, refresh, lock, pickup, hideRest, sounds, emptyHand);
+            return new OverlayDefinition(id, items, refresh, lock, pickup, hideRest, sounds, emptyHand, attacks);
         }
     }
 }

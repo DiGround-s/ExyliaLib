@@ -40,6 +40,14 @@ and `100` for item cooldowns, so a tag reads first.
   entries joins them itself, with its own separator.
 - A segment that throws is skipped for that refresh and logged once.
 
+## Effects on the same line
+
+A one-off action bar from `Effects.actionBar(...)` (a refusal, a "backpack
+full") joins the line while any segment runs for that player: it is drawn
+first, before the segments, until its effect ends or three seconds after it was
+last sent. With no segment running it is sent on its own, as before. *Since
+1.638.3.*
+
 ## Sending
 
 - A changed line is sent at once; an unchanged one is sent again once a second,

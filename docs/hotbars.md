@@ -33,6 +33,11 @@ is the lobby default — every slot frozen (`OverlayLock.FULL`), the slots it do
 not draw blank, no pickups, never redrawn. `withInventory(lock, hideRest, pickup)`
 and `withRefresh(UiRefresh)` (for names or lore with placeholders) change it.
 
+A left-click on a mob or player while holding a button is swallowed, so nobody is
+hit with what the button hides. For a game played with the hotbar in hand, where
+hitting is part of it (a boss on a farm), `withHits(true)` lets a hit the held
+button has no `left:` binding for land as an ordinary one (1.640.0+).
+
 ## What it is built on
 
 [Overlays](overlays.md): nothing is written into the real inventory, so a crash

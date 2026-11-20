@@ -97,6 +97,10 @@ final class WizardSession implements WizardRun {
     private final AtomicReference<WizardOutcome> terminal = new AtomicReference<>();
     private final AtomicBoolean finishInvoked = new AtomicBoolean();
 
+    /** Clicks this soon after one that answered a step are that click's echoes. */
+    private static final long ECHO_NANOS = 150_000_000L;
+    private volatile long answeredAt = System.nanoTime() - ECHO_NANOS;
+
     /** Guards the queue, the answers and the record of what has been asked. */
     private final Object state = new Object();
 
@@ -470,15 +474,25 @@ final class WizardSession implements WizardRun {
      *         cancels the event rather than letting it break or open something
      */
     boolean interacted(@Nullable Block block, boolean sneaking) {
+        // One click reaches the server as more than one event: a right click
+        // once for each hand, and some clients follow it with an arm swing.
+        // The first answers; its echoes are swallowed, or two stand steps in a
+        // row would both be answered by the same click, at the same spot.
+        if (System.nanoTime() - answeredAt < ECHO_NANOS) {
+            return true;
+        }
         if (waiting != Waiting.PICK || !(current instanceof WizardStep.Pick pick)) {
             return false;
         }
-        if (!pick.standing()) {
-            return block != null && locationPicked(block.getLocation());
+        boolean answered = pick.standing()
+                // Sneak, because this gesture also answers at air: without a
+                // modifier the first swing of the arm would end the step.
+                ? sneaking && locationPicked(player.getLocation())
+                : block != null && locationPicked(block.getLocation());
+        if (answered) {
+            answeredAt = System.nanoTime();
         }
-        // Sneak, because this gesture also answers at air: without a modifier
-        // the first swing of the arm would end the step.
-        return sneaking && locationPicked(player.getLocation());
+        return answered;
     }
 
     /**

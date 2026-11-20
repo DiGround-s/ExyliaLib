@@ -245,7 +245,7 @@ final class OverlayItemListener implements Listener {
         int slot = view.heldSlot();
         ClickKind kind = kindOf(true, player.isSneaking());
         OverlayClicks.WorldPress press = worldPress(view, player, slot, kind);
-        if (press == OverlayClicks.WorldPress.PASS) {
+        if (press == OverlayClicks.WorldPress.PASS || view.definition().letsHitThrough(kind, view.pressedAt(slot))) {
             return;
         }
         event.setCancelled(true);

@@ -93,6 +93,8 @@ public final class Hotbars {
     private final PluginCooldowns cooldowns;
     private final Map<String, Compiled> sets = new ConcurrentHashMap<>();
     private final Map<UUID, Shown> shown = new ConcurrentHashMap<>();
+    /** The set each player should wear: a draw still queued when {@link #hide} ran must not put it back. */
+    private final Map<UUID, String> wanted = new ConcurrentHashMap<>();
     private volatile @Nullable BiConsumer<Player, Duration> onCooldown;
     private volatile @Nullable TaskHandle watch;
 
@@ -167,6 +169,7 @@ public final class Hotbars {
      */
     public boolean show(@NotNull Player player, @NotNull String set) {
         if (!sets.containsKey(set)) return false;
+        wanted.put(player.getUniqueId(), set);
         Tasks.of(plugin).runAtEntity(player, () -> draw(player, set, true));
         startWatching();
         return true;
@@ -174,6 +177,7 @@ public final class Hotbars {
 
     /** Takes this plugin's hotbar off a player; the real inventory shows again. */
     public void hide(@NotNull Player player) {
+        wanted.remove(player.getUniqueId());
         Shown was = shown.remove(player.getUniqueId());
         if (was != null && overlays.showing(player).filter(d -> d == was.definition()).isPresent()) {
             overlays.hide(player);
@@ -207,6 +211,7 @@ public final class Hotbars {
         TaskHandle running = hotbars.watch;
         if (running != null) running.cancel();
         hotbars.shown.clear();
+        hotbars.wanted.clear();
     }
 
     // ------------------------------------------------------------------ drawing
@@ -216,14 +221,19 @@ public final class Hotbars {
         Compiled compiled = sets.get(setName);
         if (compiled == null || !player.isOnline()) {
             shown.remove(player.getUniqueId());
+            wanted.remove(player.getUniqueId(), setName);
             return;
         }
+        // Shown and hidden in the same tick (a player who logs in inside an area that wears no hotbar):
+        // the hide came first, so this queued draw is stale.
+        if (!setName.equals(wanted.get(player.getUniqueId()))) return;
         Shown before = shown.get(player.getUniqueId());
         String mask = mask(player, compiled);
         if (!force && before != null && before.mask().equals(mask)) return;
         OverlayDefinition.Builder overlay = OverlayDefinition.of(setName)
                 .lock(compiled.set().lock())
                 .pickup(compiled.set().pickup())
+                .attacks(compiled.set().hits())
                 .refresh(compiled.set().refresh());
         if (compiled.set().hideRest()) overlay.hideRest();
         for (CompiledItem item : compiled.items().values()) {
@@ -254,12 +264,14 @@ public final class Hotbars {
                 Shown wearing = entry.getValue();
                 if (player == null) {
                     shown.remove(entry.getKey(), wearing);
+                    wanted.remove(entry.getKey(), wearing.set());
                     continue;
                 }
                 Tasks.of(plugin).runAtEntity(player, () -> {
                     // Another overlay took the place of this one: it is no longer ours to redraw.
                     if (overlays.showing(player).filter(d -> d == wearing.definition()).isEmpty()) {
                         shown.remove(player.getUniqueId(), wearing);
+                        wanted.remove(player.getUniqueId(), wearing.set());
                         return;
                     }
                     draw(player, wearing.set(), false);
