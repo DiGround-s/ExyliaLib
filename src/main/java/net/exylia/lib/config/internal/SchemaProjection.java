@@ -19,7 +19,7 @@ import java.util.List;
  * cached analysis. Direction of dependency is {@code internal -> public}, the
  * same way {@link SchemaCache} already imports {@code config.Comment}.
  */
-final class SchemaProjection {
+public final class SchemaProjection {
 
     private SchemaProjection() {
     }
@@ -34,6 +34,21 @@ final class SchemaProjection {
      */
     static Schema of(Class<?> type, String pluginName) {
         return copy(SchemaCache.of(type, pluginName));
+    }
+
+    /**
+     * The schema of a record a defined config already holds, such as the values of a
+     * {@code Map<String, Record>}, so an editor can reach the keys inside one entry.
+     *
+     * <p>Registers nothing: the analysis belongs to the file that holds the record and is
+     * released with it.
+     *
+     * @param type the record class
+     * @return its schema, or {@code null} when no defined config holds it
+     */
+    public static @org.jetbrains.annotations.Nullable Schema held(Class<?> type) {
+        SchemaNode node = SchemaCache.cached(type);
+        return node == null ? null : copy(node);
     }
 
     private static Schema copy(SchemaNode node) {

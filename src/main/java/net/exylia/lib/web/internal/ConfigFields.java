@@ -2,6 +2,7 @@ package net.exylia.lib.web.internal;
 
 import net.exylia.lib.config.Menu;
 import net.exylia.lib.config.Schema;
+import net.exylia.lib.config.internal.SchemaProjection;
 import net.exylia.lib.economy.Economy;
 import net.exylia.lib.config.Time;
 import net.exylia.lib.effect.Ticks;
@@ -112,19 +113,42 @@ final class ConfigFields {
         return fields;
     }
 
-    /** The schema of a section, or {@code null} when the path names none. */
+    /**
+     * The schema of a section, or {@code null} when the path names none. A map of records is
+     * entered through one of its entries: {@code groups.basalt} is the record {@code basalt}
+     * holds, whether or not the file has it yet.
+     */
     static @Nullable Schema section(Schema root, String section) {
         Schema schema = root;
         if (section.isEmpty()) return schema;
+        Schema entry = null;
         for (String part : section.split("\\.")) {
+            if (entry != null) {
+                // This part names the entry; its keys are the map's record.
+                schema = entry;
+                entry = null;
+                continue;
+            }
             Schema next = null;
             for (Schema.Field field : schema.fields()) {
-                if (field.key().equals(part) && field.isSection()) next = field.nested();
+                if (!field.key().equals(part)) continue;
+                if (field.isSection()) next = field.nested();
+                else entry = entry(field);
             }
-            if (next == null) return null;
-            schema = next;
+            if (next == null && entry == null) return null;
+            if (next != null) schema = next;
         }
-        return schema;
+        return entry == null ? schema : null;
+    }
+
+    /** The schema of a map's values when they are records, or {@code null}. */
+    static @Nullable Schema entry(Schema.Field field) {
+        if (!java.util.Map.class.isAssignableFrom(field.type())
+                || !(field.generic() instanceof ParameterizedType map)
+                || !(map.getActualTypeArguments()[1] instanceof Class<?> value) || !value.isRecord()) {
+            return null;
+        }
+        return SchemaProjection.held(value);
     }
 
     /** One key of the file, or {@code null} when there is none by that name. */
@@ -243,19 +267,52 @@ final class ConfigFields {
      * @return the value, or {@code null} when absent or unreadable
      */
     static @Nullable Object read(Schema root, Object values, String key) {
+        return read(root, values, key, false);
+    }
+
+    /**
+     * {@link #read} from the file's defaults: an entry they lack reads as its record built with
+     * no arguments, which is what a new entry starts from and what reset puts back.
+     */
+    static @Nullable Object readDefault(Schema root, Object defaults, String key) {
+        return read(root, defaults, key, true);
+    }
+
+    private static @Nullable Object read(Schema root, Object values, String key, boolean blank) {
         Schema schema = root;
         Object node = values;
+        boolean named = false;
         for (String part : key.split("\\.")) {
             if (node == null || schema == null) return null;
+            if (named) {
+                // This part names an entry of the map just read.
+                node = node instanceof java.util.Map<?, ?> map ? map.get(part) : null;
+                if (node == null && blank) node = blank(schema.type());
+                named = false;
+                continue;
+            }
             Schema.Field found = null;
             for (Schema.Field field : schema.fields()) {
                 if (field.key().equals(part)) found = field;
             }
             if (found == null) return null;
             node = component(node, found.name());
-            schema = found.nested();
+            Schema entry = found.isSection() ? null : entry(found);
+            schema = entry != null ? entry : found.nested();
+            named = entry != null;
         }
         return node;
+    }
+
+    /** A record built from its no-argument constructor, or {@code null} when it has none. */
+    private static @Nullable Object blank(Class<?> type) {
+        try {
+            var empty = type.getDeclaredConstructor();
+            empty.setAccessible(true);
+            return empty.newInstance();
+        } catch (ReflectiveOperationException | RuntimeException none) {
+            return null;
+        }
     }
 
     private static @Nullable Object component(Object record, String name) {

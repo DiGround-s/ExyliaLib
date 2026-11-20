@@ -754,14 +754,14 @@ public final class ConfigMenu {
         ConfigFields.Field field = ConfigFields.field(file.schema(), key);
         Object defaults = defaults(file);
         if (field == null || defaults == null) return null;
-        return ConfigFields.display(field, ConfigFields.read(file.schema(), defaults, key), file.schema(), file.get());
+        return ConfigFields.display(field, ConfigFields.readDefault(file.schema(), defaults, key), file.schema(), file.get());
     }
 
     /** Whether a key holds its default value. */
     public static boolean isDefault(@NotNull ConfigFile<?> file, @NotNull String key) {
         Object defaults = defaults(file);
         if (defaults == null) return true;
-        return java.util.Objects.equals(ConfigFields.read(file.schema(), defaults, key),
+        return java.util.Objects.equals(ConfigFields.readDefault(file.schema(), defaults, key),
                 ConfigFields.read(file.schema(), file.get(), key));
     }
 
@@ -771,9 +771,43 @@ public final class ConfigMenu {
         ConfigFields.Field field = ConfigFields.field(file.schema(), key);
         Object defaults = defaults(file);
         if (field == null || defaults == null) return false;
-        Object value = ConfigFields.read(file.schema(), defaults, key);
+        Object value = ConfigFields.readDefault(file.schema(), defaults, key);
         if (value == null) return false;
         write(viewer, plugin, file, field, value, null);
+        return true;
+    }
+
+    /** What an entry of a map may be called: one word a dotted key can hold. */
+    private static final java.util.regex.Pattern ENTRY_NAME = java.util.regex.Pattern.compile("[a-z0-9][a-z0-9_-]{0,31}");
+
+    /** The names of a map of records' entries, in the file's order; empty when the key is no such map. */
+    public static @NotNull List<String> entries(@NotNull ConfigFile<?> file, @NotNull String key) {
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        if (field == null || ConfigFields.entry(field.schema()) == null) return List.of();
+        return ConfigFields.read(file.schema(), file.get(), key) instanceof java.util.Map<?, ?> map
+                ? map.keySet().stream().map(String::valueOf).toList() : List.of();
+    }
+
+    /**
+     * Adds ({@code add}) or removes an entry of a map of records on the global thread, brings the
+     * plugin up to date, then runs {@code then} on the viewer's thread. A new entry is written
+     * empty and the reload fills it with its record's defaults.
+     *
+     * @return {@code false}, writing nothing, when the key is no map of records, the name is not
+     *         one word of {@code a-z 0-9 _ -}, or the entry already exists (add) or does not (remove)
+     */
+    public static boolean entry(@NotNull Player viewer, @NotNull Plugin plugin, @NotNull ConfigFile<?> file,
+                                @NotNull String key, @NotNull String name, boolean add, @NotNull Runnable then) {
+        Plugin owner = library;
+        if (owner == null || !ENTRY_NAME.matcher(name).matches()) return false;
+        ConfigFields.Field field = ConfigFields.field(file.schema(), key);
+        if (field == null || ConfigFields.entry(field.schema()) == null) return false;
+        if (entries(file, key).contains(name) == add) return false;
+        Tasks.of(owner).run(() -> {
+            file.set(key + "." + name, add ? new java.util.LinkedHashMap<String, Object>() : null);
+            WebEditorRuntime.reloadWritten(plugin, List.of());
+            Tasks.of(owner).runAtEntity(viewer, then);
+        });
         return true;
     }
 

@@ -151,6 +151,74 @@ public final class ConfigEdits {
     }
 
     /**
+     * {@link #placeholders(String, java.util.Collection)} for keys under {@code base}, named
+     * after the part below it: with base {@code balance.daily.groups.basalt.} and prefix
+     * {@code "group_"}, {@code tiers.full-up-to} is {@code %group_tiers_full_up_to%}. One screen
+     * then shows whichever entry of a map it was opened for.
+     *
+     * @param base   put before every key, usually ending in a dot
+     * @param keys   the keys below {@code base}
+     * @since 1.637.0
+     */
+    public @NotNull Map<String, Object> placeholders(@NotNull String prefix, @NotNull String base,
+                                                     @NotNull java.util.Collection<String> keys) {
+        if (file.get() == null) return Map.of();
+        Map<String, Object> values = new LinkedHashMap<>();
+        for (String key : keys) {
+            String name = prefix + key.replace('.', '_').replace('-', '_');
+            String full = base + key;
+            values.put(name, live(full));
+            values.put(name + "_default", defaultValue(full));
+            values.put(name + "_click", (Supplier<String>) () -> hint(full));
+        }
+        return values;
+    }
+
+    /**
+     * The names of a map's entries, in the file's order: the groups, tiers or presets an admin
+     * adds and removes. Each entry's values are keys like any other,
+     * {@code <key>.<name>.<value>}, which {@link #card}, {@link #value} and {@link #placeholders}
+     * take; an entry the file's defaults lack shows and resets to its record's no-argument
+     * defaults.
+     *
+     * @param key a {@code Map<String, Record>} key, such as {@code balance.daily.groups}
+     * @return empty when the file is not read or the key is no map of records
+     * @since 1.637.0
+     */
+    public @NotNull java.util.List<String> entries(@NotNull String key) {
+        ConfigFile<?> loaded = file.get();
+        return loaded == null ? java.util.List.of() : ConfigMenu.entries(loaded, key.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Adds an entry to a map of records, starting from the record's defaults, written and
+     * reloaded like any other change.
+     *
+     * @param name the entry's name: one word of {@code a-z 0-9 _ -}, at most 32 long
+     * @param then runs on the viewer's thread once the entry is written, such as opening its screen
+     * @return {@code false}, writing nothing, when the name is not valid, already taken, or the
+     *         key is no map of records
+     * @since 1.637.0
+     */
+    public boolean addEntry(@NotNull Player viewer, @NotNull String key, @NotNull String name, @NotNull Runnable then) {
+        ConfigFile<?> loaded = file.get();
+        return loaded != null && ConfigMenu.entry(viewer, plugin, loaded, key.toLowerCase(Locale.ROOT), name, true, then);
+    }
+
+    /**
+     * Removes an entry from a map of records, written and reloaded like any other change. The
+     * caller asks for confirmation first.
+     *
+     * @param then runs on the viewer's thread once the entry is gone
+     * @return {@code false}, writing nothing, when there is no such entry
+     * @since 1.637.0
+     */
+    public boolean removeEntry(@NotNull Player viewer, @NotNull String key, @NotNull String name, @NotNull Runnable then) {
+        ConfigFile<?> loaded = file.get();
+        return loaded != null && ConfigMenu.entry(viewer, plugin, loaded, key.toLowerCase(Locale.ROOT), name, false, then);
+    }
+
+    /**
      * A click on a settings card, the way every card behaves: shift-right-click puts the
      * value back to its default, a number or an amount is typed (never stepped), a switch
      * flips, a choice steps forward (right-click back), anything else is asked for prefilled.

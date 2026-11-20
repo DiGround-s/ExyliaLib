@@ -38,6 +38,11 @@ public final class SchemaCache {
         return analyse(type);
     }
 
+    /** The analysis of a record some defined config already holds, or {@code null}. */
+    static SchemaNode cached(Class<?> type) {
+        return NODES.get(type);
+    }
+
     private static SchemaNode analyse(Class<?> type) {
         SchemaNode cached = NODES.get(type);
         if (cached != null) {

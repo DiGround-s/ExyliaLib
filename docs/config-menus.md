@@ -67,10 +67,24 @@ the click lines.
 | `reset(viewer, key)` (1.562.0) | puts a key back to its default |
 | `tone(Lore.Tone)` (1.562.0) | the tone the click lines are drawn in, primary by default |
 | `click(viewer, key, click, back)` | the generic tree's click: a number steps (shift ×10) or, on `DROP`, is typed |
+| `entries(key)` (1.637.0) | the names of a `Map<String, Record>`'s entries, in the file's order |
+| `addEntry(viewer, key, name, then)` / `removeEntry(...)` (1.637.0) | adds an entry (one word of `a-z 0-9 _ -`, filled with the record's defaults) or removes one, then runs `then` on the viewer's thread; `false` writes nothing (bad or taken name, no such entry) |
+| `placeholders(prefix, base, keys)` (1.637.0) | `placeholders(prefix, keys)` for keys under `base`, named after the part below it, so one screen shows whichever entry it was opened for |
 
 Every change is checked against `@Menu.Range`, `AtLeast` and `AtMost`, written
 with `ConfigFile.set` (comments and order kept) and followed by the plugin's
 `Reloads`. Stepped values redraw the open screen; `back` reopens it after a prompt.
+
+### Entries of a map (1.637.0)
+
+The values inside one entry of a `Map<String, Record>` are keys like any other:
+`balance.daily.groups.basalt.tiers.full-up-to` works with `card`, `value`,
+`hint` and `reset`. An entry the defaults lack shows and resets to its record's
+no-argument defaults. A plugin lists the entries (`entries`), opens one screen
+per entry with `placeholders(prefix, base + name + ".", keys)`, creates through a
+text input and `addEntry` (then opens the new entry), and deletes behind a
+dangerous confirm with `removeEntry`. Reference: ExyliaMarket's sell balance
+groups (`menu/BalanceGroupMenus.java`).
 
 ### Money, currencies and items (1.562.0)
 
