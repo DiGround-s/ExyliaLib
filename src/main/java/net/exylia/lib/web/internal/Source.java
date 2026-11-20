@@ -46,9 +46,16 @@ interface Source {
      *              the runtime finds in the diff itself
      * @param write runs on the global thread; the future completes once written, or
      *              exceptionally with the reason it was not
+     * @param console paths whose new text runs a line as the console where the diff cannot see it
+     *              (a step inside a screen's markup), held for {@code confirm} like a console line
      */
     record Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
-                    @Nullable Supplier<CompletableFuture<Void>> write) {
+                    @Nullable Supplier<CompletableFuture<Void>> write, List<String> console) {
+
+        Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
+                 @Nullable Supplier<CompletableFuture<Void>> write) {
+            this(problem, after, holds, write, List.of());
+        }
 
         static Prepared refused(String problem) {
             return new Prepared(problem, null, List.of(), null);

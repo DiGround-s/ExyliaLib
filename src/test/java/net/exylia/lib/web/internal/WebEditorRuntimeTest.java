@@ -668,6 +668,131 @@ class WebEditorRuntimeTest {
                 base.settings(), base.toasts(), base.notices(), base.logs(), base.shareDatabase(), base.networkGroup());
     }
 
+    // ------------------------------------------------------------------
+    // Screens
+    // ------------------------------------------------------------------
+
+    private static final String HUB = "<screen size=\"320x180\"><card action=\"buy\">Hi</card></screen>";
+
+    /** Screens.of keeps one instance per plugin name, so each test gets a plugin of its own. */
+    private static final AtomicInteger SHOWS = new AtomicInteger();
+    private String show;
+
+    private net.exylia.lib.screen.ScreenSet screens() throws IOException {
+        show = "ExyliaShow" + SHOWS.incrementAndGet();
+        Plugin owner = FakeServer.newPlugin(show, other.toFile());
+        FakeServer.plugins(plugin, owner);
+        Path dir = other.resolve("screens");
+        java.nio.file.Files.createDirectories(dir.resolve("components"));
+        java.nio.file.Files.createDirectories(dir.resolve("img"));
+        java.nio.file.Files.writeString(dir.resolve("hub.html"), HUB);
+        java.nio.file.Files.writeString(dir.resolve("theme.css"), "panel { padding: 1 }");
+        java.nio.file.Files.writeString(dir.resolve("components/card.html"), "<template name=\"x\"><box/></template>");
+        java.nio.file.Files.write(dir.resolve("img/logo.png"), new byte[]{1});
+        net.exylia.lib.screen.ScreenSet set = net.exylia.lib.screen.Screens.of(owner)
+                .files(WebEditorRuntimeTest.class, "screens");
+        set.markup("hub").action("buy", (event, args) -> { });
+        return set;
+    }
+
+    private void saveScreen(String html, String css) {
+        JsonObject values = new JsonObject();
+        values.addProperty("html", html);
+        values.addProperty("css", css);
+        JsonObject subjects = new JsonObject();
+        subjects.add(show + "/screens-hub", values);
+        editor.pending = new EditorClient.Pending("change-" + sent.size(), subjects, new JsonObject(), "a browser");
+    }
+
+    @Test
+    void everyScreenIsASubjectWithItsFilesAndDetails() throws IOException {
+        screens();
+        open();
+
+        JsonObject hub = uploaded(show, show + "/screens-hub");
+        assertEquals("lib/screen", hub.get("kind").getAsString());
+        assertTrue(hub.get("key").getAsString().matches("[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,48}"),
+                "the key fits the editor's contract");
+        for (var plugin : editor.lastIndex.getAsJsonArray("plugins")) {
+            for (var subject : plugin.getAsJsonObject().getAsJsonArray("subjects")) {
+                String key = subject.getAsJsonObject().get("key").getAsString();
+                assertTrue(key.matches("[A-Za-z0-9_-]{1,64}/[A-Za-z0-9_-]{1,48}"), key);
+            }
+        }
+        assertEquals("content", hub.get("group").getAsString());
+        assertEquals("Hub", hub.get("title").getAsString());
+        assertEquals(HUB, hub.getAsJsonObject("values").get("html").getAsString());
+        assertEquals("", hub.getAsJsonObject("values").get("css").getAsString());
+        assertEquals(2, hub.getAsJsonObject("schema").getAsJsonArray("fields").size());
+        JsonObject details = hub.getAsJsonObject("details");
+        assertEquals("320x180", details.get("size").getAsString());
+        assertEquals("[\"buy\"]", details.get("actions").toString());
+        assertTrue(details.get("builtins").toString().contains("\"toast\""));
+        assertEquals("panel { padding: 1 }", details.get("theme").getAsString());
+        assertFalse(details.get("base").getAsString().isEmpty());
+        assertEquals("[\"card\"]", details.get("components").toString());
+        assertEquals("[\"logo.png\"]", details.get("images").toString());
+        for (String key : List.of("sources", "values", "problems")) assertTrue(details.get(key).isJsonArray(), key);
+        assertFalse(editor.lastIndex.toString().contains("\"file\":\"screens/theme\""), "css is not a files subject");
+    }
+
+    @Test
+    void aScreenWritesBothFilesAndReloads() throws IOException {
+        net.exylia.lib.screen.ScreenSet set = screens();
+        String code = open();
+        saveScreen("<screen size=\"200x100\"><card action=\"buy\">Bye</card></screen>", "card { padding: 2 }");
+
+        runtime.apply(admin, code, false);
+
+        Path dir = other.resolve("screens");
+        assertTrue(java.nio.file.Files.readString(dir.resolve("hub.html")).contains("Bye"));
+        assertEquals("card { padding: 2 }", java.nio.file.Files.readString(dir.resolve("hub.css")));
+        assertEquals("200x100", set.markup("hub").attribute("size"), "the set was read again");
+    }
+
+    @Test
+    void anEmptySheetIsNotCreated() throws IOException {
+        screens();
+        String code = open();
+        saveScreen("<screen><text>New</text></screen>", "");
+        runtime.apply(admin, code, false);
+        assertFalse(java.nio.file.Files.exists(other.resolve("screens/hub.css")));
+    }
+
+    @Test
+    void markupThatDoesNotReadIsRefusedButSubsetProblemsAreNot() throws IOException {
+        screens();
+        String code = open();
+        for (String broken : List.of("<screen><card></screen>",
+                "<!DOCTYPE screen [<!ENTITY x \"boom\">]><screen>&x;</screen>", "")) {
+            saveScreen(broken, "");
+            runtime.apply(admin, code, false);
+            assertTrue(editor.appliedOutcome.getAsJsonObject("rejected").has(show + "/screens-hub"), broken);
+            assertEquals(HUB, java.nio.file.Files.readString(other.resolve("screens/hub.html")));
+        }
+        saveScreen("<screen><marquee wobble=\"yes\">Odd</marquee></screen>", "");
+        runtime.apply(admin, code, false);
+        assertTrue(java.nio.file.Files.readString(other.resolve("screens/hub.html")).contains("marquee"));
+    }
+
+    @Test
+    void aNewConsoleStepIsHeldForConfirm() throws IOException {
+        screens();
+        String code = open();
+        saveScreen("<screen><card action=\"toast hi; [console] op %player_name%\">X</card></screen>", "");
+        runtime.apply(admin, code, false);
+        assertEquals(HUB, java.nio.file.Files.readString(other.resolve("screens/hub.html")));
+        runtime.apply(admin, code, true);
+        assertTrue(java.nio.file.Files.readString(other.resolve("screens/hub.html")).contains("[console]"));
+    }
+
+    @Test
+    void turningTheEditorOffForgetsTheScreens() throws IOException {
+        screens().webEditor(false);
+        open();
+        assertFalse(editor.uploads.containsKey(show) && editor.uploads.get(show).toString().contains("screens-hub"));
+    }
+
     /** The editor, remembered rather than reached. */
     static final class FakeClient implements EditorClient {
         String lastCode;

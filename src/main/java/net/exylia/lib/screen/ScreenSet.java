@@ -4,8 +4,10 @@ import net.exylia.lib.config.BundledFiles;
 import net.exylia.lib.config.Languages;
 import net.exylia.lib.config.internal.BundledResources;
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.screen.internal.MarkupRender;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.web.internal.WebEditorRuntime;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -66,6 +68,8 @@ public final class ScreenSet {
     private static final long POLL_TICKS = 40;
     /** Words every screen of the folder reads: {@code lang/<code>/screens/shared.yml}, under each screen's own file. */
     private static final String SHARED_WORDS = "shared";
+    /** Who may edit a set's screens from the browser. */
+    private static final String ADMIN = "exylialib.admin";
 
     private final Plugin plugin;
     private final Class<?> anchor;
@@ -73,6 +77,9 @@ public final class ScreenSet {
     private final Map<String, ScreenMarkup> markups = new ConcurrentHashMap<>();
     private final ScreenBindings bindings = new ScreenBindings(this);
     private volatile boolean hotReload = true;
+    private volatile boolean webEditor = true;
+    /** The web editor subjects registered for this set's screens, by subject id. */
+    private final java.util.Set<String> webIds = ConcurrentHashMap.newKeySet();
     private volatile TaskHandle watcher;
     private volatile long stamp;
 
@@ -87,6 +94,7 @@ public final class ScreenSet {
         ScreenSet set = ALL.compute(plugin.getName() + "/" + clean, (key, old) ->
                 old != null && old.plugin == plugin ? old : new ScreenSet(plugin, anchor, clean));
         set.installFiles();
+        set.registerWeb();
         set.watch();
         return set;
     }
@@ -178,7 +186,21 @@ public final class ScreenSet {
             route(markups.get(id));
         }
         stamp = fingerprint();
+        registerWeb();
         return ok;
+    }
+
+    /**
+     * Whether each screen of the set is offered to {@code /exylialib editor} (on by default): a subject
+     * {@code <folder>/<id>} of kind {@code lib/screen} holding {@code <id>.html} and {@code <id>.css}, behind
+     * {@code exylialib.admin}, that reloads the set once written. See {@code docs/web-editor.md}, "Screens".
+     *
+     * @since 1.639.0
+     */
+    public @NotNull ScreenSet webEditor(boolean on) {
+        this.webEditor = on;
+        registerWeb();
+        return this;
     }
 
     /** Every problem of every screen read so far, each starting with its file. */
@@ -281,6 +303,115 @@ public final class ScreenSet {
     }
 
     // ------------------------------------------------------------------
+    // Web editor
+    // ------------------------------------------------------------------
+
+    /** Keeps one web editor subject per screen file in step with the folder; none when turned off. */
+    private void registerWeb() {
+        WebEditorRuntime runtime = WebEditorRuntime.current();
+        if (runtime == null) return;
+        List<String> now = webEditor && plugin.isEnabled() ? ids() : List.of();
+        String prefix = folder.replace('/', '-') + "-";
+        java.util.Set<String> wanted = new java.util.HashSet<>();
+        for (String id : now) {
+            String subjectId = prefix + id;
+            wanted.add(subjectId);
+            webIds.add(subjectId);
+            try {
+                runtime.registerScreen(plugin, subjectId, dir().resolve(id + ".html"), dir().resolve(id + ".css"),
+                                folder + "/" + id)
+                        .title(title(id))
+                        .permission(ADMIN)
+                        .details(() -> webDetails(id))
+                        .onApplied(this::reload);
+            } catch (IllegalArgumentException tooLong) {
+                webIds.remove(subjectId);
+            }
+        }
+        for (String known : List.copyOf(webIds)) {
+            if (!wanted.contains(known)) {
+                webIds.remove(known);
+                runtime.unregister(plugin.getName(), known);
+            }
+        }
+    }
+
+    private static String title(String id) {
+        String words = id.replace('_', ' ').replace('-', ' ');
+        return Character.toUpperCase(words.charAt(0)) + words.substring(1);
+    }
+
+    /**
+     * What the web editor's screen builder needs besides the two files: read on every upload, off the main
+     * thread, from memory and files only.
+     */
+    Map<String, Object> webDetails(String id) {
+        ScreenMarkup markup = markups.get(id);
+        List<String> problems;
+        if (markup == null) {
+            // Not opened yet: read it now as it would be, without keeping it.
+            try {
+                markup = ScreenMarkup.read(id + ".html", () -> compile(id));
+                bindings.into(markup);
+                problems = markup.problems();
+            } catch (IOException | RuntimeException unreadable) {
+                markup = null;
+                problems = List.of(String.valueOf(unreadable.getMessage()));
+            }
+        } else {
+            problems = markup.problems();
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        String size = markup == null ? null : markup.attribute("size");
+        out.put("size", size == null ? "" : size);
+        MarkupRender.Bindings bound = markup == null ? null : markup.bindings();
+        java.util.Set<String> sources = new java.util.TreeSet<>();
+        java.util.Set<String> values = new java.util.TreeSet<>();
+        java.util.Set<String> actions = new java.util.TreeSet<>();
+        if (bound != null) {
+            sources.addAll(bound.sources().keySet());
+            sources.addAll(bound.entries().keySet());
+            values.addAll(bound.values().keySet());
+            values.addAll(bound.texts().keySet());
+            actions.addAll(bound.actions().keySet());
+        }
+        out.put("sources", List.copyOf(sources));
+        out.put("values", List.copyOf(values));
+        out.put("actions", List.copyOf(actions));
+        out.put("builtins", List.copyOf(new java.util.TreeSet<>(ScreenMarkup.builtIns())));
+        out.put("theme", readText(dir().resolve("theme.css")));
+        out.put("base", ScreenMarkup.base());
+        out.put("problems", problems);
+        out.put("components", names(dir().resolve("components"), ".html"));
+        out.put("images", names(dir().resolve("img"), ""));
+        return out;
+    }
+
+    private static String readText(Path file) {
+        try {
+            return Files.isRegularFile(file) ? Files.readString(file, StandardCharsets.UTF_8) : "";
+        } catch (IOException unreadable) {
+            return "";
+        }
+    }
+
+    /** The files under a folder, relative to it, without {@code suffix}; only those ending in it. */
+    private static List<String> names(Path folder, String suffix) {
+        if (!Files.isDirectory(folder)) return List.of();
+        try (var files = Files.walk(folder, 4)) {
+            return files.filter(Files::isRegularFile)
+                    .map(file -> folder.relativize(file).toString().replace('\\', '/'))
+                    .filter(name -> name.endsWith(suffix) && !name.startsWith(".") && !name.endsWith(".new")
+                            && !name.endsWith(".old") && !name.endsWith(".tmp"))
+                    .map(name -> name.substring(0, name.length() - suffix.length()))
+                    .sorted()
+                    .toList();
+        } catch (IOException | RuntimeException unreadable) {
+            return List.of();
+        }
+    }
+
+    // ------------------------------------------------------------------
     // Hot reload
     // ------------------------------------------------------------------
 
@@ -292,6 +423,7 @@ public final class ScreenSet {
                 long now = fingerprint();
                 if (now == stamp) return;
                 stamp = now;
+                registerWeb();
                 for (Map.Entry<String, ScreenMarkup> entry : new LinkedHashMap<>(markups).entrySet()) {
                     boolean read = entry.getValue().reload();
                     route(entry.getValue());

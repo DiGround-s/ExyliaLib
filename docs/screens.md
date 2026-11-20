@@ -561,6 +561,15 @@ screens.reload();
 - `BundledFiles.retire(plugin, "lang/en/screens/old.html")` deletes a file a plugin stopped shipping unless the
   owner edited it (it returns `false` then, so the plugin can say so).
 
+### Web editor (1.639.0)
+
+Every screen of a set is editable from `/exylialib editor` as a `lib/screen` subject (`screens-<id>`, behind
+`exylialib.admin`): the browser gets `<id>.html` and `<id>.css` as text, plus what the screen registered
+(sources, values, actions), the built-in actions, the theme and base sheets, its current problems, the
+components and the pictures. Markup that is not well-formed is refused; subset problems are not. Applying writes
+both files and reloads the set. `webEditor(false)` on the set keeps its screens out. The shape is in
+[web-editor](web-editor.md#screens).
+
 ### Words (1.494.0)
 
 One HTML serves every language. An element with `t="key"` shows the word `key` of

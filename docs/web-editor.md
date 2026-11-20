@@ -62,7 +62,7 @@ One `ConfigFile`, described to the browser by its schema and its values.
   kind the editor does not know falls back to the form.
 - **Title.** What the editor calls it. Default: the id, capitalised.
 - **Group.** Where the editor files it (`Subject.group()`, since 1.307.0):
-  `content` for every registered subject; a discovered one is `settings`,
+  `content` for every registered subject (screens too, see *Screens*); a discovered one is `settings`,
   `messages`, `menus` or `files`.
 - **Sensitive paths.** Dotted YAML paths, `*` for any one key, matched as a
   prefix with list indices ignored: `holograms.*.click.commands` covers every
@@ -118,6 +118,62 @@ WebEditor.of(this).yaml("tags", "cosmetics/tags", "chatcosmetics/catalog")
 A registered YAML subject is also editable in game, from
 [`/exylialib config`](config-menus.md#content-screens) and the plugin's own
 Settings button, through the same checker (since 1.446.0).
+
+## Screens
+
+Since 1.639.0 every screen a plugin ships through `Screens.of(plugin).files(anchor, folder)` is a subject of
+its own, with no line in the plugin: each `<id>.html` at the top of the folder (the same list as
+`ScreenSet#ids()`, kept in step as files come and go) is
+
+| | |
+| --- | --- |
+| id | `<folder>-<id>` (`screens-hub`; a `/` in the folder becomes `-`; a screen whose id would pass 48 characters is not offered) |
+| kind | `lib/screen` |
+| group | `content` |
+| title | the screen id in words (`practice_hub` is `Practice hub`) |
+| permission | `exylialib.admin` |
+| file | `<folder>/<id>` |
+
+**Values** are the two files as text, and the schema is a section with those two string fields:
+
+```json
+{"html": "<screen size=\"320x180\">...</screen>", "css": "<id>.css as written, or \"\" when there is none"}
+```
+
+**Details**, read on every upload (off the main thread, from memory and files):
+
+```json
+{
+  "size": "320x180",                 // the root's size attribute as written, "" when it has none
+  "sources": ["kits"],               // sources and rows registered on the screen or its set, sorted
+  "values": ["balance"],             // values and texts registered, sorted
+  "actions": ["queue"],              // actions registered, sorted
+  "builtins": ["animate", "back", "clear", "close", "confirm", "input", "set", "sound", "toast", "toggle"],
+  "theme": "<the folder's theme.css, or \"\">",
+  "base": "<the library's base.css>",
+  "problems": ["hub.html:4:3: ..."],  // ScreenMarkup#problems() now; a screen not opened yet is read for it
+  "components": ["cards"],           // components/*.html, without .html
+  "images": ["logo.png"]             // every file under img/, relative to it
+}
+```
+
+- **Check.** The new `html` is read with the parser the screens use, without installing it. It is refused,
+  one line per reason, only when it would not read at all: not well-formed, or a doctype (which is also the
+  only place an entity could be declared). Subset problems (an unknown tag, attribute or property, an
+  unregistered action) are not refusals: the screen still draws, and they show in `details.problems`.
+- **Console lines.** A `[console]`/`console:`/`op:` step that the new markup holds and the file did not, in
+  any attribute (`action="...; [console] give ..."`), is held for `confirm` like a console line anywhere else.
+  Nothing else is sensitive by default.
+- **Write.** `<id>.css` and then `<id>.html`, each atomically; the sheet is written only when it is not empty
+  or the file already exists. Then the set is reloaded once (`ScreenSet#reload()`), which also moves the hot
+  reload's stamp past the write, so the file watcher does not read it again (at most once more, when its
+  two-second check falls between the write and the reload). An edited file is an
+  owner's edit from then on: a later jar's version waits as `<name>.new` in `/exylialib updates`.
+- **New screens** cannot be created from the browser: the runtime only applies keys it uploaded, so a key it
+  does not know is rejected. Add the `.html` on the server; the next session offers it.
+- **Opting out:** `Screens.of(plugin).files(...).webEditor(false)`.
+
+Discovery never offers these files on its own: it only reads `.yml`.
 
 ## Entries a plugin stores itself
 
@@ -336,6 +392,7 @@ as it is built. `invalidateAll()` does not apply.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
 apply, trust), `Discovery`, `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
-is the Lamp command. `net.exylia.lib.config.internal.RecordJson` is the
+is the Lamp command. `ScreenSource` reads and writes a screen's two files; `ScreenSet` registers them.
+`net.exylia.lib.config.internal.RecordJson` is the
 schema-and-values bridge next to the binder. `net.exylia.lib.spatial.LayoutEditor` registers every spatial
 menu's layout as a `spatial/layout` subject with its details.

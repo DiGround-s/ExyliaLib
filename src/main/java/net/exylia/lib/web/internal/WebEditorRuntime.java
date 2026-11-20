@@ -180,6 +180,23 @@ public final class WebEditorRuntime {
         return subject;
     }
 
+    /**
+     * A screen of a {@code ScreenSet} as a subject (kind {@code lib/screen}): its markup and its own sheet as two
+     * strings. Called by the screen module; {@code id} may hold one {@code /} ({@code screens/hub}).
+     *
+     * @since 1.639.0
+     */
+    public @NotNull Subject registerScreen(Plugin plugin, String id, Path html, Path css, String name) {
+        SubjectImpl subject = new SubjectImpl(plugin, id, new ScreenSource(html, css, name), ScreenSource.KIND);
+        registry.computeIfAbsent(plugin.getName(), key -> new ConcurrentHashMap<>()).put(id, subject);
+        return subject;
+    }
+
+    /** The running runtime, or {@code null} without the library enabled (a unit test). */
+    public static @Nullable WebEditorRuntime current() {
+        return instance;
+    }
+
     public void exclude(String pluginName, String... globs) {
         options.merge(pluginName, new Options(List.of(globs), true), (known, added) -> {
             List<String> all = new ArrayList<>(known.excluded());
@@ -550,6 +567,9 @@ public final class WebEditorRuntime {
             }
             for (String removed : prepared.holds()) {
                 reasons.add(EditorMessages.deleteReason(subject.title(), removed));
+            }
+            for (String path : prepared.console()) {
+                reasons.add(EditorMessages.privilegedReason(subject.title(), path));
             }
             List<String> sensitive = subject.sensitive();
             for (Diff.Change change : changes) {

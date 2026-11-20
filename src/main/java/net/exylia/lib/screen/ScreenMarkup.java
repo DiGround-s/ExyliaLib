@@ -482,6 +482,21 @@ public final class ScreenMarkup {
         return screen;
     }
 
+    /** The library's base theme, for the web editor's preview. */
+    static String base() {
+        return BASE;
+    }
+
+    /** The actions every screen knows without registering, for the web editor. */
+    static Set<String> builtIns() {
+        return BUILT_IN;
+    }
+
+    /** What was registered on this markup, the set's shared names included. */
+    MarkupRender.Bindings bindings() {
+        return bindings;
+    }
+
     private static String loadBase() {
         try (InputStream in = ScreenMarkup.class.getResourceAsStream("/screens/base.css")) {
             return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8);
