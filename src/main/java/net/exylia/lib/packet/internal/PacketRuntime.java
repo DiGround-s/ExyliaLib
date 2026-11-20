@@ -354,6 +354,7 @@ public final class PacketRuntime {
             impl.clear();
         }
         Mirrors.release(pluginName);
+        Palettes.release(pluginName);
         if (sink != null) Scenes.release(pluginName);
         if (ItemDecor.unregister(pluginName)) {
             // Its lines are on screen until the slots are sent again.
@@ -394,6 +395,7 @@ public final class PacketRuntime {
         Mirrors.shutdown();
         Borders.shutdown();
         Masks.shutdown();
+        Palettes.shutdown();
     }
 
     /** Installs a sink directly and resets state. For tests. */
@@ -682,6 +684,7 @@ public final class PacketRuntime {
         FAKED.remove(id);
         KEPT.remove(id);
         Masks.forget(id);
+        Palettes.forget(id);
         if (sink != null) Scenes.forget(id);
         OUTLINED.remove(id);
         SPECTATING.remove(id);

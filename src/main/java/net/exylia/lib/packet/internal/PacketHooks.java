@@ -277,6 +277,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             Map<Long, BlockData> kept = PacketRuntime.keptOf(viewer);
             if (kept != null) keepBlocks(event, type, kept);
         }
+        // Last of the block rewrites, so masks and kept fake blocks are drawn in the viewer's palette too.
+        if (Palettes.any() && PalettePackets.carries(type) && event.getPlayer() instanceof Player paletted) {
+            PaletteTable table = Palettes.tableFor(paletted);
+            if (table != null) PalettePackets.apply(event, type, table);
+        }
         if (PacketRuntime.hidesAnything(viewer)) {
             if (type == PacketType.Play.Server.PLAYER_INFO_UPDATE) {
                 stripTabEntries(event, viewer);
