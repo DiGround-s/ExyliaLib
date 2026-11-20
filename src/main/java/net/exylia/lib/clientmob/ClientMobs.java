@@ -12,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Mobs of any vanilla type that one player sees and clicks, sent as packets:
  * the helpers that walk between a player's crops, a pet that follows them.
- * Since 1.632.0.
+ * Since 1.634.0.
  *
  * <pre>{@code
  * ClientMobs mobs = ClientMobs.of(this)

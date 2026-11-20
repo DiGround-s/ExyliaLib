@@ -2,7 +2,7 @@
 
 Mobs of any vanilla type that only one player sees, which walk, look around and
 animate, sent as packets: the helpers that work a player's farm, a pet that
-follows them. Since 1.632.0.
+follows them. Since 1.634.0.
 
 Entry point: `net.exylia.lib.clientmob.ClientMobs`. Needs PacketEvents; without
 it mobs are created and do nothing (`ClientMobs.isAvailable()` says so).
