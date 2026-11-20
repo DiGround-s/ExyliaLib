@@ -19,6 +19,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Tab list](tablist.md) | Per-player tab list: header, footer, listed names and order, resolved per viewer and sent only when they change | 1.633.0 |
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
 | [Client nodes](nodes.md) | Blocks and items one player sees and clicks, sent as packets: per-player farms, ores and targets with a look, glow, size and pop, culled by distance | 1.628.0 |
+| [Client mobs](clientmobs.md) | Mobs of any vanilla type one player sees, which walk, look, swing and sit, sent as packets: per-player helpers and pets, culled by distance | 1.632.0 |
 | [Client](client.md) | Lunar/Feather waypoints, client cooldowns, teammate markers and teams; owned per plugin since 1.48.0 | 1.7.0 |
 | [Clan](clan.md) | One API over eight clan plugins and external bridges | 1.8.0 |
 | [Cooldowns](cooldowns.md) | The base every cooldown in the ecosystem sits on; `NetworkCooldowns` that survive relogs and server hops since 1.184.0 | 1.10.0 |
