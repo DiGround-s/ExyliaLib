@@ -32,6 +32,7 @@ import net.exylia.lib.overlay.OverlayLock;
 import net.exylia.lib.overlay.OverlaySlots;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.ui.ClickKind;
+import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -562,8 +563,14 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
      * <p>Whether the real item is there is what the server last said about
      * the slot, recorded by the outbound half: this runs on a Netty thread
      * for every swing, where reading the inventory is neither safe nor free.
+     *
+     * <p>A player inside a wizard is answering it with clicks, so every press
+     * goes through to the wizard, which cancels the ones it consumes.
      */
     private static OverlayClicks.WorldPress worldPress(OverlayView view, int slot, ClickKind kind) {
+        if (WizardRuntime.isRunning(view.id())) {
+            return OverlayClicks.WorldPress.PASS;
+        }
         return OverlayClicks.worldPress(
                 view.pressedAt(slot) != null,
                 view.owns(slot),

@@ -237,6 +237,10 @@ A slot the overlay draws nothing in presses nothing, unless `empty_hand` says
 otherwise. Under `hide_rest` every slot is the overlay's, so this is what keeps
 an empty hand a hand.
 
+While the player is in a [wizard](wizard.md) (1.638.2+), no press in the world
+is the overlay's: every click goes through to the wizard, so a staff member
+wearing a hotbar can still select an area or pick a block.
+
 ## What an empty hand does
 
 ```yaml
