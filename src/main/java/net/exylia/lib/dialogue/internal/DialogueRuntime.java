@@ -80,6 +80,9 @@ public final class DialogueRuntime implements Listener {
         @Nullable HudHandle hud;
         @Nullable ScreenSession screen;
         boolean over;
+        /** The HUD box last built and what it showed: a still box is handed back as is, so it is not laid out again. */
+        @Nullable Node hudBox;
+        @Nullable String hudKey;
 
         Talk(Plugin plugin, Player player, Dialogue dialogue) {
             this.plugin = plugin;
@@ -157,7 +160,20 @@ public final class DialogueRuntime implements Listener {
 
     private static void showHud(Talk talk) {
         talk.hud = Huds.of(talk.plugin).show(talk.player,
-                HudWidget.layout(WIDGET, HudAnchor.ABOVE_HOTBAR, p -> talk.over ? null : layout(talk, false)).every(2));
+                HudWidget.layout(WIDGET, HudAnchor.ABOVE_HOTBAR, p -> talk.over ? null : hudBox(talk)).every(2));
+    }
+
+    /** The box on the HUD, built again only when what it shows changed: the line, the letters typed, the answer. */
+    private static Node hudBox(Talk talk) {
+        Dialogue.Line line = talk.dialogue.lines().get(talk.line);
+        int typed = talk.written() ? -1 : (int) ((System.currentTimeMillis() - talk.lineStarted) * talk.dialogue.speed() / 1000);
+        String key = talk.line + ":" + typed + ":" + talk.selected + ":" + talk.asking() + ":"
+                + (line.face() != null && Pictures.face(line.face()) != null);
+        if (!key.equals(talk.hudKey) || talk.hudBox == null) {
+            talk.hudBox = layout(talk, false);
+            talk.hudKey = key;
+        }
+        return talk.hudBox;
     }
 
     /** A Bedrock client draws display text poorly: every line in chat, then the answers in a form. */

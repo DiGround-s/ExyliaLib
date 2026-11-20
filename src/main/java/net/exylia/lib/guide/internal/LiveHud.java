@@ -65,6 +65,11 @@ public final class LiveHud extends Piece {
     /** How far apart the rays that look for a block in front of an element are, in blocks of the view. */
     private static final double COVER_STEP = 1.5;
     /**
+     * Ticks a cover found while the player stands still and looks the same way is kept: a mob walking in or a block
+     * placed in front is found this late, and a still crowd does not ray-trace every tick.
+     */
+    private static final long COVER_TICKS = 5;
+    /**
      * How far in front of what covers it an element is drawn, in blocks; nearer than {@link #NEAR_LEAST} it turns
      * see-through instead, since view bobbing moves something that close by too much.
      */
@@ -86,6 +91,9 @@ public final class LiveHud extends Piece {
     /** Whether the player was offered fitting the HUD to their window, or needs not be. */
     private boolean fitOffered;
     private long now;
+    /** Where the eye was and looked when covers were last traced, and when; null before the first. */
+    private org.bukkit.Location coverEye;
+    private long coverAt;
 
     LiveHud(ViewerSession session) {
         super(session);
@@ -186,11 +194,22 @@ public final class LiveHud extends Piece {
             fitOffered = net.exylia.lib.screen.internal.ScreenPreferences.fitted(id) || offerFit(player);
         }
         View view = stacks.isEmpty() ? null : new View(player);
+        boolean trace = view != null && (reseat || now - coverAt >= COVER_TICKS || !View.same(coverEye, view.eye));
+        if (trace) {
+            coverEye = view.eye;
+            coverAt = now;
+        }
         for (Map.Entry<HudAnchor, List<Element>> stack : stacks.entrySet()) {
             double offset = before(player, stack.getKey());
             for (Element element : stack.getValue()) {
                 element.place(stack.getKey(), offset, zoom, aspect);
-                element.see(view.cover(element.spot, element.wide, element.tall, widen), now);
+                double[] key = element.spot == null ? null
+                        : new double[]{element.spot[0], element.spot[1], element.wide, element.tall, widen};
+                if (trace || !java.util.Arrays.equals(key, element.coverKey)) {
+                    element.cover = view.cover(element.spot, element.wide, element.tall, widen);
+                    element.coverKey = key;
+                }
+                element.see(element.cover, now);
                 offset += element.tall + HudGeometry.GAP * HudGeometry.pixel(element.drawSize());
                 element.send(player, reseat);
             }
@@ -206,6 +225,9 @@ public final class LiveHud extends Piece {
             boolean on = widget.spec.when() == null || widget.spec.when().test(player);
             if (widget.spec.layout() != null) {
                 net.exylia.lib.screen.Node tree = on ? widget.spec.layout().apply(player) : null;
+                // The same tree as last read is drawn the same: a widget that hands back a still tree is not laid out again.
+                if (tree != null && tree == widget.tree && widget.drawn != null) continue;
+                widget.tree = tree;
                 HudLayers.Drawn drawn = tree == null ? null : HudLayers.of(tree);
                 if (drawn == null || drawn.layers().isEmpty()) {
                     if (widget.spawned()) leave(player, widget);
@@ -361,6 +383,8 @@ public final class LiveHud extends Piece {
         private final org.bukkit.util.Vector right;
         private final org.bukkit.util.Vector up;
         private final boolean underwater;
+        /** What could cover the HUD around the eye, gathered on the first mob ray. */
+        private List<org.bukkit.entity.Entity> nearby;
 
         View(Player player) {
             this.player = player;
@@ -411,10 +435,30 @@ public final class LiveHud extends Piece {
                     View::covers));
         }
 
+        /** Whether two eyes stand and look the same, near enough that what covers the HUD is the same. */
+        static boolean same(org.bukkit.Location a, org.bukkit.Location b) {
+            return a != null && a.getWorld() == b.getWorld() && a.distanceSquared(b) < 1.0E-4
+                    && Math.abs(a.getYaw() - b.getYaw()) < 0.1 && Math.abs(a.getPitch() - b.getPitch()) < 0.1;
+        }
+
         private double mob(double x, double y) {
             org.bukkit.util.Vector to = to(x, y);
             double length = to.length();
-            return along(eye.getWorld().rayTraceEntities(eye, to.multiply(1 / length), length, 0, this::covers));
+            org.bukkit.util.Vector start = eye.toVector();
+            org.bukkit.util.Vector direction = to.multiply(1 / length);
+            if (nearby == null) {
+                // One look around for every ray of every element, not one per ray: in a crowd each look tests every
+                // player near the eye.
+                double reach = GuidePackets.VIEW_DISTANCE * 1.5;
+                nearby = new ArrayList<>(eye.getWorld().getNearbyEntities(
+                        org.bukkit.util.BoundingBox.of(eye, reach, reach, reach), this::covers));
+            }
+            double nearest = Double.POSITIVE_INFINITY;
+            for (org.bukkit.entity.Entity entity : nearby) {
+                org.bukkit.util.RayTraceResult hit = entity.getBoundingBox().rayTrace(start, direction, length);
+                if (hit != null) nearest = Math.min(nearest, along(hit));
+            }
+            return nearest;
         }
 
         /** An entity that would cover the HUD: one the player sees, not their own vehicle or passenger. */
@@ -532,6 +576,9 @@ public final class LiveHud extends Piece {
         Object measured;
         List<Look> looks = List.of();
         double[] spot;
+        /** The last cover traced for it, and the spot, size and widening it was traced for. */
+        double cover = Double.POSITIVE_INFINITY;
+        double[] coverKey;
         double[] sentSpot;
         double sentK = 1;
         boolean entering;
@@ -744,6 +791,8 @@ public final class LiveHud extends Piece {
         volatile boolean dead;
         volatile boolean again = true;
         long next;
+        /** The layout tree last read, for a widget drawn from one. */
+        net.exylia.lib.screen.Node tree;
 
         Widget(HudWidget spec) {
             this.spec = spec;
