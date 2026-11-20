@@ -1,11 +1,14 @@
 package net.exylia.lib.chat;
 
 import net.exylia.lib.chat.internal.ChatRuntime;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Entry point of the chat module: who reads whose messages.
@@ -74,6 +77,33 @@ public final class Chats {
      */
     public static void clear(@NotNull Plugin plugin) {
         ChatRuntime.release(plugin.getName());
+    }
+
+    /**
+     * Puts this plugin's tag before every chat line of a player, replacing its previous tag: a rank, a
+     * clan, {@code [R12]}. The tag goes around whatever the server's chat plugin rendered, so its format,
+     * hovers and clicks stay. Tags of several plugins line up in plugin-name order, each followed by a space.
+     *
+     * <p>The function runs on the chat thread for every line, so it reads memory, never a database. Null or
+     * an empty component leaves the player untagged on that line. A chat plugin that cancels the line and
+     * sends its own copy skips this; give it the plugin's placeholder instead.
+     *
+     * @param plugin the owning plugin
+     * @param tag    the speaker's tag, or null for none
+     * @since 1.638.0
+     */
+    public static void tag(@NotNull Plugin plugin, @NotNull Function<Player, @Nullable Component> tag) {
+        ChatRuntime.tag(plugin.getName(), tag);
+    }
+
+    /**
+     * Drops this plugin's chat tag.
+     *
+     * @param plugin the owning plugin
+     * @since 1.638.0
+     */
+    public static void untag(@NotNull Plugin plugin) {
+        ChatRuntime.untag(plugin.getName());
     }
 
     /**

@@ -9,7 +9,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.exylia.lib.chat.internal.ChatRuntime;
+import net.kyori.adventure.text.Component;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** How rules combine, which is the whole contract of the module. */
@@ -35,6 +40,22 @@ class ChatsTest {
     @AfterEach
     void tearDown() {
         Chats.releaseAll();
+    }
+
+    @Test
+    @DisplayName("tags line up by plugin name, skip empty ones and go with their plugin")
+    void tags() {
+        assertNull(ChatRuntime.tags(alice));
+        Chats.tag(ffa, player -> Component.text("[R12]"));
+        Chats.tag(events, player -> player == alice ? Component.text("[E]") : null);
+        assertEquals(Component.empty().append(Component.text("[E]")).append(Component.space())
+                .append(Component.text("[R12]")).append(Component.space()), ChatRuntime.tags(alice));
+        assertEquals(Component.empty().append(Component.text("[R12]")).append(Component.space()), ChatRuntime.tags(bob));
+        Chats.tag(events, player -> { throw new IllegalStateException(); });
+        assertEquals(Component.empty().append(Component.text("[R12]")).append(Component.space()), ChatRuntime.tags(alice));
+        Chats.release(ffa.getName());
+        Chats.untag(events);
+        assertNull(ChatRuntime.tags(alice));
     }
 
     @Test

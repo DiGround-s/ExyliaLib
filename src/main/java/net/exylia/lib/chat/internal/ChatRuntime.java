@@ -2,13 +2,17 @@ package net.exylia.lib.chat.internal;
 
 import net.exylia.lib.chat.ChatRule;
 import net.exylia.lib.debug.Debug;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.function.Function;
 
 /**
  * The chat module's working parts: one rule per plugin, and the answer they
@@ -26,6 +30,8 @@ public final class ChatRuntime {
     private static final Set<String> BROKEN = ConcurrentHashMap.newKeySet();
     /** Players no rule is asked about, in either direction. */
     private static final Set<UUID> BYPASS = ConcurrentHashMap.newKeySet();
+    /** One tag per plugin, in plugin-name order so every line reads the same way. */
+    private static final Map<String, Function<Player, @Nullable Component>> TAGS = new ConcurrentSkipListMap<>();
 
     private static volatile Plugin lib;
 
@@ -44,10 +50,48 @@ public final class ChatRuntime {
 
     public static void release(String pluginName) {
         RULES.remove(pluginName);
+        TAGS.remove(pluginName);
         BROKEN.remove(pluginName);
     }
 
+    public static void tag(String pluginName, Function<Player, @Nullable Component> tag) {
+        TAGS.put(pluginName, tag);
+        BROKEN.remove(pluginName);
+    }
+
+    public static void untag(String pluginName) {
+        TAGS.remove(pluginName);
+    }
+
+    /**
+     * Every plugin's tag for this speaker, each followed by a space, or null when none has one. A tag that
+     * throws is left out of that line and reported once, like a broken rule.
+     */
+    public static @Nullable Component tags(Player speaker) {
+        if (TAGS.isEmpty()) {
+            return null;
+        }
+        Component out = null;
+        for (Map.Entry<String, Function<Player, @Nullable Component>> entry : TAGS.entrySet()) {
+            Component tag;
+            try {
+                tag = entry.getValue().apply(speaker);
+            } catch (Throwable error) {
+                if (BROKEN.add(entry.getKey()) && lib != null) {
+                    Debug.of(lib).error("Chat tag of " + entry.getKey() + " threw and is left out: " + error);
+                }
+                continue;
+            }
+            if (tag == null || tag.equals(Component.empty())) {
+                continue;
+            }
+            out = (out == null ? Component.empty() : out).append(tag).append(Component.space());
+        }
+        return out;
+    }
+
     public static void shutdown() {
+        TAGS.clear();
         RULES.clear();
         BROKEN.clear();
         BYPASS.clear();

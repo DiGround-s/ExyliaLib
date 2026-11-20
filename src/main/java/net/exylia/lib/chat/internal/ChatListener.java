@@ -1,7 +1,9 @@
 package net.exylia.lib.chat.internal;
 
+import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.exylia.lib.debug.Debug;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,6 +18,9 @@ import org.bukkit.plugin.Plugin;
  * legacy one Paper runs it first and then hands its recipients to the modern
  * event's viewers, so the audience trimmed here is the audience delivered
  * either way, and this plugin never turns the legacy path on.
+ *
+ * <p>It also puts the plugins' chat tags before each line, around the renderer
+ * the chat plugin left (see {@link #onRender}).
  *
  * <p>{@code HIGHEST} lets the chat plugin build its message first and still
  * runs before delivery. Cancelled events are skipped: a message nobody
@@ -42,6 +47,21 @@ public final class ChatListener implements Listener {
         // what was said, not somebody's copy of it.
         remove(() -> event.viewers().removeIf(viewer ->
                 viewer instanceof Player listener && !ChatRuntime.canHear(listener, speaker)));
+    }
+
+    /**
+     * Puts the plugins' tags before the line. {@code MONITOR} because chat plugins set their renderer at
+     * any priority up to {@code HIGHEST}: only here is the renderer the final one. It is wrapped, not
+     * replaced, so the line the chat plugin built is delivered unchanged after the tags.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onRender(AsyncChatEvent event) {
+        Component tags = ChatRuntime.tags(event.getPlayer());
+        if (tags == null) {
+            return;
+        }
+        ChatRenderer inner = event.renderer();
+        event.renderer((source, name, message, viewer) -> tags.append(inner.render(source, name, message, viewer)));
     }
 
     /** A bypass lasts as long as the player is here; nothing outlives a quit. */

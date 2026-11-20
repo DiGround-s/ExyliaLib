@@ -19,12 +19,36 @@ Chats.rule(this, (listener, speaker) -> {
 });
 ```
 
+## Tags
+
+A plugin can put a short tag before every chat line of a player: a rank, a clan,
+a rebirth count (since 1.638.0).
+
+```java
+Chats.tag(this, player -> {
+    Profile profile = profiles.online(player.getUniqueId());   // memory, never a database
+    return profile == null || profile.rebirths() == 0 ? null : Text.of("{info}[R" + profile.rebirths() + "]").build();
+});
+```
+
+- The tag goes around the renderer the chat plugin left, so its format, hovers
+  and clicks stay. Several plugins' tags line up in plugin-name order, each
+  followed by a space.
+- The function runs on the chat thread for every line: read memory only.
+  Null or an empty component leaves that line untagged; a tag that throws is
+  left out and reported once.
+- A chat plugin that cancels the line and sends its own copy skips tags. Give
+  that plugin your placeholder instead.
+- `Chats.untag(plugin)` drops it; a disabled plugin's tag goes with it.
+
 ## API
 
 | Method | Contract |
 | --- | --- |
 | `rule(plugin, rule)` | registers this plugin's rule, replacing its previous one |
 | `clear(plugin)` | drops this plugin's rule |
+| `tag(plugin, player -> component)` | puts this plugin's tag before each chat line of a player (1.638.0) |
+| `untag(plugin)` | drops this plugin's tag |
 | `canHear(listener, speaker)` | the answer every rule agrees on, for text a plugin delivers itself |
 | `bypass(player, bypass)` | puts a player above every rule, or back under them |
 | `bypassing(uuid)` | whether they are above the rules right now |

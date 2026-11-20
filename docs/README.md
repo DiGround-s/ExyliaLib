@@ -108,7 +108,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Downed](downed.md) | Downed instead of dead: a lethal hit leaves the player crawling on a bleed-out boss bar, a teammate sneaking beside them revives them; who goes down, who may revive, times and the bleed-out outcome are the plugin's | 1.621.0 |
 | [Logs](logs.md) | A staff audit log every plugin records into, browsed with /exylialib logs | 1.296.0 |
 | [Schedules](schedules.md) | Timetables: what starts by itself, at what times, on what days, and under what conditions — one asynchronous timer for the whole server | 1.70.0 |
-| [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own | 1.89.0 |
+| [Chat](chat.md) | Who reads whose chat messages: an event, an arena or a match whose chat is its own; tags before a player's chat lines (rank, clan, `[R12]`) | 1.89.0 |
 | [Cleanup](cleanup.md) | The folders the server fills and never empties — old logs deleted on a timer | 1.90.0 |
 | [Heads](heads.md) | The decorative head catalogue, searchable from a menu — a page at a time, nothing downloaded | 1.82.0 |
 | [Metrics](metrics.md) | What the library reports to stats.exylia.net — server software, installed plugins, Exylia plugin setup and errors — how a plugin describes its setup, and how to turn it off | 1.160.0 (`Metrics.describe` 1.163.0) |
