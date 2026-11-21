@@ -18,6 +18,7 @@ import net.exylia.lib.ui.ClickKind;
 import net.exylia.lib.ui.UiItem;
 import net.exylia.lib.util.Cooldowns;
 import net.exylia.lib.util.PluginCooldowns;
+import net.exylia.lib.util.wizard.internal.WizardRuntime;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -95,6 +96,8 @@ public final class Hotbars {
     private final Map<UUID, Shown> shown = new ConcurrentHashMap<>();
     /** The set each player should wear: a draw still queued when {@link #hide} ran must not put it back. */
     private final Map<UUID, String> wanted = new ConcurrentHashMap<>();
+    /** Players whose set is off while a wizard runs: its tool is in their hand, and the buttons would cover it. */
+    private final Set<UUID> paused = ConcurrentHashMap.newKeySet();
     private volatile @Nullable BiConsumer<Player, Duration> onCooldown;
     private volatile @Nullable TaskHandle watch;
 
@@ -178,6 +181,7 @@ public final class Hotbars {
     /** Takes this plugin's hotbar off a player; the real inventory shows again. */
     public void hide(@NotNull Player player) {
         wanted.remove(player.getUniqueId());
+        paused.remove(player.getUniqueId());
         Shown was = shown.remove(player.getUniqueId());
         if (was != null && overlays.showing(player).filter(d -> d == was.definition()).isPresent()) {
             overlays.hide(player);
@@ -212,6 +216,48 @@ public final class Hotbars {
         if (running != null) running.cancel();
         hotbars.shown.clear();
         hotbars.wanted.clear();
+        hotbars.paused.clear();
+    }
+
+    /**
+     * Takes every plugin's hotbar off a player who starts a wizard: the wizard hands its tool over in the main
+     * hand, and a button drawn over that slot would hide it. Called by the library.
+     */
+    @ApiStatus.Internal
+    public static void wizardStarted(@NotNull Player player) {
+        for (Hotbars hotbars : BY_PLUGIN.values()) {
+            if (!hotbars.plugin.isEnabled()) continue;
+            Tasks.of(hotbars.plugin).runAtEntity(player, () -> hotbars.pause(player));
+        }
+    }
+
+    /** Puts the hotbars a wizard took off back on once it ends, however it ended. Called by the library. */
+    @ApiStatus.Internal
+    public static void wizardEnded(@NotNull Player player) {
+        for (Hotbars hotbars : BY_PLUGIN.values()) {
+            // A run ended by its plugin disabling: that plugin's scheduler is going away with it.
+            if (!hotbars.plugin.isEnabled()) continue;
+            Tasks.of(hotbars.plugin).runAtEntity(player, () -> hotbars.resume(player));
+        }
+    }
+
+    /** On the player's thread. */
+    private void pause(Player player) {
+        UUID id = player.getUniqueId();
+        if (!wanted.containsKey(id)) return;
+        paused.add(id);
+        Shown was = shown.remove(id);
+        if (was != null && overlays.showing(player).filter(d -> d == was.definition()).isPresent()) {
+            overlays.hide(player);
+        }
+    }
+
+    /** On the player's thread. A wizard that replaced the one ending keeps the hotbar off. */
+    private void resume(Player player) {
+        UUID id = player.getUniqueId();
+        if (!player.isOnline() || WizardRuntime.isRunning(id) || !paused.remove(id)) return;
+        String set = wanted.get(id);
+        if (set != null) draw(player, set, true);
     }
 
     // ------------------------------------------------------------------ drawing
@@ -227,6 +273,10 @@ public final class Hotbars {
         // Shown and hidden in the same tick (a player who logs in inside an area that wears no hotbar):
         // the hide came first, so this queued draw is stale.
         if (!setName.equals(wanted.get(player.getUniqueId()))) return;
+        if (WizardRuntime.isRunning(player.getUniqueId())) {
+            pause(player);
+            return;
+        }
         Shown before = shown.get(player.getUniqueId());
         String mask = mask(player, compiled);
         if (!force && before != null && before.mask().equals(mask)) return;

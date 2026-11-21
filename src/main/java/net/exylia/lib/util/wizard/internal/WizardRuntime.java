@@ -10,6 +10,7 @@ import net.exylia.lib.util.wizard.WizardOutcome;
 import net.exylia.lib.util.wizard.WizardRun;
 import net.exylia.lib.util.wizard.WizardSettings;
 import net.exylia.lib.util.wizard.WizardTarget;
+import net.exylia.lib.hotbar.Hotbars;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -128,6 +129,7 @@ public final class WizardRuntime {
             // and let a third flow start alongside it.
             if (ACTIVE.remove(id, self.get())) {
                 OWNERS.remove(id);
+                Hotbars.wizardEnded(player);
             }
         });
         self.set(session);
@@ -140,6 +142,7 @@ public final class WizardRuntime {
             previous.end(WizardOutcome.REPLACED);
         }
 
+        Hotbars.wizardStarted(player);
         session.start();
         return session;
     }
