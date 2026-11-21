@@ -446,6 +446,8 @@ public final class WebEditorRuntime {
             async.accept(() -> {
                 try {
                     JsonObject payload = Snapshot.payload(List.of(described), placeholders);
+                    JsonObject settings = settings(plugin, subjects, described);
+                    if (settings != null) payload.add("settings", settings);
                     int bytes = GSON.toJson(payload).getBytes(StandardCharsets.UTF_8).length;
                     if (bytes > Snapshot.MAX_BYTES) {
                         tell(sender, EditorMessages.pluginTooLarge(plugin, bytes, Snapshot.MAX_BYTES));
@@ -460,6 +462,26 @@ public final class WebEditorRuntime {
             });
         });
         return done;
+    }
+
+    /** The plugin's own settings screens, pointed at the files they edit; {@code null} when it has none or they cannot be read. */
+    private @Nullable JsonObject settings(String plugin, List<SubjectImpl> subjects, JsonObject[] described) {
+        try {
+            if (subjects.isEmpty()) return null;
+            SettingsScreens.Screens screens = SettingsScreens.of(subjects.get(0).plugin());
+            if (screens.pages().isEmpty()) return null;
+            List<SettingsScreens.Candidate> candidates = new ArrayList<>();
+            for (int i = 0; i < described.length; i++) {
+                SubjectImpl subject = subjects.get(i);
+                if (subject.file() == null || !(described[i].get("values") instanceof JsonObject values)) continue;
+                String file = described[i].has("file") ? described[i].get("file").getAsString() : subject.id();
+                candidates.add(new SettingsScreens.Candidate(subject.key(), file, values, subject.file()));
+            }
+            return SettingsScreens.json(screens, candidates, plugin);
+        } catch (RuntimeException failure) {
+            debug.debug("Web editor sent no settings screens for " + plugin + ": " + failure);
+            return null;
+        }
     }
 
     private void notUploaded(CommandSender sender, String plugin, Throwable failure) {

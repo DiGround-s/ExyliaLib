@@ -815,7 +815,7 @@ public final class ConfigMenu {
      * The file's defaults: its record built with no arguments, as every settings record can be,
      * or in the server's language for a file whose defaults follow it.
      */
-    private static @Nullable Object defaults(ConfigFile<?> file) {
+    static @Nullable Object defaults(ConfigFile<?> file) {
         if (file instanceof net.exylia.lib.config.internal.ConfigFileImpl<?> loaded) {
             try {
                 return loaded.defaults();

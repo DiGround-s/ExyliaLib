@@ -367,6 +367,28 @@ is what each `%placeholder%` found in the plugin's values reads as for the
 admin who opened the session, so the preview can show `%player_name%` as a
 name. `palette` is the server's colour tokens as hex.
 
+`settings` (since 1.641.0, optional) is the plugin's own settings screens, so
+the editor shows each setting with the name and explanation the plugin wrote,
+in every language it ships, instead of the raw key:
+`{about{lang: [lines]}, pages[{id, subject, material, title{lang}, summary{lang: [lines]},
+about{lang: [lines]}, stats[{key, icon, label{lang}}], cards[{key, subject, material, icon,
+title{lang}, lines{lang: [lines]}, label{lang}, control?{kind, min?, max?, step?, none?,
+format?, currency?, unit?, materials?, currencyId?, choices?[{value, label}]}, default?}]}]}`.
+Nothing is registered for it: the library reads the plugin's jar under
+`lang/<code>/`, takes the hub (buttons running `<namespace>:settings_page <page>`)
+and every card of a page the hub links to (`<namespace>:setting <page> <key>`),
+the shape `tools/settings-cards` writes. `title` is the gradient text of the
+item's name, `lines` the lines under `✎`, `label` and `icon` the status line
+showing the key. A page is pointed at the record subject that holds the most of
+its keys; a tie is settled by the page's id or English title being a folder or
+file name of the subject's path, and a page still tied, or that no subject holds
+(a module turned off), is left out rather than guessed. `stats` are the keys the
+hub card shows. `control` and `default` (the value the file resets to, as the
+file writes it) come from the record, as the in-game card reads them. The web
+shows a text in the viewer's language, then the server's, then English. A
+plugin without such screens sends no `settings`, and everything the screens do
+not cover stays in the plain file view.
+
 Version 1 servers (1.304.0 to 1.306.0) sent one snapshot with every subject's
 schema and values inline and `applied` with `{"outcome","snapshot"}`.
 
@@ -390,7 +412,7 @@ as it is built. `invalidateAll()` does not apply.
 
 `net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`, `EntryStore`.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
-apply, trust), `Discovery`, `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
+apply, trust), `Discovery`, `SettingsScreens` (the plugin's settings screens read from its jar), `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`
 is the Lamp command. `ScreenSource` reads and writes a screen's two files; `ScreenSet` registers them.
 `net.exylia.lib.config.internal.RecordJson` is the
