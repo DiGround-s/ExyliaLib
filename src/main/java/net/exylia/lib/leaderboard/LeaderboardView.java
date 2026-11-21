@@ -121,6 +121,17 @@ public final class LeaderboardView {
         return period == null ? Optional.empty() : Optional.of(Duration.ofMillis(Leaderboards.clockInUse().remaining(period)));
     }
 
+    /**
+     * Whether the board was read from the database on this server, so an empty
+     * view means nobody is ranked rather than not loaded yet. Check it before
+     * acting on standings once, such as paying a season's top.
+     *
+     * @since 1.642.0
+     */
+    public boolean ready() {
+        return Leaderboards.ready(board);
+    }
+
     private Ranking ranking() {
         return Leaderboards.ranking(board, span);
     }

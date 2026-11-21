@@ -105,6 +105,8 @@ top.remaining();   // until the season ends; zero once it ended, empty with no s
   value. Setting the same one again changes nothing, so calling it on every
   enable is safe. `reset(id, Span.SEASON)` starts the current season over.
 - With no season set, `SEASON` is empty.
+- Before paying a season's top once, check `view.ready()` (1.642.0): until the
+  board is read from the database on this server, an empty view says nothing.
 
 ## Reading
 

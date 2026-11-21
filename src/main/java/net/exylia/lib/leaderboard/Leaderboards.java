@@ -402,6 +402,11 @@ public final class Leaderboards {
         return board == null ? Ranking.EMPTY : board.rankings[span.ordinal()];
     }
 
+    static boolean ready(String id) {
+        Board board = BOARDS.get(id);
+        return board != null && board.ready;
+    }
+
     // ------------------------------------------------------------------
     // Lifecycle, driven by the library
     // ------------------------------------------------------------------
