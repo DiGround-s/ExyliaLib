@@ -47,9 +47,11 @@ final class MobPackets implements MobSink {
     private static final int CUSTOM_NAME = 2;
     private static final int NAME_VISIBLE = 3;
     private static final int BABY = 16;
+    /** Ageable mobs gained an age-locked flag after the baby flag in 26.1, which moves every later index one up. */
+    private static final int AGEABLE_SHIFT = ageLocked() ? 1 : 0;
     /** Tameable animals (wolf, cat): sitting is bit 0 of this byte. */
-    private static final int TAMEABLE_FLAGS = 17;
-    private static final int FOX_FLAGS = 18;
+    private static final int TAMEABLE_FLAGS = 17 + AGEABLE_SHIFT;
+    private static final int FOX_FLAGS = 18 + AGEABLE_SHIFT;
     private static final byte FLAG_CROUCHING = 0x02;
     private static final byte FLAG_GLOWING = 0x40;
 
@@ -58,6 +60,15 @@ final class MobPackets implements MobSink {
             EntityType.IRON_GOLEM, EntityType.RAVAGER, EntityType.HOGLIN, EntityType.ZOGLIN, EntityType.WARDEN);
 
     private MobPackets() {
+    }
+
+    private static boolean ageLocked() {
+        try {
+            Class.forName("net.minecraft.world.entity.AgeableMob").getDeclaredField("AGE_LOCKED");
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     static boolean ready() {
