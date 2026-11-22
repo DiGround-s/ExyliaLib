@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.function.IntConsumer;
 
 /**
- * A conversation in a box at the bottom of the screen: lines written out one at a time, with the speaker's name and
+ * A conversation in a box on the screen: lines written out one at a time, with the speaker's name and
  * face, and answers to choose from under the last line.
  *
  * <pre>{@code
@@ -34,7 +34,7 @@ public record Dialogue(@NotNull List<Line> lines, @NotNull List<Component> answe
 
     /** Where the box is drawn. */
     public enum Mode {
-        /** Over the hotbar on the HUD: the player keeps walking and looking round; the wheel picks an answer. */
+        /** On the HUD, above the crosshair and clear of chat: the player keeps walking and looking round; the wheel picks an answer. */
         HUD,
         /** On a full screen with a cursor: the player stands still and clicks the line or an answer. */
         SCREEN;

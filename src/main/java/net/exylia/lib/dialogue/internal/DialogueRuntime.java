@@ -159,8 +159,10 @@ public final class DialogueRuntime implements Listener {
     }
 
     private static void showHud(Talk talk) {
+        // Above the crosshair, not over the hotbar: at the usual GUI scales chat reaches past the middle of the
+        // window, so a box above the hotbar landed on its lines and read as part of it (1.643.1).
         talk.hud = Huds.of(talk.plugin).show(talk.player,
-                HudWidget.layout(WIDGET, HudAnchor.ABOVE_HOTBAR, p -> talk.over ? null : hudBox(talk)).every(2));
+                HudWidget.layout(WIDGET, HudAnchor.CENTER, p -> talk.over ? null : hudBox(talk)).every(2));
     }
 
     /** The box on the HUD, built again only when what it shows changed: the line, the letters typed, the answer. */

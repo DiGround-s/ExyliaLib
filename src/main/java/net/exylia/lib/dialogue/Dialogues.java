@@ -8,7 +8,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Opens {@link Dialogue}s: RPG conversations in a box at the bottom of the screen, with no resource pack.
+ * Opens {@link Dialogue}s: RPG conversations in a box on the screen, with no resource pack.
  *
  * <p>On the HUD (the default) the player keeps walking and looking round: a sneak, a click on the air or on an NPC
  * goes on (the first press finishes the line), and under the last line the wheel or the number keys move between
