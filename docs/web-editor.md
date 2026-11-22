@@ -73,6 +73,24 @@ One `ConfigFile`, described to the browser by its schema and its values.
   hologram's click lines. A change under one is shown first and applied only
   with `confirm`. On top of these, a changed line that starts a console
   command (`console:`, `[CONSOLE]`, `op:`...) is sensitive by itself.
+- **Check** (since 1.645.0). The binder only knows shapes: a list of strings is a list of
+  strings. What the plugin's own parser would refuse inside them (a zone phase line that does
+  not parse, a dungeon naming a loot table or mob another catalogue does not hold) is said with
+  `problems(Type.class, value -> List<Problem>)`, or `check(Type.class, value -> List<String>)`
+  for plain lines:
+
+  ```java
+  WebEditor.of(this).subject("zones", zonesFile)
+          .problems(ZonesFile.class, zones -> parser.problems(zones));
+  ```
+
+  It runs on the global thread with the record exactly as it would be written, after the binder
+  read it (a key the binder refused still holds its current value), and its problems are
+  reported together with the binder's, each on its field (`Problem.at("phases.2", ...)`, dotted
+  from the file's root). Any of them refuses the subject whole; a checker that throws refuses it
+  with its message. Web applies, drafts and in-game edits all go through it. The type must be
+  the file's record (or a supertype), and only a record subject takes one: `entries` check in
+  their store, YAML subjects with `YamlSubject#problems`.
 - **onApplied.** Runs on the global thread after the file was written, so the
   plugin refreshes what it draws from the file, exactly as after its own reload
   command. `update()` only writes.
@@ -363,7 +381,7 @@ POST {url}/api/v1/editor/sessions/{code}/drafts/{id}/problems   -> 204
   draft that has since been replaced.
 
 **What is read.** The binder for a record file (each `INVALID_VALUE` with its
-key), the store's `problems` (or `check`) for entries, after the binder, for
+key) and then its `problems` (or `check`) when it has one, the store's `problems` (or `check`) for entries, after the binder, for
 every entry, not just the first that fails, and the plugin's `problems` (or
 `check`) for a YAML subject, on the global thread, with the permissions of the
 admin who opened the session. Paths are not filtered: a sensitive path is

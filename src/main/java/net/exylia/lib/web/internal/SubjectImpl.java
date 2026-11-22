@@ -147,6 +147,21 @@ class SubjectImpl implements Subject {
     }
 
     @Override
+    public <T> @NotNull Subject problems(@NotNull Class<T> type,
+                                         @NotNull java.util.function.Function<? super T, List<net.exylia.lib.web.Problem>> checker) {
+        if (!(source instanceof Source.RecordFile record)) {
+            throw new IllegalStateException(key() + " is not a record subject: entries check in their store,"
+                    + " YAML subjects through YamlSubject#problems");
+        }
+        Class<?> actual = record.file().schema().type();
+        if (!type.isAssignableFrom(actual)) {
+            throw new IllegalArgumentException(key() + " holds " + actual.getName() + ", not " + type.getName());
+        }
+        record.problems(value -> checker.apply(type.cast(value)));
+        return this;
+    }
+
+    @Override
     public @NotNull Subject details(@NotNull java.util.function.Supplier<? extends java.util.Map<String, ?>> details) {
         this.details = sender -> details.get();
         return this;

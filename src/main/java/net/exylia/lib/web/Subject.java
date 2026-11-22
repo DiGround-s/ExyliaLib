@@ -120,6 +120,53 @@ public interface Subject {
     @NotNull Subject onApplied(@NotNull Runnable listener);
 
     /**
+     * What the plugin says about a record subject's values before they are written, on top of
+     * the binder: the cross-references and rules a record cannot express (a phase list whose
+     * lines must parse, a dungeon naming a loot table that must exist).
+     *
+     * <p>Runs on the global thread with the record exactly as it would be written, after the
+     * binder read it; a key the binder refused still holds its current value. The binder's
+     * problems and these are reported together, each on its field, and any of them refuses the
+     * subject whole. Paths are dotted from the file's root, as {@link YamlSubject#problems}
+     * names them. A checker that throws refuses the change with its message. Web edits,
+     * drafts and in-game edits all go through it.
+     *
+     * <pre>{@code
+     * WebEditor.of(this).subject("zones", zonesFile)
+     *         .problems(ZonesFile.class, zones -> zones.problems());
+     * }</pre>
+     *
+     * @param type    the file's record type, or a supertype of it
+     * @param checker the record about to be written, to its problems; an empty list accepts
+     * @return this subject
+     * @throws IllegalArgumentException when {@code type} is not the file's record type
+     * @throws IllegalStateException    when this subject is not a record file (entries check in
+     *                                  their store, YAML subjects through {@link YamlSubject#problems})
+     * @since 1.645.0
+     */
+    default <T> @NotNull Subject problems(@NotNull Class<T> type,
+                                          @NotNull java.util.function.Function<? super T, java.util.List<Problem>> checker) {
+        throw new IllegalStateException(key() + " is not a record subject");
+    }
+
+    /**
+     * {@link #problems(Class, java.util.function.Function)} answering plain lines, each shown at
+     * the top of the subject rather than on a field. Replaces any checker set before.
+     *
+     * @param type    the file's record type, or a supertype of it
+     * @param checker the record about to be written, to one line per problem
+     * @return this subject
+     * @since 1.645.0
+     */
+    default <T> @NotNull Subject check(@NotNull Class<T> type,
+                                       @NotNull java.util.function.Function<? super T, java.util.List<String>> checker) {
+        return problems(type, value -> {
+            java.util.List<String> lines = checker.apply(value);
+            return lines == null ? java.util.List.of() : lines.stream().map(Problem::of).toList();
+        });
+    }
+
+    /**
      * Extra facts the subject's {@link #kind() kind} screen reads besides the schema and values: a default to
      * reset to, sample words for a preview, the names an action may take. Sent as {@code details} in the plugin
      * payload, read afresh for every upload; a screen that does not know them ignores them.

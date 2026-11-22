@@ -87,8 +87,27 @@ interface Source {
         }
     }
 
-    /** A record config file, read and written through the binder. */
-    record RecordFile(ConfigFile<?> file) implements Source {
+    /**
+     * A record config file, read and written through the binder, then through the plugin's own
+     * checker when it set one.
+     */
+    final class RecordFile implements Source {
+
+        private final ConfigFile<?> file;
+        private volatile java.util.function.Function<Object, List<Problem>> check = value -> List.of();
+
+        RecordFile(ConfigFile<?> file) {
+            this.file = file;
+        }
+
+        ConfigFile<?> file() {
+            return file;
+        }
+
+        /** What the plugin says about the decoded record; replaces any checker set before. */
+        void problems(java.util.function.Function<Object, List<Problem>> check) {
+            this.check = check;
+        }
 
         @Override
         public String name() {
@@ -115,12 +134,24 @@ interface Source {
         public Prepared prepare(String pluginName, JsonObject values) {
             Class<?> type = file.schema().type();
             ValueCodec.Decoded<Object> decoded = ValueCodec.fromJson(type, pluginName, file.get(), values, file.name());
-            if (decoded.rejected()) {
-                List<Problem> problems = new java.util.ArrayList<>();
-                decoded.problems().forEach(issue -> problems.add(Problem.at(issue.path(), issue.message())));
-                return Prepared.refused(decoded.problems().get(0).describe(), problems);
-            }
             Object value = decoded.value();
+            // The binder's problems first, then the plugin's on the same record (a key the binder
+            // refused holds its current value there), so the browser sees both at once.
+            List<Problem> problems = new java.util.ArrayList<>();
+            decoded.problems().forEach(issue -> problems.add(Problem.at(issue.path(), issue.message())));
+            if (value != null) {
+                try {
+                    List<Problem> found = check.apply(value);
+                    if (found != null) problems.addAll(found);
+                } catch (RuntimeException failure) {
+                    problems.add(Problem.of(failure.getMessage() == null ? failure.toString() : failure.getMessage()));
+                }
+            }
+            if (!problems.isEmpty()) {
+                return decoded.rejected()
+                        ? Prepared.refused(decoded.problems().get(0).describe(), problems)
+                        : Prepared.refused(problems);
+            }
             return Prepared.now(ValueCodec.toJson(type, pluginName, value),
                     () -> ((ConfigFile<Object>) file).update(current -> value));
         }

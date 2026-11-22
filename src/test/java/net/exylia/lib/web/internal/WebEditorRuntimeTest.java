@@ -980,6 +980,66 @@ class WebEditorRuntimeTest {
         assertEquals("Spawn", store.rows.get("spawn").name());
     }
 
+    /** Refuses any entry scaled past 10 and any lines list left empty: rules the record cannot hold. */
+    private void checkBoards() {
+        runtime.register(plugin, "board", file, "test/board").problems(Board.class, board -> {
+            List<net.exylia.lib.web.Problem> found = new ArrayList<>();
+            board.entries().forEach((id, entry) -> {
+                if (entry.scale() > 10) found.add(net.exylia.lib.web.Problem.at("entries." + id + ".scale", "too big"));
+            });
+            if (board.lines().isEmpty()) found.add(net.exylia.lib.web.Problem.of("a board needs a line"));
+            return found;
+        });
+    }
+
+    @Test
+    void aRecordSubjectsCheckerIsReportedWithTheBindersProblems() {
+        checkBoards();
+        String code = open();
+        JsonObject values = currentValues();
+        values.addProperty("refresh", "not a time");
+        JsonObject entry = new JsonObject();
+        entry.addProperty("scale", 20);
+        values.getAsJsonObject("entries").add("lamp", entry);
+        values.add("lines", new com.google.gson.JsonArray());
+
+        JsonObject result = checkDraft(code, "ExyliaDisplays/board", values);
+
+        assertFalse(result.get("valid").getAsBoolean());
+        java.util.Arrays.asList("refresh", "entries.lamp.scale", null).forEach(path ->
+                assertTrue(paths(result, "problems").contains(path), path + " in " + result));
+    }
+
+    @Test
+    void aRecordSubjectsCheckerRefusesTheChangeAndAcceptsAFixedOne() {
+        checkBoards();
+        String code = open();
+        Board before = file.get();
+        JsonObject values = currentValues();
+        values.add("lines", new com.google.gson.JsonArray());
+        saveInBrowser(code, values, ValueCodec.hash(currentValues()));
+
+        runtime.apply(admin, code, false);
+
+        assertEquals(before, file.get());
+        assertEquals(0, applied.get());
+        assertTrue(String.join("\n", sent).contains("a board needs a line"), sent.toString());
+
+        JsonObject fixed = currentValues();
+        fixed.getAsJsonObject("look").addProperty("shadow", true);
+        assertTrue(checkDraft(code, "ExyliaDisplays/board", fixed).get("valid").getAsBoolean());
+    }
+
+    @Test
+    void aRecordCheckerOfTheWrongTypeOrOnAnotherKindOfSubjectIsRefusedAtRegistration() {
+        var subject = runtime.register(plugin, "board", file, "test/board");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> subject.problems(String.class, value -> List.of()));
+        var yaml = runtime.registerYaml(plugin, "tags", "tags", null);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> yaml.check(Board.class, value -> List.of()));
+    }
+
     @Test
     void aDraftIsCheckedWithTheOpenersPermissions() {
         String code = open();
