@@ -102,6 +102,22 @@ class HttpEditorClientTest {
     }
 
     @Test
+    void draftsAreAskedForAndAnsweredOnTheirOwnPaths() throws IOException {
+        assertEquals(null, client.draft("abc", "s3cret"), "204 is no draft");
+        JsonObject result = JsonParser.parseString("{\"subject\":\"ExyliaMines/mines\",\"valid\":true,"
+                + "\"problems\":[],\"confirm\":[]}").getAsJsonObject();
+        client.checked("abc", "s3cret", "d1", result);
+
+        assertEquals("GET", received.get(0).method());
+        assertEquals("/api/v1/editor/sessions/abc/drafts/pending", received.get(0).path());
+        Received answer = received.get(1);
+        assertEquals("POST", answer.method());
+        assertEquals("/api/v1/editor/sessions/abc/drafts/d1/problems", answer.path());
+        assertEquals("gzip", answer.encoding());
+        assertEquals(result, JsonParser.parseString(answer.body()));
+    }
+
+    @Test
     void gzipShrinksWhatRepeats() throws IOException {
         byte[] plain = "items: STONE\n".repeat(10_000).getBytes(StandardCharsets.UTF_8);
         byte[] packed = HttpEditorClient.gzip(plain);

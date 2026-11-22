@@ -67,6 +67,20 @@ public interface EntryStore<R extends Record> {
     }
 
     /**
+     * {@link #check}, with each problem pinned to the field it belongs to, so the browser shows
+     * it there while the admin edits. Paths start at the entry: {@code world}, not
+     * {@code mines.spawn.world}. Override this or {@link #check}; by default it is
+     * {@link #check}'s lines with no path.
+     *
+     * @param created whether the entry is new
+     * @return the problems; an empty list accepts
+     * @since 1.644.0
+     */
+    default @NotNull List<Problem> problems(@NotNull String id, @NotNull R value, boolean created) {
+        return check(id, value, created).stream().map(Problem::of).toList();
+    }
+
+    /**
      * Creates or replaces one entry.
      *
      * @param created whether the entry is new

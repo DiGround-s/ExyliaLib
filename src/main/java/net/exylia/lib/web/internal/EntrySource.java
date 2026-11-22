@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import net.exylia.lib.config.ConfigIssue;
 import net.exylia.lib.config.internal.RecordJson;
 import net.exylia.lib.web.EntryStore;
+import net.exylia.lib.web.Problem;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
@@ -93,27 +94,45 @@ final class EntrySource<R extends Record> implements Source {
         Map<String, R> saves = new LinkedHashMap<>();
         Map<String, Boolean> created = new LinkedHashMap<>();
         JsonObject after = new JsonObject();
+        // Every entry is read even after one is refused, so the browser sees each problem at once.
+        List<Problem> problems = new ArrayList<>();
+        String reason = null;
         for (Map.Entry<String, JsonElement> entry : raw.getAsJsonObject().entrySet()) {
             String id = entry.getKey();
+            String at = key + "." + id;
             if (!ENTRY.matcher(id).matches()) {
-                return Prepared.refused("'" + id + "' is not a valid name (letters, digits, - and _, up to 64)");
+                String message = "'" + id + "' is not a valid name (letters, digits, - and _, up to 64)";
+                reason = reason == null ? message : reason;
+                problems.add(Problem.at(at, message));
+                continue;
             }
             if (!entry.getValue().isJsonObject()) {
-                return Prepared.refused(id + " is not a block of settings");
+                String message = id + " is not a block of settings";
+                reason = reason == null ? message : reason;
+                problems.add(Problem.at(at, message));
+                continue;
             }
             R before = current.get(id);
             boolean isNew = before == null;
             R base = isNew ? blank(id) : before;
             List<ConfigIssue> issues = new ArrayList<>();
-            R decoded = RecordJson.read(type, pluginName, base, entry.getValue().getAsJsonObject(), key + "." + id, issues);
+            R decoded = RecordJson.read(type, pluginName, base, entry.getValue().getAsJsonObject(), at, issues);
+            boolean bound = true;
             for (ConfigIssue issue : issues) {
                 if (issue.type() != ConfigIssue.Type.MISSING_KEY && issue.type() != ConfigIssue.Type.UNKNOWN_KEY) {
-                    return Prepared.refused(id + ": " + issue.describe());
+                    reason = reason == null ? id + ": " + issue.describe() : reason;
+                    problems.add(Problem.at(under(at, issue.path()), issue.message()));
+                    bound = false;
                 }
             }
-            List<String> problems = store.check(id, decoded, isNew);
-            if (problems != null && !problems.isEmpty()) {
-                return Prepared.refused(id + ": " + problems.get(0));
+            if (!bound) {
+                continue;
+            }
+            List<Problem> found = store.problems(id, decoded, isNew);
+            if (found != null && !found.isEmpty()) {
+                reason = reason == null ? id + ": " + found.get(0).describe() : reason;
+                found.forEach(problem -> problems.add(new Problem(under(at, problem.path()), problem.message())));
+                continue;
             }
             JsonObject written = RecordJson.write(type, pluginName, decoded);
             after.add(id, written);
@@ -121,6 +140,9 @@ final class EntrySource<R extends Record> implements Source {
                 saves.put(id, decoded);
                 created.put(id, isNew);
             }
+        }
+        if (!problems.isEmpty()) {
+            return Prepared.refused(reason, problems);
         }
         List<String> deletes = new ArrayList<>();
         List<String> holds = new ArrayList<>();
@@ -138,6 +160,11 @@ final class EntrySource<R extends Record> implements Source {
             deletes.forEach(id -> writes.add(guard(() -> store.delete(id), id)));
             return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new));
         });
+    }
+
+    /** A path inside an entry, from the subject's root; the entry itself when there is none. */
+    private static String under(String entry, String path) {
+        return path == null || path.isEmpty() ? entry : entry + "." + path;
     }
 
     private R blank(String id) {

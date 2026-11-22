@@ -75,7 +75,8 @@ final class ScreenSource implements Source {
         String style = sheet == null || sheet.isJsonNull() ? "" : sheet.getAsString();
         List<String> problems = problems(html.getFileName().toString(), text);
         if (!problems.isEmpty()) {
-            return Prepared.refused(String.join("\n", problems));
+            return Prepared.refused(String.join("\n", problems),
+                    problems.stream().map(net.exylia.lib.web.Problem::of).toList());
         }
         List<String> console = consoleSteps(text);
         List<String> before = consoleSteps(read(html));

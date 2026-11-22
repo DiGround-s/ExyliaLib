@@ -172,6 +172,10 @@ final class EditorMessages {
         return Phrases.tr("you lack the permission for it");
     }
 
+    static String openerOffline() {
+        return Phrases.tr("not checked: whoever opened this session is offline");
+    }
+
     static String invalid(String issue) {
         return Phrases.tr("refused by the file's own rules: {0}", issue);
     }

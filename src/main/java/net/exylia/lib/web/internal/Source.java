@@ -3,6 +3,7 @@ package net.exylia.lib.web.internal;
 import com.google.gson.JsonObject;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.config.ConfigIssue;
+import net.exylia.lib.web.Problem;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -46,11 +47,17 @@ interface Source {
      *              the runtime finds in the diff itself
      * @param write runs on the global thread; the future completes once written, or
      *              exceptionally with the reason it was not
+     * @param problems every problem found when it is refused, for the browser to pin to its field
      * @param console paths whose new text runs a line as the console where the diff cannot see it
      *              (a step inside a screen's markup), held for {@code confirm} like a console line
      */
     record Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
-                    @Nullable Supplier<CompletableFuture<Void>> write, List<String> console) {
+                    @Nullable Supplier<CompletableFuture<Void>> write, List<String> console, List<Problem> problems) {
+
+        Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
+                 @Nullable Supplier<CompletableFuture<Void>> write, List<String> console) {
+            this(problem, after, holds, write, console, problem == null ? List.of() : List.of(Problem.of(problem)));
+        }
 
         Prepared(@Nullable String problem, @Nullable JsonObject after, List<String> holds,
                  @Nullable Supplier<CompletableFuture<Void>> write) {
@@ -59,6 +66,16 @@ interface Source {
 
         static Prepared refused(String problem) {
             return new Prepared(problem, null, List.of(), null);
+        }
+
+        /** Refused for every problem found; the admin reads the first one in chat. */
+        static Prepared refused(List<Problem> problems) {
+            return refused(problems.get(0).describe(), problems);
+        }
+
+        /** Refused for every problem found, the admin reading {@code reason} in chat. */
+        static Prepared refused(String reason, List<Problem> problems) {
+            return new Prepared(reason, null, List.of(), null, List.of(), List.copyOf(problems));
         }
 
         /** A write that is done when it returns. */
@@ -99,8 +116,9 @@ interface Source {
             Class<?> type = file.schema().type();
             ValueCodec.Decoded<Object> decoded = ValueCodec.fromJson(type, pluginName, file.get(), values, file.name());
             if (decoded.rejected()) {
-                ConfigIssue first = decoded.problems().get(0);
-                return Prepared.refused(first.describe());
+                List<Problem> problems = new java.util.ArrayList<>();
+                decoded.problems().forEach(issue -> problems.add(Problem.at(issue.path(), issue.message())));
+                return Prepared.refused(decoded.problems().get(0).describe(), problems);
             }
             Object value = decoded.value();
             return Prepared.now(ValueCodec.toJson(type, pluginName, value),

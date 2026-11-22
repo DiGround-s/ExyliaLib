@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import net.exylia.lib.web.Problem;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -46,7 +47,7 @@ final class YamlSource implements Source {
 
     private final File file;
     private final String name;
-    private volatile Function<ConfigurationSection, List<String>> check = yaml -> List.of();
+    private volatile Function<ConfigurationSection, List<Problem>> check = yaml -> List.of();
 
     YamlSource(File file, String name) {
         this.file = file;
@@ -54,6 +55,13 @@ final class YamlSource implements Source {
     }
 
     void check(Function<ConfigurationSection, List<String>> check) {
+        problems(contents -> {
+            List<String> lines = check.apply(contents);
+            return lines == null ? List.of() : lines.stream().map(Problem::of).toList();
+        });
+    }
+
+    void problems(Function<ConfigurationSection, List<Problem>> check) {
         this.check = check;
     }
 
@@ -93,19 +101,19 @@ final class YamlSource implements Source {
                 next.setInlineComments(path, current.getInlineComments(path));
             }
         }
-        List<String> problems;
+        List<Problem> problems;
         try {
             // The plugin reads the text about to be written, with the separator its loader uses.
             YamlConfiguration asWritten = new YamlConfiguration();
             asWritten.loadFromString(next.saveToString());
             problems = check.apply(asWritten);
         } catch (InvalidConfigurationException failure) {
-            problems = List.of(failure.getMessage());
+            problems = List.of(Problem.of(String.valueOf(failure.getMessage())));
         } catch (RuntimeException failure) {
-            problems = List.of(failure.toString());
+            problems = List.of(Problem.of(failure.toString()));
         }
         if (problems != null && !problems.isEmpty()) {
-            return Prepared.refused(problems.get(0));
+            return Prepared.refused(problems);
         }
         return Prepared.now(toJson(next), () -> save(next));
     }

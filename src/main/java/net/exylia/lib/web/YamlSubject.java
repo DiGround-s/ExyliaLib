@@ -43,6 +43,22 @@ public interface YamlSubject extends Subject {
      */
     @NotNull YamlSubject check(@NotNull Function<ConfigurationSection, List<String>> checker);
 
+    /**
+     * {@link #check}, with each problem pinned to the field it belongs to, so the browser shows
+     * it there while the admin edits (see {@link Problem}). Replaces any checker set before.
+     *
+     * <pre>{@code
+     * .problems(yaml -> List.of(Problem.at("steps.2.objective", "No objective called 'mine_ore'")))
+     * }</pre>
+     *
+     * @param checker the contents to be written, to their problems; an empty list accepts
+     * @return this subject
+     * @since 1.644.0
+     */
+    default @NotNull YamlSubject problems(@NotNull Function<ConfigurationSection, List<Problem>> checker) {
+        return check(yaml -> checker.apply(yaml).stream().map(Problem::describe).toList());
+    }
+
     @Override
     @NotNull YamlSubject title(@NotNull String title);
 

@@ -1,12 +1,13 @@
 package net.exylia.lib.web.internal;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 
 /**
- * The five things the server says to the editor (protocol v2). Behind an interface so the runtime is tested
+ * The seven things the server says to the editor (protocol v2). Behind an interface so the runtime is tested
  * without a network; {@link HttpEditorClient} is the one that talks.
  *
  * <p>Every call is a request the server makes, authorised by the session's secret in a header.
@@ -27,6 +28,18 @@ interface EditorClient {
      * @param author    how the editor describes who saved it; shown, never trusted
      */
     record Pending(String id, JsonObject subjects, JsonObject baseHash, @Nullable String author) {
+    }
+
+    /**
+     * The newest draft the browser wants checked, for one subject.
+     *
+     * @param id       the draft, so the answer can name it
+     * @param subject  the subject's key
+     * @param values   the subject's full values as the browser holds them now
+     * @param baseHash the hash the browser edited from, or {@code null}
+     * @since 1.644.0
+     */
+    record Draft(String id, String subject, JsonElement values, @Nullable JsonElement baseHash) {
     }
 
     /** What the editor answered a trust request with. */
@@ -63,4 +76,10 @@ interface EditorClient {
     void applied(String code, String secret, String changeId, JsonObject outcome) throws IOException;
 
     Trust trust(String code, String secret, String challenge) throws IOException;
+
+    /** The newest draft waiting to be checked, or {@code null} when there is none; the editor may hold the request. */
+    @Nullable Draft draft(String code, String secret) throws IOException;
+
+    /** Answers a draft with what is wrong with it; nothing was written. */
+    void checked(String code, String secret, String draftId, JsonObject result) throws IOException;
 }

@@ -1,5 +1,6 @@
 package net.exylia.lib.web.internal;
 
+import net.exylia.lib.web.Problem;
 import net.exylia.lib.web.YamlSubject;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.Plugin;
@@ -40,6 +41,12 @@ final class YamlSubjectImpl extends SubjectImpl implements YamlSubject {
     @Override
     public @NotNull YamlSubject check(@NotNull Function<ConfigurationSection, List<String>> checker) {
         yaml.check(checker);
+        return this;
+    }
+
+    @Override
+    public @NotNull YamlSubject problems(@NotNull Function<ConfigurationSection, List<Problem>> checker) {
+        yaml.problems(checker);
         return this;
     }
 

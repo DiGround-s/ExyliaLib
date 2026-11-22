@@ -856,5 +856,175 @@ class WebEditorRuntimeTest {
             trustSecret = secret;
             return trustAnswer;
         }
+
+        final java.util.ArrayDeque<Draft> drafts = new java.util.ArrayDeque<>();
+        final Map<String, JsonObject> checked = new java.util.LinkedHashMap<>();
+        IOException draftFailure;
+
+        @Override
+        public Draft draft(String code, String secret) throws IOException {
+            calls.add("draft");
+            if (draftFailure != null) {
+                throw draftFailure;
+            }
+            return drafts.poll();
+        }
+
+        @Override
+        public void checked(String code, String secret, String draftId, JsonObject result) {
+            calls.add("checked " + draftId);
+            checked.put(draftId, result);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Drafts
+    // ------------------------------------------------------------------
+
+    private JsonObject checkDraft(String code, String key, JsonObject values) {
+        return runtime.checkDraft(runtime.session(code), new EditorClient.Draft("d1", key, values, null));
+    }
+
+    private static List<String> paths(JsonObject result, String array) {
+        List<String> out = new ArrayList<>();
+        result.getAsJsonArray(array).forEach(item -> out.add(item.getAsJsonObject().has("path")
+                ? item.getAsJsonObject().get("path").getAsString() : null));
+        return out;
+    }
+
+    @Test
+    void aDraftIsCheckedWithoutWritingAnything() throws IOException {
+        String code = open();
+        Board before = file.get();
+        String onDisk = java.nio.file.Files.readString(folder.resolve("board.yml"));
+        JsonObject values = currentValues();
+        values.addProperty("refresh", "not a time");
+
+        JsonObject result = checkDraft(code, "ExyliaDisplays/board", values);
+
+        assertFalse(result.get("valid").getAsBoolean());
+        assertEquals("ExyliaDisplays/board", result.get("subject").getAsString());
+        assertEquals(List.of("refresh"), paths(result, "problems"));
+        assertEquals(before, file.get());
+        assertEquals(onDisk, java.nio.file.Files.readString(folder.resolve("board.yml")));
+        assertEquals(0, applied.get());
+        assertFalse(editor.calls.contains("applied"));
+    }
+
+    @Test
+    void aValidDraftNamesWhatWouldNeedConfirmAndStillWritesNothing() {
+        String code = open();
+        Board before = file.get();
+        JsonObject values = currentValues();
+        JsonObject click = new JsonObject();
+        com.google.gson.JsonArray commands = new com.google.gson.JsonArray();
+        commands.add("say hi");
+        click.add("commands", commands);
+        JsonObject entry = new JsonObject();
+        entry.add("click", click);
+        values.getAsJsonObject("entries").add("lamp", entry);
+
+        JsonObject result = checkDraft(code, "ExyliaDisplays/board", values);
+
+        assertTrue(result.get("valid").getAsBoolean());
+        assertEquals(0, result.getAsJsonArray("problems").size());
+        JsonObject hold = result.getAsJsonArray("confirm").get(0).getAsJsonObject();
+        assertEquals("sensitive", hold.get("kind").getAsString());
+        assertTrue(hold.get("path").getAsString().startsWith("entries.lamp.click"), hold.toString());
+        assertFalse(hold.get("path").getAsString().contains("["), "list items are dotted");
+        assertEquals(before, file.get());
+        assertEquals(0, applied.get());
+    }
+
+    @Test
+    void aYamlCheckerNamesThePathOfEachProblem() throws IOException {
+        java.nio.file.Path catalog = folder.resolve("cosmetics/tags.yml");
+        java.nio.file.Files.createDirectories(catalog.getParent());
+        java.nio.file.Files.writeString(catalog, "tags:\n  star:\n    display: '&e*'\n");
+        runtime.registerYaml(plugin, "tags", "cosmetics/tags", "test/catalog")
+                .problems(yaml -> yaml.getString("tags.star.display", "").isBlank()
+                        ? List.of(net.exylia.lib.web.Problem.at("tags.star.display", "a tag needs a display"),
+                        net.exylia.lib.web.Problem.of("the catalogue would be empty"))
+                        : List.of());
+        String code = open();
+        JsonObject star = new JsonObject();
+        star.addProperty("display", "");
+        JsonObject tags = new JsonObject();
+        tags.add("star", star);
+        JsonObject values = new JsonObject();
+        values.add("tags", tags);
+
+        JsonObject result = checkDraft(code, "ExyliaDisplays/tags", values);
+
+        assertFalse(result.get("valid").getAsBoolean());
+        assertEquals(java.util.Arrays.asList("tags.star.display", null), paths(result, "problems"));
+        assertEquals("a tag needs a display",
+                result.getAsJsonArray("problems").get(0).getAsJsonObject().get("message").getAsString());
+        assertEquals("tags:\n  star:\n    display: '&e*'\n", java.nio.file.Files.readString(catalog));
+    }
+
+    @Test
+    void entryProblemsArePinnedUnderTheirEntryAndAllAreReported() {
+        Pits store = pits();
+        runtime.open(limited(), null);
+        String code = editor.lastCode;
+        JsonObject values = pitValues();
+        values.getAsJsonObject("pits").getAsJsonObject("spawn").addProperty("name", "");
+        values.getAsJsonObject("pits").getAsJsonObject("deep").addProperty("kind", "NOT_A_KIND");
+
+        JsonObject result = checkDraft(code, "ExyliaDisplays/pits", values);
+
+        assertFalse(result.get("valid").getAsBoolean());
+        assertEquals(List.of("pits.spawn", "pits.deep.kind"), paths(result, "problems"));
+        assertTrue(store.calls.isEmpty(), "nothing reached the store: " + store.calls);
+        assertEquals("Spawn", store.rows.get("spawn").name());
+    }
+
+    @Test
+    void aDraftIsCheckedWithTheOpenersPermissions() {
+        String code = open();
+        runtime.register(plugin, "board", file, "test/board").permission("nobody");
+        WebEditorRuntime.Session session = runtime.session(code);
+        WebEditorRuntime.Session denied = new WebEditorRuntime.Session(session.code(), session.url(), session.secret(),
+                session.scope(), session.plugins(), session.subjectKeys(), session.discovered(), limited());
+
+        JsonObject result = runtime.checkDraft(denied, new EditorClient.Draft("d1", "ExyliaDisplays/board",
+                currentValues(), null));
+
+        assertFalse(result.get("valid").getAsBoolean());
+        assertEquals(1, result.getAsJsonArray("problems").size());
+        assertFalse(result.getAsJsonArray("problems").get(0).getAsJsonObject().has("path"));
+    }
+
+    @Test
+    void draftsAreAskedForOneAtATimeAndStopWhenTheEditorRefuses() {
+        List<Long> delays = new ArrayList<>();
+        java.util.ArrayDeque<Runnable> queued = new java.util.ArrayDeque<>();
+        runtime = new WebEditorRuntime(LibrarySettings::new, () -> "server-1", "1.644.0", base -> editor,
+                Runnable::run, Runnable::run, (millis, task) -> {
+                    delays.add(millis);
+                    queued.add(task);
+                }, Debug.of(plugin));
+        WebEditorRuntime.install(runtime);
+        runtime.register(plugin, "board", file, "test/board");
+        String code = open();
+        assertEquals(List.of(WebEditorRuntime.DRAFT_GAP_MILLIS), delays, "the first ask waits for the uploads");
+
+        JsonObject values = currentValues();
+        values.addProperty("refresh", "not a time");
+        editor.drafts.add(new EditorClient.Draft("d1", "ExyliaDisplays/board", values, null));
+        queued.poll().run();
+        assertTrue(editor.calls.contains("checked d1"));
+        assertFalse(editor.checked.get("d1").get("valid").getAsBoolean());
+        assertEquals(WebEditorRuntime.DRAFT_GAP_MILLIS, delays.get(delays.size() - 1));
+
+        queued.poll().run();
+        assertEquals(WebEditorRuntime.DRAFT_IDLE_MILLIS, delays.get(delays.size() - 1), "no draft waits longer");
+
+        editor.draftFailure = new EditorClient.Refused(404, "no drafts here");
+        queued.poll().run();
+        assertTrue(queued.isEmpty(), "a refusal stops asking");
+        assertNotNull(runtime.session(code), "the session itself stays");
+        assertEquals(20, file.get().refresh());
     }
 }

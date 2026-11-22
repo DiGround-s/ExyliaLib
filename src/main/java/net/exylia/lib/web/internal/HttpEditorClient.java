@@ -1,6 +1,7 @@
 package net.exylia.lib.web.internal;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
@@ -26,6 +27,8 @@ import java.util.zip.GZIPOutputStream;
  * GET  {base}/api/v1/editor/sessions/{code}/changes/pending           -> 200 {id,subjects,baseHash,author} | 204
  * POST {base}/api/v1/editor/sessions/{code}/changes/{id}/applied      -> 204
  * POST {base}/api/v1/editor/sessions/{code}/trust                     -> 204 | 404
+ * GET  {base}/api/v1/editor/sessions/{code}/drafts/pending            -> 200 {id,subject,values,baseHash} | 204
+ * POST {base}/api/v1/editor/sessions/{code}/drafts/{id}/problems      -> 204
  * </pre>
  *
  * <p>The secret travels as {@code Authorization: Bearer}; the open also carries the server's
@@ -39,6 +42,8 @@ final class HttpEditorClient implements EditorClient {
     /** The most the editor takes per request, compressed. */
     static final int MAX_REQUEST_BYTES = 8 * 1024 * 1024;
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
+    /** How long the editor may hold a draft request open waiting for the browser (since 1.644.0). */
+    static final Duration DRAFT_WAIT = Duration.ofSeconds(10);
     private static final Gson GSON = new Gson();
 
     private final String base;
@@ -105,6 +110,28 @@ final class HttpEditorClient implements EditorClient {
         HttpResponse<byte[]> response = send(request("/api/v1/editor/sessions/" + encode(code) + "/trust", secret)
                 .header("Content-Encoding", "gzip").POST(body(body)).build(), 204, 200, 404);
         return response.statusCode() == 404 ? Trust.UNKNOWN_CHALLENGE : Trust.TRUSTED;
+    }
+
+    @Override
+    public @Nullable Draft draft(String code, String secret) throws IOException {
+        HttpResponse<byte[]> response = send(request("/api/v1/editor/sessions/" + encode(code)
+                + "/drafts/pending?wait=" + DRAFT_WAIT.toSeconds(), secret)
+                .timeout(TIMEOUT.plus(DRAFT_WAIT)).GET().build(), 200, 204);
+        if (response.statusCode() == 204 || response.body().length == 0) {
+            return null;
+        }
+        JsonObject answer = json(response);
+        JsonElement values = answer.get("values");
+        if (values == null) {
+            throw new IOException("The editor's answer has no 'values'");
+        }
+        return new Draft(text(answer, "id"), text(answer, "subject"), values, answer.get("baseHash"));
+    }
+
+    @Override
+    public void checked(String code, String secret, String draftId, JsonObject result) throws IOException {
+        send(request("/api/v1/editor/sessions/" + encode(code) + "/drafts/" + encode(draftId) + "/problems", secret)
+                .header("Content-Encoding", "gzip").POST(body(result)).build(), 204, 200);
     }
 
     private HttpRequest.Builder request(String path, String secret) {

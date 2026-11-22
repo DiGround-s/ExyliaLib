@@ -114,6 +114,9 @@ WebEditor.of(this).yaml("tags", "cosmetics/tags", "chatcosmetics/catalog")
   and answers one line per problem that would stop an entry from loading. Any
   answer refuses the subject whole; a checker that throws refuses it too.
   Sensitive paths and console lines are held for `confirm` as for any subject.
+  `problems(yaml -> ...)` (since 1.644.0) is the same checker answering
+  `Problem`s, each pinned to the field it is about, so the studio shows it
+  there while the admin types (see *Validating a draft*).
 - **Write.** Atomic, in the browser's key order, with the comments of every
   key that still exists, the header and the footer kept. Keys may hold dots.
 
@@ -200,6 +203,9 @@ WebEditor.of(this).entries("mines", MineEdit.class, new MineStore(manager), "min
   it is now, a new one against `blank(id)` (the record's defaults unless the
   store says otherwise), then passed to `check(id, value, created)`. One problem
   in one entry refuses the subject whole, so the store never sees half a change.
+  Override `problems(id, value, created)` instead (since 1.644.0) to pin each
+  problem to a field of the entry (`Problem.at("world", "No world called x")`);
+  the library puts `<id>.<entry>.` in front.
 - **Only what changed is written.** `save(id, value, created)` for an entry that
   is new or differs, `delete(id)` for one the browser removed. **Every deletion
   is shown first and needs `confirm`.**
@@ -286,6 +292,89 @@ back with a change. A hash that no longer matches means the file changed on
 the server after the browser loaded it (a command, a hand edit), and the
 change is held for `confirm` so applying it is a decision, not an accident.
 
+## Validating a draft
+
+Since 1.644.0 the studio can show what is wrong while the admin edits, on the
+field it belongs to, not only when `apply` refuses. The server still never
+listens: while a session lives it asks the editor for the newest draft, reads
+it exactly as `apply` would, and posts the problems back. Nothing is written,
+no `onApplied` runs, no store method but `entries()`, `blank()` and the check
+is called, and nothing is said in chat.
+
+**Asking.** Once every plugin of the session is uploaded, the server sends
+
+```
+GET {url}/api/v1/editor/sessions/{code}/drafts/pending?wait=10
+Authorization: Bearer <secret>
+```
+
+and the editor answers `204` when there is no draft, or
+
+```json
+200 {"id": "d-17", "subject": "ExyliaMines/mines",
+     "values": { "mines": { "spawn": { "name": "", "world": "nope" } } },
+     "baseHash": "x1Y…"}
+```
+
+- `subject` is one subject key of the session; `values` its **full** values,
+  the same object a change carries under `subjects[key]`; `baseHash` is the
+  subject's `hash` the browser edited from (optional, it only adds a `stale`
+  hold).
+- The editor should **hold the request** up to `wait` seconds while there is
+  no draft and answer as soon as one arrives (the server's timeout is 25 s).
+- The editor keeps **only the newest draft per session**: a draft saved while
+  another waits replaces it, so a burst of typing costs one check. Debounce in
+  the browser too (about 400 ms after the last keystroke).
+
+**Answering.** The server posts, gzip-compressed like every body,
+
+```
+POST {url}/api/v1/editor/sessions/{code}/drafts/{id}/problems   -> 204
+```
+
+```json
+{"version": 2, "subject": "ExyliaMines/mines", "valid": false,
+ "problems": [
+   {"path": "mines.spawn.name", "message": "a pit needs a name"},
+   {"path": "mines.spawn.world", "message": "No world called 'nope'"},
+   {"message": "the catalogue would be empty"}],
+ "confirm": [
+   {"kind": "sensitive", "path": "mines.spawn.click.commands.0"},
+   {"kind": "delete", "path": "mines.deep"}]}
+```
+
+- `valid` is whether `apply` would accept the subject. `false` always comes
+  with at least one problem.
+- `problems[].path` is dotted from the subject's values root, list items as
+  their index (`steps.2.objective`), the same keys as `values` (a key that
+  holds a dot itself is not escaped). It is absent
+  for a problem that belongs to no field (show it at the top of the subject).
+  A path may point at a block rather than a leaf (`mines.spawn`): show it on
+  the nearest field or block the form draws. `message` is English, one line.
+- A refusal the browser cannot fix by editing (a subject not in the session,
+  the admin lacking its permission, the admin who opened the session being
+  offline) is one problem without a path and `valid: false`.
+- `confirm` lists what `apply` would hold back until `apply … confirm`, with
+  `kind` one of `sensitive` (a path matched a `sensitive` pattern), `console`
+  (a line that runs as the console), `delete` (an entry removed) and `stale`
+  (no path: the file changed on the server since `baseHash`). Present on a
+  valid draft too; it is advice, never a problem.
+- The answer names the draft `id` it checked; the editor drops an answer for a
+  draft that has since been replaced.
+
+**What is read.** The binder for a record file (each `INVALID_VALUE` with its
+key), the store's `problems` (or `check`) for entries, after the binder, for
+every entry, not just the first that fails, and the plugin's `problems` (or
+`check`) for a YAML subject, on the global thread, with the permissions of the
+admin who opened the session. Paths are not filtered: a sensitive path is
+reported in `confirm` like any other, and no value travels back.
+
+**How often.** One request at a time per session: after a draft, the next
+request goes at least 1 s later; after `204`, 3 s later; after a network
+error or a `5xx`, 30 s later. Any `4xx` (an editor without drafts answers `404`) stops
+asking for that session only; the session and `apply` are untouched. Asking
+ends with the session (a day, at most 32 at once, forgotten on restart).
+
 ## Security
 
 - **The server never listens.** Every exchange is a request the server makes
@@ -340,6 +429,8 @@ its own:
 | `GET {url}/api/v1/editor/sessions/{code}/changes/pending` | `200 {"id","subjects":{key: values},"baseHash":{key: hash},"author"}`, or `204` |
 | `POST {url}/api/v1/editor/sessions/{code}/changes/{id}/applied` with `{"outcome":{"applied":[keys],"rejected":{key: reason}},"version":2}` | `204` |
 | `POST {url}/api/v1/editor/sessions/{code}/trust` with `{"challenge"}` | `204`, or `404` for an unknown challenge |
+| `GET {url}/api/v1/editor/sessions/{code}/drafts/pending?wait=10` (since 1.644.0) | `200 {"id","subject","values","baseHash"}`, or `204`; see *Validating a draft* |
+| `POST {url}/api/v1/editor/sessions/{code}/drafts/{id}/problems` with `{"version","subject","valid","problems","confirm"}` | `204` |
 
 Every request carries `Authorization: Bearer <secret>` and
 `User-Agent: ExyliaLib/<version>`; the open also carries
@@ -414,7 +505,7 @@ as it is built. `invalidateAll()` does not apply.
 
 ## Code
 
-`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`, `EntryStore`.
+`net.exylia.lib.web` — `WebEditor`, `PluginWebEditor`, `Subject`, `YamlSubject`, `EntryStore`, `Problem`.
 `net.exylia.lib.web.internal` — `WebEditorRuntime` (registry, sessions, open,
 apply, trust), `Discovery`, `SettingsScreens` (the plugin's settings screens read from its jar), `Source` (a record file, a `YamlSource` or an `EntrySource`), `Snapshot`, `ValueCodec`, `Diff`, `EditorClient` and
 `HttpEditorClient`, `EditorMessages`. `net.exylia.lib.internal.EditorCommand`

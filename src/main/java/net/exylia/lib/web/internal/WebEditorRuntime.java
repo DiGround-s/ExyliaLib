@@ -14,6 +14,7 @@ import net.exylia.lib.reload.Reloads;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
 import net.exylia.lib.web.EntryStore;
+import net.exylia.lib.web.Problem;
 import net.exylia.lib.web.Subject;
 import net.exylia.lib.web.YamlSubject;
 import org.bukkit.command.CommandSender;
@@ -41,6 +42,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -65,6 +67,12 @@ public final class WebEditorRuntime {
     static final int MAX_SESSIONS = 32;
     /** Reasons shown before the preview says "…and N more". */
     static final int MAX_REASONS = 8;
+    /** The least time between two draft requests of one session after a draft: at most one check a second. */
+    static final long DRAFT_GAP_MILLIS = 1_000;
+    /** The time before asking again after the editor had no draft. */
+    static final long DRAFT_IDLE_MILLIS = 3_000;
+    /** The time before asking again after the editor could not be reached. */
+    static final long DRAFT_BACKOFF_MILLIS = 30_000;
     private static final Gson GSON = new Gson();
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -77,9 +85,10 @@ public final class WebEditorRuntime {
      * @param subjectKeys every subject the session covers
      * @param discovered  the subjects discovery found for it, by key; registered ones are looked
      *                    up in the registry, so a re-registration is what applies
+     * @param opener      who opened it: whose permissions a draft is checked with
      */
     record Session(String code, String url, String secret, @Nullable String scope, List<String> plugins,
-                   Set<String> subjectKeys, Map<String, SubjectImpl> discovered) {
+                   Set<String> subjectKeys, Map<String, SubjectImpl> discovered, CommandSender opener) {
     }
 
     /** A plugin's opt-outs from discovery. */
@@ -99,6 +108,7 @@ public final class WebEditorRuntime {
     private final Function<String, EditorClient> clients;
     private final Consumer<Runnable> async;
     private final Consumer<Runnable> sync;
+    private final BiConsumer<Long, Runnable> later;
     private final Debug debug;
     private volatile String clientBase;
     private volatile EditorClient client;
@@ -106,6 +116,14 @@ public final class WebEditorRuntime {
     WebEditorRuntime(Supplier<LibrarySettings> settings, Supplier<String> serverId, String version,
                      Function<String, EditorClient> clients, Consumer<Runnable> async, Consumer<Runnable> sync,
                      Debug debug) {
+        this(settings, serverId, version, clients, async, sync, (millis, task) -> { }, debug);
+    }
+
+    /** @param later runs a task on the async scheduler after some milliseconds: how drafts are asked for */
+    WebEditorRuntime(Supplier<LibrarySettings> settings, Supplier<String> serverId, String version,
+                     Function<String, EditorClient> clients, Consumer<Runnable> async, Consumer<Runnable> sync,
+                     BiConsumer<Long, Runnable> later, Debug debug) {
+        this.later = later;
         this.settings = settings;
         this.serverId = serverId;
         this.version = version;
@@ -121,7 +139,8 @@ public final class WebEditorRuntime {
         Path keyFile = lib.getDataFolder().toPath().resolve("editor-key.txt");
         instance = new WebEditorRuntime(LibrarySettings::get, () -> serverId(idFile), lib.version(),
                 base -> new HttpEditorClient(base, lib.version(), serverKey(keyFile)),
-                task -> Tasks.of(lib).runAsync(task), task -> Tasks.of(lib).run(task), Debug.of(lib));
+                task -> Tasks.of(lib).runAsync(task), task -> Tasks.of(lib).run(task),
+                (millis, task) -> Tasks.of(lib).runAsyncLater(Math.max(1L, millis / 50L), task), Debug.of(lib));
     }
 
     /** Forgets every session and registration. */
@@ -381,7 +400,7 @@ public final class WebEditorRuntime {
             try {
                 EditorClient.Opened opened = client(current).open(secret, index);
                 session = new Session(opened.code(), opened.url(), secret, wanted, List.copyOf(subjects.keySet()),
-                        keys, Map.copyOf(discovered));
+                        keys, Map.copyOf(discovered), sender);
                 sessions.put(opened.code(), session);
             } catch (IOException | RuntimeException failure) {
                 debug.debug("Web editor session not opened: " + failure);
@@ -389,7 +408,8 @@ public final class WebEditorRuntime {
                 return;
             }
             tell(sender, EditorMessages.opened(session.url(), session.code(), keys.size()));
-            upload(sender, session, current, session.plugins());
+            upload(sender, session, current, session.plugins()).thenRun(() -> later.accept(DRAFT_GAP_MILLIS,
+                    () -> watchDrafts(session, current)));
         });
     }
 
@@ -532,7 +552,7 @@ public final class WebEditorRuntime {
     }
 
     /** One subject of a change, decoded and compared, ready to write or to be shown first. */
-    private record Planned(SubjectImpl subject, Supplier<CompletableFuture<Void>> write, int changes) {
+    record Planned(SubjectImpl subject, Supplier<CompletableFuture<Void>> write, int changes) {
     }
 
     private void applyPending(CommandSender sender, Session session, LibrarySettings current,
@@ -544,65 +564,15 @@ public final class WebEditorRuntime {
         int totalChanges = 0;
 
         for (Map.Entry<String, JsonElement> entry : pending.subjects().entrySet()) {
-            String key = entry.getKey();
-            SubjectImpl subject = subjectOf(session, key);
-            if (subject == null) {
-                String reason = EditorMessages.unknownSubject(key);
-                lines.add(EditorMessages.rejectedLine(key, reason));
-                rejected.addProperty(key, reason);
+            Checked checked = check(sender, session, entry.getKey(), entry.getValue(), pending.baseHash().get(entry.getKey()));
+            if (checked.rejected() != null) {
+                lines.add(EditorMessages.rejectedLine(checked.title(), checked.rejected()));
+                rejected.addProperty(entry.getKey(), checked.rejected());
                 continue;
             }
-            if (!subject.visibleTo(sender)) {
-                String reason = EditorMessages.noPermission();
-                lines.add(EditorMessages.rejectedLine(subject.title(), reason));
-                rejected.addProperty(key, reason);
-                continue;
-            }
-            if (!entry.getValue().isJsonObject()) {
-                String reason = EditorMessages.invalid("not a block of settings");
-                lines.add(EditorMessages.rejectedLine(subject.title(), reason));
-                rejected.addProperty(key, reason);
-                continue;
-            }
-            Snapshot.Described described;
-            Source.Prepared prepared;
-            try {
-                described = Snapshot.Described.of(subject);
-                prepared = subject.source().prepare(subject.plugin().getName(), entry.getValue().getAsJsonObject());
-            } catch (RuntimeException failure) {
-                String reason = EditorMessages.invalid(describe(failure));
-                lines.add(EditorMessages.rejectedLine(subject.title(), reason));
-                rejected.addProperty(key, reason);
-                continue;
-            }
-            if (prepared.problem() != null) {
-                String reason = EditorMessages.invalid(prepared.problem());
-                lines.add(EditorMessages.rejectedLine(subject.title(), reason));
-                rejected.addProperty(key, reason);
-                continue;
-            }
-            JsonObject after = prepared.after();
-            List<Diff.Change> changes = Diff.of(described.values(), after);
-            JsonElement base = pending.baseHash().get(key);
-            if (base != null && base.isJsonPrimitive() && !base.getAsString().equals(described.hash()) && !changes.isEmpty()) {
-                reasons.add(EditorMessages.staleReason(subject.title()));
-            }
-            for (String removed : prepared.holds()) {
-                reasons.add(EditorMessages.deleteReason(subject.title(), removed));
-            }
-            for (String path : prepared.console()) {
-                reasons.add(EditorMessages.privilegedReason(subject.title(), path));
-            }
-            List<String> sensitive = subject.sensitive();
-            for (Diff.Change change : changes) {
-                if (Diff.matchesAny(change.path(), sensitive)) {
-                    reasons.add(EditorMessages.sensitiveReason(subject.title(), change.path()));
-                } else if (change.privileged()) {
-                    reasons.add(EditorMessages.privilegedReason(subject.title(), change.path()));
-                }
-            }
-            totalChanges += changes.size();
-            planned.add(new Planned(subject, prepared.write(), changes.size()));
+            checked.holds().forEach(hold -> reasons.add(hold.text()));
+            totalChanges += checked.planned().changes();
+            planned.add(checked.planned());
         }
 
         if (!reasons.isEmpty() && !confirm) {
@@ -621,6 +591,167 @@ public final class WebEditorRuntime {
         // A store answers when its database does; the admin hears once every write has.
         CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new)).whenComplete((done, ignored) -> sync.accept(() ->
                 finish(sender, session, current, pending, planned, writes, lines, rejected)));
+    }
+
+    /**
+     * Why {@code confirm} would be needed: a sensitive path, a console line, a deleted entry, or a file that changed
+     * after the browser loaded it.
+     *
+     * @param kind {@code sensitive}, {@code console}, {@code delete} or {@code stale}
+     * @param path the dotted path it is about, or {@code null} for the whole subject
+     */
+    record Hold(String kind, @Nullable String path, String text) {
+    }
+
+    /**
+     * One subject of a change or a draft, read the way apply reads it and written nowhere: refused (the chat reason
+     * and every problem), or planned with what would be held for {@code confirm}.
+     */
+    record Checked(String title, @Nullable String rejected, List<Problem> problems, @Nullable Planned planned,
+                   List<Hold> holds) {
+
+        static Checked refused(String title, String reason) {
+            return new Checked(title, reason, List.of(Problem.of(reason)), null, List.of());
+        }
+    }
+
+    /** Reads one subject's values against the file, the permission and the confirm rules; on the global thread. */
+    Checked check(CommandSender sender, Session session, String key, JsonElement values, @Nullable JsonElement base) {
+        SubjectImpl subject = subjectOf(session, key);
+        if (subject == null) {
+            return Checked.refused(key, EditorMessages.unknownSubject(key));
+        }
+        if (!subject.visibleTo(sender)) {
+            return Checked.refused(subject.title(), EditorMessages.noPermission());
+        }
+        if (!values.isJsonObject()) {
+            return Checked.refused(subject.title(), EditorMessages.invalid("not a block of settings"));
+        }
+        Snapshot.Described described;
+        Source.Prepared prepared;
+        try {
+            described = Snapshot.Described.of(subject);
+            prepared = subject.source().prepare(subject.plugin().getName(), values.getAsJsonObject());
+        } catch (RuntimeException failure) {
+            return Checked.refused(subject.title(), EditorMessages.invalid(describe(failure)));
+        }
+        if (prepared.problem() != null) {
+            return new Checked(subject.title(), EditorMessages.invalid(prepared.problem()), prepared.problems(), null, List.of());
+        }
+        List<Diff.Change> changes = Diff.of(described.values(), prepared.after());
+        List<Hold> holds = new ArrayList<>();
+        if (base != null && base.isJsonPrimitive() && !base.getAsString().equals(described.hash()) && !changes.isEmpty()) {
+            holds.add(new Hold("stale", null, EditorMessages.staleReason(subject.title())));
+        }
+        for (String removed : prepared.holds()) {
+            String path = subject.source() instanceof EntrySource<?> ? subject.id() + "." + removed : removed;
+            holds.add(new Hold("delete", path, EditorMessages.deleteReason(subject.title(), removed)));
+        }
+        for (String path : prepared.console()) {
+            holds.add(new Hold("console", path, EditorMessages.privilegedReason(subject.title(), path)));
+        }
+        List<String> sensitive = subject.sensitive();
+        for (Diff.Change change : changes) {
+            if (Diff.matchesAny(change.path(), sensitive)) {
+                holds.add(new Hold("sensitive", change.path(), EditorMessages.sensitiveReason(subject.title(), change.path())));
+            } else if (change.privileged()) {
+                holds.add(new Hold("console", change.path(), EditorMessages.privilegedReason(subject.title(), change.path())));
+            }
+        }
+        return new Checked(subject.title(), null, List.of(), new Planned(subject, prepared.write(), changes.size()), holds);
+    }
+
+    // ------------------------------------------------------------------
+    // Drafts
+    // ------------------------------------------------------------------
+
+    /**
+     * Asks the editor for the newest draft, checks it and answers, then asks again: for as long as the session lives,
+     * one request at a time, never sooner than {@link #DRAFT_GAP_MILLIS} apart. The editor refusing (an editor without
+     * drafts answers {@code 404}) stops it for the session; the session itself stays.
+     */
+    void watchDrafts(Session session, LibrarySettings current) {
+        if (sessions.getIfPresent(session.code()) != session) {
+            return;
+        }
+        EditorClient.Draft draft;
+        try {
+            draft = client(current).draft(session.code(), session.secret());
+        } catch (IOException | RuntimeException failure) {
+            if (failure instanceof EditorClient.Refused refused && refused.status() >= 400 && refused.status() < 500) {
+                debug.debug("Web editor drafts stopped for " + session.code() + ": " + refused.getMessage());
+                return;
+            }
+            debug.debug("Web editor draft not fetched: " + failure);
+            later.accept(DRAFT_BACKOFF_MILLIS, () -> watchDrafts(session, current));
+            return;
+        }
+        if (draft == null) {
+            later.accept(DRAFT_IDLE_MILLIS, () -> watchDrafts(session, current));
+            return;
+        }
+        sync.accept(() -> {
+            JsonObject result = checkDraft(session, draft);
+            async.accept(() -> {
+                try {
+                    client(current).checked(session.code(), session.secret(), draft.id(), result);
+                } catch (IOException | RuntimeException failure) {
+                    debug.debug("Web editor draft answer not sent: " + failure);
+                }
+                later.accept(DRAFT_GAP_MILLIS, () -> watchDrafts(session, current));
+            });
+        });
+    }
+
+    /**
+     * What is wrong with a draft, read exactly as {@code apply} would read it and with the opener's permissions,
+     * without writing anything. On the global thread.
+     */
+    JsonObject checkDraft(Session session, EditorClient.Draft draft) {
+        CommandSender opener = session.opener();
+        if (opener instanceof org.bukkit.entity.Player player) {
+            opener = org.bukkit.Bukkit.getPlayer(player.getUniqueId());
+        }
+        Checked checked;
+        if (opener == null) {
+            checked = Checked.refused(draft.subject(), EditorMessages.openerOffline());
+        } else {
+            try {
+                checked = check(opener, session, draft.subject(), draft.values(), draft.baseHash());
+            } catch (RuntimeException failure) {
+                checked = Checked.refused(draft.subject(), EditorMessages.invalid(describe(failure)));
+            }
+        }
+        JsonArray problems = new JsonArray();
+        for (Problem problem : checked.problems()) {
+            JsonObject item = new JsonObject();
+            if (problem.path() != null && !problem.path().isEmpty()) {
+                item.addProperty("path", dotted(problem.path()));
+            }
+            item.addProperty("message", problem.message());
+            problems.add(item);
+        }
+        JsonArray confirm = new JsonArray();
+        for (Hold hold : checked.holds()) {
+            JsonObject item = new JsonObject();
+            item.addProperty("kind", hold.kind());
+            if (hold.path() != null) {
+                item.addProperty("path", dotted(hold.path()));
+            }
+            confirm.add(item);
+        }
+        JsonObject result = new JsonObject();
+        result.addProperty("version", Snapshot.VERSION);
+        result.addProperty("subject", draft.subject());
+        result.addProperty("valid", checked.rejected() == null);
+        result.add("problems", problems);
+        result.add("confirm", confirm);
+        return result;
+    }
+
+    /** {@code pages[2].click} as {@code pages.2.click}: one spelling for every path the browser is sent. */
+    static String dotted(String path) {
+        return path.replaceAll("\\[(\\d+)]", ".$1");
     }
 
     /** Starts one subject's write; a write that throws instead of answering is a failed one. */
