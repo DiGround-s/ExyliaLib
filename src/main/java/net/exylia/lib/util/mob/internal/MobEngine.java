@@ -921,7 +921,18 @@ public final class MobEngine implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onTarget(EntityTargetEvent event) {
-        if (has(event.getEntity(), MobFlag.PASSIVE)) event.setCancelled(true);
+        if (has(event.getEntity(), MobFlag.PASSIVE)) {
+            event.setCancelled(true);
+            return;
+        }
+        Entity target = event.getTarget();
+        if (target == null || !live.containsKey(event.getEntity().getUniqueId())) return;
+        // Two of a plugin's mobs never fight each other (a golem boss next to a blaze boss), and an
+        // aggressive one hunts players only, as its flag says, not whatever its vanilla AI picks.
+        if (live.containsKey(target.getUniqueId())
+                || has(event.getEntity(), MobFlag.AGGRESSIVE) && !(target instanceof org.bukkit.entity.Player)) {
+            event.setCancelled(true);
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
