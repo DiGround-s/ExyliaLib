@@ -45,6 +45,24 @@ public interface Subject {
      */
     @NotNull String group();
 
+    /**
+     * Files it under another group of the plugin's Settings tab instead of a tab of its own.
+     *
+     * <p>Only {@code content} subjects get a tab in the editor. A file that tunes how the plugin
+     * behaves (its {@code config}, a chat filter) rather than listing things an admin creates
+     * declares {@code settings}; {@code messages}, {@code menus} and {@code files} are the other
+     * groups discovery uses.
+     *
+     * @param group {@code content} (the default), {@code settings}, {@code messages},
+     *              {@code menus} or {@code files}
+     * @return this subject
+     * @throws IllegalArgumentException for any other group
+     * @since 1.643.0
+     */
+    default @NotNull Subject group(@NotNull String group) {
+        return this;
+    }
+
     /** What the editor calls it: the title set, or the id capitalised. */
     @NotNull String title();
 

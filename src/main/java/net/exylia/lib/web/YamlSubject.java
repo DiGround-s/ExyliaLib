@@ -53,5 +53,8 @@ public interface YamlSubject extends Subject {
     @NotNull YamlSubject sensitive(@NotNull String... paths);
 
     @Override
+    @NotNull YamlSubject group(@NotNull String group);
+
+    @Override
     @NotNull YamlSubject onApplied(@NotNull Runnable listener);
 }

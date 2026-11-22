@@ -18,6 +18,9 @@ import java.util.regex.Pattern;
  */
 class SubjectImpl implements Subject {
 
+    /** What {@link #group(String)} accepts. */
+    private static final java.util.Set<String> GROUPS = java.util.Set.of("content", "settings", "messages", "menus", "files");
+
     static final Pattern ID = Pattern.compile("[A-Za-z0-9_-]{1,48}");
 
     private final Plugin plugin;
@@ -77,6 +80,16 @@ class SubjectImpl implements Subject {
     @Override
     public @NotNull String group() {
         return group;
+    }
+
+    @Override
+    public @NotNull Subject group(@NotNull String group) {
+        String value = group.trim().toLowerCase(Locale.ROOT);
+        if (!GROUPS.contains(value)) {
+            throw new IllegalArgumentException("Not a subject group: '" + group + "' (one of " + GROUPS + ")");
+        }
+        this.group = value;
+        return this;
     }
 
     /** Files a discovered subject; registered ones stay {@code content}. */

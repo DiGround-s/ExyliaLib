@@ -62,6 +62,12 @@ final class YamlSubjectImpl extends SubjectImpl implements YamlSubject {
     }
 
     @Override
+    public @NotNull YamlSubject group(@NotNull String group) {
+        super.group(group);
+        return this;
+    }
+
+    @Override
     public @NotNull YamlSubject onApplied(@NotNull Runnable listener) {
         super.onApplied(listener);
         return this;

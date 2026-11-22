@@ -63,7 +63,11 @@ One `ConfigFile`, described to the browser by its schema and its values.
 - **Title.** What the editor calls it. Default: the id, capitalised.
 - **Group.** Where the editor files it (`Subject.group()`, since 1.307.0):
   `content` for every registered subject (screens too, see *Screens*); a discovered one is `settings`,
-  `messages`, `menus` or `files`.
+  `messages`, `menus` or `files`. Only a `content` subject gets a tab of its own in the editor;
+  every other group is filed under the plugin's Settings tab. A registered file that tunes how the
+  plugin behaves (its `config`, a chat filter) rather than listing things admins create declares
+  it with `.group("settings")` (since 1.643.0; also `messages`, `menus` or `files`, anything else
+  is refused). Nothing is guessed: a registration without it stays `content`.
 - **Sensitive paths.** Dotted YAML paths, `*` for any one key, matched as a
   prefix with list indices ignored: `holograms.*.click.commands` covers every
   hologram's click lines. A change under one is shown first and applied only
