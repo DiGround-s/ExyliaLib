@@ -437,6 +437,15 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         PacketTypeCommon type = event.getPacketType();
+        if (net.exylia.lib.screen.internal.ScreenRuntime.isOpen(player.getUniqueId()) && (type == PacketType.Play.Client.USE_ITEM
+                || type == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT || type == PacketType.Play.Client.INTERACT_ENTITY
+                || type == PacketType.Play.Client.ATTACK || type == PacketType.Play.Client.ANIMATION
+                || type == PacketType.Play.Client.PLAYER_DIGGING)) {
+            // A cursor screen owns every click: one on its tile must not also press the held button, which ran
+            // the button's command (a menu reopening itself) right after the tile opened another screen.
+            if (type != PacketType.Play.Client.PLAYER_DIGGING) event.setCancelled(true);
+            return;
+        }
         if (type == PacketType.Play.Client.CLICK_WINDOW) {
             click(event, view, player);
         } else if (type == PacketType.Play.Client.CREATIVE_INVENTORY_ACTION) {
