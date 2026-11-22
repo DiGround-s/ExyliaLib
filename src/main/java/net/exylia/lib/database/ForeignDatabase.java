@@ -56,7 +56,7 @@ import java.util.regex.Pattern;
  */
 public final class ForeignDatabase implements AutoCloseable {
 
-    private static final Pattern TABLE_NAME = Pattern.compile("[A-Za-z0-9_]+");
+    private static final Pattern TABLE_NAME = Pattern.compile("[A-Za-z0-9_-]+");
 
     private final Connection connection;
     private @Nullable Map<String, List<String>> tables;
@@ -165,11 +165,12 @@ public final class ForeignDatabase implements AutoCloseable {
      * @param table a name from {@link #tables()} or {@link #table(String)}; {@code null} answers no rows
      * @return the rows, column labels lower-cased
      * @throws SQLException          when the read fails
-     * @throws IllegalArgumentException when the name is not a plain table name
+     * @throws IllegalArgumentException when the name holds more than letters, digits, {@code _} and {@code -}
      */
     public @NotNull List<Map<String, Object>> rows(@Nullable String table) throws SQLException {
         if (table == null) return new ArrayList<>();
-        return query("SELECT * FROM " + checkTable(table));
+        String quote = connection.getMetaData().getIdentifierQuoteString().trim();
+        return query("SELECT * FROM " + quote + checkTable(table) + quote);
     }
 
     /**

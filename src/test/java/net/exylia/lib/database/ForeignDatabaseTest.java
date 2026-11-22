@@ -37,6 +37,15 @@ class ForeignDatabaseTest {
     }
 
     @Test
+    void readsTablesWithHyphenatedNames() throws SQLException {
+        try (ForeignDatabase db = new ForeignDatabase(DriverManager.getConnection("jdbc:h2:mem:hyphen"))) {
+            db.connection().createStatement().execute("CREATE TABLE \"uclans-clans\" (id VARCHAR(36))");
+            db.connection().createStatement().execute("INSERT INTO \"uclans-clans\" VALUES ('a')");
+            assertEquals(1, db.rows(db.table("uclans-clans")).size());
+        }
+    }
+
+    @Test
     void valuesReadWhateverTheDriverHandsBack() {
         Map<String, Object> row = new HashMap<>();
         row.put("n", 4.9);
