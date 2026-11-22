@@ -139,6 +139,8 @@ public final class DisplayRuntime {
     private static EntityIds ids;
     private static DisplaySink sink;
     private static TaskHandle driver;
+    /** Hears client respawns, so tracked displays are sent again to a client that dropped them. */
+    private static Object respawnListener;
     private static boolean available;
     private static boolean warned;
 
@@ -168,6 +170,9 @@ public final class DisplayRuntime {
                 ids = DisplayPackets::newEntityId;
                 sink = DisplayPackets.INSTANCE;
                 available = DisplayPackets.ready();
+                if (available && respawnListener == null) {
+                    respawnListener = DisplayPackets.listen();
+                }
             } else {
                 java.util.concurrent.atomic.AtomicInteger counter =
                         new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE / 2 + 1_000_000);
@@ -356,6 +361,18 @@ public final class DisplayRuntime {
         display.spawn(sink, at);
         LIVE.add(display);
         return display;
+    }
+
+    /**
+     * A client that respawned (death, world change) has dropped every display it was shown. Tracked ones forget
+     * that viewer, so the next scan spawns them for it again; a fixed list cannot be redrawn and is left alone.
+     */
+    static void respawned(Player player) {
+        for (LiveDisplay display : LIVE) {
+            if (display.audience() != null) {
+                VIEWER_LOAD.addAndGet(display.forget(player));
+            }
+        }
     }
 
     /** Re-reads who should see one tracked display and tells the clients that changed. */
@@ -635,6 +652,10 @@ public final class DisplayRuntime {
             if (driver != null) {
                 driver.cancel();
                 driver = null;
+            }
+            if (respawnListener != null) {
+                DisplayPackets.stopListening(respawnListener);
+                respawnListener = null;
             }
         }
         for (Iterator<LiveDisplay> live = LIVE.iterator(); live.hasNext(); ) {

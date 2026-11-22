@@ -93,6 +93,36 @@ final class DisplayPackets implements DisplaySink {
     }
 
     /** Whether PacketEvents is loaded and ready to send. */
+    /**
+     * Hears respawns: the client drops every entity on one, so the tracked displays it saw must be sent again.
+     *
+     * @return the listener, to unregister on shutdown
+     */
+    static Object listen() {
+        com.github.retrooper.packetevents.event.PacketListenerAbstract listener =
+                new com.github.retrooper.packetevents.event.PacketListenerAbstract(
+                        com.github.retrooper.packetevents.event.PacketListenerPriority.MONITOR) {
+                    @Override
+                    public void onPacketSend(com.github.retrooper.packetevents.event.PacketSendEvent event) {
+                        if (event.getPacketType() == com.github.retrooper.packetevents.protocol.packettype.PacketType.Play.Server.RESPAWN
+                                && event.getPlayer() instanceof Player player) {
+                            event.getPostTasks().add(() -> DisplayRuntime.respawned(player));
+                        }
+                    }
+                };
+        PacketEvents.getAPI().getEventManager().registerListener(listener);
+        return listener;
+    }
+
+    static void stopListening(Object listener) {
+        try {
+            PacketEvents.getAPI().getEventManager().unregisterListener(
+                    (com.github.retrooper.packetevents.event.PacketListenerAbstract) listener);
+        } catch (Throwable ignored) {
+            // Shutting down after PacketEvents already did is not a failure.
+        }
+    }
+
     static boolean ready() {
         try {
             return PacketEvents.getAPI() != null && PacketEvents.getAPI().isLoaded()

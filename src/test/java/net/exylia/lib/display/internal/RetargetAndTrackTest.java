@@ -180,6 +180,19 @@ class RetargetAndTrackTest {
     }
 
     @Test
+    @DisplayName("a viewer whose client respawned is spawned it again on the next scan")
+    void respawnedViewerIsSentAgain() {
+        Player first = new FakePlayer("First").player();
+        LiveDisplay display = sliding(List.of(first));
+
+        assertEquals(-1, display.forget(first));
+        assertEquals(0, display.forget(first));
+        assertTrue(sent.isEmpty(), "the client already dropped it: no destroy");
+        assertEquals(1, display.track(sink, 500L, List.of(first), Integer.MAX_VALUE));
+        assertEquals("spawn x1 at 5.0", sent.get(0));
+    }
+
+    @Test
     @DisplayName("nobody joins past the budget")
     void trackingRespectsBudget() {
         Player first = new FakePlayer("First").player();

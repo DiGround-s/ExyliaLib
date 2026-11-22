@@ -216,6 +216,21 @@ final class LiveDisplay implements DisplayHandle {
         return joined.size() - left.size();
     }
 
+    /**
+     * Drops a viewer whose client has already dropped this display, without sending a destroy.
+     *
+     * @return {@code -1} when it was a viewer, else {@code 0}
+     */
+    synchronized int forget(Player viewer) {
+        if (gone || !viewers.contains(viewer)) {
+            return 0;
+        }
+        List<Player> after = new ArrayList<>(viewers);
+        after.remove(viewer);
+        viewers = List.copyOf(after);
+        return -1;
+    }
+
     /** Draws something else from now on, sent as metadata only. */
     synchronized void restyle(DisplaySink sink, DisplayModel next) {
         if (gone || next.kind() != model.kind()) {
