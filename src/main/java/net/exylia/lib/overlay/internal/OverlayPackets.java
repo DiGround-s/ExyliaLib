@@ -16,6 +16,7 @@ import com.github.retrooper.packetevents.protocol.player.InteractionHand;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.util.Vector3i;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerAcknowledgeBlockChanges;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientAnimation;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientClickWindow;
 import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientCreativeInventoryAction;
@@ -453,12 +454,12 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
         } else if (type == PacketType.Play.Client.PLAYER_DIGGING) {
             digging(event, view, player);
         } else if (type == PacketType.Play.Client.USE_ITEM) {
-            use(event, view, player,
-                    new WrapperPlayClientUseItem(event).getHand(), null);
+            WrapperPlayClientUseItem used = new WrapperPlayClientUseItem(event);
+            use(event, view, player, used.getHand(), null, used.getSequence());
         } else if (type == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT) {
             WrapperPlayClientPlayerBlockPlacement placement =
                     new WrapperPlayClientPlayerBlockPlacement(event);
-            use(event, view, player, placement.getHand(), placement.getBlockPosition());
+            use(event, view, player, placement.getHand(), placement.getBlockPosition(), placement.getSequence());
         } else if (type == PacketType.Play.Client.INTERACT_ENTITY
                 || type == PacketType.Play.Client.ATTACK) {
             interact(event, view, player);
@@ -559,6 +560,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         event.setCancelled(true);
+        settle(event, packet.getSequence());
         if (press == OverlayClicks.WorldPress.PRESS) {
             Vector3i at = packet.getBlockPosition();
             view.markWorldPress(kind);
@@ -589,7 +591,7 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
 
     /** Right-clicking, in the air or on a block. */
     private void use(PacketReceiveEvent event, OverlayView view, Player player,
-                     InteractionHand hand, @Nullable Vector3i at) {
+                     InteractionHand hand, @Nullable Vector3i at, int sequence) {
         int slot = hand == InteractionHand.OFF_HAND
                 ? OverlaySlots.OFFHAND
                 : view.heldSlot();
@@ -599,6 +601,11 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             return;
         }
         event.setCancelled(true);
+        // The client already used the drawn item: a bucket emptied into a water
+        // block, a block or a seed placed, the stack in hand shrunk. Answer the
+        // prediction so it rolls back, and draw the hand again.
+        settle(event, sequence);
+        resync(view, player);
         if (press == OverlayClicks.WorldPress.REFUSE) {
             return;
         }
@@ -721,6 +728,19 @@ final class OverlayPackets extends PacketListenerAbstract implements OverlaySink
             view.resynced();
             player.updateInventory();
         });
+    }
+
+    /**
+     * Acknowledges a cancelled press's block prediction.
+     *
+     * <p>From 1.19 the client changes the world at once on a press and keeps the
+     * change until the server acknowledges that press's sequence. A cancelled
+     * packet is never acknowledged, so without this a button drawn as a bucket,
+     * a seed or a block leaves a ghost behind where it was used.
+     */
+    private static void settle(PacketReceiveEvent event, int sequence) {
+        User user = event.getUser();
+        if (user != null) user.sendPacket(new WrapperPlayServerAcknowledgeBlockChanges(sequence));
     }
 
     private static void atPlayer(OverlayView view, Runnable work) {
