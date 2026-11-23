@@ -168,6 +168,10 @@ killcam's own style; ExyliaKillCam reads the keys it knows over its default
 and ignores the rest. A `default` method: an older ExyliaKillEffect answers
 empty.
 
+`exylia-api` 3.10.0 (ExyliaLib 1.652.0) adds `KillEffectService.drawsBody(id)`:
+whether an effect puts a ragdoll of its own where the player fell, so a killcam
+that replays it hides the recorded body and draws no second one of its own.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before

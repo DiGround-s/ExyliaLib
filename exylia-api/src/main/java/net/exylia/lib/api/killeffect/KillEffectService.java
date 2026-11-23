@@ -387,6 +387,21 @@ public interface KillEffectService {
         return false;
     }
 
+    /**
+     * Whether an effect draws a body of its own (a ragdoll) where the player
+     * fell, so a killcam that shows it can leave its own body out instead of
+     * showing the same player twice.
+     *
+     * @param effectId the effect id, case insensitive
+     * @return {@code true} when it does; {@code false} when it draws no body,
+     *         no effect goes by that id, or the installed ExyliaKillEffect is
+     *         older than this method
+     * @since 3.10.0
+     */
+    default boolean drawsBody(@NotNull String effectId) {
+        return false;
+    }
+
     // ── Killcam styles ─────────────────────────────────────────────────────
 
     /**

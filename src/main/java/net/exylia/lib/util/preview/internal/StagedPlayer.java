@@ -1,5 +1,6 @@
 package net.exylia.lib.util.preview.internal;
 
+import net.exylia.lib.util.PlayerStates;
 import net.kyori.adventure.util.TriState;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -35,7 +36,7 @@ final class StagedPlayer {
         this.origin = player.getLocation().clone();
         this.allowFlight = player.getAllowFlight();
         this.flying = player.isFlying();
-        this.invulnerable = player.isInvulnerable();
+        this.invulnerable = PlayerStates.invulnerableFlag(player);
         this.collidable = player.isCollidable();
         this.gravity = player.hasGravity();
         this.silent = player.isSilent();

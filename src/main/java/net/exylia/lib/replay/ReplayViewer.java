@@ -5,6 +5,7 @@ import net.exylia.lib.replay.internal.ReplayRuntime;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
+import net.exylia.lib.util.PlayerStates;
 import net.kyori.adventure.text.Component;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -820,7 +821,7 @@ public final class ReplayViewer {
 
         static Saved of(Player viewer) {
             return new Saved(viewer.getLocation(), viewer.getGameMode(), viewer.getAllowFlight(),
-                    viewer.isFlying(), viewer.isInvulnerable());
+                    viewer.isFlying(), PlayerStates.invulnerableFlag(viewer));
         }
 
         /**

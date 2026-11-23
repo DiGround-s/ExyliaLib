@@ -410,6 +410,16 @@ nothing that touches the world.
 
 `highlight(List.of(killer, victim))` makes several bodies glow at once.
 
+`hide(actor, true)` stops drawing one body (since 1.652.0): a plugin that puts
+its own body where somebody fell, such as a ragdoll, takes the recorded one away
+first so the viewer does not see the same player twice. `hide(actor, false)`
+draws it again.
+
+A shot runs on the replay's own timer, off every world thread, so it cannot ask
+the world where the walls are. Read them once with
+`CameraWalls.around(killer, body)` on the scene's region thread and pull every
+seat in front of them with `walls.clear(subject, seat)` ([cameras.md](cameras.md)).
+
 `screen(viewer)` is what rides that viewer's camera while it has a body of its
 own (behind, orbit, or a steered shot): a colour over the whole view, a title
 card that lands, a typewritten line at the foot, a caption at the top and the

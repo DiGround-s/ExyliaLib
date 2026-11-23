@@ -1,5 +1,6 @@
 package net.exylia.lib.util.snapshot.internal;
 
+import net.exylia.lib.util.PlayerStates;
 import net.exylia.lib.util.snapshot.Snapshot;
 import net.exylia.lib.util.snapshot.SnapshotCodec;
 import net.exylia.lib.util.snapshot.SnapshotPart;
@@ -139,7 +140,7 @@ public final class PlayerState {
         Snapshot.Physical physical = new Snapshot.Physical(
                 player.getFireTicks(), player.getRemainingAir(),
                 velocity.getX(), velocity.getY(), velocity.getZ(),
-                player.getWalkSpeed(), player.isInvulnerable(), player.isGlowing(),
+                player.getWalkSpeed(), PlayerStates.invulnerableFlag(player), player.isGlowing(),
                 player.getFallDistance(), player.getFreezeTicks(),
                 player.getArrowsInBody(), player.isGliding(),
                 player.getNoDamageTicks(), player.getMaximumNoDamageTicks());

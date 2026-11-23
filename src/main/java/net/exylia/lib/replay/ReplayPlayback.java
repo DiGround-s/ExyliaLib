@@ -151,6 +151,18 @@ public interface ReplayPlayback {
     }
 
     /**
+     * Stops drawing one body, or draws it again: a plugin that puts its own
+     * body where somebody fell (a ragdoll) takes the recorded one away first,
+     * so the viewer does not see the same player twice.
+     *
+     * @param actor  who
+     * @param hidden whether they are left out
+     * @since 1.652.0
+     */
+    default void hide(@NotNull UUID actor, boolean hidden) {
+    }
+
+    /**
      * A camera a plugin steers itself, asked every frame where to stand.
      *
      * @since 1.649.0

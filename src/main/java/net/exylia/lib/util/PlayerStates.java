@@ -1,5 +1,6 @@
 package net.exylia.lib.util;
 
+import java.lang.reflect.Field;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.metadata.MetadataValue;
@@ -32,6 +33,8 @@ public final class PlayerStates {
     private static final String CMI = "CMI";
     private static final String VANISHED_METADATA = "vanished";
     private static final Map<String, Optional<Method>> METHODS = new ConcurrentHashMap<>();
+    /** The server's own {@code invulnerable} field, found on first use; empty when it cannot be read. */
+    private static volatile Optional<Field> invulnerableField;
 
     private PlayerStates() {
     }
@@ -45,6 +48,42 @@ public final class PlayerStates {
      */
     public static boolean isGod(@NotNull Player player) {
         return player.isInvulnerable() || flag(essentialsUser(player), "isGodModeEnabled") || cmiGod(player);
+    }
+
+    /**
+     * The invulnerable flag the player carries, the one
+     * {@code setInvulnerable} writes. Read this, not
+     * {@code isInvulnerable()}, to save the flag and put it back later: on a
+     * player that also answers {@code true} in creative and for the few
+     * seconds after a respawn, and writing it back turns the flag on for good.
+     *
+     * @param player the player
+     * @return whether their own flag is on
+     * @since 1.652.0
+     */
+    public static boolean invulnerableFlag(@NotNull Player player) {
+        if (!player.isInvulnerable()) {
+            return false;
+        }
+        try {
+            Object handle = player.getClass().getMethod("getHandle").invoke(player);
+            Optional<Field> field = invulnerableField;
+            if (field == null) {
+                Field found = null;
+                for (Class<?> type = handle.getClass(); found == null && type != null; type = type.getSuperclass()) {
+                    try {
+                        found = type.getDeclaredField("invulnerable");
+                        found.setAccessible(true);
+                    } catch (NoSuchFieldException ignored) {
+                        // Declared on the base entity class, further up.
+                    }
+                }
+                invulnerableField = field = Optional.ofNullable(found);
+            }
+            return field.isEmpty() || field.get().getBoolean(handle);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return true;
+        }
     }
 
     /**

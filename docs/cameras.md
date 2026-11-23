@@ -360,6 +360,29 @@ Every other player is taken out of that player's view (Bukkit `hidePlayer`, on t
 by `showPlayers`. NPCs that are players underneath (tagged `NPC`, as Citizens does) stay; anyone joining meanwhile is
 hidden too. Leaving the server forgets it.
 
+### Walls (since 1.652.0)
+
+A camera steered every frame from an asynchronous timer must not read the
+world. `CameraWalls.around(from, to)` copies the solid blocks of the loaded
+chunks around and between two points, on the thread that owns them; afterwards
+`walls.clear(subject, seat)` answers from any thread with the seat pulled along
+the line from the subject to just short of the first solid block, keeping its
+heading. Grass, flowers and water are seen through. It is a copy, so a block
+placed afterwards is not seen; chunks the thread did not own count as air.
+
+```java
+tasks.runAtLocation(body, () -> walls = CameraWalls.around(killer, body));
+Location seat = walls.clear(chest, wanted);   // every frame, any thread
+```
+
+A shot of two people aims between them, and a tree beside one can hide them
+while the line to the aim point is clear. `walls.clear(aim, seat, List.of(bodyChest, killerChest))`
+also moves the seat in until nothing stands between it and any of those points
+(the subject-only seat when no seat on the way sees them all). Comparing
+`clear(...).distance(aim)` for a few candidate seats picks the angle with room,
+and `walls.sees(seat, point)` scores them further, for example by checking a
+point a little beside each body so a trunk next to one does not crowd the frame.
+
 ### Holograms and NPCs in the shot (since 1.397.0)
 
 `Viewpoints.of(player)` is where a player sees from: the camera's current

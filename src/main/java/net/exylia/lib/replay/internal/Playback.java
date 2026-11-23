@@ -148,6 +148,8 @@ public final class Playback implements ReplayPlayback {
     /** How late the followed player's screen was on the frame being drawn, in the attacker view. */
     private int shownLag;
     private volatile Set<Integer> highlighted = Set.of();
+    /** Bodies a plugin took away, drawn by nobody until it gives them back. */
+    private volatile Set<Integer> hidden = Set.of();
     /** The highlight changed: a paused playback draws the bodies once more to show it. */
     private volatile boolean restate;
     private volatile boolean stopped;
@@ -647,6 +649,10 @@ public final class Playback implements ReplayPlayback {
     }
 
     private void drawActor(int index, int tick, double fraction, boolean snap) {
+        if (hidden.contains(index)) {
+            if (bodies[index] != null) remove(index);
+            return;
+        }
         MotionTrack track = replay.tracks().get(index);
         int died = diedAt(index, tick);
         Body body = bodies[index];
@@ -1562,6 +1568,17 @@ public final class Playback implements ReplayPlayback {
             if (body != null) body.state = -1;
         }
         restate = true;
+    }
+
+    @Override
+    public synchronized void hide(@NotNull UUID actor, boolean hide) {
+        int index = indexOf(actor);
+        if (index < 0) return;
+        Set<Integer> wanted = new HashSet<>(hidden);
+        if (hide ? wanted.add(index) : wanted.remove(index)) {
+            hidden = Set.copyOf(wanted);
+            restate = true;
+        }
     }
 
     @Override
