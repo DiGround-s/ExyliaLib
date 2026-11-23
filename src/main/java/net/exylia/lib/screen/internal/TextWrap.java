@@ -40,7 +40,11 @@ final class TextWrap {
         // MAX_INDENT of them are kept, so lore keeps its shape without a run of spaces pushing it far right.
         int indent = 0;
         boolean opening = true;
-        for (Piece piece : pieces) {
+        List<Component> word = new ArrayList<>();
+        double wordWidth = 0;
+        boolean flushWord = false;
+        for (int pi = 0; pi < pieces.size(); pi++) {
+            Piece piece = pieces.get(pi);
             if (piece.whole() != null) {
                 double w = Centering.pixelWidth(piece.whole());
                 if (!line.isEmpty() && used + spaceWidth + w > width) {
@@ -96,23 +100,31 @@ final class TextWrap {
                 opening = false;
                 int end = at;
                 while (end < s.length() && s.charAt(end) != ' ' && s.charAt(end) != '\n') end++;
-                Component word = Component.text(s.substring(at, end), piece.style());
-                double w = Centering.pixelWidth(word);
-                if (!line.isEmpty() && used + (pendingSpace == null ? 0 : spaceWidth) + w > width) {
-                    widest = Math.max(widest, used);
-                    lines.add(line);
-                    line = new ArrayList<>();
-                    used = 0;
-                    pendingSpace = null;
-                }
-                if (pendingSpace != null) {
-                    line.add(pendingSpace);
-                    used += spaceWidth;
-                    pendingSpace = null;
-                }
-                line.add(word);
-                used += w;
+                // A word can run across parts (a gradient colours each letter): it is placed once its end is seen.
+                Component part = Component.text(s.substring(at, end), piece.style());
+                word.add(part);
+                wordWidth += Centering.pixelWidth(part);
                 at = end;
+                if (at < s.length() || !continues(pieces, pi)) flushWord = true;
+                if (flushWord) {
+                    flushWord = false;
+                    if (!line.isEmpty() && used + (pendingSpace == null ? 0 : spaceWidth) + wordWidth > width) {
+                        widest = Math.max(widest, used);
+                        lines.add(line);
+                        line = new ArrayList<>();
+                        used = 0;
+                        pendingSpace = null;
+                    }
+                    if (pendingSpace != null) {
+                        line.add(pendingSpace);
+                        used += spaceWidth;
+                        pendingSpace = null;
+                    }
+                    line.addAll(word);
+                    used += wordWidth;
+                    word.clear();
+                    wordWidth = 0;
+                }
             }
         }
         widest = Math.max(widest, used);
@@ -123,6 +135,15 @@ final class TextWrap {
             for (Component part : lines.get(i)) out = out.append(part);
         }
         return new Layout.Wrapped(out.compact(), lines.size(), widest);
+    }
+
+    /** Whether the text part after {@code at} goes on with the same word: it starts with something other than a space. */
+    private static boolean continues(List<Piece> pieces, int at) {
+        if (at + 1 >= pieces.size()) return false;
+        Piece next = pieces.get(at + 1);
+        if (next.whole() != null) return false;
+        char c = next.text().charAt(0);
+        return c != ' ' && c != '\n';
     }
 
     private static void flatten(Component component, Style parent, List<Piece> out) {
