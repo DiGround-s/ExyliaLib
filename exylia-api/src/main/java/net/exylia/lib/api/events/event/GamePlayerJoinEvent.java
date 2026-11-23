@@ -19,9 +19,15 @@ import org.jetbrains.annotations.NotNull;
  * path that asked says about a refusal is generic, so a handler that cancels
  * should tell the player why itself.
  *
- * <p>Only joins to play are asked. Watching a run, and an admin forcing a player
- * in, go around this — and {@code /events join} follows a refused join by
- * letting the player watch instead, a cancelled one included.
+ * <p>Only joins to play are asked; watching a run goes around this, and
+ * {@code /events join} follows a refused join by letting the player watch
+ * instead, a cancelled one included.
+ *
+ * <p>A forced join — {@code /eventsadmin forcejoin} or
+ * {@link net.exylia.lib.api.events.EventsService#forceJoin} — is asked too, with
+ * {@link #isForced()} true. It skipped the plugin's own checks (cooldown, world,
+ * a full lobby, another event the player was in), so only a listener can refuse
+ * it, and cancelling it leaves the player where they were.
  *
  * <p>Called on the thread that owns the player, which on Folia is their region
  * thread rather than a single main thread. Anything touching the wider world
@@ -35,6 +41,7 @@ public class GamePlayerJoinEvent extends Event implements Cancellable {
 
     private final Player player;
     private final GameEvent event;
+    private final boolean forced;
 
     private boolean cancelled;
 
@@ -45,9 +52,33 @@ public class GamePlayerJoinEvent extends Event implements Cancellable {
      * @param event  the run they are joining
      */
     public GamePlayerJoinEvent(@NotNull Player player, @NotNull GameEvent event) {
+        this(player, event, false);
+    }
+
+    /**
+     * Creates the event for a join that may be forced.
+     *
+     * @param player the player joining
+     * @param event  the run they are joining
+     * @param forced whether the join skipped the plugin's own checks
+     * @since 3.9.0
+     */
+    public GamePlayerJoinEvent(@NotNull Player player, @NotNull GameEvent event, boolean forced) {
         super(!Bukkit.isPrimaryThread());
         this.player = player;
         this.event = event;
+        this.forced = forced;
+    }
+
+    /**
+     * Whether an admin or a plugin is forcing the player in, past the plugin's
+     * own checks.
+     *
+     * @return {@code true} for a forced join
+     * @since 3.9.0
+     */
+    public boolean isForced() {
+        return forced;
     }
 
     /**

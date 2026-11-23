@@ -34,7 +34,7 @@ handler to play it.
 repositories { maven { url 'https://jitpack.io' } }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:1.7.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:v1.651.0'
 }
 ```
 

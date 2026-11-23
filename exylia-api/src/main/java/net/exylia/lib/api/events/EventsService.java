@@ -67,6 +67,21 @@ public interface EventsService {
     Optional<GameEvent> eventOf(@NotNull UUID player);
 
     /**
+     * The team a player is on in a team event, by the team's id: its colour,
+     * lower case ({@code red}, {@code blue}…).
+     *
+     * <p>Answers from the moment a team is picked or handed out until the run is
+     * cleaned up, so it still names the winners' team inside a
+     * {@link net.exylia.lib.api.events.event.GameEndEvent} handler.
+     *
+     * @param player the player
+     * @return their team, or empty when they are on none or the event has no teams
+     * @since 3.9.0
+     */
+    @NotNull
+    Optional<String> teamOf(@NotNull UUID player);
+
+    /**
      * One running event by the id of the run.
      *
      * @param eventId the run's id
@@ -202,6 +217,21 @@ public interface EventsService {
      * @return {@code true} when they are in it afterwards
      */
     boolean join(@NotNull Player player, @NotNull String eventId);
+
+    /**
+     * Puts a player into a running event past the checks a join makes, as
+     * {@code /eventsadmin forcejoin} does: no cooldown, no world rule, no
+     * room check, and out of any event they were in first.
+     *
+     * <p>Fires {@link net.exylia.lib.api.events.event.GamePlayerJoinEvent} with
+     * {@code isForced()} true, which a listener may still cancel.
+     *
+     * @param player  the player joining
+     * @param eventId the run's id
+     * @return {@code true} when they are in it afterwards
+     * @since 3.9.0
+     */
+    boolean forceJoin(@NotNull Player player, @NotNull String eventId);
 
     /**
      * Takes a player out of whatever event has them, playing or spectating.

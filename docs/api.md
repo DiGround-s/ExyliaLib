@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:3.6.0'
+    compileOnly 'com.github.DiGround-s.ExyliaLib:exylia-api:v1.651.0'
 }
 ```
 
@@ -79,6 +79,11 @@ from the same package — the module depends on nothing else, so nothing a
 consumer resolves can drift from what the server loads.
 
 ## Versioning
+
+JitPack names a build after the ExyliaLib release tag, so the dependency is
+`exylia-api:v<release>` (for example `v1.651.0`, the first with
+`EventsService#forceJoin`). The API's own number below is the one the
+`@since` tags carry; it is not a JitPack version.
 
 `exylia-api` is versioned separately from ExyliaLib, and semantic versioning
 applies to it and to nothing else in the project. ExyliaLib's own version moves

@@ -8,6 +8,7 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,6 +39,7 @@ public class GameEndEvent extends Event {
     private final GameEvent event;
     private final Set<UUID> winners;
     private final GameEndReason reason;
+    private final List<Set<UUID>> placements;
 
     /**
      * Creates the event.
@@ -48,10 +50,46 @@ public class GameEndEvent extends Event {
      */
     public GameEndEvent(@NotNull GameEvent event, @NotNull Set<UUID> winners,
                         @NotNull GameEndReason reason) {
+        this(event, winners, reason, winners.isEmpty() ? List.of() : List.of(winners));
+    }
+
+    /**
+     * Creates the event with every player's final place.
+     *
+     * @param event      the run, as it ended
+     * @param winners    who won it
+     * @param reason     why it ended
+     * @param placements the places, best first, the winners first
+     * @since 3.9.0
+     */
+    public GameEndEvent(@NotNull GameEvent event, @NotNull Set<UUID> winners,
+                        @NotNull GameEndReason reason, @NotNull List<Set<UUID>> placements) {
         super(!Bukkit.isPrimaryThread());
         this.event = event;
         this.winners = Set.copyOf(winners);
         this.reason = reason;
+        this.placements = placements.stream().filter(place -> !place.isEmpty()).map(Set::copyOf).toList();
+    }
+
+    /**
+     * Everybody's final place, best first: the first entry is the winners, and
+     * each entry after it is one place, the players in it tying for it. Players
+     * knocked out are in it, by when they went out — the last one out right
+     * behind the winners.
+     *
+     * <p>Games won on points rank by their points instead. Games that do not
+     * rank places (the team games) give only the winners, and a stopped run
+     * gives nothing. Team games name the winning team through
+     * {@link net.exylia.lib.api.events.EventsService#teamOf}, which still
+     * answers while this event is handled.
+     *
+     * @return the places, best first; empty when nobody won
+     * @since 3.9.0
+     */
+    @NotNull
+    @Unmodifiable
+    public List<Set<UUID>> getPlacements() {
+        return placements;
     }
 
     /**
