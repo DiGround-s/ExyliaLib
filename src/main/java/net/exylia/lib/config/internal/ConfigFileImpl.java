@@ -280,7 +280,9 @@ public final class ConfigFileImpl<T> implements ConfigFile<T> {
                     return List.of();
                 }
                 render(yaml, values);
-                yaml.set(key, value);
+                // As the loader writes it: a Duration or a record handed to Bukkit raw
+                // comes out under a global YAML tag the next load refuses.
+                yaml.set(key, Binder.serialise(value));
                 writeFile(yaml);
             }
         }

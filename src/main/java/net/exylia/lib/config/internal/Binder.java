@@ -362,7 +362,7 @@ final class Binder {
     }
 
     /** Converts values Bukkit's YAML writer would not render cleanly. */
-    private static Object serialise(Object value) {
+    static Object serialise(Object value) {
         if (value instanceof java.time.Duration duration) {
             // Written the way the parsers read it back: "1m30s", never the
             // number of milliseconds a Duration would otherwise render as.
