@@ -135,11 +135,18 @@ final class MobPackets implements MobSink {
     public void swing(MobImpl mob) {
         if (STATUS_ATTACK.contains(mob.type)) {
             send(mob, new WrapperPlayServerEntityStatus(mob.id, 4));
-        } else {
-            send(mob, new WrapperPlayServerEntityAnimation(mob.id,
-                    WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_MAIN_ARM));
+        } else if (armSwing) {
+            try {
+                send(mob, new WrapperPlayServerEntityAnimation(mob.id,
+                        WrapperPlayServerEntityAnimation.EntityAnimationType.SWING_MAIN_ARM));
+            } catch (IllegalStateException unsupported) {
+                // PacketEvents has no id for the arm swing on some protocols (26.3): skip it from now on.
+                armSwing = false;
+            }
         }
     }
+
+    private static volatile boolean armSwing = true;
 
     @Override
     public void status(MobImpl mob, byte status) {
