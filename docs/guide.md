@@ -336,6 +336,31 @@ guides.glow(viewer, chestBlock, TextColor.color(0x8A51C4));     // a block, thro
 Two pieces glowing the same entity for the same viewer are counted: removing
 one leaves the other lit.
 
+## Places other plugins know
+
+`GuidePlaces` (since 1.648.0) lets one plugin point at a place another plugin
+owns without depending on it: a journey's beacon over "the nearest sell
+station" names a key, and the plugin that owns the stations answers with a
+location for that player.
+
+```java
+// the plugin that owns the places
+GuidePlaces.register(this, "exylia:clicker", (player, rest) -> switch (rest) {
+    case "station:sell" -> nearestSell(player);
+    default -> null;
+});
+
+// any plugin that points at one
+Location at = GuidePlaces.locate(player, "exylia:clicker:station:sell");
+```
+
+A key belongs to the longest registered prefix it starts with (followed by `:`
+or nothing) and the resolver gets the rest (`station:sell`). Keys ignore case.
+`locate` answers `null` when no enabled plugin knows the key or it leads
+nowhere right now; ask again on the next draw, since the answer may change as
+the player moves. The resolver runs on the caller's thread (the player's, for
+a guide): read memory, never a database.
+
 ## Bedrock
 
 `Guides.isBedrock(player)` (the client module's Geyser/Floodgate check). A
