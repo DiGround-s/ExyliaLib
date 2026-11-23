@@ -200,6 +200,15 @@ its own, with no line in the plugin: each `<id>.html` at the top of the folder (
 
 Discovery never offers these files on its own: it only reads `.yml`.
 
+## Reward lists
+
+`WebReward` (since 1.646.0) is the form of one `RewardEntry` for a value type's record: use it as the
+component type (`List<WebReward> winnerRewards`) and the JSON the browser reads and sends is the same
+in every plugin. `WebReward.fromEntries(list)` fills it, `WebReward.toEntries(edited, before)` turns it
+back (entries whose id and type still match `before` keep their item snapshot and other hidden fields),
+and `WebReward.problems("winner-rewards", edited, before)` returns the `Problem`s, each on its field
+(`winner-rewards.2.value`). ITEM rewards are only valid when they are already in `before`.
+
 ## Entries a plugin stores itself
 
 Mines, kits, arenas: things a plugin keeps in a database, or anywhere that is
