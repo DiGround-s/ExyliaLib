@@ -75,6 +75,12 @@ final class YamlSubjectImpl extends SubjectImpl implements YamlSubject {
     }
 
     @Override
+    public @NotNull YamlSubject readOnly() {
+        super.readOnly();
+        return this;
+    }
+
+    @Override
     public @NotNull YamlSubject onApplied(@NotNull Runnable listener) {
         super.onApplied(listener);
         return this;

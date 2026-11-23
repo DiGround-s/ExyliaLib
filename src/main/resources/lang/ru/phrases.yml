@@ -991,6 +991,7 @@
 'not registered on this server any more ({0})': 'больше не зарегистрирован на этом сервере ({0})'
 'refused by the file''s own rules: {0}': 'отклонено правилами самого файла: {0}'
 'you lack the permission for it': 'у вас нет на это права'
+'it is set in game, not in the editor': 'задаётся в игре, а не в редакторе'
 '{error}Could not {0}: {1}': '{error}Не удалось {0}: {1}'
 '{error}No installed plugin offers anything to edit, or you lack the permission for it.': '{error}Ни один установленный плагин не предлагает ничего для редактирования, или у вас нет права.'
 '{error}The snapshot is {0} KB; the editor takes at most {1} KB.': '{error}Снимок занимает {0} КБ; редактор принимает не более {1} КБ.'

@@ -91,6 +91,36 @@ public final class PluginWebEditor {
     }
 
     /**
+     * Makes a folder holding one YAML file per entry editable as one subject, so the browser
+     * creates and removes entries as well as editing them. See {@link FolderSubject}.
+     *
+     * @param id   the subject's name inside this plugin
+     * @param path the folder relative to the data folder, such as {@code items}; letters, digits,
+     *             {@code -}, {@code _} and {@code /}
+     * @return the subject, to describe further
+     * @throws IllegalArgumentException when the id or the path is not valid
+     * @since 1.647.0
+     */
+    public @NotNull FolderSubject folder(@NotNull String id, @NotNull String path) {
+        return folder(id, path, Subject.GENERIC);
+    }
+
+    /**
+     * Makes a folder holding one YAML file per entry editable on a screen the editor ships for
+     * one entry.
+     *
+     * @param id   the subject's name inside this plugin
+     * @param path the folder relative to the data folder
+     * @param kind the screen, such as {@code specials/item}; {@link Subject#GENERIC} for the form
+     * @return the subject, to describe further
+     * @throws IllegalArgumentException when the id or the path is not valid
+     * @since 1.647.0
+     */
+    public @NotNull FolderSubject folder(@NotNull String id, @NotNull String path, @NotNull String kind) {
+        return WebEditorRuntime.get().registerFolder(plugin, id, path, kind);
+    }
+
+    /**
      * Makes entries a plugin stores itself editable: created, edited and deleted from the
      * browser, each one read through the config binder as {@code type} describes it.
      *

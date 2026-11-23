@@ -116,6 +116,9 @@ final class Snapshot {
         JsonArray sensitive = new JsonArray();
         subject.sensitive().forEach(sensitive::add);
         entry.add("sensitive", sensitive);
+        if (subject.isReadOnly()) {
+            entry.addProperty("readOnly", true);
+        }
         return entry;
     }
 

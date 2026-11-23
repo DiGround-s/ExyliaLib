@@ -1087,4 +1087,130 @@ class WebEditorRuntimeTest {
         assertNotNull(runtime.session(code), "the session itself stays");
         assertEquals(20, file.get().refresh());
     }
+
+    // ------------------------------------------------------------------
+    // Read-only subjects and folders (1.647.0)
+    // ------------------------------------------------------------------
+
+    @Test
+    void aReadOnlySubjectIsMarkedAndAnyChangeToItIsRefused() {
+        runtime.register(plugin, "board", file, "test/board").readOnly();
+        String code = open();
+        assertTrue(listedPlugin(editor.lastIndex, "ExyliaDisplays").getAsJsonArray("subjects").get(0)
+                .getAsJsonObject().get("readOnly").getAsBoolean());
+        assertTrue(editor.firstSubject().get("readOnly").getAsBoolean());
+
+        JsonObject values = currentValues();
+        values.getAsJsonObject("look").addProperty("shadow", true);
+        JsonObject draft = checkDraft(code, "ExyliaDisplays/board", values);
+        assertFalse(draft.get("valid").getAsBoolean());
+        assertTrue(draft.toString().contains("set in game"), draft.toString());
+
+        saveInBrowser(code, values, null);
+        runtime.apply(admin, code, true);
+        assertFalse(file.get().look().shadow(), "written although read-only");
+        assertEquals(0, applied.get());
+        assertTrue(runtime.inGame((SubjectImpl) runtime.register(plugin, "board", file, "test/board").readOnly(), values)
+                .problem() != null);
+
+        assertTrue(checkDraft(code, "ExyliaDisplays/board", currentValues()).get("valid").getAsBoolean(),
+                "an untouched read-only subject is fine");
+    }
+
+    @Test
+    void anEditableSubjectCarriesNoReadOnlyField() {
+        open();
+        assertFalse(editor.firstSubject().has("readOnly"));
+    }
+
+    private java.nio.file.Path items() throws IOException {
+        java.nio.file.Path dir = folder.resolve("items");
+        java.nio.file.Files.createDirectories(dir);
+        java.nio.file.Files.writeString(dir.resolve("sword.yml"), "# The sword.\nid: sword\ndamage: 5\n");
+        java.nio.file.Files.writeString(dir.resolve("bow.yml"), "id: bow\ndamage: 3\n");
+        runtime.registerFolder(plugin, "items", "items", "test/item")
+                .problems((name, yaml) -> yaml.getInt("damage") < 0
+                        ? List.of(net.exylia.lib.web.Problem.at("damage", name + " hits for less than nothing")) : List.of())
+                .onApplied(applied::incrementAndGet);
+        return dir;
+    }
+
+    private void saveItems(JsonObject values) {
+        JsonObject subjects = new JsonObject();
+        subjects.add("ExyliaDisplays/items", values);
+        editor.pending = new EditorClient.Pending("change-" + System.nanoTime(), subjects, new JsonObject(), "a browser");
+    }
+
+    @Test
+    void aFolderIsOneMapOfItsFilesAndItsFilesAreNotDiscoveredAgain() throws IOException {
+        items();
+        open();
+        JsonObject subject = uploaded("ExyliaDisplays", "ExyliaDisplays/items");
+        assertEquals("items", subject.get("file").getAsString());
+        assertEquals("map", subject.getAsJsonObject("schema").get("type").getAsString());
+        assertEquals(java.util.Set.of("bow", "sword"), subject.getAsJsonObject("values").keySet());
+        assertEquals(5, subject.getAsJsonObject("values").getAsJsonObject("sword").get("damage").getAsInt());
+        assertTrue(Discovery.discover(plugin, List.of((SubjectImpl) runtime.registerFolder(plugin, "items", "items", "")),
+                        List.of(), java.util.Set.of("items"), java.util.Set.of(), List.of()).isEmpty(),
+                "a file inside a registered folder is not offered on its own");
+    }
+
+    @Test
+    void aFolderCreatesEditsAndDeletesFiles() throws IOException {
+        java.nio.file.Path dir = items();
+        String code = open();
+        JsonObject values = uploaded("ExyliaDisplays", "ExyliaDisplays/items").getAsJsonObject("values").deepCopy();
+        values.getAsJsonObject("sword").addProperty("damage", 7);
+        JsonObject axe = new JsonObject();
+        axe.addProperty("id", "axe");
+        axe.addProperty("damage", 4);
+        values.add("axe", axe);
+        long bowWritten = java.nio.file.Files.getLastModifiedTime(dir.resolve("bow.yml")).toMillis();
+        saveItems(values);
+
+        runtime.apply(admin, code, false);
+
+        assertTrue(java.nio.file.Files.readString(dir.resolve("sword.yml")).contains("damage: 7"));
+        assertTrue(java.nio.file.Files.readString(dir.resolve("sword.yml")).contains("# The sword."), "comments kept");
+        assertTrue(java.nio.file.Files.readString(dir.resolve("axe.yml")).contains("id: axe"));
+        assertEquals(bowWritten, java.nio.file.Files.getLastModifiedTime(dir.resolve("bow.yml")).toMillis(),
+                "an unchanged file is not written again");
+        assertEquals(1, applied.get());
+
+        values.remove("bow");
+        saveItems(values);
+        runtime.apply(admin, code, false);
+        assertTrue(java.nio.file.Files.exists(dir.resolve("bow.yml")), "deleted without confirmation");
+        assertTrue(String.join("\n", sent).contains("deletes bow"), String.join("\n", sent));
+        JsonObject draft = checkDraft(code, "ExyliaDisplays/items", values);
+        assertTrue(draft.get("valid").getAsBoolean());
+        assertEquals("delete", draft.getAsJsonArray("confirm").get(0).getAsJsonObject().get("kind").getAsString());
+        assertEquals("bow", draft.getAsJsonArray("confirm").get(0).getAsJsonObject().get("path").getAsString());
+
+        runtime.apply(admin, code, true);
+        assertFalse(java.nio.file.Files.exists(dir.resolve("bow.yml")));
+        assertTrue(java.nio.file.Files.exists(dir.resolve("sword.yml")));
+    }
+
+    @Test
+    void aFolderChecksEachEntryAndPinsProblemsUnderIt() throws IOException {
+        java.nio.file.Path dir = items();
+        String code = open();
+        JsonObject values = uploaded("ExyliaDisplays", "ExyliaDisplays/items").getAsJsonObject("values").deepCopy();
+        values.getAsJsonObject("sword").addProperty("damage", -1);
+        JsonObject bad = new JsonObject();
+        bad.addProperty("damage", -2);
+        values.add("club", bad);
+        values.add("../escape", new JsonObject());
+
+        JsonObject draft = checkDraft(code, "ExyliaDisplays/items", values);
+
+        assertFalse(draft.get("valid").getAsBoolean());
+        assertEquals(List.of("sword.damage", "club.damage", "../escape"), paths(draft, "problems"));
+        saveItems(values);
+        runtime.apply(admin, code, true);
+        assertTrue(java.nio.file.Files.readString(dir.resolve("sword.yml")).contains("damage: 5"));
+        assertFalse(java.nio.file.Files.exists(dir.resolve("club.yml")));
+        assertEquals(0, applied.get());
+    }
 }

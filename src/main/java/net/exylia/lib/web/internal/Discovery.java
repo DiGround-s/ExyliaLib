@@ -70,7 +70,7 @@ final class Discovery {
         List<Path> files = yamlFiles(root, installed, owned, globs);
         for (Path path : files) {
             File file = canonical(path.toFile());
-            if (covered.contains(file)) {
+            if (covered.contains(file) || covered.contains(file.getParentFile())) {
                 continue;
             }
             YamlConfiguration yaml = parse(path);
@@ -113,7 +113,7 @@ final class Discovery {
         Path root = canonical(plugin.getDataFolder()).toPath();
         for (SubjectImpl subject : registered) {
             ids.add(subject.id().toLowerCase(Locale.ROOT));
-            File file = subject.source().disk();
+            File file = subject.source() instanceof FolderSource folder ? folder.folder() : subject.source().disk();
             if (file != null) {
                 covered.add(canonical(file));
             }

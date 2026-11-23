@@ -91,6 +91,17 @@ One `ConfigFile`, described to the browser by its schema and its values.
   with its message. Web applies, drafts and in-game edits all go through it. The type must be
   the file's record (or a supertype), and only a record subject takes one: `entries` check in
   their store, YAML subjects with `YamlSubject#problems`.
+- **Read-only** (since 1.647.0). `readOnly()` shows a subject without letting anyone change it,
+  for what is placed in game (spawns, spots, a layout set through a wizard) where a value typed in
+  the browser would only break it. It works on every kind of subject (record, YAML, folder,
+  entries). The subject's metadata carries `"readOnly": true` (absent otherwise), and a change, a
+  draft or an in-game edit that would alter its values is refused with one problem without a path
+  ("it is set in game, not in the editor"). Resending the values unchanged is not a change.
+
+  ```java
+  WebEditor.of(this).yaml("spots", "spots").title("Spots").readOnly();
+  ```
+
 - **onApplied.** Runs on the global thread after the file was written, so the
   plugin refreshes what it draws from the file, exactly as after its own reload
   command. `update()` only writes.
@@ -208,6 +219,36 @@ in every plugin. `WebReward.fromEntries(list)` fills it, `WebReward.toEntries(ed
 back (entries whose id and type still match `before` keep their item snapshot and other hidden fields),
 and `WebReward.problems("winner-rewards", edited, before)` returns the `Problem`s, each on its field
 (`winner-rewards.2.value`). ITEM rewards are only valid when they are already in `before`.
+
+## Folders
+
+A catalogue kept as one YAML file per entry (`items/sword.yml`, `items/bow.yml`) is one subject,
+so the browser can create and remove entries, not only edit the files that exist.
+`folder(id, path)` registers it (since 1.647.0):
+
+```java
+WebEditor.of(this).folder("items", "items", "specials/item")
+        .title("Items")
+        .permission("exyliaspecials.admin")
+        .sensitive("*.features.actions")
+        .problems((name, yaml) -> registry.problems(name, yaml))
+        .onApplied(registry::load);
+```
+
+- **Values.** A map from each file's name without `.yml` to what it holds:
+  `{"sword": {...}, "bow": {...}}`. The schema's root is `{"type": "map", "of": ...}`, `of`
+  being every file's inferred section merged as for a YAML subject. Only the `.yml` files
+  directly inside the folder count. `file` in the metadata is the folder's path.
+- **Check per entry.** `problems((name, yaml) -> List<Problem>)` (or `check` with plain lines)
+  runs once per entry on the text about to be written; its paths are pinned under the entry
+  (`sword.damage`). One problem anywhere refuses the subject whole.
+- **Apply.** A file whose contents changed is rewritten (comments kept), a new key creates
+  `<name>.yml`, and a removed key deletes its file, held for `confirm` like any deletion
+  (`{"kind": "delete", "path": "bow"}`). A new name is letters, digits, `-` and `_`, up to 64;
+  a file already there keeps whatever name it has.
+- **Sensitive paths** start at the entry: `*.features.actions`.
+- **Discovery** skips every file inside a registered folder. The in-game content screens do not
+  list folders; they are edited from the web.
 
 ## Entries a plugin stores itself
 
@@ -472,16 +513,17 @@ refused unread.
 **Index** (the open): `{version: 2, server{id, platform, software, bukkit,
 lib, language, smallText, palette}, issuer{name, player}, plugins[{name,
 version, editable, subjects[{key, id, title, kind, group, file,
-sensitive[]}]}]}`. `plugins` lists every enabled Exylia plugin, editable or
+sensitive[], readOnly?}]}]}`. `plugins` lists every enabled Exylia plugin, editable or
 not; `subjects` is metadata only, empty when the sender may edit nothing
 there. `file` is the path relative to the data folder without `.yml`
 (`menus/user/mines`, `lang/en/messages`), or `""` for entries a plugin stores.
 
 **Plugin payload** (one PUT per plugin, one after another once the index was
 accepted, and again for every plugin a change touched once it is applied):
-`{subjects[{key, plugin, id, title, kind, group, file, sensitive[], schema,
+`{subjects[{key, plugin, id, title, kind, group, file, sensitive[], readOnly?, schema,
 values, hash, details?}], enums{Class: [values]}, placeholders{"%token%": value}}`.
-`details` (since 1.464.0) is present only for a subject that set it. An
+`details` (since 1.464.0) is present only for a subject that set it, and `readOnly`
+(since 1.647.0, always `true`) only for a subject declared `readOnly()`. An
 enum node in a schema that carries a `class` has its `values` moved into
 `enums[class]`, sent once per plugin; a class name another enum of the same
 plugin already took with different values keeps its own inline. `placeholders`

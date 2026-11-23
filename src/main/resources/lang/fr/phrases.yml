@@ -991,6 +991,7 @@
 'not registered on this server any more ({0})': 'n''est plus enregistré sur ce serveur ({0})'
 'refused by the file''s own rules: {0}': 'refusé par les règles du fichier lui-même : {0}'
 'you lack the permission for it': 'vous n''en avez pas la permission'
+'it is set in game, not in the editor': 'se définit en jeu, pas dans l''éditeur'
 '{error}Could not {0}: {1}': '{error}Impossible de {0} : {1}'
 '{error}No installed plugin offers anything to edit, or you lack the permission for it.': '{error}Aucun plugin installé ne propose quoi que ce soit à modifier, ou vous n''en avez pas la permission.'
 '{error}The snapshot is {0} KB; the editor takes at most {1} KB.': '{error}L''instantané fait {0} Ko ; l''éditeur accepte au plus {1} Ko.'

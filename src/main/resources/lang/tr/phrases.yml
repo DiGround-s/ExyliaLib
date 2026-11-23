@@ -1003,6 +1003,7 @@ x, y or z: x, y veya z
 'not registered on this server any more ({0})': 'artık bu sunucuda kayıtlı değil ({0})'
 'refused by the file''s own rules: {0}': 'dosyanın kendi kurallarınca reddedildi: {0}'
 'you lack the permission for it': 'bunun için iznin yok'
+'it is set in game, not in the editor': 'oyun içinde ayarlanır, düzenleyicide değil'
 '{error}Could not {0}: {1}': '{error}{0} yapılamadı: {1}'
 '{error}No installed plugin offers anything to edit, or you lack the permission for it.': '{error}Yüklü hiçbir eklenti düzenlenecek bir şey sunmuyor ya da iznin yok.'
 '{error}The snapshot is {0} KB; the editor takes at most {1} KB.': '{error}Anlık görüntü {0} KB; düzenleyici en fazla {1} KB alır.'

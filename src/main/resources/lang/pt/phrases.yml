@@ -1003,6 +1003,7 @@ x, y or z: x, y ou z
 'not registered on this server any more ({0})': 'já não está registado neste servidor ({0})'
 'refused by the file''s own rules: {0}': 'recusado pelas regras do próprio ficheiro: {0}'
 'you lack the permission for it': 'não tens permissão para isso'
+'it is set in game, not in the editor': 'define-se no jogo, não no editor'
 '{error}Could not {0}: {1}': '{error}Não foi possível {0}: {1}'
 '{error}No installed plugin offers anything to edit, or you lack the permission for it.': '{error}Nenhum plugin instalado oferece nada para editar, ou não tens permissão para isso.'
 '{error}The snapshot is {0} KB; the editor takes at most {1} KB.': '{error}A captura ocupa {0} KB; o editor aceita no máximo {1} KB.'

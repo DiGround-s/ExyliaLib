@@ -72,5 +72,8 @@ public interface YamlSubject extends Subject {
     @NotNull YamlSubject group(@NotNull String group);
 
     @Override
+    @NotNull YamlSubject readOnly();
+
+    @Override
     @NotNull YamlSubject onApplied(@NotNull Runnable listener);
 }

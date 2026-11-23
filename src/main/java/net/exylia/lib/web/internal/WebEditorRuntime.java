@@ -192,6 +192,12 @@ public final class WebEditorRuntime {
         return subject;
     }
 
+    public @NotNull net.exylia.lib.web.FolderSubject registerFolder(Plugin plugin, String id, String path, String kind) {
+        FolderSubjectImpl subject = FolderSubjectImpl.of(plugin, id, path, kind);
+        registry.computeIfAbsent(plugin.getName(), name -> new ConcurrentHashMap<>()).put(id, subject);
+        return subject;
+    }
+
     public <R extends Record> @NotNull Subject registerEntries(Plugin plugin, String id, Class<R> type,
                                                                 EntryStore<R> store, String kind) {
         SubjectImpl subject = new SubjectImpl(plugin, id, new EntrySource<>(id, type, store), kind);
@@ -631,6 +637,9 @@ public final class WebEditorRuntime {
         Source.Prepared prepared;
         try {
             described = Snapshot.Described.of(subject);
+            if (subject.isReadOnly() && !Diff.of(described.values(), values).isEmpty()) {
+                return Checked.refused(subject.title(), EditorMessages.readOnly());
+            }
             prepared = subject.source().prepare(subject.plugin().getName(), values.getAsJsonObject());
         } catch (RuntimeException failure) {
             return Checked.refused(subject.title(), EditorMessages.invalid(describe(failure)));
@@ -946,6 +955,9 @@ public final class WebEditorRuntime {
         Source.Prepared prepared;
         try {
             before = subject.source().values(pluginName);
+            if (subject.isReadOnly() && !Diff.of(before, after).isEmpty()) {
+                return new InGame(EditorMessages.readOnly(), List.of(), null);
+            }
             prepared = subject.source().prepare(pluginName, after);
         } catch (RuntimeException failure) {
             return new InGame(describe(failure), List.of(), null);

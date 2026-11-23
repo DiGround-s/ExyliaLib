@@ -63,6 +63,30 @@ public interface Subject {
         return this;
     }
 
+    /**
+     * Shows it in the editor without letting anyone change it: for what is placed in game (spawns,
+     * spots, layouts set through a wizard), where an edit typed in the browser would only break it.
+     *
+     * <p>Its metadata carries {@code "readOnly": true}; a change or a draft that would alter it is
+     * refused with a problem saying it is set in game, and so is an in-game edit through the
+     * content screens.
+     *
+     * @return this subject
+     * @since 1.647.0
+     */
+    default @NotNull Subject readOnly() {
+        return this;
+    }
+
+    /**
+     * Whether {@link #readOnly()} was called.
+     *
+     * @since 1.647.0
+     */
+    default boolean isReadOnly() {
+        return false;
+    }
+
     /** What the editor calls it: the title set, or the id capitalised. */
     @NotNull String title();
 

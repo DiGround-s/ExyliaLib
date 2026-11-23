@@ -176,6 +176,10 @@ final class EditorMessages {
         return Phrases.tr("not checked: whoever opened this session is offline");
     }
 
+    static String readOnly() {
+        return Phrases.tr("it is set in game, not in the editor");
+    }
+
     static String invalid(String issue) {
         return Phrases.tr("refused by the file's own rules: {0}", issue);
     }

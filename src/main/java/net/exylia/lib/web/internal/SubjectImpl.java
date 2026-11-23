@@ -31,6 +31,7 @@ class SubjectImpl implements Subject {
     /** Found by discovery rather than registered: applying it runs the plugin's declared reload. */
     private volatile boolean discovered;
     private volatile String title;
+    private volatile boolean readOnly;
     private volatile String permission;
     private final List<String> sensitive = new CopyOnWriteArrayList<>();
     private volatile Runnable applied = () -> { };
@@ -93,6 +94,17 @@ class SubjectImpl implements Subject {
     }
 
     /** Files a discovered subject; registered ones stay {@code content}. */
+    @Override
+    public @NotNull Subject readOnly() {
+        this.readOnly = true;
+        return this;
+    }
+
+    @Override
+    public boolean isReadOnly() {
+        return readOnly;
+    }
+
     SubjectImpl discovered(String group) {
         this.group = group;
         this.discovered = true;

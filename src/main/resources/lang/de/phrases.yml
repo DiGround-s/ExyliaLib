@@ -1007,6 +1007,7 @@ Text: Text
 not registered on this server any more ({0}): ist auf diesem Server nicht mehr registriert ({0})
 'refused by the file''s own rules: {0}': 'von den Regeln der Datei selbst abgelehnt: {0}'
 you lack the permission for it: du hast dafür keine Berechtigung
+'it is set in game, not in the editor': 'wird im Spiel festgelegt, nicht im Editor'
 '{error}Could not {0}: {1}': '{error}{0} nicht möglich: {1}'
 '{error}No installed plugin offers anything to edit, or you lack the permission for it.': '{error}Kein installiertes Plugin bietet etwas zum Bearbeiten an, oder du hast keine Berechtigung dafür.'
 '{error}The snapshot is {0} KB; the editor takes at most {1} KB.': '{error}Der Snapshot belegt {0} KB; der Editor erlaubt maximal {1} KB.'
