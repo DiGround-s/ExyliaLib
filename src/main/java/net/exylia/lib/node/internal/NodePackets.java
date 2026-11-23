@@ -46,8 +46,6 @@ final class NodePackets implements NodeSink {
     private static final int INTERACTION_HEIGHT = 9;
     private static final int INTERACTION_RESPONSIVE = 10;
 
-    /** An item node's click box: a little smaller than a block, centred on the item. */
-    private static final float ITEM_BOX = 0.8f;
 
     private NodePackets() {
     }
@@ -86,15 +84,24 @@ final class NodePackets implements NodeSink {
         }
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, data));
 
-        float width = block ? 1f : ITEM_BOX;
-        double boxY = block ? node.at.getY() : node.at.getY() - ITEM_BOX / 2;
-        double boxX = block ? node.at.getX() + 0.5 : node.at.getX();
-        double boxZ = block ? node.at.getZ() + 0.5 : node.at.getZ();
         send(node.viewer, new WrapperPlayServerSpawnEntity(node.hitboxId, Optional.of(UUID.randomUUID()),
-                EntityTypes.INTERACTION, new Vector3d(boxX, boxY, boxZ), 0f, 0f, 0f, 0, Optional.empty()));
+                EntityTypes.INTERACTION, boxAt(node), 0f, 0f, 0f, 0, Optional.empty()));
+        sendBox(node);
+    }
+
+    /** Where the click box stands: on the block's floor, or under the item's centre. */
+    private static Vector3d boxAt(NodeImpl node) {
+        return node.isBlock()
+                ? new Vector3d(node.at.getX() + 0.5, node.at.getY(), node.at.getZ() + 0.5)
+                : new Vector3d(node.at.getX(), node.at.getY() - NodeBox.of(node)[1] / 2, node.at.getZ());
+    }
+
+    /** The click box fitted to how the node looks and is scaled now. */
+    private void sendBox(NodeImpl node) {
+        float[] box = NodeBox.of(node);
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.hitboxId, List.of(
-                new EntityData<>(INTERACTION_WIDTH, EntityDataTypes.FLOAT, width),
-                new EntityData<>(INTERACTION_HEIGHT, EntityDataTypes.FLOAT, width),
+                new EntityData<>(INTERACTION_WIDTH, EntityDataTypes.FLOAT, box[0]),
+                new EntityData<>(INTERACTION_HEIGHT, EntityDataTypes.FLOAT, box[1]),
                 new EntityData<>(INTERACTION_RESPONSIVE, EntityDataTypes.BOOLEAN, true))));
     }
 
@@ -106,6 +113,7 @@ final class NodePackets implements NodeSink {
     @Override
     public void look(NodeImpl node) {
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, List.of(lookData(node))));
+        sendBox(node);
     }
 
     @Override
@@ -125,6 +133,8 @@ final class NodePackets implements NodeSink {
         data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks));
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, data));
+        // A pop is a moment's squash; the box follows only the size the node settles at.
+        if (size == node.size()) sendBox(node);
     }
 
     /**
