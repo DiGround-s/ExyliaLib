@@ -349,12 +349,27 @@ final class Coercions {
         java.lang.reflect.RecordComponent[] components = target.getRecordComponents();
         Class<?>[] parameters = new Class<?>[components.length];
         Object[] arguments = new Object[components.length];
+        Object defaults = null;
         for (int i = 0; i < components.length; i++) {
             java.lang.reflect.RecordComponent component = components[i];
             parameters[i] = component.getType();
             Object value = block.get(SchemaCache.keyOf(component));
             if (value == null) {
-                return Result.fail(describe(target));
+                // A key added in a later version is missing from older files:
+                // take it from the record's no-argument defaults instead of
+                // throwing away the whole entry (and with it the whole list).
+                if (defaults == null) defaults = noArgDefaults(target);
+                if (defaults == null) {
+                    return Result.fail(describe(target));
+                }
+                try {
+                    java.lang.reflect.Method accessor = component.getAccessor();
+                    accessor.setAccessible(true);
+                    arguments[i] = accessor.invoke(defaults);
+                    continue;
+                } catch (ReflectiveOperationException exception) {
+                    return Result.fail(describe(target));
+                }
             }
             Result result = coerce(value, component.getType(), component.getGenericType());
             if (result.failed()) {
@@ -369,6 +384,16 @@ final class Coercions {
             return Result.ok(canonical.newInstance(arguments));
         } catch (ReflectiveOperationException exception) {
             return Result.fail(describe(target));
+        }
+    }
+
+    private static Object noArgDefaults(Class<?> target) {
+        try {
+            var constructor = target.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (ReflectiveOperationException exception) {
+            return null;
         }
     }
 

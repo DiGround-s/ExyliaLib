@@ -97,6 +97,9 @@ class ConfigModuleTest {
         }
 
         record Question(String question, List<String> answers, int correct) {
+            Question() {
+                this("", List.of(), 2);
+            }
         }
     }
 
@@ -356,6 +359,22 @@ class ConfigModuleTest {
         assertEquals("How tall is an Enderman?", values.questions().getFirst().question());
         assertEquals(List.of("2", "3"), values.questions().getFirst().answers());
         assertEquals(0, values.questions().getFirst().correct(), "the edit should be read back");
+    }
+
+    @Test
+    @DisplayName("an older list entry missing a newer key keeps its values and takes the default")
+    void listOfRecordsFillsMissingKey() throws IOException {
+        Configs.define(plugin, "quiz", Quiz.class).load();
+        Configs.releaseAll();
+
+        String yaml = contents("quiz").replaceAll("(?m)^\\s*correct: 1\\R", "")
+                .replace("How tall is an Enderman?", "Edited?");
+        assertFalse(yaml.contains("correct:"), yaml);
+        Files.writeString(file("quiz"), yaml);
+        Quiz values = Configs.define(plugin, "quiz", Quiz.class).load().get();
+
+        assertEquals("Edited?", values.questions().getFirst().question(), "the owner's entry is kept");
+        assertEquals(2, values.questions().getFirst().correct(), "the missing key takes the record default");
     }
 
     @Test
