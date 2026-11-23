@@ -1,10 +1,12 @@
 package net.exylia.lib.replay;
 
+import net.exylia.lib.camera.CameraScreen;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -135,6 +137,89 @@ public interface ReplayPlayback {
      * @since 1.256.0
      */
     void highlight(@Nullable UUID actor);
+
+    /**
+     * Draws several bodies glowing at once, in place of whoever glowed before:
+     * the killer and the body together, for a frame where everything else goes
+     * dark.
+     *
+     * @param actors who; empty for nobody
+     * @since 1.649.0
+     */
+    default void highlight(@NotNull Collection<UUID> actors) {
+        highlight(actors.isEmpty() ? null : actors.iterator().next());
+    }
+
+    /**
+     * A camera a plugin steers itself, asked every frame where to stand.
+     *
+     * @since 1.649.0
+     */
+    @FunctionalInterface
+    interface Shot {
+
+        /**
+         * Where the camera is on this frame.
+         *
+         * <p>Called on the playback's own thread every tick, while it is paused
+         * too, so a shot can keep moving over a frozen moment. Read the
+         * playback ({@link #drawnAt(UUID)}, {@link #tick()}) and do the
+         * arithmetic; nothing slow, and nothing that touches the world.
+         *
+         * @param playback the playback being filmed
+         * @return where the camera stands, its yaw and pitch being where it
+         *         looks; {@code null} leaves it where it was
+         */
+        @Nullable Location aim(@NotNull ReplayPlayback playback);
+    }
+
+    /**
+     * Puts one viewer's camera on a shot the plugin steers, for a replay
+     * filmed rather than followed: a camera chasing an arrow, circling a body,
+     * pushing in on a hit.
+     *
+     * <p>While a shot is set it wins over the {@link Camera} the viewer chose;
+     * taking it away ({@code null}) gives that camera back. The camera glides
+     * a tick to each new place, so a shot that moves every frame is smooth at
+     * the client's frame rate.
+     *
+     * @param viewer who watches through it
+     * @param shot   the shot, or {@code null} to stop steering
+     * @since 1.649.0
+     */
+    default void direct(@NotNull Player viewer, @Nullable Shot shot) {
+    }
+
+    /**
+     * Where an actor is drawn right now, between two frames included, facing
+     * the way it is drawn. A shot following somebody reads this rather than
+     * {@link #locationOf(UUID)}, which stands on whole frames and steps in slow
+     * motion.
+     *
+     * @param actor who
+     * @return where, or {@code null} while they are not on screen
+     * @since 1.649.0
+     */
+    default @Nullable Location drawnAt(@NotNull UUID actor) {
+        return locationOf(actor);
+    }
+
+    /**
+     * What a viewer sees over the picture while their camera is a body of its
+     * own (behind, orbit, or a {@linkplain #direct directed shot}): a colour,
+     * a title card, a line, the letterbox bars.
+     *
+     * <p>Nothing shows while they look out of somebody's eyes or their own,
+     * and everything shows again when their camera has a body once more.
+     * Taken off their screen when the playback lets them go.
+     *
+     * @param viewer who
+     * @return their screen, or {@code null} when they are not watching this
+     * @since 1.649.0
+     */
+    default @Nullable CameraScreen screen(@NotNull Player viewer) {
+        return null;
+    }
 
     /**
      * Looks out of somebody's eyes: every viewer's camera is put on that body,

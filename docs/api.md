@@ -156,6 +156,13 @@ ExyliaStaff answers a failed future and `false`, so a caller keeps the replay
 itself instead. ExyliaProtections uses it for the minute before a base is
 raided.
 
+`exylia-api` 3.8.0 (ExyliaLib 1.649.0) makes the killcam a killer's cosmetic.
+`KillEffectService.killCamStyle(killer)` answers the `KillCamStyle` (an id and
+its settings map) the killer equipped in ExyliaKillEffect, or empty for the
+killcam's own style; ExyliaKillCam reads the keys it knows over its default
+and ignores the rest. A `default` method: an older ExyliaKillEffect answers
+empty.
+
 Adding a method to a service interface is a minor release: it breaks
 implementations, all of which are ours, and no consumers. Changing or removing
 one is a major release, so it does not happen — curate the surface before

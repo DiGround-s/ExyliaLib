@@ -58,6 +58,8 @@ final class Tape {
     private short[] lag = new short[32];
     private int head;
     private int size;
+    /** The tick it struck somebody on, which its removal on that same tick keeps. */
+    private int landedAt = -1;
     private long sampledAt;
     /** The place of the last frame, so a body that stays put never looks it up. */
     private int lastPlace = -1;
@@ -132,6 +134,7 @@ final class Tape {
      */
     synchronized void gone(int tick) {
         if (size == 0) return;
+        if (tick == landedAt) tick++;
         int last = index(size - 1);
         if (flags[last] == 0 || ticks[last] > tick) return;
         if (ticks[last] == tick) {
@@ -139,6 +142,24 @@ final class Tape {
             return;
         }
         append(tick, places[last], x[last], y[last], z[last], yaw[last], pitch[last], 0, (byte) 0, lag[last]);
+    }
+
+    /**
+     * Where it struck somebody, over the frame a timer wrote on this tick: an
+     * arrow is removed on the tick it hits, before any timer reads it there,
+     * so its last frame would otherwise hang a tick or two short of the body.
+     */
+    synchronized void landed(int tick, UUID world, double px, double py, double pz, float aYaw, float aPitch) {
+        if (size == 0) return;
+        int last = index(size - 1);
+        if (ticks[last] > tick || flags[last] == 0) return;
+        int keep = flags[last];
+        byte hp = health[last];
+        short seen = lag[last];
+        if (ticks[last] == tick) size--;
+        append(tick, (char) place(world, px, pz), offset(px), (int) Math.round(py * MotionTrack.SCALE), offset(pz),
+                angle(aYaw), angle(aPitch), keep, hp, seen);
+        landedAt = tick;
     }
 
     private void append(int tick, char place, int px, int py, int pz,

@@ -89,14 +89,14 @@ final class CameraOverlay {
         }
     }
 
-    private static final int BLACK = 0xFF000000;
+    static final int BLACK = 0xFF000000;
 
     /** Half the view's height one block ahead, at the default 70&deg; field of view. */
     static final float HALF_VIEW = (float) Math.tan(Math.toRadians(35));
 
     /** Pixels per block of a text display at scale one, and the height of one line in pixels. */
-    private static final float PIXEL = 0.025f;
-    private static final int LINE_PIXELS = 10;
+    static final float PIXEL = 0.025f;
+    static final int LINE_PIXELS = 10;
 
     /**
      * How a subtitle is drawn at scale one: about a twentieth of the screen
@@ -113,10 +113,10 @@ final class CameraOverlay {
     private static final float GLYPH = 6f;
 
     /** The bottom bar: forty blank lines at this vertical scale; see the class comment. */
-    private static final int BAR_LINES = 40;
-    private static final float BAR_LINE_SCALE = 0.25f;
-    private static final float BAR_HEIGHT = BAR_LINES * LINE_PIXELS * PIXEL * BAR_LINE_SCALE;
-    private static final Component BAR_TEXT = Component.text(String.join("\n", Collections.nCopies(BAR_LINES, " ")));
+    static final int BAR_LINES = 40;
+    static final float BAR_LINE_SCALE = 0.25f;
+    static final float BAR_HEIGHT = BAR_LINES * LINE_PIXELS * PIXEL * BAR_LINE_SCALE;
+    static final Component BAR_TEXT = Component.text(String.join("\n", Collections.nCopies(BAR_LINES, " ")));
 
     /** Where the caption's centre sits: inside a 4:3 screen, toward its right edge. */
     private static final float CAPTION_X = 0.55f;

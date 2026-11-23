@@ -374,6 +374,12 @@ final class ReplayEvents implements Listener {
         ReplayRuntime.watching(entity.getLocation(), recording -> recording.follow(entity));
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onProjectileHit(org.bukkit.event.entity.ProjectileHitEvent event) {
+        BlackBox box = ReplayRuntime.box();
+        if (box != null && event.getHitEntity() != null) box.landed(event.getEntity(), event.getHitEntity());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onRemoved(com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent event) {
         BlackBox box = ReplayRuntime.box();

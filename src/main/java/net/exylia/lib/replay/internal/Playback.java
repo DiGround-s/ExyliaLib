@@ -4,6 +4,8 @@ import com.github.retrooper.packetevents.protocol.entity.type.EntityType;
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes;
 import com.github.retrooper.packetevents.protocol.particle.type.ParticleTypes;
 import com.github.retrooper.packetevents.protocol.sound.SoundCategory;
+import net.exylia.lib.camera.CameraScreen;
+import net.exylia.lib.camera.internal.ScreenPanels;
 import net.exylia.lib.replay.Replay;
 import net.exylia.lib.replay.ReplayActor;
 import net.exylia.lib.replay.ReplayMark;
@@ -22,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -144,7 +147,9 @@ public final class Playback implements ReplayPlayback {
     private volatile View view = View.SERVER;
     /** How late the followed player's screen was on the frame being drawn, in the attacker view. */
     private int shownLag;
-    private volatile int highlighted = -1;
+    private volatile Set<Integer> highlighted = Set.of();
+    /** The highlight changed: a paused playback draws the bodies once more to show it. */
+    private volatile boolean restate;
     private volatile boolean stopped;
     private volatile boolean carryViewers;
     private volatile int pendingSeek = NO_SEEK;
@@ -341,7 +346,12 @@ public final class Playback implements ReplayPlayback {
                 return;
             }
             if (paused) {
-                camera();
+                if (restate) {
+                    restate = false;
+                    draw(position, false);
+                } else {
+                    camera();
+                }
                 return;
             }
             int last = Math.max(0, replay.frames() - 1);
@@ -446,10 +456,20 @@ public final class Playback implements ReplayPlayback {
         Player viewer = eye.viewer;
         Camera mode = eye.mode;
         int actor = eye.actor;
+        Shot shot = eye.shot;
+        if (shot != null) mode = Camera.FREE;
         Body body = mode == Camera.FREE || actor < 0 ? null : bodies[actor];
-        boolean rigged = mode == Camera.BEHIND || mode == Camera.ORBIT;
+        boolean rigged = shot != null || mode == Camera.BEHIND || mode == Camera.ORBIT;
         int id = -1;
-        if (mode == Camera.FIRST_PERSON) {
+        double[] near = body == null ? null : new double[]{body.x, body.y, body.z};
+        if (shot != null) {
+            double[] at = directed(shot);
+            if (at != null) {
+                place(eye, at);
+                near = at;
+            }
+            id = eye.rigShown ? eye.rig : -1;
+        } else if (mode == Camera.FIRST_PERSON) {
             id = body == null ? -1 : body.id;
         } else if (rigged) {
             // Somebody gone for a moment leaves the camera where it was.
@@ -463,14 +483,19 @@ public final class Playback implements ReplayPlayback {
         // Taken away only once the client looks elsewhere: it is never left
         // looking out of an entity it no longer has.
         if (!rigged && eye.rigShown) dropRig(eye);
+        ScreenPanels screen = eye.screen;
+        if (screen != null && eye.rigShown) {
+            if (screen.vehicle() != eye.rig) screen.attach(eye.rig, eye.rigX, eye.rigY, eye.rigZ);
+            screen.frame();
+        }
         if (mode == Camera.FIRST_PERSON && body != null) firstPerson(eye, actor, body);
         else if (eye.handOf >= 0) giveBack(eye);
-        if (body == null || ++eye.age % 20 != 0) return;
-        Location near = new Location(anchors[Math.max(0, scene)].getWorld(), body.x, body.y + 1.5, body.z);
+        if (near == null || ++eye.age % 20 != 0) return;
+        Location around = new Location(anchors[Math.max(0, scene)].getWorld(), near[0], near[1] + 1.5, near[2]);
         scheduler.runAtEntity(viewer, () -> {
             Location here = viewer.getLocation();
-            if (here.getWorld() != near.getWorld() || here.distanceSquared(near) > 16 * 16) {
-                Location to = near.clone();
+            if (here.getWorld() != around.getWorld() || here.distanceSquared(around) > 16 * 16) {
+                Location to = around.clone();
                 to.setYaw(here.getYaw());
                 to.setPitch(here.getPitch());
                 net.exylia.lib.util.teleport.Teleports.of(ReplayRuntime.plugin()).to(viewer, to).warmup(0).start();
@@ -493,6 +518,27 @@ public final class Playback implements ReplayPlayback {
             eye.angle = (eye.angle + CameraMath.ORBIT_STEP) % 360.0;
             at = CameraMath.orbit(body.x, body.y, body.z, eye.angle);
         }
+        place(eye, at);
+    }
+
+    /** Where a plugin's shot puts the camera on this frame, or {@code null} to leave it. */
+    private double @Nullable [] directed(Shot shot) {
+        Location at;
+        try {
+            at = shot.aim(this);
+        } catch (RuntimeException failure) {
+            ReplayRuntime.plugin().getLogger().warning("A replay camera shot failed: " + failure);
+            return null;
+        }
+        if (at == null) return null;
+        return new double[]{at.getX(), at.getY(), at.getZ(), at.getYaw(), at.getPitch()};
+    }
+
+    /** Spawns the camera's body there, or glides it there. */
+    private void place(Eye eye, double[] at) {
+        eye.rigX = at[0];
+        eye.rigY = at[1];
+        eye.rigZ = at[2];
         if (!eye.rigShown) {
             if (eye.rig < 0) eye.rig = ReplayPackets.newEntityId();
             ReplayPackets.spawnRig(eye.viewer, eye.rig, at[0], at[1], at[2], (float) at[3], (float) at[4]);
@@ -503,6 +549,8 @@ public final class Playback implements ReplayPlayback {
     }
 
     private void dropRig(Eye eye) {
+        ScreenPanels screen = eye.screen;
+        if (screen != null) screen.detach();
         eye.rigShown = false;
         eye.rigMode = null;
         ReplayPackets.destroy(List.of(eye.viewer), eye.rig, null);
@@ -623,6 +671,8 @@ public final class Playback implements ReplayPlayback {
                 ReplayPackets.dying(viewers, body.id);
                 body.deadSent = died;
             }
+            // Lying down still takes a highlight: the outline of who was killed.
+            state(index, body, track, fell);
             return;
         }
         if (!track.present(tick)) {
@@ -767,7 +817,7 @@ public final class Playback implements ReplayPlayback {
             // sees what the players saw.
             base |= revealing ? ReplayPackets.FLAG_GLOWING : ReplayPackets.FLAG_INVISIBLE;
         }
-        if ((flags & MotionTrack.GLOWING) != 0 || index == highlighted) base |= ReplayPackets.FLAG_GLOWING;
+        if ((flags & MotionTrack.GLOWING) != 0 || highlighted.contains(index)) base |= ReplayPackets.FLAG_GLOWING;
         if (pose.equals("FALL_FLYING")) base |= ReplayPackets.FLAG_GLIDING;
         int hands = 0;
         if ((flags & MotionTrack.USING) != 0) hands = 0x01;
@@ -1497,10 +1547,47 @@ public final class Playback implements ReplayPlayback {
 
     @Override
     public void highlight(@Nullable UUID actor) {
-        highlighted = actor == null ? -1 : indexOf(actor);
+        highlight(actor == null ? List.of() : List.of(actor));
+    }
+
+    @Override
+    public void highlight(@NotNull Collection<UUID> actors) {
+        Set<Integer> wanted = new HashSet<>();
+        for (UUID actor : actors) {
+            int index = indexOf(actor);
+            if (index >= 0) wanted.add(index);
+        }
+        highlighted = Set.copyOf(wanted);
         for (Body body : bodies) {
             if (body != null) body.state = -1;
         }
+        restate = true;
+    }
+
+    @Override
+    public void direct(@NotNull Player viewer, @Nullable Shot shot) {
+        Eye eye = eyes.get(viewer.getUniqueId());
+        if (eye != null) eye.shot = shot;
+    }
+
+    @Override
+    public @Nullable CameraScreen screen(@NotNull Player viewer) {
+        Eye eye = eyes.get(viewer.getUniqueId());
+        if (eye == null) return null;
+        synchronized (eye) {
+            if (eye.screen == null) eye.screen = new ScreenPanels(viewer);
+            return eye.screen;
+        }
+    }
+
+    @Override
+    public @Nullable Location drawnAt(@NotNull UUID actor) {
+        int index = indexOf(actor);
+        Body body = index < 0 || stopped ? null : bodies[index];
+        // Not body.drawn: that is set by dressing, and an arrow is never dressed.
+        if (body == null) return null;
+        return new Location(anchors[Math.max(0, scene)].getWorld(), body.x, body.y, body.z,
+                body.yaw * 360f / 256f, body.pitch * 360f / 256f);
     }
 
     @Override
@@ -1695,6 +1782,14 @@ public final class Playback implements ReplayPlayback {
         double facing = Double.NaN;
         /** How far round the orbit is, in degrees. */
         double angle;
+        /** Where the camera's body was last put. */
+        double rigX;
+        double rigY;
+        double rigZ;
+        /** A plugin's own camera, winning over the mode while it is set. */
+        volatile Shot shot;
+        /** What rides the camera's body, once somebody asked for it. */
+        volatile ScreenPanels screen;
         int age;
 
         /** Whose hand and hearts their screen shows, or -1. */

@@ -387,6 +387,23 @@ public interface KillEffectService {
         return false;
     }
 
+    // ── Killcam styles ─────────────────────────────────────────────────────
+
+    /**
+     * How a killer's kills are filmed in a killcam: the style they equipped,
+     * or the one their rank gets by default.
+     *
+     * <p>Read from memory, so a killcam may ask on the thread it runs on. The
+     * victim sees the killer's style; the killer never has to be online.
+     *
+     * @param killer who got the kill
+     * @return their style, or empty for the killcam's own
+     * @since 3.8.0
+     */
+    default @NotNull Optional<KillCamStyle> killCamStyle(@NotNull UUID killer) {
+        return Optional.empty();
+    }
+
     // ── Menus ──────────────────────────────────────────────────────────────
 
     /**

@@ -380,6 +380,16 @@ through the [teleport module](teleport.md) and back afterwards. There is no
 `[CAMERA]` sequence syntax for it: a sequence line is relative to whoever set
 it off, and a world shot is relative to nothing.
 
+## Drawing over a camera someone else moves (since 1.649.0)
+
+`CameraScreen` is the overlay of a world shot, offered to code that moves the
+camera itself: a colour over the whole view that eases in and out, a title card
+that lands from a larger size, a typewritten line at the foot, a caption at the
+top and the letterbox bars. A replay hands it out for a viewer whose camera has
+a body of its own (`ReplayPlayback#screen`, see [replays](replays.md#a-camera-the-plugin-steers-since-16490)).
+Layers from the back: bars, fill, line and caption, title. Glowing outlines
+draw over the fill, so a black fill plus a highlight is an impact frame.
+
 ## Requirements
 
 PacketEvents. A camera is packets and nothing else, so there is no fallback
@@ -390,7 +400,7 @@ worth pretending about; without it, `isSupported()` is false, `play` returns
 
 - `net.exylia.lib.camera` — `Cameras`, `PluginCameras`, `CameraShot`,
   `CameraHandle`, `WorldShot` (1.391.0; cuts, dips, aim, titles and subtitle
-  layout 1.397.0), `Viewpoints`, `Hud` (1.397.0)
+  layout 1.397.0), `Viewpoints`, `Hud` (1.397.0), `CameraScreen` (1.649.0)
 - `net.exylia.lib.camera.internal` — the runtime, the path solver and the one
   class that names PacketEvents
 - `CameraShotTest`, `CameraPathTest` — the parser and the geometry, both without

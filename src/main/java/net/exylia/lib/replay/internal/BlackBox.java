@@ -13,10 +13,14 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -380,7 +384,31 @@ public final class BlackBox {
      */
     private static boolean due(Tape tape, Entity entity, int tick, int every) {
         int since = tick - tape.seen;
-        return since < 0 || since >= every || entity instanceof Player;
+        return since < 0 || since >= every || entity instanceof Player || flying(entity);
+    }
+
+    /** A projectile in the air: three blocks a tick, too fast to read every other one. */
+    private static boolean flying(Entity entity) {
+        return entity instanceof Projectile && !(entity instanceof AbstractArrow arrow && arrow.isInBlock());
+    }
+
+    /** A projectile struck somebody: its last frame where it went in, since it is removed before a timer reads it. */
+    void landed(Projectile projectile, Entity hit) {
+        if (!running) return;
+        Tape tape = tapes.get(projectile.getUniqueId());
+        if (tape == null) return;
+        Location from = projectile.getLocation();
+        Vector start = from.toVector();
+        Vector velocity = projectile.getVelocity();
+        Vector at = start;
+        if (velocity.lengthSquared() > 1.0E-6) {
+            // The box the game tests a projectile against: the body's, a little larger.
+            RayTraceResult struck = hit.getBoundingBox().expand(0.3)
+                    .rayTrace(start, velocity.clone().normalize(), velocity.length() + 1);
+            if (struck != null) at = struck.getHitPosition();
+        }
+        tape.landed(ReplayClock.now(), from.getWorld().getUID(), at.getX(), at.getY(), at.getZ(),
+                from.getYaw(), from.getPitch());
     }
 
     /**

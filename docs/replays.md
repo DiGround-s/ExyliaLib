@@ -384,6 +384,52 @@ playback: `playback.view(View.ATTACKER)` reproduces the screen of whoever was
 last looked out of, and `ReplayViewer#follow(actor, view)` sets both for that
 viewer. `cycleFollow()` keeps a behind or orbit camera on the next player.
 
+### A camera the plugin steers (since 1.649.0)
+
+For a replay that is filmed rather than followed (a killcam chasing an arrow,
+circling the body, pushing in on the last hit), hand a viewer a `Shot`. It is
+asked where the camera stands on every frame, paused frames included, on the
+playback's own thread, and wins over the camera they chose until it is taken
+away:
+
+```java
+playback.direct(viewer, p -> {
+    Location body = p.drawnAt(victim);            // between two frames, smooth in slow motion
+    if (body == null) return null;                // null leaves the camera where it was
+    double angle = Math.toRadians(p.tick() * 2.0);
+    Location eye = body.clone().add(Math.cos(angle) * 4, 2, Math.sin(angle) * 4);
+    return eye.setDirection(body.toVector().subtract(eye.toVector()));
+});
+playback.direct(viewer, null);                    // their own camera again
+```
+
+`drawnAt(actor)` is where a body is drawn right now, between two frames
+included; `locationOf` stands on whole frames and steps visibly at a slow
+speed. A shot only reads the playback and does arithmetic: nothing slow and
+nothing that touches the world.
+
+`highlight(List.of(killer, victim))` makes several bodies glow at once.
+
+`screen(viewer)` is what rides that viewer's camera while it has a body of its
+own (behind, orbit, or a steered shot): a colour over the whole view, a title
+card that lands, a typewritten line at the foot, a caption at the top and the
+letterbox bars (`net.exylia.lib.camera.CameraScreen`). A black fill hides the
+scene but glowing bodies still draw their outline over it, which is an impact
+frame with no resource pack:
+
+```java
+CameraScreen screen = playback.screen(viewer);
+screen.fill(0xFF000000, 0);                       // black at once...
+playback.highlight(List.of(killer, victim));      // ...with both outlines on it
+screen.fill(0x00000000, 300);                     // and gone again over 0.3s
+screen.title(Component.text("ONE SHOT"), 2.5, 150);
+screen.line(Component.text("Steve · Iron Sword"), 40);
+```
+
+Nothing shows while the viewer looks out of somebody's eyes or their own; it
+shows again when their camera has a body once more, and it is taken off when
+the playback lets them go.
+
 ## Rooms
 
 ```java

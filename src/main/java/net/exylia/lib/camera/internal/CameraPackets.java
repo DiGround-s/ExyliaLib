@@ -51,6 +51,7 @@ final class CameraPackets implements CameraSink {
 
     /** Display metadata, from the vanilla protocol; see the display module. */
     private static final int INTERPOLATION_DELAY = 8;
+    private static final int TRANSFORMATION_DURATION = 9;
     private static final int POS_ROT_DURATION = 10;
     private static final int TRANSLATION = 11;
     private static final int SCALE = 12;
@@ -157,6 +158,21 @@ final class CameraPackets implements CameraSink {
                 new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, panel.lineWidth()),
                 new EntityData<>(BACKGROUND, EntityDataTypes.INT, panel.background()),
                 new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, flags))));
+    }
+
+    /**
+     * Moves a panel to a new place and size, the client gliding it there over
+     * a few ticks rather than jumping: how a title card lands.
+     */
+    void glide(List<Player> viewers, int entityId, CameraOverlay.Panel panel, int ticks) {
+        float distance = panel.distance();
+        send(viewers, new WrapperPlayServerEntityMetadata(entityId, List.of(
+                new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0),
+                new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, Math.max(1, ticks)),
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F,
+                        new Vector3f(panel.x() * distance, panel.y() * distance, -distance)),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F,
+                        new Vector3f(panel.scaleX() * distance, panel.scaleY() * distance, 1f)))));
     }
 
     @Override
