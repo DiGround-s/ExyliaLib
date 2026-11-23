@@ -522,8 +522,13 @@ public final class OverlayView {
         UiItem item = live.get(index);
         ClickBindings bound = item != null ? item.bindings() : definition.emptyHand();
         List<ActionTemplate> actions = bound.forClick(kind);
-        List<CommandLine> commands = bound.commandsForClick(kind);
+        List<CommandLine> declared = bound.commandsForClick(kind);
+        List<CommandLine> commands = runnable(declared, target);
         if (actions.isEmpty() && commands.isEmpty()) {
+            // A tool whose commands are all about a player, pressed on nothing.
+            if (!declared.isEmpty()) {
+                play(definition.sounds().denied());
+            }
             return;
         }
         // A macro presses far faster than a hand, and every press runs actions
@@ -543,6 +548,24 @@ public final class OverlayView {
         if (definition.refresh().isOnClick()) {
             drawSlot(index);
         }
+    }
+
+    /**
+     * The lines a press can run: one on nothing drops every line about
+     * {@code %target%}, which would otherwise run with the placeholder as its
+     * argument and land on the wrong player or none.
+     */
+    static List<CommandLine> runnable(List<CommandLine> commands, @Nullable Entity target) {
+        if (target != null) {
+            return commands;
+        }
+        List<CommandLine> kept = new ArrayList<>(commands.size());
+        for (CommandLine command : commands) {
+            if (!command.reads("target") && !command.reads("target_uuid")) {
+                kept.add(command);
+            }
+        }
+        return kept;
     }
 
     /**

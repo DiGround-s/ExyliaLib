@@ -223,7 +223,9 @@ Actions are given `overlay.id`, `overlay.slot`, `overlay.click`, and —
 when the press was on something — `overlay.target` (the entity) and
 `overlay.block`. `OverlayKeys` names them. Commands read the entity as
 `%target%` (its name) and `%target_uuid%`, so `right: player: inspect %target%`
-inspects the player that was clicked.
+inspects the player that was clicked. Pressed on nothing, a line that reads
+`%target%` or `%target_uuid%` does not run (since 1.650.0, also in hotbars); a
+press left with nothing to run plays the denied sound.
 
 Left-clicking **air** is the swing of the arm, because that is the only packet
 the client sends for it. A block press stops reaching the server as soon as the

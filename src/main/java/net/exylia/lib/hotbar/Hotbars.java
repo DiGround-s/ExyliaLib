@@ -363,6 +363,20 @@ public final class Hotbars {
         if (item == null) return done(ActionResult.stop("no such hotbar item"));
         Player player = context.player();
         ClickKind kind = context.get(OverlayKeys.CLICK).orElse(ClickKind.RIGHT);
+        org.bukkit.entity.Entity target = context.get(OverlayKeys.TARGET).orElse(null);
+        var commands = item.bindings().commandsForClick(kind);
+        if (target == null) {
+            // A line about %target% pressed on nothing would run with the
+            // bare placeholder; it is dropped, and a press left with nothing
+            // to do is refused before it spends the cooldown.
+            var declared = commands;
+            commands = declared.stream()
+                    .filter(command -> !command.reads("target") && !command.reads("target_uuid"))
+                    .toList();
+            if (commands.isEmpty() && !declared.isEmpty() && item.bindings().forClick(kind).isEmpty()) {
+                return done(ActionResult.denied("no target"));
+            }
+        }
         Duration cooldown = item.item().cooldown();
         if (!cooldown.isZero()) {
             String key = "hotbar." + compiled.set().name() + "." + item.item().id();
@@ -372,8 +386,8 @@ public final class Hotbars {
                 return done(ActionResult.denied("cooldown"));
             }
         }
-        var commands = item.bindings().commandsForClick(kind);
-        if (!commands.isEmpty()) Commands.of(plugin).run(commands, player);
+        if (!commands.isEmpty()) Commands.of(plugin).run(commands, player, target == null ? Map.of()
+                : Map.of("target", target.getName(), "target_uuid", target.getUniqueId().toString()));
         List<ActionStep> steps = new ArrayList<>();
         for (ActionTemplate template : item.bindings().forClick(kind)) {
             ActionCall call = template.resolveOrNoop(player, Map.of());

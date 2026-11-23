@@ -121,6 +121,19 @@ public final class CommandLine {
         return raw;
     }
 
+    /**
+     * Whether the line names a value, written as {@code %name%}, that it cannot
+     * run without: {@code console: kick %target%} pressed on nothing must not
+     * run with the bare placeholder as its argument.
+     *
+     * @param name the value's name, without the percent signs
+     * @return true when the line reads it
+     * @since 1.650.0
+     */
+    public boolean reads(@NotNull String name) {
+        return raw.contains('%' + name + '%');
+    }
+
     /** Returns whether this command has to be rendered before it can run. */
     public boolean isDynamic() {
         return fixed == null;
