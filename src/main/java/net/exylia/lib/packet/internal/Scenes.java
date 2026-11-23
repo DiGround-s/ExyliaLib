@@ -42,7 +42,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * than any entity that existed then (every entity id comes from the server's one counter): another
  * plugin's entity already there, or spawned again under its old id, is parked; so is a real player.
  *
- * <p>Runs on the viewer's netty thread for packets, and from any thread for {@link #seal}.
+ * <p>Runs on the viewer's netty thread for packets, and from any thread for {@link #seal}. Every decision to
+ * park or put back is taken holding the viewer's {@link View}: a packet that saw a box up must not mark its
+ * entity parked after a {@link #seal} that lifted the box has already put everything back, or it stays parked.
  */
 final class Scenes {
 
@@ -115,24 +117,28 @@ final class Scenes {
      */
     static void seal(Player viewer, String owner, @Nullable Volume box) {
         View view = VIEWS.computeIfAbsent(viewer.getUniqueId(), ignored -> new View());
-        if (box == null) {
-            if (view.boxes.remove(owner) == null) return;
-        } else {
-            if (view.boxes.isEmpty()) {
-                // Everything spawned from now on with a newer id is the scene's; nothing before it is.
-                view.watermark = SpigotReflectionUtil.generateEntityId();
-                view.seen.values().forEach(seen -> seen.own = false);
+        synchronized (view) {
+            if (box == null) {
+                if (view.boxes.remove(owner) == null) return;
+            } else {
+                if (view.boxes.isEmpty()) {
+                    // Everything spawned from now on with a newer id is the scene's; nothing before it is.
+                    view.watermark = SpigotReflectionUtil.generateEntityId();
+                    view.seen.values().forEach(seen -> seen.own = false);
+                }
+                view.boxes.put(owner, box);
             }
-            view.boxes.put(owner, box);
+            refresh(viewer, view);
         }
-        refresh(viewer, view);
     }
 
     /** Keeps one entity in a viewer's sight inside their boxes, or lets the boxes park it again. */
     static void spare(Player viewer, int entityId, boolean on) {
         View view = VIEWS.computeIfAbsent(viewer.getUniqueId(), ignored -> new View());
-        if (on ? !view.spared.add(entityId) : !view.spared.remove(entityId)) return;
-        refresh(viewer, view);
+        synchronized (view) {
+            if (on ? !view.spared.add(entityId) : !view.spared.remove(entityId)) return;
+            refresh(viewer, view);
+        }
     }
 
     /** Parks what should be parked now and puts back what should not. */
@@ -188,14 +194,16 @@ final class Scenes {
             View view = VIEWS.get(viewer);
             if (view == null || event.getUser() == null) return;
             WrapperPlayServerSetPassengers passengers = new WrapperPlayServerSetPassengers(event);
-            Seen seen = view.seen.get(passengers.getEntityId());
-            if (seen == null) return;
             boolean carries = false;
             for (int passenger : passengers.getPassengers()) carries |= passenger == event.getUser().getEntityId();
-            seen.carrier = carries;
-            if (carries && seen.parked) {
-                seen.parked = false;
-                after(event, teleport(passengers.getEntityId(), seen, false));
+            synchronized (view) {
+                Seen seen = view.seen.get(passengers.getEntityId());
+                if (seen == null) return;
+                seen.carrier = carries;
+                if (carries && seen.parked) {
+                    seen.parked = false;
+                    after(event, teleport(passengers.getEntityId(), seen, false));
+                }
             }
         } else if (type == PacketType.Play.Server.JOIN_GAME || type == PacketType.Play.Server.RESPAWN) {
             // A new level on the client: every entity it had is gone.
@@ -210,12 +218,15 @@ final class Scenes {
         int id = spawn.getEntityId();
         Vector3d at = spawn.getPosition();
         Seen seen = new Seen(at.getX(), at.getY(), at.getZ(), spawn.getYaw(), spawn.getPitch());
-        seen.own = !view.boxes.isEmpty() && id > view.watermark && !PacketRuntime.isPlayerEntity(id);
-        view.seen.put(id, seen);
-        if (shouldPark(view, id, seen)) {
-            seen.parked = true;
-            spawn.setPosition(away(seen));
-            event.markForReEncode(true);
+        boolean player = PacketRuntime.isPlayerEntity(id);
+        synchronized (view) {
+            seen.own = !view.boxes.isEmpty() && id > view.watermark && !player;
+            view.seen.put(id, seen);
+            if (shouldPark(view, id, seen)) {
+                seen.parked = true;
+                spawn.setPosition(away(seen));
+                event.markForReEncode(true);
+            }
         }
     }
 
@@ -239,20 +250,28 @@ final class Scenes {
             dy = move.getDeltaY();
             dz = move.getDeltaZ();
         }
-        Seen seen = view.seen.get(id);
-        if (seen == null) return;
-        seen.x += dx;
-        seen.y += dy;
-        seen.z += dz;
-        if (view.boxes.isEmpty() && !seen.parked) return;
-        boolean park = shouldPark(view, id, seen);
-        if (park == seen.parked) return;
-        seen.parked = park;
-        // The move itself is let through: the client applies it where the entity is now, then this.
-        after(event, teleport(id, seen, park));
+        synchronized (view) {
+            Seen seen = view.seen.get(id);
+            if (seen == null) return;
+            seen.x += dx;
+            seen.y += dy;
+            seen.z += dz;
+            if (view.boxes.isEmpty() && !seen.parked) return;
+            boolean park = shouldPark(view, id, seen);
+            if (park == seen.parked) return;
+            seen.parked = park;
+            // The move itself is let through: the client applies it where the entity is now, then this.
+            after(event, teleport(id, seen, park));
+        }
     }
 
     private static void movedTo(PacketSendEvent event, View view, int id, Vector3d at, float yaw, float pitch) {
+        synchronized (view) {
+            movedToLocked(event, view, id, at, yaw, pitch);
+        }
+    }
+
+    private static void movedToLocked(PacketSendEvent event, View view, int id, Vector3d at, float yaw, float pitch) {
         Seen seen = view.seen.get(id);
         if (seen == null) return;
         seen.x = at.getX();
