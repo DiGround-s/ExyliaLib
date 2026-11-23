@@ -61,7 +61,7 @@ final class EntrySource<R extends Record> implements Source {
     public JsonObject schema(String pluginName) {
         JsonObject map = new JsonObject();
         map.addProperty("type", "map");
-        map.add("of", RecordJson.schema(type, pluginName));
+        map.add("of", withDefaults(RecordJson.schema(type, pluginName), pluginName));
         JsonObject field = new JsonObject();
         field.addProperty("key", key);
         field.add("comments", new JsonArray());
@@ -169,9 +169,32 @@ final class EntrySource<R extends Record> implements Source {
 
     private R blank(String id) {
         R value = store.blank(id);
-        if (value != null) {
-            return value;
+        return value != null ? value : declared();
+    }
+
+    /**
+     * Each field of an entry's schema with the value a new entry starts with ({@code "default"}), so the
+     * editor fills a new entry as the server would and tells a field meant to be empty from one left blank.
+     */
+    private JsonObject withDefaults(JsonObject section, String pluginName) {
+        JsonObject defaults;
+        try {
+            defaults = RecordJson.write(type, pluginName, declared());
+        } catch (RuntimeException failure) {
+            return section;
         }
+        for (JsonElement element : section.getAsJsonArray("fields")) {
+            JsonObject field = element.getAsJsonObject();
+            JsonElement value = defaults.get(field.get("key").getAsString());
+            if (value != null) {
+                field.add("default", value.deepCopy());
+            }
+        }
+        return section;
+    }
+
+    /** The record's own defaults, from its no-arg constructor. */
+    private R declared() {
         try {
             var constructor = type.getDeclaredConstructor();
             constructor.setAccessible(true);
