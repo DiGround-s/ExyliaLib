@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 /** A registered subject over a YAML file the plugin reads itself. */
 final class YamlSubjectImpl extends SubjectImpl implements YamlSubject {
 
-    static final Pattern PATH = Pattern.compile("[A-Za-z0-9_-]{1,64}(?:/[A-Za-z0-9_-]{1,64}){0,3}");
+    static final Pattern PATH = Pattern.compile("[A-Za-z0-9_-]{1,64}(?:/[A-Za-z0-9_-]{1,64}){0,7}");
 
     private final YamlSource yaml;
 
