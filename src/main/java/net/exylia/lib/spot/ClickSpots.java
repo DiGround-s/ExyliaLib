@@ -26,6 +26,7 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -507,6 +508,15 @@ public final class ClickSpots {
             if (spot == null) return;
             event.setCancelled(true);
             clicked(player, spot.id());
+        }
+
+        /** A world the plugin creates after enabling (its own map) shows its spots once it is there. */
+        @EventHandler
+        public void onWorld(WorldLoadEvent event) {
+            String name = event.getWorld().getName();
+            for (Spot spot : List.copyOf(spots.values())) {
+                if (name.equals(spot.world())) show(spot);
+            }
         }
 
         @EventHandler
