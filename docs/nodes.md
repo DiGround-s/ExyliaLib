@@ -52,6 +52,11 @@ A respawn or world change drops every entity on the client, so nodes are sent
 again on the next pass. A player who leaves loses their nodes, and a plugin's
 nodes go away when it is disabled.
 
+Bedrock players (Geyser) have no display entities, so since 1.657.0 they see a
+block node as a client-side block and an item node as a floating dropped item;
+hitting or using that block counts as a click on the node. Glow and smooth
+scaling do not exist there: a Bedrock node is drawn, or at size 0 hidden.
+
 Nodes do not hide players or real blocks: pair them with
 [packets](packets.md) `visibility()` or block masks when a farm must look empty
 to everybody else.

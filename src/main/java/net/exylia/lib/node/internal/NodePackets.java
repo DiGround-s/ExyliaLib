@@ -12,6 +12,12 @@ import com.github.retrooper.packetevents.protocol.packettype.PacketType;
 import com.github.retrooper.packetevents.util.Vector3d;
 import com.github.retrooper.packetevents.util.Vector3f;
 import com.github.retrooper.packetevents.wrapper.PacketWrapper;
+import com.github.retrooper.packetevents.protocol.player.DiggingAction;
+import com.github.retrooper.packetevents.util.Vector3i;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerBlockPlacement;
+import com.github.retrooper.packetevents.wrapper.play.client.WrapperPlayClientPlayerDigging;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerAcknowledgeBlockChanges;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerBlockChange;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
@@ -19,6 +25,8 @@ import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
 import net.exylia.lib.interaction.Click;
 import net.exylia.lib.packet.internal.EntityClicks;
+import net.exylia.lib.client.Clients;
+import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -26,9 +34,18 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
-/** Node packets through PacketEvents. Loaded only when PacketEvents is installed. */
+/**
+ * Node packets through PacketEvents. Loaded only when PacketEvents is installed.
+ *
+ * <p>Bedrock (Geyser) draws no display entities, so a Bedrock viewer gets a
+ * client-side block for a block node and a floating item for an item node; the
+ * click box is the same. Glow and smooth scaling have no Bedrock form: a node
+ * there is either drawn or, at size 0, not.
+ */
 final class NodePackets implements NodeSink {
 
     static final NodePackets INSTANCE = new NodePackets();
@@ -45,6 +62,11 @@ final class NodePackets implements NodeSink {
     private static final int INTERACTION_WIDTH = 8;
     private static final int INTERACTION_HEIGHT = 9;
     private static final int INTERACTION_RESPONSIVE = 10;
+    private static final int NO_GRAVITY = 5;
+    private static final int ITEM_STACK = 8;
+
+    /** Bedrock nodes at size 0, which are not drawn. */
+    private static final Set<Integer> HIDDEN = ConcurrentHashMap.newKeySet();
 
 
     private NodePackets() {
@@ -66,6 +88,16 @@ final class NodePackets implements NodeSink {
 
     @Override
     public void spawn(NodeImpl node) {
+        if (bedrock(node)) {
+            if (node.size() <= 0f) {
+                HIDDEN.add(node.displayId);
+            } else {
+                HIDDEN.remove(node.displayId);
+                drawBedrock(node);
+            }
+            spawnBox(node);
+            return;
+        }
         boolean block = node.isBlock();
         send(node.viewer, new WrapperPlayServerSpawnEntity(node.displayId, Optional.of(UUID.randomUUID()),
                 block ? EntityTypes.BLOCK_DISPLAY : EntityTypes.ITEM_DISPLAY,
@@ -83,7 +115,10 @@ final class NodePackets implements NodeSink {
             data.addAll(transform(node, size));
         }
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, data));
+        spawnBox(node);
+    }
 
+    private void spawnBox(NodeImpl node) {
         send(node.viewer, new WrapperPlayServerSpawnEntity(node.hitboxId, Optional.of(UUID.randomUUID()),
                 EntityTypes.INTERACTION, boxAt(node), 0f, 0f, 0f, 0, Optional.empty()));
         sendBox(node);
@@ -107,17 +142,30 @@ final class NodePackets implements NodeSink {
 
     @Override
     public void despawn(NodeImpl node) {
+        if (bedrock(node)) {
+            HIDDEN.remove(node.displayId);
+            if (node.isBlock()) restoreBlock(node);
+        }
         send(node.viewer, new WrapperPlayServerDestroyEntities(node.displayId, node.hitboxId));
     }
 
     @Override
     public void look(NodeImpl node) {
+        if (bedrock(node)) {
+            if (!HIDDEN.contains(node.displayId)) {
+                if (node.isBlock()) drawBedrock(node);
+                else send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, List.of(lookData(node))));
+            }
+            sendBox(node);
+            return;
+        }
         send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, List.of(lookData(node))));
         sendBox(node);
     }
 
     @Override
     public void glow(NodeImpl node) {
+        if (bedrock(node)) return;
         Integer glow = node.glowColor();
         List<EntityData<?>> data = new ArrayList<>();
         data.add(new EntityData<>(ENTITY_FLAGS, EntityDataTypes.BYTE, glow != null ? FLAG_GLOWING : (byte) 0));
@@ -129,6 +177,19 @@ final class NodePackets implements NodeSink {
 
     @Override
     public void scale(NodeImpl node, float size, int ticks) {
+        if (bedrock(node)) {
+            boolean hide = size <= 0f;
+            if (hide == HIDDEN.contains(node.displayId)) return;
+            if (hide) {
+                HIDDEN.add(node.displayId);
+                if (node.isBlock()) restoreBlock(node);
+                else send(node.viewer, new WrapperPlayServerDestroyEntities(node.displayId));
+            } else {
+                HIDDEN.remove(node.displayId);
+                drawBedrock(node);
+            }
+            return;
+        }
         List<EntityData<?>> data = new ArrayList<>(transform(node, size));
         data.add(new EntityData<>(INTERPOLATION_DELAY, EntityDataTypes.INT, 0));
         data.add(new EntityData<>(TRANSFORMATION_DURATION, EntityDataTypes.INT, ticks));
@@ -146,6 +207,48 @@ final class NodePackets implements NodeSink {
         return List.of(
                 new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, new Vector3f(shift, 0f, shift)),
                 new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f(size, size, size)));
+    }
+
+    private static boolean bedrock(NodeImpl node) {
+        return Clients.isBedrock(node.viewer);
+    }
+
+    /** A Bedrock node as the client can draw it: the block itself, or a dropped item that floats. */
+    private static void drawBedrock(NodeImpl node) {
+        Object look = node.look();
+        if (look instanceof BlockData block) {
+            sendBlock(node, SpigotConversionUtil.fromBukkitBlockData(block).getGlobalId());
+            return;
+        }
+        send(node.viewer, new WrapperPlayServerSpawnEntity(node.displayId, Optional.of(UUID.randomUUID()),
+                EntityTypes.ITEM, new Vector3d(node.at.getX(), node.at.getY() - 0.25, node.at.getZ()),
+                0f, 0f, 0f, 0, Optional.of(new Vector3d(0, 0, 0))));
+        send(node.viewer, new WrapperPlayServerEntityMetadata(node.displayId, List.of(
+                new EntityData<>(NO_GRAVITY, EntityDataTypes.BOOLEAN, true),
+                new EntityData<>(ITEM_STACK, EntityDataTypes.ITEMSTACK,
+                        SpigotConversionUtil.fromBukkitItemStack((ItemStack) look)))));
+    }
+
+    /** Puts back what the server really has where a Bedrock block node stood. */
+    private static void restoreBlock(NodeImpl node) {
+        World world = node.at.getWorld();
+        int x = node.at.getBlockX(), z = node.at.getBlockZ();
+        // ponytail: read off the region thread; a loaded chunk's block read is safe enough on Paper/Leaf.
+        if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) return;
+        BlockData real = world.getBlockData(x, node.at.getBlockY(), z);
+        sendBlock(node, SpigotConversionUtil.fromBukkitBlockData(real).getGlobalId());
+    }
+
+    private static void sendBlock(NodeImpl node, int state) {
+        send(node.viewer, new WrapperPlayServerBlockChange(
+                new Vector3i(node.at.getBlockX(), node.at.getBlockY(), node.at.getBlockZ()), state));
+    }
+
+    /** A Bedrock block node redrawn: after a chunk or a click may have overwritten it. */
+    @Override
+    public void redraw(NodeImpl node) {
+        if (!bedrock(node)) return;
+        if (!HIDDEN.contains(node.displayId)) drawBedrock(node);
     }
 
     private static EntityData<?> lookData(NodeImpl node) {
@@ -167,6 +270,9 @@ final class NodePackets implements NodeSink {
         PacketListenerAbstract listener = new PacketListenerAbstract(PacketListenerPriority.NORMAL) {
             @Override
             public void onPacketReceive(PacketReceiveEvent event) {
+                if (blockPress(event)) {
+                    return;
+                }
                 EntityClicks.Press press = EntityClicks.read(event);
                 if (press == null || !NodeRuntime.owns(press.entityId())
                         || !(event.getPlayer() instanceof Player player)) {
@@ -185,11 +291,62 @@ final class NodePackets implements NodeSink {
                 if (event.getPacketType() == PacketType.Play.Server.RESPAWN
                         && event.getPlayer() instanceof Player player) {
                     event.getPostTasks().add(() -> NodeRuntime.respawned(player));
+                } else if (event.getPacketType() == PacketType.Play.Server.CHUNK_DATA
+                        && event.getPlayer() instanceof Player player && Clients.isBedrock(player)) {
+                    // A chunk overwrites the client blocks Bedrock nodes are drawn as.
+                    NodeRuntime.chunkSent(player);
                 }
             }
         };
         PacketEvents.getAPI().getEventManager().registerListener(listener);
         return listener;
+    }
+
+    /**
+     * A Bedrock player hitting or using the client block a node is drawn as:
+     * the same click as on its box. The block comes back at once, since the
+     * client may already have broken it.
+     */
+    private static boolean blockPress(PacketReceiveEvent event) {
+        boolean attack;
+        Vector3i pos;
+        int sequence;
+        if (event.getPacketType() == PacketType.Play.Client.PLAYER_DIGGING) {
+            WrapperPlayClientPlayerDigging dig = new WrapperPlayClientPlayerDigging(event);
+            if (dig.getAction() != DiggingAction.START_DIGGING && dig.getAction() != DiggingAction.FINISHED_DIGGING
+                    && dig.getAction() != DiggingAction.CANCELLED_DIGGING) {
+                return false;
+            }
+            attack = dig.getAction() == DiggingAction.START_DIGGING;
+            pos = dig.getBlockPosition();
+            sequence = dig.getSequence();
+        } else if (event.getPacketType() == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT) {
+            WrapperPlayClientPlayerBlockPlacement use = new WrapperPlayClientPlayerBlockPlacement(event);
+            if (use.getHand() != com.github.retrooper.packetevents.protocol.player.InteractionHand.MAIN_HAND) {
+                return false;
+            }
+            attack = false;
+            pos = use.getBlockPosition();
+            sequence = use.getSequence();
+        } else {
+            return false;
+        }
+        if (!(event.getPlayer() instanceof Player player) || !Clients.isBedrock(player)) {
+            return false;
+        }
+        NodeImpl node = NodeRuntime.blockNodeAt(player, pos.getX(), pos.getY(), pos.getZ());
+        if (node == null) {
+            return false;
+        }
+        event.setCancelled(true);
+        send(player, new WrapperPlayServerAcknowledgeBlockChanges(sequence));
+        INSTANCE.redraw(node);
+        // Only the press counts; the finish or cancel of the same swing is just refused.
+        if (attack || event.getPacketType() == PacketType.Play.Client.PLAYER_BLOCK_PLACEMENT) {
+            NodeRuntime.pressed(player);
+            NodeRuntime.clicked(player, node.hitboxId, Click.of(attack, player.isSneaking()));
+        }
+        return true;
     }
 
     static void stopListening(Object listener) {

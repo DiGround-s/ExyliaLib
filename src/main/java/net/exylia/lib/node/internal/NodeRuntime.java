@@ -206,6 +206,7 @@ public final class NodeRuntime {
     /** Forgets a leaving player's nodes. No packets: the client is gone. */
     public static void forget(Player player) {
         PRESSED.remove(player.getUniqueId());
+        CHUNKED.remove(player.getUniqueId());
         Viewer viewer = VIEWERS.remove(player.getUniqueId());
         if (viewer == null) {
             return;
@@ -339,6 +340,26 @@ public final class NodeRuntime {
         return dx * dx + dy * dy + dz * dz <= REACH * REACH;
     }
 
+    /** Bedrock viewers sent a chunk since the last pass, whose node blocks are drawn again on it. */
+    private static final Set<UUID> CHUNKED = ConcurrentHashMap.newKeySet();
+
+    static void chunkSent(Player player) {
+        if (VIEWERS.containsKey(player.getUniqueId())) CHUNKED.add(player.getUniqueId());
+    }
+
+    /** The shown block node of this player standing at a block position, or {@code null}. */
+    static NodeImpl blockNodeAt(Player player, int x, int y, int z) {
+        Viewer viewer = VIEWERS.get(player.getUniqueId());
+        if (viewer == null) return null;
+        for (NodeImpl node : viewer.nodes()) {
+            if (node.isBlock() && node.shown() && !node.isRemoved() && node.at.getWorld() == player.getWorld()
+                    && node.at.getBlockX() == x && node.at.getBlockY() == y && node.at.getBlockZ() == z) {
+                return node;
+            }
+        }
+        return null;
+    }
+
     /** The viewer's client dropped every entity (respawn, world change): resend on the next pass. */
     static void respawned(Player player) {
         Viewer viewer = VIEWERS.get(player.getUniqueId());
@@ -375,6 +396,11 @@ public final class NodeRuntime {
     }
 
     private static void show(Viewer viewer) {
+        if (CHUNKED.remove(viewer.player().getUniqueId())) {
+            for (NodeImpl node : viewer.nodes()) {
+                if (node.isBlock() && node.shown() && !node.isRemoved()) sink().redraw(node);
+            }
+        }
         Location from = Viewpoints.of(viewer.player());
         World world = from.getWorld();
         double x = from.getX();

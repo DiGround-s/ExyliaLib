@@ -13,4 +13,8 @@ interface NodeSink {
     void glow(NodeImpl node);
 
     void scale(NodeImpl node, float size, int ticks);
+
+    /** Draws it again where the client may have lost it (Bedrock blocks after a chunk). */
+    default void redraw(NodeImpl node) {
+    }
 }
