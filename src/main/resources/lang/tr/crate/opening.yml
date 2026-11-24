@@ -1,0 +1,10 @@
+# Words of the crate opening screen (crate/opening.html), one per t="key" there. Keep the %placeholders%.
+title: 'Kasa açılışı'
+hint: '{letters_black}Geçmek için Shift · hızlandırmak için tıkla'
+counter: '{letters_black}Kasa'
+refund: '{warning}Zaten sende {letters_black}» {highlight}+%crate_refund% {letters}iade'
+duplicate: '{warning}Zaten sende'
+new: '{success}✔ Koleksiyonunda yeni'
+rolling: '{letters_black}Dönüyor…'
+again: '{success}&lBİR TANE DAHA AÇ'
+done: '{highlight}&lTAMAM'

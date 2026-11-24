@@ -1,0 +1,10 @@
+# Words of the crate opening screen (crate/opening.html), one per t="key" there. Keep the %placeholders%.
+title: 'Kistenöffnung'
+hint: '{letters_black}Shift zum Überspringen · Klick zum Beschleunigen'
+counter: '{letters_black}Kiste'
+refund: '{warning}Schon im Besitz {letters_black}» {highlight}+%crate_refund% {letters}zurück'
+duplicate: '{warning}Schon im Besitz'
+new: '{success}✔ Neu in deiner Sammlung'
+rolling: '{letters_black}Dreht sich…'
+again: '{success}&lNOCH EINE'
+done: '{highlight}&lFERTIG'

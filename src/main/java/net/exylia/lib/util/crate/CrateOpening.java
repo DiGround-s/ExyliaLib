@@ -14,5 +14,12 @@ public enum CrateOpening {
      * A crate stands in the world in front of the player ({@code net.exylia.lib.spatial.crate.CrateScene}).
      * Falls back to {@link #INVENTORY} without PacketEvents.
      */
-    SPATIAL
+    SPATIAL,
+    /**
+     * The reel and the reveal on a full screen ({@code net.exylia.lib.spatial.crate.CrateScreen}). Falls back to
+     * {@link #INVENTORY} for a player who cannot be shown screens.
+     *
+     * @since 1.654.0
+     */
+    SCREEN
 }

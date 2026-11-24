@@ -31,6 +31,8 @@ public final class ScreenReel<T> {
     private final List<ScreenScene.Sprite> sprites = new ArrayList<>();
     private final double x, y, pitch;
     private final int rows;
+    /** A row running leftwards instead of a column running down. */
+    private final boolean across;
     private final BiConsumer<ScreenScene.Sprite, T> paint;
     /** Each sprite's place: 0 parked above the window, 1 to rows on view, rows + 1 gone below. */
     private final int[] places;
@@ -46,7 +48,27 @@ public final class ScreenReel<T> {
      */
     public ScreenReel(@NotNull ScreenScene scene, @NotNull String name, double x, double y, double pitch, int rows,
                       @NotNull BiConsumer<ScreenScene.Sprite, T> paint) {
+        this(scene, name, x, y, pitch, rows, paint, false);
+    }
+
+    /**
+     * A reel lying across: a row of {@code slots} symbols running leftwards along its window, new ones coming in at the
+     * right. {@link #rest} and {@link #spin}'s landing are read left to right.
+     *
+     * @param x     the left of its first slot
+     * @param y     the top of its row
+     * @param pitch from one slot to the next
+     * @since 1.654.0
+     */
+    public static <T> @NotNull ScreenReel<T> across(@NotNull ScreenScene scene, @NotNull String name, double x, double y,
+                                                    double pitch, int slots, @NotNull BiConsumer<ScreenScene.Sprite, T> paint) {
+        return new ScreenReel<>(scene, name, x, y, pitch, slots, paint, true);
+    }
+
+    private ScreenReel(ScreenScene scene, String name, double x, double y, double pitch, int rows,
+                       BiConsumer<ScreenScene.Sprite, T> paint, boolean across) {
         this.scene = scene;
+        this.across = across;
         this.x = x;
         this.y = y;
         this.pitch = pitch;
@@ -63,6 +85,17 @@ public final class ScreenReel<T> {
         return y + (place - 1) * pitch;
     }
 
+    /** Moves a sprite to a place: down a column, or leftwards along a row (place 0 parked past the right end). */
+    private void place(ScreenScene.Sprite sprite, int place, double scale, int ticks) {
+        if (across) sprite.to(x + (rows - place) * pitch, y, scale, ticks, Motion.Ease.LINEAR);
+        else sprite.to(x, top(place), scale, ticks, Motion.Ease.LINEAR);
+    }
+
+    /** Left to right as given, in the order the places run (a row's place 1 is its right end). */
+    private List<T> ordered(List<T> symbols) {
+        return across ? symbols.reversed() : symbols;
+    }
+
     private static double size(int place, int rows) {
         return place >= 1 && place <= rows ? 1 : 0;
     }
@@ -70,11 +103,12 @@ public final class ScreenReel<T> {
     /** Draws it stopped on {@code symbols}, top to bottom, as many as it has rows. */
     public void rest(@NotNull List<T> symbols) {
         if (spinning != null) spinning.cancel();
+        symbols = ordered(symbols);
         for (int i = 0; i < places.length; i++) {
             places[i] = i;
             ScreenScene.Sprite sprite = sprites.get(i);
             paint.accept(sprite, symbols.get(i >= 1 && i <= rows ? i - 1 : 0));
-            sprite.to(x, top(i), size(i, rows), 0, Motion.Ease.LINEAR);
+            place(sprite, i, size(i, rows), 0);
         }
     }
 
@@ -86,6 +120,18 @@ public final class ScreenReel<T> {
      * @return the timeline, to cancel it with the round
      */
     public @NotNull ScreenScene.Timeline spin(int ticks, @NotNull Supplier<T> decoy, @NotNull List<T> landing, Runnable landed) {
+        return spin(ticks, decoy, landing, null, landed);
+    }
+
+    /**
+     * As {@link #spin(int, Supplier, List, Runnable)}, running {@code eachStep} with how far through the spin it is (0 to
+     * 1) every time a symbol moves on a place: a tick sound.
+     *
+     * @since 1.654.0
+     */
+    public @NotNull ScreenScene.Timeline spin(int ticks, @NotNull Supplier<T> decoy, @NotNull List<T> landing,
+                                              @org.jetbrains.annotations.Nullable java.util.function.DoubleConsumer eachStep,
+                                              Runnable landed) {
         if (spinning != null) spinning.cancel();
         ScreenScene.Timeline run = scene.timeline();
         if (scene.reducedMotion()) {
@@ -93,13 +139,18 @@ public final class ScreenReel<T> {
             if (landed != null) run.at(Math.max(1, ticks / 3), landed);
             return spinning = run.play();
         }
+        List<T> order = ordered(landing);
         List<Integer> lengths = lengths(ticks, rows);
         int at = 0;
         for (int step = 0; step < lengths.size(); step++) {
             int left = lengths.size() - 1 - step;
             int length = lengths.get(step);
-            T symbol = left >= 1 && left <= rows ? landing.get(left - 1) : null;
-            run.at(at, () -> step(length, symbol != null ? symbol : decoy.get()));
+            T symbol = left >= 1 && left <= rows ? order.get(left - 1) : null;
+            double through = lengths.size() == 1 ? 1 : step / (double) (lengths.size() - 1);
+            run.at(at, () -> {
+                step(length, symbol != null ? symbol : decoy.get());
+                if (eachStep != null) eachStep.accept(through);
+            });
             at += length;
         }
         if (landed != null) run.at(at, landed);
@@ -114,9 +165,9 @@ public final class ScreenReel<T> {
             places[i] = place;
             if (place == 0) {
                 paint.accept(sprite, next);
-                sprite.to(x, top(0), 0, 0, Motion.Ease.LINEAR);
+                place(sprite, 0, 0, 0);
             } else {
-                sprite.to(x, top(place), size(place, rows), length, Motion.Ease.LINEAR);
+                place(sprite, place, size(place, rows), length);
             }
         }
     }

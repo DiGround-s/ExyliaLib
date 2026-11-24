@@ -17,7 +17,7 @@ Nothing to code for the opening itself: a plugin passes its crate section's `ope
 
 ```yaml
 crate:
-  opening: SPATIAL     # INVENTORY (default): the reels in menus/crate_open.yml
+  opening: SPATIAL     # INVENTORY (default): the reels in menus/crate_open.yml; SCREEN: on a full screen (1.654.0)
 ```
 
 The crate's question (how many) is still `menus/crate.yml`; the choice opens the scene. Without
@@ -119,6 +119,37 @@ such as an emote, keeps it down). An NPC lives two minutes and is replaced befor
 the body it leaves wear the same real skin, another online player's or the viewer's
 ([`PreviewSkins.DEFAULT`](npcs.md#preview-bodies-since-1416); since 1.474.0, a vanilla default before).
 
+## On a screen (since 1.654.0)
+
+`CrateScreen` plays the same `CrateShow` on a full [screen](screens.md) instead of in the world, so nothing standing in
+front of the player (a tree, a wall, a zone's hologram) cuts through it. With the crate module it is
+`crate.opening: SCREEN`; a player who cannot be shown screens (no PacketEvents, an old client, a camera holding them)
+gets the inventory reels.
+
+```java
+if (!CrateScreen.of(plugin).play(player, show)) tellInChat(player);   // false: nothing of show was asked
+```
+
+| Moment | What is drawn |
+| --- | --- |
+| Spin | Seven faces (flat item sprites) on a strip, running leftwards under a highlight marker and slowing onto the prize (`ScreenReel.across`); a quiet tick each step, rising as it slows. A face of the best rarity stops right after the prize (the near miss) |
+| Land | The prize is handed over (`reveal`). The other faces shrink away, the prize's 3D model pops up in the middle, bigger the rarer; the marker takes its rarity's colour; a burst and one sound scaled to the rarity (orb, chime, bell, amethyst), to the player alone |
+| Reveal | Under the reel: name, rarity, and *New to your collection*, *Already owned* or *Already owned » +N back*. Held 3.5 s; a click moves on |
+| Next | The next prize of the opening, from a fresh reel; the counter (`Crate 2/3`) shows past one |
+| Done | OPEN ANOTHER (while `canOpenAnother()`) and DONE |
+
+- **Closing hands everything over.** Shift, DONE, another screen opening, death or a world change: every prize not
+  revealed yet goes through `reveal` at once, then `ended(false)`. OPEN ANOTHER closes the same way and then calls
+  `openAnother()`. A quit calls `ended(true)` and nothing else. `ended` runs exactly once.
+- **Previews are not drawn** (`preview` is never asked): a screen shows the prize's icon.
+- **The look** is `plugins/<Plugin>/crate/opening.html` and `opening.css`, words in `lang/<code>/crate/opening.yml`,
+  installed from the library and restyled like any [screen file](screens.md#screen-files) (palette through
+  `var(--token)`, your rules in `custom.css`). The canvas (`<canvas id="reel"/>`, 376 by 104) is drawn from Java; the
+  header, the reveal lines and the buttons are markup. Values: `crate_current`, `crate_total`, `crate_name`,
+  `crate_rarity`, `crate_revealed`, `crate_duplicate`, `crate_refund`, `crate_done`, `crate_again`; actions
+  `crate_again`, `crate_done`.
+- `CrateScreen#available(player)`, `close(player)` (hands everything over) and `isPlaying(player)`.
+
 ## Using it without the crate module
 
 ```java
@@ -147,7 +178,7 @@ CrateScene.of(plugin).play(player, new CrateShow() {
 
 ## Source and tests
 
-- Public: `spatial/crate/` — `CrateScene`, `CrateSceneLayout`, `CrateShow`, `CrateFace`, `CrateReveal`;
+- Public: `spatial/crate/` — `CrateScene`, `CrateScreen` (1.654.0), `CrateSceneLayout`, `CrateShow`, `CrateFace`, `CrateReveal`;
   `util/crate/CrateOpening`, `CrateSettings.opening`, `CrateCatalogue.preview` / `previewVanishes`.
 - Package-private: `SceneSession` (drawing and the clock), `ReelPath` (the reel's maths).
 - Wiring: `util/crate/internal/CrateScreens.runSpatial` turns a paid spin into a `CrateShow` over the
@@ -156,4 +187,5 @@ CrateScene.of(plugin).play(player, new CrateShow() {
 - Tests: `spatial/crate/CrateSceneTest` (the reel stops on the prize for every size, starts and stops
   with the window full, never speeds up or runs back, a near miss touches only the face after the prize,
   sizes along the reel, the layout round-trips, the switch defaults to the inventory and survives a
-  block bind). In game: `test-servers/bot/crate-test.js`.
+  block bind). `spatial/crate/CrateScreenFilesTest` (the screen reads, its canvas matches the reel, every language
+  has every word). In game: `test-servers/bot/crate-test.js`.

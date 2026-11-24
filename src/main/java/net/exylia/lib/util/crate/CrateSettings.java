@@ -112,6 +112,8 @@ public record CrateSettings(
         @Comment("SPATIAL   - a crate in the world in front of the player: a reel of rewards")
         @Comment("            slowing onto the prize, the reveal and a preview of it, from")
         @Comment("            plugins/<Plugin>/spatial/crate.yml. Sneak skips and hands it over.")
+        @Comment("SCREEN    - the same reel and reveal on a full screen, from plugins/<Plugin>/crate/")
+        @Comment("            opening.html. Shift skips and hands it over.")
         @Comment("Either way the prize is decided and the key spent before anything is drawn.")
         CrateOpening opening) {
 

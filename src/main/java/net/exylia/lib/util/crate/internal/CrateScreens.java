@@ -342,14 +342,16 @@ public final class CrateScreens<T> implements Listener {
             return false;
         }
 
-        if (spatial(settings.get().opening(), back != null, CrateScene.of(plugin).available(player))) {
+        boolean screen = back == null && settings.get().opening() == CrateOpening.SCREEN
+                && net.exylia.lib.spatial.crate.CrateScreen.of(plugin).available(player);
+        if (screen || spatial(settings.get().opening(), back != null, CrateScene.of(plugin).available(player))) {
             // Held from now, so a quit in the tick before the scene opens still pays them out.
             List<Reel<T>> reels = new ArrayList<>(bought.size());
             for (T prize : bought) reels.add(Reel.of(0, prize, 1, () -> null));
             Spin<T> spin = new Spin<>(player, reels);
             running.put(uuid, spin);
             // A tick later, out of the click on the button that asked for it.
-            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin, back));
+            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin, back, screen));
             return true;
         }
         inventory(player, bought);
@@ -373,11 +375,11 @@ public final class CrateScreens<T> implements Listener {
     }
 
     /**
-     * The opening in the world ({@link CrateScene}). The prizes are already drawn and paid for: each reel
+     * The opening in the world ({@link CrateScene}), or on a screen when {@code screen}. The prizes are already drawn and paid for: each reel
      * is only the guard that hands its prize over once, when the scene reveals it or when it ends early.
      * A quit is paid by {@link #onQuit}, as with the inventory reels.
      */
-    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin, @Nullable Runnable back) {
+    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin, @Nullable Runnable back, boolean screen) {
         UUID uuid = player.getUniqueId();
         if (!player.isOnline() || running.get(uuid) != spin) return;
         List<Reel<T>> reels = spin.reels;
@@ -450,7 +452,9 @@ public final class CrateScreens<T> implements Listener {
                 });
             }
         };
-        if (!CrateScene.of(plugin).play(player, show)) {
+        boolean played = screen ? net.exylia.lib.spatial.crate.CrateScreen.of(plugin).play(player, show)
+                : CrateScene.of(plugin).play(player, show);
+        if (!played) {
             // Nothing could be drawn there (another plugin's 3D menu, no displays): the reels instead.
             running.remove(uuid, spin);
             inventory(player, bought);

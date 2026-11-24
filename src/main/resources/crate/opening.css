@@ -1,0 +1,28 @@
+/* The crate opening's look (opening.html). ExyliaLib's base theme is read before this file; put your own rules in
+   custom.css next to it. Sizes are screen pixels of a 400 by 225 screen; colours are palette variables. */
+
+small, b, h1, h2, text, button { flex-direction: row; gap: 3px; align-items: center; }
+small { font-size: 7px; }
+
+.crate-frame { width: 400px; height: 225px; gap: 5px; padding: 9px 11px; outline: 1px var(--primary)50;
+               background: linear-gradient(to bottom, var(--primary)10, var(--primary)04); }
+.crate-head { flex-direction: row; align-items: center; gap: 6px; }
+.crate-head-icon { width: 16px; height: 16px; animation: float 60t ease-in-out infinite; }
+.crate-title { gap: 1px; }
+.crate-title h1 { font-size: 13px; }
+.crate-spacer { flex-grow: 1; }
+.crate-pill { align-items: end; gap: 1px; padding: 2px 6px; background: var(--highlight)10; }
+
+.crate-stage { align-items: center; justify-content: center; background: var(--letters-black)08; }
+canvas { width: 376px; height: 104px; }
+
+.crate-reveal { height: 38px; align-items: center; justify-content: center; }
+.crate-prize { align-items: center; gap: 2px; animation: drop-in 6t ease-out; }
+.crate-prize h2 { font-size: 11px; }
+
+.crate-foot { flex-direction: row; height: 18px; gap: 8px; justify-content: center; align-items: center; }
+.crate-button { height: 16px; padding: 0 12px; justify-content: center; font-size: 8px; }
+.crate-button.main { background: var(--success)40; outline: 1px var(--success)80; }
+.crate-button.main:hover { background: var(--success)90; }
+.crate-button.quiet { background: var(--letters-black)14; }
+.crate-button.quiet:hover { background: var(--letters-black)40; }

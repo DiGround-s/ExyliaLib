@@ -38,6 +38,36 @@ class ScreenKitTest {
         assertEquals(List.of("z", "y", "x"), ever.stream().filter(symbol -> !symbol.equals("decoy")).toList());
     }
 
+    @Test
+    void aReelAcrossLandsLeftToRightAndTicksEachStep() {
+        Map<String, String> shows = new HashMap<>();
+        List<String> ever = new ArrayList<>();
+        ScreenReel<String> reel = ScreenReel.across(scene, "row", 10, 5, 40, 3, (sprite, symbol) -> {
+            shows.put(sprite.name(), symbol);
+            ever.add(symbol);
+            sprite.rect(32, 32, "{primary}");
+        });
+        reel.rest(List.of("a", "b", "c"));
+        assertEquals(List.of("a", "b", "c"), List.of(across(10), across(50), across(90)).stream().map(shows::get).toList());
+        ever.clear();
+        List<Double> steps = new ArrayList<>();
+        reel.spin(30, () -> "decoy", List.of("x", "y", "z"), steps::add, null);
+        assertEquals(List.of("x", "y", "z"), List.of(across(10), across(50), across(90)).stream().map(shows::get).toList());
+        // In from the right: the leftmost of the landing comes first.
+        assertEquals(List.of("x", "y", "z"), ever.stream().filter(symbol -> !symbol.equals("decoy")).toList());
+        assertEquals(ScreenReel.lengths(30, 3).size(), steps.size());
+        assertEquals(1.0, steps.getLast());
+        for (int i = 0; i < 5; i++) assertEquals(5, scene.sprite("row_" + i).y(), 0.01);
+    }
+
+    private String across(double x) {
+        for (int i = 0; i < 5; i++) {
+            ScreenScene.Sprite sprite = scene.sprite("row_" + i);
+            if (Math.abs(sprite.x() - x) < 0.01) return sprite.name();
+        }
+        throw new AssertionError("nothing at " + x);
+    }
+
     private String at(ScreenReel<String> reel, double y) {
         for (int i = 0; i < 5; i++) {
             ScreenScene.Sprite sprite = scene.sprite("reel_" + i);

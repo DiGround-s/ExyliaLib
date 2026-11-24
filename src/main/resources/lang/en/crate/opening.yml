@@ -1,0 +1,11 @@
+# Words of the crate opening screen (crate/opening.html), one per t="key" there. Colour tokens such as {success}
+# work here; keep the %placeholders%. Edits show on open screens within seconds.
+title: 'Crate opening'
+hint: '{letters_black}Shift to skip · click to hurry'
+counter: '{letters_black}Crate'
+refund: '{warning}Already owned {letters_black}» {highlight}+%crate_refund% {letters}back'
+duplicate: '{warning}Already owned'
+new: '{success}✔ New to your collection'
+rolling: '{letters_black}Rolling…'
+again: '{success}&lOPEN ANOTHER'
+done: '{highlight}&lDONE'

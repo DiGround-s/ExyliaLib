@@ -1,0 +1,48 @@
+<!--
+  The crate opening in the SCREEN form (CrateScreen): a reel of rewards slides leftwards under the marker and slows onto
+  the prize, which grows in its place with its name, rarity and what became of it; every crate of the opening in turn,
+  then OPEN ANOTHER (while one more can be paid for) and DONE. Shift closes the screen and hands everything over.
+  The reel, the marker and the prize are a scene on <canvas id="reel"/>, drawn from Java; the rest is this file.
+
+  One file for every language: the words come from lang/<code>/crate/opening.yml (t="key"). The look is in
+  opening.css; put your own rules in custom.css next to it and this file keeps updating with the library.
+
+  Values: crate_current, crate_total (the crate shown, of how many), crate_name, crate_rarity (formatted),
+  crate_revealed (the prize is shown), crate_duplicate, crate_refund (what a duplicate gave back), crate_done (every
+  prize shown), crate_again (one more can be opened).
+  Actions: crate_again, crate_done.
+-->
+<screen backdrop="linear-gradient(to bottom, var(--primary)1c, var(--highlight)06)">
+  <column class="crate-frame" assist="false">
+    <row class="crate-head">
+      <item material="ender_chest" class="crate-head-icon"/>
+      <column class="crate-title">
+        <h1 t="title" class="lib-shimmer">Crate opening</h1>
+        <small t="hint">{letters_black}Shift to skip · click to hurry</small>
+      </column>
+      <box class="crate-spacer"/>
+      <column if="crate_total > 1" class="crate-pill">
+        <small t="counter">{letters_black}Crate</small>
+        <b>{highlight}%crate_current%{letters_black}/{info}%crate_total%</b>
+      </column>
+    </row>
+
+    <column class="crate-stage"><canvas id="reel"/></column>
+
+    <column class="crate-reveal">
+      <column if="crate_revealed" class="crate-prize">
+        <h2>%crate_name%</h2>
+        <small>%crate_rarity%</small>
+        <small if="crate_duplicate and crate_refund > 0" t="refund">{warning}Already owned {letters_black}» {highlight}+%crate_refund% {letters}back</small>
+        <small else if="crate_duplicate" t="duplicate">{warning}Already owned</small>
+        <small else t="new">{success}✔ New to your collection</small>
+      </column>
+      <small else t="rolling">{letters_black}Rolling…</small>
+    </column>
+
+    <row class="crate-foot">
+      <button if="crate_done and crate_again" class="crate-button main" action="crate_again" t="again">{success}&lOPEN ANOTHER</button>
+      <button if="crate_done" class="crate-button ${crate_again ? 'quiet' : 'main'}" action="crate_done" t="done">{highlight}&lDONE</button>
+    </row>
+  </column>
+</screen>

@@ -1,0 +1,11 @@
+# Palabras de la pantalla de apertura de cajas (crate/opening.html), una por t="key". Los tokens de color como
+# {success} funcionan aquí; conserva los %placeholders%. Los cambios se ven en las pantallas abiertas en segundos.
+title: 'Apertura de caja'
+hint: '{letters_black}Shift para saltar · clic para acelerar'
+counter: '{letters_black}Caja'
+refund: '{warning}Ya lo tenías {letters_black}» {highlight}+%crate_refund% {letters}devueltas'
+duplicate: '{warning}Ya lo tenías'
+new: '{success}✔ Nuevo en tu colección'
+rolling: '{letters_black}Girando…'
+again: '{success}&lABRIR OTRA'
+done: '{highlight}&lLISTO'

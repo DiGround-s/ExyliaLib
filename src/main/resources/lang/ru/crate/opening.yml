@@ -1,0 +1,10 @@
+# Words of the crate opening screen (crate/opening.html), one per t="key" there. Keep the %placeholders%.
+title: 'Открытие ящика'
+hint: '{letters_black}Shift — пропустить · клик — быстрее'
+counter: '{letters_black}Ящик'
+refund: '{warning}Уже есть {letters_black}» {highlight}+%crate_refund% {letters}возвращено'
+duplicate: '{warning}Уже есть'
+new: '{success}✔ Новое в коллекции'
+rolling: '{letters_black}Крутится…'
+again: '{success}&lОТКРЫТЬ ЕЩЁ'
+done: '{highlight}&lГОТОВО'

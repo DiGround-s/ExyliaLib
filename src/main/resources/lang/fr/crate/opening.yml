@@ -1,0 +1,10 @@
+# Words of the crate opening screen (crate/opening.html), one per t="key" there. Keep the %placeholders%.
+title: 'Ouverture de caisse'
+hint: '{letters_black}Maj pour passer · clic pour accélérer'
+counter: '{letters_black}Caisse'
+refund: '{warning}Déjà obtenu {letters_black}» {highlight}+%crate_refund% {letters}rendus'
+duplicate: '{warning}Déjà obtenu'
+new: '{success}✔ Nouveau dans ta collection'
+rolling: '{letters_black}Ça tourne…'
+again: '{success}&lEN OUVRIR UNE AUTRE'
+done: '{highlight}&lTERMINÉ'
