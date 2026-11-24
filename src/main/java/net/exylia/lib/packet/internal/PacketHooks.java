@@ -287,6 +287,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
                 stripTabEntries(event, viewer);
                 return;
             }
+            if (type == PacketType.Play.Server.PLAYER_INFO_REMOVE) {
+                keepListed(event, viewer);
+                return;
+            }
             if (type == PacketType.Play.Server.TAB_COMPLETE) {
                 stripSuggestions(event, viewer);
                 return;
@@ -788,7 +792,8 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         List<WrapperPlayServerPlayerInfoUpdate.PlayerInfo> kept = new ArrayList<>();
         boolean changed = false;
         for (WrapperPlayServerPlayerInfoUpdate.PlayerInfo entry : packet.getEntries()) {
-            if (PacketRuntime.hidesProfile(viewer, entry.getProfileId())) {
+            if (PacketRuntime.hidesProfile(viewer, entry.getProfileId())
+                    && !PacketRuntime.keepsListed(viewer, entry.getProfileId())) {
                 changed = true;
             } else {
                 kept.add(entry);
@@ -802,6 +807,24 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
             return;
         }
         packet.setEntries(kept);
+        event.markForReEncode(true);
+    }
+
+    /** Keeps the rows of players hidden in the world only on the tab list, when the server's hide takes them off. */
+    private static void keepListed(PacketSendEvent event, UUID viewer) {
+        WrapperPlayServerPlayerInfoRemove packet = new WrapperPlayServerPlayerInfoRemove(event);
+        List<UUID> kept = new ArrayList<>();
+        for (UUID profile : packet.getProfileIds()) {
+            if (!PacketRuntime.keepsListed(viewer, profile)) kept.add(profile);
+        }
+        if (kept.size() == packet.getProfileIds().size()) {
+            return;
+        }
+        if (kept.isEmpty()) {
+            event.setCancelled(true);
+            return;
+        }
+        packet.setProfileIds(kept);
         event.markForReEncode(true);
     }
 
@@ -1020,6 +1043,11 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void despawn(Player viewer, int entityId, UUID profile) {
         send(viewer, new WrapperPlayServerDestroyEntities(entityId));
+        send(viewer, new WrapperPlayServerPlayerInfoRemove(profile));
+    }
+
+    @Override
+    public void unlist(Player viewer, UUID profile) {
         send(viewer, new WrapperPlayServerPlayerInfoRemove(profile));
     }
 

@@ -36,11 +36,20 @@ is `SilentContainer`, which is plain Bukkit and works anywhere.
 ```java
 Visibility visibility();
 void rule(VisibilityRule rule);              // one per plugin; all plugins' rules must agree
+void rule(VisibilityRule rule, boolean listed); // 1.653.0+; listed: hidden in the world, kept on the tab list
 void refresh(Player target);                 // re-evaluate for every online viewer
 void refresh(Player viewer, Player target);  // one pair only (1.604.1); use it inside a loop over players
 boolean canSee(Player viewer, Player target);
 void seal(Player viewer, Volume box);        // 1.420.0+; null lifts it
 ```
+
+`rule(rule, true)` is for places where each player plays their own copy (a
+private farm, an instanced dungeon): the players it hides leave the world but keep
+their row on the viewer's tab list, so the server still reads as full. Vanish keeps
+`rule(rule)`; a target that a plain rule also hides drops off the list. The kept row
+holds the name, ping and game mode it had when the hide began (the server sends
+those updates only to players who see the target) and catches up once shown.
+Without PacketEvents the hide is Bukkit's and takes the row with it.
 
 `seal(viewer, box)` keeps a box empty for one viewer while a screen stands in it
 (since 1.442.0): every entity in it that is not the screen's own is out of their

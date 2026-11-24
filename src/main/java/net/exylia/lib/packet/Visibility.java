@@ -35,6 +35,23 @@ public interface Visibility {
     void rule(@NotNull VisibilityRule rule);
 
     /**
+     * Registers this plugin's rule, like {@link #rule(VisibilityRule)}. With {@code listed}, the players it
+     * hides leave the world only and stay on the viewer's tab list: for places where each player plays their
+     * own copy (a private farm, an instanced dungeon), not for vanish. A target another plugin's rule also
+     * hides drops off the list as before.
+     *
+     * <p>Needs PacketEvents; without it the hide is Bukkit's and takes the tab entry with it. While hidden,
+     * the entry keeps the name, ping and game mode it had when the hide began, and catches up once shown.
+     *
+     * @param rule   the rule
+     * @param listed whether the players this rule hides stay on the tab list
+     * @since 1.653.0
+     */
+    default void rule(@NotNull VisibilityRule rule, boolean listed) {
+        rule(rule);
+    }
+
+    /**
      * Re-evaluates who may see {@code target} and sends the difference.
      *
      * <p>Call after anything that changes a rule's answer: vanish toggled, a

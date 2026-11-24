@@ -73,6 +73,10 @@ public final class PacketRuntime {
     private static final Map<String, MessageRule> MESSAGE_RULES = new ConcurrentHashMap<>();
     /** viewer -> targets they may not see. */
     private static final Map<UUID, Set<UUID>> HIDDEN = new ConcurrentHashMap<>();
+    /** Plugins whose rule hides in the world only, leaving the target on the tab list. */
+    private static final Set<String> LISTED_RULES = ConcurrentHashMap.newKeySet();
+    /** viewer -> the hidden targets whose row stays on that viewer's tab list. */
+    private static final Map<UUID, Set<UUID>> LISTED = new ConcurrentHashMap<>();
     /** entity id -> player, the way back from a packet to its subject. */
     private static final Map<Integer, UUID> ENTITY_IDS = new ConcurrentHashMap<>();
     /** frozen player -> anchor. */
@@ -349,6 +353,7 @@ public final class PacketRuntime {
     public static void release(String pluginName) {
         Impl impl = BY_PLUGIN.remove(pluginName);
         RULES.remove(pluginName);
+        LISTED_RULES.remove(pluginName);
         MESSAGE_RULES.remove(pluginName);
         if (impl != null) {
             impl.clear();
@@ -379,6 +384,7 @@ public final class PacketRuntime {
         listening = false;
         if (current != null) Scenes.clear();
         HIDDEN.clear();
+        LISTED.clear();
         ENTITY_IDS.clear();
         ANCHORS.clear();
         FROZEN_BY.clear();
@@ -477,13 +483,32 @@ public final class PacketRuntime {
         return hidden != null && hidden.contains(target);
     }
 
-    /** Whether this word is the name of an online player hidden from this viewer. */
+    /** Whether this hidden target's row stays on the viewer's tab list. */
+    static boolean keepsListed(UUID viewer, UUID target) {
+        Set<UUID> kept = LISTED.get(viewer);
+        return kept != null && kept.contains(target);
+    }
+
+    /** Whether every rule hiding {@code target} from {@code viewer} leaves them on the tab list. */
+    static boolean listedHide(Player viewer, Player target) {
+        for (Map.Entry<String, VisibilityRule> rule : RULES.entrySet()) {
+            if (!LISTED_RULES.contains(rule.getKey()) && !rule.getValue().canSee(viewer, target)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Whether this word is the name of an online player hidden from this viewer (a listed one is not). */
     static boolean hidesName(UUID viewer, String word) {
         Set<UUID> hidden = HIDDEN.get(viewer);
         if (hidden == null) {
             return false;
         }
         for (UUID target : hidden) {
+            if (keepsListed(viewer, target)) {
+                continue;
+            }
             Player player = Bukkit.getPlayer(target);
             if (player != null && player.getName().equalsIgnoreCase(word)) {
                 return true;
@@ -674,6 +699,13 @@ public final class PacketRuntime {
         HIDDEN.remove(id);
         for (Set<UUID> hidden : HIDDEN.values()) {
             hidden.remove(id);
+        }
+        // The server sends a quit's tab removal only to those who saw the player; the listed rows go by hand.
+        LISTED.remove(id);
+        PacketSink out = sink;
+        for (Map.Entry<UUID, Set<UUID>> kept : LISTED.entrySet()) {
+            Player viewer = kept.getValue().remove(id) ? Bukkit.getPlayer(kept.getKey()) : null;
+            if (viewer != null && out != null) out.unlist(viewer, id);
         }
         ENTITY_IDS.remove(player.getEntityId());
         ANCHORS.remove(id);
@@ -1055,6 +1087,13 @@ public final class PacketRuntime {
 
         @Override
         public void rule(@NotNull VisibilityRule rule) {
+            rule(rule, false);
+        }
+
+        @Override
+        public void rule(@NotNull VisibilityRule rule, boolean listed) {
+            if (listed) LISTED_RULES.add(name);
+            else LISTED_RULES.remove(name);
             RULES.put(name, rule);
         }
 
@@ -1084,15 +1123,36 @@ public final class PacketRuntime {
         private void refreshPair(PacketSink out, Player viewer, Player target, UUID targetId) {
             Set<UUID> hidden = HIDDEN.computeIfAbsent(viewer.getUniqueId(),
                     ignored -> ConcurrentHashMap.newKeySet());
+            Set<UUID> kept = LISTED.computeIfAbsent(viewer.getUniqueId(),
+                    ignored -> ConcurrentHashMap.newKeySet());
             boolean allowed = allowed(viewer, target);
+            boolean listed = !allowed && out != null && listedHide(viewer, target);
             if (!allowed && hidden.add(targetId)) {
                 // The record first: whatever the tracker sends from here on
                 // is filtered before the despawn even arrives.
+                if (listed) kept.add(targetId);
                 Tasks.of(plugin).runAtEntity(viewer, () -> {
+                    // A target who rejoined is still hidden by UUID from before, so the server never sent
+                    // their row: a show sends it (its spawn is filtered) and the hide below keeps it.
+                    if (listed && !viewer.canSee(target)) viewer.showPlayer(handle(), target);
                     viewer.hidePlayer(handle(), target);
-                    if (out != null) out.despawn(viewer, target.getEntityId(), targetId);
+                    if (out == null) return;
+                    if (listed) out.destroyEntities(viewer, new int[]{target.getEntityId()});
+                    else out.despawn(viewer, target.getEntityId(), targetId);
                 });
-            } else if (allowed && (hidden.remove(targetId) | !viewer.canSee(target))) {
+            } else if (!allowed && (listed ? kept.add(targetId) : kept.remove(targetId))) {
+                // Still hidden, but whether the row stays changed (vanish on or off over a listed hide).
+                if (listed) {
+                    // A show re-adds the row (its spawn is filtered, the target is still hidden), and the
+                    // hide's own removal is dropped.
+                    Tasks.of(plugin).runAtEntity(viewer, () -> {
+                        viewer.showPlayer(handle(), target);
+                        viewer.hidePlayer(handle(), target);
+                    });
+                } else if (out != null) {
+                    out.unlist(viewer, targetId);
+                }
+            } else if (allowed && (hidden.remove(targetId) | kept.remove(targetId) | !viewer.canSee(target))) {
                 // Not only when the record says hidden. The record is
                 // forgotten on quit before the plugins that hid the player
                 // hear about it, but the server keeps the hide on the

@@ -37,6 +37,10 @@ public interface PacketSink {
     /** Removes client-side entities from one viewer. */
     void destroyEntities(Player viewer, int[] entityIds);
 
+    /** Takes a player's row off one viewer's tab list. */
+    default void unlist(Player viewer, UUID profile) {
+    }
+
     /** Tells a client its game mode, 0–3 in vanilla order. */
     void gameMode(Player viewer, int mode);
 
