@@ -77,6 +77,16 @@ public interface ClientMob {
     /** Draws it as a baby, for the types that have one. Ignored by the others. */
     void baby(boolean baby);
 
+    /**
+     * Lets clicks pass through it: a click on it lands on the viewer's
+     * {@link net.exylia.lib.node.ClientNode} behind it, if any, and the mob
+     * click handler is not told. For companions that wander in front of what
+     * the player is clicking. Off by default.
+     *
+     * @since 1.655.0
+     */
+    void clickThrough(boolean through);
+
     /** Takes it off its viewer's screen for good. */
     void remove();
 

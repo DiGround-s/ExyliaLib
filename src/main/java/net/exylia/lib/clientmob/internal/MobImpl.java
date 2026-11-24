@@ -41,6 +41,7 @@ final class MobImpl implements ClientMob {
     private boolean baby;
     private boolean shown;
     private boolean removed;
+    volatile boolean clickThrough;
 
     private double tx, ty, tz;
     private double speed;
@@ -314,6 +315,11 @@ final class MobImpl implements ClientMob {
         if (old != null) {
             old.complete(null);
         }
+    }
+
+    @Override
+    public void clickThrough(boolean through) {
+        this.clickThrough = through;
     }
 
     @Override

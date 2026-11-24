@@ -249,6 +249,61 @@ public final class NodeRuntime {
     }
 
     /**
+     * A click that went through something in front (a click-through mob): it
+     * lands on the nearest of the player's nodes along their line of sight,
+     * within reach. Nothing happens when the line meets no node.
+     */
+    public static void clickedInSight(Player player, Click click) {
+        Viewer viewer = VIEWERS.get(player.getUniqueId());
+        if (viewer == null) {
+            return;
+        }
+        Location eye = player.getEyeLocation();
+        org.bukkit.util.Vector dir = eye.getDirection();
+        NodeImpl best = null;
+        double bestT = REACH;
+        for (NodeImpl node : viewer.nodes()) {
+            if (node.isRemoved() || !node.shown() || eye.getWorld() != node.at.getWorld()) {
+                continue;
+            }
+            double t = hit(eye, dir, node);
+            if (t >= 0 && t < bestT) {
+                bestT = t;
+                best = node;
+            }
+        }
+        if (best != null) {
+            pressed(player);
+            clicked(player, best.hitboxId, click);
+        }
+    }
+
+    /** How far along the ray the node's click box starts, or -1 when the ray misses it. */
+    static double hit(Location eye, org.bukkit.util.Vector dir, NodeImpl node) {
+        float[] box = NodeBox.of(node);
+        double half = box[0] / 2.0;
+        double cx = node.isBlock() ? node.at.getX() + 0.5 : node.at.getX();
+        double cz = node.isBlock() ? node.at.getZ() + 0.5 : node.at.getZ();
+        double minY = node.isBlock() ? node.at.getY() : node.at.getY() - box[1] / 2.0;
+        double[] lo = {cx - half, minY, cz - half};
+        double[] hi = {cx + half, minY + box[1], cz + half};
+        double[] o = {eye.getX(), eye.getY(), eye.getZ()};
+        double[] d = {dir.getX(), dir.getY(), dir.getZ()};
+        double near = 0, far = Double.MAX_VALUE;
+        for (int i = 0; i < 3; i++) {
+            if (Math.abs(d[i]) < 1e-9) {
+                if (o[i] < lo[i] || o[i] > hi[i]) return -1;
+                continue;
+            }
+            double a = (lo[i] - o[i]) / d[i], b = (hi[i] - o[i]) / d[i];
+            near = Math.max(near, Math.min(a, b));
+            far = Math.min(far, Math.max(a, b));
+            if (near > far) return -1;
+        }
+        return near;
+    }
+
+    /**
      * A player clicked one of a node's entities. Only its viewer counts, and
      * only from within reach; the handler runs on the viewer's thread.
      */

@@ -126,6 +126,24 @@ class NodeRuntimeTest {
     }
 
     @Test
+    void aClickThroughLandsOnTheNearestNodeInSight() {
+        List<Integer> hit = new CopyOnWriteArrayList<>();
+        nodes.onClick((viewer, node, click) -> hit.add(node.location().getBlockX()));
+        nodes.block(farmer.player(), new Location(world, 5, 64, 0), wheat());
+        nodes.block(farmer.player(), new Location(world, 3, 64, 0), wheat());
+        nodes.block(farmer.player(), new Location(world, 2, 64, 4), wheat()); // off to the side
+        pass();
+
+        farmer.at(new Location(world, 0.5, 64.5, 0.5, -90f, 0f)); // looking down +x
+        NodeRuntime.clickedInSight(farmer.player(), Click.LEFT);
+        farmer.at(new Location(world, 0.5, 64.5, 0.5, 90f, 0f)); // looking down -x: nothing there
+        NodeRuntime.clickedInSight(farmer.player(), Click.LEFT);
+        FakeServer.tick(2);
+
+        assertEquals(List.of(3), hit);
+    }
+
+    @Test
     void aRespawnSendsEveryNodeAgain() {
         NodeImpl node = (NodeImpl) nodes.block(farmer.player(), new Location(world, 2, 64, 0), wheat());
         pass();

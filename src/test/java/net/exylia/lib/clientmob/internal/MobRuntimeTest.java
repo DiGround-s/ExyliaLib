@@ -147,6 +147,15 @@ class MobRuntimeTest {
     }
 
     @Test
+    void aClickThroughMobNeverReachesTheHandler() {
+        MobImpl mob = (MobImpl) mobs.spawn(owner.player(), EntityType.ALLAY, new Location(world, 3, 64, 0));
+        mob.clickThrough(true);
+        MobRuntime.clicked(owner.player(), mob.id, Click.LEFT);
+        FakeServer.tick(2);
+        assertEquals(List.of(), clicks);
+    }
+
+    @Test
     void changesReachTheClientOnlyWhileSent() {
         ClientMob mob = mobs.spawn(owner.player(), EntityType.WOLF, new Location(world, 100, 64, 0));
         mob.sitting(true);

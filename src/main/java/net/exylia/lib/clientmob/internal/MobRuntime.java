@@ -258,7 +258,14 @@ public final class MobRuntime {
     /** A player clicked a mob. Only its viewer counts, from within reach; the handler runs on the viewer's thread. */
     static void clicked(Player player, int entityId, Click click) {
         MobImpl mob = BY_ID.get(entityId);
-        if (mob == null || !mob.viewer.getUniqueId().equals(player.getUniqueId()) || !inReach(player, mob)) {
+        if (mob == null || !mob.viewer.getUniqueId().equals(player.getUniqueId())) {
+            return;
+        }
+        if (mob.clickThrough) {
+            net.exylia.lib.node.internal.NodeRuntime.clickedInSight(player, click);
+            return;
+        }
+        if (!inReach(player, mob)) {
             return;
         }
         ClientMobs.Handler handler = mob.owner.handler;

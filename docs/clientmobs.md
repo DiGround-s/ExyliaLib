@@ -33,7 +33,14 @@ mobs.clear(player);                                     // this plugin's mobs fo
 `ClientMob`: `viewer()`, `location()`, `moveTo(target, blocksPerSecond)`,
 `teleport(Location)`, `lookAt(Location)`, `swing()`, `status(byte)`,
 `name(miniMessage)`, `glow(Color)`, `sitting(boolean)`, `baby(boolean)`,
-`remove()`, `isRemoved()`. Every method may be called from any thread.
+`clickThrough(boolean)`, `remove()`, `isRemoved()`. Every method may be called
+from any thread.
+
+`clickThrough(true)` (since 1.655.0) is for companions that wander in front of
+what the player clicks: a click on the mob goes to the nearest of the viewer's
+[client nodes](nodes.md) along their line of sight within node reach,
+as if the node had been clicked, and the `onClick` handler is not told. A
+click whose line meets no node does nothing.
 
 `moveTo` walks a straight line (height included), turning body and head the
 way it goes, and returns a future completed on arrival, or as soon as a newer
