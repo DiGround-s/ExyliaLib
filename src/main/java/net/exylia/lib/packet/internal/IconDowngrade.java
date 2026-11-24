@@ -24,6 +24,7 @@ import java.util.List;
  * from the {@code items} atlas only from 1.21.11. A player joining through
  * ViaBackwards with an older client would see a gap where the icon is; they
  * see the glyph {@code {icon:...}} named instead, in the colour around it.
+ * Bedrock players (Geyser) never draw sprites and always get the glyph.
  *
  * <p>The object component type is newer than the Adventure ExyliaLib compiles
  * against, so it is read by reflection. It only exists on a server that drew
@@ -53,6 +54,10 @@ public final class IconDowngrade {
     public static @Nullable Limits limitsOf(Player viewer) {
         if (!Icons.sprites() || !Icons.any()) {
             return null;
+        }
+        // Geyser reports the newest Java version but Bedrock draws no text sprites at all.
+        if (net.exylia.lib.client.Clients.isBedrock(viewer)) {
+            return new Limits(true, true);
         }
         Limits limits = new Limits(!ClientVersions.atLeast(viewer, ClientVersion.V_1_21_9),
                 !ClientVersions.atLeast(viewer, ClientVersion.V_1_21_11));
