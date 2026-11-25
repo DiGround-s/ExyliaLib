@@ -1284,7 +1284,9 @@ public final class PacketRuntime {
         }
 
         private void restore(Player viewer, Collection<Location> positions) {
-            if (positions.isEmpty() || !viewer.isOnline()) {
+            // While the server stops every client is about to be dropped, and Folia
+            // refuses region tasks once its regions have halted.
+            if (positions.isEmpty() || !viewer.isOnline() || Bukkit.isStopping()) {
                 return;
             }
             // The real block is read on the region that owns it: on Folia a fake
