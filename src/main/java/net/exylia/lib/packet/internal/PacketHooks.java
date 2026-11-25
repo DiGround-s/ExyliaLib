@@ -1,5 +1,6 @@
 package net.exylia.lib.packet.internal;
 
+import net.kyori.adventure.text.format.NamedTextColor;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.manager.server.ServerVersion;
 import com.github.retrooper.packetevents.event.PacketListenerAbstract;
@@ -304,6 +305,10 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
         // What reached this far reaches the client: follow it, and keep sealed boxes empty.
         Scenes.onSend(event, type, viewer);
         if (event.isCancelled()) return;
+        if (PacketRuntime.ghostsRegistered()) {
+            if (type == PacketType.Play.Server.TEAMS) keepGhostTeam(event, viewer);
+            else if (type == PacketType.Play.Server.ENTITY_METADATA && GhostTeams.any()) drawFaint(event, viewer);
+        }
         if (type == PacketType.Play.Server.ENTITY_METADATA) {
             RevealStyle style = PacketRuntime.revealStyle(viewer);
             if (style != null) {
@@ -600,6 +605,42 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
      * it can be tested without a server. The list is copied rather than edited
      * in place; what is decoded here belongs to the packet, not to us.
      */
+    /**
+     * Another plugin's team packet: the names this viewer's ghost team holds are kept out of it, and where it puts
+     * every name is remembered so a name drawn solid again goes back there ({@link GhostTeams}).
+     */
+    private static void keepGhostTeam(PacketSendEvent event, UUID viewer) {
+        WrapperPlayServerTeams packet = new WrapperPlayServerTeams(event);
+        java.util.Collection<String> names = packet.getPlayers();
+        int mode = packet.getTeamMode().ordinal();
+        List<String> listed = names == null ? List.of() : List.copyOf(names);
+        List<String> kept = GhostTeams.filter(viewer, packet.getTeamName(), mode, listed);
+        if (kept == listed) return;
+        if (kept.isEmpty() && mode >= 3) {
+            event.setCancelled(true);
+            return;
+        }
+        packet.setPlayers(kept);
+        event.markForReEncode(true);
+    }
+
+    /** A player drawn faint to this viewer: their flags carry the invisible bit on the way. */
+    private static void drawFaint(PacketSendEvent event, UUID viewer) {
+        int id = PacketPeek.entityId(event, e -> new WrapperPlayServerEntityMetadata(e).getEntityId());
+        if (!GhostTeams.faint(viewer, id)) return;
+        WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
+        List<EntityData<?>> data = packet.getEntityMetadata();
+        for (int i = 0; i < data.size(); i++) {
+            EntityData<?> entry = data.get(i);
+            if (entry.getIndex() != FLAGS || !(entry.getValue() instanceof Byte flags) || (flags & 0x20) != 0) continue;
+            List<EntityData<?>> faint = new ArrayList<>(data);
+            faint.set(i, new EntityData<>(FLAGS, EntityDataTypes.BYTE, (byte) (flags | 0x20)));
+            packet.setEntityMetadata(faint);
+            event.markForReEncode(true);
+            return;
+        }
+    }
+
     private static void draw(PacketSendEvent event, RevealStyle style) {
         // Peeked: a staff member watching for the invisible is sent the
         // metadata of every entity around them, and almost none is a player.
@@ -1137,6 +1178,42 @@ final class PacketHooks extends PacketListenerAbstract implements PacketSink {
     @Override
     public void destroyEntities(Player viewer, int[] entityIds) {
         send(viewer, new WrapperPlayServerDestroyEntities(entityIds));
+    }
+
+    @Override
+    public void ghostTeams(Player viewer, List<GhostTeams.Op> ops) {
+        for (GhostTeams.Op op : ops) {
+            switch (op.kind()) {
+                case CREATE -> send(viewer, new WrapperPlayServerTeams(op.team(), WrapperPlayServerTeams.TeamMode.CREATE,
+                        // 0x02 see friendly invisibles: the faint look. Friendly fire stays on, as a team here is a
+                        // look and not an alliance.
+                        new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
+                                Component.empty(), WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
+                                WrapperPlayServerTeams.CollisionRule.NEVER, NamedTextColor.GRAY,
+                                WrapperPlayServerTeams.OptionData.fromValue((byte) 0x03)), op.names()));
+                case ADD -> send(viewer, new WrapperPlayServerTeams(op.team(), WrapperPlayServerTeams.TeamMode.ADD_ENTITIES,
+                        java.util.Optional.empty(), op.names()));
+                case REMOVE -> send(viewer, new WrapperPlayServerTeams(op.team(), WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES,
+                        java.util.Optional.empty(), op.names()));
+                case DISBAND -> send(viewer, new WrapperPlayServerTeams(op.team(), WrapperPlayServerTeams.TeamMode.REMOVE,
+                        java.util.Optional.empty(), List.<String>of()));
+            }
+        }
+    }
+
+    @Override
+    public void resendFlags(Player viewer, Player target) {
+        // What the server would send now; the outbound filter adds the faint bit when it applies.
+        byte flags = 0;
+        if (target.getFireTicks() > 0) flags |= 0x01;
+        if (target.isSneaking()) flags |= 0x02;
+        if (target.isSprinting()) flags |= 0x08;
+        if (target.isSwimming()) flags |= 0x10;
+        if (target.isInvisible()) flags |= 0x20;
+        if (target.isGlowing()) flags |= 0x40;
+        if (target.isGliding()) flags |= (byte) 0x80;
+        send(viewer, new WrapperPlayServerEntityMetadata(target.getEntityId(),
+                List.of(new EntityData<>(FLAGS, EntityDataTypes.BYTE, flags))));
     }
 
     @Override

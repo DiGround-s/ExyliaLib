@@ -79,6 +79,14 @@ public interface PacketSink {
     void border(Player viewer, double x, double z, double from, double to, long millis,
                 int warningBlocks, int warningSeconds);
 
+    /** Tells a viewer's client what changed in its ghost team ({@link GhostTeams}). */
+    default void ghostTeams(Player viewer, List<GhostTeams.Op> ops) {
+    }
+
+    /** Sends a target's shared entity flags to one viewer again, so the faint bit is added or taken off. */
+    default void resendFlags(Player viewer, Player target) {
+    }
+
     /** Stops listening. */
     void close();
 }

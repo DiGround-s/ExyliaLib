@@ -52,6 +52,23 @@ public interface Visibility {
     }
 
     /**
+     * Registers this plugin's ghost rule, replacing its previous one: a target it answers {@code true} for is drawn
+     * to that viewer as a faint, see-through figure instead of whole, the way a client draws an invisible teammate.
+     * A hidden target stays hidden. Answers are asked again on {@link #refresh}, like the hiding rule's.
+     *
+     * <p>Needs PacketEvents. Nothing changes on the server: the target is not invisible, only drawn so. To draw
+     * them faint the viewer's client is sent a team of its own holding the viewer and their faint players, so
+     * while a player is faint to a viewer the other teams that client is told about (another plugin's nametags)
+     * do not take them back; they return to them once solid. A faint player's nametag shows plain in grey, and
+     * what they wear or hold is drawn as usual. Bedrock clients draw them fully invisible.
+     *
+     * @param rule {@code true} for a target drawn faint to that viewer
+     * @since 1.660.0
+     */
+    default void ghosts(@NotNull VisibilityRule rule) {
+    }
+
+    /**
      * Re-evaluates who may see {@code target} and sends the difference.
      *
      * <p>Call after anything that changes a rule's answer: vanish toggled, a

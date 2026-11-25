@@ -75,6 +75,8 @@ public final class PacketRuntime {
     private static final Map<UUID, Set<UUID>> HIDDEN = new ConcurrentHashMap<>();
     /** Plugins whose rule hides in the world only, leaving the target on the tab list. */
     private static final Set<String> LISTED_RULES = ConcurrentHashMap.newKeySet();
+    /** plugin -> its ghost rule: true draws the target faint to that viewer. */
+    private static final Map<String, VisibilityRule> GHOST_RULES = new ConcurrentHashMap<>();
     /** viewer -> the hidden targets whose row stays on that viewer's tab list. */
     private static final Map<UUID, Set<UUID>> LISTED = new ConcurrentHashMap<>();
     /** entity id -> player, the way back from a packet to its subject. */
@@ -354,6 +356,7 @@ public final class PacketRuntime {
         Impl impl = BY_PLUGIN.remove(pluginName);
         RULES.remove(pluginName);
         LISTED_RULES.remove(pluginName);
+        GHOST_RULES.remove(pluginName);
         MESSAGE_RULES.remove(pluginName);
         if (impl != null) {
             impl.clear();
@@ -395,6 +398,8 @@ public final class PacketRuntime {
         SPECTATING.clear();
         SLIDER_FOV.clear();
         REVEALING.clear();
+        GhostTeams.clear();
+        GHOST_RULES.clear();
         OVERLAYS.clear();
         MESSAGE_RULES.clear();
         WARNED.clear();
@@ -693,6 +698,29 @@ public final class PacketRuntime {
         return true;
     }
 
+    /** Whether any plugin draws anybody faint: until then no team packet needs watching. */
+    static boolean ghostsRegistered() {
+        return !GHOST_RULES.isEmpty();
+    }
+
+    /** Whether any plugin's ghost rule draws {@code target} faint to {@code viewer}. */
+    static boolean ghosted(Player viewer, Player target) {
+        for (VisibilityRule rule : GHOST_RULES.values()) {
+            if (rule.canSee(viewer, target)) return true;
+        }
+        return false;
+    }
+
+    /** Draws one target faint or whole to one viewer, telling their client what changed. */
+    static void ghost(@Nullable PacketSink out, Player viewer, Player target, boolean faint) {
+        if (out == null) return;
+        List<GhostTeams.Op> ops = GhostTeams.set(viewer.getUniqueId(), viewer.getName(), target.getName(),
+                target.getEntityId(), faint);
+        if (ops.isEmpty()) return;
+        out.ghostTeams(viewer, ops);
+        out.resendFlags(viewer, target);
+    }
+
     /** Forgets a player who left, as a viewer and as a subject. */
     public static void forget(Player player) {
         UUID id = player.getUniqueId();
@@ -700,6 +728,12 @@ public final class PacketRuntime {
         for (Set<UUID> hidden : HIDDEN.values()) {
             hidden.remove(id);
         }
+        GhostTeams.forget(id);
+        PacketSink ghostOut = sink;
+        GhostTeams.leave(player.getName(), player.getEntityId()).forEach((viewerId, ops) -> {
+            Player viewer = Bukkit.getPlayer(viewerId);
+            if (viewer != null && ghostOut != null) ghostOut.ghostTeams(viewer, ops);
+        });
         // The server sends a quit's tab removal only to those who saw the player; the listed rows go by hand.
         LISTED.remove(id);
         PacketSink out = sink;
@@ -1098,6 +1132,11 @@ public final class PacketRuntime {
         }
 
         @Override
+        public void ghosts(@NotNull VisibilityRule rule) {
+            GHOST_RULES.put(name, rule);
+        }
+
+        @Override
         public void refresh(@NotNull Player target) {
             // Without packets the hide is Bukkit's hidePlayer alone: the target vanishes from the
             // world and the tab list, but what other plugins send about them is not filtered.
@@ -1127,6 +1166,7 @@ public final class PacketRuntime {
                     ignored -> ConcurrentHashMap.newKeySet());
             boolean allowed = allowed(viewer, target);
             boolean listed = !allowed && out != null && listedHide(viewer, target);
+            ghost(out, viewer, target, allowed && !GHOST_RULES.isEmpty() && ghosted(viewer, target));
             if (!allowed && hidden.add(targetId)) {
                 // The record first: whatever the tracker sends from here on
                 // is filtered before the despawn even arrives.
