@@ -2,10 +2,14 @@ package net.exylia.lib.util.combat;
 
 import net.exylia.lib.util.combat.internal.CombatRuntime;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 
 /**
  * Whether a player is in combat, without asking which plugin decides that.
@@ -41,8 +45,82 @@ import java.util.Optional;
  */
 public final class Combat {
 
+    private static final Map<String, Predicate<Player>> MANAGED = new ConcurrentHashMap<>();
+
     private Combat() {
         throw new AssertionError("No instances.");
+    }
+
+    /**
+     * Declares the players whose fights this plugin runs, replacing its previous rule.
+     *
+     * <pre>{@code
+     * Combat.manage(this, player -> matches.isInMatch(player.getUniqueId()));
+     * }</pre>
+     *
+     * <p>A match, an arena or an event is its own fight: it decides who may hit
+     * whom and what a death or a logout costs. A combat plugin that honours this
+     * (ExyliaCombat does) leaves those players alone: no new-player, respawn or
+     * PvP-switch protection between two players of the same plugin, no combat
+     * tag from their hits, no logout punishment and no kill rewards or stats.
+     * A tag the game asks for itself through {@link #tag} still applies.
+     *
+     * <p>The rule should answer {@code true} from the moment the player is in
+     * the game's fight until they are back out of it, deaths included. It is
+     * asked on damage and death events, on the player's thread: answer from
+     * memory. Released with the plugin.
+     *
+     * @param plugin the plugin running the fight
+     * @param rule   whether it runs this player's fight right now
+     * @since 1.662.0
+     */
+    public static void manage(@NotNull Plugin plugin, @NotNull Predicate<Player> rule) {
+        MANAGED.put(plugin.getName(), rule);
+    }
+
+    /**
+     * Takes this plugin's {@link #manage} rule away.
+     *
+     * @param plugin the plugin
+     * @since 1.662.0
+     */
+    public static void unmanage(@NotNull Plugin plugin) {
+        MANAGED.remove(plugin.getName());
+    }
+
+    /**
+     * Returns the plugin running this player's fight, if one {@linkplain #manage declared} it.
+     * A rule that throws runs nothing.
+     *
+     * @param player the player
+     * @return the plugin's name, empty in the open world
+     * @since 1.662.0
+     */
+    public static @NotNull Optional<String> managedBy(@NotNull Player player) {
+        for (Map.Entry<String, Predicate<Player>> rule : MANAGED.entrySet()) {
+            try {
+                if (rule.getValue().test(player)) return Optional.of(rule.getKey());
+            } catch (RuntimeException ignored) {
+                // A broken rule must not take the damage event down with it.
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Returns whether some plugin runs this player's fight right now.
+     *
+     * @param player the player
+     * @return {@code true} inside a match, an arena or an event that declared it
+     * @since 1.662.0
+     */
+    public static boolean isManaged(@NotNull Player player) {
+        return managedBy(player).isPresent();
+    }
+
+    /** Called by the library when a plugin is disabled. */
+    public static void forgetPlugin(@NotNull String plugin) {
+        MANAGED.remove(plugin);
     }
 
     /**

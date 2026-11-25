@@ -34,6 +34,36 @@ returned `true` from `canAttack` unconditionally, with a `TODO` above it.
 | `isPvpEnabled(player)` / `setPvpEnabled(...)` | their PvP switch |
 | `canAttack(attacker, defender)` | whether the hit is allowed |
 | `statsOf(player)` | kills, deaths, streaks, points — when anybody counts them |
+| `manage(plugin, rule)` / `isManaged(player)` / `managedBy(player)` | a match or arena that runs its players' fights itself (since 1.662.0) |
+
+## A fight a plugin runs: `manage` (since 1.662.0)
+
+A match, an arena or an event decides on its own who may hit whom and what a
+death or a logout costs. It says which players are in such a fight, and the
+combat plugin leaves them alone:
+
+```java
+Combat.manage(this, player -> matches.isInMatch(player.getUniqueId()));
+
+// in a combat plugin
+if (Combat.isManaged(player)) return;           // no protection, tag or logout punishment
+Combat.managedBy(player);                        // which plugin, for "same game" checks
+```
+
+ExyliaCombat honours it: between two players managed by the same plugin no
+new-player, respawn or PvP-switch rule refuses a hit; a managed player is not
+new-player protected at all (pearls, pickups, commands), is never tagged by
+hits, is not punished for logging out and earns no kill rewards, stats or
+bounties there. A tag the game asks for with `Combat.tag` still applies.
+A hit between a managed player and one outside that game (in the open world
+or in another plugin's game) keeps every usual refusal but tags neither of
+them; a tag carried into the game ends on its first hit there.
+
+The rule answers `true` from the moment the player is in the fight until they
+are back out, deaths included, from memory (it is asked on damage and death).
+One rule per plugin, replaced by a second call, released with the plugin. A
+plugin whose world is meant to keep open-world combat rules (a survival-like
+sandbox) does not declare one.
 
 ## Who is behind a hit: `Culprits` (since 1.266.0)
 

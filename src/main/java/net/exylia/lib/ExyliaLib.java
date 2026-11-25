@@ -1257,6 +1257,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         Sessions.forgetPlugin(pluginName);
         net.exylia.lib.session.internal.Recovering.forgetPlugin(pluginName);
         net.exylia.lib.session.DeathDrops.forgetPlugin(pluginName);
+        net.exylia.lib.util.combat.Combat.forgetPlugin(pluginName);
 
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:

@@ -75,7 +75,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Block palettes](palettes.md) | Per-player block swaps: each player sees the same world with some blocks drawn as others (oak planks as spruce), shared properties kept, only swaps that collide and move the same; chunks, block changes, falling blocks and break effects repainted, nothing changed on the server | 1.636.0 |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |
 | [Hooks](hooks.md) | Other plugins' mechanics turned off for a player in a minigame: skill experience, abilities and combat stats of AuraSkills and mcMMO; pets of MCPets and MyPet put away while a player is hidden; the permission groups (ranks) a player is in, with nothing they store touched | 1.409.0 |
-| [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write | 1.36.0 |
+| [Combat](combat.md) | Whether a player is in combat, over DeluxeCombat, PvPManager or a bridge you write; matches and arenas that run their own fights (`manage`, 1.662.0) | 1.36.0 |
 | [World](world.md) | Creating and deleting worlds through the Worlds plugin, from any thread — and doing nothing loudly when it is absent; reading a chunk without a synchronous load (`Chunks`) since 1.466.0 | 1.36.0 |
 | [Transfer](transfer.md) | A plugin's whole database out to one file and back — moving from H2 to MySQL, or onto another server; and wiping tables (1.76.0) | 1.36.0 |
 | [Wipes](wipes.md) | New season, player data, one plugin or one player wiped by what tables hold (`DataKind`, `@Owner`), with backup, network lock and `Wipes.onPlayerReset` hooks | 1.439.0 |
