@@ -212,7 +212,10 @@ public final class ModelRuntime {
         Tasks.of(owner).runAtEntity(viewer, () -> {
             for (LiveModel live : CARRIERS.values()) {
                 LivingEntity body = live.carrier();
-                if (body == null || !body.isValid() || body.getWorld() != viewer.getWorld()) continue;
+                // Folia: a carrier owned by another region is skipped (touching it logs a
+                // thread-check failure) and sent again once the viewer walks out of its range and back.
+                if (body == null || !Bukkit.isOwnedByCurrentRegion(body)) continue;
+                if (!body.isValid() || body.getWorld() != viewer.getWorld()) continue;
                 try {
                     viewer.hideEntity(owner, body);
                     viewer.showEntity(owner, body);
