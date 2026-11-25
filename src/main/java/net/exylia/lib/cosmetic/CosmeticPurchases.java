@@ -77,8 +77,17 @@ public final class CosmeticPurchases {
         }
     }
 
-    /** Players with a purchase in flight, across every plugin: one at a time each. */
-    private static final Set<UUID> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+    /** Players with a purchase in flight, across every plugin: one at a time each, until it ends or stalls. */
+    private static final java.util.Map<UUID, CompletableFuture<Result>> IN_FLIGHT = new ConcurrentHashMap<>();
+
+    /**
+     * Each {@code plugin:uuid:item} being bought, held until its purchase ends however long that takes.
+     * A stalled grant frees the player for other purchases, never for paying twice for the same item.
+     */
+    private static final Set<String> PENDING = ConcurrentHashMap.newKeySet();
+
+    /** How long a grant may hold the player's lock before other purchases may go on beside it. */
+    private static final long STALL_SECONDS = 30;
 
     private CosmeticPurchases() {
         throw new AssertionError("No instances.");
@@ -209,12 +218,31 @@ public final class CosmeticPurchases {
         Price paid = price;
         UUID uuid = player.getUniqueId();
         // Taken before any hop, so two clicks in the same tick cannot both get past it.
-        if (!IN_FLIGHT.add(uuid)) {
+        CompletableFuture<Result> done = new CompletableFuture<>();
+        String item = plugin.getName() + ':' + uuid + ':' + itemId;
+        if (!PENDING.add(item)) {
             tell(plugin, player, LibraryMessages.get().purchase().busy(), itemName, paid, null);
             return CompletableFuture.completedFuture(Result.BUSY);
         }
-        CompletableFuture<Result> done = new CompletableFuture<>();
-        done.whenComplete((result, failure) -> IN_FLIGHT.remove(uuid));
+        if (IN_FLIGHT.putIfAbsent(uuid, done) != null) {
+            PENDING.remove(item);
+            tell(plugin, player, LibraryMessages.get().purchase().busy(), itemName, paid, null);
+            return CompletableFuture.completedFuture(Result.BUSY);
+        }
+        done.whenComplete((result, failure) -> {
+            IN_FLIGHT.remove(uuid, done);
+            PENDING.remove(item);
+        });
+        // A grant that never answers (a database gone quiet) must not lock the player out of buying
+        // anything until a restart. Only the lock goes: nothing is refunded, since the grant may still
+        // land, and its refund-on-failure stays attached. The item itself stays pending, so it cannot
+        // be charged twice.
+        CompletableFuture.delayedExecutor(STALL_SECONDS, java.util.concurrent.TimeUnit.SECONDS).execute(() -> {
+            if (!done.isDone() && IN_FLIGHT.remove(uuid, done)) {
+                plugin.getLogger().warning("Purchase of '" + itemId + "' by " + uuid + " has waited "
+                        + STALL_SECONDS + "s for its grant; other purchases may go on, this one settles when it answers.");
+            }
+        });
         try {
             // The player's thread, not the global one: items and experience can only be taken there.
             Tasks.of(plugin).runAtEntity(player, () -> {
