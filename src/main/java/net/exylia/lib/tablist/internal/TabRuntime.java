@@ -177,7 +177,21 @@ public final class TabRuntime {
      * ({@code <flow>}, {@code <frames>}...) is parsed line by line, so each line
      * moves on its own; any other text is parsed whole, as before.
      */
+    /** This frame's parses, shared: a moving header is the same frame for everybody who has that text. */
+    private static final Map<String, Built> FRAME = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile long frameOf = -1;
+
     static Built parse(String text) {
+        // One server tick: every player drawn within it is drawn the same frame.
+        long now = TextEffects.now() / 50L;
+        if (now != frameOf) {
+            frameOf = now;
+            FRAME.clear();
+        }
+        return FRAME.computeIfAbsent(text, TabRuntime::parseNow);
+    }
+
+    private static Built parseNow(String text) {
         String[] lines = text.replace("<nl>", "\n").split("\n", -1);
         boolean moving = false;
         for (String line : lines) {

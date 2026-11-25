@@ -79,6 +79,11 @@ public final class TextEffects {
     }
 
     /** Swaps the clock the text side reads; {@code null} for the real one. For tests. */
+    /** The clock moving text draws its frame from, in milliseconds. */
+    public static long now() {
+        return clock.getAsLong();
+    }
+
     public static void clock(@Nullable LongSupplier testClock) {
         clock = testClock == null ? System::currentTimeMillis : testClock;
     }
