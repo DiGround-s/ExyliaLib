@@ -128,6 +128,31 @@ public final class Screens {
         return ScreenRuntime.hides(viewer, target);
     }
 
+    /**
+     * Whether a screen is open for this player now, from any plugin. While it is, their client is frozen in place,
+     * looks out of a still camera, and its rotation moves a cursor rather than their view: an anticheat should not
+     * read their movement or aim as play. Any thread.
+     *
+     * @since 1.664.0
+     */
+    public static boolean viewing(@NotNull Player player) {
+        return ScreenRuntime.isOpen(player.getUniqueId());
+    }
+
+    /**
+     * Whether this player's open screen is asking their client for its rotation many times a tick (a client and a
+     * server on 1.21.9 or later, {@code cursor-poll} not {@code OFF}). While it is, the server sends them relative
+     * {@code player_rotation} packets past every packet listener, now and then an absolute one, and cancels their
+     * rotation-only movement packets at the lowest PacketEvents priority, so a listener that skips cancelled packets
+     * never handles them and the server keeps the look of the open; the close sends one absolute rotation that every
+     * listener sees, back to where they looked when it opened. Any thread.
+     *
+     * @since 1.664.0
+     */
+    public static boolean cursorPolled(@NotNull Player player) {
+        return ScreenRuntime.polled(player.getUniqueId());
+    }
+
     /** How fast a player's cursor moves: 1 (the default) keeps it under the point their eyes turn to. */
     public static double sensitivity(@NotNull Player player) {
         return ScreenPreferences.sensitivity(player.getUniqueId());

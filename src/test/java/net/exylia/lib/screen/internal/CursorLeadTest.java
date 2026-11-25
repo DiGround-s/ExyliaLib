@@ -77,4 +77,37 @@ class CursorLeadTest {
         assertEquals(CursorLead.Mode.PREDICTION, CursorLead.Mode.of("prediction"));
         assertEquals(CursorLead.Mode.NORMAL, CursorLead.Mode.PREDICTION.next());
     }
+
+    /** Where a timed lead draws a hand that speeds up then slows down, sampled {@code hz} times a second, at {@code atMs}. */
+    private static double ledAt(int hz, double atMs) {
+        CursorLead lead = new CursorLead();
+        lead.timed(true);
+        double step = 1000.0 / hz, drawn = 0;
+        for (double t = 0; t <= atMs + 1e-9; t += step) {
+            // Speeds up for 300 ms, then slows: x is the integral of a triangle of speed.
+            double x = t < 300 ? t * t / 600 : 150 + (t - 300) - (t - 300) * (t - 300) / 600;
+            drawn = lead.moved(x, 0, t, 1000)[0] - x;
+        }
+        return drawn;
+    }
+
+    @Test
+    void aTimedLeadFollowsTheHandAtTheSamePaceAtAnyRate() {
+        for (double at : new double[]{100, 250, 400}) {
+            double tick = ledAt(20, at), frame = ledAt(250, at);
+            assertEquals(tick, frame, Math.max(1.5, Math.abs(tick) * 0.2), "at " + at + " ms: " + tick + " vs " + frame);
+        }
+    }
+
+    @Test
+    void untimedEveryMoveDecidesTheSameShareAsATicksDid() {
+        CursorLead untimed = new CursorLead();
+        untimed.moved(0, 0, 0, 1000);
+        // 1 pixel a millisecond, 40 ms after the last: six tenths of it, whatever the gap.
+        assertEquals(40 + 0.6 * CursorLead.LEAD_MILLIS, untimed.moved(40, 0, 40, 1000)[0], 1e-9);
+        CursorLead timed = new CursorLead();
+        timed.timed(true);
+        timed.moved(0, 0, 0, 1000);
+        assertTrue(timed.moved(40, 0, 40, 1000)[0] < 40 + 0.6 * CursorLead.LEAD_MILLIS, "a shorter move decides less");
+    }
 }

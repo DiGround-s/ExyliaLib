@@ -164,6 +164,16 @@ public final class ScreenMath {
         return ((to - from) % 360 + 540) % 360 - 180;
     }
 
+    /**
+     * The world's direction of a display's translation x for a camera facing {@code yaw} level (0 south, 90 west):
+     * {x, z}. A centre billboard turns by the camera's yaw less 180 degrees, so x is the camera's right; y stays up.
+     * A display moved by its position this far along it moves on screen as its translation would.
+     */
+    static double[] right(float yaw) {
+        double a = Math.toRadians(yaw);
+        return new double[]{-Math.cos(a), -Math.sin(a)};
+    }
+
     /** {@code value} held between {@code min} and {@code max}. */
     public static double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));

@@ -44,7 +44,7 @@ it lays out.
 | --- | --- |
 | Unchanged tree (same text, pixels, sizes, colours, ids) | nothing: layout and diff are skipped, only handlers are replaced |
 | A changed field of a display | that field only; the wire remembers the last value of every field |
-| Cursor move | a transform per arrow copy (about 25 bytes a display) |
+| Cursor move | a transform per arrow copy (about 25 bytes a display); with the frame cursor, a position per copy (about 60 bytes) |
 | Hover | the box that changed, never the cursor |
 | Same `id` / `track` | the display is kept and glides to its new place |
 | New or removed box | spawn with full metadata, or destroy (a leaving box after its `leave`) |
@@ -56,6 +56,22 @@ it lays out.
 `set(...)` and `redraw()` mark the screen dirty; a render runs at most once a tick, and the ones a handler makes
 render once. The poll is one second by default; `refresh="5t"` (2 ticks at least) on an element, or
 `Screens.of(plugin).redrawAll(...)` for a queue that changed, are the only reasons to go faster.
+
+## The frame cursor (1.664.0)
+
+With the frame cursor (see [Screens](screens.md), "The frame cursor"), what one viewer costs while the mouse moves:
+
+| Thing | Cost |
+| --- | --- |
+| Asks | one 11-byte packet each, 60 to 250 a second while moving, 25 resting, written and flushed on the connection's own loop |
+| Answers | one 10-byte packet each, cancelled in the decoder: the server's main thread never sees them |
+| Arrow | 4 positions (about 240 bytes) a changed frame, none for a move under 0.2 layout pixels |
+| Scene with `parallax` | still drifts by metadata, at most once a tick, and catches up when the mouse rests |
+| Hover | unchanged: once a tick at most, on the viewer's thread |
+
+So about 35 KB a second down for a viewer moving the mouse at 144 fps, and almost nothing while it rests. The work per
+answer is a few lookups: the viewer's preferences are read once every 250 ms, and the boxes marked to keep cursor assist
+away are listed once a layout.
 
 ## Caches
 

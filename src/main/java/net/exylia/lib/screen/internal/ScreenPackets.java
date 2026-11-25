@@ -293,6 +293,120 @@ final class ScreenPackets extends PacketListenerAbstract {
         return version != null && version.isNewerThanOrEquals(com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_2);
     }
 
+    /**
+     * Whether this client's rotation can be polled: a relative rotation of nothing, which it answers at once with where
+     * it looks. Both ends must speak 1.21.9 or later, the first protocol a rotation can be relative in: written for an
+     * older one, or turned into one on the way, it would be absolute and snap the view every ask.
+     */
+    static boolean canPoll(Player player) {
+        var client = net.exylia.lib.packet.ClientVersions.of(player);
+        return client != null && client.isNewerThanOrEquals(com.github.retrooper.packetevents.protocol.player.ClientVersion.V_1_21_9)
+                && PacketEvents.getAPI().getServerManager().getVersion()
+                .isNewerThanOrEquals(com.github.retrooper.packetevents.manager.server.ServerVersion.V_1_21_9);
+    }
+
+    /**
+     * The event loop of the player's connection, which runs timed work too: polls are written from it, beside the
+     * answers it reads. {@code null} when it cannot be reached.
+     */
+    static java.util.concurrent.ScheduledExecutorService connectionLoop(Player player) {
+        Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(player);
+        if (channel == null) return null;
+        try {
+            Object loop = channel.getClass().getMethod("eventLoop").invoke(channel);
+            return loop instanceof java.util.concurrent.ScheduledExecutorService service ? service : null;
+        } catch (ReflectiveOperationException | RuntimeException unreachable) {
+            return null;
+        }
+    }
+
+    /**
+     * Asks the client where it looks, past every listener: an anticheat that wraps each rotation it sees in a check of
+     * its own would answer a frame's worth of them. On the connection's loop.
+     */
+    static void poll(Player player) {
+        silently(player, new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerRotation(
+                0f, true, 0f, true));
+    }
+
+    /** Turns the client to {@code yaw}, {@code pitch} at once, past every listener, as {@link #poll} asks. Any thread. */
+    static void rotateSilently(Player player, float yaw, float pitch) {
+        silently(player, new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerRotation(
+                yaw, false, pitch, false));
+    }
+
+    /** Turns the client to {@code yaw}, {@code pitch}, seen by every listener: what closes a polled screen. */
+    static PacketWrapper<?> rotate(float yaw, float pitch) {
+        return new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPlayerRotation(yaw, false, pitch, false);
+    }
+
+    /**
+     * Sends {@code packet} for every listener to see, after whatever this connection was handed before it: a rotation
+     * an anticheat must hear of, which also never overtakes a silent one still queued.
+     */
+    static void sendSeen(Player player, PacketWrapper<?> packet) {
+        Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(player);
+        if (channel == null) return;
+        com.github.retrooper.packetevents.netty.channel.ChannelHelper.runInEventLoop(channel,
+                () -> PacketEvents.getAPI().getProtocolManager().sendPacket(channel, packet));
+    }
+
+    /** How long answers of a stopped poll are dropped at most, for a client that never answers the give-back. */
+    private static final long DRAIN_NANOS = 2_000_000_000L;
+    /** Clients whose poll stopped, by player: answers still on their way, until the one to the rotation that gave the look back. */
+    private static final java.util.Map<UUID, Drain> DRAINS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private record Drain(float yaw, float pitch, long until) {
+    }
+
+    /**
+     * The poll of {@code player} stopped and {@code yaw}, {@code pitch} was sent to give the look back: the answers
+     * still on their way carry the screen's reckoning, so they are dropped as the polled ones were, up to the client's
+     * answer to that rotation, which the server and every listener then hear.
+     */
+    static void drain(UUID player, float yaw, float pitch) {
+        long now = System.nanoTime();
+        DRAINS.values().removeIf(drain -> now - drain.until() > 0);
+        DRAINS.put(player, new Drain(yaw, pitch, now + DRAIN_NANOS));
+    }
+
+    /** Whether this rotation is an answer of a stopped poll, now cancelled. */
+    private static boolean drained(PacketReceiveEvent event) {
+        UUID player = event.getUser().getUUID();
+        Drain drain = DRAINS.get(player);
+        if (drain == null) return false;
+        if (System.nanoTime() - drain.until() > 0) {
+            DRAINS.remove(player, drain);
+            return false;
+        }
+        var at = new WrapperPlayClientPlayerFlying(event).getLocation();
+        if (at.getYaw() == drain.yaw() && at.getPitch() == drain.pitch()) {
+            DRAINS.remove(player, drain);
+            return false;
+        }
+        event.setCancelled(true);
+        return true;
+    }
+
+    private static void silently(Player player, PacketWrapper<?> packet) {
+        Object channel = PacketEvents.getAPI().getPlayerManager().getChannel(player);
+        if (channel == null) return;
+        com.github.retrooper.packetevents.netty.channel.ChannelHelper.runInEventLoop(channel, () -> {
+            PacketEvents.getAPI().getProtocolManager().writePacketSilently(channel, packet);
+            com.github.retrooper.packetevents.netty.channel.ChannelHelper.flush(channel);
+        });
+    }
+
+    /**
+     * Puts an entity at {@code at} and sets where the client reckons it from. With no glide set, a 1.21.9+ client
+     * snaps it there as it reads the packet, old place included, so it is drawn there that very frame; a display's
+     * metadata waits for its next tick.
+     */
+    static PacketWrapper<?> place(int id, Vector3d at) {
+        return new com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityPositionSync(id,
+                new com.github.retrooper.packetevents.protocol.entity.EntityPositionData(at, Vector3d.zero(), 0f, 0f), false);
+    }
+
     /** Who rides {@code vehicle}, on this client alone. */
     static PacketWrapper<?> riders(int vehicle, int... riders) {
         return new WrapperPlayServerSetPassengers(vehicle, riders);
@@ -634,12 +748,16 @@ final class ScreenPackets extends PacketListenerAbstract {
     @Override
     public void onPacketReceive(PacketReceiveEvent event) {
         if (event.getUser() == null || event.getUser().getUUID() == null) return;
+        PacketTypeCommon type = event.getPacketType();
+        if (type == PacketType.Play.Client.PLAYER_ROTATION && !DRAINS.isEmpty() && drained(event)) return;
         LiveScreen screen = ScreenRuntime.live(event.getUser().getUUID());
         if (screen == null) return;
-        PacketTypeCommon type = event.getPacketType();
         if (type == PacketType.Play.Client.PLAYER_ROTATION || type == PacketType.Play.Client.PLAYER_POSITION_AND_ROTATION) {
             WrapperPlayClientPlayerFlying packet = new WrapperPlayClientPlayerFlying(event);
             if (packet.hasRotationChanged()) screen.turned(packet.getLocation().getYaw(), packet.getLocation().getPitch());
+            // A polled client answers a frame's worth of asks: none of it is the server's, which keeps the look it had
+            // at the open, and that is what the close gives back. Dropped here, before any packet limit counts it.
+            if (type == PacketType.Play.Client.PLAYER_ROTATION && screen.polled()) event.setCancelled(true);
         } else if (type == PacketType.Play.Client.TELEPORT_CONFIRM) {
             if (screen.confirmed(new WrapperPlayClientTeleportConfirm(event).getTeleportId())) event.setCancelled(true);
         } else if (type == PacketType.Play.Client.ANIMATION) {

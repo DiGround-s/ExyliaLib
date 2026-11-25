@@ -45,23 +45,39 @@ final class CursorLead {
     static final double LEAD_MILLIS = 60;
     /** How much of the velocity the newest move decides: a hand moves smoothly and a packet's gap does not. */
     private static final double NEWEST = 0.6;
+    private static final double TICK = 50;
     /** The widest gap between two moves still counted as one movement: a client ticks every 50. */
     private static final long LONGEST_GAP = 120;
 
     private double lastX, lastY, vx, vy;
-    private long lastAt = -1;
+    private double lastAt = -1;
+    /**
+     * Whether moves come many a tick (a polled client): each then decides by how long it covers, so the velocity
+     * follows the hand at the same pace at any rate. Off, every move decides {@link #NEWEST}, as a tick's always did.
+     */
+    private boolean timed;
+
+    void timed(boolean timed) {
+        this.timed = timed;
+    }
 
     /** Takes the pointer's new place and says where to draw it, at most {@code bound} from it. */
-    double[] moved(double x, double y, long now, double bound) {
-        long gap = now - lastAt;
+    double[] moved(double x, double y, double now, double bound) {
+        return moved(x, y, now, bound, LEAD_MILLIS);
+    }
+
+    /** As {@link #moved(double, double, double, double)}, drawn {@code leadMillis} ahead: the lag this client has. */
+    double[] moved(double x, double y, double now, double bound, double leadMillis) {
+        double gap = now - lastAt;
         if (lastAt >= 0 && gap > 0 && gap <= LONGEST_GAP) {
             double nowX = (x - lastX) / gap, nowY = (y - lastY) / gap;
             if (nowX * vx + nowY * vy < 0) {
                 vx = nowX;
                 vy = nowY;
             } else {
-                vx += (nowX - vx) * NEWEST;
-                vy += (nowY - vy) * NEWEST;
+                double share = timed ? 1 - Math.pow(1 - NEWEST, gap / TICK) : NEWEST;
+                vx += (nowX - vx) * share;
+                vy += (nowY - vy) * share;
             }
         } else if (gap > LONGEST_GAP || lastAt < 0) {
             vx = 0;
@@ -70,7 +86,7 @@ final class CursorLead {
         lastX = x;
         lastY = y;
         lastAt = now;
-        double leadX = vx * LEAD_MILLIS, leadY = vy * LEAD_MILLIS;
+        double leadX = vx * leadMillis, leadY = vy * leadMillis;
         double length = Math.hypot(leadX, leadY);
         double scale = length > bound ? bound / length : 1;
         return new double[]{x + leadX * scale, y + leadY * scale};

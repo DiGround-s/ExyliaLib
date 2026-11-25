@@ -34,6 +34,9 @@ import java.util.Map;
  * @param adminStyle   {@code CLASSIC} keeps admin menus chest windows, {@code FOLLOW} lets them follow the style
  *                     (since 1.562.0)
  * @param board        how a BOARD menu floats in front of the player (since 1.617.0)
+ * @param cursorPoll   {@code AUTO} or {@code OFF} (since 1.664.0): whether the cursor follows the mouse every frame for
+ *                     players whose client and this server are 1.21.9 or later, by asking the client where it looks many
+ *                     times a tick; {@code OFF} keeps every player on the tick-by-tick cursor
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -160,8 +163,32 @@ public record ScreenSettings(
         String adminStyle,
 
         @Comment("How a BOARD menu floats in front of the player.")
-        Board board
+        Board board,
+
+        @Comment("AUTO moves the cursor every frame, instead of every tick, for")
+        @Comment("players whose client and this server are 1.21.9 or later: the")
+        @Comment("server asks their client where it looks many times a tick, and")
+        @Comment("the answers never reach the server or other plugins while a")
+        @Comment("screen is open. OFF keeps everyone on the tick-by-tick cursor.")
+        @Menu.Label("Frame cursor") @Menu.Icon("CLOCK")
+        @Menu.About({"The cursor follows the mouse", "every frame on 1.21.9+."})
+        @Menu.Choices(value = {"AUTO", "OFF"}, labels = {"Auto", "Off"})
+        String cursorPoll
 ) {
+
+    /** The settings as they were before 1.664.0, with the frame cursor where it can run. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat, String cursorMode, boolean cursorAssist,
+                          boolean firstScreenSetup, String adminStyle, Board board) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, firstScreenSetup, adminStyle, board, "AUTO");
+    }
+
+    /** Whether {@link #cursorPoll} lets the cursor follow every frame where it can; a missing value is {@code AUTO}. @since 1.664.0 */
+    public boolean cursorPolls() {
+        return !"OFF".equalsIgnoreCase(cursorPoll);
+    }
 
     /**
      * A BOARD menu: a panel in the world in front of the player, who is not frozen. It glides back in front of them

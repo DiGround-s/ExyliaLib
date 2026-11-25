@@ -246,6 +246,33 @@ player's to judge, which is why they choose.
 
 The lit box waits for the server's next tick on top of that, up to about 50 ms, since the viewer's thread owns the frame.
 
+### The frame cursor (1.664.0)
+
+A player whose client and the server are both 1.21.9 or later, and whose camera is held (the usual case on 1.21.2+, not
+while really riding something), gets a cursor that follows the mouse every frame instead of every tick:
+
+- **Polling.** The server asks the client where it looks with a relative `player_rotation` of nothing, a little faster
+  than the client draws (60 to 250 a second while the mouse moves, 25 while it rests). A client answers each at once, so
+  every frame's mouse reaches the server. The rate follows the client's frame rate, measured from its answers. The asks
+  are written past every packet listener, and the answers are cancelled at the lowest PacketEvents priority: the server
+  and other plugins keep the look the player had when the screen opened, and Paper's packet limit never counts them.
+- **No teleports.** The pitch stops at 90, so past 60 degrees the client is turned back with one absolute rotation to a
+  fixed value; its answer to that one says where the new reckoning starts. Nothing on screen moves, since the camera is
+  held.
+- **The arrow moves by its position**, which a 1.21.9+ client draws the very frame it arrives, rather than by its
+  metadata, which waits for its next tick. Its look is sent once and again only when its size changes. Every cursor
+  mode draws it on the pointer at once; `PREDICTION` draws it ahead by half the player's ping and a frame.
+- **Close.** One absolute rotation back to where the player looked when the screen opened, which every listener sees,
+  and the answers still on their way are dropped up to the client's answer to it.
+
+The hover still waits for the server's tick, and a click is sent on the client's tick. Everyone else keeps the
+tick-by-tick cursor above, unchanged: a 1.21.4 client draws a display's new position only at its next tick, as it does
+metadata, so moving it there would gain nothing. `cursor-poll: OFF` in `screens.yml` keeps every player on it.
+
+For an anticheat: `Screens.viewing(player)` is true while any screen is open, and `Screens.cursorPolled(player)` while
+the polling runs. While it runs, the player's rotation-only movement packets are cancelled, and the server sends them
+`player_rotation` packets nothing else sent.
+
 
 ### Cursor assist (1.547.0)
 
@@ -1323,6 +1350,7 @@ plugins: {}                # ExyliaJobs: SCREEN
 chest-skin: true           # off: menus without a screen of their own stay windows in SCREEN style
 cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
 cursor-assist: false       # makes buttons easier to hit, for players who did not choose (1.547.0)
+cursor-poll: AUTO          # the frame cursor on 1.21.9+ clients and servers, OFF for the tick cursor (1.664.0)
 admin-style: CLASSIC       # admin menus as chest windows, or FOLLOW the style (1.562.0)
 board: {distance: 2.6, width: 4.2, close-with-sneak: true}   # BOARD menus (1.617.0)
 ```

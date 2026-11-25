@@ -63,4 +63,40 @@ class CursorAssistTest {
         assertFalse(CursorAssist.forgives(A, 140 + CursorAssist.TOLERANCE_PIXELS + 1, 108, 100));
         assertEquals(0.7, CursorAssist.friction(0), 1e-9);
     }
+
+    /** A hand moving at {@code perTick} pixels a tick for a second, sampled {@code hz} times: where the pointer ends. */
+    private static double[] slide(int hz, double perTick, double x, double y, double dirX, double dirY, boolean over) {
+        double millis = 1000.0 / hz, step = perTick * millis / CursorAssist.TICK_MILLIS;
+        for (int i = 0; i < hz; i++) {
+            Layout.Placed lit = over && A.holds(x, y) ? A : null;
+            double[] move = CursorAssist.move(x, y, dirX * step, dirY * step, lit, lit == null ? List.of(A) : List.of(), millis);
+            x += move[0];
+            y += move[1];
+        }
+        return new double[]{x, y};
+    }
+
+    @Test
+    void frictionIsTheSameAtAnyRate() {
+        // Across the box, slowly: every move keeps the same share of itself whether it came a tick or a frame apart.
+        double[] tick = CursorAssist.move(110, 105, 2, 0, A, List.of(), 50);
+        double[] frame = CursorAssist.move(110, 105, 2 / 12.5, 0, A, List.of(), 4);
+        assertEquals(tick[0], frame[0] * 12.5, 1e-9);
+    }
+
+    @Test
+    void theMagnetBendsAsMuchAtAnyRate() {
+        // Slowly past the top of the box, heading along it: the pull bends the path down toward it.
+        double[] tick = slide(20, 1, 90, 92, 1, 0.1, false);
+        double[] frame = slide(250, 1, 90, 92, 1, 0.1, false);
+        assertTrue(tick[1] > 92 + 2, "the magnet bent it: " + tick[1]);
+        assertEquals(tick[0], frame[0], 1.0);
+        assertEquals(tick[1], frame[1], 1.0);
+    }
+
+    @Test
+    void aMoveATickLongIsHelpedAsBefore() {
+        assertArrayEquals(CursorAssist.move(120, 90, 0, 3, null, List.of(A)),
+                CursorAssist.move(120, 90, 0, 3, null, List.of(A), CursorAssist.TICK_MILLIS), 1e-12);
+    }
 }

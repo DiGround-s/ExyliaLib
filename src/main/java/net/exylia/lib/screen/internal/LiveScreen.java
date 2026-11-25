@@ -167,8 +167,13 @@ final class LiveScreen implements ScreenSession {
     private final Object input = new Object();
 
     /** What the pointer can reach, as last laid out: read by the netty thread without a lock. */
-    private record View(List<Layout.Placed> placed, int overlayFrom) {
+    private record View(List<Layout.Placed> placed, int overlayFrom, List<Layout.Placed> barred) {
         static final View EMPTY = new View(List.of(), -1);
+
+        /** The boxes marked to keep assist away, found once a layout rather than on every move. */
+        View(List<Layout.Placed> placed, int overlayFrom) {
+            this(placed, overlayFrom, placed.stream().filter(box -> !box.node().assist()).toList());
+        }
 
         List<Layout.Placed> targets() {
             return overlayFrom < 0 ? placed : placed.subList(overlayFrom, placed.size());
@@ -225,6 +230,14 @@ final class LiveScreen implements ScreenSession {
     private static final double LEAD_BOUND = 10;
     /** How long without a move means the mouse stopped: a moving client sends one every 50. */
     private static final long LEAD_REST_MILLIS = 70;
+    /** How often the viewer's cursor preferences are read again: a change in the settings shows this soon. */
+    private static final long PREFS_MILLIS = 250;
+    /** The shortest move a polled arrow is placed for, in layout pixels: anything less is not seen. */
+    private static final double PLACE_STEP = 0.2;
+    /** How often a polled cursor drifts the scene, nanoseconds: four large pictures, gliding a tick each. */
+    private static final long SCENE_NANOS = 50_000_000L;
+    /** A polled yaw past this many degrees is put back too, so the float keeps its precision. */
+    private static final float POLL_YAW_LIMIT = 3600f;
     /** How long a clicked box shows pressed, and how long Shift is held to close from anywhere. */
     private static final int ACTIVE_TICKS = 3;
     private static final int MAX_TOASTS = 1;
@@ -295,6 +308,28 @@ final class LiveScreen implements ScreenSession {
     private int recentreId;
     private float recentreBy;
     private float recentreYaw;
+    /**
+     * Whether the client is polled for its rotation and the arrow moved by its position, every frame: a held camera on
+     * a 1.21.9+ client and server (see {@link CursorPoll}). Read by the netty thread.
+     */
+    private volatile boolean polled;
+    private final CursorPoll poll = new CursorPoll();
+    private java.util.concurrent.ScheduledExecutorService pollLoop;
+    private java.util.concurrent.Future<?> pollTask;
+    /** The held camera's right, {x, z}: what a polled arrow's position moves along across. */
+    private double rightX, rightZ;
+    /** Where the polled arrow stands, and the unit its look was sent at (NaN for not yet). */
+    private double placedX = Double.NaN, placedY = Double.NaN;
+    private double arrowUnit = Double.NaN;
+    /** When the mouse last turned, and when the scene last drifted, in nanoseconds. */
+    private long turnNanos;
+    private long sceneNanos;
+    private boolean sceneBehind;
+    /** The viewer's cursor preferences, read again every {@link #PREFS_MILLIS}: a move reads them many times a frame. */
+    private long prefsAt;
+    private double prefSpeed;
+    private CursorLead.Mode prefMode = CursorLead.Mode.NORMAL;
+    private boolean prefAssist;
     /** Where the camera faced when the screen opened: with a 3D item on screen the camera is kept near it. */
     private float homeYaw;
     /** The stage a window looks at. On the viewer's thread, under this lock. */
@@ -544,6 +579,8 @@ final class LiveScreen implements ScreenSession {
             out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
             out.add(ScreenPackets.blankBar());
         }
+        java.util.concurrent.ScheduledExecutorService loop = holds && ScreenSettings.get().cursorPolls()
+                && ScreenPackets.canPoll(player) ? ScreenPackets.connectionLoop(player) : null;
         synchronized (this) {
             // Drawn afresh: nothing on the client is the last render's any more.
             lastLaid = null;
@@ -551,6 +588,14 @@ final class LiveScreen implements ScreenSession {
             lastBoxes = Map.of();
             refreshPeriod = 20;
             synchronized (input) {
+                if (loop != null) {
+                    double[] right = ScreenMath.right(cameraYaw);
+                    rightX = right[0];
+                    rightZ = right[1];
+                    placedX = Double.NaN;
+                    arrowUnit = Double.NaN;
+                    polled = true;
+                }
                 if (scene != null) sceneSetup(scene);
                 cursor(out, 0);
                 if (scene != null && screen.parallax() <= 0) scene(out, 0);
@@ -558,6 +603,7 @@ final class LiveScreen implements ScreenSession {
         }
         wire.send(out);
         if (holds) ScreenPackets.look(player, cameraId);
+        if (loop != null) startPolling(loop);
         redraw();
         ticker = tasks.runAtEntityTimer(player, 20L, 20L, this::tick);
     }
@@ -1905,9 +1951,17 @@ final class LiveScreen implements ScreenSession {
         cameraId = 0;
         ids.add(camera);
         ids.add(vehicleId);
-        wire.send(List.of(ScreenPackets.riders(vehicleId),
-                ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
-                        (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
+        if (stopPolling()) {
+            // The server never heard the polled turns, so it still has the look of the open: the client is put back
+            // on it exactly, where every listener sees it, and from then on its own rotation reaches the server again.
+            wire.send(List.of(ScreenPackets.riders(vehicleId)));
+            ScreenPackets.drain(player.getUniqueId(), homeYaw, openPitch);
+            ScreenPackets.sendSeen(player, ScreenPackets.rotate(homeYaw, openPitch));
+        } else {
+            wire.send(List.of(ScreenPackets.riders(vehicleId),
+                    ScreenPackets.recentre(ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE),
+                            (float) ScreenMath.turn(homeYaw, lastYaw), lastPitch - openPitch)));
+        }
         if (!net.exylia.lib.packet.internal.PacketRuntime.cameraHeld(player.getUniqueId())) {
             ScreenPackets.look(player, player.getEntityId());
         }
@@ -2546,6 +2600,33 @@ final class LiveScreen implements ScreenSession {
 
     /** The arrow drawn at {@code x}, {@code y}, which is not where the pointer is in prediction mode. Holds {@link #input}. */
     private void arrow(List<PacketWrapper<?>> out, double x, double y, int glide) {
+        if (polled) {
+            placeArrow(out, x, y, glide == 0);
+            return;
+        }
+        arrowLook(out, x, y, glide);
+    }
+
+    /**
+     * The polled arrow: its look stands at the eyes, sent again only when the size changes, and its position carries
+     * it where the pointer is. A position is drawn the frame it arrives, a look only on the client's next tick.
+     * {@code force} places it even for a move too small to see. Holds {@link #input}.
+     */
+    private void placeArrow(List<PacketWrapper<?>> out, double x, double y, boolean force) {
+        if (unit != arrowUnit) {
+            arrowLook(out, 0, 0, 0);
+            arrowUnit = unit;
+            force = true;
+        }
+        if (!force && Math.abs(x - placedX) < PLACE_STEP * unit && Math.abs(y - placedY) < PLACE_STEP * unit) return;
+        placedX = x;
+        placedY = y;
+        double k = drawn(CURSOR_LAYER);
+        Vector3d at = new Vector3d(origin.x + rightX * x * k, origin.y + y * k, origin.z + rightZ * x * k);
+        for (int id : cursorIds) out.add(ScreenPackets.place(id, at));
+    }
+
+    private void arrowLook(List<PacketWrapper<?>> out, double x, double y, int glide) {
         double pixel = ARROW_PIXEL * unit / (SPAN / Screen.WIDTH);
         int w = ARROW[0].length(), h = ARROW.length;
         Component arrow = Pictures.glyphs(ARROW_ARGB, w, h, 0);
@@ -2597,10 +2678,19 @@ final class LiveScreen implements ScreenSession {
                 lastPitch = pitch;
                 return;
             }
-            // A client that rides something repeats its rotation every tick.
+            boolean polls = polled;
+            long nanos = System.nanoTime();
+            if (polls && poll.landed(yaw, pitch)) {
+                // The reset's own answer: the reckoning starts again from the sentinel, with no move in it.
+                lastYaw = yaw;
+                lastPitch = pitch;
+                return;
+            }
+            // A client that rides something repeats its rotation every tick; a polled one, every ask of a frame.
             if (yaw == lastYaw && pitch == lastPitch) {
-                // A client that repeats itself says at once that the mouse stopped; any other leaves it to leadRest.
-                if (leadWatched.get()) {
+                // Polled, the stop is told by time, on the poller. A client that repeats itself once a tick says at once
+                // that the mouse stopped; any other leaves it to leadRest.
+                if (!polls && leadWatched.get()) {
                     lead.rest();
                     List<PacketWrapper<?>> back = new ArrayList<>();
                     cursor(back, 1);
@@ -2608,17 +2698,24 @@ final class LiveScreen implements ScreenSession {
                 }
                 return;
             }
+            if (polls) poll.answered(nanos, true);
+            // What the strengths below were tuned on: a move a tick. A polled move covers a frame and is judged by its speed.
+            double millis = polls ? ScreenMath.clamp((nanos - turnNanos) / 1e6, 1, CursorAssist.TICK_MILLIS)
+                    : CursorAssist.TICK_MILLIS;
+            turnNanos = nanos;
             double dx = ScreenMath.turn(lastYaw, yaw);
             double dy = pitch - lastPitch;
+            prefs();
             // A fast move carries further: precise when slow, quick across the screen.
             double accel = ScreenSettings.get().cursorAcceleration();
-            double boost = accel <= 0 ? 1 : Math.min(3, 1 + accel * Math.hypot(dx, dy) / 4);
-            double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * ScreenPreferences.sensitivity(player.getUniqueId()) * boost;
+            double boost = accel <= 0 ? 1
+                    : Math.min(3, 1 + accel * Math.hypot(dx, dy) * (CursorAssist.TICK_MILLIS / millis) / 4);
+            double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * prefSpeed * boost;
             double halfW = (screen.width() / 2 + GUTTER_X) * unit;
             double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
             double moveX = dx * perDegree, moveY = dy * perDegree;
-            if (ScreenPreferences.cursorAssist(player.getUniqueId())) {
-                double[] assisted = assisted(moveX / unit, moveY / unit);
+            if (prefAssist) {
+                double[] assisted = assisted(moveX / unit, moveY / unit, millis);
                 moveX = assisted[0] * unit;
                 moveY = assisted[1] * unit;
             }
@@ -2628,41 +2725,155 @@ final class LiveScreen implements ScreenSession {
             lastPitch = pitch;
             lastTurn = System.currentTimeMillis();
             List<PacketWrapper<?>> out = new ArrayList<>();
-            switch (ScreenPreferences.cursorMode(player.getUniqueId())) {
-                case RAW -> cursor(out, 0);
-                case PREDICTION -> {
-                    double[] ahead = lead.moved(cursorX, cursorY, lastTurn, LEAD_BOUND * unit);
-                    arrow(out, ScreenMath.clamp(ahead[0], -halfW, halfW), ScreenMath.clamp(ahead[1], -halfH, halfH), 1);
-                    if (screen.parallax() > 0) scene(out, 1);
-                    if (leadWatched.compareAndSet(false, true)) tasks.runAtEntityLater(player, 2, this::leadRest);
+            if (polls) {
+                polledCursor(out, nanos, halfW, halfH);
+            } else {
+                switch (prefMode) {
+                    case RAW -> cursor(out, 0);
+                    case PREDICTION -> {
+                        double[] ahead = lead.moved(cursorX, cursorY, lastTurn, LEAD_BOUND * unit);
+                        arrow(out, ScreenMath.clamp(ahead[0], -halfW, halfW), ScreenMath.clamp(ahead[1], -halfH, halfH), 1);
+                        if (screen.parallax() > 0) scene(out, 1);
+                        if (leadWatched.compareAndSet(false, true)) tasks.runAtEntityLater(player, 2, this::leadRest);
+                    }
+                    default -> cursor(out, 1);
                 }
-                default -> cursor(out, 1);
             }
             moved = pointerMoved();
-            // The client turns the camera, the server turns it back: past RECENTRE_PITCH always, and with a 3D item on
-            // screen past CONE either way, so the world's fixed lights shade the item the same. The screen faces the
-            // eye whatever it looks at, so the snap is not seen.
-            float off = (float) ScreenMath.turn(homeYaw, yaw);
-            int camera = cameraId;
-            boolean held = cone && camera == 0;
-            float limit = windowed && camera == 0 ? WINDOW_CONE : CONE;
-            float down = windowed && camera == 0 ? pitch - homePitch : pitch;
-            if (recentreId == 0 && (Math.abs(down) > (held ? limit : RECENTRE_PITCH) || held && Math.abs(off) > limit)) {
-                recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-                recentreBy = down;
-                recentreYaw = held ? off : 0;
-                // A client on a vehicle ignores a turn: off it and back on within the bundle, its view elsewhere.
-                if (camera != 0) out.add(ScreenPackets.riders(vehicleId));
-                out.add(ScreenPackets.recentre(recentreId, recentreYaw, down));
-                if (camera != 0) {
-                    out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
-                    out.add(ScreenPackets.blankBar());
+            if (polls) {
+                // The pitch stops at 90, so it is put back well before; the camera is held, so nothing on screen moves.
+                if (!poll.pending() && (Math.abs(pitch) > RECENTRE_PITCH || Math.abs(yaw) > POLL_YAW_LIMIT)) {
+                    poll.reset(nanos);
+                    ScreenPackets.rotateSilently(player, CursorPoll.SENTINEL_YAW, CursorPoll.SENTINEL_PITCH);
                 }
+                if (!out.isEmpty()) wire.send(out);
+            } else {
+                // The client turns the camera, the server turns it back: past RECENTRE_PITCH always, and with a 3D item on
+                // screen past CONE either way, so the world's fixed lights shade the item the same. The screen faces the
+                // eye whatever it looks at, so the snap is not seen.
+                float off = (float) ScreenMath.turn(homeYaw, yaw);
+                int camera = cameraId;
+                boolean held = cone && camera == 0;
+                float limit = windowed && camera == 0 ? WINDOW_CONE : CONE;
+                float down = windowed && camera == 0 ? pitch - homePitch : pitch;
+                if (recentreId == 0 && (Math.abs(down) > (held ? limit : RECENTRE_PITCH) || held && Math.abs(off) > limit)) {
+                    recentreId = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
+                    recentreBy = down;
+                    recentreYaw = held ? off : 0;
+                    // A client on a vehicle ignores a turn: off it and back on within the bundle, its view elsewhere.
+                    if (camera != 0) out.add(ScreenPackets.riders(vehicleId));
+                    out.add(ScreenPackets.recentre(recentreId, recentreYaw, down));
+                    if (camera != 0) {
+                        out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
+                        out.add(ScreenPackets.blankBar());
+                    }
+                }
+                wire.send(out);
             }
-            wire.send(out);
         }
         // The hover is drawn on the viewer's thread, which owns the frame; a burst of moves asks once.
         if (moved && hoverQueued.compareAndSet(false, true)) tasks.runAtEntity(player, this::hoverMoved);
+    }
+
+    /**
+     * The polled arrow after a move: on the pointer, or in prediction mode ahead of it by what this client lags (half
+     * its ping and a frame). The scene drifts at most a tick at a time, gliding, and catches up when the mouse stops.
+     * Holds {@link #input}.
+     */
+    private void polledCursor(List<PacketWrapper<?>> out, long nanos, double halfW, double halfH) {
+        if (prefMode == CursorLead.Mode.PREDICTION) {
+            double ahead = Math.min(CursorLead.LEAD_MILLIS, player.getPing() / 2.0 + poll.frameMillis());
+            double[] at = lead.moved(cursorX, cursorY, nanos / 1e6, LEAD_BOUND * unit, ahead);
+            placeArrow(out, ScreenMath.clamp(at[0], -halfW, halfW), ScreenMath.clamp(at[1], -halfH, halfH), false);
+        } else {
+            placeArrow(out, cursorX, cursorY, false);
+        }
+        if (screen.parallax() <= 0) return;
+        if (nanos - sceneNanos >= SCENE_NANOS) {
+            scene(out, 1);
+            sceneNanos = nanos;
+            sceneBehind = false;
+        } else {
+            sceneBehind = true;
+        }
+    }
+
+    /** Reads the viewer's cursor preferences again when the last read is old. Holds {@link #input}. */
+    private void prefs() {
+        long now = System.currentTimeMillis();
+        if (now - prefsAt < PREFS_MILLIS) return;
+        prefsAt = now;
+        UUID id = player.getUniqueId();
+        prefSpeed = ScreenPreferences.sensitivity(id);
+        prefMode = ScreenPreferences.cursorMode(id);
+        prefAssist = ScreenPreferences.cursorAssist(id);
+    }
+
+    /** Whether the client is being polled for its rotation now: its rotation packets are the screen's alone. */
+    boolean polled() {
+        return polled;
+    }
+
+    /** Begins asking the client where it looks, on its connection's loop. */
+    private void startPolling(java.util.concurrent.ScheduledExecutorService loop) {
+        synchronized (input) {
+            if (!polled) return;
+            lead.timed(true);
+            pollLoop = loop;
+            try {
+                pollTask = loop.schedule(this::pollTick, 0, java.util.concurrent.TimeUnit.NANOSECONDS);
+            } catch (RuntimeException closing) {
+                // The connection is going: the screen closes with it.
+                pollTask = null;
+            }
+        }
+    }
+
+    /** Stops asking; whether it was asking. Safe from any thread. */
+    private boolean stopPolling() {
+        synchronized (input) {
+            if (!polled) return false;
+            polled = false;
+            lead.timed(false);
+            lead.rest();
+            if (pollTask != null) pollTask.cancel(false);
+            pollTask = null;
+            pollLoop = null;
+            return true;
+        }
+    }
+
+    /**
+     * On the connection's loop: asks the client where it looks, sends a reset it never answered again, and puts the
+     * arrow back on the pointer once the mouse rests (prediction draws ahead, and a small move may not be placed).
+     */
+    private void pollTick() {
+        synchronized (input) {
+            if (!polled || !open || pollLoop == null) return;
+            long now = System.nanoTime();
+            ScreenPackets.poll(player);
+            if (poll.stale(now)) {
+                poll.reset(now);
+                ScreenPackets.rotateSilently(player, CursorPoll.SENTINEL_YAW, CursorPoll.SENTINEL_PITCH);
+            }
+            long rest = Math.max(20_000_000L, (long) (3 * poll.frameMillis() * 1e6));
+            if (!away && now - turnNanos > rest && (placedX != cursorX || placedY != cursorY || sceneBehind)) {
+                lead.rest();
+                List<PacketWrapper<?>> out = new ArrayList<>();
+                placeArrow(out, cursorX, cursorY, true);
+                if (sceneBehind) {
+                    scene(out, 1);
+                    sceneBehind = false;
+                    sceneNanos = now;
+                }
+                wire.send(out);
+            }
+            try {
+                pollTask = pollLoop.schedule(this::pollTick, poll.period(now), java.util.concurrent.TimeUnit.NANOSECONDS);
+            } catch (RuntimeException closing) {
+                pollTask = null;
+            }
+        }
     }
 
     /**
@@ -2685,7 +2896,7 @@ final class LiveScreen implements ScreenSession {
     }
 
     /** The move cursor assist makes of the mouse's, in layout pixels. Holds {@link #input}. */
-    private double[] assisted(double dx, double dy) {
+    private double[] assisted(double dx, double dy, double millis) {
         View now = view;
         double x = px(), y = py();
         double[] raw = {dx, dy};
@@ -2698,15 +2909,15 @@ final class LiveScreen implements ScreenSession {
                 if (box.holds(x, y, CursorAssist.MAGNET_RANGE) && helped(now, box)) near.add(box);
             }
         }
-        double[] move = CursorAssist.move(x, y, dx, dy, over, near);
+        double[] move = CursorAssist.move(x, y, dx, dy, over, near, millis);
         // A bend never lands the pointer on what assist must stay off.
         return over == null && assistBarred(now, x + move[0], y + move[1]) ? raw : move;
     }
 
     /** Whether the point lies on a box marked to keep assist away, a dialog over one included. */
     private static boolean assistBarred(View view, double x, double y) {
-        for (Layout.Placed box : view.placed()) {
-            if (!box.node().assist() && box.holds(x, y)) return true;
+        for (Layout.Placed box : view.barred()) {
+            if (box.holds(x, y)) return true;
         }
         return false;
     }

@@ -5,7 +5,8 @@ import java.util.List;
 /**
  * What cursor assist does to the real pointer, every strength in one place: it slows a slow move over a clickable box,
  * bends a slow move slightly toward the box it is heading for, and lets a click just off the box that was lit go to it.
- * All in layout pixels; a client sends one move per tick.
+ * All in layout pixels. Its strengths are measured on moves a tick (50 ms) apart; a move over a shorter time is
+ * judged by its speed, so a client polled every frame is helped as much as one that sends a move a tick.
  *
  * <p>Pure, so it is tested without a screen. {@link LiveScreen} decides which boxes it may see: never a game board, a
  * dangerous button or anything else marked {@code assist="false"}. The bend is always a part of the player's own move
@@ -42,21 +43,36 @@ final class CursorAssist {
      * @param near the clickable boxes it may bend toward
      */
     static double[] move(double x, double y, double dx, double dy, Layout.Placed over, List<Layout.Placed> near) {
+        return move(x, y, dx, dy, over, near, TICK_MILLIS);
+    }
+
+    /**
+     * As {@link #move(double, double, double, double, Layout.Placed, List)} for a move made over {@code millis}: the
+     * friction and the bend are chosen by speed, then applied to this move, so many small moves add up to the one a
+     * tick would have made.
+     */
+    static double[] move(double x, double y, double dx, double dy, Layout.Placed over, List<Layout.Placed> near,
+                         double millis) {
+        double perTick = TICK_MILLIS / Math.max(1e-3, millis);
         if (over != null) {
-            double scale = friction(Math.hypot(dx, dy));
+            double scale = friction(Math.hypot(dx, dy) * perTick);
             return new double[]{dx * scale, dy * scale};
         }
-        return magnet(x, y, dx, dy, near);
+        return magnet(x, y, dx, dy, near, perTick);
     }
+
+    /** What the strengths are measured over: a client's tick. */
+    static final double TICK_MILLIS = 50;
 
     /** How much of a move this long is kept over a clickable box. */
     static double friction(double length) {
         return FRICTION + (1 - FRICTION) * Math.min(1, length / FRICTION_FASTEST);
     }
 
-    private static double[] magnet(double x, double y, double dx, double dy, List<Layout.Placed> near) {
+    private static double[] magnet(double x, double y, double dx, double dy, List<Layout.Placed> near, double perTick) {
         double length = Math.hypot(dx, dy);
-        if (length == 0 || length >= MAGNET_FASTEST) return new double[]{dx, dy};
+        double speed = length * perTick;
+        if (length == 0 || speed >= MAGNET_FASTEST) return new double[]{dx, dy};
         double toX = 0, toY = 0, closest = Double.MAX_VALUE, heading = 0;
         for (Layout.Placed box : near) {
             double boxX = Math.max(box.x(), Math.min(x, box.x() + box.w())) - x;
@@ -72,7 +88,7 @@ final class CursorAssist {
             heading = cos;
         }
         if (heading == 0) return new double[]{dx, dy};
-        double pull = Math.min(closest, MAGNET * length * heading * (1 - length / MAGNET_FASTEST));
+        double pull = Math.min(closest, MAGNET * length * heading * (1 - speed / MAGNET_FASTEST));
         return new double[]{dx + toX / closest * pull, dy + toY / closest * pull};
     }
 

@@ -121,6 +121,12 @@ public final class ScreenRuntime {
         return OPEN.containsKey(player);
     }
 
+    /** Whether this player's open screen polls their client's rotation now (see {@code Screens#cursorPolled}). Any thread. */
+    public static boolean polled(UUID player) {
+        LiveScreen live = OPEN.get(player);
+        return live != null && live.polled();
+    }
+
     static LiveScreen live(UUID player) {
         return OPEN.get(player);
     }
