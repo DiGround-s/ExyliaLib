@@ -457,7 +457,10 @@ the cube around it alone; the box only narrows the world read.
 
 It is a world read, so it runs on the thread that owns the region — hop through
 `Tasks.of(plugin).runAtLocation(...)` first. A region whose world is not loaded
-returns `0` rather than throwing.
+returns `0` rather than throwing. On Folia a region that reaches into chunks
+another region thread owns has those chunks cleared on their own threads a
+moment later, and the count is of what was removed on the calling thread
+(1.660.2; before, the sweep threw on the first entity of a foreign chunk).
 
 For the regeneration case there is nothing to call: `RegenerateOptions` already
 carries `clearEntities`, and [schematics](schematics.md) does it inside the same

@@ -7,6 +7,8 @@ import net.exylia.lib.debug.Debug;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.util.crate.CrateImport;
 import net.exylia.lib.util.internal.RetryBackoff;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -101,6 +103,52 @@ public final class CrateStore implements Listener {
         this.importer = importer;
         this.home = scope.isEmpty() ? null
                 : new CrateStore(plugin, owner + '@' + scope, () -> 0, changed, uuid -> null, "");
+        // Keys given from another server (a store command run on the lobby) land in the database,
+        // while the server the player is on keeps its own copy: its next spend wrote that copy over
+        // the gift. Told by the network, it reads the row again. Without Redis this hears nothing.
+        try {
+            Databases.of(plugin).onRemoteChange(CrateRow.class, change -> {
+                if (change.wholeTable()) {
+                    sessions.keySet().forEach(this::reread);
+                    return;
+                }
+                for (UUID uuid : sessions.keySet()) {
+                    if (CrateRow.key(this.owner, uuid).equals(change.id())) {
+                        reread(uuid);
+                        return;
+                    }
+                }
+            });
+        } catch (RuntimeException noDatabase) {
+            // A test without a database: no other server either.
+        }
+    }
+
+    /** Takes another server's write of an online player's row, once this server's own writes are in. */
+    private void reread(UUID uuid) {
+        Session session = sessions.get(uuid);
+        if (session == null) return;
+        CompletableFuture<?> pending;
+        synchronized (session) {
+            pending = session.writes;
+        }
+        pending.handle((ignored, failure) -> null)
+                .thenCompose(ignored -> rows.find(CrateRow.key(owner, uuid)))
+                .thenAccept(found -> found.ifPresent(row -> {
+                    Player player = Bukkit.getPlayer(uuid);
+                    if (player == null) return;
+                    Tasks.of(plugin).runAtEntity(player, () -> {
+                        synchronized (session) {
+                            CrateRow mine = session.row;
+                            // A change of ours since is newer, and is on its way over this one.
+                            if (sessions.get(uuid) != session || mine == null || !session.writes.isDone()
+                                    || row.equals(mine) || row.updatedAt() < mine.updatedAt()) return;
+                            session.row = row;
+                        }
+                        changed.accept(uuid);
+                    });
+                }))
+                .exceptionally(failure -> null);
     }
 
     /** For tests: a store scoped as {@code scope}, whatever ExyliaLib's config says. */

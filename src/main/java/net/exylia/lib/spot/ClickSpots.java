@@ -160,7 +160,10 @@ public final class ClickSpots {
     private final double legacyAhead;
     private final Hooks hooks;
     private final Map<String, Spot> spots = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastClick = new ConcurrentHashMap<>();
+    /** Only as long as the gap it guards: a map of every player ever seen otherwise. */
+    private final Map<UUID, Long> lastClick = com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+            .expireAfterWrite(java.time.Duration.ofMillis(CLICK_GAP_MS * 4))
+            .<UUID, Long>build().asMap();
     private final Listener listener = new Clicks();
     private volatile String permission;
     private volatile @Nullable TaskHandle refresh;

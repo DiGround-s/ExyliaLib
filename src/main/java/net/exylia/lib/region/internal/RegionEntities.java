@@ -87,9 +87,50 @@ public final class RegionEntities {
      * @return how many were removed
      */
     public static int clear(World world, RegionShape shape, Predicate<Entity> which) {
+        return clear(world, shape, which, null);
+    }
+
+    /**
+     * {@link #clear(World, RegionShape, Predicate)}, safe on Folia for a shape that straddles regions.
+     *
+     * <p>On Folia one thread may only read the chunks its region owns, and a big mine or arena box
+     * reaches into others: sweeping it whole threw on the first foreign entity. There the box is
+     * swept a chunk at a time, the chunks this thread owns at once and the rest on their owners'
+     * threads through {@code tasks}; the count is of the ones removed at once.
+     *
+     * @param tasks where foreign chunks are swept; {@code null} sweeps the whole box here
+     */
+    public static int clear(World world, RegionShape shape, Predicate<Entity> which,
+                            @org.jetbrains.annotations.Nullable net.exylia.lib.task.TaskScheduler tasks) {
+        BoundingBox box = box(shape, world.getMinHeight(), world.getMaxHeight());
+        if (tasks == null || !net.exylia.lib.platform.Platform.isFolia()) {
+            return sweep(world, box, shape, which);
+        }
         int removed = 0;
-        for (Entity entity : world.getNearbyEntities(
-                box(shape, world.getMinHeight(), world.getMaxHeight()))) {
+        int minChunkX = (int) Math.floor(box.getMinX()) >> 4;
+        int maxChunkX = ((int) Math.ceil(box.getMaxX()) - 1) >> 4;
+        int minChunkZ = (int) Math.floor(box.getMinZ()) >> 4;
+        int maxChunkZ = ((int) Math.ceil(box.getMaxZ()) - 1) >> 4;
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                BoundingBox slice = new BoundingBox(
+                        Math.max(box.getMinX(), chunkX << 4), box.getMinY(), Math.max(box.getMinZ(), chunkZ << 4),
+                        Math.min(box.getMaxX(), (chunkX << 4) + 16.0), box.getMaxY(),
+                        Math.min(box.getMaxZ(), (chunkZ << 4) + 16.0));
+                if (org.bukkit.Bukkit.isOwnedByCurrentRegion(world, chunkX, chunkZ)) {
+                    removed += sweep(world, slice, shape, which);
+                } else {
+                    tasks.runAtLocation(new Location(world, (chunkX << 4) + 8, box.getMinY(), (chunkZ << 4) + 8),
+                            () -> sweep(world, slice, shape, which));
+                }
+            }
+        }
+        return removed;
+    }
+
+    private static int sweep(World world, BoundingBox box, RegionShape shape, Predicate<Entity> which) {
+        int removed = 0;
+        for (Entity entity : world.getNearbyEntities(box)) {
             if (entity instanceof Player) {
                 continue;
             }

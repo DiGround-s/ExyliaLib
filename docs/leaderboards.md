@@ -159,7 +159,7 @@ String mine = weekly.rankOf(viewer.getUniqueId()).stream().mapToObj(r -> "#" + r
 | `reset(id, span)` | starts one span over on every server, within a sort; all time and the other spans are untouched |
 | `season(id, from, to)` / `Leaderboards.season(id)` | the stretch `Span.SEASON` ranks, see *Seasons* (1.620.0) |
 | `sampleEvery(Duration)` | how often online players are read; default `DEFAULT_SAMPLE_EVERY`, a minute; at least a second |
-| `sortEvery(Duration)` | how often boards are reloaded and sorted; default `DEFAULT_SORT_EVERY`, 30 seconds; at least a second |
+| `sortEvery(Duration)` | how often boards are reloaded and sorted; default `DEFAULT_SORT_EVERY`, 30 seconds; at least a second. A reload reads only the rows changed since the last one (newest first, up to 5000); every row is read again every 10 minutes and after a reset anywhere (1.660.1) |
 | `clock(PeriodClock)` / `clock()` | the clock every board follows |
 
 The settings are shared by every plugin: the last call wins. Changing a board

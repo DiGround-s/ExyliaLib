@@ -347,7 +347,9 @@ public final class PluginRegions {
      * <h2>Threading</h2>
      * A world read, so it runs on the thread that owns the region — hop through
      * {@code Tasks.of(plugin).runAtLocation(...)} first. Returns {@code 0} when
-     * the region's world is not loaded.
+     * the region's world is not loaded. On Folia a region reaching into chunks
+     * another thread owns has those chunks swept on their own threads, shortly
+     * after; the count is of what was removed here (1.660.2).
      *
      * @param region the region to clear
      * @param which  what to remove among the entities inside
@@ -361,7 +363,7 @@ public final class PluginRegions {
         if (world == null) {
             return 0;
         }
-        return RegionEntities.clear(world, region.shape(), which);
+        return RegionEntities.clear(world, region.shape(), which, net.exylia.lib.task.Tasks.of(plugin));
     }
 
     /**

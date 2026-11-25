@@ -68,9 +68,11 @@ power-ups) instead of carrying a copy.
 `exylia_playtime` (`id` UUID, `total_ms`), one row per player. Each server adds
 what it counted since its own last write with `Repository.increment`, so
 servers never overwrite each other and the server a player just left can still
-add its last minute after the next one started counting. Every write reads the
-row back past the cache (`findFresh`), which is how other servers' time reaches
-`online`. Time is written every minute, on quit and on disable: a crash costs
+add its last minute after the next one started counting. The first three writes
+after a join, every tenth after and the last read the row back past the cache
+(`findFresh`), which is how other servers' time (the last server's final write,
+landing after this one's read) reaches `online` (1.660.1; before, every write
+read it back). Time is written every minute, on quit and on disable: a crash costs
 at most the last minute. One player's reads and writes on one server run in
 order.
 

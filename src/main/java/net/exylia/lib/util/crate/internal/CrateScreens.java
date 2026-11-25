@@ -365,7 +365,12 @@ public final class CrateScreens<T> implements Listener {
                 // A tick later, because this runs inside the click on the button:
                 // a window opened while the one clicked is still being handled is
                 // the click that closes both.
-                definition -> tasks.runAtEntityLater(player, 1, () -> run(player, definition, bought)),
+                // The keys are already spent: a player gone before that tick is paid
+                // like a quit mid-spin, since onQuit has no spin of theirs to settle.
+                definition -> tasks.runAtEntityLater(player, 1, () -> run(player, definition, bought), () -> {
+                    spinning.invalidate(uuid);
+                    bought.forEach(prize -> prizes.awardLater(player, prize));
+                }),
                 () -> {
                     spinning.invalidate(uuid);
                     debug.warn("The crate opening menu '" + openingId + "' is not loaded");

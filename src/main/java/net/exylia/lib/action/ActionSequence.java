@@ -92,7 +92,10 @@ public final class ActionSequence {
                     if (Tasks.of(plugin).isOwnedBy(context.player())) {
                         next.run();
                     } else {
-                        Tasks.of(plugin).runAtEntity(context.player(), next, null);
+                        // A player gone meanwhile ends the chain, rather than leaving whoever waits
+                        // on it waiting for good.
+                        Tasks.of(plugin).runAtEntity(context.player(), next,
+                                () -> execution.finish(ActionResult.failed("The player left")));
                     }
                 } else {
                     execution.finish(actual == null
@@ -104,7 +107,8 @@ public final class ActionSequence {
             execute.run();
         } else {
             execution.awaiting(Tasks.of(plugin)
-                    .runAtEntityLater(context.player(), step.delayTicks(), execute));
+                    .runAtEntityLater(context.player(), step.delayTicks(), execute,
+                            () -> execution.finish(ActionResult.failed("The player left"))));
         }
     }
 

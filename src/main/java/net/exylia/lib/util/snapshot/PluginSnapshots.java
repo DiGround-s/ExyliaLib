@@ -438,6 +438,11 @@ public final class PluginSnapshots {
         return place == null || teleports().isHere(place);
     }
 
+    /** Player files written after restores that are still waiting; spread {@link #SAVES_PER_TICK} a tick. */
+    private static final java.util.concurrent.atomic.AtomicInteger SAVES_IN_FLIGHT =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private static final int SAVES_PER_TICK = 4;
+
     private @Nullable SnapshotRow readable(@NotNull Optional<SnapshotRow> found) {
         if (found.isEmpty() || LegacyImport.isMarker(found)) {
             return null;
@@ -466,20 +471,37 @@ public final class PluginSnapshots {
                         return;
                     }
                     PlayerState.apply(snapshot, player, parts, SnapshotRuntime::report);
-                    // Written to the player file before the row goes: a crash
-                    // after the delete would otherwise load the player as they
-                    // were before the restore (an arena kit) with nothing left
-                    // to restore from.
-                    try {
-                        player.saveData();
-                    } catch (RuntimeException failure) {
-                        debug.error("Could not save " + player.getName() + "'s data after a restore", failure);
-                    }
                     Location back = liveHere(row.lastLocation());
                     if (wentBack != null && back != null) {
                         wentBack.accept(back);
                     }
-                    applied.complete(true);
+                    // Written to the player file before the row goes: a crash
+                    // after the delete would otherwise load the player as they
+                    // were before the restore (an arena kit) with nothing left
+                    // to restore from. A crash before it leaves the row, and the
+                    // next join restores again. A few a tick: a hundred players
+                    // restored when an event ends were a hundred file writes in
+                    // one tick.
+                    long delay = SAVES_IN_FLIGHT.getAndIncrement() / SAVES_PER_TICK;
+                    Runnable save = () -> {
+                        try {
+                            player.saveData();
+                        } catch (RuntimeException failure) {
+                            debug.error("Could not save " + player.getName() + "'s data after a restore", failure);
+                        } finally {
+                            SAVES_IN_FLIGHT.decrementAndGet();
+                            applied.complete(true);
+                        }
+                    };
+                    if (delay == 0) {
+                        save.run();
+                    } else {
+                        // Gone before their turn: leaving saves their file.
+                        tasks.runAtEntityLater(player, delay, save, () -> {
+                            SAVES_IN_FLIGHT.decrementAndGet();
+                            applied.complete(true);
+                        });
+                    }
                 },
                 // The player went away between the read and the apply. Their
                 // snapshot stays where it is.

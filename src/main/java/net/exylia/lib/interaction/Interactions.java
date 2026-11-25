@@ -308,7 +308,10 @@ public final class Interactions {
                     if (ticks <= 0) {
                         waited.complete(true);
                     } else {
-                        Tasks.of(owner).runLater(ticks, () -> waited.complete(true));
+                        // On the player's thread: the steps after the wait read and act on the player,
+                        // which Folia's global thread may not. Gone by then: the chain stops.
+                        Tasks.of(owner).runAtEntityLater(player, ticks, () -> waited.complete(player.isOnline()),
+                                () -> waited.complete(false));
                     }
                     return waited;
                 };

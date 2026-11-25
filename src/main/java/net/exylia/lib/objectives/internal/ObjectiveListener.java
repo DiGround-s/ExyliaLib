@@ -53,6 +53,7 @@ public final class ObjectiveListener implements Listener {
 
     /** Where each player already had a placement counted this session, so placing and breaking one block pays once. */
     private final Map<UUID, Set<String>> placedAt = new ConcurrentHashMap<>();
+    private static final int MAX_SPOTS = 4096;
 
     ObjectiveListener() {
     }
@@ -98,6 +99,9 @@ public final class ObjectiveListener implements Listener {
         Block block = event.getBlockPlaced();
         // ponytail: a spot counts once per session for every subscriber; key it per subscriber if one needs repeats.
         Set<String> spots = placedAt.computeIfAbsent(player.getUniqueId(), id -> ConcurrentHashMap.newKeySet());
+        // Bounded: a builder's session would otherwise keep every block they ever placed. Past it the
+        // spots start over, so a place-break loop is held off for thousands of blocks, not forever.
+        if (spots.size() >= MAX_SPOTS) spots.clear();
         if (!spots.add(ObjectiveRuntime.spot(block))) return;
         ObjectiveRuntime.deliver(progress(player, ObjectiveType.PLACE_BLOCK, block.getType().name(), centre(block), 1));
     }
