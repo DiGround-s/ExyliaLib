@@ -198,6 +198,10 @@ public final class Downed implements Listener {
             return;
         }
         long now = System.currentTimeMillis();
+        // Real time since the last step, so a revive takes as long under lag as
+        // without it, and the bleed-out clock waits exactly that long.
+        long step = Math.clamp(now - state.steppedAt, 0L, 1_000L);
+        state.steppedAt = now;
         holdCrawl(player, state);
         Player helper = helper(player, state);
         if (helper == null) {
@@ -210,11 +214,11 @@ public final class Downed implements Listener {
             reviving.put(helper.getUniqueId(), player.getUniqueId());
             helper.showBossBar(state.bar);
         } else {
-            state.progress++;
-            state.deadline += 50;  // the clock waits while someone helps
+            state.progress += step;
+            state.deadline += step;  // the clock waits while someone helps
         }
-        long reviveTicks = Math.max(1, revive.toMillis() / 50);
-        if (state.helper != null && state.progress >= reviveTicks) {
+        long reviveMillis = Math.max(1, revive.toMillis());
+        if (state.helper != null && state.progress >= reviveMillis) {
             Player by = Bukkit.getPlayer(state.helper);
             end(player, DownedEnd.REVIVED);
             player.setHealth(Math.min(health, maxHealth(player)));
@@ -234,7 +238,7 @@ public final class Downed implements Listener {
         }
         if (now / 250 != state.drawn) {
             state.drawn = now / 250;
-            draw(player, state, now, reviveTicks);
+            draw(player, state, now, reviveMillis);
         }
     }
 
@@ -257,13 +261,13 @@ public final class Downed implements Listener {
                 && reviver.test(helper, down);
     }
 
-    private void draw(Player player, State state, long now, long reviveTicks) {
+    private void draw(Player player, State state, long now, long reviveMillis) {
         DownedMessages lines = messages.get();
         if (state.helper != null) {
             Player helper = Bukkit.getPlayer(state.helper);
             state.bar.name(Text.component(lines.reviving().replace("%player%", helper == null ? "?" : helper.getName())));
             state.bar.color(BossBar.Color.GREEN);
-            state.bar.progress(clamp((float) state.progress / reviveTicks));
+            state.bar.progress(clamp((float) state.progress / reviveMillis));
         } else {
             long left = Math.max(0, state.deadline - now);
             state.bar.name(Text.component(lines.downed().replace("%time%",
@@ -396,7 +400,9 @@ public final class Downed implements Listener {
         final BossBar bar = BossBar.bossBar(net.kyori.adventure.text.Component.empty(), 1f,
                 BossBar.Color.RED, BossBar.Overlay.PROGRESS);
         volatile long deadline;
-        volatile int progress;
+        /** Milliseconds of help so far. */
+        volatile long progress;
+        volatile long steppedAt = System.currentTimeMillis();
         volatile @Nullable UUID helper;
         @Nullable Location barrier;
         long drawn = -1;

@@ -239,6 +239,11 @@ public final class CameraRuntime {
      * Where a player is looking from, {@code x, y, z, yaw, pitch}, or
      * {@code null} when they are not looking through a camera.
      */
+    /** Who is looking through a camera now: a live view, for scans that must not miss them. */
+    public static java.util.Set<UUID> filming() {
+        return java.util.Collections.unmodifiableSet(FILMING.keySet());
+    }
+
     public static double[] viewpoint(UUID player) {
         LiveCamera camera = FILMING.get(player);
         return camera == null ? null : camera.where();

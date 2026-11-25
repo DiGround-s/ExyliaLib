@@ -160,6 +160,8 @@ public final class ClickSpots {
     private final double legacyAhead;
     private final Hooks hooks;
     private final Map<String, Spot> spots = new ConcurrentHashMap<>();
+    /** The lines each spot's hologram last got, so the two-second refresh only resends a change. */
+    private final Map<String, List<String>> shownLines = new ConcurrentHashMap<>();
     /** Only as long as the gap it guards: a map of every player ever seen otherwise. */
     private final Map<UUID, Long> lastClick = com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
             .expireAfterWrite(java.time.Duration.ofMillis(CLICK_GAP_MS * 4))
@@ -363,11 +365,14 @@ public final class ClickSpots {
         if (kind == null) return;
         Location over = spot.isBlock() ? at.clone().add(0.5, 1.4, 0.5) : at.clone().add(0.5, 2.4, 0.5);
         Hologram hologram = Holograms.show(plugin, hologramId(spot.id()), over, hooks.look());
-        hologram.lines(hooks.lines(spot, kind));
+        List<String> lines = hooks.lines(spot, kind);
+        hologram.lines(lines);
+        shownLines.put(spot.id(), lines);
         hologram.onClick(player -> clicked(player, spot.id()));
     }
 
     private void take(Spot spot) {
+        shownLines.remove(spot.id());
         Holograms.remove(plugin, hologramId(spot.id()));
         Location at = spot.location();
         if (at != null && spot.isBlock()) Blocks.of(plugin).unregister(at);
@@ -378,7 +383,12 @@ public final class ClickSpots {
             if (!spot.hologram()) continue;
             Kind kind = kindOf(spot);
             if (kind == null) continue;
-            Holograms.get(plugin, hologramId(spot.id())).ifPresent(h -> h.lines(hooks.lines(spot, kind)));
+            Holograms.get(plugin, hologramId(spot.id())).ifPresent(h -> {
+                List<String> lines = hooks.lines(spot, kind);
+                // Setting lines resends the text to every viewer; most refreshes change nothing.
+                if (lines.equals(shownLines.put(spot.id(), lines))) return;
+                h.lines(lines);
+            });
         }
     }
 

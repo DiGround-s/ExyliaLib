@@ -105,7 +105,17 @@ public final class LiveStage {
         Predicate<Player> allowed = sees.get();
         double limit = radius * radius;
         List<Player> found = new ArrayList<>();
-        for (Player player : world.getPlayers()) {
+        // The players around the stage only; on Folia those are this region's,
+        // and a player elsewhere in the world is another thread's to read.
+        java.util.Collection<Player> near;
+        try {
+            near = world.getNearbyPlayers(where, radius);
+        } catch (IllegalStateException elsewhere) {
+            return List.of();
+        }
+        if (near == null) near = world.getPlayers();
+        for (Player player : near) {
+            if (net.exylia.lib.platform.Platform.isFolia() && !org.bukkit.Bukkit.isOwnedByCurrentRegion(player)) continue;
             if (player.getLocation().distanceSquared(where) <= limit && allowed.test(player)) {
                 found.add(player);
             }

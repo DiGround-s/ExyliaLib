@@ -27,6 +27,19 @@ import java.util.logging.Logger;
  */
 public final class EffectRuntime {
 
+    /** The clock timed effects follow: real time, or a test's simulated ticks. */
+    private static volatile java.util.function.LongSupplier nanos = System::nanoTime;
+
+    static long nanoTime() {
+        return nanos.getAsLong();
+    }
+
+    /** Makes timed effects follow another clock. For tests that simulate ticks. */
+    public static void useClock(@org.jetbrains.annotations.NotNull java.util.function.LongSupplier clock) {
+        nanos = clock;
+    }
+
+
     /** Every showing display, keyed by identity so equal-looking ones stay distinct. */
     private static final Map<ActiveDisplay, Boolean> ACTIVE = new ConcurrentHashMap<>();
 

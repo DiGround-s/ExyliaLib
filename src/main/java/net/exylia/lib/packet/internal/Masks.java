@@ -218,7 +218,11 @@ final class Masks implements BlockMasks {
     static void pass() {
         PacketSink out = PacketRuntime.sink();
         Plugin lib = PacketRuntime.lib();
-        if (out == null || lib == null || COUNT.get() == 0 && REVEALED.isEmpty()) return;
+        if (out == null || lib == null) return;
+        // With no masks left, a viewer's empty record is all that is left of them:
+        // dropped, so an idle pass does not walk every online player.
+        if (COUNT.get() == 0) REVEALED.values().removeIf(Set::isEmpty);
+        if (COUNT.get() == 0 && REVEALED.isEmpty()) return;
         int reach = (int) Math.ceil(farthest / 16.0);
         for (Player viewer : Bukkit.getOnlinePlayers()) {
             World world = viewer.getWorld();

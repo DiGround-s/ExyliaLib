@@ -230,6 +230,23 @@ class DisplayTest {
     }
 
     @Test
+    @DisplayName("a countdown follows the clock, not the ticks: under lag it still ends on time")
+    void countdownIgnoresLag() {
+        // Every tick takes two ticks' worth of time: the server runs at 10 TPS.
+        net.exylia.lib.effect.internal.EffectRuntime.useClock(() -> FakeServer.currentTick() * 100_000_000L);
+        try {
+            Display display = Effects.bossBar("%time%").countdown(1.0).show(viewer.player());
+            FakeServer.tick(1);
+            FakeServer.tick(5);
+            assertEquals(0.5f, display.timer().progress(), 0.06, "five lagged ticks are half a second");
+            FakeServer.tick(6);
+            assertFalse(display.isShowing(), "a one second countdown ends after one second at 10 TPS");
+        } finally {
+            net.exylia.lib.effect.internal.EffectRuntime.useClock(() -> FakeServer.currentTick() * 50_000_000L);
+        }
+    }
+
+    @Test
     @DisplayName("onEnd runs exactly once, however the effect ends")
     void onEndRunsOnce() {
         AtomicInteger ended = new AtomicInteger();

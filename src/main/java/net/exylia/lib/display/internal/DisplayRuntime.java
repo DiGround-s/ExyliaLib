@@ -85,19 +85,43 @@ public final class DisplayRuntime {
             }
             double limit = radius * radius;
             List<Player> present = new ArrayList<>();
-            for (Player online : world.getPlayers()) {
-                // The world first: distanceSquared throws across worlds, and the
-                // list can hold a player who has just changed world.
-                if (!online.isOnline() || !world.equals(online.getWorld())
-                        || Viewpoints.of(online).distanceSquared(where) > limit) {
-                    continue;
-                }
-                if (filter != null && !filter.test(online)) {
-                    continue;
-                }
-                present.add(online);
+            // Only the players around the place, not the whole world for every
+            // display twice a second; on Folia the nearby ones are this region's.
+            java.util.Collection<Player> near;
+            try {
+                near = world.getNearbyPlayers(where, radius);
+            } catch (IllegalStateException elsewhere) {
+                near = null;
+            }
+            if (near == null) {
+                for (Player online : world.getPlayers()) consider(online, world, where, limit, present);
+                return present;
+            }
+            for (Player online : near) consider(online, world, where, limit, present);
+            // Someone looking through a camera sees from there, wherever their body is.
+            for (java.util.UUID id : net.exylia.lib.camera.internal.CameraRuntime.filming()) {
+                Player viewer = org.bukkit.Bukkit.getPlayer(id);
+                if (viewer != null && !present.contains(viewer)) consider(viewer, world, where, limit, present);
             }
             return present;
+        }
+
+        private void consider(Player online, org.bukkit.World world, Location where, double limit, List<Player> present) {
+            // The world first: distanceSquared throws across worlds, and the
+            // list can hold a player who has just changed world. On Folia a
+            // player in another region is that region's to read.
+            if (!online.isOnline() || !world.equals(online.getWorld()) || !owned(online)
+                    || Viewpoints.of(online).distanceSquared(where) > limit) {
+                return;
+            }
+            if (filter != null && !filter.test(online)) {
+                return;
+            }
+            present.add(online);
+        }
+
+        private static boolean owned(Player player) {
+            return !net.exylia.lib.platform.Platform.isFolia() || org.bukkit.Bukkit.isOwnedByCurrentRegion(player);
         }
     }
 

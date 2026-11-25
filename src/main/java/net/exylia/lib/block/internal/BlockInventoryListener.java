@@ -20,6 +20,7 @@ public final class BlockInventoryListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onMove(InventoryMoveItemEvent event) {
+        if (!BlockRuntime.guardsAny()) return;
         if (guarded(event.getSource()) || guarded(event.getDestination())) event.setCancelled(true);
     }
 
@@ -33,6 +34,8 @@ public final class BlockInventoryListener implements Listener {
         if (at == null) return false;
         World world = at.getWorld();
         if (world == null) return false;
+        // Most hoppers are nowhere near a guarded block: settle those without reading one.
+        if (!BlockRuntime.mayGuard(world.getUID(), at.getBlockX(), at.getBlockZ())) return false;
         ClickableBlock registered = BlockRuntime.at(world.getBlockAt(at.getBlockX(), at.getBlockY(), at.getBlockZ()));
         return registered != null && registered.protectsInventory();
     }

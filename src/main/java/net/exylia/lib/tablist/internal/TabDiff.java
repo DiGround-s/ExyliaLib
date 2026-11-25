@@ -50,8 +50,12 @@ final class TabDiff {
         return true;
     }
 
-    /** Whether any text slot carries a moving effect and wants redrawing every frame. */
+    /**
+     * Whether the header or footer carries a moving effect and wants redrawing
+     * every frame. The name does not count: it is sent to everybody, so it only
+     * changes on a resolve.
+     */
     synchronized boolean moving() {
-        return moving[HEADER] || moving[FOOTER] || moving[NAME];
+        return moving[HEADER] || moving[FOOTER];
     }
 }

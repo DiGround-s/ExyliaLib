@@ -68,8 +68,9 @@ footer:
 - Only players whose tab list has a moving line are redrawn between resolves,
   and only when the frame actually changed the line.
 - A text with no moving line is parsed whole, exactly as before.
-- A moving **name** is sent to every viewer each frame: keep effects to the
-  header and footer unless the list is small.
+- A **name** is sent to every player on the server, so it does not animate
+  between resolves (since 1.661.0): a moving tag in it shows a new frame each
+  `every`, not ten times a second. Keep effects to the header and footer.
 
 ## Order and server versions
 

@@ -18,7 +18,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -56,6 +58,17 @@ public final class BlockRuntime {
     /** Whether the hopper listener is up; it goes up with the first block that guards its inventory. */
     private static final AtomicBoolean INVENTORY_LISTENER = new AtomicBoolean();
 
+    /**
+     * The chunks that hold a block guarding its inventory, a block's neighbours'
+     * included so a double chest's other half is covered. The hopper listener
+     * answers from this alone for every other hopper on the server, without
+     * reading a block. Rebuilt on each change, which is rare.
+     */
+    private static volatile Set<ChunkKey> guardedChunks = Set.of();
+
+    private record ChunkKey(UUID world, int x, int z) {
+    }
+
     private BlockRuntime() {
         throw new AssertionError("No instances.");
     }
@@ -79,7 +92,8 @@ public final class BlockRuntime {
     public static void register(@NotNull ClickableBlock block) {
         Position position = Position.of(block.location());
         if (position == null) return;
-        BLOCKS.put(position, block);
+        ClickableBlock was = BLOCKS.put(position, block);
+        if (block.protectsInventory() || (was != null && was.protectsInventory())) reguard();
         if (block.protectsInventory() && INVENTORY_LISTENER.compareAndSet(false, true)) {
             listenToHoppers();
         }
@@ -108,7 +122,32 @@ public final class BlockRuntime {
      */
     public static void unregister(@NotNull Location location, @NotNull ClickableBlock expected) {
         Position position = Position.of(location);
-        if (position != null) BLOCKS.remove(position, expected);
+        if (position != null && BLOCKS.remove(position, expected) && expected.protectsInventory()) reguard();
+    }
+
+    /** Whether any registered block guards its inventory now. */
+    public static boolean guardsAny() {
+        return !guardedChunks.isEmpty();
+    }
+
+    /** Whether a block at these coordinates could be a guarded inventory's; false means surely not. */
+    public static boolean mayGuard(@NotNull UUID world, int x, int z) {
+        Set<ChunkKey> chunks = guardedChunks;
+        return !chunks.isEmpty() && chunks.contains(new ChunkKey(world, x >> 4, z >> 4));
+    }
+
+    private static synchronized void reguard() {
+        Set<ChunkKey> chunks = new HashSet<>();
+        for (Map.Entry<Position, ClickableBlock> entry : BLOCKS.entrySet()) {
+            if (!entry.getValue().protectsInventory()) continue;
+            Position at = entry.getKey();
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    chunks.add(new ChunkKey(at.world(), (at.x() + dx) >> 4, (at.z() + dz) >> 4));
+                }
+            }
+        }
+        guardedChunks = Set.copyOf(chunks);
     }
 
     /** What is registered at a location, or {@code null}. */
@@ -174,11 +213,13 @@ public final class BlockRuntime {
     /** Forgets everything a plugin registered. Called when it is disabled. */
     public static void releaseOwner(@NotNull String owner) {
         BLOCKS.values().removeIf(block -> block.owner().equals(owner));
+        reguard();
     }
 
     /** Forgets everything, on shutdown. */
     public static void releaseAll() {
         BLOCKS.clear();
+        guardedChunks = Set.of();
         // The listener went with the library's plugin; a reload registers it again.
         INVENTORY_LISTENER.set(false);
         RECENT.invalidateAll();

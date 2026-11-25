@@ -33,6 +33,9 @@ import java.util.logging.Level;
  */
 abstract class ActiveDisplay implements Display {
 
+    private static final double NANOS_PER_TICK = 50_000_000.0;
+
+
     /** The owner stamped by the builder, or {@code null} when created through a static. */
     private final String stampedOwner;
 
@@ -110,6 +113,11 @@ abstract class ActiveDisplay implements Display {
             return this;
         }
 
+        // The timer follows the wall clock, not the ticks that ran: under lag a
+        // 30 second countdown still ends after 30 seconds.
+        // Measured from the first run, which stands for one period: what is
+        // behind the scheduler's first delay is not the clock's to judge.
+        long[] clock = {Long.MIN_VALUE, 0L};
         task = scheduler.runAtEntityTimer(viewer, periodTicks, periodTicks, handle -> {
             if (ended.get()) {
                 handle.cancel();
@@ -121,7 +129,15 @@ abstract class ActiveDisplay implements Display {
                 return;
             }
             if (timer != null) {
-                timer.advance(periodTicks);
+                long now = EffectRuntime.nanoTime();
+                if (clock[0] == Long.MIN_VALUE) {
+                    clock[0] = now - (long) (periodTicks * NANOS_PER_TICK);
+                }
+                long due = Math.round((now - clock[0]) / NANOS_PER_TICK) - clock[1];
+                if (due > 0) {
+                    timer.advance(due);
+                    clock[1] += due;
+                }
             }
             try {
                 if (drawn) {

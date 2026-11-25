@@ -104,6 +104,7 @@ public final class NametagRuntime {
      */
     public static void register(Player player) {
         STATE.register(player.getEntityId(), player.getUniqueId());
+        STATE.joined();
     }
 
     /** Forgets a player who left, as a viewer and as somebody being watched. */
@@ -157,6 +158,11 @@ public final class NametagRuntime {
         private volatile Nametags everyoneLayer;
         private volatile TaskHandle everyoneTimer;
         private volatile boolean everyoneReported;
+        /** What the everyone rule last drew on each target, and where that target stood then. */
+        private final Map<UUID, Drawn> everyoneDrawn = new java.util.concurrent.ConcurrentHashMap<>();
+
+        private record Drawn(@Nullable NametagStyle style, long version) {
+        }
 
         private Nametags(String plugin) {
             this.plugin = plugin;
@@ -170,6 +176,7 @@ public final class NametagRuntime {
             }
             everyoneTimer = null;
             Nametags layer = everyoneLayer;
+            everyoneDrawn.clear();
             if (rule == null) {
                 if (layer != null) {
                     layer.clear();
@@ -185,10 +192,12 @@ public final class NametagRuntime {
             }
             Nametags painter = layer;
             everyoneReported = false;
+            everyoneDrawn.clear();
             long ticks = Math.max(1L, every.toMillis() / 50L);
             // Re-applying is what covers joins, rank changes and a reset explicit paint:
             // a pair already drawn this way costs a lookup and sends nothing.
             everyoneTimer = Tasks.of(owner).runTimer(1L, ticks, () -> {
+                everyoneDrawn.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
                 for (Player target : Bukkit.getOnlinePlayers()) {
                     Tasks.of(owner).runAtEntity(target, () -> painter.applyEveryone(rule, target, this));
                 }
@@ -211,6 +220,14 @@ public final class NametagRuntime {
                 return;
             }
             UUID targetId = target.getUniqueId();
+            // Every viewer already has this target drawn this way unless someone
+            // joined or left, or a painting of the target came down: then, and
+            // only then, is it a pass over every viewer again.
+            long version = STATE.versionOf(targetId);
+            Drawn last = parent.everyoneDrawn.get(targetId);
+            if (last != null && last.version() == version && java.util.Objects.equals(last.style(), style)) {
+                return;
+            }
             for (Player viewer : Bukkit.getOnlinePlayers()) {
                 if (viewer.equals(target)) {
                     continue;
@@ -225,6 +242,9 @@ public final class NametagRuntime {
                     paint(viewer, target, style);
                 }
             }
+            // The version from before the pass: whatever changed during it is
+            // seen on the next one.
+            parent.everyoneDrawn.put(targetId, new Drawn(style, version));
         }
 
         @Override

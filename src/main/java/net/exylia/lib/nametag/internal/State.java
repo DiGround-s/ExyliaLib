@@ -40,6 +40,24 @@ final class State {
     /** entity id to player id, for the metadata rewrite. */
     private final Map<Integer, UUID> entities = new ConcurrentHashMap<>();
 
+    /** Bumped when the set of players changes: a joiner is a viewer nothing was painted for yet. */
+    private final java.util.concurrent.atomic.AtomicLong epoch = new java.util.concurrent.atomic.AtomicLong();
+
+    /** Bumped per target when a painting of them is taken down, which a rule may have to cover again. */
+    private final Map<UUID, Long> unpainted = new ConcurrentHashMap<>();
+
+    /**
+     * Where a target stands now: equal to an earlier answer only if no player
+     * joined or left and nothing painted on them was taken down since.
+     */
+    long versionOf(UUID target) {
+        return epoch.get() * 1_000_003L + unpainted.getOrDefault(target, 0L);
+    }
+
+    void joined() {
+        epoch.incrementAndGet();
+    }
+
     /** A style and the plugin that asked for it. */
     record Painted(String plugin, NametagStyle style, String targetName) {
     }
@@ -65,6 +83,7 @@ final class State {
             return null;
         }
         Painted removed = mine.remove(target);
+        if (removed != null) unpainted.merge(target, 1L, Long::sum);
         if (mine.isEmpty()) {
             // A viewer who is shown nothing must leave no entry behind, or a
             // busy server accumulates one empty map per player who ever saw a
@@ -167,6 +186,8 @@ final class State {
 
     /** Drops everything about a player, as a viewer and as a target. */
     void forget(UUID player) {
+        epoch.incrementAndGet();
+        unpainted.remove(player);
         painted.remove(player);
         known.remove(player);
         glowing.remove(player);
@@ -181,6 +202,8 @@ final class State {
     }
 
     void clear() {
+        epoch.incrementAndGet();
+        unpainted.clear();
         painted.clear();
         known.clear();
         glowing.clear();

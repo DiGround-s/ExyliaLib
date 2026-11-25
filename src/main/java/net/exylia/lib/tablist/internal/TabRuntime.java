@@ -154,11 +154,14 @@ public final class TabRuntime {
         String name = resolve ? text(player, diff, TabDiff.NAME, h -> h.name()) : (String) diff.last(TabDiff.NAME);
         Component h = diff.build(TabDiff.HEADER, header, TabRuntime::parse);
         Component f = diff.build(TabDiff.FOOTER, footer, TabRuntime::parse);
-        Component n = diff.build(TabDiff.NAME, name, TabRuntime::parse);
+        // A player-list name goes to every player on the server, so it is not
+        // animated frame by frame: 400 moving names would be 400 x 400 packets
+        // a frame. It changes when it is resolved again.
+        Component n = resolve ? diff.build(TabDiff.NAME, name, TabRuntime::parse) : null;
         if (diff.show(TabDiff.HEADER, h) | diff.show(TabDiff.FOOTER, f)) {
             player.sendPlayerListHeaderAndFooter(h == null ? Component.empty() : h, f == null ? Component.empty() : f);
         }
-        if (diff.show(TabDiff.NAME, n)) {
+        if (resolve && diff.show(TabDiff.NAME, n)) {
             player.playerListName(n);
         }
         if (resolve && Features.playerListOrder()) {

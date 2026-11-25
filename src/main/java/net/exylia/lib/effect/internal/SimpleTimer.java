@@ -8,10 +8,9 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * A timer counted in ticks.
  *
- * <p>Ticks rather than wall-clock time, because an effect is driven by the
- * server's own scheduler: counting milliseconds would drift away from the ticks
- * that actually redraw the bar, and a countdown would finish while the bar still
- * showed time left.
+ * <p>The count is in ticks, but the displays that drive it advance it by the
+ * wall-clock time that passed (since 1.661.0), so a countdown lasts as long
+ * under lag as without it and finishes on the redraw that shows zero.
  *
  * <p>The elapsed count is atomic so a display thread can read a timer that a
  * scheduler thread is advancing. Reads are of a single value, so they are always

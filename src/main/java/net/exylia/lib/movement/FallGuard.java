@@ -22,6 +22,8 @@ final class FallGuard {
 
     private final Plugin plugin;
     private final Set<UUID> airborne = ConcurrentHashMap.newKeySet();
+    /** Landed players with a forget already queued, so each move after landing does not queue another. */
+    private final Set<UUID> landing = ConcurrentHashMap.newKeySet();
 
     FallGuard(Plugin plugin) {
         this.plugin = plugin;
@@ -37,10 +39,12 @@ final class FallGuard {
 
     /** On a move: a launched player back on the ground is forgotten shortly. */
     void moved(Player player) {
-        if (!player.isOnGround() || !airborne.contains(player.getUniqueId())) return;
+        UUID id = player.getUniqueId();
+        if (!player.isOnGround() || !airborne.contains(id) || !landing.add(id)) return;
         Tasks.of(plugin).runAtEntityLater(player, FORGET_AFTER_TICKS, () -> {
-            if (player.isOnGround()) airborne.remove(player.getUniqueId());
-        });
+            landing.remove(id);
+            if (player.isOnGround()) airborne.remove(id);
+        }, () -> landing.remove(id));
     }
 
     /** Whether a fall should be cancelled; forgets the player when it is. */
@@ -50,9 +54,11 @@ final class FallGuard {
 
     void forget(UUID player) {
         airborne.remove(player);
+        landing.remove(player);
     }
 
     void clear() {
         airborne.clear();
+        landing.clear();
     }
 }

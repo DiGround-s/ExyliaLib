@@ -157,6 +157,8 @@ public final class FakeServer {
             throw new IllegalStateException("Could not install the fake server", exception);
         }
         installed = true;
+        // Timed effects follow the wall clock; here the simulated ticks are the clock.
+        net.exylia.lib.effect.internal.EffectRuntime.useClock(() -> tick * 50_000_000L);
     }
 
     /**
