@@ -5,6 +5,7 @@ import net.exylia.lib.tablist.PluginTabList;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Text;
+import net.exylia.lib.text.internal.TextEffects;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -27,6 +28,20 @@ public final class TabRuntime {
     private static volatile Plugin lib;
     private static volatile TaskHandle timer;
     private static volatile long period;
+    /** Ticks between full resolves; the timer itself runs at the frame rate. */
+    private static volatile long resolveTicks;
+    private static long tick;
+
+    /**
+     * Ticks between two frames of a moving line ({@code <flow>}, {@code <shine>},
+     * {@code <frames>}...). Only players whose tab list moves pay for it.
+     */
+    // ponytail: fixed 10 fps; make it a PluginTabList setting if a plugin needs smoother or cheaper motion
+    static final long FRAME_TICKS = 2L;
+
+    /** A parsed text slot and whether it moves. */
+    record Built(Component component, boolean moving) {
+    }
 
     private TabRuntime() {
     }
@@ -60,6 +75,7 @@ public final class TabRuntime {
         }
         timer = null;
         period = 0;
+        resolveTicks = 0;
         HANDLES.clear();
         STATE.clear();
         REPORTED.clear();
@@ -75,7 +91,7 @@ public final class TabRuntime {
     public static void join(Player player) {
         Plugin plugin = lib;
         if (plugin != null && !HANDLES.isEmpty()) {
-            Tasks.of(plugin).runAtEntityLater(player, 2L, () -> render(player));
+            Tasks.of(plugin).runAtEntityLater(player, 2L, () -> render(player, true));
         }
     }
 
@@ -83,7 +99,7 @@ public final class TabRuntime {
     public static void refresh(Player player) {
         Plugin plugin = lib;
         if (plugin != null) {
-            Tasks.of(plugin).runAtEntity(player, () -> render(player));
+            Tasks.of(plugin).runAtEntity(player, () -> render(player, true));
         }
     }
 
@@ -93,7 +109,9 @@ public final class TabRuntime {
         if (plugin == null) {
             return;
         }
-        long wanted = HANDLES.stream().mapToLong(h -> Math.max(1L, h.interval().toMillis() / 50L)).min().orElse(0L);
+        long resolve = HANDLES.stream().mapToLong(h -> Math.max(1L, h.interval().toMillis() / 50L)).min().orElse(0L);
+        long wanted = resolve == 0 ? 0 : Math.min(resolve, FRAME_TICKS);
+        resolveTicks = resolve;
         if (wanted == period) {
             return;
         }
@@ -103,27 +121,47 @@ public final class TabRuntime {
         }
         timer = null;
         period = wanted;
+        tick = 0;
         if (wanted > 0) {
-            timer = Tasks.of(plugin).runTimer(wanted, wanted,
-                    () -> Bukkit.getOnlinePlayers().forEach(TabRuntime::refresh));
+            timer = Tasks.of(plugin).runTimer(wanted, wanted, TabRuntime::tick);
         }
     }
 
-    private static void render(Player player) {
+    /** One timer step: a full resolve when due, otherwise a new frame for players whose tab list moves. */
+    private static void tick() {
+        long now = tick += period;
+        boolean resolve = resolveTicks > 0 && now % resolveTicks < period;
+        Plugin plugin = lib;
+        if (plugin == null) {
+            return;
+        }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            TabDiff diff = STATE.get(player.getUniqueId());
+            if (resolve || diff != null && diff.moving()) {
+                Tasks.of(plugin).runAtEntity(player, () -> render(player, resolve));
+            }
+        }
+    }
+
+    private static void render(Player player, boolean resolve) {
         if (!player.isOnline()) {
             return;
         }
         TabDiff diff = STATE.computeIfAbsent(player.getUniqueId(), id -> new TabDiff());
-        String header = text(player, diff, TabDiff.HEADER, h -> h.header());
-        String footer = text(player, diff, TabDiff.FOOTER, h -> h.footer());
-        String name = text(player, diff, TabDiff.NAME, h -> h.name());
-        if (diff.changed(TabDiff.HEADER, header) | diff.changed(TabDiff.FOOTER, footer)) {
-            player.sendPlayerListHeaderAndFooter(component(header), component(footer));
+        // Between resolves only the frame moves: the text is the one resolved last.
+        String header = resolve ? text(player, diff, TabDiff.HEADER, h -> h.header()) : (String) diff.last(TabDiff.HEADER);
+        String footer = resolve ? text(player, diff, TabDiff.FOOTER, h -> h.footer()) : (String) diff.last(TabDiff.FOOTER);
+        String name = resolve ? text(player, diff, TabDiff.NAME, h -> h.name()) : (String) diff.last(TabDiff.NAME);
+        Component h = diff.build(TabDiff.HEADER, header, TabRuntime::parse);
+        Component f = diff.build(TabDiff.FOOTER, footer, TabRuntime::parse);
+        Component n = diff.build(TabDiff.NAME, name, TabRuntime::parse);
+        if (diff.show(TabDiff.HEADER, h) | diff.show(TabDiff.FOOTER, f)) {
+            player.sendPlayerListHeaderAndFooter(h == null ? Component.empty() : h, f == null ? Component.empty() : f);
         }
-        if (diff.changed(TabDiff.NAME, name)) {
-            player.playerListName(name == null ? null : component(name));
+        if (diff.show(TabDiff.NAME, n)) {
+            player.playerListName(n);
         }
-        if (Features.playerListOrder()) {
+        if (resolve && Features.playerListOrder()) {
             Integer order = order(player);
             if (diff.changed(TabDiff.ORDER, order)) {
                 player.setPlayerListOrder(order == null ? 0 : order);
@@ -131,8 +169,28 @@ public final class TabRuntime {
         }
     }
 
-    private static Component component(String text) {
-        return text == null ? Component.empty() : Text.component(text.replace("<nl>", "\n"));
+    /**
+     * Parses a header, footer or name. A text whose lines start with moving tags
+     * ({@code <flow>}, {@code <frames>}...) is parsed line by line, so each line
+     * moves on its own; any other text is parsed whole, as before.
+     */
+    static Built parse(String text) {
+        String[] lines = text.replace("<nl>", "\n").split("\n", -1);
+        boolean moving = false;
+        for (String line : lines) {
+            moving |= TextEffects.moves(line);
+        }
+        if (!moving) {
+            return new Built(Text.component(String.join("\n", lines)), false);
+        }
+        Component out = Component.empty();
+        for (int i = 0; i < lines.length; i++) {
+            if (i > 0) {
+                out = out.append(Component.newline());
+            }
+            out = out.append(Text.component(lines[i]));
+        }
+        return new Built(out, true);
     }
 
     private static String text(Player player, TabDiff diff, int slot, Function<PluginTabList, Function<Player, String>> field) {

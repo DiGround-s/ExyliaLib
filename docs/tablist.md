@@ -48,6 +48,29 @@ TabLists.of(this)
 - Text is parsed as the server's own, like a scoreboard line: escape what a
   player typed (see [text](text.md)) before putting it in the template.
 
+## Moving lines (since 1.659.0)
+
+Every line of the header and footer (and a listed name) can start with the
+[moving text](text.md#moving-text-since-15790) tags, each line on its own:
+
+```yaml
+header:
+  - '<flow><gradient:{primary}:{secondary_light}>&lEXYLIA NETWORK'
+  - '{letters}Online: {info}%server_online%'
+footer:
+  - '<frames:6>{info}dc.exylia.net||{info}tienda.exylia.net||{info}/vote'
+  - '<shine:highlight,speed=12,pause=2>{letters}Open the menu with /clicker'
+```
+
+- The text is still resolved every `every`; the frame is drawn from the clock
+  ten times a second, from the text resolved last. Placeholders do not move
+  faster than `every`, the effect does.
+- Only players whose tab list has a moving line are redrawn between resolves,
+  and only when the frame actually changed the line.
+- A text with no moving line is parsed whole, exactly as before.
+- A moving **name** is sent to every viewer each frame: keep effects to the
+  header and footer unless the list is small.
+
 ## Order and server versions
 
 `order` uses `Player#setPlayerListOrder`, which exists on Paper 1.21.2+, behind

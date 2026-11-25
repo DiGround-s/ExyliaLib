@@ -2,17 +2,22 @@ package net.exylia.lib.nametag.internal;
 
 import net.exylia.lib.nametag.NametagStyle;
 import net.exylia.lib.nametag.PluginNametags;
+import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 /**
@@ -29,6 +34,9 @@ public final class NametagRuntime {
 
     private static volatile NametagSink sink;
     private static volatile Logger logger = Logger.getLogger("ExyliaLib");
+    private static volatile Plugin lib;
+    /** Owner suffix of a plugin's {@code everyone} layer: explicit paints of any plugin win over it. */
+    private static final String EVERYONE = "#everyone";
 
     private NametagRuntime() {
     }
@@ -36,6 +44,7 @@ public final class NametagRuntime {
     /** Starts listening for entity metadata, if PacketEvents is installed. */
     public static void init(Plugin plugin) {
         logger = plugin.getLogger();
+        lib = plugin;
         sink = install();
     }
 
@@ -129,6 +138,11 @@ public final class NametagRuntime {
         STATE.clear();
     }
 
+    /** Sets the plugin that owns the {@code everyone} timers. For tests. */
+    static void owner(Plugin plugin) {
+        lib = plugin;
+    }
+
     /** The state, for tests. */
     static State state() {
         return STATE;
@@ -140,9 +154,77 @@ public final class NametagRuntime {
     private static final class Nametags implements PluginNametags {
 
         private final String plugin;
+        private volatile Nametags everyoneLayer;
+        private volatile TaskHandle everyoneTimer;
+        private volatile boolean everyoneReported;
 
         private Nametags(String plugin) {
             this.plugin = plugin;
+        }
+
+        @Override
+        public void everyone(@Nullable Function<Player, NametagStyle> rule, @NotNull Duration every) {
+            TaskHandle old = everyoneTimer;
+            if (old != null) {
+                old.cancel();
+            }
+            everyoneTimer = null;
+            Nametags layer = everyoneLayer;
+            if (rule == null) {
+                if (layer != null) {
+                    layer.clear();
+                }
+                return;
+            }
+            Plugin owner = lib;
+            if (owner == null || sink() == null) {
+                return;
+            }
+            if (layer == null) {
+                layer = everyoneLayer = new Nametags(plugin + EVERYONE);
+            }
+            Nametags painter = layer;
+            everyoneReported = false;
+            long ticks = Math.max(1L, every.toMillis() / 50L);
+            // Re-applying is what covers joins, rank changes and a reset explicit paint:
+            // a pair already drawn this way costs a lookup and sends nothing.
+            everyoneTimer = Tasks.of(owner).runTimer(1L, ticks, () -> {
+                for (Player target : Bukkit.getOnlinePlayers()) {
+                    Tasks.of(owner).runAtEntity(target, () -> painter.applyEveryone(rule, target, this));
+                }
+            });
+        }
+
+        /** Paints one target for every other viewer, skipping pairs another painting owns. */
+        private void applyEveryone(Function<Player, NametagStyle> rule, Player target, Nametags parent) {
+            if (!target.isOnline()) {
+                return;
+            }
+            NametagStyle style;
+            try {
+                style = rule.apply(target);
+            } catch (RuntimeException e) {
+                if (!parent.everyoneReported) {
+                    parent.everyoneReported = true;
+                    logger.warning("Nametag rule of " + parent.plugin + " failed: " + e);
+                }
+                return;
+            }
+            UUID targetId = target.getUniqueId();
+            for (Player viewer : Bukkit.getOnlinePlayers()) {
+                if (viewer.equals(target)) {
+                    continue;
+                }
+                State.Painted painted = STATE.paintedOf(viewer.getUniqueId(), targetId);
+                if (painted != null && !painted.plugin().equals(plugin)) {
+                    continue;
+                }
+                if (style == null) {
+                    reset(viewer, target);
+                } else {
+                    paint(viewer, target, style);
+                }
+            }
         }
 
         @Override
@@ -288,6 +370,15 @@ public final class NametagRuntime {
 
         @Override
         public void clear() {
+            TaskHandle timer = everyoneTimer;
+            if (timer != null) {
+                timer.cancel();
+                everyoneTimer = null;
+            }
+            Nametags layer = everyoneLayer;
+            if (layer != null) {
+                layer.clear();
+            }
             for (UUID viewerId : STATE.viewers()) {
                 Player viewer = Bukkit.getPlayer(viewerId);
                 for (Map.Entry<UUID, State.Painted> entry

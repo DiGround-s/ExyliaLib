@@ -16,7 +16,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Effects](effects.md) | Titles, action bars, boss bars, sounds, particles, fireworks — from config | 1.4.0 |
 | [Action bars](actionbars.md) | One action bar line per player shared by every plugin: segments in order, sent only when they change | 1.323.0 |
 | [Scoreboard](scoreboard.md) | Packet sidebars declared in config | 1.5.0 |
-| [Tab list](tablist.md) | Per-player tab list: header, footer, listed names and order, resolved per viewer and sent only when they change | 1.633.0 |
+| [Tab list](tablist.md) | Per-player tab list: header, footer, listed names and order, resolved per viewer and sent only when they change; moving lines (`<flow>`, `<frames>`, `<shine>`...) per line since 1.659.0 | 1.633.0 |
 | [Hologram](hologram.md) | Packet holograms declared in config | 1.6.0 |
 | [Client nodes](nodes.md) | Blocks and items one player sees and clicks, sent as packets: per-player farms, ores and targets with a look, glow, size and pop, culled by distance; drawn as real blocks and dropped items for Bedrock since 1.657.0 | 1.628.0 |
 | [Client mobs](clientmobs.md) | Mobs of any vanilla type one player sees, which walk, look, swing and sit, sent as packets: per-player helpers and pets, culled by distance; `clickThrough` passes clicks to the node behind since 1.655.0 | 1.634.0 |
@@ -70,7 +70,7 @@ against the source — rules and routes are in `AGENTS.md` under
 | [Teleport](teleport.md) | Moving a player: countdowns that moving or damage calls off, safe landings, `/back`, requests, random spots and handovers to another server | 1.34.0 |
 | [WorldGuard](worldguard.md) | Region lookups and Exylia's own region flags — `kill-effects`, `hit-effects`, `arrows-effects` | 1.74.0 |
 | [Wizards](wizard.md) | Walking a player through several questions — branches, a review they can go back from, and nothing applied until they confirm | 1.34.0 |
-| [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included | 1.36.0 |
+| [Nametags](nametags.md) | Name colour, glow and collision as one player sees another — vanilla clients included; `everyone(rule)` paints every player for everyone (rank prefix, colour) like a nametag plugin since 1.659.0 | 1.36.0 |
 | [Packets](packets.md) | Vanish, drawing invisible players, fake blocks, freezing, a fake spectator, silent chest viewing, per-player world borders, lines under items, chest lids, maps held only on screen and blocks masked from far players (anti-ESP) — packets to one client, nothing on the server | 1.75.0 (`WorldBorders` 1.162.0, `ItemLines` 1.203.0, `ChestLids` 1.272.0, `HeldMaps` 1.352.0, `BlockMasks` 1.434.0) |
 | [Block palettes](palettes.md) | Per-player block swaps: each player sees the same world with some blocks drawn as others (oak planks as spruce), shared properties kept, only swaps that collide and move the same; chunks, block changes, falling blocks and break effects repainted, nothing changed on the server | 1.636.0 |
 | [Overlays](overlays.md) | Items in a player's own inventory that the server does not have — a staff hotbar a crash cannot leave behind | 1.79.0 |

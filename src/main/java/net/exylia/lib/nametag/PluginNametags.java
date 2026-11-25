@@ -2,8 +2,11 @@ package net.exylia.lib.nametag;
 
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.Collection;
+import java.util.function.Function;
 
 /**
  * One plugin's nametags.
@@ -94,4 +97,37 @@ public interface PluginNametags {
      * <p>Done automatically when the plugin is disabled.
      */
     void clear();
+
+    /**
+     * Paints every online player for everyone else from one rule, the way a
+     * nametag plugin does: a rank prefix, a name colour, a suffix. The rule
+     * receives the player being drawn and is re-read every {@code every}, which
+     * also covers joins and rank changes; a pair already drawn that way sends
+     * nothing.
+     *
+     * <p>It is a base layer: anything painted with {@link #paint} by any plugin
+     * (a bounty, a clan, a duel) wins over it for that pair, and the rule takes
+     * the pair back once that painting is reset. A rule returning {@code null}
+     * leaves the player unpainted. Calling it again replaces the rule; a
+     * {@code null} rule stops it and resets what it painted, as does
+     * {@link #clear()}.
+     *
+     * <p>The rule runs on the target's entity thread, so it may read the player
+     * and resolve placeholders.
+     *
+     * @param rule  how a player looks to everyone else, or {@code null} to stop
+     * @param every how often it is re-read; one second is plenty
+     * @since 1.659.0
+     */
+    void everyone(@Nullable Function<Player, NametagStyle> rule, @NotNull Duration every);
+
+    /**
+     * {@link #everyone(Function, Duration)} re-read once a second.
+     *
+     * @param rule how a player looks to everyone else, or {@code null} to stop
+     * @since 1.659.0
+     */
+    default void everyone(@Nullable Function<Player, NametagStyle> rule) {
+        everyone(rule, Duration.ofSeconds(1));
+    }
 }

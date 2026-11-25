@@ -322,4 +322,28 @@ class NametagTest {
         assertFalse(NametagRuntime.isSupported());
         assertNull(none.styleOf(alice.player(), bob.player()));
     }
+
+    @Test
+    @DisplayName("everyone paints every pair, yields to an explicit paint and takes the pair back after its reset")
+    void everyoneIsABaseLayer() {
+        NametagRuntime.owner(FakeServer.newPlugin("ExyliaLib"));
+        tags.everyone(target -> GREEN);
+        FakeServer.tick(3);
+        assertEquals(GREEN, NametagRuntime.state().paintedOf(alice.player().getUniqueId(), bob.player().getUniqueId()).style());
+        assertEquals(GREEN, NametagRuntime.state().paintedOf(bob.player().getUniqueId(), carol.player().getUniqueId()).style());
+        assertNull(NametagRuntime.state().paintedOf(alice.player().getUniqueId(), alice.player().getUniqueId()),
+                "nobody is painted for themselves");
+
+        PluginNametags game = NametagRuntime.of(FakeServer.newPlugin("Game"));
+        game.paint(alice.player(), bob.player(), RED);
+        FakeServer.tick(25);
+        assertEquals(RED, game.styleOf(alice.player(), bob.player()), "an explicit paint wins over the rule");
+
+        game.reset(alice.player(), bob.player());
+        FakeServer.tick(25);
+        assertEquals(GREEN, NametagRuntime.state().paintedOf(alice.player().getUniqueId(), bob.player().getUniqueId()).style());
+
+        tags.clear();
+        assertNull(NametagRuntime.state().paintedOf(alice.player().getUniqueId(), bob.player().getUniqueId()));
+    }
 }

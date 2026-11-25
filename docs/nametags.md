@@ -67,6 +67,25 @@ per viewer too and costs the same packets. A style with a prefix or suffix but
 no colour draws the name white. Team names stay within 16 characters: a style
 carrying text is named by a hash of colour, prefix and suffix.
 
+## Everyone, from one rule (since 1.659.0)
+
+```java
+Nametags.of(this).everyone(target -> NametagStyle.of(NamedTextColor.WHITE)
+        .withPrefix(Text.component(Placeholders.apply("%luckperms_prefix% ", target))));
+```
+
+What a nametag plugin (TAB's `scoreboard-teams`) does: every online player is
+painted for everyone else by one rule, re-read once a second (or
+`everyone(rule, every)`), which covers joins and rank changes. A pair already
+drawn that way sends nothing. The rule runs on the target's thread, so it can
+resolve placeholders.
+
+It is a **base layer**: a `paint` from any plugin (a bounty, a clan, a duel)
+wins over it for that pair, and the rule takes the pair back on its next pass
+once that paint is reset. `null` from the rule leaves a player unpainted;
+`everyone(null)` or `clear()` stops it and resets what it painted. Collision is
+off unless the style says `withCollision()`.
+
 ## A glow without a team
 
 ```java
