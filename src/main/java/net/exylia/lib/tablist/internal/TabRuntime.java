@@ -180,6 +180,8 @@ public final class TabRuntime {
     /** This frame's parses, shared: a moving header is the same frame for everybody who has that text. */
     private static final Map<String, Built> FRAME = new java.util.concurrent.ConcurrentHashMap<>();
     private static volatile long frameOf = -1;
+    /** This frame's moving lines: a header that differs per player usually shares its animated line. */
+    private static final Map<String, Component> FRAME_LINES = new java.util.concurrent.ConcurrentHashMap<>();
 
     static Built parse(String text) {
         // One server tick: every player drawn within it is drawn the same frame.
@@ -187,6 +189,7 @@ public final class TabRuntime {
         if (now != frameOf) {
             frameOf = now;
             FRAME.clear();
+            FRAME_LINES.clear();
         }
         return FRAME.computeIfAbsent(text, TabRuntime::parseNow);
     }
@@ -205,7 +208,8 @@ public final class TabRuntime {
             if (i > 0) {
                 out = out.append(Component.newline());
             }
-            out = out.append(Text.component(lines[i]));
+            String line = lines[i];
+            out = out.append(TextEffects.moves(line) ? FRAME_LINES.computeIfAbsent(line, Text::component) : Text.component(line));
         }
         return new Built(out, true);
     }
