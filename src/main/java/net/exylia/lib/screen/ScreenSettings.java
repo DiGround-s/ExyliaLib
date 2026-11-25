@@ -188,6 +188,24 @@ public record ScreenSettings(
         String hoverHighlight
 ) {
 
+    /**
+     * YAML reads a bare {@code OFF}, {@code NO} or {@code ON} as a boolean, which reaches a text setting as
+     * {@code false} or {@code true}: the switches are put back to the words they were written as.
+     */
+    public ScreenSettings {
+        cursorPoll = switchWord(cursorPoll);
+        hoverHighlight = switchWord(hoverHighlight);
+    }
+
+    private static String switchWord(String value) {
+        if (value == null) return "AUTO";
+        return switch (value.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "false", "no", "off" -> "OFF";
+            case "true", "yes", "on", "" -> "AUTO";
+            default -> value;
+        };
+    }
+
     /** The settings as they were before 1.665.0, with the instant hover where the frame cursor runs. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
                           String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
