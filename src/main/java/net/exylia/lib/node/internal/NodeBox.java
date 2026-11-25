@@ -5,8 +5,9 @@ import org.bukkit.block.data.BlockData;
 
 /**
  * The click box of a node, fitted to what the viewer sees: a solid block fills
- * its block, a crop is as tall as its stage, a plant is a little narrower and
- * lower than a block, and everything follows the node's scale.
+ * its block, a carpet or pressure plate lies flat on the floor, a crop is as tall
+ * as its stage, a plant is a little narrower and lower than a block, and
+ * everything follows the node's scale.
  */
 final class NodeBox {
 
@@ -16,6 +17,8 @@ final class NodeBox {
     private static final float CROP_LOWEST = 0.25f;
     private static final float PLANT_WIDTH = 0.75f;
     private static final float PLANT_HEIGHT = 0.8f;
+    /** A carpet's or pressure plate's height: a sixteenth, as thin as it is drawn. */
+    private static final float FLAT_HEIGHT = 0.0625f;
 
     private NodeBox() {
     }
@@ -26,6 +29,9 @@ final class NodeBox {
         if (!(look instanceof BlockData block)) return of(Shape.ITEM, 0, 0, node.size());
         boolean full;
         try {
+            // Carpets and plates count as solid, but stand a sixteenth tall: a full box would tower over them.
+            String name = block.getMaterial().name();
+            if (name.endsWith("_CARPET") || name.endsWith("_PRESSURE_PLATE")) return of(Shape.FLAT, 0, 0, node.size());
             full = block.getMaterial().isOccluding() || block.getMaterial().isSolid();
         } catch (RuntimeException | LinkageError noRegistry) {
             full = true;
@@ -35,12 +41,13 @@ final class NodeBox {
         return of(Shape.PLANT, 0, 0, node.size());
     }
 
-    enum Shape { FULL, CROP, PLANT, ITEM }
+    enum Shape { FULL, FLAT, CROP, PLANT, ITEM }
 
     static float[] of(Shape shape, int age, int maxAge, float size) {
         float s = Math.max(0f, size);
         return switch (shape) {
             case FULL -> new float[]{s, s};
+            case FLAT -> new float[]{s, FLAT_HEIGHT * s};
             case ITEM -> new float[]{ITEM * s, ITEM * s};
             case PLANT -> new float[]{PLANT_WIDTH * s, PLANT_HEIGHT * s};
             case CROP -> {

@@ -9,6 +9,7 @@ class NodeBoxTest {
     @Test
     void fitsWhatTheViewerSees() {
         assertArrayEquals(new float[]{1f, 1f}, NodeBox.of(NodeBox.Shape.FULL, 0, 0, 1f));
+        assertArrayEquals(new float[]{1f, 0.0625f}, NodeBox.of(NodeBox.Shape.FLAT, 0, 0, 1f));
         // A ripe wheat (7 of 7) is a full-height crop; a seedling keeps a box worth clicking.
         assertArrayEquals(new float[]{0.875f, 1f}, NodeBox.of(NodeBox.Shape.CROP, 7, 7, 1f));
         assertArrayEquals(new float[]{0.875f, 0.25f}, NodeBox.of(NodeBox.Shape.CROP, 0, 7, 1f));
