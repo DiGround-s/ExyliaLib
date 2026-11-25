@@ -67,11 +67,13 @@ With the frame cursor (see [Screens](screens.md), "The frame cursor"), what one 
 | Answers | one 10-byte packet each, cancelled in the decoder: the server's main thread never sees them |
 | Arrow | 4 positions (about 240 bytes) a changed frame, none for a move under 0.2 layout pixels |
 | Scene with `parallax` | still drifts by metadata, at most once a tick, and catches up when the mouse rests |
-| Hover | unchanged: once a tick at most, on the viewer's thread |
+| Hover | drawn once a tick at most, on the viewer's thread, as before |
+| Instant hover | a position for each copy moved (60 bytes), with the arrow's; one more to put it away about 150 ms later. Up to 8 copies, counted in the 400 displays: a screen at its budget has none. Their looks are sent with the render that needs them (a box of a new size or colour near the pointer), never on a move |
 
 So about 35 KB a second down for a viewer moving the mouse at 144 fps, and almost nothing while it rests. The work per
 answer is a few lookups: the viewer's preferences are read once every 250 ms, and the boxes marked to keep cursor assist
-away are listed once a layout.
+away are listed once a layout, as are the boxes a copy can light. The copies' looks are picked after each frame from the
+boxes nearest the pointer (one sort of the boxes that can be lit).
 
 ## Caches
 

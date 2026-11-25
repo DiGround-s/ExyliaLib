@@ -265,8 +265,21 @@ while really riding something), gets a cursor that follows the mouse every frame
 - **Close.** One absolute rotation back to where the player looked when the screen opened, which every listener sees,
   and the answers still on their way are dropped up to the client's answer to it.
 
-The hover still waits for the server's tick, and a click is sent on the client's tick. Everyone else keeps the
-tick-by-tick cursor above, unchanged: a 1.21.4 client draws a display's new position only at its next tick, as it does
+- **Instant hover (1.665.0).** A box whose hover only changes a solid colour lights up the frame the arrow reaches it,
+  and the box left goes dark the same frame. Up to 8 copies of box fills, the looks of the boxes nearest the pointer,
+  wait out of sight behind the camera, their looks sent during the regular render; the move carries a copy over the box
+  by its position, in the bundle that moves the arrow, half a layer over the box's fill and under its words. The hover
+  the server draws a tick later lands under the copy, which goes back out of sight three ticks after that render (plus
+  the hover's own glide), once the client has drawn it: it looked the same, so nothing is seen to change. A copy over
+  a box the render drew otherwise (pressed, changed, laid out elsewhere) goes at once.
+- **Which boxes.** Both the plain and the hover colour opaque, no gradient; no `:hover` transform, outline colour
+  change or colour fade; an outline only on a box that does not rise; no transform or animation on it or above it;
+  nothing inside it mixed over its colour (a see-through background, a picture, an item, which lifts). A box still
+  gliding (arriving, scrolled, moved) waits until it stands. Everything else, and every box under an open window, a
+  box past the copies at hand or a screen at its display budget, lights on the tick as before. `hover-highlight: OFF`
+  in `screens.yml` lights every box on the tick.
+
+A click is still sent on the client's tick. Everyone else keeps the tick-by-tick cursor above, unchanged: a 1.21.4 client draws a display's new position only at its next tick, as it does
 metadata, so moving it there would gain nothing. `cursor-poll: OFF` in `screens.yml` keeps every player on it.
 
 For an anticheat: `Screens.viewing(player)` is true while any screen is open, and `Screens.cursorPolled(player)` while
@@ -1351,6 +1364,7 @@ chest-skin: true           # off: menus without a screen of their own stay windo
 cursor-mode: NORMAL        # NORMAL, RAW or PREDICTION, for players who did not choose (1.546.0)
 cursor-assist: false       # makes buttons easier to hit, for players who did not choose (1.547.0)
 cursor-poll: AUTO          # the frame cursor on 1.21.9+ clients and servers, OFF for the tick cursor (1.664.0)
+hover-highlight: AUTO      # with the frame cursor, boxes light up the frame the arrow reaches them, OFF on the tick (1.665.0)
 admin-style: CLASSIC       # admin menus as chest windows, or FOLLOW the style (1.562.0)
 board: {distance: 2.6, width: 4.2, close-with-sneak: true}   # BOARD menus (1.617.0)
 ```

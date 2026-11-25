@@ -37,6 +37,9 @@ import java.util.Map;
  * @param cursorPoll   {@code AUTO} or {@code OFF} (since 1.664.0): whether the cursor follows the mouse every frame for
  *                     players whose client and this server are 1.21.9 or later, by asking the client where it looks many
  *                     times a tick; {@code OFF} keeps every player on the tick-by-tick cursor
+ * @param hoverHighlight {@code AUTO} or {@code OFF} (since 1.665.0): whether, with the frame cursor, the box under the
+ *                     pointer lights up the frame the arrow reaches it, by a lit copy moved over it, before the hover
+ *                     itself is drawn; {@code OFF} lights it on the server's tick, as everyone else
  * @since 1.495.0
  */
 @Comment("How the menus of every Exylia plugin open.")
@@ -173,8 +176,27 @@ public record ScreenSettings(
         @Menu.Label("Frame cursor") @Menu.Icon("CLOCK")
         @Menu.About({"The cursor follows the mouse", "every frame on 1.21.9+."})
         @Menu.Choices(value = {"AUTO", "OFF"}, labels = {"Auto", "Off"})
-        String cursorPoll
+        String cursorPoll,
+
+        @Comment("AUTO lights the box under the pointer the very frame the frame")
+        @Comment("cursor reaches it, instead of on the server's next tick: a few")
+        @Comment("lit copies wait out of sight and move over it. Only boxes whose")
+        @Comment("hover just changes a solid colour. OFF lights every box on the tick.")
+        @Menu.Label("Instant hover") @Menu.Icon("GLOWSTONE_DUST")
+        @Menu.About({"Buttons light up the frame", "the frame cursor reaches them."})
+        @Menu.Choices(value = {"AUTO", "OFF"}, labels = {"Auto", "Off"})
+        String hoverHighlight
 ) {
+
+    /** The settings as they were before 1.665.0, with the instant hover where the frame cursor runs. */
+    public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
+                          String motion, int motionCeiling, double cursorAcceleration, boolean spriteObjects, int screenSize,
+                          boolean hideSidebar, boolean quietChat, String cursorMode, boolean cursorAssist,
+                          boolean firstScreenSetup, String adminStyle, Board board, String cursorPoll) {
+        this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
+                screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, firstScreenSetup, adminStyle, board, cursorPoll,
+                "AUTO");
+    }
 
     /** The settings as they were before 1.664.0, with the frame cursor where it can run. */
     public ScreenSettings(String defaultStyle, boolean playerChoice, Map<String, String> plugins, boolean chestSkin,
@@ -183,6 +205,11 @@ public record ScreenSettings(
                           boolean firstScreenSetup, String adminStyle, Board board) {
         this(defaultStyle, playerChoice, plugins, chestSkin, motion, motionCeiling, cursorAcceleration, spriteObjects,
                 screenSize, hideSidebar, quietChat, cursorMode, cursorAssist, firstScreenSetup, adminStyle, board, "AUTO");
+    }
+
+    /** Whether {@link #hoverHighlight} lights boxes the frame the frame cursor reaches them; a missing value is {@code AUTO}. @since 1.665.0 */
+    public boolean hoverHighlights() {
+        return !"OFF".equalsIgnoreCase(hoverHighlight);
     }
 
     /** Whether {@link #cursorPoll} lets the cursor follow every frame where it can; a missing value is {@code AUTO}. @since 1.664.0 */

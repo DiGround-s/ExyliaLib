@@ -167,12 +167,17 @@ final class LiveScreen implements ScreenSession {
     private final Object input = new Object();
 
     /** What the pointer can reach, as last laid out: read by the netty thread without a lock. */
-    private record View(List<Layout.Placed> placed, int overlayFrom, List<Layout.Placed> barred) {
-        static final View EMPTY = new View(List.of(), -1);
+    private record View(List<Layout.Placed> placed, int overlayFrom, List<Layout.Placed> barred,
+                        Map<String, HoverHighlight.Lit> lits) {
+        static final View EMPTY = new View(List.of(), -1, false);
 
-        /** The boxes marked to keep assist away, found once a layout rather than on every move. */
-        View(List<Layout.Placed> placed, int overlayFrom) {
-            this(placed, overlayFrom, placed.stream().filter(box -> !box.node().assist()).toList());
+        /**
+         * The boxes marked to keep assist away, and with {@code lights} the ones a copy can light ahead of the hover,
+         * found once a layout rather than on every move.
+         */
+        View(List<Layout.Placed> placed, int overlayFrom, boolean lights) {
+            this(placed, overlayFrom, placed.stream().filter(box -> !box.node().assist()).toList(),
+                    lights ? HoverHighlight.eligible(placed, overlayFrom) : Map.of());
         }
 
         List<Layout.Placed> targets() {
@@ -330,6 +335,19 @@ final class LiveScreen implements ScreenSession {
     private double prefSpeed;
     private CursorLead.Mode prefMode = CursorLead.Mode.NORMAL;
     private boolean prefAssist;
+    /**
+     * Whether boxes light up the frame the polled arrow reaches them, by copies moved over them ahead of the hover
+     * (see {@link HoverHighlight}). Read by the netty thread.
+     */
+    private volatile boolean instant;
+    /** The copies, guarded by {@link #input}. */
+    private final HoverHighlight.Pool lights = new HoverHighlight.Pool();
+    /** When each box that moved stops, in nanoseconds: no copy goes over a box still gliding. Guarded by {@link #input}. */
+    private final Map<String, Long> settling = new HashMap<>();
+    /** {@link #hovered} for the netty thread: the box the renders draw lit. */
+    private volatile String drawnHover;
+    /** How far behind the held camera a copy waits, in blocks. */
+    private static final double PARK_BEHIND = 4;
     /** Where the camera faced when the screen opened: with a 3D item on screen the camera is kept near it. */
     private float homeYaw;
     /** The stage a window looks at. On the viewer's thread, under this lock. */
@@ -595,6 +613,7 @@ final class LiveScreen implements ScreenSession {
                     placedX = Double.NaN;
                     arrowUnit = Double.NaN;
                     polled = true;
+                    instant = ScreenSettings.get().hoverHighlights();
                 }
                 if (scene != null) sceneSetup(scene);
                 cursor(out, 0);
@@ -619,6 +638,7 @@ final class LiveScreen implements ScreenSession {
             ids.addAll(leaving);
             leaving.clear();
             generation.clear();
+            ids.addAll(dropLights());
             if (animator != null) animator.cancel();
             animator = null;
         }
@@ -675,6 +695,7 @@ final class LiveScreen implements ScreenSession {
             ids.addAll(leaving);
             leaving.clear();
             generation.clear();
+            ids.addAll(dropLights());
             lastBoxes = Map.of();
             if (animator != null) animator.cancel();
             animator = null;
@@ -856,6 +877,7 @@ final class LiveScreen implements ScreenSession {
         long print = Layout.fingerprint(root) * 31 + VanillaSprites.generation();
         synchronized (this) {
             if (!open || away) return;
+            int seen = lightsSeen();
             pruneToasts();
             List<Layout.Placed> core = lastLaid != null && print == lastPrint && toastVersion == lastToastVersion
                     && !turning ? Layout.relink(lastLaid, root) : null;
@@ -877,16 +899,21 @@ final class LiveScreen implements ScreenSession {
                 laid.add(new Layout.Placed(gear(), "~gear", screen.width() + 3, screen.height() - GEAR, GEAR, GEAR, 0));
             }
             placed = laid;
-            view = new View(laid, overlayFrom);
+            view = new View(laid, overlayFrom, instant);
             retime(core);
             Layout.Placed under = underPointer();
             String now = under == null ? null : under.key();
-            if (same && Objects.equals(now, hovered) && !resync) return;
+            if (same && Objects.equals(now, hovered) && !resync) {
+                decideLights(seen);
+                return;
+            }
             resync = false;
             entered(under, hovered);
             hovered = now;
             hoveredBox = under;
+            drawnHover = now;
             sync(false);
+            decideLights(seen);
         }
     }
 
@@ -1079,13 +1106,19 @@ final class LiveScreen implements ScreenSession {
         hoverQueued.set(false);
         synchronized (this) {
             if (!open || away) return;
+            int seen = lightsSeen();
             Layout.Placed under = underPointer();
             String now = under == null ? null : under.key();
-            if (Objects.equals(now, hovered)) return;
+            if (Objects.equals(now, hovered)) {
+                decideLights(seen);
+                return;
+            }
             entered(under, hovered);
             hovered = now;
             hoveredBox = under;
+            drawnHover = now;
             sync(false);
+            decideLights(seen);
         }
     }
 
@@ -2107,10 +2140,23 @@ final class LiveScreen implements ScreenSession {
         }
         boolean eased = !reduced && motionAllowed();
         Map<String, Arrival> arrivals = new HashMap<>();
+        // The fills that move this frame, and for how many ticks: no copy lights them until they stand still.
+        Map<String, HoverHighlight.Lit> lits = instant ? view.lits() : Map.of();
+        Map<String, Integer> moving = new HashMap<>();
         for (String key : order) {
             Object look = wanted.get(key);
             Drawn current = drawn.get(key);
             if (current != null && !resend && current.look().equals(look)) continue;
+            HoverHighlight.Lit lit = lits.isEmpty() || !key.endsWith("#bg") ? null
+                    : lits.get(key.substring(0, key.length() - 3));
+            if (lit != null && (current == null || !hoverOnly(lit, current.look(), look))) {
+                Arrival in = current != null || reduced ? null : arrivalOf(lit.box().key(), frame.boxes());
+                Motion.Transition transition = frame.transitions().get(key);
+                int ticks = in != null ? in.delay() + (in.tween() == null ? 0 : in.tween().ticks())
+                        : animating && frame.animated().contains(key) ? animStep
+                        : transition == null ? BOX_GLIDE : transition.ticks();
+                moving.put(lit.box().key(), Math.max(BOX_GLIDE, ticks));
+            }
             int id = current != null ? current.id() : ids.getAsInt();
             if (current != null && current.look().getClass() != look.getClass()) {
                 out.add(ScreenPackets.destroy(new int[]{id}));
@@ -2172,6 +2218,7 @@ final class LiveScreen implements ScreenSession {
         cone = holds || windowed;
         lastBoxes = frame.boxes();
         if (!out.isEmpty()) wire.send(out);
+        if (instant) lightsAfter(frame, moving, resend);
         later.forEach((delay, segments) -> tasks.runAtEntityLater(player, delay, () -> segments(segments)));
         animate(frame.animates() && !reduced, placed);
     }
@@ -2739,7 +2786,9 @@ final class LiveScreen implements ScreenSession {
                     default -> cursor(out, 1);
                 }
             }
+            Layout.Placed before = pointedBox;
             moved = pointerMoved();
+            if (polls && moved && instant) light(out, before, pointedBox, nanos);
             if (polls) {
                 // The pitch stops at 90, so it is put back well before; the camera is held, so nothing on screen moves.
                 if (!poll.pending() && (Math.abs(pitch) > RECENTRE_PITCH || Math.abs(yaw) > POLL_YAW_LIMIT)) {
@@ -2798,6 +2847,178 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Instant hover (see HoverHighlight)
+    // ------------------------------------------------------------------
+
+    /**
+     * The fill a copy draws over {@code lit}: lit (risen when the box rises, as the hover draws it) or plain. A plain
+     * copy over a box that rose keeps the risen size, so the lit edge left is covered until the render shrinks it.
+     */
+    private RectLook lightFill(HoverHighlight.Lit lit, boolean on, boolean risen) {
+        Layout.Placed box = lit.box();
+        double rise = risen && lit.rises() ? 2 * unit : 0;
+        return new RectLook(centreX(box), centreY(box), box.w() * unit + rise, box.h() * unit + rise, lit.layer(),
+                on ? lit.lit() : lit.normal());
+    }
+
+    private static HoverHighlight.Look lookOf(RectLook fill) {
+        return new HoverHighlight.Look(fill.w(), fill.h(), fill.layer(), fill.argb());
+    }
+
+    /** Whether a fill changed only between {@code lit}'s plain and lit looks: the hover, which copies cover. */
+    private boolean hoverOnly(HoverHighlight.Lit lit, Object from, Object to) {
+        RectLook plain = lightFill(lit, false, false), lighted = lightFill(lit, true, true);
+        return (from.equals(plain) || from.equals(lighted)) && (to.equals(plain) || to.equals(lighted));
+    }
+
+    /** Half a layer over a fill, under the words and pictures of its box: what a copy is drawn at. */
+    private static double lightK(int layer) {
+        return K * (DEPTH - (layer + 0.5) * LAYER) / DEPTH;
+    }
+
+    /** A copy's look, standing at its own position: sent while it waits out of sight. */
+    private static PacketWrapper<?> lightLook(HoverHighlight.Slot slot) {
+        double layer = slot.look.layer() + 0.5;
+        double k = lightK(slot.look.layer());
+        return ScreenPackets.rect(slot.id, 0, 0, -DEPTH + layer * LAYER, slot.look.w() * k, slot.look.h() * k,
+                slot.look.argb(), 0);
+    }
+
+    /** Where copies wait: behind the held camera, which never turns. */
+    private Vector3d parkSpot() {
+        return new Vector3d(origin.x - rightZ * PARK_BEHIND, origin.y, origin.z + rightX * PARK_BEHIND);
+    }
+
+    private void park(List<PacketWrapper<?>> out, HoverHighlight.Slot slot) {
+        out.add(ScreenPackets.place(slot.id, parkSpot()));
+        HoverHighlight.Pool.park(slot);
+    }
+
+    /**
+     * On the netty thread, the pointer gone from {@code from} to {@code to}: the copy over either goes, a plain one
+     * covers the box left if the renders drew it lit, and a lit one the box entered, in the bundle that moves the
+     * arrow. Holds {@link #input}.
+     */
+    private void light(List<PacketWrapper<?>> out, Layout.Placed from, Layout.Placed to, long now) {
+        View seen = view;
+        if (windowed || away) return;
+        if (from != null) {
+            HoverHighlight.Slot on = lights.on(from.key());
+            if (on != null) park(out, on);
+            HoverHighlight.Lit lit = seen.lits().get(from.key());
+            if (lit != null && from.key().equals(drawnHover)) cover(out, lit, false, now);
+        }
+        if (to != null) {
+            HoverHighlight.Slot on = lights.on(to.key());
+            if (on != null) park(out, on);
+            HoverHighlight.Lit lit = seen.lits().get(to.key());
+            if (lit != null) cover(out, lit, true, now);
+        }
+    }
+
+    /** Moves a ready copy over {@code lit}, lit or plain; nothing when none is ready or the box still moves. Holds {@link #input}. */
+    private void cover(List<PacketWrapper<?>> out, HoverHighlight.Lit lit, boolean on, long now) {
+        Long still = settling.get(lit.box().key());
+        if (still != null && now - still < 0) return;
+        RectLook fill = lightFill(lit, on, true);
+        HoverHighlight.Slot slot = lights.take(lookOf(fill), now);
+        if (slot == null) return;
+        // The render the copy waits for draws the plain fill unrisen.
+        lights.place(slot, lit.box().key(), on, on ? fill : lightFill(lit, false, false), lit.settle(), now);
+        double k = lightK(fill.layer());
+        out.add(ScreenPackets.place(slot.id, new Vector3d(origin.x + rightX * fill.x() * k, origin.y + fill.y() * k,
+                origin.z + rightZ * fill.x() * k)));
+    }
+
+    /** The copies placed so far: a hover decided after this covers them. */
+    private int lightsSeen() {
+        synchronized (input) {
+            return lights.seq;
+        }
+    }
+
+    /** What fill the renders gave a box, as {@link #drawn} holds it. Holds the lock. */
+    private Object drawnFill(String box) {
+        Drawn d = drawn.get(box + "#bg");
+        return d == null ? null : d.look();
+    }
+
+    /**
+     * On the viewer's thread, the hover decided by a render that knew the copies up to {@code seen}: each goes once
+     * the client has drawn that render, or at once when the render draws its box otherwise. Holds the lock.
+     */
+    private void decideLights(int seen) {
+        if (!instant) return;
+        synchronized (input) {
+            List<HoverHighlight.Slot> wrong = lights.decide(seen, this::drawnFill, System.nanoTime());
+            if (wrong.isEmpty()) return;
+            List<PacketWrapper<?>> out = new ArrayList<>();
+            for (HoverHighlight.Slot slot : wrong) park(out, slot);
+            wire.send(out);
+        }
+    }
+
+    /**
+     * After a frame went out: boxes that move take no copy until they stand still, and the copy over one goes; the
+     * copies get the looks of the boxes nearest the pointer, in what the budget leaves. Holds the lock.
+     */
+    private void lightsAfter(Frame frame, Map<String, Integer> moving, boolean resend) {
+        synchronized (input) {
+            List<PacketWrapper<?>> out = new ArrayList<>();
+            long now = System.nanoTime();
+            settling.values().removeIf(until -> now - until >= 0);
+            settling.keySet().retainAll(frame.boxes().keySet());
+            moving.forEach((box, ticks) -> settling.put(box, now + (ticks + 1) * HoverHighlight.TICK_NANOS));
+            Map<String, HoverHighlight.Lit> lits = view.lits();
+            for (HoverHighlight.Slot slot : lights.slots) {
+                if (!slot.free() && (resend || windowed || moving.containsKey(slot.box) || !lits.containsKey(slot.box))) {
+                    park(out, slot);
+                }
+            }
+            for (HoverHighlight.Slot slot : lights.decide(Integer.MIN_VALUE, this::drawnFill, now)) park(out, slot);
+            double x = px(), y = py();
+            List<HoverHighlight.Lit> near = new ArrayList<>(lits.values());
+            near.sort(java.util.Comparator.comparingDouble(lit -> Math.hypot(lit.box().x() + lit.box().w() / 2 - x,
+                    lit.box().y() + lit.box().h() / 2 - y)));
+            List<HoverHighlight.Look> wanted = new ArrayList<>();
+            for (HoverHighlight.Lit lit : near) {
+                if (wanted.size() >= 2 * HoverHighlight.CAP) break;
+                wanted.add(lookOf(lightFill(lit, true, true)));
+                wanted.add(lookOf(lightFill(lit, false, true)));
+            }
+            HoverHighlight.Pool.Changes changes = lights.prepare(wanted, BUDGET - drawnCount, now, ids);
+            for (HoverHighlight.Slot slot : changes.spawned()) {
+                out.add(ScreenPackets.spawnDisplay(slot.id, parkSpot()));
+                out.add(lightLook(slot));
+            }
+            for (HoverHighlight.Slot slot : changes.relooked()) out.add(lightLook(slot));
+            if (!changes.removed().isEmpty()) {
+                out.add(ScreenPackets.destroy(changes.removed().stream().mapToInt(Integer::intValue).toArray()));
+            }
+            drawnCount += lights.slots.size();
+            // Sent under the input lock: a copy the netty thread moves next goes out after this.
+            if (!out.isEmpty()) wire.send(out);
+        }
+    }
+
+    /** On the connection's loop: the copies whose box the client has drawn as they look go out of sight. Holds {@link #input}. */
+    private void parkDue(long now) {
+        List<HoverHighlight.Slot> due = lights.due(now);
+        if (due.isEmpty()) return;
+        List<PacketWrapper<?>> out = new ArrayList<>();
+        for (HoverHighlight.Slot slot : due) park(out, slot);
+        wire.send(out);
+    }
+
+    /** Every copy's display, for a screen that closes or steps aside; holds the lock. */
+    private List<Integer> dropLights() {
+        synchronized (input) {
+            settling.clear();
+            return lights.clear();
+        }
+    }
+
     /** Reads the viewer's cursor preferences again when the last read is old. Holds {@link #input}. */
     private void prefs() {
         long now = System.currentTimeMillis();
@@ -2834,6 +3055,7 @@ final class LiveScreen implements ScreenSession {
         synchronized (input) {
             if (!polled) return false;
             polled = false;
+            instant = false;
             lead.timed(false);
             lead.rest();
             if (pollTask != null) pollTask.cancel(false);
@@ -2868,6 +3090,7 @@ final class LiveScreen implements ScreenSession {
                 }
                 wire.send(out);
             }
+            if (instant) parkDue(now);
             try {
                 pollTask = pollLoop.schedule(this::pollTick, poll.period(now), java.util.concurrent.TimeUnit.NANOSECONDS);
             } catch (RuntimeException closing) {
