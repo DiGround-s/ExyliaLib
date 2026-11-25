@@ -180,6 +180,32 @@ votes.updateIf(vote.withClaimed(true), "claimed", false).thenAccept(won -> {
   or `insertIfAbsent` caches the row it wrote, and a lost one drops the stale copy it most likely
   compared against.
 
+### Several tables in one transaction: `atomic()` (since 1.663.0)
+
+```java
+database.atomic()
+        .updateIf(accounts, paid, "version", read.version())   // no match: nothing lands
+        .insert(ledger, new LedgerRow(operationId, ...))        // key taken: nothing lands
+        .save(audit, entry)
+        .commit()                                               // true: all landed
+        .thenAccept(landed -> ...);
+```
+
+The writes of one plugin's database land together or not at all. `commit`
+answers `false`, with nothing written, when an `updateIf` matched no row, an
+`insert` found its key taken, or the engine broke a deadlock by rolling this
+transaction back: read again and retry. A failed future means the outcome is
+unknown (the answer to the commit was lost): put a unique key in the unit, such
+as an operation id in a ledger table, and asking again is safe. H2, MySQL,
+MariaDB and Postgres run it as one transaction; MongoDB as a multi-document
+transaction, which needs a replica set or a sharded cluster. A standalone
+MongoDB server has none: the first unit finds that out, logs one warning, and
+from then on writes each unit's steps one after another, as plugins did before
+`atomic()`. There a step that fails after earlier ones landed fails the future,
+and a crash between two steps leaves the earlier ones written; a single-node
+replica set is enough to close that. A cached table's
+rows are dropped from the cache after the unit, landed or not.
+
 ### Locks across servers (since 1.163.0)
 
 `RowLocks` holds a key for one server at a time, and a crash cannot leave it held:

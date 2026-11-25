@@ -192,6 +192,11 @@ public final class SqlStorage implements Storage {
     }
 
     @Override
+    public @NotNull CompletableFuture<Boolean> atomic(@NotNull List<AtomicStep> steps) {
+        return async(steps.get(0).model(), "atomic write", () -> backend.atomic(steps));
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model,
                                                                   @NotNull T record) {
         return async(model, "insertIfAbsent", () -> backend.insertIfAbsent(model, record));

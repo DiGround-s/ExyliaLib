@@ -8,12 +8,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -25,52 +28,70 @@ import java.util.function.Supplier;
  * legendary at three percent stays at three percent whether the catalogue has
  * two legendaries or forty.
  *
- * <p>An opening is two steps, because the reel is not scenery: {@link #draw}
- * spends the key and writes down what it bought, and {@link #award} hands it
- * over as the reel lands — or {@link #awardLater}, for a player who left first.
+ * <p>An opening is rolled first, on the player's thread, where nothing is spent
+ * ({@link #rollAll}, {@link #ticket}); then written, off it, in one write that
+ * spends the keys, unlocks what is new and refunds the duplicates
+ * ({@link #open}). Only an opening the database took is shown, and the reel
+ * reveals what was already written. Token items are the one thing handed over
+ * afterwards, each claimed in the database before it is given
+ * ({@link #claim}), so a token reaches the player once even with two servers
+ * and a crash in between.
  *
  * @param <T> the plugin's reward type
  */
 public final class Prizes<T> {
 
-    /** How an opening ended. */
+    /** Writes of one opening tried before it is given up on. */
+    private static final int COMMIT_TRIES = 3;
+
+    /** How one reel ended. */
     public enum Status {
-        /** A key was spent and a prize drawn, with nothing handed over yet. */
-        DRAWN,
         /** Something new. */
         WON,
         /** Something they already owned, so keys came back instead. */
-        DUPLICATE,
-        /** No key to spend. */
-        NO_KEYS,
-        /** Nothing to hand over: no rarities, or none of them has anything in it. */
-        EMPTY,
-        /** The owner turned the crate off. */
-        DISABLED
+        DUPLICATE
     }
 
     /**
-     * What one opening did.
+     * What one reel came to.
      *
      * @param status   how it ended
-     * @param prize    what came out, or {@code null} when nothing did
+     * @param prize    what came out
      * @param tierId   the rarity it came from
      * @param refunded keys handed back for a duplicate
+     * @param token    whether a token item is owed for it, to be {@link #claim}ed
      */
-    public record Outcome<T>(@NotNull Status status, @Nullable T prize, @NotNull String tierId, int refunded) {
+    public record Outcome<T>(@NotNull Status status, @NotNull T prize, @NotNull String tierId, int refunded,
+                             boolean token) {
+    }
+
+    /** How an opening's write ended. */
+    public enum Result {
+        /** Written: keys spent, prizes settled. */
+        OPENED,
+        /** Not enough keys on the account by the time it was written. Nothing was spent. */
+        NO_KEYS,
+        /** Given up on after the database did not answer. Nothing was spent, and never will be. */
+        ABORTED
     }
 
     /**
-     * A key spent and a prize written down, before anything is handed over.
-     *
-     * @param status why there is no prize, or {@link Status#DRAWN} when there is
-     * @param prize  what the key bought, or {@code null}
+     * @param result   how it ended
+     * @param outcomes one per reel, in order, for {@link Result#OPENED}
      */
-    public record Draw<T>(@NotNull Status status, @Nullable T prize) {
+    public record Opened<T>(@NotNull Result result, @NotNull List<Outcome<T>> outcomes) {
+    }
 
-        public boolean isPrize() {
-            return prize != null;
-        }
+    /**
+     * An opening rolled and not written yet.
+     *
+     * @param id     the operation's id: every retry writes under it, so it lands once
+     * @param spend  keys it costs from the account; {@code 0} when key items paid for it
+     * @param prizes what each reel landed on
+     * @param tokens each reel's token item, or {@code null} for none
+     */
+    public record Ticket<T>(@NotNull String id, int spend, @NotNull List<T> prizes,
+                            @NotNull List<@Nullable Token> tokens) {
     }
 
     /** A prize's token item, ready to be handed over. */
@@ -85,6 +106,12 @@ public final class Prizes<T> {
          * @return whether it could be kept
          */
         boolean keep(@NotNull UUID player);
+
+        /**
+         * The token as the pending rewards store it ({@code RewardCodec}), written with
+         * the opening so it survives a crash before it is handed over.
+         */
+        @NotNull String payload();
     }
 
     private final CrateCatalogue<T> catalogue;
@@ -127,77 +154,147 @@ public final class Prizes<T> {
         return TierTable.normalise(catalogue.id(reward));
     }
 
+    /** The catalogue's reward under a stored id, or {@code null} when it is gone. */
+    public @Nullable T byId(@NotNull String id) {
+        for (T reward : catalogue.all()) {
+            if (idOf(reward).equals(id)) return reward;
+        }
+        return null;
+    }
+
     /**
-     * Spends a key on the player's row and writes down what it bought.
+     * Rolls one prize per key.
      *
-     * <p>Must be called on the thread that owns the player.
+     * @return the prizes, or {@code null} when the crate has nothing to land on:
+     *         a crate with nothing in it must not charge for the disappointment
      */
-    public @NotNull Draw<T> draw(@NotNull Player player) {
-        if (!enabled()) return new Draw<>(Status.DISABLED, null);
-        T prize = roll();
-        // Rolled before the key is taken: a crate with nothing in it must not
-        // charge for the disappointment.
-        if (prize == null) return new Draw<>(Status.EMPTY, null);
-        if (!store.spendKey(player.getUniqueId())) return new Draw<>(Status.NO_KEYS, null);
-        return new Draw<>(Status.DRAWN, prize);
-    }
-
-    /** Draws for a key that was already paid with: an item taken out of the hand. */
-    public @NotNull Draw<T> drawPaid() {
-        if (!enabled()) return new Draw<>(Status.DISABLED, null);
-        T prize = roll();
-        return prize == null ? new Draw<>(Status.EMPTY, null) : new Draw<>(Status.DRAWN, prize);
+    public @Nullable List<T> rollAll(int amount) {
+        List<T> rolled = new ArrayList<>(amount);
+        for (int i = 0; i < amount; i++) {
+            T prize = roll();
+            if (prize == null) return null;
+            rolled.add(prize);
+        }
+        return rolled;
     }
 
     /**
-     * Hands over a prize that was drawn and paid for.
+     * An opening of these prizes, with a fresh id and each reel's token made for
+     * the player. On the player's thread: a token is an item drawn for them.
+     */
+    public @NotNull Ticket<T> ticket(@NotNull Player player, int spend, @NotNull List<T> prizes) {
+        boolean items = settings.get().reward().givesItem();
+        List<Token> made = new ArrayList<>(prizes.size());
+        for (T prize : prizes) made.add(items ? tokens.apply(prize, player) : null);
+        return new Ticket<>(UUID.randomUUID().toString(), Math.max(0, spend), List.copyOf(prizes),
+                Collections.unmodifiableList(made));
+    }
+
+    /** A prize's token for a player, whatever the reward mode says now: what a recovered opening still owes. */
+    public @Nullable Token tokenFor(@NotNull T prize, @NotNull Player player) {
+        return tokens.apply(prize, player);
+    }
+
+    /**
+     * Writes an opening, once.
      *
-     * <p>Whether it is a duplicate is decided here rather than at the draw: the
-     * unlock is the same write that answers the question, and asking early
-     * would let two reels of the same reward both call themselves new.
+     * <p>A write the database does not answer is tried again under the same id,
+     * which cannot land twice. When it still does not answer, {@code late} runs
+     * and the opening is given up on ({@link CrateStore#abort}), tried until the
+     * database answers: then it is either written for good (it had landed after
+     * all, and that is what this answers) or aborted for good. Never both, and
+     * never neither once this completes.
+     *
+     * @param late run once, off the player's thread, when the answer is going to be late
+     * @return completes exceptionally only when the plugin stopped before the database answered
      */
-    public @NotNull Outcome<T> award(@NotNull Player player, @NotNull T prize) {
-        return award(player, prize, true);
+    public @NotNull CompletableFuture<Opened<T>> open(@NotNull UUID uuid, @NotNull Ticket<T> ticket,
+                                                     @NotNull Runnable late) {
+        return attempt(uuid, ticket, late, 0);
+    }
+
+    private CompletableFuture<Opened<T>> attempt(UUID uuid, Ticket<T> ticket, Runnable late, int tries) {
+        return commit(uuid, ticket).exceptionallyCompose(failure -> {
+            if (tries + 1 < COMMIT_TRIES) {
+                return store.after(10L << tries).thenCompose(ignored -> attempt(uuid, ticket, late, tries + 1));
+            }
+            late.run();
+            return resolve(uuid, ticket, 1);
+        });
+    }
+
+    private CompletableFuture<Opened<T>> resolve(UUID uuid, Ticket<T> ticket, int tries) {
+        return store.abort(uuid, ticket.id()).thenApply(commit -> opened(ticket, commit))
+                .exceptionallyCompose(failure -> store.after(Math.min(600L, 40L * tries))
+                        .thenCompose(ignored -> resolve(uuid, ticket, tries + 1)));
+    }
+
+    /** The write alone, once: what {@link #open} retries. */
+    public @NotNull CompletableFuture<Opened<T>> commit(@NotNull UUID uuid, @NotNull Ticket<T> ticket) {
+        List<String> payloads = new ArrayList<>(ticket.tokens().size());
+        for (Token token : ticket.tokens()) payloads.add(token == null ? null : token.payload());
+        return store.commit(uuid, ticket.id(), ticket.spend(), payloads,
+                        (paid, elsewhere) -> settle(ticket, paid, elsewhere))
+                .thenApply(commit -> opened(ticket, commit));
     }
 
     /**
-     * Hands a prize over to a player on their way out: unlocked on their row,
-     * and any token kept in the pending-reward table until their next join.
+     * What the opening does to the row its keys were taken off, reel by reel, so
+     * two reels of the same reward in one opening are a win and a duplicate.
      */
-    public @NotNull Outcome<T> awardLater(@NotNull Player player, @NotNull T prize) {
-        return award(player, prize, false);
-    }
-
-    private Outcome<T> award(Player player, T prize, boolean present) {
+    private CrateStore.Settled settle(Ticket<T> ticket, CrateRow paid, Predicate<String> elsewhere) {
         CrateSettings crate = settings.get();
         CrateReward reward = crate.reward();
-        UUID uuid = player.getUniqueId();
-        String tier = tierOf(prize);
-
-        Token token = reward.givesItem() ? tokens.apply(prize, player) : null;
-        // A plugin with no token for it cannot hand the item over, so the prize
-        // is unlocked instead: a key must never buy nothing.
-        boolean unlocks = reward.unlocks() || token == null;
-        // Nothing is unlocked under ITEM, so every opening is a win: the prize
-        // is the token itself, and a player may pull the same one forever.
-        boolean isNew = !unlocks || store.unlockNow(uuid, idOf(prize));
-        if (isNew) {
-            if (token != null) {
-                if (present) {
-                    token.give(player);
-                } else if (!token.keep(uuid)) {
-                    // No pending-reward table, or a database that would not take
-                    // the row. The token cannot reach somebody who is leaving,
-                    // so the key that bought it goes back instead.
-                    store.edit(uuid, row -> row.withKeys(row.keys() + 1));
-                }
-            }
-            return new Outcome<>(Status.WON, prize, tier, 0);
-        }
-
         int refund = Math.max(0, crate.duplicateRefund());
-        if (refund > 0) store.edit(uuid, row -> row.withKeys(row.keys() + refund));
-        return new Outcome<>(Status.DUPLICATE, prize, tier, refund);
+        CrateRow row = paid;
+        List<CrateJournal.Reel> reels = new ArrayList<>(ticket.prizes().size());
+        for (int i = 0; i < ticket.prizes().size(); i++) {
+            String id = idOf(ticket.prizes().get(i));
+            boolean token = ticket.tokens().get(i) != null;
+            // A plugin with no token for it cannot hand the item over, so the prize
+            // is unlocked instead: a key must never buy nothing.
+            boolean unlocks = reward.unlocks() || !token;
+            // Nothing is unlocked under ITEM, so every opening is a win: the prize
+            // is the token itself, and a player may pull the same one forever.
+            boolean isNew = !unlocks || !(row.isUnlocked(id) || elsewhere.test(id));
+            if (isNew) {
+                if (unlocks) row = row.withUnlocked(id);
+                reels.add(new CrateJournal.Reel(true, id, 0, token));
+            } else {
+                row = row.withKeys(row.keys() + refund);
+                reels.add(new CrateJournal.Reel(false, id, refund, false));
+            }
+        }
+        return new CrateStore.Settled(row, reels);
+    }
+
+    private Opened<T> opened(Ticket<T> ticket, CrateStore.Commit commit) {
+        return switch (commit.result()) {
+            case NO_KEYS -> new Opened<>(Result.NO_KEYS, List.of());
+            case ABORTED -> new Opened<>(Result.ABORTED, List.of());
+            case APPLIED -> {
+                List<CrateJournal.Reel> reels = commit.entry() == null ? List.of() : commit.entry().reels();
+                List<Outcome<T>> outcomes = new ArrayList<>(reels.size());
+                for (int i = 0; i < reels.size() && i < ticket.prizes().size(); i++) {
+                    outcomes.add(outcome(ticket.prizes().get(i), reels.get(i)));
+                }
+                yield new Opened<>(Result.OPENED, outcomes);
+            }
+        };
+    }
+
+    /** A reel as the journal wrote it, about a prize of the catalogue. */
+    public @NotNull Outcome<T> outcome(@NotNull T prize, @NotNull CrateJournal.Reel reel) {
+        return new Outcome<>(reel.won() ? Status.WON : Status.DUPLICATE, prize, tierOf(prize), reel.refunded(),
+                reel.tokenOwed());
+    }
+
+    /**
+     * Takes one reel's token off the pending rewards the opening wrote it to, so
+     * the caller who gets {@code true} is the one who hands it over.
+     */
+    public @NotNull CompletableFuture<Boolean> takeDelivery(@NotNull String operation, int index) {
+        return store.takeDelivery(operation, index);
     }
 
     /**

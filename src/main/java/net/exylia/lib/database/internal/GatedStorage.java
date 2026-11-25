@@ -167,6 +167,16 @@ public final class GatedStorage implements Storage {
     }
 
     @Override
+    public @NotNull CompletableFuture<Void> whenReady() {
+        return after(storage -> storage.whenReady());
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Boolean> atomic(@NotNull java.util.List<AtomicStep> steps) {
+        return after(storage -> storage.atomic(steps));
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model,
                                                                   @NotNull T record) {
         return after(storage -> storage.insertIfAbsent(model, record));

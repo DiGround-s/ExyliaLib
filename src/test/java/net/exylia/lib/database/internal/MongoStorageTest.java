@@ -86,4 +86,23 @@ class MongoStorageTest {
     record Stats(@net.exylia.lib.database.Id java.util.UUID uuid,
                  @net.exylia.lib.database.Column int elo) {
     }
+
+    @Test
+    @DisplayName("a standalone server is said once and its units are written step by step")
+    void standaloneFallsBackOnce() {
+        List<String> warned = new java.util.ArrayList<>();
+        MongoStorage standalone = new MongoStorage(null, Runnable::run, warned::add);
+        assertFalse(standalone.choose(false));
+        assertFalse(standalone.choose(true), "the first answer is kept");
+        // Asked again, it reads the cached answer and never reaches the (absent) backend.
+        assertFalse(standalone.transactional());
+        assertEquals(1, warned.size());
+        assertTrue(warned.get(0).contains("replica set"));
+
+        List<String> quiet = new java.util.ArrayList<>();
+        MongoStorage replica = new MongoStorage(null, Runnable::run, quiet::add);
+        assertTrue(replica.choose(true));
+        assertTrue(replica.transactional());
+        assertTrue(quiet.isEmpty());
+    }
 }

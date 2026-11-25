@@ -647,6 +647,117 @@ public final class MongoBackend implements AutoCloseable {
     }
 
     /**
+     * Runs several writes as one multi-document transaction: all land, or none does.
+     *
+     * <p>Needs a replica set or a sharded cluster ({@link #supportsTransactions});
+     * a standalone server refuses the first write, and that refusal is thrown,
+     * so {@link MongoStorage} runs {@link #sequential} there instead. A failed condition, a taken
+     * key or a transient transaction error answers {@code false} with nothing
+     * written.
+     *
+     * @since 1.663.0
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public boolean atomic(@NotNull List<AtomicStep> steps) {
+        try (com.mongodb.client.ClientSession session = client.startSession()) {
+            session.startTransaction();
+            try {
+                for (AtomicStep step : steps) {
+                    EntityModel model = step.model();
+                    Document document = document(MongoDocuments.toDocument(model, step.record()));
+                    Object id = document.get(MongoDocuments.ID_FIELD);
+                    boolean landed = switch (step.kind()) {
+                        case UPDATE_IF -> collection(model).replaceOne(session, document(MongoDocuments.filter(model,
+                                List.of(model.id().name(), step.column().name()),
+                                java.util.Arrays.asList(model.id().decode(model.idOf(step.record())), step.expected()))),
+                                document).getMatchedCount() > 0;
+                        case INSERT -> {
+                            collection(model).insertOne(session, document);
+                            yield true;
+                        }
+                        case SAVE -> {
+                            collection(model).replaceOne(session, Filters.eq(MongoDocuments.ID_FIELD, id), document,
+                                    new ReplaceOptions().upsert(true));
+                            yield true;
+                        }
+                    };
+                    if (!landed) {
+                        session.abortTransaction();
+                        return false;
+                    }
+                }
+            } catch (com.mongodb.MongoException failure) {
+                if (session.hasActiveTransaction()) session.abortTransaction();
+                if (failure.hasErrorLabel(com.mongodb.MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
+                        || failure instanceof com.mongodb.MongoWriteException write
+                        && write.getError().getCategory() == com.mongodb.ErrorCategory.DUPLICATE_KEY) {
+                    return false;
+                }
+                throw failure;
+            }
+            session.commitTransaction();
+            return true;
+        }
+    }
+
+    /**
+     * Whether this deployment runs multi-document transactions: a replica set
+     * or a sharded cluster does, a standalone server does not.
+     *
+     * @since 1.663.0
+     */
+    public boolean supportsTransactions() {
+        Document hello;
+        try {
+            hello = database.runCommand(new Document("hello", 1));
+        } catch (MongoCommandException old) {
+            // Servers before 4.4.2 only know the older name.
+            hello = database.runCommand(new Document("isMaster", 1));
+        }
+        return supportsTransactions(hello);
+    }
+
+    /** Reads a {@code hello} answer: a replica set names itself, a router says {@code isdbgrid}. */
+    static boolean supportsTransactions(@NotNull Document hello) {
+        return hello.get("setName") != null || "isdbgrid".equals(hello.get("msg"));
+    }
+
+    /**
+     * Runs the steps of an {@link #atomic} unit one after another, without a
+     * transaction, for a standalone server that has none.
+     *
+     * <p>A step that fails before anything was written answers {@code false},
+     * like {@link #atomic}. One that fails after earlier steps landed cannot
+     * undo them and throws, so the caller treats the outcome as unknown; a crash
+     * between two steps leaves the earlier ones written.
+     *
+     * @since 1.663.0
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public boolean sequential(@NotNull List<AtomicStep> steps) {
+        boolean wrote = false;
+        for (AtomicStep step : steps) {
+            EntityModel model = step.model();
+            boolean landed = switch (step.kind()) {
+                case UPDATE_IF -> updateIf(model, step.record(), step.column(), step.expected());
+                case INSERT -> insertIfAbsent(model, step.record());
+                case SAVE -> {
+                    save(model, step.record());
+                    yield true;
+                }
+            };
+            if (!landed) {
+                if (!wrote) return false;
+                throw new IllegalStateException("A " + step.kind() + " on " + model.table()
+                        + " failed after earlier writes of the same unit landed; without a replica set they"
+                        + " cannot be undone");
+            }
+            wrote = true;
+        }
+        return true;
+    }
+
+    /**
      * Replaces a document only while one field still holds a value.
      *
      * @param model    the record model

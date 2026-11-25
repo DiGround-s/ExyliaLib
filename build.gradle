@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'net.exylia'
-version = '1.662.1'
+version = '1.663.0'
 description = 'Shared high-performance library for Exylia Minecraft plugins.'
 
 def targetJavaVersion = 21
@@ -203,6 +203,9 @@ dependencies {
     }
     if (System.getenv('EXYLIA_BUS_MARIADB')) {
         testImplementation 'org.mariadb.jdbc:mariadb-java-client:3.4.1'
+    }
+    if (System.getenv('CRATES_MYSQL')) {
+        testImplementation 'com.mysql:mysql-connector-j:8.4.0'
     }
     testImplementation 'org.mongodb:mongodb-driver-sync:4.11.1'
     testImplementation 'redis.clients:jedis:5.1.0'

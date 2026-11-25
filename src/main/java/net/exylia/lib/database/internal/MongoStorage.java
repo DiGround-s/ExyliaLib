@@ -69,6 +69,32 @@ public final class MongoStorage implements Storage {
         this.warnings = warnings;
     }
 
+    /** Whether the server runs transactions, asked once; {@code null} until then. */
+    private volatile @Nullable Boolean transactions;
+
+    /**
+     * Whether {@link #atomic} runs as a transaction. A standalone server has
+     * none: it is said once, and units are written step by step as before.
+     */
+    boolean transactional() {
+        Boolean known = transactions;
+        if (known != null) return known;
+        return choose(backend.supportsTransactions());
+    }
+
+    /** Remembers the answer and warns, once, when there are no transactions. */
+    synchronized boolean choose(boolean supported) {
+        if (transactions != null) return transactions;
+        transactions = supported;
+        if (!supported) {
+            warnings.accept("MongoDB runs as a standalone server, which has no"
+                    + " transactions: writes that must land together (crate openings and the prizes they owe)"
+                    + " are written one after another. A crash between them can leave keys spent and a prize"
+                    + " undelivered. Run MongoDB as a replica set (a single-node one is enough) to close that.");
+        }
+        return supported;
+    }
+
     /** The backend underneath, for the library's own diagnostics. */
     public @NotNull MongoBackend backend() {
         return backend;
@@ -174,6 +200,12 @@ public final class MongoStorage implements Storage {
                                                             @NotNull ColumnModel column,
                                                             @Nullable Object expected) {
         return async(model, "updateIf", () -> backend.updateIf(model, record, column, expected));
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Boolean> atomic(@NotNull java.util.List<AtomicStep> steps) {
+        return async(steps.get(0).model(), "atomic write", () -> transactional()
+                ? backend.atomic(steps) : backend.sequential(steps));
     }
 
     @Override

@@ -41,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CratePrizesTest {
 
     private static final AtomicInteger DATABASE = new AtomicInteger();
+    private static final String TOKEN = net.exylia.lib.util.reward.RewardCodec.encode(
+            List.of(net.exylia.lib.util.reward.RewardEntry.command("say token").build()));
 
     /** A reward is written {@code id:tier}. */
     private static final class Catalogue implements CrateCatalogue<String> {
@@ -90,6 +92,7 @@ class CratePrizesTest {
                         if (keepable.get()) kept.add(prize);
                         return keepable.get();
                     }
+                    @Override public @NotNull String payload() { return TOKEN; }
                 });
         fake = new FakePlayer("Steve");
         player = fake.player();
@@ -161,29 +164,77 @@ class CratePrizesTest {
         assertEquals(2, store.row(stranger).keys());
     }
 
+    /** Writes an opening of these prizes, as the screens do once the player clicked. */
+    private Prizes.Opened<String> open(int spend, String... rolled) {
+        return await(prizes.commit(player.getUniqueId(), prizes.ticket(player, spend, List.of(rolled))));
+    }
+
     @Test
     void spendingAKeyFailsAtZero() {
+        catalogue.rewards.add("a:common");
         join();
         keys(1);
-        assertTrue(store.spendKey(player.getUniqueId()));
-        assertFalse(store.spendKey(player.getUniqueId()), "a key was spent that was not there");
+        assertEquals(Prizes.Result.OPENED, open(1, "a:common").result());
+        assertEquals(Prizes.Result.NO_KEYS, open(1, "a:common").result(), "a key was spent that was not there");
         assertEquals(0, keys());
     }
 
     @Test
-    void aDrawWithNoKeysSpendsNothing() {
+    void anOpeningWithNoKeysSpendsAndUnlocksNothing() {
         catalogue.rewards.add("a:common");
         join();
-        assertEquals(Prizes.Status.NO_KEYS, prizes.draw(player).status());
+        assertEquals(Prizes.Result.NO_KEYS, open(1, "a:common").result());
         assertEquals(0, keys());
+        assertFalse(store.row(player.getUniqueId()).isUnlocked("a"), "the last key's prize leaked without the key");
     }
 
     @Test
     void anEmptyCrateDoesNotChargeForTheDisappointment() {
         join();
         keys(2);
-        assertEquals(Prizes.Status.EMPTY, prizes.draw(player).status());
+        assertNull(prizes.rollAll(1));
         assertEquals(2, keys());
+    }
+
+    @Test
+    void theSameOperationAskedTwiceIsWrittenOnce() {
+        catalogue.rewards.add("a:common");
+        join();
+        keys(3);
+        Prizes.Ticket<String> ticket = prizes.ticket(player, 2, List.of("a:common", "a:common"));
+        Prizes.Opened<String> first = await(prizes.commit(player.getUniqueId(), ticket));
+        Prizes.Opened<String> again = await(prizes.commit(player.getUniqueId(), ticket));
+        assertEquals(Prizes.Result.OPENED, again.result());
+        assertEquals(first.outcomes(), again.outcomes(), "a replay answered something else than what was written");
+        // Two keys spent once, one refunded for the second reel's duplicate.
+        assertEquals(2, keys());
+    }
+
+    @Test
+    void anAbortedOperationNeverLandsAndOneThatLandedCannotBeAborted() {
+        catalogue.rewards.add("a:common");
+        join();
+        keys(1);
+        Prizes.Ticket<String> given = prizes.ticket(player, 1, List.of("a:common"));
+        assertEquals(CrateStore.Result.ABORTED, await(store.abort(player.getUniqueId(), given.id())).result());
+        assertEquals(Prizes.Result.ABORTED, await(prizes.commit(player.getUniqueId(), given)).result(),
+                "a write still in flight landed after the refusal");
+        assertEquals(1, keys());
+
+        Prizes.Ticket<String> landed = prizes.ticket(player, 1, List.of("a:common"));
+        await(prizes.commit(player.getUniqueId(), landed));
+        assertEquals(CrateStore.Result.APPLIED, await(store.abort(player.getUniqueId(), landed.id())).result());
+        assertEquals(0, keys());
+    }
+
+    @Test
+    void aGrantWithAnIdCountsOnce() {
+        join();
+        UUID uuid = player.getUniqueId();
+        assertEquals(5, await(store.addKeys(uuid, 5, "grant:order-1")));
+        assertEquals(5, await(store.addKeys(uuid, 5, "grant:order-1")), "the same purchase counted twice");
+        assertEquals(6, await(store.addKeys(uuid, 1, null)));
+        assertEquals(7, await(store.addKeys(uuid, 1, null)), "grants without an id are each their own");
     }
 
     // ------------------------------------------------------------------
@@ -224,16 +275,26 @@ class CratePrizesTest {
         join();
         keys(2);
 
-        Prizes.Draw<String> first = prizes.draw(player);
-        assertEquals(Prizes.Status.DRAWN, first.status());
-        assertEquals(Prizes.Status.WON, prizes.award(player, first.prize()).status());
+        Prizes.Opened<String> first = open(1, "a:common");
+        assertEquals(Prizes.Status.WON, first.outcomes().get(0).status());
         assertTrue(store.row(player.getUniqueId()).isUnlocked("a"));
         assertEquals(1, keys());
 
-        Prizes.Outcome<String> again = prizes.award(player, prizes.draw(player).prize());
+        Prizes.Outcome<String> again = open(1, "a:common").outcomes().get(0);
         assertEquals(Prizes.Status.DUPLICATE, again.status());
         assertEquals(1, again.refunded());
         assertEquals(1, keys(), "the duplicate did not hand its key back");
+    }
+
+    @Test
+    void twoReelsOfOneRewardInOneOpeningAreAWinAndADuplicate() {
+        catalogue.rewards.add("a:common");
+        join();
+        keys(2);
+        List<Prizes.Outcome<String>> both = open(2, "a:common", "a:common").outcomes();
+        assertEquals(Prizes.Status.WON, both.get(0).status());
+        assertEquals(Prizes.Status.DUPLICATE, both.get(1).status());
+        assertEquals(1, keys());
     }
 
     @Test
@@ -242,11 +303,13 @@ class CratePrizesTest {
         hasTokens.set(true);
         reward(CrateReward.ITEM);
         join();
+        keys(3);
 
         for (int i = 0; i < 3; i++) {
-            assertEquals(Prizes.Status.WON, prizes.award(player, "a:common").status());
+            Prizes.Outcome<String> outcome = open(1, "a:common").outcomes().get(0);
+            assertEquals(Prizes.Status.WON, outcome.status());
+            assertTrue(outcome.token(), "a won token was not owed");
         }
-        assertEquals(List.of("a:common", "a:common", "a:common"), given);
         assertFalse(store.row(player.getUniqueId()).isUnlocked("a"));
     }
 
@@ -255,58 +318,71 @@ class CratePrizesTest {
         catalogue.rewards.add("a:common");
         reward(CrateReward.ITEM);
         join();
+        keys(2);
 
-        assertEquals(Prizes.Status.WON, prizes.award(player, "a:common").status());
+        Prizes.Outcome<String> first = open(1, "a:common").outcomes().get(0);
+        assertEquals(Prizes.Status.WON, first.status());
+        assertFalse(first.token());
         assertTrue(store.row(player.getUniqueId()).isUnlocked("a"), "a key bought nothing");
-        assertEquals(Prizes.Status.DUPLICATE, prizes.award(player, "a:common").status());
+        assertEquals(Prizes.Status.DUPLICATE, open(1, "a:common").outcomes().get(0).status());
     }
 
     @Test
-    void bothUnlocksAndGivesTheTokenOnlyWhenNew() {
+    void bothUnlocksAndOwesTheTokenOnlyWhenNew() {
         catalogue.rewards.add("a:common");
         hasTokens.set(true);
         reward(CrateReward.BOTH);
         join();
+        keys(2);
 
-        assertEquals(Prizes.Status.WON, prizes.award(player, "a:common").status());
-        assertEquals(Prizes.Status.DUPLICATE, prizes.award(player, "a:common").status());
-        assertEquals(List.of("a:common"), given, "a duplicate handed the token over as well");
+        assertTrue(open(1, "a:common").outcomes().get(0).token());
+        Prizes.Outcome<String> again = open(1, "a:common").outcomes().get(0);
+        assertEquals(Prizes.Status.DUPLICATE, again.status());
+        assertFalse(again.token(), "a duplicate owed the token as well");
     }
 
     @Test
-    void aPlayerLeavingKeepsTheirTokenForLater() {
+    void aTokenIsWrittenPendingWithTheOpeningAndTakenOnce() {
         catalogue.rewards.add("a:common");
         hasTokens.set(true);
         reward(CrateReward.ITEM);
         join();
+        keys(1);
+        UUID uuid = player.getUniqueId();
+        Prizes.Ticket<String> ticket = prizes.ticket(player, 1, List.of("a:common"));
+        await(prizes.commit(uuid, ticket));
+        assertTrue(await(Databases.of(plugin).repository(net.exylia.lib.util.reward.PendingRewardRow.class)
+                .exists(CrateStore.deliveryId(ticket.id(), 0))), "the token is not pending with the opening");
 
-        prizes.awardLater(player, "a:common");
-        assertEquals(List.of(), given);
-        assertEquals(List.of("a:common"), kept);
+        assertTrue(await(prizes.takeDelivery(ticket.id(), 0)));
+        assertFalse(await(prizes.takeDelivery(ticket.id(), 0)), "a token was taken twice");
     }
 
     @Test
-    void aTokenThatCannotBeKeptGivesItsKeyBack() {
+    void aTokenLeftByACrashIsHandedOverOnTheNextJoinOnce() {
         catalogue.rewards.add("a:common");
         hasTokens.set(true);
-        keepable.set(false);
         reward(CrateReward.ITEM);
         join();
-
-        prizes.awardLater(player, "a:common");
-        assertEquals(1, keys(), "a key was spent on a token nobody received");
+        keys(1);
+        UUID uuid = player.getUniqueId();
+        Prizes.Ticket<String> ticket = prizes.ticket(player, 1, List.of("a:common"));
+        await(prizes.commit(uuid, ticket));
+        // The animation never revealed it: the next join claims the pending rewards.
+        net.exylia.lib.util.reward.PendingRewards queue = net.exylia.lib.util.reward.PendingRewards.database(plugin);
+        assertEquals(1, queue.claim(uuid).size(), "the token was lost with the animation");
+        assertTrue(queue.claim(uuid).isEmpty(), "the token was handed over twice");
+        assertFalse(await(prizes.takeDelivery(ticket.id(), 0)), "the reveal would hand it over again");
+        assertEquals(0, keys());
     }
 
     @Test
-    void aDisabledCrateDrawsNothing() {
+    void aDisabledCrateSaysSo() {
         catalogue.rewards.add("a:common");
         CrateSettings s = settings.get();
         settings.set(new CrateSettings(false, s.startKeys(), s.duplicateRefund(), s.reward(), s.blocks(),
                 s.maxAtOnce(), s.spinFrames(), s.staggerSeconds(), s.onSpin(), s.onWin(), s.onDuplicate(),
                 s.keyItem(), s.tiers()));
-        join();
-        keys(1);
-        assertEquals(Prizes.Status.DISABLED, prizes.draw(player).status());
-        assertEquals(1, keys());
+        assertFalse(prizes.enabled());
     }
 }

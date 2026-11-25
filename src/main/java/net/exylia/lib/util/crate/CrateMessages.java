@@ -26,6 +26,8 @@ import net.exylia.lib.config.Key;
  * @param disabled       the crate is turned off
  * @param keysReceived   key items were handed over
  * @param rewardsClaimed rewards kept while the player was away were handed over on join
+ * @param failed         the database did not answer an opening in time (since 1.663.0); nothing is lost
+ *                       either way: it is opened or given up on once the database answers
  * @since 1.189.0
  */
 public record CrateMessages(
@@ -52,7 +54,13 @@ public record CrateMessages(
 
         @Key("rewards-claimed")
         @Comment("%amount% is how many kept rewards were handed over, %amount:reward was|rewards were% the words for that many.")
-        String rewardsClaimed) {
+        String rewardsClaimed,
+
+        @Comment("The database did not answer an opening in time. Nothing is lost: it opens, or is cancelled with nothing spent.")
+        String failed) {
+
+    private static final String FAILED = "%prefix%{error}The crate could not be opened right now. "
+            + "{letters}Nothing is lost: if it went through, you will see what came out.";
 
     public CrateMessages() {
         this("%prefix%{success}You unboxed %tier% {highlight}%reward%{success}.",
@@ -62,7 +70,14 @@ public record CrateMessages(
                 "%prefix%{error}There is nothing in the crate yet.",
                 "%prefix%{error}The crate is off on this server.",
                 "%prefix%{success}You received {highlight}%amount% {success}crate %amount:key|keys%.",
-                "%prefix%{success}{highlight}%amount% {success}%amount:reward was|rewards were% waiting for you.");
+                "%prefix%{success}{highlight}%amount% {success}%amount:reward was|rewards were% waiting for you.",
+                FAILED);
+    }
+
+    /** The lines before {@code failed} existed, which takes its default. */
+    public CrateMessages(String won, String duplicate, String noKeys, String busy, String empty, String disabled,
+                         String keysReceived, String rewardsClaimed) {
+        this(won, duplicate, noKeys, busy, empty, disabled, keysReceived, rewardsClaimed, FAILED);
     }
 
     public CrateMessages {
@@ -74,5 +89,6 @@ public record CrateMessages(
         disabled = disabled == null ? "" : disabled;
         keysReceived = keysReceived == null ? "" : keysReceived;
         rewardsClaimed = rewardsClaimed == null ? "" : rewardsClaimed;
+        failed = failed == null ? FAILED : failed;
     }
 }

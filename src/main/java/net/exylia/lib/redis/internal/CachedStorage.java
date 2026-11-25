@@ -295,6 +295,20 @@ public final class CachedStorage implements Storage {
     }
 
     @Override
+    public @NotNull CompletableFuture<Void> whenReady() {
+        return delegate.whenReady();
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Boolean> atomic(
+            @NotNull java.util.List<net.exylia.lib.database.internal.AtomicStep> steps) {
+        // Every row it may have touched is forgotten, landed or not: the next read reaches the database.
+        return after(delegate.atomic(steps), (cache, landed) -> {
+            for (net.exylia.lib.database.internal.AtomicStep step : steps) cache.drop(step.model(), step.id());
+        });
+    }
+
+    @Override
     public <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model,
                                                                   @NotNull T record) {
         // A winner caches what it wrote; a loser drops its copy, which most

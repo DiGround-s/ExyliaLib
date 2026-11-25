@@ -227,6 +227,29 @@ public interface Storage {
     <T> @NotNull CompletableFuture<Boolean> insertIfAbsent(@NotNull EntityModel<T> model, @NotNull T record);
 
     /**
+     * Completes once this storage's table exists, for a write another storage runs on it.
+     *
+     * @since 1.663.0
+     */
+    default @NotNull CompletableFuture<Void> whenReady() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Writes several records in one transaction: all land, or none does. Every
+     * table a step names must be {@link #whenReady ready}.
+     *
+     * @param steps the writes, in order
+     * @return {@code true} when all landed; {@code false} when a condition failed
+     *         and nothing was written
+     * @since 1.663.0
+     */
+    default @NotNull CompletableFuture<Boolean> atomic(@NotNull java.util.List<AtomicStep> steps) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException(
+                getClass().getSimpleName() + " cannot write several rows atomically"));
+    }
+
+    /**
      * Inserts a record whose key the store hands out, and answers that key.
      *
      * <p>Only ever called for a model whose key is generated; the value the

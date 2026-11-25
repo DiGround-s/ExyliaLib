@@ -45,6 +45,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -57,10 +58,9 @@ import java.util.function.ToIntFunction;
  *
  * <p>Every reel is its own: its own faces, its own prize and its own finishing
  * line a little later than the last, so four of them land one after another
- * instead of snapping still together. The keys are spent and the prizes drawn
- * before the first frame, but nothing is handed over until a reel stops on the
- * line, so what the player is given arrives with the animation rather than
- * ahead of it.
+ * instead of snapping still together. The keys are spent and the prizes written
+ * before the first frame — nothing is shown for an opening the database did
+ * not take — and a reel's token item is handed over as it stops on the line.
  *
  * <p>Closing the window changes none of that — the reels stop being drawn and
  * the prizes still land on their own clock. Leaving the server ends the timer,
@@ -93,8 +93,9 @@ public final class CrateScreens<T> implements Listener {
     private final String menuId;
     private final String openingId;
     private final Predicate<ItemStack> isKey;
-    private final Function<Player, ItemStack> keyBack;
+    private final Function<@Nullable Player, ItemStack> keyBack;
     private final BiConsumer<Player, ItemStack> giveItem;
+    private final BiConsumer<UUID, ItemStack> deliverItem;
 
     /**
      * Who has reels running.
@@ -110,30 +111,36 @@ public final class CrateScreens<T> implements Listener {
     /** The reels each player has in the air, so a spin that ends early can still be settled up. */
     private final Map<UUID, Spin<T>> running = new ConcurrentHashMap<>();
 
-    /** One player's reels and the timer drawing them. */
+    /** One player's reels, the opening they show, and the timer drawing them. */
     private static final class Spin<T> {
         final Player player;
         final List<Reel<T>> reels;
+        final Prizes.Ticket<T> ticket;
+        final List<Prizes.Outcome<T>> outcomes;
         volatile @Nullable TaskHandle timer;
 
-        Spin(Player player, List<Reel<T>> reels) {
+        Spin(Player player, List<Reel<T>> reels, Prizes.Ticket<T> ticket, List<Prizes.Outcome<T>> outcomes) {
             this.player = player;
             this.reels = reels;
+            this.ticket = ticket;
+            this.outcomes = outcomes;
         }
     }
 
     /**
      * @param isKey    whether an item is one of this crate's key items
-     * @param keyBack  a fresh key item, for a paid key a crate turned out unable to use
-     * @param giveItem hands an item over under the plugin's overflow policy
+     * @param keyBack     a fresh key item, for a paid key an opening turned out unable to use; drawn for
+     *                    nobody in particular when given {@code null}
+     * @param giveItem    hands an item over under the plugin's overflow policy
+     * @param deliverItem hands an item over to somebody here or not
      * @param access   whether a player may open the crate at all, telling them why not
      * @param atOnce   the most crates a player may open at once, before the reels' cap
      */
     public CrateScreens(@NotNull Plugin plugin, @NotNull Prizes<T> prizes, @NotNull CrateStore store,
                         @NotNull Supplier<CrateSettings> settings, @NotNull Supplier<CrateMessages> messages,
                         @NotNull PluginMenus menus, @NotNull String menuId, @NotNull String openingId,
-                        @NotNull Predicate<ItemStack> isKey, @NotNull Function<Player, ItemStack> keyBack,
-                        @NotNull BiConsumer<Player, ItemStack> giveItem,
+                        @NotNull Predicate<ItemStack> isKey, @NotNull Function<@Nullable Player, ItemStack> keyBack,
+                        @NotNull BiConsumer<Player, ItemStack> giveItem, @NotNull BiConsumer<UUID, ItemStack> deliverItem,
                         @NotNull Predicate<Player> access, @NotNull ToIntFunction<Player> atOnce) {
         this.plugin = plugin;
         this.tasks = Tasks.of(plugin);
@@ -149,16 +156,15 @@ public final class CrateScreens<T> implements Listener {
         this.isKey = isKey;
         this.keyBack = keyBack;
         this.giveItem = giveItem;
+        this.deliverItem = deliverItem;
         this.access = access;
         this.atOnce = atOnce;
     }
 
     /**
-     * Settles up every reel still falling when the player left: unlocked on
-     * their row, and any token kept until their next join.
-     *
-     * <p>Before the store forgets their row — hence the priority — because an
-     * unlock written after that is written to nothing.
+     * Settles up every reel still falling when the player left. What they won
+     * was written with the opening; only the tokens are left, kept until their
+     * next join.
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onQuit(PlayerQuitEvent event) {
@@ -176,8 +182,9 @@ public final class CrateScreens<T> implements Listener {
         if (spin == null) return;
         TaskHandle timer = spin.timer;
         if (timer != null) timer.cancel();
-        for (Reel<T> reel : spin.reels) {
-            if (reel.abandon()) prizes.awardLater(spin.player, reel.prize());
+        for (int i = 0; i < spin.reels.size(); i++) {
+            // An unrevealed token stays in the pending rewards the opening wrote it to: the next join hands it over.
+            spin.reels.get(i).abandon();
         }
     }
 
@@ -284,16 +291,22 @@ public final class CrateScreens<T> implements Listener {
     }
 
     /**
-     * Everything that can refuse does so before a window is opened, and each
-     * refusal says which one it was.
+     * Everything that can refuse at once does so before anything is written,
+     * and each refusal says which one it was. Then the opening is written off
+     * this thread and shown once the database took it: nothing is shown, and
+     * nothing handed over, for an opening that was not written.
      *
      * @param held whether the keys are items in the hand rather than the number on the account
      * @param back  non-null: the 3D scene whatever the settings say, and this runs once it is over
-     * @return whether anything was opened
+     * @return whether an opening is on its way
      */
     private boolean spin(Player player, int requested, boolean held, @Nullable Runnable back) {
         if (!access.test(player)) return false;
         CrateMessages lines = messages.get();
+        if (!prizes.enabled()) {
+            say(player, lines.disabled());
+            return false;
+        }
         int amount = Math.min(mostAtOnce(player), Math.max(1, requested));
         UUID uuid = player.getUniqueId();
 
@@ -302,92 +315,190 @@ public final class CrateScreens<T> implements Listener {
             return false;
         }
 
+        // Only a first answer from memory: the write below checks the keys again on the row itself.
         int keys = held ? heldKeys(player) : keysOf(player);
         if (keys < amount) {
             spinning.invalidate(uuid);
+            if (!held) store.refresh(uuid);
             if (!lines.noKeys().isBlank()) {
                 Text.from(plugin, lines.noKeys()).with("%amount%", amount).with("%keys%", keys).send(player);
             }
             return false;
         }
 
-        // Every key is spent before any reel is drawn, so the window cannot be
-        // closed between two of them and pay for half a spin.
-        List<T> bought = new ArrayList<>(amount);
-        for (int i = 0; i < amount; i++) {
-            Prizes.Draw<T> draw;
-            if (held) {
-                // The hand was counted a moment ago on this same thread, so only
-                // a race gets here; a spin that paid for nothing opens nothing.
-                if (!takeHeldKey(player)) break;
-                draw = prizes.drawPaid();
-                if (!draw.isPrize()) giveItem.accept(player, keyBack.apply(player));
-            } else {
-                draw = prizes.draw(player);
-            }
-            if (!draw.isPrize()) {
-                // Only an empty or disabled crate, and then on the first one:
-                // whatever came before it is already paid for.
-                if (bought.isEmpty()) {
-                    spinning.invalidate(uuid);
-                    say(player, draw.status() == Prizes.Status.EMPTY ? lines.empty() : lines.disabled());
-                    return false;
-                }
-                break;
-            }
-            bought.add(draw.prize());
-        }
-        if (bought.isEmpty()) {
+        // Rolled before anything is taken: a crate with nothing in it must not charge for the disappointment.
+        List<T> rolled = prizes.rollAll(amount);
+        if (rolled == null) {
             spinning.invalidate(uuid);
+            say(player, lines.empty());
             return false;
         }
+        int paidWithItems = 0;
+        if (held) {
+            // Read again rather than trusted from the count; a spin that paid for nothing opens nothing.
+            while (paidWithItems < rolled.size() && takeHeldKey(player)) paidWithItems++;
+            if (paidWithItems == 0) {
+                spinning.invalidate(uuid);
+                return false;
+            }
+            rolled = new ArrayList<>(rolled.subList(0, paidWithItems));
+        }
 
+        Prizes.Ticket<T> ticket = prizes.ticket(player, held ? 0 : rolled.size(), rolled);
+        int items = paidWithItems;
+        AtomicBoolean late = new AtomicBoolean();
+        prizes.open(uuid, ticket, () -> {
+            late.set(true);
+            try {
+                tasks.runAtEntity(player, () -> say(player, lines.failed()));
+            } catch (RuntimeException stopped) {
+                // Nobody left to tell.
+            }
+        }).whenComplete((opened, failure) -> {
+            try {
+                tasks.runAtEntity(player, () -> landed(player, ticket, opened, failure, held, items, late.get(), back),
+                        () -> landedAway(uuid, ticket, opened, failure, items));
+            } catch (RuntimeException stopped) {
+                landedAway(uuid, ticket, opened, failure, items);
+            }
+        });
+        return true;
+    }
+
+    /** The database answered an opening, and the player is still here. On their thread. */
+    private void landed(Player player, Prizes.Ticket<T> ticket, Prizes.@Nullable Opened<T> opened,
+                        @Nullable Throwable failure, boolean held, int items, boolean late, @Nullable Runnable back) {
+        UUID uuid = player.getUniqueId();
+        if (failure != null || opened == null) {
+            // The plugin stopped before the database answered. Whatever it settles on is kept in
+            // the row's journal: tokens are handed over on the next join, nothing else is owed.
+            spinning.invalidate(uuid);
+            debug.warn("Crate: an opening for " + player.getName() + " was still unanswered when the crate stopped");
+            return;
+        }
+        switch (opened.result()) {
+            case NO_KEYS -> {
+                spinning.invalidate(uuid);
+                CrateMessages lines = messages.get();
+                if (!lines.noKeys().isBlank()) {
+                    Text.from(plugin, lines.noKeys()).with("%amount%", ticket.prizes().size())
+                            .with("%keys%", keysOf(player)).send(player);
+                }
+                if (back != null) back.run();
+            }
+            case ABORTED -> {
+                // Aborted for good, so the key items it took can go back: it will never land.
+                spinning.invalidate(uuid);
+                for (int i = 0; i < items; i++) giveItem.accept(player, keyBack.apply(player));
+                if (back != null) back.run();
+            }
+            case OPENED -> {
+                if (late) {
+                    // They were told it failed; it had landed after all. No reels now, only what came out.
+                    spinning.invalidate(uuid);
+                    for (int i = 0; i < opened.outcomes().size(); i++) {
+                        announce(player, reveal(player, ticket, opened.outcomes(), i));
+                    }
+                    if (back != null) back.run();
+                    return;
+                }
+                show(player, ticket, opened.outcomes(), held, back);
+            }
+        }
+    }
+
+    /** The database answered an opening for a player who left meanwhile. On any thread. */
+    private void landedAway(UUID uuid, Prizes.Ticket<T> ticket, Prizes.@Nullable Opened<T> opened,
+                            @Nullable Throwable failure, int items) {
+        spinning.invalidate(uuid);
+        if (failure != null || opened == null) return;
+        if (opened.result() == Prizes.Result.ABORTED) {
+            for (int i = 0; i < items; i++) deliverItem.accept(uuid, keyBack.apply(null));
+            return;
+        }
+        // An OPENED one wrote its tokens to the pending rewards, handed over on the next join.
+    }
+
+    /** Puts a written opening on screen: the 3D scene, the screen, or the reels. */
+    private void show(Player player, Prizes.Ticket<T> ticket, List<Prizes.Outcome<T>> outcomes, boolean held,
+                      @Nullable Runnable back) {
+        UUID uuid = player.getUniqueId();
         boolean screen = back == null && settings.get().opening() == CrateOpening.SCREEN
                 && net.exylia.lib.spatial.crate.CrateScreen.of(plugin).available(player);
         if (screen || spatial(settings.get().opening(), back != null, CrateScene.of(plugin).available(player))) {
             // Held from now, so a quit in the tick before the scene opens still pays them out.
-            List<Reel<T>> reels = new ArrayList<>(bought.size());
-            for (T prize : bought) reels.add(Reel.of(0, prize, 1, () -> null));
-            Spin<T> spin = new Spin<>(player, reels);
+            List<Reel<T>> reels = new ArrayList<>(ticket.prizes().size());
+            for (T prize : ticket.prizes()) reels.add(Reel.of(0, prize, 1, () -> null));
+            Spin<T> spin = new Spin<>(player, reels, ticket, outcomes);
             running.put(uuid, spin);
             // A tick later, out of the click on the button that asked for it.
-            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, bought, held, spin, back, screen));
-            return true;
+            tasks.runAtEntityLater(player, 1, () -> runSpatial(player, spin, held, back, screen));
+            return;
         }
-        inventory(player, bought);
-        return true;
+        inventory(player, ticket, outcomes);
     }
 
     /** The reels in the opening menu, or the prizes at once when that menu is not loaded. */
-    private void inventory(Player player, List<T> bought) {
+    private void inventory(Player player, Prizes.Ticket<T> ticket, List<Prizes.Outcome<T>> outcomes) {
         UUID uuid = player.getUniqueId();
         menus.definition(openingId).ifPresentOrElse(
                 // A tick later, because this runs inside the click on the button:
                 // a window opened while the one clicked is still being handled is
                 // the click that closes both.
-                // The keys are already spent: a player gone before that tick is paid
-                // like a quit mid-spin, since onQuit has no spin of theirs to settle.
-                definition -> tasks.runAtEntityLater(player, 1, () -> run(player, definition, bought), () -> {
+                // Already written: a player gone before that tick is paid like a
+                // quit mid-spin, since onQuit has no spin of theirs to settle.
+                definition -> tasks.runAtEntityLater(player, 1, () -> run(player, definition, ticket, outcomes), () -> {
                     spinning.invalidate(uuid);
-                    bought.forEach(prize -> prizes.awardLater(player, prize));
                 }),
                 () -> {
                     spinning.invalidate(uuid);
                     debug.warn("The crate opening menu '" + openingId + "' is not loaded");
-                    // No screen to land on, so the keys pay out at once.
-                    bought.forEach(prize -> announce(player, prizes.award(player, prize)));
+                    // No screen to land on, so the prizes are told at once.
+                    for (int i = 0; i < outcomes.size(); i++) announce(player, reveal(player, ticket, outcomes, i));
                 });
     }
 
     /**
-     * The opening in the world ({@link CrateScene}), or on a screen when {@code screen}. The prizes are already drawn and paid for: each reel
-     * is only the guard that hands its prize over once, when the scene reveals it or when it ends early.
-     * A quit is paid by {@link #onQuit}, as with the inventory reels.
+     * Reveals one reel: what it came to was written with the opening, so this only
+     * hands over its token, when it has one.
      */
-    private void runSpatial(Player player, List<T> bought, boolean held, Spin<T> spin, @Nullable Runnable back, boolean screen) {
+    private Prizes.Outcome<T> reveal(Player player, Prizes.Ticket<T> ticket, List<Prizes.Outcome<T>> outcomes,
+                                     int index) {
+        Prizes.Outcome<T> outcome = outcomes.get(index);
+        if (outcome.token()) handToken(player, ticket.id(), index, ticket.tokens().get(index));
+        return outcome;
+    }
+
+    /**
+     * Hands one reel's token over to a player who is here: taken off the pending
+     * rewards first, where the opening wrote it, so it is handed over once
+     * whoever else tries; given on their thread, or queued again for their next
+     * join when they left meanwhile. Not taken, it stays pending, and the next
+     * join hands it over.
+     */
+    private void handToken(Player player, String operation, int index, Prizes.@Nullable Token token) {
+        if (token == null) return;
+        UUID uuid = player.getUniqueId();
+        prizes.takeDelivery(operation, index).thenAccept(won -> {
+            if (!won) return;
+            tasks.runAtEntity(player, () -> token.give(player), () -> token.keep(uuid));
+        }).exceptionally(failure -> {
+            debug.warn("Crate: a token for " + player.getName() + " is still pending, handed over on their next join: "
+                    + failure.getMessage());
+            return null;
+        });
+    }
+
+    /**
+     * The opening in the world ({@link CrateScene}), or on a screen when {@code screen}. The prizes are already
+     * written: each reel is only the guard that hands its token over once, when the scene reveals it or when it
+     * ends early. A quit is paid by {@link #onQuit}, as with the inventory reels.
+     */
+    private void runSpatial(Player player, Spin<T> spin, boolean held, @Nullable Runnable back, boolean screen) {
         UUID uuid = player.getUniqueId();
         if (!player.isOnline() || running.get(uuid) != spin) return;
         List<Reel<T>> reels = spin.reels;
+        List<T> bought = spin.ticket.prizes();
 
         CrateCatalogue<T> catalogue = prizes.catalogue();
         Map<T, CrateFace> drawn = new HashMap<>();
@@ -412,13 +523,14 @@ public final class CrateScreens<T> implements Listener {
             @Override
             public @NotNull CrateReveal reveal(int index) {
                 Reel<T> reel = reels.get(index);
-                Prizes.Outcome<T> outcome = reel.settle(prize -> prizes.award(player, prize));
+                Prizes.Outcome<T> outcome = reel.settle(prize -> CrateScreens.this.reveal(player, spin.ticket,
+                        spin.outcomes, index));
                 if (outcome != null) {
                     effects.play(landing(outcome), player);
                     announce(player, outcome);
                 }
-                Prizes.Outcome<T> known = reel.outcome();
-                return known == null || known.status() != Prizes.Status.DUPLICATE ? CrateReveal.NEW
+                Prizes.Outcome<T> known = spin.outcomes.get(index);
+                return known.status() != Prizes.Status.DUPLICATE ? CrateReveal.NEW
                         : new CrateReveal(true, known.refunded());
             }
 
@@ -462,7 +574,7 @@ public final class CrateScreens<T> implements Listener {
         if (!played) {
             // Nothing could be drawn there (another plugin's 3D menu, no displays): the reels instead.
             running.remove(uuid, spin);
-            inventory(player, bought);
+            inventory(player, spin.ticket, spin.outcomes);
         }
     }
 
@@ -502,7 +614,9 @@ public final class CrateScreens<T> implements Listener {
         return true;
     }
 
-    private void run(Player player, UiDefinition definition, List<T> bought) {
+    private void run(Player player, UiDefinition definition, Prizes.Ticket<T> ticket,
+                     List<Prizes.Outcome<T>> outcomes) {
+        List<T> bought = ticket.prizes();
         CrateSettings crate = settings.get();
         int base = Math.min(Reel.MAX_FRAMES, Math.max(1, crate.spinFrames()));
         // In faces rather than in seconds: every face a reel gains lands in the
@@ -525,7 +639,7 @@ public final class CrateScreens<T> implements Listener {
         UiSession session = menus.openNow(player, definition, context,
                 Map.of(REELS, cells(reels, 0, drawn),
                         AGAIN, List.of(UiEntry.row().template("waiting").build())));
-        animate(session, reels, drawn);
+        animate(session, reels, drawn, ticket, outcomes);
     }
 
     private @Nullable T any(List<T> faces) {
@@ -537,12 +651,13 @@ public final class CrateScreens<T> implements Listener {
      * Runs the reels until the last one lands, on one timer: they are drawn into
      * the same section, and two timers writing it would undo each other's column.
      */
-    private void animate(UiSession session, List<Reel<T>> reels, CrateFaces<T> faces) {
+    private void animate(UiSession session, List<Reel<T>> reels, CrateFaces<T> faces, Prizes.Ticket<T> ticket,
+                         List<Prizes.Outcome<T>> outcomes) {
         Player player = session.viewer();
         long[] elapsed = {0};
         int[] drawn = {-1};
         int[] beats = {0};
-        Spin<T> spin = new Spin<>(player, reels);
+        Spin<T> spin = new Spin<>(player, reels, ticket, outcomes);
         running.put(player.getUniqueId(), spin);
 
         spin.timer = tasks.runAtEntityTimer(player, 1, 1, (Consumer<TaskHandle>) handle -> {
@@ -551,12 +666,14 @@ public final class CrateScreens<T> implements Listener {
             boolean gone = menus.session(player).map(open -> open != session).orElse(true);
             boolean done = reels.stream().allMatch(reel -> reel.landed(elapsed[0]));
 
-            // Paid before the frame is drawn, so the cell that lands is already
-            // the winner or the duplicate it turned out to be. Each reel is
+            // Settled before the frame is drawn, so the cell that lands is already
+            // the winner or the duplicate it was written as. Each reel is
             // settled the tick it stops: four crates are four prizes.
-            for (Reel<T> reel : reels) {
+            for (int i = 0; i < reels.size(); i++) {
+                Reel<T> reel = reels.get(i);
                 if (!reel.landed(elapsed[0])) continue;
-                Prizes.Outcome<T> outcome = reel.settle(prize -> prizes.award(player, prize));
+                int index = i;
+                Prizes.Outcome<T> outcome = reel.settle(prize -> reveal(player, ticket, outcomes, index));
                 if (outcome == null) continue;
                 effects.play(landing(outcome), player);
                 announce(player, outcome);

@@ -25,6 +25,7 @@ import net.exylia.lib.util.reward.OverflowPolicy;
 import net.exylia.lib.util.reward.PendingRewards;
 import net.exylia.lib.util.reward.PluginRewards;
 import net.exylia.lib.util.reward.RewardEntry;
+import net.exylia.lib.util.reward.RewardCodec;
 import net.exylia.lib.util.reward.Rewards;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -151,6 +152,11 @@ public final class PluginCrates {
                 });
 
         CrateStore store = new CrateStore(plugin, () -> settings.get().startKeys(), this::changed, this::imported);
+        // The ledger only has to outlive every retry of an operation; a month is far past that.
+        // ponytail: a JVM property rather than a config key, since CrateSettings is built by its consumers.
+        int ledgerDays = Integer.getInteger("exylia.crates.ledger-days", 30);
+        Tasks.of(plugin).runAsyncTimer(20L * 60, 20L * 60 * 60 * 6,
+                () -> store.pruneLedger(ledgerDays).exceptionally(failure -> null));
         Prizes<T> prizes = new Prizes<>(catalogue, store, settings, (prize, player) -> {
             ItemStack token = catalogue.token(prize, player);
             if (token == null) return null;
@@ -165,10 +171,15 @@ public final class PluginCrates {
                 public boolean keep(@NotNull UUID player) {
                     return rewards.giveLater(player, List.of(entry));
                 }
+
+                @Override
+                public @NotNull String payload() {
+                    return RewardCodec.encode(List.of(entry));
+                }
             };
         });
         CrateScreens<T> screens = new CrateScreens<>(plugin, prizes, store, settings, messages, menus,
-                menu, openingMenu, this::isKey, this::keyItem, rewards::giveItem,
+                menu, openingMenu, this::isKey, this::keyItem, rewards::giveItem, rewards::deliver,
                 player -> access.test(player),
                 player -> {
                     int configured = settings.get().maxAtOnce();
@@ -487,22 +498,28 @@ public final class PluginCrates {
 
     /**
      * Adds keys to a player's account, here or not, or takes them away with a
-     * negative number. Never goes below zero.
+     * negative number. Never goes below zero. Added in the database itself, so a
+     * purchase landing while the player opens a crate on another server counts both.
      *
      * @return the keys afterwards
      */
     public @NotNull CompletableFuture<Integer> addKeys(@NotNull UUID player, int keys) {
-        CrateStore store = require().store();
-        if (!store.scoped()) return store.edit(player, row -> row.withKeys(row.keys() + keys)).thenApply(CrateRow::keys);
-        // Taken from this server's keys first, and what they fall short of from the global ones.
-        AtomicInteger missing = new AtomicInteger();
-        return store.edit(player, row -> {
-                    missing.set(Math.max(0, -keys - row.keys()));
-                    return row.withKeys(row.keys() + keys);
-                })
-                .thenCompose(ignored -> missing.get() == 0 ? CompletableFuture.completedFuture(null)
-                        : store.editShared(player, row -> row.withKeys(row.keys() - missing.get())))
-                .thenCompose(ignored -> store.fetch(player)).thenApply(CrateRow::keys);
+        return require().store().addKeys(player, keys, null);
+    }
+
+    /**
+     * Adds (or takes) keys once per {@code operationId}, for grants that can be
+     * delivered twice: a store purchase, a vote, a command a webhook retries. The
+     * same id again changes nothing and answers the keys as they are. The ids are
+     * remembered per player, the last 64 operations.
+     *
+     * @param operationId unique per grant, such as the store's transaction id
+     * @return the keys afterwards
+     * @since 1.663.0
+     */
+    public @NotNull CompletableFuture<Integer> addKeys(@NotNull UUID player, int keys, @NotNull String operationId) {
+        if (operationId.isBlank()) throw new IllegalArgumentException("A grant's operation id must not be blank");
+        return require().store().addKeys(player, keys, "grant:" + operationId);
     }
 
     /**

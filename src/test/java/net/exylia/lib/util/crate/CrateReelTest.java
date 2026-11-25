@@ -30,7 +30,7 @@ class CrateReelTest {
     }
 
     private static Prizes.Outcome<String> won(String prize) {
-        return new Prizes.Outcome<>(Prizes.Status.WON, prize, "common", 0);
+        return new Prizes.Outcome<>(Prizes.Status.WON, prize, "common", 0, false);
     }
 
     private static long landing(Reel<String> reel) {

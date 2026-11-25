@@ -483,6 +483,13 @@ public final class SqlBackend implements AutoCloseable {
      */
     public <T> boolean updateIf(@NotNull EntityModel<T> model, @NotNull T instance,
                                 @NotNull ColumnModel column, @Nullable Object expected) throws SQLException {
+        try (Connection connection = pool.getConnection()) {
+            return updateIf(connection, model, instance, column, expected);
+        }
+    }
+
+    private <T> boolean updateIf(Connection connection, EntityModel<T> model, T instance,
+                                 ColumnModel column, @Nullable Object expected) throws SQLException {
         Object encoded = column.encode(expected);
         String sql = statements.computeIfAbsent("updateIf:" + model.key() + ':' + column.name()
                         + (encoded == null ? ":null" : ""),
@@ -490,8 +497,7 @@ public final class SqlBackend implements AutoCloseable {
                         + (encoded == null ? " IS NULL" : " = ?"));
         Object[] values = model.values(instance);
         List<ColumnModel> columns = model.columns();
-        try (Connection connection = pool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             int slot = 1;
             for (int index = 0; index < values.length; index++) {
                 if (index != model.idIndex()) {
@@ -504,6 +510,77 @@ public final class SqlBackend implements AutoCloseable {
             }
             return statement.executeUpdate() > 0;
         }
+    }
+
+    /**
+     * Runs several writes as one transaction: all land, or none does.
+     *
+     * <p>An update whose condition matches nothing, an insert whose key is taken,
+     * and a deadlock or serialization failure the database settled by giving up
+     * on this transaction all roll it back and answer {@code false}. A failure to
+     * commit is thrown: the transaction may or may not have landed.
+     *
+     * @param steps the writes, in order
+     * @return whether they landed
+     * @throws SQLException if the database failed otherwise
+     * @since 1.663.0
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public boolean atomic(@NotNull List<AtomicStep> steps) throws SQLException {
+        try (Connection connection = pool.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                for (AtomicStep step : steps) {
+                    EntityModel model = step.model();
+                    boolean landed = switch (step.kind()) {
+                        case UPDATE_IF -> updateIf(connection, model, step.record(), step.column(), step.expected());
+                        case INSERT -> {
+                            String sql = statements.computeIfAbsent("insertRow:" + model.key(),
+                                    key -> dialect.insert(model));
+                            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                                bindRow(statement, model, model.values(step.record()));
+                                yield statement.executeUpdate() > 0;
+                            }
+                        }
+                        case SAVE -> {
+                            String sql = statements.computeIfAbsent("save:" + model.key(),
+                                    key -> dialect.upsert(model, List.of(model.id().name())));
+                            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                                bindRow(statement, model, model.values(step.record()));
+                                statement.executeUpdate();
+                                yield true;
+                            }
+                        }
+                    };
+                    if (!landed) {
+                        connection.rollback();
+                        return false;
+                    }
+                }
+            } catch (SQLException failure) {
+                try {
+                    connection.rollback();
+                } catch (SQLException rollback) {
+                    failure.addSuppressed(rollback);
+                }
+                if (duplicateKey(failure) || conflict(failure)) return false;
+                throw failure;
+            }
+            // Outside the catch: a commit that failed may have landed, and only the caller can tell.
+            connection.commit();
+            return true;
+        }
+    }
+
+    /** A deadlock or serialization failure: 40001 (MySQL, MariaDB, H2, Postgres) or 40P01 (Postgres). */
+    private static boolean conflict(SQLException failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sql && ("40001".equals(sql.getSQLState())
+                    || "40P01".equals(sql.getSQLState()) || sql.getErrorCode() == 1213)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

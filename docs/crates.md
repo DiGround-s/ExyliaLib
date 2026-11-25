@@ -583,11 +583,41 @@ And on the catalogue, both optional (1.190.0):
   other click on the block opens the question. Key items are inert: they are
   never placed, eaten or thrown, whatever they are drawn as.
 - **One spin at a time** per player; a second is refused with `busy`.
-- **Payout** happens as each reel lands, in the order they land. Closing the
-  window changes nothing. Quitting, or the plugin being disabled, pays out
-  every reel still falling at once: unlocked on the row, tokens kept in the
-  plugin's pending table until the next join — or, when that table would not
-  take one, a key handed back instead.
+- **Payout** is written before the first frame, in one transaction (since
+  1.663.0): the keys spent, the unlocks, the duplicate refunds, a ledger row
+  for the opening and one pending reward row per token item land together or
+  not at all. The reels only reveal what was written. Each token is taken off
+  the pending rewards as its reel lands (a delete only one caller wins) and
+  given on the player's thread. A crash, a quit or a disabled plugin
+  mid-animation leaves the unrevealed tokens pending, and the next join hands
+  them over through `claimOnJoin`. Nothing is paid twice; the one window in
+  which a prize can be lost is a crash between a token's delete and the give
+  that follows it on the same tick.
+- **Operations happen once** (since 1.663.0). Every opening, and every grant
+  given an id (`addKeys(uuid, n, operationId)`), writes a row to
+  `exylia_crate_operations` keyed by the player and the id in the same
+  transaction as the keys, so the database itself refuses a replay: a retry
+  after a timeout, the same purchase delivered to two servers. A retry is
+  answered with what the first one did. An opening the database did not answer
+  is tried three times, then the player is told `failed` and the opening is
+  aborted by writing an aborted row under the same key, so a late commit can
+  never land after the refusal. Ledger rows are deleted after 30 days
+  (`-Dexylia.crates.ledger-days=N`), checked every six hours.
+- **Scoped servers.** Keys granted on a server with its own scope go to that
+  scope's row; a grant with an id still counts once network-wide. An opening
+  spends this scope's keys first and the global ones after, in the same
+  transaction.
+- **Standalone MongoDB.** A MongoDB server that is not a replica set has no
+  transactions. ExyliaLib logs one warning the first time and writes an
+  opening's rows one after another (the keys first, then the ledger row, then
+  the pending tokens): openings keep working, but a crash between those writes
+  can leave keys spent without the prize. Run MongoDB as a replica set (one
+  node is enough) for the guarantees above.
+- **Mixed versions.** Every write seals the row. A server on an ExyliaLib
+  older than 1.663.0 writes whole rows without the seal; the next newer
+  server that reads such a row logs an error naming it. Its writes can still
+  undo another server's change while it runs, so update every server that
+  shares the database together.
 - **Rewards** go through the plugin's `PluginRewards`, which `start` sets to
   `OverflowPolicy.QUEUE` into `PendingRewards.database(plugin)`, claimed on
   join with the `rewards-claimed` line. A plugin that sets its rewards up
@@ -611,14 +641,25 @@ Table `exylia_crate_players`, in the plugin's own database (`database.yml`):
 | `uuid` | `VARCHAR(36)` | the player |
 | `keys` | integer | keys on the account |
 | `unlocked` | unbounded text | unlocked ids, comma separated, in the order they came |
-| `created_at`, `updated_at` | `BIGINT` | epoch milliseconds |
+| `created_at`, `updated_at` | `BIGINT` | epoch milliseconds; `updated_at` is also the row's version |
+| `seal` | `BIGINT`, nullable | what the last 1.663.0+ write left, to spot an older server's write |
 
-A row is read when its player joins and answered from memory until they leave;
-every change is written through at once, behind the player's previous write.
-The start keys are written on the row a join creates, so they are given once
-ever. A row changed for somebody who is not here is read, changed and written,
-and never cached; one written by an admin before the player ever joined carries
-no start keys.
+Table `exylia_crate_operations` (since 1.663.0): `id` (`<plugin>:<uuid>|<operation>`,
+key), `plugin`, `uuid`, `entry` (what it did), `day` (indexed, for the retention).
+Token items wait in the plugin's `exylia_pending_rewards` under
+`crate:<operation>:<reel>`.
+
+A row is read when its player joins; the copy in memory is only for showing.
+Every change is a compare-and-set on `updated_at` against the row as the
+database holds it, so a stale copy on any server never overwrites a newer
+row: it loses, reads again and works the change out again. Openings and grants
+with an id go through `PluginDatabase#atomic`, together with their ledger and
+pending rows. The start keys are written on the row a join creates, so they
+are given once ever. One written by an admin before the player ever joined
+carries no start keys.
+
+Upgrading from an older version needs nothing: the new column and table are
+added on start, and every existing row keeps its keys and unlocks.
 
 With `importing`, the row a join, an edit or a read creates is seeded from what
 the importer answers instead of the start keys, and written at once; the

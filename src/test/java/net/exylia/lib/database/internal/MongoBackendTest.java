@@ -237,4 +237,12 @@ class MongoBackendTest {
                         "  ", "user", "secret"), "tests"));
         assertTrue(refused.getMessage().contains("database"));
     }
+
+    @Test
+    @DisplayName("transactions are found on a replica set or a router, not on a standalone server")
+    void transactionsNeedAReplicaSet() {
+        assertFalse(MongoBackend.supportsTransactions(new Document("isWritablePrimary", true)));
+        assertTrue(MongoBackend.supportsTransactions(new Document("isWritablePrimary", true).append("setName", "rs0")));
+        assertTrue(MongoBackend.supportsTransactions(new Document("msg", "isdbgrid")));
+    }
 }

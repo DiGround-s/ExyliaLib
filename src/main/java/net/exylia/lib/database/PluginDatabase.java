@@ -169,6 +169,16 @@ public final class PluginDatabase {
      * @return the repository, the same instance every time
      * @throws IllegalArgumentException if the class cannot be stored
      */
+    /**
+     * Starts a unit of writes to this database's tables that land together or not at all.
+     *
+     * @return an empty unit
+     * @since 1.663.0
+     */
+    public @NotNull Atomic atomic() {
+        return new Atomic(this);
+    }
+
     @SuppressWarnings("unchecked")
     public <T> @NotNull Repository<T> repository(@NotNull Class<T> recordType) {
         if (released) {
