@@ -85,14 +85,12 @@ public final class DisplayRuntime {
             }
             double limit = radius * radius;
             List<Player> present = new ArrayList<>();
-            // Only the players around the place, not the whole world for every
-            // display twice a second; on Folia the nearby ones are this region's.
-            java.util.Collection<Player> near;
-            try {
-                near = world.getNearbyPlayers(where, radius);
-            } catch (IllegalStateException elsewhere) {
-                near = null;
-            }
+            // Paper: only the players around the place, not the whole world for
+            // every display twice a second. Folia refuses a box reaching into
+            // chunks another region owns, so there the world's players are
+            // walked and those of other regions skipped.
+            java.util.Collection<Player> near = net.exylia.lib.platform.Platform.isFolia()
+                    ? null : world.getNearbyPlayers(where, radius);
             if (near == null) {
                 for (Player online : world.getPlayers()) consider(online, world, where, limit, present);
                 return present;
