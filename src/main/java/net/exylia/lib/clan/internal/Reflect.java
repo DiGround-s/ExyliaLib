@@ -3,7 +3,9 @@ package net.exylia.lib.clan.internal;
 import org.bukkit.Bukkit;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -92,24 +94,43 @@ final class Reflect {
         }
     }
 
+    /**
+     * Each class's public methods by name, opened once.
+     *
+     * <p>These calls run on damage events: {@code getMethods()} copies the
+     * whole array on every call, and a provider makes a dozen calls per check.
+     * A {@link ClassValue} lets the entry go with the plugin's classloader.
+     */
+    private static final ClassValue<Map<String, Method[]>> METHODS = new ClassValue<>() {
+        @Override
+        protected Map<String, Method[]> computeValue(Class<?> type) {
+            Map<String, List<Method>> byName = new HashMap<>();
+            for (Method method : type.getMethods()) {
+                // A public method declared on a non-public implementation class is
+                // not callable until it is opened, which is the common shape for
+                // plugin managers hidden behind an interface.
+                try {
+                    method.setAccessible(true);
+                } catch (Throwable ignored) {
+                    // Left as found; the invoke reports the real outcome.
+                }
+                byName.computeIfAbsent(method.getName(), n -> new ArrayList<>()).add(method);
+            }
+            Map<String, Method[]> frozen = new HashMap<>();
+            byName.forEach((name, list) -> frozen.put(name, list.toArray(Method[]::new)));
+            return Map.copyOf(frozen);
+        }
+    };
+
     private static Method find(Class<?> cls, String name, Object[] args) {
-        for (Method method : cls.getMethods()) {
-            if (!method.getName().equals(name)) {
-                continue;
+        Method[] named = METHODS.get(cls).get(name);
+        if (named == null) {
+            return null;
+        }
+        for (Method method : named) {
+            if (method.getParameterCount() == args.length && accepts(method.getParameterTypes(), args)) {
+                return method;
             }
-            Class<?>[] params = method.getParameterTypes();
-            if (params.length != args.length || !accepts(params, args)) {
-                continue;
-            }
-            // A public method declared on a non-public implementation class is
-            // not callable until it is opened, which is the common shape for
-            // plugin managers hidden behind an interface.
-            try {
-                method.setAccessible(true);
-            } catch (Throwable ignored) {
-                // Left as found; the invoke below reports the real outcome.
-            }
-            return method;
         }
         return null;
     }

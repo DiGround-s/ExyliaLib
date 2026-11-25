@@ -1,6 +1,7 @@
 package net.exylia.lib.packet.internal;
 
 import net.exylia.lib.packet.SilentContainer;
+import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.TaskHandle;
 import net.exylia.lib.task.Tasks;
 import net.kyori.adventure.text.Component;
@@ -31,6 +32,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 /**
@@ -58,9 +61,28 @@ public final class Mirrors implements SilentContainer {
     private static final class Open {
         final Mirror mirror;
         final Set<Integer> dirty = ConcurrentHashMap.newKeySet();
+        /** Bumped on the source's thread after each write-through, so an older read is never drawn. */
+        final AtomicLong writes = new AtomicLong();
+        /** One Folia read in flight at a time. */
+        final AtomicBoolean reading = new AtomicBoolean();
+
+        /** Whose thread the source belongs to: an entity, a location, or {@code null} for global. */
+        final Object where;
 
         Open(Mirror mirror) {
             this.mirror = mirror;
+            // Read once, where the mirror is opened: asking a block inventory for its holder reads
+            // the block, which a tick on Folia's global thread must not do.
+            InventoryHolder holder = mirror.source().getHolder();
+            if (holder instanceof Entity entity) {
+                this.where = entity;
+            } else if (holder instanceof BlockState block) {
+                this.where = block.getLocation();
+            } else if (holder instanceof DoubleChest chest) {
+                this.where = chest.getLocation();
+            } else {
+                this.where = null;
+            }
         }
     }
 
@@ -107,8 +129,8 @@ public final class Mirrors implements SilentContainer {
             Bukkit.getPluginManager().registerEvents(new Hooks(), plugin);
         }
         if (ticker == null) {
-            // ponytail: one global tick over every open mirror; per-viewer
-            // entity timers if Folia regions ever make this contend.
+            // One global tick over every open mirror; on Folia it only hands each
+            // mirror to its source's and viewer's threads (tickRegions).
             ticker = Tasks.of(plugin).runTimer(1, 1, Mirrors::tick);
         }
     }
@@ -122,10 +144,80 @@ public final class Mirrors implements SilentContainer {
             }
             return;
         }
+        if (Platform.isFolia()) {
+            STATE.forEach(Mirrors::tickRegions);
+            return;
+        }
         for (Open open : STATE.values()) {
             if (open.dirty.isEmpty() && !same(open.mirror.source(), open.mirror.mirror())) {
                 copy(open.mirror.source(), open.mirror.mirror());
             }
+        }
+    }
+
+    /**
+     * On Folia the source belongs to its holder's region and the mirror to the viewer's: the source
+     * is read on its own thread and drawn on the viewer's. A read older than a write-through that
+     * landed after it is dropped; drawing it would put back an item the viewer already took.
+     */
+    private static void tickRegions(UUID viewerId, Open open) {
+        if (!open.dirty.isEmpty() || !open.reading.compareAndSet(false, true)) {
+            return;
+        }
+        Player viewer = Bukkit.getPlayer(viewerId);
+        Plugin owner = Bukkit.getPluginManager().getPlugin(open.mirror.plugin());
+        if (viewer == null || owner == null) {
+            open.reading.set(false);
+            return;
+        }
+        boolean scheduled;
+        try {
+            onSourceThread(owner, open, () -> {
+                long seen = open.writes.get();
+                ItemStack[] read = open.mirror.source().getContents();
+                for (int i = 0; i < read.length; i++) {
+                    if (read[i] != null) read[i] = read[i].clone();
+                }
+                Tasks.of(owner).runAtEntity(viewer, () -> {
+                    try {
+                        if (STATE.get(viewerId) == open && open.dirty.isEmpty() && open.writes.get() == seen) {
+                            draw(read, open.mirror.mirror());
+                        }
+                    } finally {
+                        open.reading.set(false);
+                    }
+                }, () -> open.reading.set(false));
+            }, () -> open.reading.set(false));
+            scheduled = true;
+        } catch (RuntimeException unschedulable) {
+            scheduled = false;
+        }
+        if (!scheduled) {
+            open.reading.set(false);
+        }
+    }
+
+    private static void draw(ItemStack[] items, Inventory to) {
+        int n = Math.min(items.length, to.getSize());
+        for (int i = 0; i < n; i++) {
+            if (!java.util.Objects.equals(to.getItem(i), items[i])) {
+                to.setItem(i, items[i]);
+            }
+        }
+    }
+
+    /** Runs on the thread that owns the source. */
+    private static void onSourceThread(Plugin owner, Open open, Runnable task) {
+        onSourceThread(owner, open, task, null);
+    }
+
+    private static void onSourceThread(Plugin owner, Open open, Runnable task, @Nullable Runnable retired) {
+        if (open.where instanceof Entity entity) {
+            Tasks.of(owner).runAtEntity(entity, task, retired);
+        } else if (open.where instanceof org.bukkit.Location location) {
+            Tasks.of(owner).runAtLocation(location, task);
+        } else {
+            Tasks.of(owner).run(task);
         }
     }
 
@@ -286,6 +378,8 @@ public final class Mirrors implements SilentContainer {
             Inventory source = open.mirror.source();
             Inventory mirror = open.mirror.mirror();
             Runnable write = () -> {
+                // First: a Folia read racing this write must see it, even before dirty empties.
+                open.writes.incrementAndGet();
                 for (Integer slot : open.dirty) {
                     ItemStack item = mirror.getItem(slot);
                     source.setItem(slot, item == null ? null : item.clone());
@@ -301,16 +395,7 @@ public final class Mirrors implements SilentContainer {
                     }
                 }
             };
-            InventoryHolder holder = source.getHolder();
-            if (holder instanceof Entity entity) {
-                Tasks.of(owner).runAtEntity(entity, write);
-            } else if (holder instanceof BlockState block) {
-                Tasks.of(owner).runAtLocation(block.getLocation(), write);
-            } else if (holder instanceof DoubleChest chest) {
-                Tasks.of(owner).runAtLocation(chest.getLocation(), write);
-            } else {
-                Tasks.of(owner).run(write);
-            }
+            onSourceThread(owner, open, write);
         }
     }
 }

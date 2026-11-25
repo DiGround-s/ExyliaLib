@@ -3,6 +3,7 @@ package net.exylia.lib.leaderboard.internal;
 import net.exylia.lib.database.Column;
 import net.exylia.lib.database.DataKind;
 import net.exylia.lib.database.Id;
+import net.exylia.lib.database.Index;
 import net.exylia.lib.database.Indexed;
 import net.exylia.lib.database.Owner;
 import net.exylia.lib.database.Table;
@@ -42,6 +43,8 @@ import java.util.UUID;
  * @param seasonValue the value last sampled while the season was open: frozen once it ends
  * @since 1.563.0
  */
+// What a reload asks: this board's rows changed lately, newest first.
+@Index(columns = {"board", "updated"}, descending = {"updated"})
 @Table(value = "exylia_leaderboard_values", cache = false, data = DataKind.PROGRESS)
 public record LeaderboardRow(
         @Id(length = 200) String id,

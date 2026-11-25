@@ -599,13 +599,14 @@ final class PlacedNpcImpl implements PlacedNpc {
         if (removed || !player.isOnline() || player.getWorld() != at.getWorld()) {
             return false;
         }
-        Predicate<Player> current = filter;
-        if (current != null && !current.test(player)) {
+        double range = spec.viewDistance();
+        // From where they see: a camera filming this NPC draws it for them. Distance first: the
+        // consumer's filter may read permissions or placeholders, and most players are out of range.
+        if (Viewpoints.of(player).distanceSquared(at) > range * range) {
             return false;
         }
-        double range = spec.viewDistance();
-        // From where they see: a camera filming this NPC draws it for them.
-        return Viewpoints.of(player).distanceSquared(at) <= range * range;
+        Predicate<Player> current = filter;
+        return current == null || current.test(player);
     }
 
     /**

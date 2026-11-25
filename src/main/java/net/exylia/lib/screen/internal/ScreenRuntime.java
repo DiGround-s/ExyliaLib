@@ -342,6 +342,8 @@ public final class ScreenRuntime {
         @EventHandler(priority = EventPriority.MONITOR)
         public void onQuit(PlayerQuitEvent event) {
             close(event.getPlayer().getUniqueId());
+            // close() stamps it; nobody left to shield.
+            CLOSED_AT.remove(event.getPlayer().getUniqueId());
             CHAT.remove(event.getPlayer().getUniqueId());
             // A new login starts with nobody hidden.
             REVEAL.remove(event.getPlayer().getUniqueId());

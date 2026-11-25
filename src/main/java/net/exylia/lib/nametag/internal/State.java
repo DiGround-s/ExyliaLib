@@ -92,6 +92,15 @@ final class State {
         return teams != null && teams.contains(team);
     }
 
+    /**
+     * What a viewer's team packets are sent under. On Folia two targets in different regions are
+     * painted for one viewer at once; deciding "create or add" and sending it must be one step, or
+     * the client is told to create a team it already has, which disconnects it.
+     */
+    Object teamLock(UUID viewer) {
+        return known.computeIfAbsent(viewer, id -> ConcurrentHashMap.newKeySet());
+    }
+
     void learn(UUID viewer, String team) {
         known.computeIfAbsent(viewer, id -> ConcurrentHashMap.newKeySet()).add(team);
     }

@@ -750,9 +750,10 @@ public final class SpatialMenus {
         if (owner == null) return;
         Visibility visibility = Packets.of(owner).visibility();
         visibility.refresh(player);
-        // Whom they see is everyone else's visibility, so everyone else is looked at again too.
+        // Whom they see is everyone else's visibility, so each pair with them as the viewer is looked at
+        // again too: one pair per player, not every viewer of every player.
         for (Player other : List.copyOf(Bukkit.getOnlinePlayers())) {
-            if (!other.getUniqueId().equals(player.getUniqueId())) visibility.refresh(other);
+            if (!other.getUniqueId().equals(player.getUniqueId())) visibility.refresh(player, other);
         }
     }
 

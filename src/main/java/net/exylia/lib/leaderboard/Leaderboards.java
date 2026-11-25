@@ -93,6 +93,13 @@ public final class Leaderboards {
     /** Statistic files read a second, on the server thread, one every two ticks. */
     private static final int SEED_STATISTIC_BATCH = 10;
     private static final long SHUTDOWN_WAIT_SECONDS = 10;
+    /**
+     * How often a board reads every row again rather than only the rows changed since its last read:
+     * what catches rows deleted (a wipe, a player reset), which a read of recent rows cannot see.
+     */
+    private static final long FULL_RELOAD_MILLIS = TimeUnit.MINUTES.toMillis(10);
+    /** The most changed rows one recent read takes; past it the board reads everything. */
+    static final int RECENT_LIMIT = 5000;
 
     private static final Object LOCK = new Object();
     /** Every plugin load that opened the boards, in order; guarded by {@link #LOCK}. */
@@ -137,6 +144,10 @@ public final class Leaderboards {
         volatile boolean seedChecked;
         volatile @Nullable Seeding<OfflinePlayer> seeding;
         volatile boolean warned;
+        /** When the last read of every row started, by this server's clock. */
+        volatile long fullAt;
+        /** When the last successful read started: the next one asks for rows changed after it. */
+        volatile long readAt;
         /** The reload running now, if any; guarded by the board. */
         @Nullable CompletableFuture<Void> refreshing;
         volatile Ranking[] rankings = empty();
@@ -392,6 +403,7 @@ public final class Leaderboards {
                     board.dirty.clear();
                     board.seedChecked = false;
                 }
+                board.fullAt = Long.MIN_VALUE / 2;
                 refresh(board);
             });
         });
@@ -659,14 +671,32 @@ public final class Leaderboards {
 
     private static CompletableFuture<Void> reload(Board board, Repository<LeaderboardRow> table,
                                                   Repository<LeaderboardMeta> metaTable) {
-        return table.where("board", board.id).find()
-                .thenCombine(metaTable.findFresh(board.id), (stored, meta) -> {
-                    board.meta = meta.orElse(LeaderboardMeta.fresh(board.id));
-                    merge(board, stored);
-                    sort(board);
-                    board.ready = true;
-                    board.warned = false;
-                    return (Void) null;
+        long started = System.currentTimeMillis();
+        return metaTable.findFresh(board.id)
+                .thenCompose(found -> {
+                    LeaderboardMeta meta = found.orElse(LeaderboardMeta.fresh(board.id));
+                    // Every row of every player, every server, every 30 seconds was a whole table read per
+                    // board per server. Between full reads only the rows changed since the last read are
+                    // asked for, newest first: what was sampled lately, which is the players online
+                    // somewhere. A reset anywhere (the meta moved) deletes rows, so it reads everything.
+                    boolean full = !board.ready || started - board.fullAt >= FULL_RELOAD_MILLIS
+                            || !meta.equals(board.meta);
+                    return (full ? table.where("board", board.id).find().thenApply(all -> new Read(all, true))
+                            : recent(board, table))
+                            .thenApply(stored -> {
+                                board.meta = meta;
+                                if (full || stored.full()) {
+                                    merge(board, stored.rows());
+                                    board.fullAt = started;
+                                } else {
+                                    mergeRecent(board, stored.rows());
+                                }
+                                board.readAt = started;
+                                sort(board);
+                                board.ready = true;
+                                board.warned = false;
+                                return (Void) null;
+                            });
                 })
                 .whenComplete((ignored, failure) -> {
                     if (failure != null) {
@@ -680,6 +710,36 @@ public final class Leaderboards {
                     }
                 })
                 .exceptionally(failure -> null);
+    }
+
+    /** Rows read back, and whether they are every row of the board. */
+    private record Read(List<LeaderboardRow> rows, boolean full) {
+    }
+
+    /** The rows changed since the last read; every row when more changed than one read takes. */
+    private static CompletableFuture<Read> recent(Board board, Repository<LeaderboardRow> table) {
+        long since = board.readAt - recentMargin();
+        return table.where("board", board.id).orderByDescending("updated").limit(RECENT_LIMIT).find()
+                .thenCompose(recent -> recent.size() >= RECENT_LIMIT && recent.get(recent.size() - 1).updated() >= since
+                        ? table.where("board", board.id).find().thenApply(all -> new Read(all, true))
+                        : CompletableFuture.completedFuture(new Read(
+                                recent.stream().filter(row -> row.updated() >= since).toList(), false)));
+    }
+
+    /**
+     * How far before the last read a recent read looks: a row carries the time it was sampled, and
+     * lands up to a sample and a write later, by another server's clock.
+     */
+    private static long recentMargin() {
+        return 2 * sampleEvery.toMillis() + 2 * sortEvery.toMillis() + TimeUnit.MINUTES.toMillis(2);
+    }
+
+    /** Takes the rows another server changed lately; keeps every row it was not sent. */
+    private static void mergeRecent(Board board, List<LeaderboardRow> recent) {
+        for (LeaderboardRow row : recent) {
+            board.rows.compute(row.id(), (key, mine) ->
+                    mine != null && (board.dirty.contains(key) || board.ours(mine)) ? mine : row);
+        }
     }
 
     private static void merge(Board board, List<LeaderboardRow> stored) {
@@ -797,8 +857,16 @@ public final class Leaderboards {
         LOADED.remove(player);
     }
 
-    /** For tests: writes, reloads and sorts a board now, waiting for it. */
+    /** For tests: writes, reloads every row and sorts a board now, waiting for it. */
     static void syncForTests(String board) {
+        Board target = BOARDS.get(board);
+        target.fullAt = Long.MIN_VALUE / 2;
+        write(List.of(target)).join();
+        refresh(target).join();
+    }
+
+    /** For tests: like {@link #syncForTests} but as a timer reload between full reads would. */
+    static void syncRecentForTests(String board) {
         Board target = BOARDS.get(board);
         write(List.of(target)).join();
         refresh(target).join();

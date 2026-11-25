@@ -1,5 +1,6 @@
 package net.exylia.lib.hologram.internal;
 
+import net.exylia.lib.camera.Viewpoints;
 import net.exylia.lib.hologram.Hologram;
 import net.exylia.lib.hologram.HologramConfig;
 import net.exylia.lib.task.TaskHandle;
@@ -558,11 +559,16 @@ public final class HologramRuntime {
         }
 
         List<? extends Player> online = List.copyOf(Bukkit.getOnlinePlayers());
+        // Where each player sees from, read once for every hologram.
+        Location[] from = new Location[online.size()];
+        for (int i = 0; i < from.length; i++) {
+            from[i] = Viewpoints.of(online.get(i));
+        }
         long now = now();
 
         for (HologramImpl hologram : holograms) {
             try {
-                List<Player> viewers = updateVisibility(hologram, online);
+                List<Player> viewers = updateVisibility(hologram, online, from);
                 hologram.lastViewers(viewers);
                 if (hologram.refreshes() && hologram.due(now) && !viewers.isEmpty()) {
                     hologram.render(viewers);
@@ -577,11 +583,12 @@ public final class HologramRuntime {
 
     /** Sends and removes the hologram as players cross its view distance. */
     private static List<Player> updateVisibility(HologramImpl hologram,
-                                                 List<? extends Player> online) {
+                                                 List<? extends Player> online, Location[] from) {
         List<Player> viewers = new ArrayList<>();
-        for (Player player : online) {
+        for (int i = 0; i < from.length; i++) {
+            Player player = online.get(i);
             boolean sees = hologram.isViewing(player);
-            boolean should = hologram.canSee(player);
+            boolean should = hologram.canSee(player, from[i]);
             if (should && !sees) {
                 hologram.spawnFor(player);
             } else if (!should && sees) {

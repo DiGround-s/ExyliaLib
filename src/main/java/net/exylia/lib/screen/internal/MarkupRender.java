@@ -412,10 +412,12 @@ public final class MarkupRender {
         return fallback == null ? List.of() : fallback.children();
     }
 
+    private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
+
     /** {@code <for each="kit in kits">}: its children once per row, a range or a list. */
     private List<Object> loop(El el, Scope scope) {
         String each = el.attr("each");
-        Matcher m = each == null ? null : Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*").matcher(each);
+        Matcher m = each == null ? null : EACH.matcher(each);
         if (m == null || !m.matches()) return List.of();
         String alias = m.group(1);
         String over = m.group(2);

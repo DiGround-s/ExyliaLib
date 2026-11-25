@@ -49,6 +49,7 @@ public final class GuidePaths {
     static final int BUDGET = 40_000;
     static final long CAPTURE_TIMEOUT_MS = 2_000;
     static final long CACHE_MILLIS = 10_000;
+    static final long SNAPSHOT_MILLIS = 5_000;
     /** Points of the walk closer than this to the straight line between their neighbours are dropped. */
     private static final double SMOOTHING = 0.3;
 
@@ -59,6 +60,21 @@ public final class GuidePaths {
     }
 
     private static final Map<Key, Cached> CACHE = new ConcurrentHashMap<>();
+
+    private record ChunkKey(java.util.UUID world, long chunk) {
+    }
+
+    /**
+     * Chunk copies, shared between searches for a few seconds. A walking player's path is asked for
+     * again every few seconds from a new block, which the path cache never matches, and each search
+     * copied up to {@link #MAX_CHUNKS} chunks on their region threads; players guided through the same
+     * place now share the copies. Capped: a copy is a whole chunk's blocks.
+     */
+    private static final com.github.benmanes.caffeine.cache.Cache<ChunkKey, CompletableFuture<ChunkSnapshot>>
+            SNAPSHOTS = com.github.benmanes.caffeine.cache.Caffeine.newBuilder()
+                    .maximumSize(256)
+                    .expireAfterWrite(SNAPSHOT_MILLIS, TimeUnit.MILLISECONDS)
+                    .build();
 
     private GuidePaths() {
     }
@@ -96,16 +112,18 @@ public final class GuidePaths {
         for (long chunk : corridor(sx, sz, tx, tz)) {
             int cx = (int) (chunk >> 32);
             int cz = (int) chunk;
-            CompletableFuture<ChunkSnapshot> copy = new CompletableFuture<>();
-            copies.put(chunk, copy);
-            tasks.runAtLocation(new Location(world, (cx << 4) + 8, 64, (cz << 4) + 8), () -> {
-                try {
-                    copy.complete(world.isChunkLoaded(cx, cz)
-                            ? world.getChunkAt(cx, cz).getChunkSnapshot(false, false, false) : null);
-                } catch (Throwable failed) {
-                    copy.complete(null);
-                }
-            });
+            copies.put(chunk, SNAPSHOTS.get(new ChunkKey(world.getUID(), chunk), ignored -> {
+                CompletableFuture<ChunkSnapshot> copy = new CompletableFuture<>();
+                tasks.runAtLocation(new Location(world, (cx << 4) + 8, 64, (cz << 4) + 8), () -> {
+                    try {
+                        copy.complete(world.isChunkLoaded(cx, cz)
+                                ? world.getChunkAt(cx, cz).getChunkSnapshot(false, false, false) : null);
+                    } catch (Throwable failed) {
+                        copy.complete(null);
+                    }
+                });
+                return copy;
+            }));
         }
         int minY = world.getMinHeight();
         int maxY = world.getMaxHeight();

@@ -106,6 +106,11 @@ public final class Playtime {
     }
 
     /** What this server knows about one online player. */
+    /** How many minute writes go by before the row is read back with other servers' time. */
+    private static final int READ_BACK_EVERY = 10;
+    /** How many writes after a join always read the row back. */
+    private static final int READ_BACK_FIRST = 3;
+
     private static final class Session {
         final long joined;
         volatile boolean loaded;
@@ -113,6 +118,9 @@ public final class Playtime {
         private long stored;
         /** Since when this server's time is not in {@link #stored}. */
         private long mark;
+        /** Writes since the row was last read back, and in all this session. */
+        private int unread;
+        private int writes;
 
         Session(long now) {
             joined = now;
@@ -543,10 +551,19 @@ public final class Playtime {
         return inTurn(player, () -> {
             long now = clock.getAsLong();
             long delta;
+            boolean readBack;
             synchronized (session) {
                 delta = Math.max(0, now - session.mark);
                 session.mark = now;
                 session.stored += delta;
+                // The add already put this server's time in stored; reading the row back only brings
+                // another server's, which a player online here is only adding to just after moving
+                // here (the last server's final write lands after this one's read). So: the first
+                // writes of a session, every tenth after, and the last, instead of a second query a
+                // minute per player online.
+                readBack = !session.loaded || ++session.writes <= READ_BACK_FIRST
+                        || ++session.unread >= READ_BACK_EVERY || sessions.get(player) != session;
+                if (readBack) session.unread = 0;
             }
             Repository<PlaytimeRow> target = rows;
             CompletableFuture<Void> add = delta == 0 ? ready
@@ -560,7 +577,7 @@ public final class Playtime {
                 String lost = sessions.get(player) == session ? "" : " (" + delta + "ms lost, the player left)";
                 logger.warning("Playtime: could not write the playtime of " + player + lost + ": " + failure.getMessage());
                 return false;
-            }).thenCompose(added -> !added ? CompletableFuture.<Void>completedFuture(null)
+            }).thenCompose(added -> !added || !readBack ? CompletableFuture.<Void>completedFuture(null)
                     : target.findFresh(player).thenAccept(found -> found.ifPresent(row -> {
                         synchronized (session) {
                             session.stored = row.totalMs();

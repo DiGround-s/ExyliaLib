@@ -1,5 +1,6 @@
 package net.exylia.lib.ability.internal;
 
+import net.exylia.lib.platform.Platform;
 import net.exylia.lib.ability.Ability;
 import net.exylia.lib.ability.AbilityArgs;
 import net.exylia.lib.ability.AbilityContext;
@@ -569,7 +570,11 @@ public final class BuiltinEffects {
                     Teleports.of(ctx.abilities().plugin()).to(player, landing).warmup(0).safe().start();
                 } else {
                     // A mob, not a player: ExyliaLib's teleports move players only.
-                    ctx.at(target, () -> target.teleport(landing));
+                    // Folia refuses a synchronous teleport.
+                    ctx.at(target, () -> {
+                        if (Platform.isFolia()) target.teleportAsync(landing);
+                        else target.teleport(landing);
+                    });
                 }
                 report.target();
             }

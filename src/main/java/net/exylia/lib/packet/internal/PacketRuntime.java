@@ -724,6 +724,7 @@ public final class PacketRuntime {
     /** Forgets a player who left, as a viewer and as a subject. */
     public static void forget(Player player) {
         UUID id = player.getUniqueId();
+        PEN_SENT.remove(id);
         HIDDEN.remove(id);
         for (Set<UUID> hidden : HIDDEN.values()) {
             hidden.remove(id);

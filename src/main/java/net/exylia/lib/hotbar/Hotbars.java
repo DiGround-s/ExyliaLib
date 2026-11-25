@@ -327,6 +327,14 @@ public final class Hotbars {
                     draw(player, wearing.set(), false);
                 });
             }
+            // A player who left while paused (mid-wizard) is in neither loop above.
+            if (!paused.isEmpty()) {
+                paused.removeIf(id -> {
+                    if (Bukkit.getPlayer(id) != null) return false;
+                    wanted.remove(id);
+                    return true;
+                });
+            }
         });
     }
 

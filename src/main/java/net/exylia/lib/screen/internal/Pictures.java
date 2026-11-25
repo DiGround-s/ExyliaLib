@@ -41,7 +41,8 @@ public final class Pictures {
     private static final Cache<Path, Picture> FILES = Caffeine.newBuilder()
             .maximumSize(256).expireAfterWrite(Duration.ofSeconds(30)).build();
     /** A player's body in the round: each part's four sides, by skin url. */
-    private static final Map<String, List<Face>> MODELS = new ConcurrentHashMap<>();
+    private static final Cache<String, List<Face>> MODELS = Caffeine.newBuilder()
+            .maximumSize(512).expireAfterAccess(Duration.ofMinutes(30)).build();
     private static final Cache<String, Picture> BODIES = Caffeine.newBuilder()
             .maximumSize(512).expireAfterAccess(Duration.ofMinutes(30)).build();
     private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -207,7 +208,7 @@ public final class Pictures {
         if (body(player) == null) return null;
         String texture = Skulls.player(player).build().texture();
         String url = texture == null ? null : Textures.urlOf(texture);
-        return url == null ? null : MODELS.get(url);
+        return url == null ? null : MODELS.getIfPresent(url);
     }
 
     /**

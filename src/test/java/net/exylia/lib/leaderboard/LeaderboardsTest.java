@@ -73,6 +73,25 @@ class LeaderboardsTest {
     }
 
     @Test
+    void betweenFullReadsOnlyRecentRowsAreRead() {
+        boards.track("level", LeaderboardSource.placeholder("%level%").perServer());
+        Leaderboards.syncForTests("level");
+        long now = System.currentTimeMillis();
+        String[] keys = keys();
+        // Another server's fresh row arrives through a recent read; a row deleted behind its back stays
+        // until the next full read, which is what removes it.
+        table.save(Ranking.sample(null, "level", "lobby", BRUNO, "Bruno", 50, keys, now)).join();
+        Leaderboards.syncRecentForTests("level");
+        assertEquals(50, boards.view("level", Span.ALL_TIME).valueOf(BRUNO).orElseThrow());
+
+        table.delete(LeaderboardRow.id("level", "lobby", BRUNO)).join();
+        Leaderboards.syncRecentForTests("level");
+        assertEquals(1, boards.view("level", Span.ALL_TIME).size());
+        Leaderboards.syncForTests("level");
+        assertEquals(0, boards.view("level", Span.ALL_TIME).size());
+    }
+
+    @Test
     void ourRowsAreWrittenAndReadBack() {
         boards.track("level", LeaderboardSource.placeholder("%level%"));
         Leaderboards.syncForTests("level");

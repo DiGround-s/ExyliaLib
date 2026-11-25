@@ -296,7 +296,15 @@ public final class WorldBoard {
 
     private void track() {
         if (removed) return;
+        double coarse = (range + 16) * (range + 16);
         for (Player player : Bukkit.getOnlinePlayers()) {
+            // A cheap look first, so a board does not queue a task per player online every half
+            // second: someone with no view in another world or well out of range is left alone.
+            // The read is from this thread, hence the margin; the real test runs on theirs.
+            if (!views.containsKey(player.getUniqueId())) {
+                Location roughly = player.getLocation();
+                if (roughly.getWorld() != centre.getWorld() || roughly.distanceSquared(centre) > coarse) continue;
+            }
             tasks.runAtEntity(player, () -> {
                 if (removed || !player.isOnline()) return;
                 Location at = player.getLocation();

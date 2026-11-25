@@ -209,10 +209,12 @@ public final class Enclosure {
     private void screen(UUID player, boolean on) {
         if (!(on ? screened.add(player) : screened.remove(player))) return;
         Player screenedPlayer = Bukkit.getPlayer(player);
-        if (screenedPlayer != null) visibility.refresh(screenedPlayer);
-        // Whom they see is everyone else's visibility, so everyone else is re-evaluated too.
+        if (screenedPlayer == null) return;
+        visibility.refresh(screenedPlayer);
+        // Whom they see is everyone else's visibility, so each pair with them as the viewer is
+        // re-evaluated too: one pair per player, not every viewer of every player.
         for (Player other : List.copyOf(Bukkit.getOnlinePlayers())) {
-            if (!other.getUniqueId().equals(player)) visibility.refresh(other);
+            if (!other.getUniqueId().equals(player)) visibility.refresh(screenedPlayer, other);
         }
     }
 

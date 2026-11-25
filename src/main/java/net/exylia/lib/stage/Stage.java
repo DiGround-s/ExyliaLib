@@ -148,7 +148,14 @@ public class Stage implements CardSprite.Canvas {
         this.radius = 0;
         this.magnify = 1;
         this.middle = null;
-        this.audience = WATCHED.getOrDefault(viewer.getUniqueId(), List.of(viewer));
+        List<Player> watched = WATCHED.get(viewer.getUniqueId());
+        if (watched != null && watched.get(0) != viewer) {
+            // Left from a session before this login: those are old Player objects, not this one.
+            WATCHED.remove(viewer.getUniqueId(), watched);
+            SHOWING.remove(viewer.getUniqueId());
+            watched = null;
+        }
+        this.audience = watched != null ? watched : List.of(viewer);
         LIVE.computeIfAbsent(viewer.getUniqueId(), id -> java.util.Collections.synchronizedSet(
                 java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()))).add(this);
     }
@@ -702,6 +709,12 @@ public class Stage implements CardSprite.Canvas {
             open.remove(stage);
             return open.isEmpty() ? null : open;
         });
+        if (!stage.viewer.isOnline()) {
+            // Nobody calls watchers(viewer, none) for a player who left: their audience would hold
+            // every bystander's Player object until the next login.
+            WATCHED.remove(stage.viewer.getUniqueId());
+            SHOWING.remove(stage.viewer.getUniqueId());
+        }
     }
 
     /**

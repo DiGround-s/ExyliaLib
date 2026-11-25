@@ -315,10 +315,17 @@ public final class Ledger {
             String id = cut(key.hour() + "|" + serverId + "|" + key.plugin() + "|" + key.source() + "|"
                     + key.currency() + "|" + key.flow().name(), 255);
             // Each increment carries zero for the other column, so whichever creates the row is right.
+            // A write that fails puts its count back, to go out with the next flush.
             writes.add(sourceRepo.increment(new LedgerRow(id, key.hour(), key.hour() / 24, serverId, key.plugin(),
-                    key.source(), key.currency(), key.flow().name(), counted[0], 0), "cents"));
+                    key.source(), key.currency(), key.flow().name(), counted[0], 0), "cents")
+                    .whenComplete((done, failure) -> {
+                        if (failure != null) sources.merge(key, new long[]{counted[0], 0}, Ledger::add);
+                    }));
             writes.add(sourceRepo.increment(new LedgerRow(id, key.hour(), key.hour() / 24, serverId, key.plugin(),
-                    key.source(), key.currency(), key.flow().name(), 0, counted[1]), "times"));
+                    key.source(), key.currency(), key.flow().name(), 0, counted[1]), "times")
+                    .whenComplete((done, failure) -> {
+                        if (failure != null) sources.merge(key, new long[]{0, counted[1]}, Ledger::add);
+                    }));
         }
         for (PlayerKey key : players.keySet()) {
             long[] counted = players.remove(key);
@@ -326,13 +333,23 @@ public final class Ledger {
             String id = key.hour() + "|" + key.player() + "|" + key.currency() + "|" + key.flow().name()
                     + "|" + key.plugin();
             writes.add(playerRepo.increment(new LedgerPlayerRow(cut(id, 128), key.hour(), key.hour() / 24,
-                    key.player().toString(), key.currency(), key.flow().name(), counted[0], key.plugin()), "cents"));
+                    key.player().toString(), key.currency(), key.flow().name(), counted[0], key.plugin()), "cents")
+                    .whenComplete((done, failure) -> {
+                        if (failure != null) players.merge(key, new long[]{counted[0]}, Ledger::add);
+                    }));
         }
         if (writes.isEmpty()) return CompletableFuture.completedFuture(null);
         return CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new)).exceptionally(failure -> {
-            logger.log(Level.WARNING, "Some economy ledger counts could not be written and were dropped.", failure);
+            logger.log(Level.WARNING, "Some economy ledger counts could not be written; they are kept for the next"
+                    + " flush.", failure);
             return null;
         });
+    }
+
+    /** Adds one count into another, column by column. */
+    private static long[] add(long[] into, long[] more) {
+        for (int i = 0; i < into.length; i++) into[i] += more[i];
+        return into;
     }
 
     private String server() {

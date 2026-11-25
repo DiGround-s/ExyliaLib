@@ -82,6 +82,8 @@ public final class Logs {
     static final int MAX_DETAIL = 4000;
 
     private static final long DAY_MILLIS = 86_400_000L;
+    /** How many refused rows wait for the database to come back. */
+    static final int MAX_UNSAVED = 10_000;
     /** How far back one purge walks, so a clock that jumped years cannot start an endless loop. */
     private static final int MAX_PURGE_DAYS = 3650;
     /** How often old entries are purged, in ticks: six hours. */
@@ -96,6 +98,8 @@ public final class Logs {
     private final Repository<LogRow> rows;
     private final Debug debug;
     private final Queue<Pending> pending = new ConcurrentLinkedQueue<>();
+    private final Queue<LogRow> unsaved = new ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.atomic.AtomicInteger unsavedCount = new java.util.concurrent.atomic.AtomicInteger();
     private final Map<String, String> icons = new ConcurrentHashMap<>();
     private final Set<String> actions = ConcurrentHashMap.newKeySet();
     private volatile @Nullable String server;
@@ -270,15 +274,33 @@ public final class Logs {
     // Writing
     // ------------------------------------------------------------------
 
-    /** Writes everything queued, in one batch. Off the main thread. */
+    /**
+     * Writes everything queued, in one batch. Off the main thread.
+     *
+     * <p>A batch the database refused is kept for the next flush, up to {@link #MAX_UNSAVED}
+     * rows: an audit log that loses what staff did while the database was down is no audit log.
+     */
     CompletableFuture<Void> flush() {
         List<LogRow> batch = new ArrayList<>();
+        for (LogRow row; (row = unsaved.poll()) != null; ) {
+            unsavedCount.decrementAndGet();
+            batch.add(row);
+        }
         for (Pending entry; (entry = pending.poll()) != null; ) {
             batch.add(row(entry));
         }
         if (batch.isEmpty()) return CompletableFuture.completedFuture(null);
         return rows.saveAll(batch).exceptionally(failure -> {
-            debug.error("Staff logs could not be saved.", failure);
+            int kept = 0;
+            for (LogRow row : batch) {
+                if (unsavedCount.get() >= MAX_UNSAVED) break;
+                unsaved.add(row);
+                unsavedCount.incrementAndGet();
+                kept++;
+            }
+            int lost = batch.size() - kept;
+            debug.error("Staff logs could not be saved; " + kept + " are kept for the next try"
+                    + (lost > 0 ? " and " + lost + " are lost" : "") + ".", failure);
             return null;
         });
     }

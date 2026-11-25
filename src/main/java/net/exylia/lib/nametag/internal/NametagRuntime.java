@@ -279,11 +279,13 @@ public final class NametagRuntime {
                 // the players out of whatever team another plugin has them in,
                 // and the glow below is the whole of what was asked for.
                 if (team != null) {
-                    if (STATE.knows(viewerId, team)) {
-                        out.addToTeam(viewer, team, joining);
-                    } else {
-                        out.createTeam(viewer, team, style, joining);
-                        STATE.learn(viewerId, team);
+                    synchronized (STATE.teamLock(viewerId)) {
+                        if (STATE.knows(viewerId, team)) {
+                            out.addToTeam(viewer, team, joining);
+                        } else {
+                            out.createTeam(viewer, team, style, joining);
+                            STATE.learn(viewerId, team);
+                        }
                     }
                 }
                 // The glow rides on entity flags, not on the team, so it only
@@ -422,7 +424,17 @@ public final class NametagRuntime {
     private static void leaveTeam(NametagSink out, Player viewer, UUID viewerId,
                                   State.Painted painted) {
         String team = painted.style().teamName();
-        if (team == null || !STATE.knows(viewerId, team)) {
+        if (team == null) {
+            return;
+        }
+        synchronized (STATE.teamLock(viewerId)) {
+            leaveTeamLocked(out, viewer, viewerId, painted, team);
+        }
+    }
+
+    private static void leaveTeamLocked(NametagSink out, Player viewer, UUID viewerId,
+                                        State.Painted painted, String team) {
+        if (!STATE.knows(viewerId, team)) {
             return;
         }
         List<String> remaining = new ArrayList<>();

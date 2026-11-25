@@ -1,6 +1,8 @@
 package net.exylia.lib.placeholder.internal;
 
+import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.TaskHandle;
+import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.task.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -53,6 +55,8 @@ public final class PapiBridge {
     private static volatile boolean available;
     private static volatile BiFunction<Player, String, String> testApplier;
     private static volatile TaskHandle refresher;
+    /** Where a Folia pass sends each player's resolution: their own region. */
+    private static volatile TaskScheduler refresherTasks;
     /** So a broken PlaceholderAPI names itself once instead of once per render. */
     private static final AtomicBoolean FAILURE_REPORTED = new AtomicBoolean();
 
@@ -168,10 +172,26 @@ public final class PapiBridge {
         if (player == null || !installed()) {
             return text;
         }
-        if (!onMainThread()) {
+        if (!ownsPlayer(player)) {
             return remembered(player, text);
         }
         return resolve(player, text);
+    }
+
+    /**
+     * Whether this thread may ask PlaceholderAPI about the player.
+     *
+     * <p>On Folia every region thread is a "primary" thread, but expansions read
+     * the player's world and entity, which only the player's own region may
+     * touch. On Spigot and Paper this is the main thread.
+     */
+    private static boolean ownsPlayer(Player player) {
+        try {
+            return Platform.isFolia() ? Bukkit.isOwnedByCurrentRegion(player) : Bukkit.isPrimaryThread();
+        } catch (Throwable ignored) {
+            // No server running, which happens in tests: nothing to protect.
+            return true;
+        }
     }
 
     /**
@@ -244,7 +264,8 @@ public final class PapiBridge {
         if (refresher != null) {
             return;
         }
-        refresher = Tasks.of(plugin).runTimer(1L, 1L, PapiBridge::refreshWanted);
+        refresherTasks = Tasks.of(plugin);
+        refresher = refresherTasks.runTimer(1L, 1L, PapiBridge::refreshWanted);
     }
 
     /** Stops the pass and forgets every remembered value. */
@@ -258,7 +279,10 @@ public final class PapiBridge {
         VALUES.clear();
     }
 
-    /** Resolves what the last renders asked about. Runs on the main thread. */
+    /**
+     * Resolves what the last renders asked about. Runs on the main thread, or on
+     * Folia's global region, which hands each player to their own region.
+     */
     static void refreshWanted() {
         if (WANTED.isEmpty() && VALUES.isEmpty()) {
             return;
@@ -273,16 +297,24 @@ public final class PapiBridge {
             if (texts == null || texts.isEmpty()) {
                 continue;
             }
-            Map<String, String> values =
-                    VALUES.computeIfAbsent(id, key -> new ConcurrentHashMap<>());
-            for (String text : texts) {
-                values.put(text, resolve(player, text));
+            TaskScheduler tasks = refresherTasks;
+            if (tasks != null && Platform.isFolia() && !ownsPlayer(player)) {
+                tasks.runAtEntity(player, () -> fill(id, player, texts));
+            } else {
+                fill(id, player, texts);
             }
         }
         // Somebody who left stops asking, so their values are only dropped here.
         // One entry per player who ever saw a board, so the sweep is cheap.
         if (!VALUES.isEmpty()) {
             VALUES.keySet().removeIf(id -> Bukkit.getPlayer(id) == null);
+        }
+    }
+
+    private static void fill(UUID id, Player player, Set<String> texts) {
+        Map<String, String> values = VALUES.computeIfAbsent(id, key -> new ConcurrentHashMap<>());
+        for (String text : texts) {
+            values.put(text, resolve(player, text));
         }
     }
 
@@ -302,6 +334,7 @@ public final class PapiBridge {
         testApplier = null;
         available = false;
         refresher = null;
+        refresherTasks = null;
         EXPANSIONS.clear();
         REFUSED.clear();
         WANTED.clear();

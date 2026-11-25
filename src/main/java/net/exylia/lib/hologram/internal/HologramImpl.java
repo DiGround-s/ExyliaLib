@@ -1020,6 +1020,14 @@ final class HologramImpl implements Hologram {
 
     /** Returns whether a player should be able to see this hologram now. */
     boolean canSee(Player player) {
+        return canSee(player, null);
+    }
+
+    /**
+     * {@link #canSee(Player)} with where the player sees from already read: the visibility pass
+     * reads it once per player instead of once per hologram, a Location allocated per pair.
+     */
+    boolean canSee(Player player, @Nullable Location from) {
         if (removed || !player.isOnline()) {
             return false;
         }
@@ -1031,7 +1039,8 @@ final class HologramImpl implements Hologram {
         // Squared, so a player walking past does not pay for a square root.
         // Before the filter: it is the cheap check, and a caller's filter may not be.
         // From where they see: a camera filming this spot draws it for them.
-        if (Viewpoints.of(player).distanceSquared(at) > range * range) {
+        Location eye = from != null && from.getWorld() == at.getWorld() ? from : Viewpoints.of(player);
+        if (eye.distanceSquared(at) > range * range) {
             return false;
         }
         Predicate<Player> current = filter;
