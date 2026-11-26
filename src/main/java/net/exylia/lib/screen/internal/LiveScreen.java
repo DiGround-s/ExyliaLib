@@ -85,6 +85,8 @@ final class LiveScreen implements ScreenSession {
     static final String SETTINGS_KEYS = "sprint + jump";
     /** The most of the window a screen is drawn across, however large its viewer chose. */
     private static final double WINDOW_SHARE = 0.96;
+    /** How far into a fitted window the cursor's tip may go: the whole of it, short of the arrow leaving view. */
+    private static final double CURSOR_REACH = 0.98;
     /** The settings button's side, in layout pixels. */
     private static final double GEAR = 16;
     /** The backdrop, in units: past the edge of any view. */
@@ -337,6 +339,8 @@ final class LiveScreen implements ScreenSession {
     /** The viewer's cursor preferences, read again every {@link #PREFS_MILLIS}: a move reads them many times a frame. */
     private long prefsAt;
     private double prefSpeed;
+    /** Half a fitted window, where the cursor stops; 0 for a window nobody measured. Set with {@link #unit}. */
+    private volatile double windowHalfW, windowHalfH;
     private CursorLead.Mode prefMode = CursorLead.Mode.NORMAL;
     private boolean prefAssist;
     /**
@@ -1022,6 +1026,7 @@ final class LiveScreen implements ScreenSession {
     private double targetUnit() {
         UUID id = player.getUniqueId();
         double fov = ScreenPreferences.fovScale(id);
+        windowHalfW = windowHalfH = 0;
         if (fitStep > 0) return fullUnit * fov;
         double aspect = ScreenPreferences.aspect(id);
         double narrow = Math.min(1, aspect / (16.0 / 9));
@@ -1030,7 +1035,12 @@ final class LiveScreen implements ScreenSession {
         // Never past the window, whatever size was chosen: the layout and the settings button stay in view.
         double half = DISTANCE * Math.tan(Math.toRadians(ScreenPreferences.fov(id) / 2));
         double most = Math.min(half / (screen.height() / 2 + GUTTER_Y), half * aspect / (screen.width() / 2 + GEAR + 4));
-        return Math.min(unit, most * WINDOW_SHARE);
+        if (!ScreenPreferences.fitted(id)) return Math.min(unit, most * WINDOW_SHARE);
+        // A fitted window is known to the pixel: the screen fills it (screen-size 100 = all of it) and the cursor
+        // reaches its edges, instead of the three quarters kept for a window nobody measured.
+        windowHalfH = half * CURSOR_REACH;
+        windowHalfW = half * aspect * CURSOR_REACH;
+        return most * WINDOW_SHARE * Math.min(1, ScreenPreferences.size(id) / 100.0);
     }
 
     /**
@@ -2617,6 +2627,22 @@ final class LiveScreen implements ScreenSession {
     private static final double VIEW = 1.35;
     private static final int BACK_LAYER = -2, SCENE_LAYER = -1;
 
+    /**
+     * How wide the view is where the screen is drawn: a fitted window as measured (a layout larger than 400 × 225
+     * draws at a smaller unit, so the unit alone would leave a dark frame around the scene), else what a 16:9 window
+     * shows around the default layout.
+     */
+    private double viewWide() {
+        return windowHalfW > 0 ? 2 * windowHalfW / CURSOR_REACH * VIEW_OVERSCAN : Screen.WIDTH * VIEW * viewUnit;
+    }
+
+    private double viewTall() {
+        return windowHalfH > 0 ? 2 * windowHalfH / CURSOR_REACH * VIEW_OVERSCAN : Screen.HEIGHT * VIEW * viewUnit;
+    }
+
+    /** A little past a fitted window's edges, so rounding never shows a seam. */
+    private static final double VIEW_OVERSCAN = 1.04;
+
     /** The backdrop's solid colour, or its gradient's middle: what the root box is mixed over. */
     private int backdropBase() {
         ScreenMath.Gradient gradient = ScreenMath.gradient(screen.backdrop());
@@ -2630,7 +2656,7 @@ final class LiveScreen implements ScreenSession {
         // A clear backdrop (a dialogue over the world) draws nothing: mixed over black it would hide the world.
         if (gradient == null && (ScreenMath.argb(screen.backdrop(), 0xFF0B0912) >>> 24) == 0) return List.of();
         if (gradient == null) return List.of(new RectLook(0, 0, BACKDROP_WIDE, BACKDROP_TALL, BACK_LAYER, backdropBase()));
-        double vw = Screen.WIDTH * VIEW * viewUnit, vh = Screen.HEIGHT * VIEW * viewUnit;
+        double vw = viewWide(), vh = viewTall();
         List<RectLook> bands = new ArrayList<>(bands(gradient, 0xFF000000, 0, 0, vw, vh, BACK_LAYER,
                 (gradient.vertical() ? Screen.HEIGHT : Screen.WIDTH) * VIEW));
         for (int i = 0; i < bands.size(); i++) {
@@ -2652,7 +2678,7 @@ final class LiveScreen implements ScreenSession {
     private void sceneSetup(Node scene) {
         int pw = scene.pixelWidth(), ph = scene.pixelHeight();
         double drift = 2 * screen.parallax() * unit;
-        double vw = Screen.WIDTH * VIEW * viewUnit + drift, vh = Screen.HEIGHT * VIEW * viewUnit + drift;
+        double vw = viewWide() + drift, vh = viewTall() + drift;
         double cell = Math.max(vw / pw, vh / ph);
         int cols = Math.min(pw, (int) Math.ceil(vw / cell)), rows = Math.min(ph, (int) Math.ceil(vh / cell));
         int x0 = (pw - cols) / 2, y0 = (ph - rows) / 2;
@@ -2807,6 +2833,10 @@ final class LiveScreen implements ScreenSession {
             double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * prefSpeed * boost;
             double halfW = (screen.width() / 2 + GUTTER_X) * unit;
             double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
+            if (windowHalfH > 0) {
+                halfW = windowHalfW;
+                halfH = windowHalfH;
+            }
             if (fitStep == 1) {
                 // Pointing at the window's corner, which may lie far past the layout: as far as any window reaches.
                 halfH = FitPanel.REACH * DISTANCE;

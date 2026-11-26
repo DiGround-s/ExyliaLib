@@ -16,40 +16,30 @@ class ChatHoldTest {
     }
 
     @Test
-    void nothingRecentMeansNothingIsPushedOut() {
+    void heldLinesComeBackOnceInOrder() {
         ChatHold hold = new ChatHold();
-        hold.shown(line("old"), 0);
-        assertFalse(hold.begin(ChatHold.RECENT_MILLIS), "faded lines stay in the client's history");
-        assertEquals(List.of(), hold.end());
-    }
-
-    @Test
-    void recentLinesComeBackBeforeHeldOnes() {
-        ChatHold hold = new ChatHold();
-        hold.shown(line("old"), 0);
-        hold.shown(line("recent"), 5_000);
-        assertTrue(hold.begin(10_000));
+        assertTrue(hold.begin());
         assertTrue(hold.holding());
-        hold.hold(line("while open"));
-        assertEquals(List.of(line("recent"), line("while open")), hold.end());
+        hold.hold(line("a"));
+        hold.hold(line("b"));
+        assertEquals(List.of(line("a"), line("b")), hold.end());
         assertFalse(hold.holding());
         assertEquals(List.of(), hold.end(), "delivered once");
     }
 
     @Test
-    void reopeningDoesNotPushOutAgainOrLoseWhatIsHeld() {
+    void reopeningDoesNotLoseWhatIsHeld() {
         ChatHold hold = new ChatHold();
-        hold.shown(line("recent"), 0);
-        assertTrue(hold.begin(1));
+        assertTrue(hold.begin());
         hold.hold(line("held"));
-        assertFalse(hold.begin(2), "already holding");
-        assertEquals(List.of(line("recent"), line("held")), hold.end());
+        assertFalse(hold.begin(), "already holding");
+        assertEquals(List.of(line("held")), hold.end());
     }
 
     @Test
     void theHeldBufferKeepsTheNewest() {
         ChatHold hold = new ChatHold();
-        hold.begin(0);
+        hold.begin();
         for (int i = 0; i < 250; i++) hold.hold(line("m" + i));
         List<Component> out = hold.end();
         assertEquals(200, out.size());

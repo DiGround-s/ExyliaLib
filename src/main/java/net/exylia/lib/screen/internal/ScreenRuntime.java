@@ -167,9 +167,7 @@ public final class ScreenRuntime {
         }
         ChatHold chat = CHAT.get(player.getUniqueId());
         if (!settings.quietChat() || chat == null) return;
-        boolean was = chat.holding();
-        if (chat.begin(System.currentTimeMillis())) ScreenPackets.pushChatOut(player);
-        if (!was) proxyHold(player, true);
+        if (chat.begin()) proxyHold(player, true);
     }
 
     /**
@@ -191,20 +189,10 @@ public final class ScreenRuntime {
         chat.end().forEach(player::sendMessage);
     }
 
-    /** On a network thread. A line {@code player}'s client draws. */
-    static void chatSeen(UUID player, Component line) {
-        ChatHold chat = CHAT.get(player);
-        if (chat != null) chat.shown(line, System.currentTimeMillis());
-    }
-
     /** On a network thread. A chat line that could wait reached {@code player}: whether it must. */
     static boolean chatLine(UUID player, Component line) {
         ChatHold chat = CHAT.get(player);
-        if (chat == null) return false;
-        if (!chat.hold(line)) {
-            chat.shown(line, System.currentTimeMillis());
-            return false;
-        }
+        if (chat == null || !chat.hold(line)) return false;
         LiveScreen live = OPEN.get(player);
         if (live != null) live.answer(line);
         return true;

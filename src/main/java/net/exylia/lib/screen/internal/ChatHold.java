@@ -8,40 +8,22 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * One player's chat while screens come and go: what they saw lately, so it can be pushed out of view and put back,
- * and the messages held while a screen is up. Pure, and called from the network threads.
+ * One player's chat while screens come and go: the messages held while a screen is up. What was already in view is
+ * left alone and fades on its own; blank lines pushed over it (before 1.670.0) drew a row of empty translucent
+ * boxes whenever the player opened the chat. Pure, and called from the network threads.
  */
 final class ChatHold {
 
-    /** Chat fades after ten seconds: anything older is out of view already. */
-    static final long RECENT_MILLIS = 10_000;
-    private static final int RECENT_LINES = 30;
     private static final int HELD_LINES = 200;
 
-    private record Line(Component text, long at) {
-    }
-
-    private final Deque<Line> recent = new ArrayDeque<>();
     private final Deque<Component> held = new ArrayDeque<>();
-    private final List<Component> pushedOut = new ArrayList<>();
     private boolean holding;
 
-    /** A line the client just drew. */
-    synchronized void shown(Component line, long now) {
-        recent.addLast(new Line(line, now));
-        while (recent.size() > RECENT_LINES) recent.removeFirst();
-    }
-
-    /** Starts holding. Whether something is still in view, to be pushed out. */
-    synchronized boolean begin(long now) {
+    /** Starts holding. Whether it was not holding already. */
+    synchronized boolean begin() {
         if (holding) return false;
         holding = true;
-        pushedOut.clear();
-        for (Line line : recent) {
-            if (now - line.at() < RECENT_MILLIS) pushedOut.add(line.text());
-        }
-        recent.clear();
-        return !pushedOut.isEmpty();
+        return true;
     }
 
     synchronized boolean holding() {
@@ -56,13 +38,11 @@ final class ChatHold {
         return true;
     }
 
-    /** Stops holding: what to send now, in order, the lines pushed out first. */
+    /** Stops holding: what to send now, in order. */
     synchronized List<Component> end() {
         if (!holding) return List.of();
         holding = false;
-        List<Component> out = new ArrayList<>(pushedOut);
-        out.addAll(held);
-        pushedOut.clear();
+        List<Component> out = new ArrayList<>(held);
         held.clear();
         return out;
     }

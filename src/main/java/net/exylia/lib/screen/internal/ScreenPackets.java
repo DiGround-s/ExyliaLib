@@ -29,10 +29,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerPl
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSetPassengers;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSystemChatMessage;
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerChatMessage;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDisguisedChat;
 import com.github.retrooper.packetevents.protocol.chat.ChatType;
-import com.github.retrooper.packetevents.protocol.chat.message.ChatMessage_v1_19_3;
 import net.exylia.lib.packet.internal.EntityClicks;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil;
@@ -105,8 +103,6 @@ final class ScreenPackets extends PacketListenerAbstract {
     private static final double RECT_TALL = 10;
 
     private static ScreenPackets installed;
-    /** The most lines a client's chat shows at once at its default height. */
-    private static final int CHAT_HEIGHT = 20;
 
     private ScreenPackets() {
         super(PacketListenerPriority.LOWEST);
@@ -122,7 +118,7 @@ final class ScreenPackets extends PacketListenerAbstract {
 
     /**
      * Follows the chat a client is sent, late, to see what a translating plugin wrote. What nothing signs (system
-     * messages, the server's own {@code /say}) can wait. A signed line is only remembered: dropping one breaks the
+     * messages, the server's own {@code /say}) can wait. A signed line is never dropped here: that breaks the
      * chain the client checks, so other players' chat is stopped before it exists, in {@code ScreenRuntime.Closer#onChat}.
      */
     private static final class ChatLines extends PacketListenerAbstract {
@@ -134,8 +130,7 @@ final class ScreenPackets extends PacketListenerAbstract {
         @Override
         public void onPacketSend(PacketSendEvent event) {
             PacketTypeCommon type = event.getPacketType();
-            if (type != PacketType.Play.Server.SYSTEM_CHAT_MESSAGE && type != PacketType.Play.Server.DISGUISED_CHAT
-                    && type != PacketType.Play.Server.CHAT_MESSAGE) return;
+            if (type != PacketType.Play.Server.SYSTEM_CHAT_MESSAGE && type != PacketType.Play.Server.DISGUISED_CHAT) return;
             UUID player = event.getUser() == null ? null : event.getUser().getUUID();
             if (player == null || event.isCancelled()) return;
             if (type == PacketType.Play.Server.SYSTEM_CHAT_MESSAGE) {
@@ -146,9 +141,6 @@ final class ScreenPackets extends PacketListenerAbstract {
                 if (ScreenRuntime.chatLine(player, decorated(line.getMessage(), line.getChatFormatting()))) {
                     event.setCancelled(true);
                 }
-            } else if (new WrapperPlayServerChatMessage(event).getMessage() instanceof ChatMessage_v1_19_3 line) {
-                ScreenRuntime.chatSeen(player, decorated(line.getUnsignedChatContent().orElse(line.getChatContent()),
-                        line.getChatFormatting()));
             }
         }
 
@@ -160,12 +152,6 @@ final class ScreenPackets extends PacketListenerAbstract {
                 return text;
             }
         }
-    }
-
-    /** Blank lines, past every listener, so what was in view leaves it while the screen is up. */
-    static void pushChatOut(Player player) {
-        WrapperPlayServerSystemChatMessage blank = new WrapperPlayServerSystemChatMessage(false, Component.empty());
-        for (int i = 0; i < CHAT_HEIGHT; i++) net.exylia.lib.packet.internal.SilentPackets.send(player, blank);
     }
 
     static int newId() {

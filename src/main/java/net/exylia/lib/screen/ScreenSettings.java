@@ -111,9 +111,10 @@ public record ScreenSettings(
         @Menu.About({"Items as one glyph where", "the client can draw it."})
         boolean spriteObjects,
 
-        @Comment("How large screens are drawn, in percent, for everyone. 100 fills")
-        @Comment("three quarters of the window; each player's FOV and window are")
-        @Comment("fitted once on their first screen, so it holds at any FOV.")
+        @Comment("How large screens are drawn, in percent, for everyone. Each")
+        @Comment("player fits their FOV and window once on their first screen;")
+        @Comment("then 100 fills the window. Before the fit, 100 fills three")
+        @Comment("quarters of it.")
         @Menu.Label("Screen size") @Menu.Icon("SPYGLASS")
         @Menu.About({"How large screens are drawn,", "in percent, from 50 to 250."})
         int screenSize,

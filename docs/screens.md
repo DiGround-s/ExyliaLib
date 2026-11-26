@@ -57,7 +57,7 @@ A screen's field of view is left to the player's FOV slider alone (since 1.521.0
 speed effects change nothing. At FOV 70 the layout area fills three quarters of a 16:9 window; a wider slider draws it
 smaller (about half at FOV 110). The server cannot see the slider, so each player fits their view once (see "Fit to
 your window" below) and every screen is drawn for it. `screen-size` in `screens.yml` (percent, 50 to 250, 100 by
-default) is the size for everyone, read with `Screens.size(player)`. Players chose their own size until 1.587.0; the fit
+default; for a fitted player, a share of the whole window since 1.670.0) is the size for everyone, read with `Screens.size(player)`. Players chose their own size until 1.587.0; the fit
 made it unneeded, so the choice was removed and what was stored is no longer read (`Screens.size(player, percent)` does
 nothing).
 
@@ -77,7 +77,7 @@ from their data. `/exylialib resetplayer` and wipes cover them like every other 
 
 Screen state a screen keeps with `persist="player"` is not a preference and stays in the player's data on each server.
 
-### Third person (1.669.0)
+### Third person (1.670.0)
 
 The client never says when a player presses F5, and a screen is drawn for the eyes: from behind, it is a speck. So a
 held-camera screen also stands a notice 1.3 blocks behind the eyes, above eye level: in first person it is behind the
@@ -117,7 +117,9 @@ shrinks to fit), and the HUD's corners land on the window's corners. The card sa
 new fit; the settings panel's *Fit to window* row starts it again. A player who chose *Later* is not asked again on
 that server. A HUD asks only at a quiet moment (on the ground, not hurt, not falling, no vehicle, no screen open), with
 a screen of its own. Wheel screens never show it: they keep the player's FOV effects, which would spoil the measure.
-Since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fitted window, whatever `screen-size` says. `first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
+Since 1.586.0 no camera-view screen is drawn wider or taller than 96% of the fitted window, whatever `screen-size` says. Since 1.670.0 a fitted player's screen fills that 96% (`screen-size` is then a share of it: 100 fills it, 80
+draws it at 80%, more than 100 changes nothing) and the cursor reaches the window's edges; a player who never fitted keeps
+the three quarters and the cursor stops just past the layout. `first-screen-setup: false` in `screens.yml` turns the asking off; the settings row stays.
 
 
 | Node call | Effect |
@@ -181,9 +183,10 @@ flicker it, and it is back while a screen stepped aside for an input.
 `quiet-chat` (default on, since 1.523.0) keeps the chat quiet while a screen is open. Other players' chat is not sent to
 that player while it is up, since a signed chat packet cannot be dropped once the server made it: the line is rendered for
 them and delivered as a system message on close (since 1.524.0). Those lines, system messages and `/say` wait together, up to the
-newest 200, and arrive when the screen closes; one that comes within a second of a click also shows as a toast, unless a game frame's result is up (it says the same, and would be covered). If chat
-was on view when the screen opened (anything in the last 10 seconds), blank lines push it out and those lines come back
-on close. An input that steps the screen aside (a text prompt) gives the chat back at once.
+newest 200, and arrive when the screen closes; one that comes within a second of a click also shows as a toast, unless a game frame's result is up (it says the same, and would be covered). What was
+already in view when the screen opened stays and fades on its own within ten seconds: no packet hides the chat or the
+HUD (F1 is the client's alone), and the blank lines once pushed over it (until 1.670.0) drew a column of empty
+translucent rows whenever the player opened the chat. An input that steps the screen aside (a text prompt) gives the chat back at once.
 
 Chat cannot be clicked while a screen is up, so links get two ways through (1.554.0). A toast made from a line with
 links (`<click:open_url>`, `copy_to_clipboard`, `run_command`, `suggest_command`) stays eight seconds and can be clicked:
