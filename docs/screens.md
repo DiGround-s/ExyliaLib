@@ -97,7 +97,7 @@ button only. The same choices are in `/settings` → Interface.
 
 **Fit to your window (1.584.0, one click since 1.666.0).** The client never sends its FOV or window shape, so the player shows them once.
 The first time a player meets a camera-view screen or their HUD, whichever comes first, a card asks them to move the
-arrow to the top-left corner of their screen and click (a small picture shows the arrow gliding there). The camera
+arrow to the top-left corner of their screen and click (a small picture shows the arrow gliding there; since 1.668.0 a yellow bracket beckons at the corner of the stored view with "Click here", and a trail of dots lights up towards it). The camera
 looks through the screen's middle, so that corner's direction gives both values at once: half the FOV is the angle up
 to it, the shape is how far across over how far up. While pointing, the arrow may travel as far as any window reaches
 (FOV 110 at 21:9). A click nowhere near a corner is refused with a sound. The next card draws green marks where the

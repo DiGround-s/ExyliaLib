@@ -35,6 +35,7 @@ public final class FitPanel {
     static final String SCREEN = "~fit";
     /** How far the arrow may go while pointing, as tangents: half the height of FOV 110, and 21:9 at that. */
     static final double REACH = Math.tan(Math.toRadians(ScreenPreferences.MAX_FOV / 2.0)), REACH_ASPECT = 2.4;
+    private static final int TRAIL = 6;
     private static final double LABEL = 0.8, CORNER = 18, LINE = 2, SLACK = 4;
     private static final String[][] SHAPES = {{"16:9", "1.78"}, {"16:10", "1.6"}, {"21:9", "2.37"}, {"4:3", "1.33"},
             {"32:9", "3.56"}, {"5:4", "1.25"}};
@@ -90,6 +91,7 @@ public final class FitPanel {
                 .background("{primary}20").outline("{primary}60", 1)
                 .enter(Motion.Tween.of(Motion.Transform.scale(0.94), 4, Motion.Ease.OUT));
         if (pointing) {
+            beacon(frame, w, h, live.fitHalfHeight(), aspect);
             card.add(words("{primary}&l" + Phrases.tr("Fit to your window")));
             card.add(picture());
             card.add(words("{letters}" + Phrases.tr("Move the arrow to the top-left corner of your screen and click."))
@@ -119,6 +121,34 @@ public final class FitPanel {
                 .scale(0.65).wrap(190).textAlign(Node.Align.CENTER));
         frame.add(card);
         return frame;
+    }
+
+    /**
+     * Calls the arrow to the corner: where the window's top-left corner is for the view stored now (FOV 70 at 16:9 for
+     * a first fit, nearly everyone's), a bracket that beckons towards it, a "Click here" beside it, and a
+     * trail of dots lighting up one after another from the card to it. A guess off the real corner still shows the
+     * way; the click is measured wherever it lands. Drawn under the card.
+     */
+    private static void beacon(Node frame, double w, double h, double halfHeight, double aspect) {
+        double left = w / 2 - halfHeight * aspect, top = h / 2 - halfHeight;
+        for (int i = 0; i < TRAIL; i++) {
+            double t = 0.5 + 0.42 * i / (TRAIL - 1);
+            double x = w / 2 + (left - w / 2) * t, y = h / 2 + (top - h / 2) * t;
+            frame.add(Node.box().absolute(y - 2, Double.NaN, Double.NaN, x - 2).size(4, 4).background("{highlight}")
+                    .animation(new Motion.Keyframes(List.of(
+                            new Motion.Frame(0, Motion.Transform.scale(0.4)),
+                            new Motion.Frame(0.15, Motion.Transform.scale(1.5)),
+                            new Motion.Frame(0.45, Motion.Transform.scale(0.4)),
+                            new Motion.Frame(1, Motion.Transform.scale(0.4))), 24, Motion.Ease.IN_OUT, true,
+                            i * 3, 1, false)));
+        }
+        // One group, so the bracket and its words beckon together and never come apart.
+        Node bracket = Node.box().absolute(top + 2, Double.NaN, Double.NaN, left + 2).size(90, 40);
+        bracket.add(Node.box().absolute(0, Double.NaN, Double.NaN, 0).size(24, 3).background("{highlight}"),
+                Node.box().absolute(0, Double.NaN, Double.NaN, 0).size(3, 24).background("{highlight}"),
+                words("{highlight}" + Phrases.tr("Click here")).scale(LABEL).absolute(28, Double.NaN, Double.NaN, 8));
+        frame.add(bracket.animation(new Motion.Keyframes(List.of(new Motion.Frame(0, Motion.Transform.translate(6, 6)),
+                new Motion.Frame(1, Motion.Transform.NONE)), 14, Motion.Ease.IN_OUT, true, 0, 1, true)));
     }
 
     /**
