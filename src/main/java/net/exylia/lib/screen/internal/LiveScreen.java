@@ -939,8 +939,34 @@ final class LiveScreen implements ScreenSession {
     }
 
     /**
-     * On the viewer's thread: shows a step of fitting the view ({@link FitPanel}), 1 the height and 2 the width, or
-     * ends it with 0, closing a screen opened only to fit.
+     * On the viewer's thread: the click that put the arrow on the window's corner, {@code x}, {@code y} where it was.
+     * The camera looks through the screen's middle, so the corner's distance from it, over {@link #DISTANCE}, is the
+     * tangent of half the window's width and height: the FOV and the shape at once. A click nowhere near a corner is
+     * refused with a sound.
+     */
+    private void fitMeasured(double x, double y) {
+        if (!open() || fitStep != 1) return;
+        double[] view = FitPanel.measured(x / DISTANCE, y / DISTANCE);
+        if (view == null) {
+            sound("entity.villager.no", 0.4f, 1.2f);
+            return;
+        }
+        sound("entity.experience_orb.pickup", 0.35f, 1.4f);
+        ScreenPreferences.view(player, view[0], view[1], true);
+        List<PacketWrapper<?>> out = new ArrayList<>();
+        synchronized (input) {
+            // Back by the result's buttons, inside every window.
+            cursorX = 0;
+            cursorY = 0;
+            cursor(out, 0);
+        }
+        wire.send(out);
+        fit(2);
+    }
+
+    /**
+     * On the viewer's thread: shows a step of fitting the view ({@link FitPanel}), 1 pointing at the window's corner
+     * and 2 the result, or ends it with 0, closing a screen opened only to fit.
      */
     void fit(int step) {
         if (step > 0 && screen.wheel()) return;
@@ -2687,6 +2713,11 @@ final class LiveScreen implements ScreenSession {
         }
     }
 
+    /** The cursor's arrow as a picture, for a screen that shows where to point it. */
+    static Node arrowImage() {
+        return Node.image(ARROW[0].length(), ARROW.length, ARROW_ARGB);
+    }
+
     private static int[] arrowPixels() {
         int w = ARROW[0].length();
         int[] argb = new int[w * ARROW.length];
@@ -2760,6 +2791,11 @@ final class LiveScreen implements ScreenSession {
             double perDegree = DEGREE * unit * (screen.wheel() ? 1.255 : 1) * prefSpeed * boost;
             double halfW = (screen.width() / 2 + GUTTER_X) * unit;
             double halfH = (screen.height() / 2 + GUTTER_Y) * unit;
+            if (fitStep == 1) {
+                // Pointing at the window's corner, which may lie far past the layout: as far as any window reaches.
+                halfH = FitPanel.REACH * DISTANCE;
+                halfW = halfH * FitPanel.REACH_ASPECT;
+            }
             double moveX = dx * perDegree, moveY = dy * perDegree;
             if (prefAssist) {
                 double[] assisted = assisted(moveX / unit, moveY / unit, millis);
@@ -3225,6 +3261,15 @@ final class LiveScreen implements ScreenSession {
         }
         synchronized (input) {
             leftKey = null;
+        }
+        if (fitStep == 1 && (box == null || box.node().id() == null || !box.node().id().startsWith("~fit."))) {
+            double x, y;
+            synchronized (input) {
+                x = cursorX;
+                y = cursorY;
+            }
+            tasks.runAtEntity(player, () -> fitMeasured(x, y));
+            return;
         }
         if (box == null) return;
         // The dimmer dismisses only from outside the overlay: a click on the overlay's own background is not one.

@@ -95,12 +95,15 @@ Sprint and jump together (Ctrl + Space) open and close it from anywhere, for a s
 Those two keys never reach a screen's own `keys`, and clients older than 1.21.2 do not send jump, so they have the
 button only. The same choices are in `/settings` → Interface.
 
-**Fit to your window (1.584.0).** The client never sends its FOV or window shape, so the player shows them once.
-The first time a player meets a camera-view screen or their HUD, whichever comes first, lines are drawn where their
-window's edges would be at FOV 70; they move them onto the real edges with the mouse wheel or the buttons (step 1 the height, which is their FOV,
-step 2 the width, with 16:9, 16:10, 21:9 and 4:3 one click away), and the screen behind grows or shrinks as they do.
-Step 3 asks whether sprinting zooms their view out (*Yes* is FOV Effects 100%, *No* 0%; a value in between stays in
-`/settings`). The result is
+**Fit to your window (1.584.0, one click since 1.666.0).** The client never sends its FOV or window shape, so the player shows them once.
+The first time a player meets a camera-view screen or their HUD, whichever comes first, a card asks them to move the
+arrow to the top-left corner of their screen and click (a small picture shows the arrow gliding there). The camera
+looks through the screen's middle, so that corner's direction gives both values at once: half the FOV is the angle up
+to it, the shape is how far across over how far up. While pointing, the arrow may travel as far as any window reaches
+(FOV 110 at 21:9). A click nowhere near a corner is refused with a sound. The next card draws green marks where the
+corners were measured, with the FOV and shape (`FOV 82 · Screen 16:9`): on the real corners the fit is right, else
+*Measure again*. Before 1.666.0 this took three steps (height and width with the mouse wheel, then whether sprinting
+zooms out); FOV Effects is no longer asked, it keeps the vanilla 100% until the player changes it in `/settings`. The result is
 `view-fov`, `view-aspect` and `view-fitted` in `/settings` → Interface, network-wide like every preference: every
 screen is drawn larger by `tan(fov/2) / tan(35°)` so it fills the same share of any window (narrower than 16:9, it
 shrinks to fit), and the HUD's corners land on the window's corners. The card says that a changed FOV or window needs a

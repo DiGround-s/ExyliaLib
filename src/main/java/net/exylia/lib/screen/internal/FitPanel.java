@@ -9,17 +9,20 @@ import net.exylia.lib.text.Text;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
  * Fits screens and the HUD to a player's window. The client never tells the server its field of view or window shape,
- * so the player shows it: lines are drawn where the window's edges would be at the FOV they pick, and they move them
- * onto the real edges (height, then width, the mouse wheel or the buttons),
- * then say whether sprinting zooms their view out. The result is one network-wide pair of preferences
- * ({@link ScreenPreferences#fov}, {@link ScreenPreferences#aspect}) that sizes every screen and places the HUD, and
- * their FOV Effects slider ({@link ScreenPreferences#fovEffects}), which keeps the HUD still while they sprint.
+ * so the player shows it with one click: they point the arrow at their window's top-left corner, whose direction from
+ * the camera gives both (see {@link #measured}). The result is one network-wide pair of preferences
+ * ({@link ScreenPreferences#fov}, {@link ScreenPreferences#aspect}) that sizes every screen and places the HUD; a
+ * second step draws the window's corners where they were measured, so a wrong click shows at once.
+ *
+ * <p>The FOV Effects slider ({@link ScreenPreferences#fovEffects}) is not asked: few players know it, and the vanilla
+ * default is kept until they change it in their settings.
  *
  * <p>Asked once, on a player's first screen or the first time their HUD shows, whichever comes first; again from the
  * screen settings. Drawn over a camera-view screen only: a wheel screen keeps the player's own FOV effects.
@@ -30,8 +33,11 @@ public final class FitPanel {
 
     /** The name of the screen opened just to fit, when the HUD asks first. */
     static final String SCREEN = "~fit";
-    private static final double LABEL = 0.8, CORNER = 18, LINE = 2;
-    private static final String[][] SHAPES = {{"16:9", "1.78"}, {"16:10", "1.6"}, {"21:9", "2.33"}, {"4:3", "1.33"}};
+    /** How far the arrow may go while pointing, as tangents: half the height of FOV 110, and 21:9 at that. */
+    static final double REACH = Math.tan(Math.toRadians(ScreenPreferences.MAX_FOV / 2.0)), REACH_ASPECT = 2.4;
+    private static final double LABEL = 0.8, CORNER = 18, LINE = 2, SLACK = 4;
+    private static final String[][] SHAPES = {{"16:9", "1.78"}, {"16:10", "1.6"}, {"21:9", "2.37"}, {"4:3", "1.33"},
+            {"32:9", "3.56"}, {"5:4", "1.25"}};
 
     private FitPanel() {
     }
@@ -48,104 +54,96 @@ public final class FitPanel {
         return true;
     }
 
+    /**
+     * The FOV and shape of a window whose corner lies {@code tanX}, {@code tanY} from the middle of the view, as
+     * tangents of the angles to it: Minecraft's FOV is the vertical one, so its half is {@code atan(|tanY|)}, and the
+     * shape is the width over the height. {@code null} for a point no window has a corner at (too near the middle,
+     * or beside it rather than in a corner); a FOV a few degrees past the slider's ends is taken as its end.
+     */
+    static double[] measured(double tanX, double tanY) {
+        double fov = 2 * Math.toDegrees(Math.atan(Math.abs(tanY)));
+        if (fov < ScreenPreferences.MIN_FOV - SLACK || fov > ScreenPreferences.MAX_FOV + SLACK) return null;
+        double aspect = Math.abs(tanX) / Math.abs(tanY);
+        if (aspect < ScreenPreferences.MIN_ASPECT || aspect > ScreenPreferences.MAX_ASPECT) return null;
+        fov = Math.max(ScreenPreferences.MIN_FOV, Math.min(ScreenPreferences.MAX_FOV, fov));
+        return new double[]{Math.round(fov), Math.round(aspect * 100) / 100.0};
+    }
+
+    /** A window shape as people name it, {@code 16:9}, or its ratio to one when it is none of the common ones. */
+    static String shape(double aspect) {
+        for (String[] shape : SHAPES) {
+            if (Math.abs(Double.parseDouble(shape[1]) - aspect) <= 0.04) return shape[0];
+        }
+        return String.format(Locale.ROOT, "%.2f:1", aspect);
+    }
+
     static Node of(LiveScreen live) {
         Player player = live.viewer();
         UUID id = player.getUniqueId();
-        int step = live.fitStep();
-        boolean height = step == 1, width = step == 2;
+        boolean pointing = live.fitStep() == 1;
         double fov = ScreenPreferences.fov(id), aspect = ScreenPreferences.aspect(id);
         double w = live.layoutWidth(), h = live.layoutHeight();
-        double hy = live.fitHalfHeight(), hx = hy * aspect;
-        double left = w / 2 - hx, right = w / 2 + hx, top = h / 2 - hy, bottom = h / 2 + hy;
 
         Node frame = Node.column().id("~fit").size(w, h).justify(Node.Justify.CENTER).align(Node.Align.CENTER)
                 .overlay(true);
-        // The wheel anywhere moves the lines: one notch a step, the buttons stay for the fine-grained.
-        if (height) frame.onScroll(event -> ScreenPreferences.view(player, fov + event.steps(), aspect, false));
-        if (width) frame.onScroll(event -> ScreenPreferences.view(player, fov, aspect + event.steps() * 0.01, false));
-        // The window's edges at the chosen view: the pair being fitted as full lines, the corners always.
-        String edge = "{primary}";
-        if (height) {
-            frame.add(bar(left, top, 2 * hx, LINE, edge), bar(left, bottom - LINE, 2 * hx, LINE, edge));
-        } else if (width) {
-            frame.add(bar(left, top, LINE, 2 * hy, edge), bar(right - LINE, top, LINE, 2 * hy, edge));
-        }
-        if (step < 3) {
+        Node card = Node.column().padding(10, 14).gap(5).align(Node.Align.CENTER).width(220)
+                .background("{primary}20").outline("{primary}60", 1)
+                .enter(Motion.Tween.of(Motion.Transform.scale(0.94), 4, Motion.Ease.OUT));
+        if (pointing) {
+            card.add(words("{primary}&l" + Phrases.tr("Fit to your window")));
+            card.add(picture());
+            card.add(words("{letters}" + Phrases.tr("Move the arrow to the top-left corner of your screen and click."))
+                    .scale(LABEL).wrap(190).textAlign(Node.Align.CENTER));
+            card.add(Node.row(button("later", "{letters}" + Phrases.tr("Later"), event -> live.fit(0)).grow(1))
+                    .align(Node.Align.STRETCH).width(120));
+        } else {
+            // The window's corners where the click put them: on the real ones, the fit is right.
+            double hy = live.fitHalfHeight(), hx = hy * aspect;
+            double left = w / 2 - hx, right = w / 2 + hx, top = h / 2 - hy, bottom = h / 2 + hy;
+            String edge = "{success}";
             frame.add(bar(left, top, CORNER, LINE, edge), bar(left, top, LINE, CORNER, edge),
                     bar(right - CORNER, top, CORNER, LINE, edge), bar(right - LINE, top, LINE, CORNER, edge),
                     bar(left, bottom - LINE, CORNER, LINE, edge), bar(left, bottom - CORNER, LINE, CORNER, edge),
                     bar(right - CORNER, bottom - LINE, CORNER, LINE, edge), bar(right - LINE, bottom - CORNER, LINE, CORNER, edge));
-        }
-
-        Node card = Node.column().padding(10, 14).gap(5).align(Node.Align.CENTER).width(220)
-                .background("{primary}20").outline("{primary}60", 1)
-                .enter(Motion.Tween.of(Motion.Transform.scale(0.94), 4, Motion.Ease.OUT));
-        card.add(words("{primary}&l" + Phrases.tr("Fit to your window")));
-        card.add(words("{letters_black}" + Phrases.tr(height ? "Step 1 of 3 · Height"
-                : width ? "Step 2 of 3 · Width" : "Step 3 of 3 · Sprinting")).scale(0.75));
-        card.add(words("{letters}" + Phrases.tr(height
-                ? "Scroll your mouse wheel until the lines touch the top and bottom of your window."
-                : width ? "Pick your screen's shape, or scroll until the lines touch the left and right of your window."
-                : "When you sprint, does your view zoom out a little?")).scale(LABEL).wrap(190)
-                .textAlign(Node.Align.CENTER));
-        Node next;
-        if (height) {
-            card.add(stepper("fov", "{highlight}" + Phrases.tr("FOV") + " " + Math.round(fov), new double[]{-5, -1, 1, 5},
-                    by -> ScreenPreferences.view(player, fov + by, aspect, false)));
-            next = button("next", "{letters}" + Phrases.tr("Next"), event -> live.fit(2));
-        } else if (width) {
-            Node shapes = Node.row().gap(3);
-            for (String[] shape : SHAPES) {
-                double value = Double.parseDouble(shape[1]);
-                shapes.add(button("shape" + shape[0], (Math.abs(value - aspect) < 0.005 ? "{success}" : "{letters}") + shape[0],
-                        event -> ScreenPreferences.view(player, fov, value, false)));
-            }
-            card.add(shapes);
-            card.add(stepper("aspect", "{highlight}" + String.format(Locale.ROOT, "%.2f", aspect),
-                    new double[]{-0.1, -0.01, 0.01, 0.1}, by -> ScreenPreferences.view(player, fov, aspect + by, false)));
-            next = button("next", "{letters}" + Phrases.tr("Next"), event -> live.fit(3));
-        } else {
-            // Vanilla zooms out while sprinting unless FOV Effects was turned down: the two answers nearly everyone has.
-            // A value in between stays in the screen settings.
-            boolean still = ScreenPreferences.fovEffects(id) < 0.5;
+            card.add(words("{success}&l" + Phrases.tr("Fitted to your window")));
+            card.add(words("{letters}" + Phrases.tr("FOV") + " {highlight}" + Math.round(fov) + " {letters_black}· {letters}"
+                    + Phrases.tr("Screen") + " {highlight}" + shape(aspect)).scale(LABEL));
+            card.add(words("{letters_black}" + Phrases.tr("The green marks should sit on your screen's corners. If they do not, measure again."))
+                    .scale(0.7).wrap(190).textAlign(Node.Align.CENTER));
             card.add(Node.row(
-                    button("zooms", (still ? "{letters}" : "{success}") + Phrases.tr("Yes, it zooms out"),
-                            event -> ScreenPreferences.fovEffects(player, 100)).grow(1),
-                    button("still", (still ? "{success}" : "{letters}") + Phrases.tr("No, it stays still"),
-                            event -> ScreenPreferences.fovEffects(player, 0)).grow(1))
+                    button("again", "{letters}" + Phrases.tr("Measure again"), event -> live.fit(1)).grow(1),
+                    button("done", "{letters}" + Phrases.tr("Done"), event -> live.fit(0)).background("{primary}").grow(1))
                     .gap(4).align(Node.Align.STRETCH).width(190));
-            card.add(words("{letters_black}" + Phrases.tr("It does unless you lowered FOV Effects in your video settings."))
-                    .scale(0.65).wrap(190).textAlign(Node.Align.CENTER));
-            next = button("done", "{letters}" + Phrases.tr("Done"), event -> {
-                ScreenPreferences.view(player, fov, aspect, true);
-                live.fit(0);
-            });
         }
-        card.add(Node.row(
-                button(height ? "later" : "back", "{letters}" + Phrases.tr(height ? "Later" : "Back"),
-                        event -> live.fit(step - 1)).grow(1),
-                next.background("{primary}").grow(1))
-                .gap(4).align(Node.Align.STRETCH).width(190));
         card.add(words("{letters_black}" + Phrases.tr("Screens and the HUD both use this. Changed your FOV or window? Fit again from the screen settings."))
                 .scale(0.65).wrap(190).textAlign(Node.Align.CENTER));
         frame.add(card);
         return frame;
     }
 
-    private static Node bar(double x, double y, double w, double h, String colour) {
-        return Node.box().absolute(y, Double.NaN, Double.NaN, x).size(w, h).background(colour);
+    /**
+     * A small window with the arrow gliding into its top-left corner, again and again: the whole task in one look.
+     * Under reduced motion it holds its first frame, the arrow already in the corner.
+     */
+    private static Node picture() {
+        double width = 72, height = 40;
+        Node window = Node.box().size(width, height).background("{letters_black}18").outline("{letters_black}50", 1);
+        window.add(Node.box().absolute(0, Double.NaN, Double.NaN, 0).size(8, 1).background("{primary}"),
+                Node.box().absolute(0, Double.NaN, Double.NaN, 0).size(1, 8).background("{primary}"));
+        Motion.Transform middle = Motion.Transform.translate(width / 2 - 4, height / 2 - 5);
+        Node arrow = LiveScreen.arrowImage().size(7, 11).absolute(1, Double.NaN, Double.NaN, 1)
+                .animation(new Motion.Keyframes(List.of(
+                        new Motion.Frame(0, Motion.Transform.NONE),
+                        new Motion.Frame(0.25, Motion.Transform.NONE),
+                        new Motion.Frame(0.3, middle),
+                        new Motion.Frame(0.85, Motion.Transform.NONE),
+                        new Motion.Frame(1, Motion.Transform.NONE)), 50, Motion.Ease.OUT, true));
+        window.add(arrow);
+        return window;
     }
 
-    private static Node stepper(String id, String value, double[] steps, Consumer<Double> by) {
-        Node row = Node.row().gap(3).align(Node.Align.CENTER);
-        for (int i = 0; i < steps.length; i++) {
-            double step = steps[i];
-            if (i == steps.length / 2) row.add(words(value).scale(LABEL).width(52).textAlign(Node.Align.CENTER));
-            String label = (step > 0 ? "+" : "-") + (Math.abs(step) >= 1 ? Long.toString(Math.round(Math.abs(step)))
-                    : String.format(Locale.ROOT, "%.2f", Math.abs(step)));
-            row.add(button(id + i, "{letters}" + label, event -> by.accept(step)).width(Math.abs(step) >= 1 ? 18 : 24));
-        }
-        return row;
+    private static Node bar(double x, double y, double w, double h, String colour) {
+        return Node.box().absolute(y, Double.NaN, Double.NaN, x).size(w, h).background(colour);
     }
 
     private static Node button(String id, String label, Consumer<ScreenEvent> click) {
