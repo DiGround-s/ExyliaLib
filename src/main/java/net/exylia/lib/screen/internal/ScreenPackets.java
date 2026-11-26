@@ -610,6 +610,24 @@ final class ScreenPackets extends PacketListenerAbstract {
     }
 
     /**
+     * The notice behind a held camera, at its entity's own position: turned towards whoever looks, on a dark plate.
+     * In first person it stands behind the eyes and is never seen; in third person (F5) the client's view backs away
+     * past it, so it is the first thing there.
+     */
+    static PacketWrapper<?> notice(int id, Component text, int lines, double scale) {
+        Vector3f at = new Vector3f(0, (float) (-(Layout.LINE * lines + 1) * FONT_PIXEL * scale / 2), 0);
+        return new WrapperPlayServerEntityMetadata(id, List.of(
+                new EntityData<>(TRANSLATION, EntityDataTypes.VECTOR3F, at),
+                new EntityData<>(SCALE, EntityDataTypes.VECTOR3F, new Vector3f((float) scale, (float) scale, (float) scale)),
+                new EntityData<>(BILLBOARD, EntityDataTypes.BYTE, BILLBOARD_CENTER),
+                new EntityData<>(BRIGHTNESS, EntityDataTypes.INT, FULL_BRIGHT),
+                new EntityData<>(TEXT, EntityDataTypes.ADV_COMPONENT, text),
+                new EntityData<>(LINE_WIDTH, EntityDataTypes.INT, 1000),
+                new EntityData<>(BACKGROUND, EntityDataTypes.INT, 0xE0100A18),
+                new EntityData<>(TEXT_FLAGS, EntityDataTypes.BYTE, (byte) 1)));
+    }
+
+    /**
      * One line of text centred on ({@code x}, {@code y}) in blocks of the view plane.
      *
      * @param scale display scale: one font pixel is {@code 0.025 × scale} blocks

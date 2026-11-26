@@ -2074,3 +2074,5 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 'Use K, M or B for thousands, millions, billions.': 'Bin, milyon, milyar için K, M veya B kullan.'
 'Click to continue': 'Devam etmek için tıkla'
 'not checked: whoever opened this session is offline': 'kontrol edilmedi: bu oturumu açan kişi çevrimdışı'
+"{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{highlight}F5 {letters}ile {highlight}birinci şahıs {letters}görünümüne dön"
+"{letters_black}Menus are drawn for your own eyes.": "{letters_black}Menüler kendi gözlerinden görünür."

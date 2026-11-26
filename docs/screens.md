@@ -77,6 +77,13 @@ from their data. `/exylialib resetplayer` and wipes cover them like every other 
 
 Screen state a screen keeps with `persist="player"` is not a preference and stays in the player's data on each server.
 
+### Third person (1.669.0)
+
+The client never says when a player presses F5, and a screen is drawn for the eyes: from behind, it is a speck. So a
+held-camera screen also stands a notice 1.3 blocks behind the eyes, above eye level: in first person it is behind the
+player and never seen; in either third-person view the camera backs away 4 blocks, past it, and reads *Switch to first
+person with F5*. No resource pack is needed. It goes with the screen.
+
 ## The settings button
 
 Every screen draws a small **✕** at its top right (1.627.0) that closes it, as Shift does, and a small button at its bottom right, in the gutter outside the layout, which the cursor reaches:

@@ -51,6 +51,10 @@ final class LiveScreen implements ScreenSession {
 
     /** The layout is written as if the screen stood this far from the eyes, in blocks. */
     private static final double DISTANCE = 2.0;
+    /** How far behind the eyes the third-person notice stands, and its size: nearer than F5's view, which is 4 back. */
+    private static final double NOTICE_BEHIND = 1.3, NOTICE_SCALE = 0.55;
+    /** Raised over the screen, which draws through everything and would hide the notice's middle from a third-person view. */
+    private static final double NOTICE_ABOVE = 0.5;
     /**
      * How far it really stands. A player's eyes are 0.3 from a wall and 0.18 under a ceiling, and every corner of the view
      * at this depth stays closer than that up to FOV 110 ({@code DepthTest}), so nothing a player can stand next to cuts
@@ -364,6 +368,8 @@ final class LiveScreen implements ScreenSession {
      * 1.21.2, a player really riding something). Read by the netty thread.
      */
     private volatile int cameraId;
+    /** The text behind the held camera that only a third-person view sees, 0 for none. */
+    private volatile int noticeId;
     private int vehicleId;
     /** Where the held camera faces: a spawn packet carries a turn in 256 steps. */
     private float cameraYaw;
@@ -596,6 +602,14 @@ final class LiveScreen implements ScreenSession {
             out.add(ScreenPackets.spawnStill(vehicleId, new Vector3d(origin.x, player.getLocation().getY() + RIDE_HEIGHT, origin.z), 0f, 0f));
             out.add(ScreenPackets.riders(vehicleId, player.getEntityId()));
             out.add(ScreenPackets.blankBar());
+            // F5 backs the view away from the camera, through this: the screen there is a speck far off, so it says why.
+            noticeId = ids.getAsInt();
+            double yaw = Math.toRadians(cameraYaw);
+            out.add(ScreenPackets.spawnDisplay(noticeId, new Vector3d(origin.x + Math.sin(yaw) * NOTICE_BEHIND, origin.y + NOTICE_ABOVE,
+                    origin.z - Math.cos(yaw) * NOTICE_BEHIND)));
+            out.add(ScreenPackets.notice(noticeId, net.exylia.lib.text.Text.of(net.exylia.lib.text.Phrases.tr(
+                    "{letters}Switch to {highlight}first person {letters}with {highlight}F5")
+                    + "\n" + net.exylia.lib.text.Phrases.tr("{letters_black}Menus are drawn for your own eyes.")).build(), 2, NOTICE_SCALE));
         }
         java.util.concurrent.ScheduledExecutorService loop = holds && ScreenSettings.get().cursorPolls()
                 && ScreenPackets.canPoll(player) ? ScreenPackets.connectionLoop(player) : null;
@@ -2009,6 +2023,8 @@ final class LiveScreen implements ScreenSession {
         if (camera == 0) return;
         cameraId = 0;
         ids.add(camera);
+        if (noticeId != 0) ids.add(noticeId);
+        noticeId = 0;
         ids.add(vehicleId);
         if (stopPolling()) {
             // The server never heard the polled turns, so it still has the look of the open: the client is put back

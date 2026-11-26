@@ -2074,3 +2074,5 @@ speaks the language chosen here.: habla el idioma elegido aquí.
 'Use K, M or B for thousands, millions, billions.': 'Usa K, M o B para miles, millones, miles de millones.'
 'Click to continue': 'Clic para continuar'
 'not checked: whoever opened this session is offline': 'no comprobado: quien abrió esta sesión no está conectado'
+"{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{letters}Vuelve a {highlight}primera persona {letters}con {highlight}F5"
+"{letters_black}Menus are drawn for your own eyes.": "{letters_black}Los menús se ven desde tus ojos."
