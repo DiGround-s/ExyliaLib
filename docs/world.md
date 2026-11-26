@@ -159,9 +159,21 @@ Chunks.snapshot(tasks, world, x >> 4, z >> 4).thenAccept(chunk ->
 - Only a server without `getChunkAtAsync` (plain Spigot) loads synchronously.
 - Keeps nothing; reload not applicable.
 
+## The ground under a point (`Ground`)
+
+`Ground.below(location)` (1.667.0) lowers or raises a copy of a point onto the top of the first solid block under it
+(one block up, five down; `below(location, up, down)` for another range), slabs, farmland and paths at their real
+height. Use it for anything placed near a player that should stand on the floor: a mob that walks in, frost, a
+splash. Placed at the player's own height, it floats when they jump or fly. It reads blocks, so call it on the
+thread that owns the point; off it, or in an unloaded chunk, it returns the point unchanged.
+
+```java
+Location from = Ground.below(player.getLocation().add(4, 0, 7));
+```
+
 ## Source and tests
 
-- Public: `util/world/Worlds.java`, `util/world/TemporaryWorld.java`, `util/world/Chunks.java`.
+- Public: `util/world/Worlds.java`, `util/world/TemporaryWorld.java`, `util/world/Chunks.java`, `util/world/Ground.java`.
 - Internal: `util/world/internal/` (`WorldsBackend`, `WorldsBackendDetector`,
   `WorldsReflection`, `Worlds3Backend`, `Worlds4Backend`, `PlotGrid`).
 - Tests: `src/test/java/net/exylia/lib/util/world/WorldsTest.java` — the
