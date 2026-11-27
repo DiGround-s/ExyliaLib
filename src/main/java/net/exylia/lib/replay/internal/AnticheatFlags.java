@@ -82,7 +82,16 @@ final class AnticheatFlags implements Listener {
 
     private void listen(Source source, Plugin plugin) {
         if (!listening.add(source.plugin)) return;
-        if (source.plugin.equals("GrimAC")) Grim.shield(library);
+        if (source.plugin.equals("GrimAC")) {
+            // Caught here, not inside: a Grim older than its event bus fails while Grim itself is
+            // linked, before any line of shield runs.
+            try {
+                Grim.shield(library);
+            } catch (LinkageError | RuntimeException older) {
+                // A Grim before its event bus: the Bukkit event below covers it.
+                library.getLogger().log(Level.FINE, "Screens: Grim's event bus is not available (" + older + ").");
+            }
+        }
         try {
             Class<?> type = Class.forName(source.event, true, plugin.getClass().getClassLoader());
             if (!Event.class.isAssignableFrom(type)) return;
@@ -169,19 +178,14 @@ final class AnticheatFlags implements Listener {
 
         @SuppressWarnings("deprecation")
         static void shield(Plugin library) {
-            try {
-                ac.grim.grimac.api.plugin.GrimPlugin owner = new ac.grim.grimac.api.plugin.BasicGrimPlugin(
-                        library.getLogger(), library.getDataFolder(), library.getDescription().getVersion(),
-                        library.getDescription().getDescription(), library.getDescription().getAuthors());
-                // Grim flags from netty threads; the check is one map lookup.
-                ac.grim.grimac.api.GrimAPIProvider.getAsync().thenAccept(api -> api.getEventBus().subscribe(owner,
-                        ac.grim.grimac.api.event.events.FlagEvent.class, event -> {
-                            if (ScreenRuntime.shielded(event.getUser().getUniqueId())) event.setCancelled(true);
-                        }, ac.grim.grimac.api.event.ListenerPriority.LOWEST, false));
-            } catch (LinkageError | RuntimeException older) {
-                // A Grim before its event bus: the Bukkit event above covers it.
-                library.getLogger().log(Level.FINE, "Screens: Grim's event bus is not available (" + older + ").");
-            }
+            ac.grim.grimac.api.plugin.GrimPlugin owner = new ac.grim.grimac.api.plugin.BasicGrimPlugin(
+                    library.getLogger(), library.getDataFolder(), library.getDescription().getVersion(),
+                    library.getDescription().getDescription(), library.getDescription().getAuthors());
+            // Grim flags from netty threads; the check is one map lookup.
+            ac.grim.grimac.api.GrimAPIProvider.getAsync().thenAccept(api -> api.getEventBus().subscribe(owner,
+                    ac.grim.grimac.api.event.events.FlagEvent.class, event -> {
+                        if (ScreenRuntime.shielded(event.getUser().getUniqueId())) event.setCancelled(true);
+                    }, ac.grim.grimac.api.event.ListenerPriority.LOWEST, false));
         }
     }
 }
