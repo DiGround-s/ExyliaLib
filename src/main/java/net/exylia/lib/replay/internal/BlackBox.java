@@ -387,9 +387,16 @@ public final class BlackBox {
         return since < 0 || since >= every || entity instanceof Player || flying(entity);
     }
 
-    /** A projectile in the air: three blocks a tick, too fast to read every other one. */
+    /**
+     * A projectile in the air: three blocks a tick, too fast to read every other one.
+     *
+     * <p>Asked before anything checks where the arrow is. On Folia an arrow that flew into another
+     * region refuses even {@code isInBlock()} here, so one this thread does not own counts as flying:
+     * the read that follows sees it is elsewhere and leaves it alone.
+     */
     private static boolean flying(Entity entity) {
-        return entity instanceof Projectile && !(entity instanceof AbstractArrow arrow && arrow.isInBlock());
+        return entity instanceof Projectile && !(entity instanceof AbstractArrow arrow
+                && Bukkit.isOwnedByCurrentRegion(arrow) && arrow.isInBlock());
     }
 
     /** A projectile struck somebody: its last frame where it went in, since it is removed before a timer reads it. */
