@@ -274,20 +274,19 @@ public final class RagdollModel {
     }
 
     /**
-     * A head item wearing a connected player's face: their own profile when it carries a skin, else
-     * their UUID's vanilla default. Never {@code setOwningPlayer} on a profile with no skin (offline
-     * mode): the server would ask Mojang for it on every body built, and time out offline.
+     * A head item wearing a connected player's face: their own skin when their profile carries one,
+     * else their UUID's vanilla default. Only the texture goes on the head, never the profile itself:
+     * a bot or NPC plugin's player may be named "Mace Bot", which a head's profile refuses, and a
+     * profile with no skin (offline mode) would send the server to Mojang on every body built.
      */
     private static @Nullable ItemStack head(Player player) {
         try {
-            com.destroystokyo.paper.profile.PlayerProfile profile = player.getPlayerProfile();
-            boolean skinned = profile.getProperties().stream().anyMatch(property -> "textures".equals(property.getName()));
-            if (!skinned) return textureHead(net.exylia.lib.npc.DefaultSkin.of(player.getUniqueId()).textures());
-            ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-            if (!(item.getItemMeta() instanceof SkullMeta meta)) return null;
-            meta.setPlayerProfile(profile);
-            item.setItemMeta(meta);
-            return item;
+            String skin = player.getPlayerProfile().getProperties().stream()
+                    .filter(property -> "textures".equals(property.getName()))
+                    .map(com.destroystokyo.paper.profile.ProfileProperty::getValue)
+                    .findFirst()
+                    .orElseGet(() -> net.exylia.lib.npc.DefaultSkin.of(player.getUniqueId()).textures());
+            return textureHead(skin);
         } catch (NoSuchMethodError | NoClassDefFoundError spigot) {
             ItemStack item = new ItemStack(Material.PLAYER_HEAD);
             if (!(item.getItemMeta() instanceof SkullMeta meta)) return null;
