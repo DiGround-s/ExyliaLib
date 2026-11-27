@@ -2,6 +2,7 @@ package net.exylia.lib.api.chatcosmetics.event;
 
 import net.exylia.lib.api.chatcosmetics.ChatChannel;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -31,7 +32,9 @@ import java.util.Set;
  * Cancelling drops the message for everybody, including the sender.
  *
  * <p>Fired on the chat thread, which is not the main thread: read what you are
- * handed and schedule anything that touches the world.
+ * handed and schedule anything that touches the world. A line another plugin
+ * makes a player say from a server thread ({@code Player#chat}) fires it there,
+ * synchronously, the way Paper's own chat event does.
  *
  * @since 1.0.0
  */
@@ -59,7 +62,7 @@ public final class ChatMessageEvent extends Event implements Cancellable {
     public ChatMessageEvent(@NotNull Player sender, @NotNull String raw, @NotNull String text,
                             @NotNull ChatChannel channel, @NotNull Set<Player> viewers,
                             @Nullable Component line) {
-        super(true);
+        super(!Bukkit.isPrimaryThread());
         this.sender = sender;
         this.raw = raw;
         this.text = text;

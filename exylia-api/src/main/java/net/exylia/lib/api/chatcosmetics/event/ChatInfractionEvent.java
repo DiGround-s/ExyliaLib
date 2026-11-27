@@ -1,5 +1,6 @@
 package net.exylia.lib.api.chatcosmetics.event;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -21,7 +22,8 @@ import java.util.Map;
  * message survived is not part of this event because it is not part of the
  * decision.
  *
- * <p>Fired on the chat thread. Points are booked for a message that was
+ * <p>Fired on the chat thread, or synchronously for a line said from a server
+ * thread. Points are booked for a message that was
  * blocked too, so this can arrive for a line nobody ever read.
  *
  * @since 1.0.0
@@ -44,7 +46,7 @@ public final class ChatInfractionEvent extends Event implements Cancellable {
      */
     public ChatInfractionEvent(@NotNull Player player, @NotNull String raw, int points,
                                @NotNull Map<String, Integer> rules) {
-        super(true);
+        super(!Bukkit.isPrimaryThread());
         this.player = player;
         this.raw = raw;
         this.points = points;
