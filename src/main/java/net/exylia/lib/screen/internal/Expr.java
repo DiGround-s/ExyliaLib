@@ -55,6 +55,11 @@ public final class Expr {
         default org.bukkit.entity.Player viewer() {
             return null;
         }
+
+        /** {@code pick('state')}: the key of the row a {@code <detail>} keeping that state shows, or {@code null} (1.671.0). */
+        default Object pick(String state) {
+            return null;
+        }
     }
 
     /** Text that is shown as written: never parsed for colours or tags. */
@@ -268,6 +273,7 @@ public final class Expr {
                 org.bukkit.entity.Player viewer = env.viewer();
                 yield viewer == null ? 0d : (double) viewer.getExp();
             }
+            case "pick" -> env.pick(text(a));
             case "contains" -> args.size() > 1 && text(a).contains(text(args.get(1)));
             case "matches" -> args.size() > 1 && regex(text(args.get(1))).matcher(text(a)).matches();
             case "chance" -> {
@@ -340,7 +346,9 @@ public final class Expr {
             // 1.566.0
             "health", "food",
             // 1.585.0
-            "exp");
+            "exp",
+            // 1.671.0: the row a <detail> shows
+            "pick");
 
     // ------------------------------------------------------------------
     // Parsing

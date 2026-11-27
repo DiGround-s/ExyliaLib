@@ -64,6 +64,40 @@ hub.rows("kits", session -> {
 `track` keeps a row's boxes when the filter reorders the list; the read is memory only (the render runs every
 second).
 
+## Catalogue and detail (1.671.0)
+
+A grid of cards on the left, the picked one in full on the right. A left click picks, a right click runs the
+panel's main action at once, so nothing needs a tooltip. `pick()` reads the row the panel shows, the default pick
+included, so the card it shows is marked before any click. A stale pick (a pet released) falls back to `prefer`,
+then to the first row.
+
+```html
+<row class="body">
+  <grid source="pets" columns="4" rows="3" track="%pet_uid%">
+    <card action="set pick_pets %pet_uid%" action-right="myplugin:equip %pet_uid%"
+          selected="${pick('pick_pets') == pet_uid}">
+      <item row/><small>%pet_name%</small>
+    </card>
+  </grid>
+  <column class="detail">
+    <detail source="pets" key="pet_uid" state="pick_pets" prefer="row_template == 'ready'">
+      <item3d row spin/>
+      <h2>%pet_name%</h2>
+      <button key="space" action="myplugin:equip %pet_uid%">Equip</button>
+      <empty><small>No pets yet</small></empty>
+    </detail>
+  </column>
+</row>
+<pager for="pets" keys="a d"/>
+```
+
+```css
+.detail > * { enter: translate(6px, 0) 3t ease-out; }
+```
+
+The panel's children are keyed by the row, so a new pick slides in; a child with its own `id` keeps it (and the
+display it had). A ranking that draws its top 3 apart starts the list after them: `<list source="top" skip="3">`.
+
 ## Dialog and confirm
 
 In markup, a `modal` shown while a state is set, closed by clicking outside or Shift:

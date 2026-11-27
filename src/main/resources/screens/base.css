@@ -39,6 +39,7 @@ pager { flex-direction: row; gap: 8px; color: var(--letters-black); }
 
 item { width: 16px; height: 16px; }
 progress { background: var(--letters-black)20; color: var(--primary); height: 4px; }
+progress[vertical] { width: 4px; height: 40px; }
 .spacer { flex-grow: 1; }
 
 modal { background: var(--primary)20; outline: 1px var(--primary)60; padding: 14px 18px; gap: 8px; align-items: center; }

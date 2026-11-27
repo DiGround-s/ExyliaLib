@@ -29,6 +29,8 @@ public final class Compile {
     public static final Set<String> TAGS = Set.of("screen", "panel", "row", "column", "box", "text", "h1", "h2",
             "b", "small", "p", "span", "label", "button", "tabs", "tab", "chips", "chip", "grid", "list", "card",
             "empty", "toggle", "checkbox", "pager", "icon", "item", "item3d", "window", "canvas", "progress", "modal", "img", "search",
+            // 1.671.0: the picked row of a source
+            "detail",
             // Structure (1.494.0): drawn as their children, never as a box of their own.
             "fragment", "for", "switch", "case", "default", "else");
 
@@ -58,7 +60,11 @@ public final class Compile {
             // 1.548.0: on <screen>, read by ExyliaScreens
             "fallback", "min-client", "args", "on-open",
             // 1.565.0: the element's own declarations, and a wait between clicks
-            "style", "cooldown", "deny-cooldown");
+            "style", "cooldown", "deny-cooldown",
+            // 1.671.0: <detail prefer>, repeats that skip rows, progress shapes
+            "prefer", "skip", "orient", "segments",
+            // 1.671.0: number and change feedback
+            "count-up", "on-change");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -332,7 +338,7 @@ public final class Compile {
             String name = attr.getKey();
             String value = attr.getValue();
             try {
-                if (name.equals("if") || name.startsWith("require") || (name.equals("else") && !value.isEmpty())
+                if (name.equals("if") || name.equals("prefer") || name.startsWith("require") || (name.equals("else") && !value.isEmpty())
                         || (name.equals("on") && tag.equals("switch"))) {
                     Expr.compile(value);
                 } else if (!name.startsWith("action")) {
@@ -364,6 +370,10 @@ public final class Compile {
                     problem(child.pos(), "<switch> holds only <case value=\"...\"> and <default>");
                 }
             }
+        }
+        if (tag.equals("detail")) {
+            if (el.attr("source") == null) problem(el.pos(), "<detail> needs source=\"<source>\"");
+            if (el.attr("key") == null && el.attr("state") != null) problem(el.pos(), "<detail state> needs key=\"<field>\": the row field the state holds");
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));

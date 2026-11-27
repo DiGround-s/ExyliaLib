@@ -903,6 +903,7 @@ final class LiveScreen implements ScreenSession {
             // The handlers are this render's either way: a click acts on what it shows now.
             if (core == null) core = Layout.lay(root, screen.width(), screen.height());
             lastLaid = core;
+            changes(core);
             stage(core);
             lastPrint = print;
             lastToastVersion = toastVersion;
@@ -933,6 +934,26 @@ final class LiveScreen implements ScreenSession {
             sync(false);
             decideLights(seen);
         }
+    }
+
+    /** What each on-change box showed on the last frame, by box key. */
+    private final Map<String, Object> changeSeen = new HashMap<>();
+
+    /** Plays a box's on-change keyframes when its value moved since the last frame (1.671.0). Holds the lock. */
+    private void changes(List<Layout.Placed> laid) {
+        if (changeSeen.isEmpty() && laid.stream().noneMatch(b -> b.node().changeKeyframes() != null)) return;
+        Set<String> here = new HashSet<>();
+        for (Layout.Placed box : laid) {
+            Node node = box.node();
+            if (node.changeKeyframes() == null) continue;
+            here.add(box.key());
+            Object before = changeSeen.put(box.key(), node.changeValue());
+            if (before != null && !before.equals(node.changeValue()) && !reduced()) {
+                played.put(box.key(), new Played(node.changeKeyframes(), animClock));
+                resync = true;
+            }
+        }
+        changeSeen.keySet().retainAll(here);
     }
 
     private Node gearNode;

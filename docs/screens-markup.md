@@ -35,11 +35,12 @@ elements cost nothing themselves, but a box with a `background` or an `outline` 
 | `img` | Picture: `src="img/x.png"` (markup folder), `skin="<player>"` (body 16x32), `face="<player>"` (8x8, 1.490.0); `turn` (1.492.0), `wearing` (1.498.0); `map="40"` the ground around the viewer turned to where they face, `zoom` blocks a pixel, `round` a disc edged by `ring` (1.585.0) | `<img face="%player_name%"/>` | 1.489.0 | `src`/`face`/`map`: 4 displays whatever its size; flat `skin`: 4; `skin turn`: 96 displays (stands still at detail level 2) |
 | `window` | A hole in the screen looking at a preview played for real behind it, for this viewer alone: `preview="<value>"` (a `SpatialPreview`) or `wearing="<outfit>"`; its children stand in when there is nothing to show; size from CSS, `background` colours the back wall | `<window preview="effect_preview" class="window"/>` | 1.538.0 | up to 5 pieces per box it cuts, 1 wall, 1 floor; what plays costs what it costs in the world |
 | `canvas` | Sprite layer the plugin moves from Java (`session.scene("id")`); size from CSS `width`/`height` | `<canvas id="table"/>` | 1.500.0 | the sprites on it: item 1, picture 4, rect 1-2 |
-| `progress` | Bar: `value` of `max` (default 100), filled with CSS `color` | `<progress value="%xp%" max="100"/>` | 1.488.0 | 1-2 displays (filled part, rest) |
+| `progress` | Bar: `value` of `max` (default 100), filled with CSS `color`. The fill glides to a new value (6 ticks ease-out unless the bar has a `transition`; 1.671.0). `orient="vertical"` fills bottom-up (sized by `progress[vertical]`, base 4x40); `segments="N"` draws N-1 hairlines over it in `--segment` (default `#120e1a`) | `<progress value="%xp%" max="100" segments="5"/>` | 1.488.0 (`orient`, `segments`, glide 1.671.0) | 1-2 displays (filled part, rest); a glide is 2-4 packets per change; `segments` +N-1 |
 | `modal` | Dialog over everything while its `if` holds; `dismiss="<action>"` | `<modal if="confirm" dismiss="clear confirm">` | 1.488.0 | dimmer + its content; drawn first, so it survives a tight budget |
 | `search` | Field showing the search sprite and the value; click asks for text (screen stepped aside); `state`, `prompt`, `hint`, `max` | `<search state="q" prompt="Search a kit" max="16"/>` | 1.496.0 | ~2 text displays |
 | `fragment` | Groups children without a box of its own | `<fragment if="x">...</fragment>` | 1.494.0 | free (layout only) |
 | `for` | Repeats children per row of a source or a range, in place (no window/pager); `each="kit in kits"`, `each="i in 1..5"` (up to 256) | `<for each="i in 1..5"><box class="star"/></for>` | 1.494.0 | children x iterations |
+| `detail` | Its children once, in the scope of one row of `source` (`%x%` and bare names, as in a grid cell): the row whose `key` field equals state `state`; when that is unset or names a row that is gone, the first row `prefer` matches, else the first row (`default="none"`: nothing until a pick). An `<empty>` child shows when no row is chosen. Buttons inside run with that row as `event.row()`. Each child without an `id` is keyed by the row, so a new pick arrives as new boxes (their `enter` plays) | `<detail source="pets" key="pet_uid" state="pick_pets" prefer="row_template == 'ready'">...</detail>` | 1.671.0 | free (only its children cost) |
 | `switch`, `case`, `default` | `on="expr"`; `case value="a\|b"`; only the match is drawn | `<switch on="tab"><case value="play">...</case></switch>` | 1.494.0 | free (only the chosen branch costs) |
 | `else` | Element form of `else`; must follow an element with `if` | `<else>...</else>` | 1.494.0 | free (layout only) |
 
@@ -66,6 +67,9 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `source` | Repeat over a registered source (or the menu's rows of a routed screen) | `source="kits"` | 1.485.0 | rows in the window |
 | `columns`, `rows` | Window of a `grid` (`columns x rows` cells) | `columns="4" rows="2"` | 1.485.0 | bounds the cells drawn |
 | `each` | On `for`: `name in source` or `i in 1..10` | `each="kit in kits"` | 1.494.0 | iterations x children |
+| `skip` | On `grid`, `list`, `for`: leaves out the first N rows (an expression may say how many); the window, `pager` and `loop.*` count the rest | `<list source="top" skip="3" rows="7">` | 1.671.0 | free |
+| `key`, `prefer` | On `detail`: the row field its `state` holds; the expression that picks the row shown before any pick | `key="pet_uid" prefer="affordable"` | 1.671.0 | free |
+| `orient`, `segments` | On `progress`: `vertical`; hairlines splitting it into N parts | `orient="vertical" segments="25"` | 1.671.0 | see `progress` |
 | `for` | On `pager`: the grid's `source` or `id` | `for="kits"` | 1.485.0 | - |
 | `on`, `off` | Words of a `toggle` (on `switch`, `on` is the expression) | `on="Open" off="Private"` | 1.485.0 | - |
 | `material`, `glyph`, `head`, `texture`, `url` | Item choice for `icon`/`item`/`item3d`; `material` takes what a chest template's does (a `bytes:` snapshot, `basehead-...`, a custom item; 1.518.0); `glyph` is the sub-1.21.9 stand-in | `head="%player_name%"` | 1.488.0 | a skin lookup runs on an async task the first time |
@@ -83,6 +87,8 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `routes` | On `screen`: chest menu ids this screen stands for, with state | `routes="player/queue_kit:tab=play"` | 1.495.0 | free |
 | `command`, `aliases`, `permission` | On `screen`: read by the plugin that opens screens by command (ExyliaScreens) | `command="hub" aliases="lobby"` | 1.502.0 | free |
 | `style` | The element's own declarations, over every rule; `${...}` and `%placeholders%` allowed, `--x` reaches its children | `style="background: ${owned ? '{success}' : '{neutral}'}30"` | 1.565.0 | free |
+| `count-up` | On a text holding a number: when the number changes, it steps from the old value to the new one over this time, written as the new one is (`1.2K`, `1,234`, `12.5`; the first number outside tags). Never on first draw; jumps under reduced motion. Keyed by the text's `id` (or its row's `track`, or where it is written), so give one inside an untracked repeat | `<b id="coins" count-up="8t">%coins%</b>` | 1.671.0 | one text update every 2 ticks while it counts |
+| `on-change` | Plays keyframes once on the element when its text (its `value` on a `progress`, the words inside it on a box) differs from the last frame's; never on first draw, not under reduced motion | `<row id="wallet" on-change="pop 6t"><small>%coins%</small></row>` | 1.671.0 | one played animation (a few transforms) |
 | `cooldown`, `deny-cooldown` | Wait between clicks of `action`: `5s` (keyed by the id) or `daily 24h` (its own key, read by `cooldown('daily')`); 5 minutes or more survives restarts. `deny-cooldown` runs while it waits (else a refusal sound and "Ready again in …" toast) | `cooldown="daily 24h"` | 1.565.0 | free |
 
 Attributes on `<screen>` only:
@@ -99,7 +105,7 @@ Attributes on `<screen>` only:
 
 ## CSS properties
 
-Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]`, `:hover` (`:focus` is the same), `:active`
+Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]` (`[vertical]` on a vertical `progress`, 1.671.0), `:hover` (`:focus` is the same), `:active`
 (1.496.0), `:root`, `:first-child`, `:last-child`, `:only-child`, `:nth-child(odd|even|n)`, `:not(...)`,
 `:selected`/`:disabled`/`:checked`, descendants, `a > b`, comma lists, `*`. Specificity then order; the base theme
 first, then each sheet. `var(--x, fallback)` and `--x: value` inherit. `@keyframes name { 0% {...} to {...} }`
@@ -159,7 +165,9 @@ Detail in [Expressions](screens.md#expressions-14940). Functions: `min`, `max`, 
 `level()`, `world()`; 1.552.0: `contains(text, 'part')`, `matches(text, 'regex')`, `chance(30)`; 1.565.0:
 `cooldown('key')` (seconds left on a button's `cooldown="key ..."`, 0 when ready), `players('survival')`
 (players on that server as the proxy last counted, `players()` the whole network), `online('survival')`; 1.566.0:
-`health()` (0-20, half hearts) and `food()` (0-20); 1.585.0: `exp()` (0 to 1 into the current level); and any a plugin
+`health()` (0-20, half hearts) and `food()` (0-20); 1.585.0: `exp()` (0 to 1 into the current level); 1.671.0:
+`pick('state')` (the `key` of the row the `<detail>` keeping that state shows, default pick included, so a card can say
+`selected="${pick('pick_pets') == pet_uid}"`; without such a detail, the state itself); and any a plugin
 registered through `ExpressionFunctions`. Cost: free; evaluated on the viewer's thread each render, so keep them to memory.
 
 ## Built-in actions

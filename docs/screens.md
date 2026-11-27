@@ -838,6 +838,11 @@ modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
   `.lib-rainbow` (rainbow over 80t) and `.lib-wave` on a container (its children arrive 2t apart and float in a wave).
   The older `.anim-pulse`, `.anim-float`, `.anim-nudge` are the same loops. Nothing in the base theme uses them, so no
   screen changes until it names one.
+- Feedback on a value (1.671.0): `count-up="8t"` on a text steps its number from the old value to the new one,
+  written as the new one is (one text update every 2 ticks while it counts); `on-change="pop 6t"` plays keyframes
+  once when the element's text (a `progress`'s `value`, the words inside a box) changes, never on first draw
+  (`Node#playOnChange` in Java). A `progress` fill glides to its new value (6 ticks unless the bar has a
+  `transition`). All three hold still under reduced motion.
 - An element's own `style="..."` (1.565.0) wins over every rule and may set `--custom` properties for its children.
 - Not drawn (Minecraft cannot): rotation, opacity and colour glides, rounded corners, blur. A fade is a scale from
   nearly nothing; a colour change steps.

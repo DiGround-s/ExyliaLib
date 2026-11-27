@@ -79,6 +79,13 @@ public final class MarkupRender {
             return maps.size();
         }
 
+        /** Without its first {@code n} rows: {@code skip="3"} (1.671.0). */
+        Rows skip(int n) {
+            if (n <= 0) return this;
+            int from = Math.min(n, size());
+            return new Rows(maps.subList(from, size()), formatted.subList(from, size()), objects.subList(from, size()));
+        }
+
         Scope scope(int i, String alias, Map<String, Object> loop, Scope parent) {
             return new Scope(maps.get(i), formatted.get(i), objects.get(i), alias, alias == null ? null : maps.get(i),
                     loop, parent);
@@ -99,6 +106,10 @@ public final class MarkupRender {
     private final Map<String, String> defaults = new HashMap<>();
     /** Binding values read so far in this render. */
     private final Map<String, Object> memo = new HashMap<>();
+    /** {@code <detail>}s by the state they keep, for {@code pick('state')}. */
+    private final Map<String, El> details = new HashMap<>();
+    /** The row each {@code <detail>} shows in this render: its index in the source, -1 for none. */
+    private final Map<El, Integer> chosen = new java.util.IdentityHashMap<>();
 
     private MarkupRender(Parts parts, ScreenSession session) {
         this.parts = parts;
@@ -115,6 +126,12 @@ public final class MarkupRender {
     }
 
     private void index(El el) {
+        if (el.tag().equals("detail")) {
+            // Its default says which row to show (first, none), never a value of the state.
+            if (el.attr("state") != null) details.putIfAbsent(el.attr("state"), el);
+            for (El child : el.elements()) index(child);
+            return;
+        }
         if (el.attr("state") != null && el.attr("default") != null) defaults.putIfAbsent(el.attr("state"), el.attr("default"));
         if (el.attr("source") != null && (el.attr("columns") != null || el.attr("rows") != null
                 || el.tag().equals("grid") || el.tag().equals("list"))) {
@@ -229,6 +246,17 @@ public final class MarkupRender {
             @Override
             public Object literal(String text) {
                 return fill(text, scope, false);
+            }
+
+            @Override
+            public Object pick(String state) {
+                El detail = details.get(state);
+                if (detail == null) {
+                    Object picked = session.state(state, "");
+                    return "".equals(picked) ? "" : MarkupRender.literal(picked);
+                }
+                int i = chosen(detail, scope);
+                return i < 0 ? "" : MarkupRender.literal(Expr.text(Expr.plain(rows(detail.attr("source")).maps().get(i).get(detail.attr("key")))));
             }
 
             @Override
@@ -389,6 +417,7 @@ public final class MarkupRender {
                 case "else", "fragment", "case", "default" -> out.addAll(expand(el.children(), scope));
                 case "switch" -> out.addAll(expand(cases(el, scope), scope));
                 case "for" -> out.addAll(loop(el, scope));
+                case "detail" -> out.addAll(detail(el, scope));
                 default -> out.add(new Inst(el, scope, null));
             }
         }
@@ -459,6 +488,7 @@ public final class MarkupRender {
             for (int i = 0; i < maps.size(); i++) formatted.add(null);
             rows = new Rows(maps, formatted, objects);
         }
+        rows = rows.skip(skip(el, scope));
         String prefix = el.attr("id") != null ? el.attr("id") : "for" + el.pos().line() + "_" + el.pos().col();
         Set<String> seen = new HashSet<>();
         List<Object> out = new ArrayList<>();
@@ -480,6 +510,69 @@ public final class MarkupRender {
             }
         }
         return out;
+    }
+
+    /**
+     * {@code <detail source key state default prefer>}: its children once, in the scope of the row the state names
+     * (1.671.0). Each child is keyed by that row, so a new pick arrives as new boxes ({@code enter} plays).
+     */
+    private List<Object> detail(El el, Scope scope) {
+        String source = el.attr("source");
+        if (source == null) return List.of();
+        Rows all = rows(source);
+        int i = chosen(el, scope);
+        List<Part> body = new ArrayList<>();
+        List<Part> empties = new ArrayList<>();
+        for (Part child : el.children()) {
+            if (child instanceof El e && emptyNote(e)) empties.add(e);
+            else body.add(child);
+        }
+        if (i < 0) return expand(empties, scope);
+        Scope row = all.scope(i, null, null, scope);
+        String prefix = (el.attr("id") != null ? el.attr("id") : "detail" + el.pos().line() + "_" + el.pos().col())
+                + "@" + Expr.text(Expr.plain(all.maps().get(i).get(el.attr("key"))));
+        List<Object> out = new ArrayList<>();
+        int n = 0;
+        for (Object one : expand(body, row)) {
+            // A child with its own id keeps it, so #id still finds it (animate, burst).
+            if (one instanceof Inst inst && inst.id() == null && inst.el().attr("id") == null) {
+                out.add(new Inst(inst.el(), inst.scope(), prefix + (n++ == 0 ? "" : "." + n)));
+            } else {
+                out.add(one);
+            }
+        }
+        return out;
+    }
+
+    /** The row a {@code <detail>} shows: the picked one, else the first {@code prefer} matches, else the first. */
+    private int chosen(El el, Scope scope) {
+        Integer known = chosen.get(el);
+        if (known != null) return known;
+        Rows all = rows(el.attr("source"));
+        String key = el.attr("key");
+        int found = -1;
+        Object picked = el.attr("state") == null ? "" : session.state(el.attr("state"), "");
+        if (key != null) {
+            boolean anyKey = false;
+            for (int i = 0; i < all.size() && found < 0; i++) {
+                Map<String, ?> row = all.maps().get(i);
+                if (row == null || !row.containsKey(key)) continue;
+                anyKey = true;
+                if (!"".equals(picked) && Expr.equal(Expr.plain(row.get(key)), Expr.plain(picked))) found = i;
+                if ("".equals(picked)) break;
+            }
+            if (!anyKey && all.size() > 0) parts.problems().accept(el.pos() + ": <detail key=\"" + key + "\"> is not a field of \""
+                    + el.attr("source") + "\"'s rows");
+        }
+        if (found < 0 && !"none".equalsIgnoreCase(el.attr("default"))) {
+            String prefer = el.attr("prefer");
+            if (prefer != null) {
+                for (int i = 0; i < all.size() && found < 0; i++) if (test(prefer, all.scope(i, null, null, scope))) found = i;
+            }
+            if (found < 0 && all.size() > 0) found = 0;
+        }
+        chosen.put(el, found);
+        return found;
     }
 
     @SuppressWarnings("unchecked")
@@ -518,6 +611,8 @@ public final class MarkupRender {
             String raw = el.attr(flag);
             if (raw != null && (raw.isEmpty() || truthy(value(raw, scope)))) flags.add(flag);
         }
+        // <progress orient="vertical">: styled by progress[vertical] (1.671.0).
+        if (el.tag().equals("progress") && "vertical".equalsIgnoreCase(el.attr("orient"))) flags.add("vertical");
         String option = option(el, path, scope);
         if (option != null && option.equals(current(stateOwner(path), scope))) flags.add("selected");
         String toggleKey = el.attr("state") != null && (el.tag().equals("toggle") || el.tag().equals("checkbox"))
@@ -536,6 +631,9 @@ public final class MarkupRender {
         for (String p : Css.INHERITED) if (style.containsKey(p)) text.put(p, style.get(p));
 
         Node node;
+        // What on-change watches, and whether a count-up still steps (1.671.0).
+        String changed = el.attr("value") == null ? null : fill(el.attr("value"), scope, false);
+        boolean counting = false;
         String source = el.attr("source");
         if (source != null) {
             node = repeat(el, source, scope, here, text, style);
@@ -598,7 +696,15 @@ public final class MarkupRender {
             String glyph = attrOr(el, "glyph", "◆");
             node = words("{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}", text);
         } else if (el.elements().isEmpty() && !el.text().isEmpty()) {
-            node = words(fill(el.text(), scope, true), text);
+            String drawn = fill(el.text(), scope, true);
+            changed = drawn;
+            if (el.attr("count-up") != null) {
+                boolean[] going = new boolean[1];
+                drawn = CountUp.step(counts(), feedbackKey(inst), drawn, Math.max(1, MotionCss.ticks(el.attr("count-up"))),
+                        System.currentTimeMillis(), reduced(), going);
+                counting = going[0];
+            }
+            node = words(drawn, text);
         } else {
             node = container(style);
             boolean own = el.attr("state") != null;
@@ -625,6 +731,16 @@ public final class MarkupRender {
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
         if ("low".equalsIgnoreCase(el.attr("priority"))) node.decoration(true);
         if (el.attr("refresh") != null) node.refresh(Math.max(0, MotionCss.ticks(el.attr("refresh"))));
+        if (counting) node.refresh(node.refresh() > 0 ? Math.min(node.refresh(), 2) : 2);
+        if (el.attr("on-change") != null) {
+            // A box of several things watches the words inside it.
+            Object watched = changed != null ? changed : texts(node, new ArrayList<>());
+            List<String> words = List.of(fill(el.attr("on-change"), scope, false).trim().split("\\s+"));
+            Motion.Keyframes keyframes = words.get(0).isEmpty() ? null
+                    : MotionCss.play(words.get(0), words.subList(1, words.size()), parts.css());
+            if (keyframes == null) parts.problems().accept(el.pos() + ": on-change finds no @keyframes " + words.get(0));
+            else node.playOnChange(keyframes, watched);
+        }
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
         if ("false".equalsIgnoreCase(el.attr("assist")) || asksDangerously(el)) node.assist(false);
@@ -715,7 +831,7 @@ public final class MarkupRender {
 
     private Node repeat(El el, String source, Scope scope, List<Css.Target> here, Map<String, String> text,
                         Map<String, String> style) {
-        Rows all = rows(source);
+        Rows all = rows(source).skip(skip(el, scope));
         List<Part> template = new ArrayList<>();
         // Several empties may each carry an if, so the message can match why the list is empty.
         List<Part> empties = new ArrayList<>();
@@ -817,7 +933,7 @@ public final class MarkupRender {
             return Node.row();
         }
         String source = grid.attr("source");
-        int size = rows(source).size();
+        int size = rows(source).skip(skip(grid, scope)).size();
         int columns = Math.max(1, intAttr(grid, "columns", 1));
         int window = columns * Math.max(1, intAttr(grid, "rows", 1));
         String key = "scroll." + source;
@@ -1421,9 +1537,32 @@ public final class MarkupRender {
         double max = Math.max(0, px(fill(attrOr(el, "max", "100"), scope, false), 100));
         double value = Math.max(0, Math.min(max, px(fill(attrOr(el, "value", "0"), scope, false), 0)));
         String colour = style.getOrDefault("color", "{primary}");
-        Node bar = Node.row().height(4);
-        if (value > 0) bar.add(Node.box().grow(value).background(colour));
-        if (max - value > 0) bar.add(Node.box().grow(max - value));
+        // orient="vertical" (1.671.0): a tank that fills bottom-up; CSS progress[vertical] sizes it.
+        boolean vertical = "vertical".equalsIgnoreCase(attrOr(el, "orient", ""));
+        Node bar = vertical ? Node.column().width(4) : Node.row().height(4);
+        // The fill always comes first in the drawn order, so it keeps its display as the value moves.
+        Node filled = value > 0 ? Node.box().grow(value).background(colour) : null;
+        // The fill glides to a new value (1.671.0): 6 ticks unless the bar's own transition says otherwise.
+        if (filled != null && !style.containsKey("transition")) filled.transition(6, net.exylia.lib.screen.Motion.Ease.OUT);
+        Node rest = max - value > 0 ? Node.box().grow(max - value) : null;
+        if (vertical) {
+            if (rest != null) bar.add(rest);
+            if (filled != null) bar.add(filled);
+        } else {
+            if (filled != null) bar.add(filled);
+            if (rest != null) bar.add(rest);
+        }
+        // segments="N" (1.671.0): N-1 hairlines over the bar, in --segment (the dark panel colour by default).
+        int segments = Math.min(64, intAttr(el, "segments", 0));
+        if (segments > 1) {
+            String hairline = style.getOrDefault("--segment", "#120e1a");
+            Node marks = (vertical ? Node.column() : Node.row()).absolute(0, 0, 0, 0);
+            for (int i = 0; i < segments; i++) {
+                if (i > 0) marks.add(vertical ? Node.box().height(1).background(hairline) : Node.box().width(1).background(hairline));
+                marks.add(Node.box().grow(1));
+            }
+            bar.add(marks);
+        }
         return bar;
     }
 
@@ -1477,6 +1616,45 @@ public final class MarkupRender {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private static List<Object> texts(Node node, List<Object> out) {
+        if (node.text() != null) out.add(node.text());
+        for (Node child : node.children()) texts(child, out);
+        return out;
+    }
+
+    /** The session's counting texts, made on the first count-up it draws. */
+    @SuppressWarnings("unchecked")
+    private Map<String, CountUp.Count> counts() {
+        Object held = session.state("~countup", "");
+        if (held instanceof Map<?, ?> map) return (Map<String, CountUp.Count>) map;
+        Map<String, CountUp.Count> fresh = CountUp.store();
+        session.set("~countup", fresh);
+        return fresh;
+    }
+
+    /** Which text a count belongs to: its row's key, its id, or where it is written. */
+    private String feedbackKey(Inst inst) {
+        if (inst.id() != null) return inst.id();
+        if (inst.el().attr("id") != null) return fill(inst.el().attr("id"), inst.scope(), false);
+        return "@" + inst.el().pos().line() + "_" + inst.el().pos().col();
+    }
+
+    private boolean reduced() {
+        try {
+            return ScreenPreferences.reducedMotion(session.viewer().getUniqueId());
+        } catch (RuntimeException | LinkageError noViewer) {
+            return false;
+        }
+    }
+
+    /** {@code skip="3"}: rows a repeat leaves out from the start; an expression may say how many. */
+    private int skip(El el, Scope scope) {
+        String raw = el.attr("skip");
+        if (raw == null) return 0;
+        Double n = Expr.number(fill(raw, scope, false).trim());
+        return n == null ? 0 : Math.max(0, (int) Math.round(n));
     }
 
     private static int toInt(Object value) {

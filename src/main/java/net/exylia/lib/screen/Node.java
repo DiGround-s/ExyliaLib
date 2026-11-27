@@ -109,6 +109,8 @@ public final class Node {
     private boolean shadow;
     private boolean decoration;
     private int refresh;
+    private Motion.Keyframes changeKeyframes;
+    private Object changeValue;
     private Consumer<ScreenEvent> onShiftClick;
 
     private Node(Kind kind, Component text) {
@@ -806,6 +808,28 @@ public final class Node {
     /** @since 1.496.0 */
     public int refresh() {
         return refresh;
+    }
+
+    /**
+     * Plays {@code keyframes} once on this box whenever {@code value} differs from the one it had on the last frame,
+     * never on its first: a wallet that pops when the coins change. Markup: {@code on-change="pop 6t"}.
+     *
+     * @since 1.671.0
+     */
+    public @NotNull Node playOnChange(@Nullable Motion.Keyframes keyframes, @Nullable Object value) {
+        this.changeKeyframes = keyframes;
+        this.changeValue = value;
+        return this;
+    }
+
+    /** @since 1.671.0 */
+    public @Nullable Motion.Keyframes changeKeyframes() {
+        return changeKeyframes;
+    }
+
+    /** @since 1.671.0 */
+    public @Nullable Object changeValue() {
+        return changeValue;
     }
 
     /** @since 1.496.0 */
