@@ -110,12 +110,24 @@ public final class DefaultsMerge {
     public static @NotNull Result merge(@NotNull ConfigurationSection disk,
                                         @Nullable ConfigurationSection reviewed,
                                         @NotNull ConfigurationSection shipped) {
+        return merge(disk, reviewed, shipped, false);
+    }
+
+    /**
+     * {@link #merge(ConfigurationSection, ConfigurationSection, ConfigurationSection)}, and with
+     * {@code followData} a changed text the owner never edited is written at once, as an added key is, when the
+     * new one shows a {@code %placeholder%} the old one did not: the markup or code shipped with it reads that
+     * data from the text (a price, a count), so the old text would leave it out. Since 1.680.0.
+     */
+    public static @NotNull Result merge(@NotNull ConfigurationSection disk,
+                                        @Nullable ConfigurationSection reviewed,
+                                        @NotNull ConfigurationSection shipped, boolean followData) {
         List<Change> added = new ArrayList<>();
         List<Change> pending = new ArrayList<>();
         YamlConfiguration next = yaml();
         Set<String> offered = reviewed == null ? Set.of() : Set.copyOf(reviewed.getStringList(OFFERED));
         List<String> stillOffered = new ArrayList<>();
-        walk(disk, reviewed, shipped, next, new ArrayList<>(), added, pending, offered, stillOffered);
+        walk(disk, reviewed, shipped, next, new ArrayList<>(), added, pending, offered, stillOffered, followData);
         if (!stillOffered.isEmpty()) {
             next.set(OFFERED, stillOffered);
         }
@@ -195,7 +207,7 @@ public final class DefaultsMerge {
     private static void walk(@Nullable ConfigurationSection disk, @Nullable ConfigurationSection reviewed,
                              ConfigurationSection shipped, ConfigurationSection next, List<String> path,
                              List<Change> added, List<Change> pending,
-                             Set<String> offered, List<String> stillOffered) {
+                             Set<String> offered, List<String> stillOffered, boolean followData) {
         Set<String> keys = new LinkedHashSet<>(shipped.getKeys(false));
         if (reviewed != null) {
             keys.addAll(reviewed.getKeys(false));
@@ -221,7 +233,7 @@ public final class DefaultsMerge {
                     && current instanceof ConfigurationSection currentSection
                     && (!known || before instanceof ConfigurationSection)) {
                 walk(currentSection, known ? (ConfigurationSection) before : null, nowSection,
-                        next.createSection(key), childPath, added, pending, offered, stillOffered);
+                        next.createSection(key), childPath, added, pending, offered, stillOffered, followData);
                 continue;
             }
 
@@ -256,6 +268,10 @@ public final class DefaultsMerge {
             if (same(current, before)) {
                 if (same(now, before)) {
                     put(next, key, before);
+                } else if (followData && now != null && showsMore(before, now)) {
+                    put(disk, key, now);
+                    added.add(new Change(childPath, Kind.CHANGED, plain(current), plain(now)));
+                    put(next, key, now);
                 } else {
                     pending.add(new Change(childPath, now == null ? Kind.REMOVED : Kind.CHANGED,
                             plain(current), plain(now)));
@@ -270,6 +286,23 @@ public final class DefaultsMerge {
                 put(next, key, now);
             }
         }
+    }
+
+    private static final java.util.regex.Pattern PLACEHOLDER = java.util.regex.Pattern.compile("%[A-Za-z0-9_]+%");
+
+    /** Whether a text (or list of lines) now shows a placeholder it did not before. */
+    static boolean showsMore(@Nullable Object before, @Nullable Object now) {
+        if (!(now instanceof String || now instanceof List<?>)) return false;
+        Set<String> old = placeholders(before);
+        for (String found : placeholders(now)) if (!old.contains(found)) return true;
+        return false;
+    }
+
+    private static Set<String> placeholders(@Nullable Object value) {
+        Set<String> out = new LinkedHashSet<>();
+        if (value instanceof List<?> list) list.forEach(line -> out.addAll(placeholders(line)));
+        else if (value instanceof String text) PLACEHOLDER.matcher(text).results().forEach(m -> out.add(m.group()));
+        return out;
     }
 
     private static void copyComments(ConfigurationSection from, ConfigurationSection to, String key) {

@@ -342,10 +342,11 @@ public final class BundledFiles {
                 return true;
             }
 
-            DefaultsMerge.Result result = DefaultsMerge.merge(disk, reviewed, shipped);
+            // A bundled file is text and markup shipped together: a text that now shows more data follows.
+            DefaultsMerge.Result result = DefaultsMerge.merge(disk, reviewed, shipped, true);
             if (!result.added().isEmpty()) {
                 BundledResources.write(onDisk, disk.saveToString());
-                debug.log("Added to " + name + ": " + result.added().stream()
+                debug.log("Updated " + name + ": " + result.added().stream()
                         .map(DefaultsMerge.Change::dotted).collect(Collectors.joining(", ")) + ".");
             }
             BundledResources.write(reviewedPath, result.reviewed().saveToString());

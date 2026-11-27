@@ -285,6 +285,12 @@ the plugin's data folder, and compares them on each load:
 - **A new key** is added, as it always was.
 - **A changed or removed default** on a key still at its reviewed value is left
   as it is and listed in `/exylialib updates`.
+- **A text in a bundled file that now shows more data** (since 1.680.0): when the
+  new default of a key still at its reviewed value has a `%placeholder%` the old
+  one lacked, it is written at once instead of listed. A bundled file's texts and
+  the screens or code shipped with them change together: a screen whose price or
+  count moved into its translated text would show nothing while the old text
+  waited for review. Record configs are not affected.
 - **A value the owner changed** is theirs and is never listed. Numbers compare by
   value (since 1.441.0): a file written back from a record says `0.0` where the
   shipped one says `0`, and that is no change of the owner's.

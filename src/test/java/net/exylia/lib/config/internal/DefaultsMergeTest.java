@@ -77,6 +77,26 @@ class DefaultsMergeTest {
     }
 
     @Test
+    void anUntouchedTextThatNowShowsMoreDataFollowsWhenAsked() throws Exception {
+        YamlConfiguration reviewed = yaml("buy: Comprar\ntitle: Mejoras\nmine: Mio\n");
+        YamlConfiguration shipped = yaml("buy: 'Comprar %u_cost%'\ntitle: MEJORAS\nmine: 'Tuyo %x%'\n");
+
+        YamlConfiguration plain = yaml("buy: Comprar\ntitle: Mejoras\nmine: Propio\n");
+        Result waits = DefaultsMerge.merge(plain, reviewed, shipped);
+        assertEquals("Comprar", at(plain, "buy"));
+        assertEquals(List.of("buy", "title"), waits.pending().stream().map(Change::dotted).toList());
+
+        YamlConfiguration disk = yaml("buy: Comprar\ntitle: Mejoras\nmine: Propio\n");
+        Result follows = DefaultsMerge.merge(disk, reviewed, shipped, true);
+        assertEquals("Comprar %u_cost%", at(disk, "buy"));
+        assertEquals("Mejoras", at(disk, "title"));
+        assertEquals("Propio", at(disk, "mine"));
+        assertEquals(List.of("buy"), follows.added().stream().map(Change::dotted).toList());
+        assertEquals(List.of("title"), follows.pending().stream().map(Change::dotted).toList());
+        assertEquals("Comprar %u_cost%", at(follows.reviewed(), "buy"));
+    }
+
+    @Test
     void applyingWritesTheNewDefaultAndKeepingLeavesTheOwnersValue() throws Exception {
         YamlConfiguration shipped = yaml("cooldown: 35\nrange: 12\n");
         YamlConfiguration disk = yaml("cooldown: 30\nrange: 10\n");
