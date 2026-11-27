@@ -2192,6 +2192,14 @@ final class LiveScreen implements ScreenSession {
             windowed = lastHole != null;
             List<PacketWrapper<?>> back = new ArrayList<>();
             sendBackdrop(back);
+            // The scene picture stands in front of the stage as well: it is drawn again with the window left clear.
+            Node scene = screen.scene();
+            if (scene != null) {
+                synchronized (input) {
+                    sceneSetup(scene);
+                    if (!away) scene(back, 0);
+                }
+            }
             wire.send(back);
         }
         boolean reduced = reduced();
@@ -2761,9 +2769,28 @@ final class LiveScreen implements ScreenSession {
         int x0 = (pw - cols) / 2, y0 = (ph - rows) / 2;
         int[] all = scene.pixels(), cut = new int[cols * rows];
         for (int y = 0; y < rows; y++) System.arraycopy(all, (y0 + y) * pw + x0, cut, y * cols, cols);
+        RectLook hole = lastHole;
+        if (hole != null) clearHole(cut, cols, rows, cell, hole.x(), hole.y(), hole.w(), hole.h(), screen.parallax() * unit);
         sceneText = Pictures.glyphs(cut, cols, rows, backdropBase());
         sceneRows = rows;
         sceneCell = cell;
+    }
+
+    /**
+     * Clears every pixel of a scene picture ({@code cols} x {@code rows}, {@code cell} units each, centred on the
+     * view) that reaches into the window at ({@code x}, {@code y}) sized {@code w} x {@code h}, widened by how far the
+     * scene drifts: the stage behind shows through it, and the opaque backdrop under the cleared rim around it.
+     */
+    static void clearHole(int[] pixels, int cols, int rows, double cell, double x, double y, double w, double h, double drift) {
+        double left = x - w / 2 - drift, right = x + w / 2 + drift, bottom = y - h / 2 - drift, top = y + h / 2 + drift;
+        for (int r = 0; r < rows; r++) {
+            double high = (rows / 2.0 - r) * cell, low = high - cell;
+            if (low >= top || high <= bottom) continue;
+            for (int c = 0; c < cols; c++) {
+                double from = (c - cols / 2.0) * cell;
+                if (from < right && from + cell > left) pixels[r * cols + c] = 0;
+            }
+        }
     }
 
     /** The scene where the cursor puts it: drifting against it by up to the screen's parallax. Holds {@link #input}. */
