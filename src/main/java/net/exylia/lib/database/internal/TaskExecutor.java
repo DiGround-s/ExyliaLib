@@ -91,7 +91,9 @@ public final class TaskExecutor implements Executor {
             // Paper hands an async task to its pool only on a main-thread tick,
             // and a stopping server ticks no more: a write queued from a
             // disable would never start, and a disable waiting for it would
-            // wait out its whole timeout. Run here, on whoever asked.
+            // wait out its whole timeout. Run here, on whoever asked, after
+            // what was queued before the stop so a row's writes keep their order.
+            runStranded();
             command.run();
             return;
         }
@@ -145,6 +147,31 @@ public final class TaskExecutor implements Executor {
                     running.decrementAndGet();
                     throw rejected;
                 }
+            }
+        }
+    }
+
+    /**
+     * Runs, on the caller, the work queued before the server began stopping.
+     *
+     * <p>Its drain was handed to Paper's async scheduler, which starts tasks
+     * only on a main-thread tick, and a stopping server ticks no more: the work
+     * would wait forever, and with it every later write to the same rows, which
+     * is ordered behind it and so never reaches {@link #execute} to be run
+     * inline. Does nothing while the server runs.
+     */
+    public void runStranded() {
+        if (!Bukkit.isStopping()) {
+            return;
+        }
+        Runnable next;
+        while ((next = waiting.poll()) != null) {
+            queued.decrementAndGet();
+            try {
+                next.run();
+            } catch (RuntimeException failure) {
+                // Each one completes its own future; one bug must not strand the rest.
+                Debug.of(plugin).warn("Database work queued before the stop failed: " + failure);
             }
         }
     }

@@ -180,6 +180,10 @@ public final class Repository<T> {
         CompletableFuture<?> ready = before.isEmpty()
                 ? CompletableFuture.completedFuture(null)
                 : CompletableFuture.allOf(before.toArray(CompletableFuture[]::new));
+        if (!ready.isDone()) {
+            // During a stop the earlier write may sit in a queue nothing drains any more.
+            net.exylia.lib.database.internal.DatabaseRuntime.runStranded();
+        }
         ready.thenCompose(ignored -> write.get()).whenComplete((result, failure) -> {
             for (Object key : keys) lastWrite.remove(key, mine);
             if (failure == null) {

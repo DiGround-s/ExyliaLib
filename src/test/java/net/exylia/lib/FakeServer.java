@@ -213,6 +213,11 @@ public final class FakeServer {
         return live;
     }
 
+    /** Makes {@code runAsync} wait for a tick again, as Paper's scheduler does. */
+    public static void runAsyncOnTicks() {
+        asyncRunsForReal = false;
+    }
+
     /** Makes {@code runAsync} execute on a real thread until the next reset. */
     public static void runAsyncForReal() {
         asyncRunsForReal = true;

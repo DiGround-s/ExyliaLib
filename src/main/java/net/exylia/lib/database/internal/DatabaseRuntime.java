@@ -726,6 +726,16 @@ public final class DatabaseRuntime {
         return executor;
     }
 
+    /**
+     * Runs the database work queued before the server began stopping, on the
+     * caller; nothing while the server runs. See {@link TaskExecutor#runStranded}.
+     */
+    public static void runStranded() {
+        if (executor instanceof TaskExecutor tasks) {
+            tasks.runStranded();
+        }
+    }
+
     private static void requireStarted() {
         if (library == null || executor == null) {
             if (stopped) {
