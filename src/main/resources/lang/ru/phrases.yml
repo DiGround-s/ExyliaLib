@@ -2066,3 +2066,10 @@ speaks the language chosen here.: говорит на выбранном зде�
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Меню видно только твоими глазами."
 'Space': 'Пробел'
 'Hold {0} to confirm': 'Удерживайте {0} для подтверждения'
+"Step {0}": "Шаг {0}"
+"Plugin choice": "Выбор плагина"
+"Plugins add their own choices.": "Плагины добавляют свои варианты."
+"Applies at once.": "Применяется сразу."
+"Offered by {0}.": "Предлагает {0}."
+"{letters}{0} set to {highlight}{1}{letters}.": "{letters}{0}: выбрано {highlight}{1}{letters}."
+"Plugin choice · in use": "Выбор плагина · используется"

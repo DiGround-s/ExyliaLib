@@ -2078,3 +2078,10 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Menüler kendi gözlerinden görünür."
 'Space': 'Boşluk'
 'Hold {0} to confirm': 'Onaylamak için {0} tuşunu basılı tut'
+"Step {0}": "Adım {0}"
+"Plugin choice": "Eklenti seçimi"
+"Plugins add their own choices.": "Eklentiler kendi seçimlerini ekler."
+"Applies at once.": "Hemen uygulanır."
+"Offered by {0}.": "{0} sunar."
+"{letters}{0} set to {highlight}{1}{letters}.": "{letters}{0} şuna ayarlandı: {highlight}{1}{letters}."
+"Plugin choice · in use": "Eklenti seçimi · kullanımda"

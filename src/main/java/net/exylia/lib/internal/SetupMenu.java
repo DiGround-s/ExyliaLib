@@ -7,6 +7,8 @@ import net.exylia.lib.action.PluginActions;
 import net.exylia.lib.config.ConfigFile;
 import net.exylia.lib.input.Inputs;
 import net.exylia.lib.screen.ScreenSettings;
+import net.exylia.lib.setup.SetupChoices;
+import net.exylia.lib.task.Tasks;
 import net.exylia.lib.text.Lines;
 import net.exylia.lib.text.Lore;
 import net.exylia.lib.text.Palette;
@@ -85,6 +87,8 @@ public final class SetupMenu {
     }
 
     private static volatile @Nullable PluginMenus menus;
+    /** How many plugin choices the loaded hub has room for. */
+    private static volatile int hubChoices;
 
     private SetupMenu() {
     }
@@ -116,7 +120,8 @@ public final class SetupMenu {
 
     /** Compiles the screens into the library's menus, in the language now in force. */
     public static void load(@NotNull PluginMenus target) {
-        target.load(HUB, hub());
+        hubChoices = SetupChoices.all().size();
+        target.load(HUB, hub(hubChoices));
         target.load(LANGUAGE, page(27, "10,11,12,14,15,16", 22, "BOOK", Lore.Tone.INFO,
                 Phrases.tr("Language"), Phrases.tr("Setup · step 1"),
                 List.of(Phrases.tr("Every plugin set to {highlight}default"),
@@ -153,6 +158,11 @@ public final class SetupMenu {
         PluginMenus current = menus;
         if (current == null) {
             return;
+        }
+        if (page.equals(HUB) && hubChoices != SetupChoices.all().size()) {
+            // A plugin registered or dropped a choice since the hub was drawn: it needs another slot layout.
+            hubChoices = SetupChoices.all().size();
+            current.load(HUB, hub(hubChoices));
         }
         // Read once: the cards change only on a click, which opens the page again.
         List<UiEntry> rows = rows(page);
@@ -204,11 +214,99 @@ public final class SetupMenu {
                                 ? Phrases.tr("This server only") : SetupNetwork.engineName(network.engine()))
                         .action(Phrases.tr("Click to open")).note(Phrases.tr("Tested before anything is saved.")),
                 player -> open(player, NETWORK)));
+        List<SetupChoices.Choice> choices = SetupChoices.all();
+        for (int i = 0; i < choices.size(); i++) {
+            SetupChoices.Choice choice = choices.get(i);
+            SetupChoices.Option now = chosen(choice);
+            cards.add(card("choice_" + i, now == null ? "BOOK" : now.icon().name(),
+                    Lore.name(tone, Phrases.tr("Setup"), choice.title()), false,
+                    Lore.of(tone).subtitle(Phrases.tr("Step {0}", 5 + i))
+                            .section(Phrases.tr("Information")).text(Phrases.tr("Offered by {0}.", choice.plugin()))
+                            .section("✦", Phrases.tr("Status"))
+                            .stat("star", "info", choice.title(), now == null ? "-" : now.name())
+                            .action(Phrases.tr("Click to choose")).note(Phrases.tr("Applies at once.")),
+                    player -> openChoice(player, choice)));
+        }
         return cards;
     }
 
-    private static YamlConfiguration hub() {
-        YamlConfiguration yaml = frame(27, "11,12,14,15", "NETHER_STAR");
+    // ------------------------------------------------------------------ plugin choices
+
+    /** The option in force, or null when the plugin's current value matches none. */
+    private static @Nullable SetupChoices.Option chosen(SetupChoices.Choice choice) {
+        String id;
+        try {
+            id = choice.current().get();
+        } catch (RuntimeException failed) {
+            return null;
+        }
+        return choice.options().stream().filter(option -> option.id().equalsIgnoreCase(id)).findFirst().orElse(null);
+    }
+
+    /** The cards of a plugin's choice, centred in row 1 by the same rule as every menu. */
+    private static void openChoice(Player player, SetupChoices.Choice choice) {
+        PluginMenus current = menus;
+        if (current == null) {
+            return;
+        }
+        List<SetupChoices.Option> options = choice.options().subList(0, Math.min(choice.options().size(), SetupChoices.MAX_OPTIONS));
+        SetupChoices.Option now = chosen(choice);
+        String id = "setup_choice_" + choice.plugin().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "_") + "_"
+                + choice.id().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "_");
+        // Loaded on each open: the slots depend on how many options there are, and the id is per choice.
+        current.load(id, page(27, slots(options.size(), 1), 22, now == null ? "BOOK" : now.icon().name(),
+                Lore.Tone.INFO, choice.title(), Phrases.tr("Plugin choice"),
+                List.of(Phrases.tr("Offered by {0}.", choice.plugin()))));
+        List<UiEntry> cards = new ArrayList<>();
+        for (SetupChoices.Option option : options) {
+            boolean in = now != null && now.id().equals(option.id());
+            Lore.Tone tone = in ? Lore.Tone.SUCCESS : Lore.Tone.INFO;
+            Lore lore = Lore.of(tone).subtitle(in ? Phrases.tr("Plugin choice · in use") : Phrases.tr("Plugin choice"))
+                    .section(Phrases.tr("Information"));
+            option.description().forEach(lore::text);
+            if (in) {
+                lore.action(Phrases.tr("In use")).note(Phrases.tr("Pick another one to switch."));
+            } else {
+                lore.action(Phrases.tr("Click to choose")).note(Phrases.tr("Applies at once."));
+            }
+            cards.add(card(option.id(), option.icon().name(), Lore.name(tone, choice.title(), option.name()), in, lore,
+                    clicker -> {
+                        if (!in) applyChoice(clicker, choice, option);
+                    }));
+        }
+        current.open(player, id, new HashMap<>(), () -> cards);
+    }
+
+    private static void applyChoice(Player player, SetupChoices.Choice choice, SetupChoices.Option option) {
+        ExyliaLib library = SetupWizard.library();
+        if (library == null) return;
+        Tasks.of(library).runAtEntity(player, () -> {
+            try {
+                choice.apply().accept(option.id());
+            } catch (RuntimeException failed) {
+                library.getLogger().warning("Setup choice " + choice.plugin() + "/" + choice.id() + " failed: " + failed);
+                return;
+            }
+            done(player, Phrases.tr("{letters}{0} set to {highlight}{1}{letters}.", choice.title(), option.name()));
+            openChoice(player, choice);
+        });
+    }
+
+    /** Slots for {@code count} cards in one row: odd counts together at the centre, even counts split around it. */
+    static String slots(int count, int row) {
+        List<String> out = new ArrayList<>();
+        int base = row * 9;
+        if (count % 2 == 1) {
+            for (int i = 0; i < count; i++) out.add(String.valueOf(base + 4 - count / 2 + i));
+        } else {
+            for (int i = 0; i < count / 2; i++) out.add(String.valueOf(base + 3 - count / 2 + 1 + i));
+            for (int i = 0; i < count / 2; i++) out.add(String.valueOf(base + 5 + i));
+        }
+        return String.join(",", out);
+    }
+
+    private static YamlConfiguration hub(int extra) {
+        YamlConfiguration yaml = frame(27, slots(4 + extra, 1), "NETHER_STAR");
         yaml.set("title", "{primary}&l" + Phrases.tr("SETUP"));
         yaml.set("items.header.name", Lore.name(Lore.Tone.PRIMARY, Phrases.tr("Server setup")));
         yaml.set("items.header.lore", Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("First steps"))
@@ -216,6 +314,14 @@ public final class SetupMenu {
                 .text(Phrases.tr("Four choices for every Exylia"))
                 .text(Phrases.tr("plugin. Each one applies at once."))
                 .lines());
+        if (extra > 0) {
+            yaml.set("items.header.lore", Lore.of(Lore.Tone.PRIMARY).subtitle(Phrases.tr("First steps"))
+                    .section(Phrases.tr("Information"))
+                    .text(Phrases.tr("Four choices for every Exylia"))
+                    .text(Phrases.tr("plugin. Each one applies at once."))
+                    .text(Phrases.tr("Plugins add their own choices."))
+                    .lines());
+        }
         yaml.set("items.finish.slot", 22);
         yaml.set("items.finish.material", "LIME_DYE");
         yaml.set("items.finish.name", Lore.name(Lore.Tone.SUCCESS, Phrases.tr("Setup"), Phrases.tr("Finish")));

@@ -2094,3 +2094,10 @@ Use K, M or B for thousands, millions, billions.: Nutze K, M oder B für Tausend
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Menüs siehst du nur aus deinen Augen."
 'Space': 'Leertaste'
 'Hold {0} to confirm': 'Halte {0} zum Bestätigen'
+"Step {0}": "Schritt {0}"
+"Plugin choice": "Plugin-Auswahl"
+"Plugins add their own choices.": "Plugins fügen eigene Auswahlen hinzu."
+"Applies at once.": "Wird sofort angewendet."
+"Offered by {0}.": "Angeboten von {0}."
+"{letters}{0} set to {highlight}{1}{letters}.": "{letters}{0} gesetzt auf {highlight}{1}{letters}."
+"Plugin choice · in use": "Plugin-Auswahl · in Benutzung"

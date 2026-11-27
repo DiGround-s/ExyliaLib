@@ -2078,3 +2078,10 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Os menus são vistos pelos seus olhos."
 'Space': 'Espaço'
 'Hold {0} to confirm': 'Segure {0} para confirmar'
+"Step {0}": "Passo {0}"
+"Plugin choice": "Escolha de plugin"
+"Plugins add their own choices.": "Os plugins adicionam as suas próprias escolhas."
+"Applies at once.": "Aplica-se de imediato."
+"Offered by {0}.": "Oferecido por {0}."
+"{letters}{0} set to {highlight}{1}{letters}.": "{letters}{0} definido como {highlight}{1}{letters}."
+"Plugin choice · in use": "Escolha de plugin · em uso"

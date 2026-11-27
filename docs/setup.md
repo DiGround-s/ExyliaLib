@@ -36,6 +36,25 @@ A theme changes the five identity colours only; `error`, `success`, `warning`,
 `info` and the rest keep their meaning. A palette that matches no theme shows as
 *Custom* and is never overwritten unless a theme is clicked.
 
+## Plugin choices (since 1.675.0)
+
+A plugin can add its own step to the hub, for a decision a new server makes once
+(a map layout, a build mode). Register it in `onEnable`; ExyliaLib drops it when
+the plugin disables. With none registered the hub is unchanged.
+
+```java
+SetupChoices.of(this).choice("layout", "Map layout", List.of(
+        new SetupChoices.Option("zones", "Zones", List.of("Several zones bought with coins."), Material.GRASS_BLOCK),
+        new SetupChoices.Option("plot", "Plot", List.of("One plot per player."), Material.OAK_FENCE)),
+    () -> settings.layoutMode(),            // id of the option in force, read each time the page draws
+    id -> settings.switchLayout(id));       // called with the picked id on the player's thread
+```
+
+Each choice is one hub card (centred beside the four built-in ones) opening a
+page with one card per option, the current one glowing. Names and descriptions
+are the plugin's own text, so translate them there. Limits: 3 choices on the hub,
+7 options per choice; more are not shown. Code: `net.exylia.lib.setup.SetupChoices`.
+
 ## The database step
 
 **Network** asks, in a form (a dialog on 1.21.6+, chat questions before):

@@ -1095,6 +1095,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.node.ClientNodes.release(event.getPlugin());
         net.exylia.lib.clientmob.ClientMobs.release(event.getPlugin());
         net.exylia.lib.kitroom.KitRooms.release(pluginName);
+        net.exylia.lib.setup.SetupChoices.release(pluginName);
         net.exylia.lib.screen.internal.ScreenRuntime.release(event.getPlugin());
         // First: ending a tuning session stops its boss bars and lets the
         // plugin save, which needs the effects and tasks below still up.
