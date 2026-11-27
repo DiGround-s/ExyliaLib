@@ -46,6 +46,7 @@ public final class FakePlayer {
     private volatile org.bukkit.Location location;
     private volatile java.net.InetSocketAddress address;
     private final List<org.bukkit.Location> teleports = new CopyOnWriteArrayList<>();
+    private volatile boolean inEntityTask;
     private final List<String> hidden = new CopyOnWriteArrayList<>();
     private final List<Float> hurtAnimations = new CopyOnWriteArrayList<>();
     private final List<String> pluginMessages = new CopyOnWriteArrayList<>();
@@ -139,8 +140,21 @@ public final class FakePlayer {
                     }
                     // Folia refuses the synchronous teleport on every thread, so
                     // a fake that accepted it would let a Folia-only crash pass.
-                    case "teleport" -> throw new UnsupportedOperationException(
-                            "Must use teleportAsync while in region threading");
+                    // The one exception is a move run from the player's own
+                    // scheduler, which is how the teleport module moves a
+                    // player inside the tick on Paper.
+                    case "teleport" -> {
+                        if (!inEntityTask) throw new UnsupportedOperationException(
+                                "Must use teleportAsync while in region threading");
+                        if (args[0] instanceof org.bukkit.Location where) {
+                            teleports.add(where.clone());
+                            this.location = where.clone();
+                        }
+                        yield true;
+                    }
+                    // Paper's entity scheduler: runs the task at once, as the
+                    // owning thread would on its next tick.
+                    case "getScheduler" -> entityScheduler();
                     // Paper's asynchronous teleport, which is the one the
                     // teleport module uses. Recorded the same way, so a test
                     // asserts on where the player ended up rather than on which
@@ -214,6 +228,30 @@ public final class FakePlayer {
     }
 
     /** Every sound played to this player, in order. */
+    private io.papermc.paper.threadedregions.scheduler.EntityScheduler entityScheduler() {
+        return (io.papermc.paper.threadedregions.scheduler.EntityScheduler) Proxy.newProxyInstance(
+                FakePlayer.class.getClassLoader(),
+                new Class<?>[]{io.papermc.paper.threadedregions.scheduler.EntityScheduler.class},
+                (self, method, args) -> {
+                    if (!method.getName().equals("run")) return FakeServer.defaultValue(method.getReturnType());
+                    if (!online) {
+                        if (args[2] instanceof Runnable retired) retired.run();
+                        return null;
+                    }
+                    inEntityTask = true;
+                    try {
+                        @SuppressWarnings("unchecked")
+                        var task = (java.util.function.Consumer<Object>) args[1];
+                        task.accept(null);
+                    } finally {
+                        inEntityTask = false;
+                    }
+                    return Proxy.newProxyInstance(FakePlayer.class.getClassLoader(),
+                            new Class<?>[]{io.papermc.paper.threadedregions.scheduler.ScheduledTask.class},
+                            (t, m, a) -> FakeServer.defaultValue(m.getReturnType()));
+                });
+    }
+
     /** Everywhere this player was teleported, in order. */
     public List<org.bukkit.Location> teleports() {
         return List.copyOf(teleports);

@@ -344,6 +344,9 @@ public final class FakeServer {
                     case "getBlockAt" -> args[0] instanceof org.bukkit.Location where
                             ? newBlock(self[0], where.getBlockX(), where.getBlockY(), where.getBlockZ())
                             : newBlock(self[0], (int) args[0], (int) args[1], (int) args[2]);
+                    // Chunks are always loaded here; the teleport module waits on this.
+                    case "getChunkAtAsyncUrgently" ->
+                            java.util.concurrent.CompletableFuture.completedFuture(null);
                     default -> defaultValue(method.getReturnType());
                 });
         return self[0];

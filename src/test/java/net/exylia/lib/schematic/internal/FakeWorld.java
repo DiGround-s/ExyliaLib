@@ -65,6 +65,8 @@ final class FakeWorld {
                         yield List.copyOf(entities);
                     }
                     case "getBlockAt" -> block(args);
+                    // Chunks are always loaded here; the teleport module waits on this.
+                    case "getChunkAtAsyncUrgently" -> java.util.concurrent.CompletableFuture.completedFuture(null);
                     case "hashCode" -> System.identityHashCode(self);
                     case "equals" -> self == args[0];
                     case "toString" -> "FakeWorld[" + this.name + "]";
