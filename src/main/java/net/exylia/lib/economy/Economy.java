@@ -458,6 +458,12 @@ public final class Economy {
             java.util.concurrent.CompletableFuture<EconomyResponse> pending;
             try {
                 pending = p.withdrawLater(player, amount, transaction);
+                if (pending == null) {
+                    // A provider's bug, named here: a bare NullPointerException would point at this line instead.
+                    logger.warning(p.getClass().getName() + " answered withdrawLater with no future;"
+                            + " the charge is refused.");
+                    pending = java.util.concurrent.CompletableFuture.completedFuture(null);
+                }
             } catch (RuntimeException failure) {
                 pending = java.util.concurrent.CompletableFuture.failedFuture(failure);
             }
