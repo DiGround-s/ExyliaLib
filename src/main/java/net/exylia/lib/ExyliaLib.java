@@ -258,6 +258,11 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         // Effects plugins keep through a totem: dormant until one registers a rule.
         getServer().getPluginManager().registerEvents(
                 new net.exylia.lib.util.internal.TotemEffectsListener(), this);
+        // Games' PvpZones.allow rules over WorldGuard's pvp deny: one map read per refused hit.
+        if (getServer().getPluginManager().getPlugin("WorldGuard") != null) {
+            getServer().getPluginManager().registerEvents(
+                    new net.exylia.lib.util.worldguard.internal.WorldGuardPvpListener(), this);
+        }
         loadPalette();
         // ItemsAdder and Oraxen load their items after the server starts, so a
         // static item drawn before that holds the fallback until told.
@@ -1259,6 +1264,7 @@ public final class ExyliaLib extends JavaPlugin implements Listener {
         net.exylia.lib.session.internal.Recovering.forgetPlugin(pluginName);
         net.exylia.lib.session.DeathDrops.forgetPlugin(pluginName);
         net.exylia.lib.util.combat.Combat.forgetPlugin(pluginName);
+        net.exylia.lib.util.PvpZones.forgetPlugin(pluginName);
 
         // Everything a plugin still uses from its own onDisable, which has not
         // run yet. Scheduled on the library's scheduler, which is still up:

@@ -13,7 +13,10 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 
 /**
  * Whether PvP is refused at a place, as the region and claim plugins on the
@@ -77,7 +80,70 @@ public final class PvpZones {
 
     private static final ThreadLocal<Location> PROBE = ThreadLocal.withInitial(() -> new Location(null, 0, 0, 0));
 
+    private static final Map<String, BiPredicate<Player, Player>> ALLOWED = new ConcurrentHashMap<>();
+
     private PvpZones() {
+    }
+
+    /**
+     * Lets the hits this plugin's game allows through WorldGuard's {@code pvp deny},
+     * replacing its previous rule.
+     *
+     * <pre>{@code
+     * PvpZones.allow(this, (attacker, victim) -> match.fighting(attacker, victim));
+     * }</pre>
+     *
+     * <p>An arena built inside a region that refuses PvP (a hub, a spawn, the
+     * global region) left its fights without a single hit. A hit the rule accepts
+     * is no longer refused by WorldGuard; every other refusal still applies,
+     * the game's own listeners included. Answer only for two players fighting
+     * each other right now, never for a whole world or a lobby: an FFA spawn
+     * kept safe by a region stays safe only if the rule leaves it out.
+     *
+     * <p>Asked on the victim's thread for each refused hit: answer from memory.
+     * Released with the plugin.
+     *
+     * @param plugin the plugin running the fight
+     * @param rule   whether this attacker may hit this victim here
+     * @since 1.682.0
+     */
+    public static void allow(@NotNull Plugin plugin, @NotNull BiPredicate<Player, Player> rule) {
+        ALLOWED.put(plugin.getName(), rule);
+    }
+
+    /**
+     * Takes this plugin's {@link #allow} rule away.
+     *
+     * @param plugin the plugin
+     * @since 1.682.0
+     */
+    public static void unallow(@NotNull Plugin plugin) {
+        ALLOWED.remove(plugin.getName());
+    }
+
+    /**
+     * Whether some plugin's {@link #allow} rule lets this hit through. A rule that
+     * throws allows nothing.
+     *
+     * @param attacker who hits
+     * @param victim   who is hit
+     * @return {@code true} when a game runs this fight and allows the hit
+     * @since 1.682.0
+     */
+    public static boolean allowedByGame(@NotNull Player attacker, @NotNull Player victim) {
+        for (BiPredicate<Player, Player> rule : ALLOWED.values()) {
+            try {
+                if (rule.test(attacker, victim)) return true;
+            } catch (RuntimeException ignored) {
+                // A broken rule must not take the damage event down with it.
+            }
+        }
+        return false;
+    }
+
+    /** Called by the library when a plugin is disabled. */
+    public static void forgetPlugin(@NotNull String plugin) {
+        ALLOWED.remove(plugin);
     }
 
     /**

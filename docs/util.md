@@ -463,6 +463,21 @@ boolean wall = PvpZones.denies(PvpZones.Source.TOWNY, world, x, y, z, player);
 
 The caller names the sources, so a plugin exposes each as a switch in its own
 config. `Source.available()` says whether the plugin behind one is enabled (for `EXYLIA_REGIONS`, whether any region is registered).
+
+### Games that fight inside a refused region
+
+*Since 1.682.0.* An arena built inside a WorldGuard region with `pvp deny` (a
+hub, a spawn, `__global__`) gets no hits at all. A game declares which hits it
+runs, and WorldGuard's refusal is lifted for those (through its
+`DisallowedPVPEvent`); every other refusal, the game's own included, still applies.
+
+```java
+PvpZones.allow(this, (attacker, victim) -> match.fighting(attacker, victim));
+```
+
+Answer only for two players fighting each other now, never for a whole world
+or lobby, or a spawn kept safe by a region stops being safe. Asked on the
+victim's thread: read memory. Released with the plugin (`unallow` to take it back).
 Every claim plugin is reached by reflection through its own class loader and
 resolved once per plugin instance; one that is missing, cannot be resolved or
 throws answers "allowed" and is logged once. Ask on the thread that owns the
