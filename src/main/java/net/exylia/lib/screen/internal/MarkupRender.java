@@ -647,6 +647,9 @@ public final class MarkupRender {
         } else if (el.tag().equals("item")) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+            // tint="#120d1a": the sprite multiplied by that colour, a dark shape for what is not found yet (1.677.0).
+            String tint = tint(el, scope);
+            if (stack != null && tint != null) node.tint(tint);
         } else if (el.tag().equals("canvas")) {
             // <canvas id="table">: the session's scene of that id, sized by CSS (1.500.0).
             String id = el.attr("id") == null ? "canvas" : el.attr("id");
@@ -661,6 +664,10 @@ public final class MarkupRender {
             if (el.attr("wearing") != null) {
                 preview = net.exylia.lib.spatial.SpatialPreview.npc(session.viewer(),
                         Outfit.equipment(fill(el.attr("wearing"), scope, false)));
+            }
+            // <window mob="wolf">: a mob of that type standing there, facing the viewer (1.677.0).
+            if (el.attr("mob") != null && (preview == null || preview == net.exylia.lib.spatial.SpatialPreview.none())) {
+                preview = net.exylia.lib.spatial.SpatialPreview.mob(fill(el.attr("mob"), scope, false));
             }
             if (preview != null && preview != net.exylia.lib.spatial.SpatialPreview.none()) {
                 node = Node.window(preview).vanish(el.attr("vanish") != null);
@@ -694,7 +701,10 @@ public final class MarkupRender {
             String material = fill(el.attr("material") != null ? el.attr("material") : el.text(), scope, false).trim();
             // ponytail: block items whose sprite lives under block/ fall back to the glyph; map them when needed.
             String glyph = attrOr(el, "glyph", "◆");
-            node = words("{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}", text);
+            String tint = tint(el, scope);
+            String sprite = "{icon:items:item/" + material.toLowerCase(Locale.ROOT) + "|" + glyph + "}";
+            // A sprite and its stand-in glyph are both drawn in the text's colour: tint="#rrggbb" sets it (1.677.0).
+            node = words(tint == null ? sprite : "<color:" + tint + ">" + sprite + "</color>", text);
         } else if (el.elements().isEmpty() && !el.text().isEmpty()) {
             String drawn = fill(el.text(), scope, true);
             changed = drawn;
@@ -727,6 +737,10 @@ public final class MarkupRender {
             }
         }
         box(node, style, parts.css());
+        // A cell of a layout="free" repeat with its own left/top is placed there inside the grid's box (1.677.0).
+        if (path == freeCells && node.absolute() == null && (style.containsKey("left") || style.containsKey("top"))) {
+            node.absolute(px(style.get("top"), Double.NaN), Double.NaN, Double.NaN, px(style.get("left"), Double.NaN));
+        }
         if (style.containsKey("background-image")) backgroundImage(node, el, style.get("background-image"));
         if (el.attr("id") != null && source == null) node.id(fill(el.attr("id"), scope, false));
         if ("low".equalsIgnoreCase(el.attr("priority"))) node.decoration(true);
@@ -814,6 +828,15 @@ public final class MarkupRender {
 
     /** Owners of state, innermost last; set while building so options find theirs. */
     private final List<El> owners = new ArrayList<>();
+    /** The path of the repeat whose cells are placed by their own left/top ({@code layout="free"}), or {@code null}. */
+    private List<Css.Target> freeCells;
+
+    /** An element's {@code tint="#rrggbb"}, filled, or {@code null} without one or with something else in it. */
+    private String tint(El el, Scope scope) {
+        if (el.attr("tint") == null) return null;
+        String tint = fill(el.attr("tint"), scope, false).trim();
+        return tint.matches("#[0-9a-fA-F]{6}") ? tint.toLowerCase(Locale.ROOT) : null;
+    }
 
     private El stateOwner(List<Css.Target> path) {
         return owners.isEmpty() ? null : owners.get(owners.size() - 1);
@@ -875,6 +898,9 @@ public final class MarkupRender {
         int visible = end - offset;
         boolean paged = windowed && el.attr("rows") != null && node.kind() != Node.Kind.ROW;
         boolean own = el.attr("state") != null;
+        boolean free = "free".equalsIgnoreCase(el.attr("layout"));
+        List<Css.Target> outerFree = freeCells;
+        if (free) freeCells = here;
         Set<String> seen = new HashSet<>();
         if (own) owners.add(el);
         try {
@@ -912,6 +938,13 @@ public final class MarkupRender {
                 }
                 for (int c = 0; c < built.size(); c++) {
                     Node cell = built.get(c);
+                    if (free && cell.absolute() != null) {
+                        // Placed by its own left/top in the grid's box; its place in the line stays empty, so the
+                        // cells around it that the sheet leaves alone keep theirs.
+                        node.add(cell.id(c == 0 ? base : base + "." + c));
+                        line.add(Node.row().width(Math.max(0, cell.width())).grow(1));
+                        continue;
+                    }
                     // Every column the same width, whatever its words need, as CSS grid columns are.
                     if (cell.width() < 0) cell.width(0);
                     line.add(cell.grow(1).id(c == 0 ? base : base + "." + c));
@@ -928,6 +961,7 @@ public final class MarkupRender {
             }
         } finally {
             if (own) owners.remove(owners.size() - 1);
+            freeCells = outerFree;
         }
         if (windowed && window < all.size()) {
             int size = all.size();

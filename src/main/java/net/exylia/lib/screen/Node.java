@@ -56,6 +56,7 @@ public final class Node {
     private final List<Node> children = new ArrayList<>();
     private Component text;
     private ItemStack item;
+    private @Nullable String tint;
     private int[] pixels;
     private Node backgroundImage;
     private int pixelWidth;
@@ -213,6 +214,24 @@ public final class Node {
     /** Degrees a second a {@link #item3d} turns. @since 1.499.0 */
     public double spin() {
         return spin;
+    }
+
+    /**
+     * Draws an {@link #item}'s sprite multiplied by {@code rgb} ({@code #rrggbb}): near black is a dark shape of it, for
+     * what a collection has not found yet. A 1.21.11+ client draws it as one coloured sprite glyph, an older one as the
+     * pixel picture with every pixel multiplied; an item with no flat sprite (a block, a head) shows as itself. A colour
+     * that is not {@code #rrggbb} is no tint.
+     *
+     * @since 1.677.0
+     */
+    public @NotNull Node tint(@Nullable String rgb) {
+        this.tint = rgb != null && rgb.matches("#[0-9a-fA-F]{6}") ? rgb.toLowerCase(java.util.Locale.ROOT) : null;
+        return this;
+    }
+
+    /** The {@link #tint(String)} colour, {@code null} for none. @since 1.677.0 */
+    public @Nullable String tint() {
+        return tint;
     }
 
     /**

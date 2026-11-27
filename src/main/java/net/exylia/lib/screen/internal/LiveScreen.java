@@ -1854,7 +1854,7 @@ final class LiveScreen implements ScreenSession {
                     // Read from disk off this thread the first time; drawn on the redraw its arrival asks for.
                     Pictures.Picture sprite = node.solid() ? null : VanillaSprites.of(node.item(), tasks, this::redraw);
                     net.kyori.adventure.text.Component glyph = sprite != null && sprite != VanillaSprites.LOADING
-                            ? spriteGlyph(node.item()) : null;
+                            ? spriteGlyph(node.item(), node.tint()) : null;
                     if (node.solid()) {
                         // <item3d>: the model itself, turning a step every second like a body.
                         boolean flat = VanillaSprites.flat(node.item().getType());
@@ -1870,13 +1870,15 @@ final class LiveScreen implements ScreenSession {
                         // A 1.21.11+ client draws the sprite itself: one display.
                         wanted.put(key, xf(new TextLook(ix, iy, side * grow / 8, top, glyph, 1, 0), xf));
                         mine.add(key);
-                    } else if (sprite == null || lod >= 3 || VanillaSprites.tinted(node.item())) {
+                    } else if (sprite == null || (lod >= 3 || VanillaSprites.tinted(node.item())) && node.tint() == null) {
                         // A tinted item (dyed leather, a potion) is shown as the item itself: its dye and trim in one display.
                         wanted.put(key, xf(new ItemLook(ix, iy, side * unit * grow, top, node.item()), xf));
                         mine.add(key);
                     } else {
                         double cell = side * grow / Math.max(sprite.width(), sprite.height());
-                        mine.addAll(pictureLooks(key, ix, iy, cell, top, Pictures.glyphs(sprite.argb(), sprite.width(),
+                        // A tint is kept at every detail level: the dark shape is the point, not a decoration.
+                        int[] pixels = node.tint() == null ? sprite.argb() : Pictures.tinted(sprite.argb(), node.tint());
+                        mine.addAll(pictureLooks(key, ix, iy, cell, top, Pictures.glyphs(pixels, sprite.width(),
                                 sprite.height(), beneath[depth]), sprite.height(), wanted, xf));
                     }
                 }
@@ -2151,10 +2153,14 @@ final class LiveScreen implements ScreenSession {
     }
 
     /** The item as one sprite glyph, for a client and server that draw sprites; {@code null} otherwise. */
-    private Component spriteGlyph(org.bukkit.inventory.ItemStack item) {
-        // A tinted item is shown as itself: the atlas glyph would be the grey, undyed texture.
-        if (!spriteGlyphs || item.getType().isBlock() || VanillaSprites.tinted(item)) return null;
-        return net.exylia.lib.text.Text.of("<white>{icon:items:item/" + item.getType().getKey().getKey() + "|◆}").build();
+    private Component spriteGlyph(org.bukkit.inventory.ItemStack item, @Nullable String tint) {
+        if (!spriteGlyphs || item.getType().isBlock()) return null;
+        String sprite = "{icon:items:item/" + item.getType().getKey().getKey();
+        // tint="#rrggbb" (1.677.0): the glyph drawn in that colour multiplies the sprite.
+        if (tint != null) return net.exylia.lib.text.Text.of("<color:" + tint + ">" + sprite + "|◆|tint}").build();
+        // A dyed item is shown as itself: the atlas glyph would be the grey, undyed texture.
+        if (VanillaSprites.tinted(item)) return null;
+        return net.exylia.lib.text.Text.of("<white>" + sprite + "|◆}").build();
     }
 
     /** Sends what the layout wants and the client does not have. Holds the lock. */

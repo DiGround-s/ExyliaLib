@@ -202,3 +202,23 @@ Classes filled per render (1.503.0) take part in CSS matching:
 ```
 
 The same works with a row field: `class="tile %tone%"`.
+
+## A page drawn as a constellation (1.677.0)
+
+`layout="free"` keeps the window, the pager and the wheel, and lets the sheet place every cell of the page:
+
+```html
+<grid id="sky" source="stars" columns="4" rows="3" layout="free" track="%star_id%">
+  <card class="star" action="set pick %star_id%"><item material="%star_icon%" tint="${found ? '' : '#120d1a'}"/></card>
+</grid>
+<pager for="stars" keys="a d"/>
+```
+
+```css
+#sky { width: 260px; height: 150px; }
+#sky > :nth-child(1) { left: 22px; top: 6px; }
+#sky > :nth-child(2) { left: 70px; top: 40px; }
+/* ... one rule per cell of the page; a cell without one keeps its place in the lines */
+```
+
+An empty `tint` is no tint, so `${...}` can switch it on for what is still undiscovered.

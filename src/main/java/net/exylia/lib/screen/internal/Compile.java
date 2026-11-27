@@ -66,7 +66,9 @@ public final class Compile {
             // 1.671.0: number and change feedback
             "count-up", "on-change",
             // 1.672.0: hold to confirm, small tooltips
-            "action-hold", "hold-label", "tooltip-style", "tooltips");
+            "action-hold", "hold-label", "tooltip-style", "tooltips",
+            // 1.677.0: free cells, a mob in a window, tinted sprites
+            "layout", "mob", "tint");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -381,6 +383,23 @@ public final class Compile {
             if (el.attr("action") == null) problem(el.pos(), "action-hold needs an action=\"...\" to run once held");
             else if (MotionCss.ticks(el.attr("action-hold")) <= 0 && !el.attr("action-hold").contains("${"))
                 problem(el.pos(), "action-hold wants a time such as 24t or 1.2s, not " + el.attr("action-hold"));
+        }
+        String layout = el.attr("layout");
+        if (layout != null) {
+            if (!layout.equalsIgnoreCase("free")) problem(el.pos(), "layout=\"" + layout + "\": the only layout is free");
+            else if (el.attr("source") == null) problem(el.pos(), "layout=\"free\" belongs on a <grid> or <list> with source=\"...\"");
+        }
+        String mob = el.attr("mob");
+        if (mob != null) {
+            if (!tag.equals("window")) problem(el.pos(), "mob=\"...\" belongs on a <window>");
+            else if (!Interp.dynamic(mob) && net.exylia.lib.spatial.SpatialPreview.mob(mob) == net.exylia.lib.spatial.SpatialPreview.none())
+                problem(el.pos(), "mob=\"" + mob + "\" is not a living entity type (zombie, wolf, iron_golem...)");
+        }
+        String tint = el.attr("tint");
+        if (tint != null) {
+            if (!tag.equals("item") && !tag.equals("icon")) problem(el.pos(), "tint=\"...\" belongs on an <item> or <icon>");
+            else if (!Interp.dynamic(tint) && !tint.trim().matches("#[0-9a-fA-F]{6}"))
+                problem(el.pos(), "tint=\"" + tint + "\" wants a colour such as #120d1a");
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));

@@ -69,6 +69,10 @@ public abstract class PreviewPlayer {
     protected @Nullable NpcHandle npc;
     protected @Nullable DisplayHandle item;
     private SpatialPreview current = SpatialPreview.none();
+    /** A {@link SpatialPreview.Mob}'s body, and when it next turns its head (1.677.0). */
+    private @Nullable net.exylia.lib.clientmob.ClientMob mob;
+    private long nextGlance;
+    private int glances;
     private @Nullable SequenceRun run;
     private long nextPlay;
     private long npcUntil;
@@ -221,8 +225,29 @@ public abstract class PreviewPlayer {
                         still(rotation, size, size, size), plane.point(0, size / 2, 0));
                 nextPlay = 0;
             }
+            case SpatialPreview.Mob shown -> {
+                // Packets only, no AI and no sound: it stands where a body would, facing the viewer.
+                try {
+                    mob = net.exylia.lib.clientmob.ClientMobs.of(plugin).spawn(viewer, shown.type(), stand);
+                    mob.clickThrough(true);
+                } catch (IllegalArgumentException unspawnable) {
+                    mob = null;
+                }
+                nextGlance = System.currentTimeMillis() + 1500L;
+            }
             case SpatialPreview.None none -> { }
         }
+    }
+
+    /** Where a mob on show looks in turn: at the viewer, to its left, at the viewer, to its right. */
+    private static final double[] GLANCES = {0, -1.3, 0, 1.1};
+
+    /** A mob's idle head turn, every two to three and a half seconds. */
+    private void glance(long now) {
+        if (mob == null || now < nextGlance) return;
+        glances++;
+        mob.lookAt(plane.point(GLANCES[glances % GLANCES.length], 1.6, 4));
+        nextGlance = now + 2000L + java.util.concurrent.ThreadLocalRandom.current().nextLong(1500L);
     }
 
     /** A flight, every poll: sets off again when due, draws its trail where it is, its impact once it lands. */
@@ -456,6 +481,10 @@ public abstract class PreviewPlayer {
             perform(act, now);
             return;
         }
+        if (current instanceof SpatialPreview.Mob) {
+            glance(now);
+            return;
+        }
         // Gone while its effect plays, and back only once every piece of it is: never two bodies.
         if (current instanceof SpatialPreview.Effect effect && npc == null && hidden
                 && (run == null || run.isFinished())) {
@@ -523,6 +552,9 @@ public abstract class PreviewPlayer {
         rehearsing = null;
         if (npc != null) npc.remove();
         npc = null;
+        if (mob != null) mob.remove();
+        mob = null;
+        glances = 0;
         drop(item);
         item = null;
         if (run != null) run.cancel();

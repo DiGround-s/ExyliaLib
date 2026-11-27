@@ -1,6 +1,7 @@
 package net.exylia.lib.spatial;
 
 import net.exylia.lib.util.sequence.Sequence;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -14,7 +15,7 @@ import java.util.function.Supplier;
 /**
  * What stands in the middle of a spatial menu, on its pedestal, slowly turning: the player wearing
  * what they are choosing, an item, an effect playing for real on a mannequin, a projectile flying
- * with its trail, or nothing. Returned by
+ * with its trail, a mob (since 1.677.0), or nothing. Returned by
  * the menu's {@code preview}, read again on every redraw: an equal preview is left as it is, an NPC
  * whose equipment alone changed is re-dressed rather than redrawn.
  *
@@ -126,6 +127,34 @@ public sealed interface SpatialPreview {
         return new Flight(projectile.clone(), launch, trail, Math.max(1, trailEveryTicks), impact);
     }
 
+    /**
+     * A mob of {@code type} standing on the pedestal facing the viewer, turning its head now and then: packets only,
+     * for the viewer alone, with no AI and no sound. A type that is not a living mob (or a player) is {@link #none()}.
+     * Baby and variant are the type's defaults.
+     *
+     * @since 1.677.0
+     */
+    static @NotNull SpatialPreview mob(@NotNull EntityType type) {
+        return type == EntityType.PLAYER || !type.isAlive() || !type.isSpawnable() ? none() : new Mob(type);
+    }
+
+    /**
+     * {@link #mob(EntityType)} by name: {@code zombie}, {@code minecraft:iron_golem} or {@code IRON_GOLEM}; an unknown
+     * name is {@link #none()}.
+     *
+     * @since 1.677.0
+     */
+    static @NotNull SpatialPreview mob(@Nullable String type) {
+        if (type == null || type.isBlank()) return none();
+        String name = type.trim().toUpperCase(java.util.Locale.ROOT);
+        if (name.startsWith("MINECRAFT:")) name = name.substring("MINECRAFT:".length());
+        try {
+            return mob(EntityType.valueOf(name));
+        } catch (IllegalArgumentException unknown) {
+            return none();
+        }
+    }
+
     /** No preview. */
     enum None implements SpatialPreview { NONE }
 
@@ -171,6 +200,10 @@ public sealed interface SpatialPreview {
     /** @since 1.422.0 */
     record Flight(@NotNull ItemStack projectile, @Nullable Sequence launch, @Nullable Sequence trail,
                   int trailEveryTicks, @Nullable Sequence impact) implements SpatialPreview {
+    }
+
+    /** @since 1.677.0 */
+    record Mob(@NotNull EntityType type) implements SpatialPreview {
     }
 
     /** {@code everyMillis}: how often it plays again, never cutting a play short; 0 for the default pace. */

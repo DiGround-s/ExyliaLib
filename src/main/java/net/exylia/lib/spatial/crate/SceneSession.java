@@ -778,6 +778,8 @@ final class SceneSession {
                 }
                 case SpatialPreview.Performance act -> nextPlay = now() + 600L;
                 case SpatialPreview.LiveNpc live -> { }
+                // A crate prize is an item or a body; a mob (1.677.0) is not one, so the plinth stays empty.
+                case SpatialPreview.Mob shownMob -> { }
                 case SpatialPreview.Flight flight -> { }
                 case SpatialPreview.None none -> { }
             }

@@ -37,7 +37,19 @@ public final class Pictures {
         }
     }
 
-    /** Files are read again after a while, so an owner's edit shows without a restart. */
+    /** {@code argb} with every pixel's colour multiplied by {@code #rrggbb}, its alpha kept (1.677.0). */
+    static int[] tinted(int[] argb, String rgb) {
+        int tint = Integer.parseInt(rgb.substring(1), 16);
+        int tr = tint >> 16 & 0xff, tg = tint >> 8 & 0xff, tb = tint & 0xff;
+        int[] out = new int[argb.length];
+        for (int i = 0; i < argb.length; i++) {
+            int p = argb[i];
+            out[i] = p & 0xff000000 | ((p >> 16 & 0xff) * tr / 255) << 16 | ((p >> 8 & 0xff) * tg / 255) << 8 | (p & 0xff) * tb / 255;
+        }
+        return out;
+    }
+
+        /** Files are read again after a while, so an owner's edit shows without a restart. */
     private static final Cache<Path, Picture> FILES = Caffeine.newBuilder()
             .maximumSize(256).expireAfterWrite(Duration.ofSeconds(30)).build();
     /** A player's body in the round: each part's four sides, by skin url. */

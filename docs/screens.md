@@ -1086,6 +1086,11 @@ screens.markup("effects").value("effect_preview", session -> {
   it wears in place, with real armour, trims and glint.
 - **Nothing to show:** a `none()` or missing value makes it a plain box drawing what is inside it, so what cannot be
   previewed (no permission, nothing chosen) keeps its icon.
+- `mob="<entity type>"` (1.677.0) stands a mob of that type there, packets only, facing the viewer and turning its
+  head every few seconds: no AI, no sound, the type's default baby and variant (`wolf`, `minecraft:iron_golem`,
+  `%pet_mob%`). Java: `SpatialPreview.mob(EntityType)` (or `mob(String)`), which a spatial menu's pedestal plays too;
+  a crate scene shows nothing for it. A type that is not a living mob, or `player`, is `none()`: the children stand
+  in. The stage is about three blocks tall, so a ghast or a dragon is cropped.
 - `vanish` makes the mannequin disappear while the effect plays, so a kill reads as a death (a spatial layout's
   `vanish-on-play`). Without it the mannequin stands and takes the effect.
 - Java: `Node.window(preview).vanish(true)`. One a screen; a second is an ordinary box. A `scene=` background is not cut.
