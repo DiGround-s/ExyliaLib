@@ -39,6 +39,7 @@ Set<String> worlds();
 boolean appliesIn(World world);
 List<String> rejected();
 int swappedStates();
+BlockData shown(BlockData real);            // 1.676.0: what a palette viewer sees in its place (see areas.md)
 
 // BlockPalettes
 static BlockPalettes of(Plugin plugin);

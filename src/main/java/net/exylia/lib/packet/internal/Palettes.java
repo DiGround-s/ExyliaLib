@@ -43,6 +43,11 @@ public final class Palettes {
         return PacketRuntime.isAvailable();
     }
 
+    /** What a table shows in place of a real block; the block itself without PacketEvents or a swap. */
+    public static BlockData shown(PaletteTable table, BlockData real) {
+        return table.isEmpty() || !supported() ? real : PaletteStates.shown(table, real);
+    }
+
     /**
      * Compiles swaps into a table for this server, adding to {@code rejected} each swap refused and why.
      * An empty table when PacketEvents is missing.

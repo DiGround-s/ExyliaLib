@@ -56,6 +56,13 @@ final class PaletteStates {
     }
 
     /** Adds one state's swap, its shared properties carried over; the reason when it may not be. */
+    /** The block a table shows in place of {@code real}: {@code real} itself when it is not swapped. */
+    static BlockData shown(PaletteTable table, BlockData real) {
+        int id = SpigotConversionUtil.fromBukkitBlockData(real).getGlobalId();
+        int to = table.remap(id);
+        return to == id ? real : SpigotConversionUtil.toBukkitBlockData(WrappedBlockState.getByGlobalId(to, false));
+    }
+
     private static String add(BlockData from, int fromId, Material to, Location at, Map<Integer, Integer> into) {
         BlockData shown = to.createBlockData();
         from.copyTo(shown);

@@ -80,6 +80,17 @@ public final class Palette {
         return table.swapped();
     }
 
+    /**
+     * The block a player with this palette is shown in place of a real one: {@code real} itself when
+     * this palette does not swap it, or when palettes do not work on this server. For drawing one area
+     * in a palette with fake blocks ({@code AreaLooks#paint}). Any thread.
+     *
+     * @since 1.676.0
+     */
+    public @NotNull BlockData shown(@NotNull BlockData real) {
+        return Palettes.shown(table, real);
+    }
+
     PaletteTable table() {
         return table;
     }
