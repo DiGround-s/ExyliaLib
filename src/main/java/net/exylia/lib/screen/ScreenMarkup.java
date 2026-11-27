@@ -71,7 +71,7 @@ public final class ScreenMarkup {
     /** The library's own components, known to every screen below the plugin's (since 1.496.0). */
     private static final List<String[]> LIBRARY = loadLibrary();
     /** Actions every screen knows without registering. */
-    private static final Set<String> BUILT_IN = Set.of("close", "animate", "set", "clear", "toggle", "toast", "back", "sound",
+    private static final Set<String> BUILT_IN = Set.of("close", "animate", "burst", "set", "clear", "toggle", "toast", "back", "sound",
             "confirm", "input");
 
     /** One read of the files: what a render draws until the next read. */

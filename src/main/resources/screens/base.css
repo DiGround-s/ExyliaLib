@@ -171,3 +171,12 @@ search:hover { outline: 1px var(--primary); }
 .lib-table-action-error:hover { background: var(--error)a0; }
 .lib-table-action-success { background: var(--success)48; outline: 1px var(--success)70; }
 .lib-table-action-success:hover { background: var(--success)80; }
+/* The podium template (1.673.0): plinths 2-1-3, the first tallest, dropping in one after the other. */
+.lib-podium { gap: 6px; align-items: end; justify-content: center; stagger: 3t; }
+.lib-podium-place { gap: 2px; align-items: center; width: 56px; enter: translateY(-10px) 6t back; }
+.lib-podium-name { font-size: 8px; }
+.lib-podium-value { color: var(--letters-black); }
+.lib-podium-plinth { align-items: center; justify-content: center; width: 56px; background: var(--primary)30; outline: 1px var(--primary)50; }
+.lib-podium-1 .lib-podium-plinth { height: 26px; background: var(--highlight)30; outline: 1px var(--highlight)60; }
+.lib-podium-2 .lib-podium-plinth { height: 18px; }
+.lib-podium-3 .lib-podium-plinth { height: 12px; }

@@ -40,6 +40,8 @@ class ScreenMarkupTest {
         @Override public void redraw() { }
         @Override public boolean open() { return !closed; }
         @Override public void close() { closed = true; }
+        final List<String> bursts = new ArrayList<>();
+        @Override public void burst(String id, int count, String... colours) { bursts.add(id + " " + count + " " + String.join(" ", colours)); }
 
         Node render() { return screen.render().apply(this); }
 

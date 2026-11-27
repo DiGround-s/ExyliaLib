@@ -889,6 +889,7 @@ final class LiveScreen implements ScreenSession {
             close();
             return;
         }
+        root = withEffects(root);
         if (fitStep > 0) root = over(root, FitPanel.of(this));
         else if (settingsOpen) root = over(root, SettingsPanel.of(this));
         Confirm ask = confirm;
@@ -1243,6 +1244,31 @@ final class LiveScreen implements ScreenSession {
             }
         }
     };
+
+    /** Where {@link #burst} draws: a scene of its own over the page, never one a {@code <canvas>} shows (1.673.0). */
+    private final net.exylia.lib.screen.ScreenScene effects = new net.exylia.lib.screen.ScreenScene("~effects", sceneHost);
+    /** How far a burst flies past its box's edge, and for how long. */
+    private static final double BURST_REACH = 10;
+    private static final int BURST_TICKS = 10;
+
+    @Override
+    public void burst(@NotNull String id, int count, @NotNull String... colours) {
+        if (!open() || count <= 0 || colours.length == 0) return;
+        for (Layout.Placed box : view.placed()) {
+            if (!id.equals(box.node().id())) continue;
+            double reach = Math.min(40, Math.max(box.w(), box.h()) / 2 + BURST_REACH);
+            effects.burst(box.x() + box.w() / 2, box.y() + box.h() / 2, Math.min(12, count), reach, BURST_TICKS, colours);
+            return;
+        }
+    }
+
+    /** The burst layer over the page while something flies on it: no box at all otherwise. */
+    private Node withEffects(Node root) {
+        Node layer = effects.node(screen.width(), screen.height());
+        if (layer.children().isEmpty()) return root;
+        // The squares are decoration: cursor assist keeps working under them.
+        return over(root, layer.assist(true).absolute(0, Double.NaN, Double.NaN, 0).layer(8));
+    }
 
     @Override
     public net.exylia.lib.screen.@NotNull ScreenScene scene(@NotNull String id) {

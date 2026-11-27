@@ -188,6 +188,7 @@ Detail in [`action`](screens.md#attributes-on-any-tag) and
 | `confirm '<question>' [dangerous] [yes=..] [no=..] then <actions>` | In-screen dialog; what follows `then` runs only on yes | 1.496.0 |
 | `input text <key> '<prompt>' [hint=..] [max=n] then <actions>` | Asks for a line of text into state `<key>` | 1.496.0 |
 | `animate [#id] <keyframes> [duration] [easing] [count] [alternate]` | Plays keyframes once on the box of that id, or on the clicked one (it needs an `id`); 10 ticks unless given. `deny="animate shake; sound entity.villager.no"` | 1.565.0 |
+| `burst [#id] [count] [colour...]` | Up to 12 small squares fly out of the box of that id (or the clicked one) over the page and are gone in about 10 ticks; colours `{token}`, `var(--token)` or `#rrggbb` in turn (the theme's by default). Nothing under reduced motion or past the motion ceiling. `action="ns:upgrade %u_id%; burst #buy 8 var(--success)"`. Java: `ScreenSession#burst(id, count, colours...)`. Cost: one display per square, about 3 packets each, for 10 ticks | 1.673.0 |
 | `[console]`, `[player]`, `[MONEY]`, `[MESSAGE]`, `[TITLE]`, `[SERVER]`, `[TELEPORT]`, `[ACTION]`, `[DELAY]` | [Interaction lines](interactions.md) | 1.501.0 |
 | `name args` | The markup's own `action(...)`, then a namespaced ExyliaLib action (`practice:join_queue boxing`) | 1.485.0 |
 

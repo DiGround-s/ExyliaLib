@@ -91,4 +91,25 @@ class ScreenKit2MarkupTest {
         assertEquals(Node.TooltipStyle.HINT, find(root, "a").tooltipStyle());
         assertEquals(Node.TooltipStyle.PANEL, find(root, "b").tooltipStyle());
     }
+
+    @Test
+    void burstActionAimsAtTheBoxWithCountAndColours() {
+        ScreenMarkupTest.Fake s = session("""
+                <screen><button id="buy" action="set bought yes; burst #wallet 20 var(--success) {highlight}">Buy</button>
+                  <button id="claim" action="burst">Claim</button><box id="wallet"/></screen>""");
+        s.click("buy");
+        s.click("claim");
+        // The count stops at 12; var(--token) becomes the palette token; no colour is the theme's.
+        assertEquals(List.of("wallet 12 {success} {highlight}", "claim 8 {primary} {secondary_light} {highlight}"), s.bursts);
+    }
+
+    @Test
+    void podiumShowsTheFirstThreeAsTwoOneThree() {
+        ScreenMarkup parsed = ScreenMarkup.parse("kit2", """
+                <screen><column id="top"><podium source="kits" name="kit_name" value="playing" skin="kit_name"/></column></screen>""");
+        parsed.source("kits", x -> ScreenMarkupTest.kits(5));
+        assertTrue(parsed.problems().isEmpty(), parsed.problems().toString());
+        Node top = find(new ScreenMarkupTest.Fake(parsed.screen()).render(), "top");
+        assertEquals(List.of("K2", "20", "2", "K1", "10", "1", "K3", "30", "3"), texts(top));
+    }
 }

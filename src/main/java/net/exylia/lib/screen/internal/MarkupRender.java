@@ -1195,6 +1195,30 @@ public final class MarkupRender {
         else event.session().animate(id, keyframes);
     }
 
+    private static final Pattern PALETTE_VAR = Pattern.compile("var\\(--([\\w-]+)\\)");
+
+    /**
+     * {@code burst [#id] [count] [colour...]}: squares fly out of the box (the clicked one without {@code #id}) and
+     * are gone (1.673.0). Colours are {@code {token}}, {@code var(--token)} or {@code #rrggbb}; the theme's by default.
+     */
+    private void burst(List<String> words, ScreenEvent event, El el) {
+        String id = event.node();
+        int at = 0;
+        if (at < words.size() && words.get(at).startsWith("#")) id = words.get(at++).substring(1);
+        int count = 8;
+        if (at < words.size() && words.get(at).matches("\\d+")) count = Math.min(12, Integer.parseInt(words.get(at++)));
+        List<String> colours = new ArrayList<>();
+        for (String word : words.subList(at, words.size())) {
+            colours.add(PALETTE_VAR.matcher(word).replaceAll(m -> "{" + m.group(1).replace('-', '_') + "}"));
+        }
+        if (colours.isEmpty()) colours = List.of("{primary}", "{secondary_light}", "{highlight}");
+        if (id == null || id.isEmpty()) {
+            parts.problems().accept(el.pos() + ": burst needs #id, or an id on the element clicked");
+            return;
+        }
+        event.session().burst(id, count, colours.toArray(String[]::new));
+    }
+
     /** {@code confirm '<question>' [dangerous] [yes='<label>'] [no='<label>'] then <steps>}: a dialog in the screen. */
     private void confirm(List<String> head, List<List<String>> rest, ScreenEvent event, El el) {
         String question = head.isEmpty() ? "" : head.get(0);
@@ -1291,6 +1315,7 @@ public final class MarkupRender {
                 if (!words.isEmpty()) event.session().set(words.get(0), !truthy(event.session().state(words.get(0), false)));
             }
             case "animate" -> animate(words, event, el);
+            case "burst" -> burst(words, event, el);
             default -> {
                 BiConsumer<ScreenEvent, List<String>> handler = parts.bindings().actions().get(name);
                 if (handler != null) {

@@ -144,3 +144,22 @@
 <template name="table-action" props="action tone=error">
   <button class="lib-table-action lib-table-action-${tone}" action="${action}"><slot/></button>
 </template>
+
+<!--
+  The podium (1.673.0, docs/screens.md, "Component library"): the first three rows of a source on plinths, 2-1-3, each
+  with its flat skin, name and value, dropping in one after the other. `name`, `value` and `skin` are row fields (`skin`
+  the player name the body is drawn from). Pair it with a list of the same source and skip="3" for the ranks under it.
+-->
+<template name="podium" props="source name value skin">
+  <row class="lib-podium">
+    <for each="r in ${source}" skip="1"><column if="loop.first" class="lib-podium-place lib-podium-2">
+      <img class="lib-podium-skin" skin="%${skin}%"/><b class="lib-podium-name">%${name}%</b><small class="lib-podium-value">%${value}%</small>
+      <box class="lib-podium-plinth"><b>2</b></box></column></for>
+    <for each="r in ${source}"><column if="loop.first" class="lib-podium-place lib-podium-1">
+      <img class="lib-podium-skin" skin="%${skin}%"/><b class="lib-podium-name">%${name}%</b><small class="lib-podium-value">%${value}%</small>
+      <box class="lib-podium-plinth"><b>1</b></box></column></for>
+    <for each="r in ${source}" skip="2"><column if="loop.first" class="lib-podium-place lib-podium-3">
+      <img class="lib-podium-skin" skin="%${skin}%"/><b class="lib-podium-name">%${name}%</b><small class="lib-podium-value">%${value}%</small>
+      <box class="lib-podium-plinth"><b>3</b></box></column></for>
+  </row>
+</template>

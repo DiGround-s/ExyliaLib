@@ -835,6 +835,10 @@ modal { enter: scale(0.9) 5t back; leave: scale(0.94) 3t ease-in; }
   again whenever they change. Inherited.
 - `animate [#id] <keyframes> [duration] [easing]` (1.565.0), an action, and `session.animate(id, keyframes)` in
   Java: one play on a box, over its own transform. `deny="animate shake"` is the house refusal.
+- `burst [#id] [count] [colour...]` (1.673.0), an action, and `session.burst(id, count, colours...)` in Java: up to
+  12 squares fly out of the box and are gone in about 10 ticks, drawn on a layer of the session's own over the page (no
+  `<canvas>` needed, cursor assist unaffected). Colours are `{token}`, `var(--token)` or `#rrggbb`. Nothing under
+  reduced motion or past the motion ceiling. For a purchase or a claim: `action="ns:buy %id%; burst #buy 8 var(--success)"`.
 - Easings `bounce` and `elastic` (1.565.0) spring past the end; a glide along them takes up to eight steps.
 - The base theme ships keyframes `shake`, `pop`, `pulse`, `float`, `nudge`, `jump`, `flip`, `drop-in`.
 - `text-gradient: <colour> <colour>... [duration]` (1.610.0) paints the words with a gradient, first colour to last;
@@ -1158,6 +1162,7 @@ Every screen knows these templates; a plugin's own template of the same name win
 | `<game-frame title="...">`, `<game-play>`, `<game-board>`, `<game-side>`, `<game-figure value tone>`, `<game-action action disabled>`, `<game-result/>`, `<game-page tab="how">` (1.531.0) | the frame of a game: see [Giving a game its screen form](#giving-a-game-its-screen-form) |
 
 | `<table-head title subtitle rules>`, `<table-rules title rules>`, `<table-panel title>`, `<kicker label tone>`, `<results-strip source empty>`, `<chip-rack source state>`, `<table-action action tone>` (1.598.0) | a shared table game on one screen: see [A game table on one screen](#a-game-table-on-one-screen) |
+| `<podium source="top" name="top_name" value="top_value" skin="top_name"/>` (1.673.0) | the first three rows on plinths ordered 2-1-3 (the first tallest, in `{highlight}`), each with its flat skin, name and value, dropping in 3 ticks apart; follow it with `<list source="top" skip="3">` for the ranks. Restyle through `.lib-podium`, `.lib-podium-1..3`, `.lib-podium-plinth`. Cost: about 24 displays |
 
 **Shared bindings.** `screens.bindings().value(...).action(...)` registers for every screen of a `ScreenSet`
 (`ScreenBindings`, same methods as `ScreenMarkup`); a screen's own registration of a name wins.

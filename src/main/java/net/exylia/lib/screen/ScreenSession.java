@@ -147,6 +147,17 @@ public interface ScreenSession {
     }
 
     /**
+     * {@code count} small squares (at most 12) fly out from the middle of the box whose {@link Node#id} is {@code id}
+     * and are gone in about 10 ticks, drawn over the page in {@code colours} in turn ({@code {success}},
+     * {@code #rrggbb}): a purchase, a claim. Nothing under reduced motion, past the motion ceiling, or when no box has
+     * that id. Markup: the {@code burst [#id] [count] [colour...]} action. A session that cannot draw does nothing.
+     *
+     * @since 1.673.0
+     */
+    default void burst(@NotNull String id, int count, @NotNull String... colours) {
+    }
+
+    /**
      * One stop of a {@link #coach} tour: the box whose {@link Node#id} is {@code node} is lit and the rest dimmed, with
      * {@code text} (written with {@code Text}) beside it. A blank or missing node shows the words in the middle.
      *
