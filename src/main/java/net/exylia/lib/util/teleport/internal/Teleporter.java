@@ -1,6 +1,7 @@
 package net.exylia.lib.util.teleport.internal;
 
 import net.exylia.lib.debug.Debug;
+import net.exylia.lib.platform.Platform;
 import net.exylia.lib.task.TaskScheduler;
 import net.exylia.lib.util.teleport.ExyliaLocation;
 import net.exylia.lib.util.teleport.ExyliaTeleportEvent;
@@ -210,7 +211,7 @@ public final class Teleporter {
         }
 
         try {
-            player.teleportAsync(target).whenComplete((moved, failure) -> {
+            moveInTick(plugin, player, target).whenComplete((moved, failure) -> {
                 if (failure != null) {
                     debug.error("Could not teleport " + player.getName(), failure);
                     result.complete(TeleportResult.FAILED);
@@ -230,6 +231,40 @@ public final class Teleporter {
             debug.error("Could not teleport " + player.getName(), refused);
             result.complete(TeleportResult.FAILED);
         }
+    }
+
+    /**
+     * Moves the player during a server tick, never between two.
+     *
+     * <p>Paper's {@code teleportAsync} finishes the move in a task run between
+     * ticks. The client's answer (confirm, then its new position) can arrive
+     * before the connection's next tick has taken the new position as the
+     * last good one, so the server reads it as a jump of the whole distance
+     * ("moved too quickly"), sends the player back to where they now are, and
+     * a quick client answers again: hundreds of corrections in one tick and a
+     * "sending too many packets" kick on a fast connection. Loading the chunk
+     * first and moving from the entity's scheduler runs the move inside the
+     * tick, before the connection catches up with it. Folia keeps
+     * {@code teleportAsync}, its only way to move a player.
+     */
+    private static CompletableFuture<Boolean> moveInTick(Plugin plugin, Player player, Location target) {
+        if (Platform.isFolia()) return player.teleportAsync(target);
+        CompletableFuture<Boolean> moved = new CompletableFuture<>();
+        target.getWorld().getChunkAtAsyncUrgently(target).whenComplete((chunk, failure) -> {
+            if (failure != null) {
+                moved.completeExceptionally(failure);
+                return;
+            }
+            boolean scheduled = player.getScheduler().run(plugin, task -> {
+                try {
+                    moved.complete(player.teleport(target));
+                } catch (RuntimeException refused) {
+                    moved.completeExceptionally(refused);
+                }
+            }, () -> moved.complete(false)) != null;
+            if (!scheduled) moved.complete(false);
+        });
+        return moved;
     }
 
     /**

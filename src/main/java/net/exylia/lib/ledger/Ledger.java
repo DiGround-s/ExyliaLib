@@ -276,20 +276,20 @@ public final class Ledger {
     }
 
     void add(String plugin, String source, Flow flow, @Nullable UUID player, String currency, BigDecimal amount) {
-        long cents = cents(amount);
+        long cents = Math.min(cents(amount), CAP);
         if (cents <= 0) return;
         long hour = hourOf(clock.getAsLong());
         sources.merge(new SourceKey(hour, cut(plugin, 64), cut(source.trim().toLowerCase(java.util.Locale.ROOT), 64),
                         cut(currency, 32), flow), new long[]{cents, 1},
                 (old, more) -> {
-                    old[0] += more[0];
+                    old[0] = Math.min(CAP, old[0] + more[0]);
                     old[1] += more[1];
                     return old;
                 });
         if (player != null) {
             players.merge(new PlayerKey(hour, player, cut(plugin, 64), cut(currency, 32), flow), new long[]{cents},
                     (old, more) -> {
-                        old[0] += more[0];
+                        old[0] = Math.min(CAP, old[0] + more[0]);
                         return old;
                     });
         }
@@ -348,7 +348,7 @@ public final class Ledger {
 
     /** Adds one count into another, column by column. */
     private static long[] add(long[] into, long[] more) {
-        for (int i = 0; i < into.length; i++) into[i] += more[i];
+        for (int i = 0; i < into.length; i++) into[i] = Math.min(CAP, into[i] + more[i]);
         return into;
     }
 
@@ -580,6 +580,13 @@ public final class Ledger {
     public static long currentDay() {
         return dayOf(System.currentTimeMillis());
     }
+
+    /**
+     * The most one hour's row holds, in cents. Clicker-scale amounts would
+     * otherwise wrap the counters past {@code Long.MAX_VALUE}; a row gets about
+     * one increment a minute, so 256 of these still fit in the column.
+     */
+    static final long CAP = Long.MAX_VALUE / 256;
 
     static long cents(BigDecimal amount) {
         BigDecimal scaled = amount.movePointRight(2).setScale(0, RoundingMode.HALF_UP);

@@ -57,6 +57,16 @@ class LedgerTest {
     }
 
     @Test
+    void hugeAmountsStopAtTheCapInsteadOfWrapping() {
+        Ledger ledger = new Ledger(() -> 10 * HOUR);
+        BigDecimal huge = new BigDecimal("1e40");
+        ledger.add("Clicker", "sell", Ledger.Flow.SUNK, ALICE, "vault", huge);
+        ledger.add("Clicker", "sell", Ledger.Flow.SUNK, ALICE, "vault", huge);
+        assertEquals(Ledger.CAP, ledger.sources.values().iterator().next()[0]);
+        assertEquals(Ledger.CAP, ledger.players.values().iterator().next()[0]);
+    }
+
+    @Test
     void playerRowsArePerPlugin() {
         Ledger ledger = new Ledger(() -> 10 * HOUR);
         ledger.add("Jobs", "jobs", Ledger.Flow.CREATED, ALICE, "vault", BigDecimal.ONE);
