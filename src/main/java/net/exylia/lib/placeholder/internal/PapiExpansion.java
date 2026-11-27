@@ -5,6 +5,7 @@ import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.clip.placeholderapi.expansion.Relational;
 import net.exylia.lib.placeholder.Request;
+import net.exylia.lib.text.internal.Icons;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -243,7 +244,12 @@ final class PapiExpansion extends PlaceholderExpansion implements Relational {
             }
             answered = true;
         }
-        return answered ? answer.toString() : null;
+        // Whatever reads the answer (TAB, a hologram plugin) parses MiniMessage
+        // but knows nothing of {icon:...}, which it would print as written: a
+        // rank name carrying its sprite showed the raw token on every hologram.
+        // The token becomes the <sprite> tag, or its glyph where this server
+        // draws no sprites.
+        return answered ? Icons.expand(answer.toString()) : null;
     }
 
     /** Whether this expansion's plugin is one of the plugins that registered a name. */

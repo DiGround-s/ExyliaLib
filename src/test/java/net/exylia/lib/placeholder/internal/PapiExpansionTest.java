@@ -237,4 +237,20 @@ class PapiExpansionTest {
         assertTrue(warning.contains("ExyliaFFA"), warning);
         assertTrue(warning.contains("ExyliaSandBox"), warning);
     }
+
+    /**
+     * A hologram read a rank name carrying {@code {icon:...}} through
+     * PlaceholderAPI and printed the token as written: what answers there has
+     * to hand over the sprite tag, or its glyph, instead.
+     */
+    @Test
+    void expandsIconTokensForPlaceholderApiReaders() {
+        Placeholders.register(plugin, "rank", request -> "<#9a63d1>{icon:items:item/amethyst_shard|✹} LT2");
+
+        String answer = new PapiExpansion(plugin).onRequest(null, "rank");
+
+        assertTrue(!answer.contains("{icon:"), answer);
+        assertTrue(answer.contains("<sprite:") || answer.contains("✹"), answer);
+        assertTrue(answer.endsWith(" LT2"), answer);
+    }
 }

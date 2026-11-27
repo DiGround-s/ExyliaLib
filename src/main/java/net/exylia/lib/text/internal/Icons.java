@@ -163,7 +163,7 @@ public final class Icons {
      * @param text the text, palette tokens not yet expanded
      * @return the text with icons expanded; unknown icons stay as written
      */
-    static String expand(String text) {
+    public static String expand(String text) {
         int open = text.indexOf("{" + TOKEN);
         if (open < 0) {
             return text;
