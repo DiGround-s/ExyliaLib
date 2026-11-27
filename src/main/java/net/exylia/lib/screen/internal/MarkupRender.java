@@ -916,7 +916,11 @@ public final class MarkupRender {
                     if (cell.width() < 0) cell.width(0);
                     line.add(cell.grow(1).id(c == 0 ? base : base + "." + c));
                 }
-                if (i == end - 1) for (int pad = column + 1; pad < columns; pad++) line.add(Node.box().width(0).grow(1));
+                // Missing cells take the same basis as the real ones (a CSS width included), so a short last row
+                // shares out the same free space per cell and its cells stay as wide as on a full row.
+                if (i == end - 1) for (int pad = column + 1; pad < columns; pad++) {
+                    for (Node cell : built) line.add(Node.box().width(Math.max(0, cell.width())).grow(1));
+                }
                 // A short last page keeps every row the size it is on a full one.
                 if (i == end - 1 && paged) for (int rows = (visible + columns - 1) / columns; rows < window / columns; rows++) {
                     node.add(Node.row().grow(1));

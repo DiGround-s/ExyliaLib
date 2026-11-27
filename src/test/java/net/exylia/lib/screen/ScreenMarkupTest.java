@@ -163,6 +163,24 @@ class ScreenMarkupTest {
     }
 
     @Test
+    void aShortLastRowKeepsCellsAsWideAsAFullOne() {
+        ScreenMarkup markup = ScreenMarkup.parse("grid", """
+                <screen>
+                  <grid source="kits" columns="3">
+                    <card style="width: 40px"><b>%playing%</b></card>
+                  </grid>
+                </screen>""");
+        markup.source("kits", s -> kits(4));
+        Node grid = find(new Fake(markup.screen()).render(), "kits");
+        Node full = grid.children().get(0), shortRow = grid.children().get(1);
+        assertEquals(3, shortRow.children().size(), "the missing cells are padded");
+        for (Node cell : shortRow.children()) {
+            assertEquals(full.children().get(0).width(), cell.width(), "a pad grows from the cells' own basis");
+            assertEquals(1, cell.grow());
+        }
+    }
+
+    @Test
     void aRequirementPicksTheDenyStepsWhenItFails() {
         ScreenMarkup markup = ScreenMarkup.parse("req", """
                 <screen>
