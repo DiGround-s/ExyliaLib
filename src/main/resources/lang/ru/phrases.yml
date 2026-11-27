@@ -2064,3 +2064,5 @@ speaks the language chosen here.: говорит на выбранном зде�
 'not checked: whoever opened this session is offline': 'не проверено: тот, кто открыл эту сессию, не в сети'
 "{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{letters}Вернись к {highlight}виду от первого лица {letters}клавишей {highlight}F5"
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Меню видно только твоими глазами."
+'Space': 'Пробел'
+'Hold {0} to confirm': 'Удерживайте {0} для подтверждения'

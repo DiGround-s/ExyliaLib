@@ -231,6 +231,13 @@ on close. From code: `net.exylia.lib.input.Links.open(player, url, title)` and `
 
 - **Keys** (1.492.0): W, A, S, D and Space click the box bound to them (`key=`, `pager keys=`). Show the bindings in
   the screen itself: a short row of key hints under the content is the house style.
+- **Hold to confirm** (1.672.0): `action-hold="24t"` next to `action` (Java: `Node#hold(ticks, label, colour)`)
+  makes the click a hold. The box's `key=` (or Space while the cursor is on it, in any key mode) must stay down for
+  that long: a 2 px bar grows along the box's bottom edge in its `color` and `hold-label` stands in for its first text;
+  letting go early does nothing, a full hold runs `action`. It is key-only: a mouse button sends one packet per press
+  and none on release, so a mouse click on a hold box only shows "Hold Space to confirm". Use it for what is costly
+  to undo (a rebirth, a release); a `confirm` dialog stays the choice when the player should read something first.
+  Cost: 1 rect and one linear glide while held.
 
 While a screen is open the player is frozen in place (`Packets#movement`). Opened in mid-air (a jump, a step off a
 ledge), the viewer is first brought straight down to the floor under them and the screen shows there, a tick later on
@@ -574,6 +581,12 @@ card:not(.mini):hover { outline: 1px var(--accent, {secondary}); }
 | `background: linear-gradient(...)`, `background-image: url(img/x.png)` (1.497.0) | see [Backgrounds](#backgrounds-14970) |
 
 Shipped files use palette tokens, never hex, so `colors.yml` restyles every screen.
+
+`@import "sections/home.css";` (1.672.0) in any sheet reads another file of the screen's folder, its rules before
+the importing sheet's (so the importer wins), imports nested up to 4 deep and each file read once. The path is always
+from the screen's folder (also for a sheet in a subfolder or the network theme) and may not leave it; a missing or
+outside file is a problem in `screens check`. The hot reload already watches every file of the folder, so an edited
+import reloads like the rest. It lets each section of a big screen keep its own sheet, and an owner override one.
 
 ## Authoring (1.494.0)
 
@@ -1461,6 +1474,11 @@ sends only what changed.
 ```html
 <card action="practice:select %kit_id%" tooltip="%kit_name%<nl>{letters_black}%kit_mode%">...</card>
 ```
+
+A hint (1.672.0) is a smaller tooltip for chips, icons and buttons that need a word, not a card: `tooltip-style="hint"`
+on the box, or `tooltips="hint"` on `<screen>` for every box (a box's `tooltip-style="panel"` keeps the panel). It shows
+the first line alone at scale 0.6, at most 90 pixels wide, centred above the box (under it when the box is at the top
+edge), on the tooltip fill without an outline: two displays while hovered. Java: `Node#tooltipStyle(TooltipStyle.HINT)`.
 
 A row of a list can show its own item instead (1.569.0): `tooltip-item` on a box inside a repeat over `UiEntry`
 rows makes its tooltip what a chest shows over that item, name, enchantments and lore, with any `tooltip` lines after

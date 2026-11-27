@@ -111,6 +111,10 @@ public final class Node {
     private int refresh;
     private Motion.Keyframes changeKeyframes;
     private Object changeValue;
+    private int holdTicks;
+    private TooltipStyle tooltipStyle = TooltipStyle.PANEL;
+    private Node holdLabel;
+    private String holdColour;
     private Consumer<ScreenEvent> onShiftClick;
 
     private Node(Kind kind, Component text) {
@@ -543,6 +547,25 @@ public final class Node {
         return tooltip;
     }
 
+    /** How a {@link #tooltip} is drawn. @since 1.672.0 */
+    public enum TooltipStyle {
+        /** Beside the box, as an item tooltip: the first line its name, the rest under it, outlined (the default). */
+        PANEL,
+        /** Above the box: its first line alone, small (scale 0.6), at most 90 px wide, no outline. For chips and icons. */
+        HINT
+    }
+
+    /** How this box's tooltip is drawn; {@code null} is {@link TooltipStyle#PANEL}. Markup: {@code tooltip-style="hint"}. @since 1.672.0 */
+    public @NotNull Node tooltipStyle(@Nullable TooltipStyle style) {
+        this.tooltipStyle = style == null ? TooltipStyle.PANEL : style;
+        return this;
+    }
+
+    /** @since 1.672.0 */
+    public @NotNull TooltipStyle tooltipStyle() {
+        return tooltipStyle;
+    }
+
     // ------------------------------------------------------------------
     // Motion and placement (1.496.0)
     // ------------------------------------------------------------------
@@ -830,6 +853,37 @@ public final class Node {
     /** @since 1.671.0 */
     public @Nullable Object changeValue() {
         return changeValue;
+    }
+
+    /**
+     * Makes the click a hold: the box's {@link #key(String) key} (or Space while the cursor is on it) must be held
+     * for {@code ticks} before {@link #onClick} runs. While held a bar grows along its bottom edge in {@code colour}
+     * and {@code label} stands in for its first text; letting go early does nothing. A mouse click only says to hold
+     * the key, since a held mouse button never reaches the server. Markup: {@code action-hold="24t"},
+     * {@code hold-label="Keep holding…"}. {@code ticks <= 0} turns it off.
+     *
+     * @since 1.672.0
+     */
+    public @NotNull Node hold(int ticks, @Nullable Node label, @Nullable String colour) {
+        this.holdTicks = Math.max(0, ticks);
+        this.holdLabel = label;
+        this.holdColour = colour;
+        return this;
+    }
+
+    /** @since 1.672.0 */
+    public int holdTicks() {
+        return holdTicks;
+    }
+
+    /** @since 1.672.0 */
+    public @Nullable Node holdLabel() {
+        return holdLabel;
+    }
+
+    /** @since 1.672.0 */
+    public @Nullable String holdColour() {
+        return holdColour;
     }
 
     /** @since 1.496.0 */

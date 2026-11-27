@@ -743,6 +743,12 @@ public final class MarkupRender {
         }
         String key = el.attr("key") != null ? el.attr("key") : el.attr("keybind");
         if (key != null) node.key(key);
+        if (el.attr("action-hold") != null && el.attr("action") != null && !flags.contains("disabled")) {
+            // Hold to confirm (1.672.0): the screen draws the bar and the label while Space or the key is held.
+            int ticks = MotionCss.ticks(fill(el.attr("action-hold"), scope, false));
+            Node label = el.attr("hold-label") == null ? null : words(fill(el.attr("hold-label"), scope, true), text);
+            if (ticks > 0) node.hold(ticks, label, style.get("color"));
+        }
         if ("false".equalsIgnoreCase(el.attr("assist")) || asksDangerously(el)) node.assist(false);
         List<net.kyori.adventure.text.Component> tipLines = new ArrayList<>();
         if (el.attr("tooltip-item") != null) {
@@ -757,7 +763,16 @@ public final class MarkupRender {
                 for (String line : tip.split("<nl>|<br>|\\n")) tipLines.add(net.exylia.lib.text.Text.of(line).build());
             }
         }
-        if (!tipLines.isEmpty()) node.tooltip(tipLines);
+        if (!tipLines.isEmpty()) {
+            node.tooltip(tipLines);
+            // tooltip-style="hint" on the box, or tooltips="hint" on <screen> for every box (1.672.0).
+            String tipStyle = el.attr("tooltip-style") != null ? el.attr("tooltip-style") : parts.root().attr("tooltips");
+            if (tipStyle != null && !tipStyle.isBlank()) {
+                String chosen = fill(tipStyle, scope, false).trim();
+                if (chosen.equalsIgnoreCase("hint")) node.tooltipStyle(Node.TooltipStyle.HINT);
+                else if (!chosen.equalsIgnoreCase("panel")) parts.problems().accept(el.pos() + ": tooltip-style is hint or panel, not " + chosen);
+            }
+        }
         if (el.tag().equals("modal")) {
             String dismiss = el.attr("dismiss");
             String condition = el.attr("if");

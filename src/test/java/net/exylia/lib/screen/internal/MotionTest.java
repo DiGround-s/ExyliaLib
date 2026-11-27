@@ -129,6 +129,15 @@ class MotionTest {
     }
 
     @Test
+    void hintTooltipsAreOneSmallLineWithoutOutline() {
+        var panel = LiveScreen.hintPanel(java.util.List.of(Component.text("Coins"), Component.text("ignored")));
+        assertEquals(1, panel.children().size());
+        assertEquals(LiveScreen.HINT_SCALE, panel.children().get(0).scale());
+        assertEquals(LiveScreen.HINT_WIDTH, panel.children().get(0).wrap());
+        assertEquals(null, panel.outline());
+    }
+
+    @Test
     void tooltipsAreANameAndOneBlock() {
         var panel = LiveScreen.tipPanel(java.util.List.of(Component.text("Name"), Component.text("Kind"),
                 Component.empty(), Component.text("  · Stat: 1"), Component.empty()));

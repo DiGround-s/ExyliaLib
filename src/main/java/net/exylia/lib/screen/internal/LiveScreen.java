@@ -205,6 +205,9 @@ final class LiveScreen implements ScreenSession {
     static final double TIP_WIDTH = 150;
     static final double TIP_NAME = 0.8;
     static final double TIP_LORE = 0.7;
+    /** A hint tooltip (1.672.0): one small line above the box, no outline. */
+    static final double HINT_WIDTH = 90;
+    static final double HINT_SCALE = 0.6;
 
     /** A hover change is queued for the viewer's thread. */
     private final java.util.concurrent.atomic.AtomicBoolean hoverQueued = new java.util.concurrent.atomic.AtomicBoolean();
@@ -890,6 +893,8 @@ final class LiveScreen implements ScreenSession {
         else if (settingsOpen) root = over(root, SettingsPanel.of(this));
         Confirm ask = confirm;
         if (ask != null) root = withConfirm(root, ask);
+        Hold held = hold;
+        if (held != null) holdLabel(root, held.key());
         // The tree's fingerprint covers everything layout and drawing read from it, and a sprite arriving changes
         // what an unchanged tree draws: same print, same toasts, nothing turning, and the last frame still holds.
         long print = Layout.fingerprint(root) * 31 + VanillaSprites.generation();
@@ -908,6 +913,7 @@ final class LiveScreen implements ScreenSession {
             lastPrint = print;
             lastToastVersion = toastVersion;
             List<Layout.Placed> laid = new ArrayList<>(core);
+            if (held != null) addHoldBar(laid, held);
             addToasts(laid);
             Coach tour = coach;
             if (tour != null && ask == null && !settingsOpen && fitStep <= 0) addCoach(laid, core, tour);
@@ -1105,17 +1111,35 @@ final class LiveScreen implements ScreenSession {
     private List<Layout.Placed> tooltip() {
         Layout.Placed box = hoveredBox;
         if (box == null || box.node().tooltip() == null || box.node().tooltip().isEmpty()) return List.of();
-        Node panel = tipPanel(box.node().tooltip());
+        boolean hint = box.node().tooltipStyle() == Node.TooltipStyle.HINT;
+        Node panel = hint ? hintPanel(box.node().tooltip()) : tipPanel(box.node().tooltip());
         double[] size = Layout.measure(panel);
-        double x = box.x() + box.w() + 4;
-        if (x + size[0] > screen.width()) x = box.x() - 4 - size[0];
+        double x;
+        double y;
+        if (hint) {
+            // Centred above the box, or under it when there is no room above.
+            x = box.x() + (box.w() - size[0]) / 2;
+            y = box.y() - 3 - size[1];
+            if (y < 2) y = box.y() + box.h() + 3;
+        } else {
+            x = box.x() + box.w() + 4;
+            if (x + size[0] > screen.width()) x = box.x() - 4 - size[0];
+            y = box.y();
+        }
         x = Math.max(2, Math.min(x, screen.width() - size[0] - 2));
-        double y = Math.max(2, Math.min(box.y(), screen.height() - size[1] - 2));
+        y = Math.max(2, Math.min(y, screen.height() - size[1] - 2));
         List<Layout.Placed> out = new ArrayList<>();
         for (Layout.Placed part : Layout.lay(panel, size[0], size[1])) {
             out.add(part.moved("~tip" + part.key(), x, y, TIP_DEPTH, 0));
         }
         return out;
+    }
+
+    /** A hint tooltip's panel: the first line alone, small, on the tooltip fill without an outline. */
+    static Node hintPanel(List<net.kyori.adventure.text.Component> lines) {
+        return Node.column().padding(2, 3).background(TIP_BACKGROUND)
+                .enter(Motion.Tween.of(Motion.Transform.scale(0.96), 2, Motion.Ease.OUT))
+                .add(Node.text(lines.get(0)).scale(HINT_SCALE).wrap(HINT_WIDTH));
     }
 
     /** A tooltip's panel: the name, then the rest as one block, blank lines at its ends left out. */
@@ -3343,6 +3367,14 @@ final class LiveScreen implements ScreenSession {
         if (box.key().equals("~dim") && Layout.under(targets, at[0], at[1], node -> true) != box) return;
         Consumer<ScreenEvent> handler = shift && box.node().onShiftClick() != null ? box.node().onShiftClick()
                 : box.node().onClick();
+        if (handler == box.node().onClick() && box.node().holdTicks() > 0) {
+            // A held mouse button never reaches the server: say which key to hold instead.
+            String key = box.node().key() == null || box.node().key().equals("space")
+                    ? net.exylia.lib.text.Phrases.tr("Space") : box.node().key().toUpperCase(java.util.Locale.ROOT);
+            sound("ui.button.click", 0.25f, 0.8f);
+            toast(net.exylia.lib.text.Phrases.tr("Hold {0} to confirm", key));
+            return;
+        }
         ScreenEvent event = new ScreenEvent(this, right ? ScreenEvent.Kind.RIGHT : ScreenEvent.Kind.LEFT, 0,
                 box.node().id(), null, shift);
         sound("ui.button.click", 0.35f, 1.4f);
@@ -3391,10 +3423,14 @@ final class LiveScreen implements ScreenSession {
     /** Movement keys as bits (w, a, s, d, space): a key just pressed clicks the box bound to it, or moves the focus. */
     void keys(int down) {
         int pressed;
+        int released;
         synchronized (input) {
             pressed = down & ~keysDown;
+            released = keysDown & ~down;
             keysDown = down;
         }
+        Hold held = hold;
+        if (held != null && (released & held.bit()) != 0) endHold(held.gen(), false);
         if (pressed == 0 || !open || away) return;
         boolean sprint;
         synchronized (input) {
@@ -3409,23 +3445,150 @@ final class LiveScreen implements ScreenSession {
         }
         if (screen.navigate()) {
             if ((pressed & 16) != 0) {
-                click(false);
+                if (!holdPointed()) click(false);
                 return;
             }
             for (int bit = 0; bit < 4; bit++) if ((pressed & 1 << bit) != 0) focus(bit);
             return;
         }
         List<Layout.Placed> targets = view.targets();
+        boolean spaceBound = false;
         for (int bit = 0; bit < KEYS.length; bit++) {
             if ((pressed & 1 << bit) == 0) continue;
             String key = KEYS[bit];
             for (Layout.Placed box : targets) {
                 if (!key.equals(box.node().key()) || box.node().onClick() == null) continue;
+                if (bit == 4) spaceBound = true;
+                if (box.node().holdTicks() > 0) {
+                    startHold(box, 1 << bit);
+                    break;
+                }
                 sound("ui.button.click", 0.35f, 1.4f);
                 press(box.key());
                 handle(box.node().onClick(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, box.node().id()));
                 break;
             }
+        }
+        // Space with no box bound to it holds the hold box under the cursor.
+        if ((pressed & 16) != 0 && !spaceBound) holdPointed();
+    }
+
+    // ------------------------------------------------------------------
+    // Hold to confirm (1.672.0)
+    // ------------------------------------------------------------------
+
+    /** A hold in progress: the held box's layout key, the movement bit holding it, whether its bar has grown. */
+    private record Hold(String key, int bit, long gen, String colour, boolean grown) {
+    }
+
+    private volatile Hold hold;
+    private long holdGen;
+
+    /** Space on the hold box under the cursor starts its hold; false when the cursor is on none. */
+    private boolean holdPointed() {
+        Layout.Placed box;
+        synchronized (input) {
+            box = pointedBox;
+        }
+        if (box == null || box.node().holdTicks() <= 0 || box.node().onClick() == null) return false;
+        startHold(box, 16);
+        return true;
+    }
+
+    /** Draws the held box's bar one pixel wide, grows it to full width the next tick, and runs the click when full. */
+    private void startHold(Layout.Placed box, int bit) {
+        int ticks = box.node().holdTicks();
+        long gen;
+        synchronized (this) {
+            if (hold != null) return;
+            gen = ++holdGen;
+            hold = new Hold(box.key(), bit, gen,
+                    box.node().holdColour() != null ? box.node().holdColour() : "{primary}", false);
+            resync = true;
+        }
+        sound("ui.button.click", 0.25f, 1.0f);
+        redraw();
+        tasks.runAtEntityLater(player, 1, () -> {
+            synchronized (this) {
+                Hold now = hold;
+                if (now == null || now.gen() != gen) return;
+                hold = new Hold(now.key(), now.bit(), gen, now.colour(), true);
+                resync = true;
+            }
+            redraw();
+        });
+        tasks.runAtEntityLater(player, ticks + 1, () -> endHold(gen, true));
+    }
+
+    /** Ends hold {@code gen}: let go early ({@code done} false) does nothing more; a full hold clicks the box. */
+    private void endHold(long gen, boolean done) {
+        Hold ended;
+        synchronized (this) {
+            ended = hold;
+            if (ended == null || ended.gen() != gen) return;
+            hold = null;
+            resync = true;
+        }
+        Layout.Placed box = null;
+        if (done && open()) {
+            for (Layout.Placed one : view.targets()) {
+                if (one.key().equals(ended.key())) {
+                    box = one;
+                    break;
+                }
+            }
+        }
+        if (box == null || box.node().onClick() == null) {
+            redraw();
+            return;
+        }
+        sound("ui.button.click", 0.35f, 1.4f);
+        press(box.key());
+        handle(box.node().onClick(), new ScreenEvent(this, ScreenEvent.Kind.LEFT, 0, box.node().id()));
+    }
+
+    /**
+     * Puts the held box's {@code holdLabel} in place of its first text. The box is found by its layout key, so one
+     * without an id inside a repeat is still the right one: a layout of its own, only while a hold with a label runs.
+     */
+    private void holdLabel(Node root, String key) {
+        if (!hasHoldLabel(root)) return;
+        for (Layout.Placed box : Layout.lay(root, screen.width(), screen.height())) {
+            if (!box.key().equals(key)) continue;
+            if (box.node().holdLabel() != null) swapFirstText(box.node(), box.node().holdLabel());
+            return;
+        }
+    }
+
+    private static boolean hasHoldLabel(Node node) {
+        if (node.holdLabel() != null) return true;
+        for (Node child : node.children()) if (hasHoldLabel(child)) return true;
+        return false;
+    }
+
+    private static boolean swapFirstText(Node node, Node label) {
+        List<Node> children = node.children();
+        for (int i = 0; i < children.size(); i++) {
+            if (children.get(i).kind() == Node.Kind.TEXT) {
+                children.set(i, label);
+                return true;
+            }
+            if (swapFirstText(children.get(i), label)) return true;
+        }
+        return false;
+    }
+
+    /** The held box's bar: 2 px on its bottom edge, gliding from 1 px to full width over the hold. Holds the lock. */
+    private void addHoldBar(List<Layout.Placed> laid, Hold held) {
+        for (int i = 0; i < laid.size(); i++) {
+            Layout.Placed box = laid.get(i);
+            if (!box.key().equals(held.key())) continue;
+            int ticks = Math.max(1, box.node().holdTicks());
+            Node bar = Node.box().background(held.colour()).transition(ticks, Motion.Ease.LINEAR);
+            double h = Math.min(2, box.h());
+            laid.add(new Layout.Placed(bar, box.key() + "#hold", box.x(), box.y() + box.h() - h,
+                    held.grown() ? box.w() : 1, h, box.depth() + 1, i, null));
+            return;
         }
     }
 

@@ -2076,3 +2076,5 @@ speaks the language chosen here.: fala o idioma escolhido aqui.
 'not checked: whoever opened this session is offline': 'não verificado: quem abriu esta sessão está offline'
 "{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{letters}Volte para a {highlight}primeira pessoa {letters}com {highlight}F5"
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Os menus são vistos pelos seus olhos."
+'Space': 'Espaço'
+'Hold {0} to confirm': 'Segure {0} para confirmar'

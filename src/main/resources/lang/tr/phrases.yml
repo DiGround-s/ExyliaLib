@@ -2076,3 +2076,5 @@ speaks the language chosen here.: burada seçilen dili konuşur.
 'not checked: whoever opened this session is offline': 'kontrol edilmedi: bu oturumu açan kişi çevrimdışı'
 "{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{highlight}F5 {letters}ile {highlight}birinci şahıs {letters}görünümüne dön"
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Menüler kendi gözlerinden görünür."
+'Space': 'Boşluk'
+'Hold {0} to confirm': 'Onaylamak için {0} tuşunu basılı tut'

@@ -64,7 +64,9 @@ public final class Compile {
             // 1.671.0: <detail prefer>, repeats that skip rows, progress shapes
             "prefer", "skip", "orient", "segments",
             // 1.671.0: number and change feedback
-            "count-up", "on-change");
+            "count-up", "on-change",
+            // 1.672.0: hold to confirm, small tooltips
+            "action-hold", "hold-label", "tooltip-style", "tooltips");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -374,6 +376,11 @@ public final class Compile {
         if (tag.equals("detail")) {
             if (el.attr("source") == null) problem(el.pos(), "<detail> needs source=\"<source>\"");
             if (el.attr("key") == null && el.attr("state") != null) problem(el.pos(), "<detail state> needs key=\"<field>\": the row field the state holds");
+        }
+        if (el.attr("action-hold") != null) {
+            if (el.attr("action") == null) problem(el.pos(), "action-hold needs an action=\"...\" to run once held");
+            else if (MotionCss.ticks(el.attr("action-hold")) <= 0 && !el.attr("action-hold").contains("${"))
+                problem(el.pos(), "action-hold wants a time such as 24t or 1.2s, not " + el.attr("action-hold"));
         }
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));

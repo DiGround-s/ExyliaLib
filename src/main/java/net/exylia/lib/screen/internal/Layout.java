@@ -188,10 +188,10 @@ public final class Layout {
         h = mix(h, Objects.hashCode(node.outline()));
         h = mix(h, Double.hashCode(node.radius()));
         h = mix(h, Objects.hashCode(node.hoverOutline()));
-        h = mix(h, Objects.hashCode(node.tooltip()));
+        h = mix(h, Objects.hashCode(node.tooltip()) * 31 + node.tooltipStyle().ordinal());
         h = mix(h, Objects.hash(node.transform(), node.hoverTransform(), node.activeTransform(), node.activeBackground(),
                 node.transition(), node.enter(), node.leave(), node.animation(), node.layer(), node.wrap(),
-                node.shadow(), node.decoration(), node.refresh(), node.onShiftClick() != null));
+                node.shadow(), node.decoration(), node.refresh(), node.onShiftClick() != null, node.holdTicks()));
         h = mix(h, Arrays.hashCode(node.margin()));
         h = mix(h, node.absolute() == null ? 7 : Arrays.hashCode(node.absolute()));
         for (double d : new double[]{node.width(), node.height(), node.grow(), node.padTop(), node.padRight(),

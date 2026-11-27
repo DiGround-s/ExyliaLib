@@ -119,6 +119,48 @@ public final class Css {
         }
     }
 
+    private static final Pattern IMPORT = Pattern.compile(
+            "@import\\s+(?:url\\(\\s*)?[\"']?([^\"')\\s;]+)[\"']?\\s*\\)?\\s*;");
+    /** How deep imports may nest: a sheet importing one that imports another, and so on. */
+    private static final int IMPORT_DEPTH = 4;
+
+    /**
+     * A sheet with its {@code @import "x.css";} lines read: each imported file comes first, in order (its own
+     * imports before it), then the sheet without them. {@code read} answers a path inside the screen's folder, or
+     * {@code null} for one that is missing or leaves it; each file is read once (1.672.0).
+     */
+    public static List<String[]> imports(String text, String name, java.util.function.Function<String, String> read,
+                                         Consumer<String> problems) {
+        List<String[]> out = new ArrayList<>();
+        imports(text, name, read, problems, new HashSet<>(), 0, out);
+        return out;
+    }
+
+    private static void imports(String text, String name, java.util.function.Function<String, String> read,
+                                Consumer<String> problems, Set<String> seen, int depth, List<String[]> out) {
+        if (!text.contains("@import")) {
+            out.add(new String[]{text, name});
+            return;
+        }
+        Matcher m = IMPORT.matcher(text);
+        StringBuilder rest = new StringBuilder();
+        while (m.find()) {
+            String path = m.group(1);
+            // Kept as blank lines, so the sheet's line numbers still match its file.
+            m.appendReplacement(rest, Matcher.quoteReplacement(m.group().replaceAll("[^\\n]", "")));
+            if (!seen.add(path)) continue;
+            String imported = depth >= IMPORT_DEPTH ? null : read.apply(path);
+            if (imported == null) {
+                problems.accept(name + ":" + line(text, m.start()) + ": @import \"" + path + "\" "
+                        + (depth >= IMPORT_DEPTH ? "nests too deep" : "is not a file inside the screen's folder"));
+                continue;
+            }
+            imports(imported, path, read, problems, seen, depth + 1, out);
+        }
+        m.appendTail(rest);
+        out.add(new String[]{rest.toString(), name});
+    }
+
     /**
      * The declarations of an element's {@code style="a: b; c: d"}, in order; {@code unknown} hears each property the
      * screen does not read, which is left out. Custom properties ({@code --x}) are kept. Since 1.565.0.

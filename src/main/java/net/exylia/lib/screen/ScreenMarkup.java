@@ -209,7 +209,10 @@ public final class ScreenMarkup {
         problems.addAll(result.problems());
         Css css = new Css();
         css.add(BASE, "base.css", problems::add);
-        for (String[] sheet : sheets) css.add(sheet[0], sheet[1], problems::add);
+        // @import "sections/home.css"; reads from the screen's folder, the imported rules first (1.672.0).
+        for (String[] sheet : sheets) {
+            for (String[] one : Css.imports(sheet[0], sheet[1], files::read, problems::add)) css.add(one[0], one[1], problems::add);
+        }
         return new Compiled(result.root(), css, List.copyOf(problems), result.references(), images, words);
     }
 

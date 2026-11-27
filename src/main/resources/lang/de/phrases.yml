@@ -2092,3 +2092,5 @@ Use K, M or B for thousands, millions, billions.: Nutze K, M oder B für Tausend
 "The green marks should sit on your screen's corners. If they do not, measure again.": "Die grünen Markierungen sollten auf den Ecken deines Bildschirms liegen. Wenn nicht, miss neu."
 "{letters}Switch to {highlight}first person {letters}with {highlight}F5": "{letters}Wechsle mit {highlight}F5 {letters}in die {highlight}Ego-Perspektive"
 "{letters_black}Menus are drawn for your own eyes.": "{letters_black}Menüs siehst du nur aus deinen Augen."
+'Space': 'Leertaste'
+'Hold {0} to confirm': 'Halte {0} zum Bestätigen'

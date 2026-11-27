@@ -84,12 +84,14 @@ Attributes any tag may carry (a template's own props are accepted on its uses to
 | `refresh` | Redraw this often while shown (2 ticks at least; default every second) | `refresh="5t"` | 1.496.0 | re-renders every N ticks for that viewer: use sparingly |
 | `tooltip` | Panel beside the box while hovered; lines separated by `<nl>` | `tooltip="%kit_name%<nl>{letters_black}%mode%"` | 1.495.0 | 3 displays, only while hovered |
 | `tooltip-item` | Inside a repeat over `UiEntry` rows: the tooltip is the row's own item as a chest shows it over the slot (name, enchantments, a book's stored ones, lore); `tooltip` lines follow it | `<row tooltip-item action="...">` | 1.569.0 | the chest's item render, once a render per row shown |
+| `tooltip-style` | `hint`: the tooltip is its first line alone, small (scale 0.6, at most 90 px), centred above the box (under it at the top edge), on the tooltip fill with no outline; `panel` is the default item-style panel beside the box. For chips, icons and gear buttons that need one word | `<chip tooltip="Coins" tooltip-style="hint">` | 1.672.0 | 2 displays while hovered (a panel is 3) |
 | `routes` | On `screen`: chest menu ids this screen stands for, with state | `routes="player/queue_kit:tab=play"` | 1.495.0 | free |
 | `command`, `aliases`, `permission` | On `screen`: read by the plugin that opens screens by command (ExyliaScreens) | `command="hub" aliases="lobby"` | 1.502.0 | free |
 | `style` | The element's own declarations, over every rule; `${...}` and `%placeholders%` allowed, `--x` reaches its children | `style="background: ${owned ? '{success}' : '{neutral}'}30"` | 1.565.0 | free |
 | `count-up` | On a text holding a number: when the number changes, it steps from the old value to the new one over this time, written as the new one is (`1.2K`, `1,234`, `12.5`; the first number outside tags). Never on first draw; jumps under reduced motion. Keyed by the text's `id` (or its row's `track`, or where it is written), so give one inside an untracked repeat | `<b id="coins" count-up="8t">%coins%</b>` | 1.671.0 | one text update every 2 ticks while it counts |
 | `on-change` | Plays keyframes once on the element when its text (its `value` on a `progress`, the words inside it on a box) differs from the last frame's; never on first draw, not under reduced motion | `<row id="wallet" on-change="pop 6t"><small>%coins%</small></row>` | 1.671.0 | one played animation (a few transforms) |
 | `cooldown`, `deny-cooldown` | Wait between clicks of `action`: `5s` (keyed by the id) or `daily 24h` (its own key, read by `cooldown('daily')`); 5 minutes or more survives restarts. `deny-cooldown` runs while it waits (else a refusal sound and "Ready again in …" toast) | `cooldown="daily 24h"` | 1.565.0 | free |
+| `action-hold`, `hold-label` | Turns `action` into a hold: the box's `key` (or Space with the cursor on it) held this long runs it, while a 2 px bar in the box's `color` grows along its bottom edge and `hold-label` replaces its first text; let go early and nothing runs. Key-only: a mouse click on it just says which key to hold. `screens check` flags one without `action` | `<button key="space" action="ns:rebirth" action-hold="24t" hold-label="Keep holding…">Rebirth</button>` | 1.672.0 | 1 rect and one glide while held |
 
 Attributes on `<screen>` only:
 
@@ -100,6 +102,7 @@ Attributes on `<screen>` only:
 | `wheel` | `"true"` keeps the real game mode so the wheel scrolls (hand and crosshair show) | `wheel="true"` | 1.485.0 | free |
 | `keys` | `"navigate"`: W A S D move the cursor between clickable boxes, Space clicks | `keys="navigate"` | 1.496.0 | free (keys are read only while held across a tick) |
 | `scene`, `parallax` | Picture behind everything (`img/x.png`); drift against the cursor, 0 to 16 px | `scene="img/stars.png" parallax="2"` | 1.497.0 | scene: 4 displays, sent once; parallax: 4 transforms per cursor move |
+| `tooltips` | `"hint"`: every tooltip on the screen is a hint (see `tooltip-style`) unless its box says `tooltip-style="panel"` | `tooltips="hint"` | 1.672.0 | 2 displays while hovered |
 
 `version` is in the attribute allow-list but nothing in the screen code reads it.
 
@@ -108,7 +111,7 @@ Attributes on `<screen>` only:
 Selectors: tag, `#id`, `.class`, `[selected]`/`[disabled]`/`[checked]` (`[vertical]` on a vertical `progress`, 1.671.0), `:hover` (`:focus` is the same), `:active`
 (1.496.0), `:root`, `:first-child`, `:last-child`, `:only-child`, `:nth-child(odd|even|n)`, `:not(...)`,
 `:selected`/`:disabled`/`:checked`, descendants, `a > b`, comma lists, `*`. Specificity then order; the base theme
-first, then each sheet. `var(--x, fallback)` and `--x: value` inherit. `@keyframes name { 0% {...} to {...} }`
+first, then each sheet; `@import "sections/home.css";` reads a file of the screen's folder before the sheet's own rules (never outside it, 4 deep at most; 1.672.0). `var(--x, fallback)` and `--x: value` inherit. `@keyframes name { 0% {...} to {...} }`
 for `animation`.
 
 **Colours are written as in CSS** (1.592.0): `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`, with the alpha last
