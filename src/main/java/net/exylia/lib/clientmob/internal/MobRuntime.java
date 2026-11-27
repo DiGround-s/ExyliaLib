@@ -44,6 +44,10 @@ public final class MobRuntime {
     private static final Map<UUID, Viewer> VIEWERS = new ConcurrentHashMap<>();
     private static final Map<Integer, MobImpl> BY_ID = new ConcurrentHashMap<>();
     private static final Set<MobImpl> MOVING = ConcurrentHashMap.newKeySet();
+    /** Real mobs by their entity id, for clicks, and every one made, spawned or not. */
+    private static final Map<Integer, RealMob> REAL_BY_ID = new ConcurrentHashMap<>();
+    private static final Set<RealMob> REAL = ConcurrentHashMap.newKeySet();
+    private static final Set<UUID> REAL_UUIDS = ConcurrentHashMap.newKeySet();
 
     private static TaskScheduler scheduler;
     private static Logger logger = Logger.getLogger("ExyliaLib");
@@ -53,6 +57,7 @@ public final class MobRuntime {
     private static TaskHandle driver;
     private static TaskHandle moveDriver;
     private static Object listener;
+    private static RealMobGuard guard;
 
     private MobRuntime() {
     }
@@ -60,12 +65,14 @@ public final class MobRuntime {
     /** One plugin's handler and range. */
     public static final class Owner {
         final String name;
+        final Plugin plugin;
         final TaskScheduler tasks;
         private volatile ClientMobs.Handler handler;
         private volatile double range = 32.0;
 
-        Owner(String name, TaskScheduler tasks) {
-            this.name = name;
+        Owner(Plugin plugin, TaskScheduler tasks) {
+            this.name = plugin.getName();
+            this.plugin = plugin;
             this.tasks = tasks;
         }
 
@@ -86,6 +93,10 @@ public final class MobRuntime {
         synchronized (LOCK) {
             scheduler = Tasks.of(lib);
             logger = lib.getLogger();
+            if (guard == null) {
+                guard = new RealMobGuard();
+                lib.getServer().getPluginManager().registerEvents(guard, lib);
+            }
             if (!net.exylia.lib.internal.PacketEventsPresent.installed()) {
                 ids = IdPool.counter();
                 sink = null;
@@ -116,7 +127,7 @@ public final class MobRuntime {
     }
 
     public static Owner owner(Plugin plugin) {
-        return OWNERS.computeIfAbsent(plugin.getName(), name -> new Owner(name, Tasks.of(plugin)));
+        return OWNERS.computeIfAbsent(plugin.getName(), name -> new Owner(plugin, Tasks.of(plugin)));
     }
 
     static MobSink sink() {
@@ -145,6 +156,48 @@ public final class MobRuntime {
             }
         }
         return mob;
+    }
+
+    public static ClientMob createReal(Owner owner, Player viewer, EntityType type, Location at) {
+        if (at.getWorld() == null) {
+            throw new IllegalArgumentException("A real mob needs a world");
+        }
+        Class<?> cls = type.getEntityClass();
+        if (cls == null || !org.bukkit.entity.Mob.class.isAssignableFrom(cls) || !type.isSpawnable()) {
+            throw new IllegalArgumentException(type + " cannot be a real mob");
+        }
+        if (scheduler == null) {
+            throw new IllegalStateException("Real mobs are used before ExyliaLib started");
+        }
+        RealMob mob = new RealMob(owner, scheduler, viewer, type, at.clone());
+        REAL.add(mob);
+        return mob;
+    }
+
+    static void registerReal(RealMob mob, int entityId, UUID uuid) {
+        REAL_BY_ID.put(entityId, mob);
+        REAL_UUIDS.add(uuid);
+    }
+
+    static void unregister(RealMob mob) {
+        REAL.remove(mob);
+        org.bukkit.entity.LivingEntity body = mob.body();
+        if (body != null) {
+            REAL_BY_ID.remove(body.getEntityId());
+            REAL_UUIDS.remove(body.getUniqueId());
+        }
+    }
+
+    static boolean isReal(UUID entity) {
+        return REAL_UUIDS.contains(entity);
+    }
+
+    static void sendStatus(Player viewer, int entityId, byte status) {
+        if (available) MobPackets.statusTo(viewer, entityId, status);
+    }
+
+    static void sendTeam(Player viewer, UUID entity, Integer rgb) {
+        if (available) MobPackets.teamTo(viewer, entity, rgb);
     }
 
     static void startMoving(MobImpl mob) {
@@ -195,11 +248,17 @@ public final class MobRuntime {
     }
 
     public static int clear(Owner owner, Player player) {
+        int removed = 0;
+        for (RealMob mob : List.copyOf(REAL)) {
+            if (mob.owner == owner && mob.viewer.getUniqueId().equals(player.getUniqueId())) {
+                mob.remove();
+                removed++;
+            }
+        }
         Viewer viewer = VIEWERS.get(player.getUniqueId());
         if (viewer == null) {
-            return 0;
+            return removed;
         }
-        int removed = 0;
         for (MobImpl mob : List.copyOf(viewer.mobs())) {
             if (mob.owner == owner) {
                 remove(mob);
@@ -219,10 +278,21 @@ public final class MobRuntime {
                 remove(mob);
             }
         }
+        for (RealMob mob : List.copyOf(REAL)) {
+            if (mob.owner == owner) {
+                mob.remove();
+            }
+        }
     }
 
     /** Forgets a leaving player's mobs. No packets: the client is gone. */
     public static void forget(Player player) {
+        for (RealMob mob : List.copyOf(REAL)) {
+            if (mob.viewer.getUniqueId().equals(player.getUniqueId())) {
+                mob.retire();
+                unregister(mob);
+            }
+        }
         Viewer viewer = VIEWERS.remove(player.getUniqueId());
         if (viewer == null) {
             return;
@@ -242,6 +312,10 @@ public final class MobRuntime {
         for (MobImpl mob : List.copyOf(BY_ID.values())) {
             remove(mob);
         }
+        for (RealMob mob : List.copyOf(REAL)) {
+            mob.retire();
+            unregister(mob);
+        }
         OWNERS.clear();
         synchronized (LOCK) {
             if (listener != null) {
@@ -252,11 +326,16 @@ public final class MobRuntime {
     }
 
     static boolean owns(int entityId) {
-        return BY_ID.containsKey(entityId);
+        return BY_ID.containsKey(entityId) || REAL_BY_ID.containsKey(entityId);
     }
 
     /** A player clicked a mob. Only its viewer counts, from within reach; the handler runs on the viewer's thread. */
     static void clicked(Player player, int entityId, Click click) {
+        RealMob real = REAL_BY_ID.get(entityId);
+        if (real != null) {
+            clickedReal(player, real, click);
+            return;
+        }
         MobImpl mob = BY_ID.get(entityId);
         if (mob == null || !mob.viewer.getUniqueId().equals(player.getUniqueId())) {
             return;
@@ -266,6 +345,35 @@ public final class MobRuntime {
             return;
         }
         if (!inReach(player, mob)) {
+            return;
+        }
+        ClientMobs.Handler handler = mob.owner.handler;
+        if (handler == null) {
+            return;
+        }
+        mob.owner.tasks.runAtEntity(player, () -> {
+            if (mob.isRemoved()) {
+                return;
+            }
+            try {
+                handler.clicked(player, mob, click);
+            } catch (Throwable t) {
+                logger.warning(mob.owner.name + " failed on a mob click: " + t);
+            }
+        });
+    }
+
+    private static void clickedReal(Player player, RealMob mob, Click click) {
+        if (!mob.viewer.getUniqueId().equals(player.getUniqueId())) {
+            return;
+        }
+        if (mob.clickThrough) {
+            net.exylia.lib.node.internal.NodeRuntime.clickedInSight(player, click);
+            return;
+        }
+        Location at = mob.location();
+        Location eye = player.getEyeLocation();
+        if (eye.getWorld() != at.getWorld() || eye.distanceSquared(at.add(0, 1, 0)) > REACH * REACH) {
             return;
         }
         ClientMobs.Handler handler = mob.owner.handler;

@@ -257,6 +257,27 @@ final class MobPackets implements MobSink {
         }
     }
 
+    /** A raw status for one viewer, on any entity id: a real mob's attack animation. */
+    static void statusTo(Player viewer, int entityId, byte status) {
+        PacketEvents.getAPI().getPlayerManager().sendPacket(viewer, new WrapperPlayServerEntityStatus(entityId, status));
+    }
+
+    /** A real mob's outline colour for one viewer, as a team of its own; {@code null} removes it. */
+    static void teamTo(Player viewer, java.util.UUID entity, Integer rgb) {
+        String team = "rm" + Long.toHexString(entity.getMostSignificantBits()).substring(0, 8);
+        PacketWrapper<?> packet = rgb == null
+                ? new WrapperPlayServerTeams(team, WrapperPlayServerTeams.TeamMode.REMOVE,
+                        (WrapperPlayServerTeams.ScoreBoardTeamInfo) null, List.<String>of())
+                : new WrapperPlayServerTeams(team, WrapperPlayServerTeams.TeamMode.CREATE,
+                        new WrapperPlayServerTeams.ScoreBoardTeamInfo(Component.empty(), Component.empty(),
+                                Component.empty(), WrapperPlayServerTeams.NameTagVisibility.ALWAYS,
+                                WrapperPlayServerTeams.CollisionRule.ALWAYS,
+                                NamedTextColor.nearestTo(TextColor.color(rgb)),
+                                WrapperPlayServerTeams.OptionData.fromValue((byte) 0)),
+                        List.of(entity.toString()));
+        PacketEvents.getAPI().getPlayerManager().sendPacket(viewer, packet);
+    }
+
     private static void send(MobImpl mob, PacketWrapper<?> packet) {
         PacketEvents.getAPI().getPlayerManager().sendPacket(mob.viewer, packet);
     }

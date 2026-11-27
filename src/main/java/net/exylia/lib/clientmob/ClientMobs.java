@@ -77,6 +77,26 @@ public final class ClientMobs {
     }
 
     /**
+     * A real server entity that only {@code viewer} sees, driven through the same {@link ClientMob} calls. Its
+     * vanilla AI is off; {@link ClientMob#moveTo} walks a path the server finds, with gravity and collisions, so it
+     * steps up blocks and goes round walls, and a walk that gets stuck ends with a teleport to its target. Flying
+     * types (allay, bee, parrot, vex, bat, blaze, ghast, phantom) fly a straight line with no gravity. It is
+     * invulnerable, silent, never saved, and tramples nothing. Clicks and the outline colour still go through
+     * packets, so {@link #onClick} and {@link ClientMob#clickThrough} work the same.
+     *
+     * <p>For companions that walk among blocks (pets, helpers): the packet mob of {@link #spawn} floats through
+     * whatever is in its way. Since 1.679.0.
+     *
+     * @param viewer who sees it
+     * @param type   a mob type (a {@link org.bukkit.entity.Mob})
+     * @param at     where it appears
+     * @throws IllegalArgumentException for a type that is not a spawnable mob or a location without a world
+     */
+    public @NotNull ClientMob spawnReal(@NotNull Player viewer, @NotNull EntityType type, @NotNull Location at) {
+        return MobRuntime.createReal(owner, viewer, type, at);
+    }
+
+    /**
      * Removes every mob this plugin made for one player.
      *
      * @return how many were removed

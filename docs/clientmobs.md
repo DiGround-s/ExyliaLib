@@ -48,6 +48,27 @@ way it goes, and returns a future completed on arrival, or as soon as a newer
 the location if it matters which). The future completes on the ticker thread.
 There is no pathfinding and no gravity: the caller picks a clear line.
 
+## Real mobs
+
+`spawnReal(viewer, type, at)` (since 1.679.0) returns the same `ClientMob`,
+backed by a real server entity that only its viewer sees (`setVisibleByDefault`
+plus `showEntity`). Use it for companions that walk among blocks: pets,
+helpers, anything that follows a player.
+
+- Vanilla AI is off (`setAware(false)`): no goals, no brain, no wandering.
+- `moveTo` asks the server's pathfinder for a path and walks it with gravity and
+  collisions, jumping up blocks. A walk that stalls for 1.5 s, or takes far
+  longer than its distance allows, ends with a teleport to the target, so it
+  never stays behind.
+- Allays, bees, parrots, vexes, bats, blazes, ghasts and phantoms fly a
+  straight line with no gravity.
+- Invulnerable, silent, not collidable, never saved, does not burn in the sun,
+  and cancels every block change (no trampled farmland).
+- Clicks, `clickThrough` and the outline colour go through packets as for
+  packet mobs. `name`, `sitting`, `baby` and `swing` use the real entity.
+- Calls are queued and applied on the entity's thread on its next tick.
+- Only `Mob` types: an armour stand or a player throws.
+
 ## Per type
 
 - `swing()`: iron golem, ravager, hoglin, zoglin and warden play their own
