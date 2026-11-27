@@ -112,15 +112,16 @@ final class MobPackets implements MobSink {
 
     @Override
     public void move(MobImpl mob, double dx, double dy, double dz) {
+        // Client mobs walk on the ground: off it, chickens and parrots flap their wings as if they flew.
         send(mob, new WrapperPlayServerEntityRelativeMoveAndRotation(mob.id, dx, dy, dz,
-                mob.yaw(), mob.pitch(), dy == 0));
+                mob.yaw(), mob.pitch(), true));
         send(mob, new WrapperPlayServerEntityHeadLook(mob.id, mob.yaw()));
     }
 
     @Override
     public void teleport(MobImpl mob) {
         send(mob, new WrapperPlayServerEntityTeleport(mob.id, new Vector3d(mob.x(), mob.y(), mob.z()),
-                mob.yaw(), mob.pitch(), false));
+                mob.yaw(), mob.pitch(), true));
         // The head is its own field and a teleport does not carry it.
         send(mob, new WrapperPlayServerEntityHeadLook(mob.id, mob.yaw()));
     }
