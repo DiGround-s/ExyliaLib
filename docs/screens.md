@@ -233,7 +233,8 @@ on close. From code: `net.exylia.lib.input.Links.open(player, url, title)` and `
   the screen itself: a short row of key hints under the content is the house style.
 - **Hold to confirm** (1.672.0): `action-hold="24t"` next to `action` (Java: `Node#hold(ticks, label, colour)`)
   makes the click a hold. The box's `key=` (or Space while the cursor is on it, in any key mode) must stay down for
-  that long: a 2 px bar grows along the box's bottom edge in its `color` and `hold-label` stands in for its first text;
+  that long: a 2 px bar grows along the box's bottom edge in its `color` (else its outline's, opaque; else `{primary}`) and `hold-label`
+  stands in for its first text (or its words, when the box is only words);
   letting go early does nothing, a full hold runs `action`. It is key-only: a mouse button sends one packet per press
   and none on release, so a mouse click on a hold box only shows "Hold Space to confirm". Use it for what is costly
   to undo (a rebirth, a release); a `confirm` dialog stays the choice when the player should read something first.

@@ -38,6 +38,15 @@ class ScreenKit2MarkupTest {
     }
 
     @Test
+    void aHoldBarWithoutAColourTakesTheOutlinesWithoutItsAlpha() {
+        ScreenMarkupTest.Fake s = session("""
+                <screen><button id="go" key="space" action="set done yes" action-hold="24t"
+                  style="outline: 1px #ffd70090">Go</button><button id="plain" action="close" action-hold="24t">Go</button></screen>""");
+        assertEquals("#ffd700", find(s.render(), "go").holdColour());
+        assertEquals(null, find(s.render(), "plain").holdColour());
+    }
+
+    @Test
     void aDisabledHoldIsNoHold() {
         ScreenMarkupTest.Fake s = session("""
                 <screen><button id="go" disabled="" action="set done yes" action-hold="24t">Go</button></screen>""");

@@ -895,7 +895,7 @@ final class LiveScreen implements ScreenSession {
         Confirm ask = confirm;
         if (ask != null) root = withConfirm(root, ask);
         Hold held = hold;
-        if (held != null) holdLabel(root, held.key());
+        if (held != null) holdLabel(root, held.key(), screen.width(), screen.height());
         // The tree's fingerprint covers everything layout and drawing read from it, and a sprite arriving changes
         // what an unchanged tree draws: same print, same toasts, nothing turning, and the last frame still holds.
         long print = Layout.fingerprint(root) * 31 + VanillaSprites.generation();
@@ -3503,8 +3503,8 @@ final class LiveScreen implements ScreenSession {
     // Hold to confirm (1.672.0)
     // ------------------------------------------------------------------
 
-    /** A hold in progress: the held box's layout key, the movement bit holding it, whether its bar has grown. */
-    private record Hold(String key, int bit, long gen, String colour, boolean grown) {
+    /** A hold in progress: the held box's layout key, the movement bit holding it, its colour. */
+    private record Hold(String key, int bit, long gen, String colour) {
     }
 
     private volatile Hold hold;
@@ -3521,7 +3521,7 @@ final class LiveScreen implements ScreenSession {
         return true;
     }
 
-    /** Draws the held box's bar one pixel wide, grows it to full width the next tick, and runs the click when full. */
+    /** Draws the held box's bar, growing over the hold, and runs the click when it is full. */
     private void startHold(Layout.Placed box, int bit) {
         int ticks = box.node().holdTicks();
         long gen;
@@ -3529,20 +3529,11 @@ final class LiveScreen implements ScreenSession {
             if (hold != null) return;
             gen = ++holdGen;
             hold = new Hold(box.key(), bit, gen,
-                    box.node().holdColour() != null ? box.node().holdColour() : "{primary}", false);
+                    box.node().holdColour() != null ? box.node().holdColour() : "{primary}");
             resync = true;
         }
         sound("ui.button.click", 0.25f, 1.0f);
         redraw();
-        tasks.runAtEntityLater(player, 1, () -> {
-            synchronized (this) {
-                Hold now = hold;
-                if (now == null || now.gen() != gen) return;
-                hold = new Hold(now.key(), now.bit(), gen, now.colour(), true);
-                resync = true;
-            }
-            redraw();
-        });
         tasks.runAtEntityLater(player, ticks + 1, () -> endHold(gen, true));
     }
 
@@ -3577,11 +3568,18 @@ final class LiveScreen implements ScreenSession {
      * Puts the held box's {@code holdLabel} in place of its first text. The box is found by its layout key, so one
      * without an id inside a repeat is still the right one: a layout of its own, only while a hold with a label runs.
      */
-    private void holdLabel(Node root, String key) {
+    static void holdLabel(Node root, String key, double width, double height) {
         if (!hasHoldLabel(root)) return;
-        for (Layout.Placed box : Layout.lay(root, screen.width(), screen.height())) {
+        for (Layout.Placed box : Layout.lay(root, width, height)) {
             if (!box.key().equals(key)) continue;
-            if (box.node().holdLabel() != null) swapFirstText(box.node(), box.node().holdLabel());
+            Node label = box.node().holdLabel();
+            if (label == null) return;
+            // A box of only words (<button>Go</button>) is itself the text: its words change, its box stays.
+            if (box.node().kind() == Node.Kind.TEXT) {
+                if (label.text() != null) box.node().swapText(label.text());
+            } else {
+                swapFirstText(box.node(), label);
+            }
             return;
         }
     }
@@ -3604,18 +3602,31 @@ final class LiveScreen implements ScreenSession {
         return false;
     }
 
-    /** The held box's bar: 2 px on its bottom edge, gliding from 1 px to full width over the hold. Holds the lock. */
+    /**
+     * The held box's bar: 2 px on its bottom edge, growing from 1 px to full width over the hold. It grows as an
+     * animation from its left edge, not a width transition: a box inside an animated one (a pulsing button) is sent
+     * where the animation puts it every step, which would jump a transition to its end. Holds the lock.
+     */
     private void addHoldBar(List<Layout.Placed> laid, Hold held) {
         for (int i = 0; i < laid.size(); i++) {
             Layout.Placed box = laid.get(i);
             if (!box.key().equals(held.key())) continue;
-            int ticks = Math.max(1, box.node().holdTicks());
-            Node bar = Node.box().background(held.colour()).transition(ticks, Motion.Ease.LINEAR);
             double h = Math.min(2, box.h());
-            laid.add(new Layout.Placed(bar, box.key() + "#hold", box.x(), box.y() + box.h() - h,
-                    held.grown() ? box.w() : 1, h, box.depth() + 1, i, null));
+            Node bar = Node.box().background(held.colour()).enter(Motion.Tween.NONE)
+                    .animation(holdGrowth(box.w(), box.node().holdTicks()));
+            laid.add(new Layout.Placed(bar, box.key() + "#hold", box.x(), box.y() + box.h() - h, box.w(), h,
+                    box.depth() + 1, i, null));
             return;
         }
+    }
+
+    /** A bar {@code width} wide growing linearly from 1 px at its left edge to all of it over {@code ticks}. */
+    static Motion.Keyframes holdGrowth(double width, int ticks) {
+        double from = width <= 1 ? 1 : 1 / width;
+        // Narrowed about its centre, then moved back so its left edge stays put.
+        Motion.Transform start = new Motion.Transform(-width * (1 - from) / 2, 0, 1, from);
+        return new Motion.Keyframes(List.of(new Motion.Frame(0, start), new Motion.Frame(1, Motion.Transform.NONE)),
+                Math.max(1, ticks), Motion.Ease.LINEAR, false);
     }
 
     /**

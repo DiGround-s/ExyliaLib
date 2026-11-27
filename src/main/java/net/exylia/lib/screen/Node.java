@@ -54,7 +54,7 @@ public final class Node {
 
     private final Kind kind;
     private final List<Node> children = new ArrayList<>();
-    private final Component text;
+    private Component text;
     private ItemStack item;
     private int[] pixels;
     private Node backgroundImage;
@@ -869,6 +869,15 @@ public final class Node {
         this.holdLabel = label;
         this.holdColour = colour;
         return this;
+    }
+
+    /**
+     * Puts {@code text} in place of a text node's words, for the screen's {@code hold-label} on a box that is itself
+     * text (a {@code <button>} holding only words). Not for plugins: build the tree again instead.
+     */
+    @org.jetbrains.annotations.ApiStatus.Internal
+    public void swapText(@NotNull Component text) {
+        if (kind == Kind.TEXT) this.text = text;
     }
 
     /** @since 1.672.0 */

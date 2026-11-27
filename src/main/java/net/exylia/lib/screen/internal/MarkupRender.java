@@ -747,7 +747,7 @@ public final class MarkupRender {
             // Hold to confirm (1.672.0): the screen draws the bar and the label while Space or the key is held.
             int ticks = MotionCss.ticks(fill(el.attr("action-hold"), scope, false));
             Node label = el.attr("hold-label") == null ? null : words(fill(el.attr("hold-label"), scope, true), text);
-            if (ticks > 0) node.hold(ticks, label, style.get("color"));
+            if (ticks > 0) node.hold(ticks, label, holdColour(style));
         }
         if ("false".equalsIgnoreCase(el.attr("assist")) || asksDangerously(el)) node.assist(false);
         List<net.kyori.adventure.text.Component> tipLines = new ArrayList<>();
@@ -1632,6 +1632,17 @@ public final class MarkupRender {
             else if (!part.equalsIgnoreCase("solid")) colour = part;
         }
         return colour == null ? null : new String[]{colour, width};
+    }
+
+    /**
+     * A hold bar's colour: the box's own {@code color}, else its outline's without the alpha (a {@code .highlight}
+     * button outlined in gold fills gold); null leaves it to the screen's primary.
+     */
+    static String holdColour(Map<String, String> style) {
+        if (style.get("color") != null) return style.get("color");
+        String[] line = outline(style.containsKey("outline") ? style.get("outline") : style.get("border"));
+        int argb = line == null ? 0 : ScreenMath.argb(line[0], 0);
+        return argb == 0 ? null : String.format("#%06x", argb & 0xFFFFFF);
     }
 
     /** {@code 12px}, {@code 12} or {@code auto} ({@code fallback}). */
