@@ -210,6 +210,22 @@ public final class Teleporter {
             return;
         }
 
+        land(plugin, player, target, from, tasks, debug, historySize, result, BUSY_RETRIES);
+    }
+
+    /**
+     * How many ticks a move waits for another plugin's move of the same player.
+     *
+     * <p>Folia (and forks such as Canvas) refuse {@code teleportAsync} while an
+     * earlier one is still carrying the player across regions. That earlier
+     * move belongs to another plugin, so the serialisation here cannot see it;
+     * it ends within a tick or two, and waiting for it is the answer.
+     */
+    private static final int BUSY_RETRIES = 5;
+
+    private static void land(Plugin plugin, Player player, Location target, @Nullable Location from,
+                             TaskScheduler tasks, Debug debug, int historySize,
+                             CompletableFuture<TeleportResult> result, int retries) {
         try {
             moveInTick(plugin, player, target).whenComplete((moved, failure) -> {
                 if (failure != null) {
@@ -224,6 +240,15 @@ public final class Teleporter {
                 remember(player, from, historySize, debug);
                 result.complete(TeleportResult.SUCCESS);
             });
+        } catch (IllegalStateException busy) {
+            if (Platform.isFolia() && retries > 0) {
+                tasks.runAtEntityLater(player, 1L,
+                        () -> land(plugin, player, target, from, tasks, debug, historySize, result, retries - 1),
+                        () -> result.complete(TeleportResult.PLAYER_LEFT));
+                return;
+            }
+            debug.error("Could not teleport " + player.getName(), busy);
+            result.complete(TeleportResult.FAILED);
         } catch (RuntimeException refused) {
             // A teleport can throw outright — a player leaving in the same tick,
             // a world unloaded underneath us. Reported rather than swallowed,
