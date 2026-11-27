@@ -267,25 +267,25 @@ public final class CameraRuntime {
 
     /** Gives back whatever {@link #hideHud} took, as it is now. */
     public static void showHud(Player player) {
-        if (HudShade.active()) {
+        if (available && HudShade.active()) {
             HudShade.show(player);
         }
     }
 
     /** Whether a player's HUD is hidden right now. */
     public static void screenSidebar(Player player, boolean hide) {
-        if (HudShade.active()) {
+        if (available && HudShade.active()) {
             HudShade.screenSidebar(player, hide);
         }
     }
 
     public static boolean isHudHidden(Player player) {
-        return HudShade.active() && HudShade.hidden(player.getUniqueId());
+        return available && HudShade.active() && HudShade.hidden(player.getUniqueId());
     }
 
     /** Sends a chat line past a hidden HUD; plain chat when nothing is hidden. */
     public static void say(Player player, net.kyori.adventure.text.Component line) {
-        if (HudShade.active() && HudShade.hidden(player.getUniqueId())) {
+        if (available && HudShade.active() && HudShade.hidden(player.getUniqueId())) {
             HudShade.say(player, line);
         } else {
             player.sendMessage(line);
@@ -294,7 +294,7 @@ public final class CameraRuntime {
 
     /** A player left: forget what their HUD had. */
     static void forgetHud(UUID player) {
-        if (HudShade.active()) {
+        if (available && HudShade.active()) {
             HudShade.forget(player);
         }
     }
