@@ -1882,6 +1882,20 @@ final class LiveScreen implements ScreenSession {
                                 sprite.height(), beneath[depth]), sprite.height(), wanted, xf));
                     }
                 }
+                if (node.item() != null && node.count() > 1 && !node.solid() && (overlayFrom < 0 || coached || box.depth() >= Layout.OVERLAY - 1)) {
+                    // The stack number (1.678.0): white, shadowed, at the item's bottom right like a slot's.
+                    double side = Math.min(box.w() - node.padLeft() - node.padRight(), box.h() - node.padTop() - node.padBottom());
+                    Component number = Component.text(Integer.toString(node.count()), net.kyori.adventure.text.format.NamedTextColor.WHITE);
+                    double scale = Math.max(0.5, Math.min(1, side / 16));
+                    double wide = net.exylia.lib.text.Centering.pixelWidth(number) * scale;
+                    double numX = (box.x() + node.padLeft() + (box.w() - node.padLeft() - node.padRight()) / 2 + side / 2 - wide / 2
+                            - screen.width() / 2) * unit;
+                    double numY = (screen.height() / 2 - box.y() - node.padTop()
+                            - (box.h() - node.padTop() - node.padBottom()) / 2 - side / 2 + 5 * scale) * unit;
+                    String countKey = box.key() + "#ct";
+                    wanted.put(countKey, xf(new TextLook(numX, numY, scale, top + 1, number, 1, 1), xf));
+                    mine.add(countKey);
+                }
                 // A body turns every second, and one whose skin is on its way must be looked for again: never skipped.
                 boolean turnable = node.turntable() != null && lod < 2;
                 turns |= turnable;

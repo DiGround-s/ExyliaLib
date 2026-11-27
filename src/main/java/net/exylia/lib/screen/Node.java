@@ -57,6 +57,7 @@ public final class Node {
     private Component text;
     private ItemStack item;
     private @Nullable String tint;
+    private int count;
     private int[] pixels;
     private Node backgroundImage;
     private int pixelWidth;
@@ -227,6 +228,22 @@ public final class Node {
     public @NotNull Node tint(@Nullable String rgb) {
         this.tint = rgb != null && rgb.matches("#[0-9a-fA-F]{6}") ? rgb.toLowerCase(java.util.Locale.ROOT) : null;
         return this;
+    }
+
+    /**
+     * The stack number drawn at an {@link #item}'s bottom right, white with a shadow, as a slot draws it; 0 and 1 draw
+     * nothing.
+     *
+     * @since 1.678.0
+     */
+    public @NotNull Node count(int count) {
+        this.count = Math.max(0, count);
+        return this;
+    }
+
+    /** The {@link #count(int)} number, 0 for none. @since 1.678.0 */
+    public int count() {
+        return count;
     }
 
     /** The {@link #tint(String)} colour, {@code null} for none. @since 1.677.0 */

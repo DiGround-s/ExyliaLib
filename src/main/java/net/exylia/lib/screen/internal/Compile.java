@@ -68,7 +68,7 @@ public final class Compile {
             // 1.672.0: hold to confirm, small tooltips
             "action-hold", "hold-label", "tooltip-style", "tooltips",
             // 1.677.0: free cells, a mob in a window, tinted sprites
-            "layout", "mob", "tint");
+            "layout", "mob", "tint", "count");
 
     private static final Pattern PROP = Pattern.compile("\\$\\{\\s*([A-Za-z_][\\w-]*)\\s*}");
     private static final Pattern EACH = Pattern.compile("\\s*([A-Za-z_]\\w*)\\s+in\\s+(.+?)\\s*");
@@ -397,10 +397,12 @@ public final class Compile {
         }
         String tint = el.attr("tint");
         if (tint != null) {
-            if (!tag.equals("item") && !tag.equals("icon")) problem(el.pos(), "tint=\"...\" belongs on an <item> or <icon>");
+            if (!tag.equals("item") && !tag.equals("icon") && !tag.equals("img")) problem(el.pos(), "tint=\"...\" belongs on an <item>, <icon> or <img>");
             else if (!Interp.dynamic(tint) && !tint.trim().matches("#[0-9a-fA-F]{6}"))
                 problem(el.pos(), "tint=\"" + tint + "\" wants a colour such as #120d1a");
         }
+        if (el.attr("count") != null && !tag.equals("item") && !tag.equals("icon"))
+            problem(el.pos(), "count=\"...\" belongs on an <item> or <icon>: it is the stack number of an item");
         if (tag.equals("case") && el.attr("value") == null) problem(el.pos(), "<case> needs value=\"...\"");
         if (el.attr("source") != null) references.add(new Reference("source", el.attr("source"), el.pos()));
         for (String attr : new String[]{"action", "action-right", "action-shift", "action-hover", "action-leave", "dismiss", "deny",

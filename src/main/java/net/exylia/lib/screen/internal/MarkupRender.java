@@ -644,9 +644,16 @@ public final class MarkupRender {
             String label = el.tag().equals("checkbox") ? (on ? "✔" : " ")
                     : (on ? attrOr(el, "on", "On") : attrOr(el, "off", "Off"));
             node = words(fill(label, scope, true), text);
-        } else if (el.tag().equals("item")) {
+        } else if (el.tag().equals("item") || el.tag().equals("icon") && el.attr("count") != null) {
             org.bukkit.inventory.ItemStack stack = item(el, scope);
             node = stack == null ? Node.box().size(Layout.ITEM, Layout.ITEM) : Node.item(stack);
+            // count="%n%" (1.678.0): the stack number at the bottom right as a slot draws it; a bare count reads
+            // the item's own amount (a row item); 0 and 1 draw nothing.
+            if (stack != null && el.attr("count") != null) {
+                String given = fill(el.attr("count"), scope, false).trim();
+                int shown = el.attr("count").isBlank() ? stack.getAmount() : (int) px(given, 0);
+                node.count(shown);
+            }
             // tint="#120d1a": the sprite multiplied by that colour, a dark shape for what is not found yet (1.677.0).
             String tint = tint(el, scope);
             if (stack != null && tint != null) node.tint(tint);
@@ -893,7 +900,8 @@ public final class MarkupRender {
         int columns = windowed ? Math.max(1, intAttr(el, "columns", 1)) : 1;
         int window = windowed && el.attr("rows") != null ? columns * Math.max(1, intAttr(el, "rows", 1)) : all.size();
         String key = "scroll." + source;
-        int offset = offset(key, all.size(), window, columns);
+        int offset = windowed && el.attr("rows") != null ? pagedOffset(source, all.size(), window, columns)
+                : offset(key, all.size(), window, columns);
         int end = Math.min(all.size(), offset + window);
         int visible = end - offset;
         boolean paged = windowed && el.attr("rows") != null && node.kind() != Node.Kind.ROW;
@@ -971,9 +979,33 @@ public final class MarkupRender {
         return node;
     }
 
-    /** Where a window starts, clamped to the rows there are, on a row boundary. */
+    /**
+     * Where a window starts, with the page state {@code page.<source>} (1.678.0): a page set from outside (a jump) wins,
+     * otherwise the scroll offset does and the page state follows it. Rendered twice a frame (grid and pager) to the same answer.
+     */
+    private int pagedOffset(String source, int size, int window, int columns) {
+        String pageKey = "page." + source, syncKey = "pagesync." + source;
+        int offset = offset("scroll." + source, size, window, columns);
+        int page = (offset + window - 1) / window + 1;
+        Object asked = session.state(pageKey, null);
+        if (asked != null && toInt(asked) != toInt(session.state(syncKey, page))) {
+            offset = offset("scroll." + source, size, window, columns, (toInt(asked) - 1) * window);
+            session.set("scroll." + source, offset);
+            page = (offset + window - 1) / window + 1;
+        }
+        if (asked == null || toInt(asked) != page || toInt(session.state(syncKey, 0)) != page) {
+            session.set(pageKey, page);
+            session.set(syncKey, page);
+        }
+        return offset;
+    }
+
     private int offset(String key, int size, int window, int columns) {
-        int raw = toInt(session.state(key, 0));
+        return offset(key, size, window, columns, toInt(session.state(key, 0)));
+    }
+
+    /** Where a window starts, clamped to the rows there are, on a row boundary. */
+    private int offset(String key, int size, int window, int columns, int raw) {
         int last = Math.max(0, size - window);
         last = (last + columns - 1) / columns * columns;
         return Math.max(0, Math.min(last, raw / columns * columns));
@@ -990,7 +1022,7 @@ public final class MarkupRender {
         int columns = Math.max(1, intAttr(grid, "columns", 1));
         int window = columns * Math.max(1, intAttr(grid, "rows", 1));
         String key = "scroll." + source;
-        int offset = offset(key, size, window, columns);
+        int offset = pagedOffset(source, size, window, columns);
         int pages = Math.max(1, (size + window - 1) / window);
         // One page needs no pager.
         if (pages == 1) return Node.row();
@@ -1523,7 +1555,7 @@ public final class MarkupRender {
             // wearing="...": armour and a held item over the skin (1.498.0).
             String wearing = el.attr("wearing") == null ? null : fill(el.attr("wearing"), scope, false).trim();
             Pictures.Picture body = name.isEmpty() ? null : Pictures.body(name, wearing);
-            Node node = (body == null ? Pictures.stranger(true) : body).node().wearing(wearing);
+            Node node = tinted(body == null ? Pictures.stranger(true) : body, tint(el, scope)).node().wearing(wearing);
             // <img skin="..." turn>: the body in the round, turning.
             if (el.attr("turn") != null && !name.isEmpty()) node.turntable(name);
             return node;
@@ -1531,7 +1563,7 @@ public final class MarkupRender {
         if (el.attr("face") != null) {
             String name = fill(el.attr("face"), scope, false).trim();
             Pictures.Picture face = name.isEmpty() ? null : Pictures.face(name);
-            return (face == null ? Pictures.stranger(false) : face).node();
+            return tinted(face == null ? Pictures.stranger(false) : face, tint(el, scope)).node();
         }
         String src = el.attr("src") == null ? "" : fill(el.attr("src"), scope, false).trim();
         if (src.isEmpty()) {
@@ -1543,11 +1575,16 @@ public final class MarkupRender {
             return Node.box();
         }
         try {
-            return Pictures.file(parts.images(), src).node();
+            return tinted(Pictures.file(parts.images(), src), tint(el, scope)).node();
         } catch (java.io.IOException failure) {
             parts.problems().accept(el.pos() + ": <img src=\"" + src + "\">: " + failure.getMessage());
             return Node.box();
         }
+    }
+
+    /** A picture with every pixel multiplied by {@code tint} (1.678.0), as it is when there is none. */
+    private static Pictures.Picture tinted(Pictures.Picture picture, String tint) {
+        return tint == null ? picture : new Pictures.Picture(picture.width(), picture.height(), Pictures.tinted(picture.argb(), tint));
     }
 
     private org.bukkit.inventory.ItemStack item(El el, Scope scope) {

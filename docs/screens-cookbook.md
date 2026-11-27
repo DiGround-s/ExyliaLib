@@ -222,3 +222,11 @@ The same works with a row field: `class="tile %tone%"`.
 ```
 
 An empty `tint` is no tint, so `${...}` can switch it on for what is still undiscovered.
+
+## Stack numbers, silhouettes and page jumps (1.678.0)
+
+```html
+<grid source="locker" columns="7" rows="4"><card><item row count tooltip-item tooltip-style="hint"/></card></grid>
+<img face="%opponent%" tint="${known ? '' : '#000000'}"/>
+<button action="set page.lb_rows 14">Find me</button>
+```

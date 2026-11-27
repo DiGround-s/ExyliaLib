@@ -178,6 +178,7 @@ public final class Layout {
         h = mix(h, Objects.hashCode(node.text()));
         h = mix(h, Objects.hashCode(node.item()));
         h = mix(h, Objects.hashCode(node.tint()));
+        h = mix(h, node.count());
         h = mix(h, node.pixels() == null ? 0 : Arrays.hashCode(node.pixels()));
         h = mix(h, node.pixelWidth() * 4099L + node.pixelHeight());
         h = mix(h, node.backgroundImage() == null ? 0 : Arrays.hashCode(node.backgroundImage().pixels()));
