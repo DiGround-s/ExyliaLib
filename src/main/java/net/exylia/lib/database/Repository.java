@@ -65,6 +65,24 @@ public final class Repository<T> {
      */
     private final ConcurrentHashMap<Object, CompletableFuture<?>> lastWrite = new ConcurrentHashMap<>();
 
+    /**
+     * How many write completions may nest on one thread before the rest wait
+     * for the outermost one to finish.
+     *
+     * <p>When a write finishes at once (during a stop every write runs inline),
+     * completing it starts and finishes the next write to the same row from
+     * inside that completion: a few thousand queued writes to one balance
+     * overflowed the stack, lost the balance and hung the stop.
+     */
+    private static final int MAX_SETTLE_DEPTH = 64;
+
+    private static final ThreadLocal<Settling> SETTLING = ThreadLocal.withInitial(Settling::new);
+
+    private static final class Settling {
+        int depth;
+        final java.util.ArrayDeque<Runnable> deferred = new java.util.ArrayDeque<>();
+    }
+
     /** Set by a wipe; every write is dropped until the plugin's next load. */
     private volatile boolean frozen;
 
@@ -184,7 +202,7 @@ public final class Repository<T> {
             // During a stop the earlier write may sit in a queue nothing drains any more.
             net.exylia.lib.database.internal.DatabaseRuntime.runStranded();
         }
-        ready.thenCompose(ignored -> write.get()).whenComplete((result, failure) -> {
+        ready.thenCompose(ignored -> write.get()).whenComplete((result, failure) -> settle(() -> {
             for (Object key : keys) lastWrite.remove(key, mine);
             if (failure == null) {
                 mine.complete(result);
@@ -193,8 +211,27 @@ public final class Repository<T> {
                 mine.completeExceptionally(failure instanceof CompletionException && failure.getCause() != null
                         ? failure.getCause() : failure);
             }
-        });
+        }));
         return mine;
+    }
+
+    /** Runs a completion now, or past {@link #MAX_SETTLE_DEPTH} once the outermost one on this thread returns. */
+    private static void settle(Runnable completion) {
+        Settling settling = SETTLING.get();
+        if (settling.depth >= MAX_SETTLE_DEPTH) {
+            settling.deferred.add(completion);
+            return;
+        }
+        settling.depth++;
+        try {
+            completion.run();
+            if (settling.depth == 1) {
+                Runnable next;
+                while ((next = settling.deferred.poll()) != null) next.run();
+            }
+        } finally {
+            settling.depth--;
+        }
     }
 
     /** The record type this stores. */
